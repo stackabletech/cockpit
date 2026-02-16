@@ -1,6 +1,5 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { browser } from '$app/environment';
 
   let {
     collapsed = $bindable(false),
@@ -53,45 +52,7 @@
     }
   }
 
-  // Focus management for mobile overlay
   let sidebarEl: HTMLElement | undefined = $state();
-  let previouslyFocused: HTMLElement | null = null;
-
-  $effect(() => {
-    if (!browser || !sidebarEl) return;
-
-    if (mobileOpen) {
-      previouslyFocused = document.activeElement as HTMLElement;
-      // Focus the first focusable element in the sidebar
-      const firstFocusable = sidebarEl.querySelector<HTMLElement>(
-        'a[href], button, [tabindex]:not([tabindex="-1"])'
-      );
-      firstFocusable?.focus();
-    } else if (previouslyFocused) {
-      previouslyFocused.focus();
-      previouslyFocused = null;
-    }
-  });
-
-  function handleSidebarKeydown(event: KeyboardEvent) {
-    if (!mobileOpen || event.key !== 'Tab' || !sidebarEl) return;
-
-    const focusableEls = sidebarEl.querySelectorAll<HTMLElement>(
-      'a[href], button, [tabindex]:not([tabindex="-1"])'
-    );
-    if (focusableEls.length === 0) return;
-
-    const first = focusableEls[0];
-    const last = focusableEls[focusableEls.length - 1];
-
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  }
 </script>
 
 {#snippet navIcon(name: string)}
@@ -128,8 +89,6 @@
     </svg>
   {/if}
 {/snippet}
-
-<svelte:window onkeydown={handleSidebarKeydown} />
 
 <!-- Mobile backdrop -->
 {#if mobileOpen}
