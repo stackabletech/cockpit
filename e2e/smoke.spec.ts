@@ -1,0 +1,44 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('Smoke tests', () => {
+  test('home page loads with app shell', async ({ page }) => {
+    await page.goto('/');
+
+    // Sidebar brand is visible
+    await expect(page.getByText('Stackable', { exact: true })).toBeVisible();
+
+    // Dashboard nav item is present and active
+    const dashboardLink = page.getByRole('link', { name: 'Dashboard' });
+    await expect(dashboardLink).toBeVisible();
+    await expect(dashboardLink).toHaveAttribute('aria-current', 'page');
+
+    // Header shows page title
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+
+    // Dashboard content is rendered
+    await expect(page.getByText('Welcome back')).toBeVisible();
+
+    // Trino nav item is present but disabled
+    const trinoLink = page.getByRole('link', { name: 'Trino' });
+    await expect(trinoLink).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  test('theme toggle switches between light and dark', async ({ page }) => {
+    await page.goto('/');
+
+    const html = page.locator('html');
+    const toggle = page.getByLabel(/switch to (light|dark) mode/i);
+    await expect(toggle).toBeVisible();
+
+    // Get initial theme
+    const initialTheme = await html.getAttribute('data-theme');
+    const otherTheme = initialTheme === 'dark' ? 'light' : 'dark';
+
+    await toggle.click();
+    await expect(html).toHaveAttribute('data-theme', otherTheme);
+
+    // Click again to restore
+    await toggle.click();
+    await expect(html).toHaveAttribute('data-theme', initialTheme!);
+  });
+});

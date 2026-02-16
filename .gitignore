@@ -1,0 +1,32 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+.svelte-kit
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+dist/
+
+*.tsbuildinfo
+# Claude Code - ignore local/personal files, commit shared config
+.claude/settings.local.json
+.claude/CLAUDE.local.md
+
+# Playwright
+e2e/test-results

@@ -1,0 +1,170 @@
+# Instructions for Claude
+
+## Project Overview
+
+This is the **Stackable Unified Data Platform UI** - a SvelteKit application that serves as the first module of a unified platform UI for Stackable's data infrastructure. The initial module is a **Trino SQL query editor** with SSO, authorisation, and catalogue browsing.
+
+The application is designed with a **plugin/module architecture** so future Stackable services (trino-lb queue management, etc.) can be integrated as additional modules.
+
+## Tech Stack
+
+- **SvelteKit** with **Svelte 5** - Always use Svelte 5 syntax with runes (`$props`, `$state`, `$derived`, etc.)
+- **Tailwind CSS v4** - No tailwind.config.js file (uses CSS-based configuration)
+- **DaisyUI** - Use DaisyUI components/classes where possible for consistent UI - This is DaisyUI v5! A lot of classes you know about DON'T EXIST anymore. Check https://daisyui.com/docs/upgrade/?lang=enj if needed
+- **Monaco Editor** - SQL editor component (dynamic import, SSR-safe)
+- **ANTLR4** (antlr4ng) - Trino SQL parsing for syntax highlighting and code completion
+- **zod & superforms** - All forms are to use zod & superforms
+- **Generic OIDC** (openid-client) - Authentication via any OIDC provider
+- **OPA** - Authorisation / feature visibility
+
+## Project Structure
+
+This is a **single SvelteKit application** (not a monorepo).
+
+```
+├── src/
+│   ├── lib/              # Shared utilities, components, stores
+│   ├── routes/           # SvelteKit routes
+│   │   └── (app)/        # Authenticated app routes
+│   ├── app.css           # Global styles (Tailwind + DaisyUI)
+│   ├── app.d.ts          # Type declarations
+│   ├── app.html          # HTML template
+│   └── hooks.server.ts   # Server hooks (auth middleware)
+├── e2e/                  # Playwright E2E tests
+├── static/               # Static assets
+├── Dockerfile            # Production container image
+└── CLAUDE.md             # AI assistant instructions
+```
+
+## Development Guidelines
+
+### Browser Compatibility
+
+- The application must work in both **Firefox** and **Chromium-based browsers** (Chrome, Edge).
+- Do not use browser-specific features or CSS without verifying cross-browser support.
+- E2E tests run on both Firefox and Chromium (desktop) plus a mobile Chromium viewport.
+
+### CSS & Styling
+
+- **All UI must work in both light and dark mode automatically.** Never use hard-coded colours (e.g., `text-gray-700`, `bg-white`, `border-slate-200`). Always use DaisyUI semantic colour classes (`text-base-content`, `bg-base-100`, `bg-base-200`, `border-base-300`, `text-primary`, `bg-error`, etc.) and Tailwind opacity modifiers on those classes (`text-base-content/60`, `bg-primary/10`) so that colours adapt to the active theme.
+- **All pages and components must be mobile-friendly.** Use responsive Tailwind breakpoints (`sm:`, `md:`, `lg:`) and test layouts at mobile viewport widths. Navigation must be accessible on small screens.
+- Use Tailwind v4 `@source` directive for component CSS scanning
+
+### Accessibility (BITV 2.0)
+
+The application must comply with **BITV 2.0** (German accessibility regulation, based on WCAG 2.1 AA). Key requirements:
+
+- **Semantic HTML**: Use correct elements (`<nav>`, `<main>`, `<header>`, `<button>`, `<a>`, headings in order). Never use `<div>` or `<span>` for interactive elements.
+- **Keyboard navigation**: All interactive elements must be reachable and operable via keyboard. Visible focus indicators are required.
+- **ARIA attributes**: Use `aria-label`, `aria-current`, `aria-disabled`, `aria-expanded`, `role` where semantic HTML is insufficient. Do not use ARIA to fix what semantic HTML can handle.
+- **Colour contrast**: Text must meet WCAG AA contrast ratios (4.5:1 normal text, 3:1 large text). Never convey information through colour alone.
+- **Form labels**: Every form control must have a visible, associated `<label>` (see label-element association rule below).
+- **Alt text**: Every `<img>` must have a meaningful `alt` attribute (or `alt=""` for decorative images).
+- **Language**: The `<html>` element must have a `lang` attribute. Use `lang` attributes on content in other languages.
+- **Screen reader support**: Ensure content is announced correctly. Hide decorative elements with `aria-hidden="true"`.
+
+### Monaco Editor
+
+- Always use **dynamic imports** to avoid SSR issues (`import('monaco-editor')`)
+- The editor must be loaded client-side only
+- Use the custom `trinosql` language registration for Trino SQL support
+
+### Code Style & Best Practices
+
+- Use spaces not tabs
+- Run npm run format
+- Use British English
+- For the server side only: Always include logging at debug and info levels as appropriate
+- **Redirects**: Never wrap `throw redirect()` in try-catch. Put redirect AFTER try-catch to avoid it being caught.
+  ```typescript
+  try {
+    await operation();
+  } catch (err) {
+    return fail(500, { error: 'Failed' });
+  }
+  throw redirect(303, '/path'); // Outside try-catch
+  ```
+- **Public Routes**: Update `hooks.server.ts` when adding unauthenticated pages.
+- **Label-Element Association**: Always explicitly associate `<label>` elements with their form controls using `for` and `id` attributes. Generate unique IDs with `$props.id()` (see https://svelte.dev/docs/svelte/$props#$props.id()). Never rely on implicit association (wrapping the input inside the label).
+
+  ```svelte
+  <script>
+    const uid = $props.id();
+  </script>
+
+  <label for="{uid}-name" class="label">Name</label>
+  <input id="{uid}-name" class="input" />
+  ```
+
+- **Modals**: Always use a shared `Modal` component. Never use raw `<dialog>` elements directly. Control modals with a boolean `$state` and `bind:open`.
+- **Date/Time Pickers**: Always use a shared `DateTimePicker` component. Never use native `<input type="date">` or `<input type="datetime-local">` elements.
+
+## Commands
+
+### Development
+
+```bash
+npm run dev              # Start dev server
+```
+
+### Building
+
+```bash
+npm run build            # Build for production
+npm run preview          # Preview production build
+```
+
+### Quality Checks (run after major changes)
+
+```bash
+npm run format           # Format code
+npm run check            # Type checking
+npm run lint             # ESLint
+```
+
+### E2E Testing
+
+```bash
+npm run test:e2e         # Run all E2E tests
+```
+
+## E2E Testing Guidelines
+
+E2E tests use **Playwright** and are located in `e2e/`.
+
+### When to Add Tests
+
+- **MANDATORY**: Always add E2E tests when creating new pages, UI features, or API endpoints. This is not optional - every frontend-visible feature must have corresponding E2E tests before the work is considered complete.
+- **Always** add tests for user flows (navigation, form submissions, filters)
+- **Always** add tests for API endpoints (status codes, response structure)
+- **Always** run `npm run test:e2e` after making UI changes to ensure nothing broke
+
+### When to Run Tests
+
+- Before committing UI changes
+- After modifying routes, layouts, or navigation
+- After changing form behaviour or validation
+- As part of quality checks before pushing
+
+### Writing Tests
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test('example test', async ({ page }) => {
+  await page.goto('/some-page');
+  await expect(page.locator('h1')).toContainText('Expected Title');
+});
+```
+
+### Authentication
+
+Tests use a saved session from `e2e/.auth/user.json`. If tests fail with auth errors, run the auth setup to re-authenticate via OIDC.
+
+## Important Notes
+
+- **Environment**: The app needs a `.env` file for proper env var access
+- **SSR Safety**: Monaco Editor and ANTLR must be dynamically imported to avoid SSR issues
+- **Service Discovery**: The app can auto-discover Trino instances via K8s API or use static configuration
+
+For documentation tasks, always update both the primary document AND any related README files that reference it.
