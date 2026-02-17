@@ -23,7 +23,6 @@
     items: NavItem[];
   };
 
-  // Review: Why was this made a $derived?
   const sections: NavSection[] = $derived([
     {
       title: m.nav_platform(),
