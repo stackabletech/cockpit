@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import * as m from '$lib/paraglide/messages.js';
   import Sidebar from '$lib/components/layout/Sidebar.svelte';
   import Header from '$lib/components/layout/Header.svelte';
 
@@ -8,15 +9,15 @@
   let sidebarCollapsed = $state(false);
   let mobileOpen = $state(false);
 
-  const pageTitles: Record<string, string> = {
-    '/': 'Dashboard'
+  const pageTitles: Record<string, () => string> = {
+    '/': () => m.page_title_dashboard()
   };
 
-  let title = $derived(pageTitles[page.url.pathname] ?? 'Stackable');
+  let title = $derived((pageTitles[page.url.pathname] ?? (() => m.page_title_default()))());
 </script>
 
 <svelte:head>
-  <title>{title} | Stackable</title>
+  <title>{title} | {m.page_title_suffix()}</title>
 </svelte:head>
 
 <div class="bg-base-100 flex h-dvh overflow-hidden">

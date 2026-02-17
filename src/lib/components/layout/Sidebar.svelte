@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import * as m from '$lib/paraglide/messages.js';
 
   let {
     collapsed = $bindable(false),
@@ -22,16 +23,25 @@
     items: NavItem[];
   };
 
-  const sections: NavSection[] = [
+  // Review: Why was this made a $derived?
+  const sections: NavSection[] = $derived([
     {
-      title: 'Platform',
-      items: [{ label: 'Dashboard', href: '/', icon: 'dashboard' }]
+      title: m.nav_platform(),
+      items: [{ label: m.nav_dashboard(), href: '/', icon: 'dashboard' }]
     },
     {
-      title: 'Data Tools',
-      items: [{ label: 'Trino', href: '/trino', icon: 'database', badge: 'Soon', disabled: true }]
+      title: m.nav_data_tools(),
+      items: [
+        {
+          label: m.nav_trino(),
+          href: '/trino',
+          icon: 'database',
+          badge: m.nav_badge_soon(),
+          disabled: true
+        }
+      ]
     }
-  ];
+  ]);
 
   function isActive(href: string): boolean {
     if (href === '/') return page.url.pathname === '/';
@@ -95,7 +105,7 @@
   <button
     class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
     onclick={() => (mobileOpen = false)}
-    aria-label="Close navigation"
+    aria-label={m.sidebar_close_nav()}
     tabindex="-1"
   ></button>
 {/if}
@@ -104,7 +114,7 @@
 <aside
   bind:this={sidebarEl}
   id="sidebar"
-  aria-label="Sidebar"
+  aria-label={m.sidebar_label()}
   class="border-base-300 bg-base-200 fixed inset-y-0 left-0 z-50 flex flex-col border-r
     transition-[transform,width] duration-200 ease-out
     lg:relative lg:inset-auto lg:z-auto lg:translate-x-0
@@ -120,7 +130,10 @@
   </div>
 
   <!-- Navigation -->
-  <nav class="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4" aria-label="Main navigation">
+  <nav
+    class="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4"
+    aria-label={m.sidebar_nav_label()}
+  >
     {#each sections as section, sectionIdx (section.title)}
       {#if sectionIdx > 0}
         <div class="my-3"></div>
@@ -175,7 +188,7 @@
       class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3 py-2
         text-sm font-medium transition-colors
         {collapsed ? 'justify-center' : ''}"
-      aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      aria-label={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
     >
       {#if collapsed}
         <svg
@@ -203,7 +216,7 @@
         >
           <path d="m15 5-7 7 7 7" />
         </svg>
-        <span>Collapse</span>
+        <span>{m.sidebar_collapse_label()}</span>
       {/if}
     </button>
   </div>
