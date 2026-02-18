@@ -12,20 +12,20 @@ This Helm chart deploys the Stackable Unified Data Platform UI on Kubernetes.
 ### Basic Installation
 
 ```bash
-helm install stackable-ui ./deploy/helm/stackable-ui
+helm install stackable-ui ./deploy/helm
 ```
 
 ### Installation with Custom Values
 
 ```bash
-helm install stackable-ui ./deploy/helm/stackable-ui \
+helm install stackable-ui ./deploy/helm \
   --set image.tag=0.0.0-dev
 ```
 
 ### Installation with Values File
 
 ```bash
-helm install stackable-ui ./deploy/helm/stackable-ui \
+helm install stackable-ui ./deploy/helm \
   -f my-values.yaml
 ```
 
