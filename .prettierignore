@@ -19,3 +19,6 @@ node_modules/
 
 # Database migrations
 /drizzle/
+
+# Helm templates
+deploy/helm/
