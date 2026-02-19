@@ -35,9 +35,9 @@ test.describe('Internationalisation', () => {
       .poll(() => page.evaluate(() => localStorage.getItem('theme')))
       .toMatch(/^(light|dark)$/);
 
-    await page.locator('summary[aria-label]').click();
-    const englishOption = page.locator('details[open] button[lang="en"]');
-    const deutschOption = page.locator('details[open] button[lang="de"]');
+    await page.getByRole('button', { name: 'Language' }).click();
+    const englishOption = page.locator('#lang-switcher button[lang="en"]');
+    const deutschOption = page.locator('#lang-switcher button[lang="de"]');
     await expect(englishOption).toHaveAttribute('aria-current', 'true');
     await expect(deutschOption).not.toHaveAttribute('aria-current', 'true');
 
@@ -95,15 +95,15 @@ test.describe('Internationalisation', () => {
   test('language switcher is visible and accessible', async ({ page }) => {
     await page.goto('/');
 
-    const languageButton = page.locator('summary[aria-label]');
+    const languageButton = page.getByRole('button', { name: 'Language' });
     await expect(languageButton).toBeVisible();
 
     // Open dropdown
     await languageButton.click();
 
     // Both language options visible with correct lang attributes
-    const englishOption = page.locator('details[open] button[lang="en"]');
-    const deutschOption = page.locator('details[open] button[lang="de"]');
+    const englishOption = page.locator('#lang-switcher button[lang="en"]');
+    const deutschOption = page.locator('#lang-switcher button[lang="de"]');
 
     await expect(englishOption).toBeVisible();
     await expect(deutschOption).toBeVisible();

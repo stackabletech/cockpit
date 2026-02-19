@@ -13,7 +13,7 @@
       <p class="text-base-content/60 text-xs font-medium tracking-wider uppercase">
         {m.dashboard_services()}
       </p>
-      <p class="text-base-content mt-2 text-3xl font-bold">{m.dashboard_services_count()}</p>
+      <p class="text-base-content mt-2 text-3xl font-bold">0</p>
       <p class="text-base-content/60 mt-1 text-sm">{m.dashboard_services_empty()}</p>
     </div>
 

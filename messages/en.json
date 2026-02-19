@@ -3,7 +3,6 @@
   "dashboard_welcome": "Welcome back",
   "dashboard_subtitle": "Stackable Unified Data Platform overview",
   "dashboard_services": "Services",
-  "dashboard_services_count": "0",
   "dashboard_services_empty": "No services discovered",
   "dashboard_queries": "Active Queries",
   "dashboard_queries_empty": "Connect Trino to begin",

@@ -10,10 +10,10 @@
   let mobileOpen = $state(false);
 
   const pageTitles: Record<string, () => string> = {
-    '/': () => m.page_title_dashboard()
+    '/': m.page_title_dashboard
   };
 
-  let title = $derived((pageTitles[page.url.pathname] ?? (() => m.page_title_default()))());
+  let title = $derived((pageTitles[page.url.pathname] ?? m.page_title_default)());
 </script>
 
 <svelte:head>
