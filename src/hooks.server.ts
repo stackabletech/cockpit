@@ -30,4 +30,6 @@ const handleParaglide: Handle = ({ event, resolve }) =>
     });
   });
 
+// Each function acts as a middleware, receiving the request handle
+// and returning a handle which gets passed to the next function
 export const handle = sequence(handleMetrics, handleParaglide);
