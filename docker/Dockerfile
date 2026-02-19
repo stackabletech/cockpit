@@ -47,6 +47,8 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 # Copy source code and configuration files
 COPY src/ ./src/
 COPY static/ ./static/
+COPY project.inlang/ ./project.inlang/
+COPY messages/ ./messages/
 COPY svelte.config.js tsconfig.json vite.config.ts ./
 
 # Build the application
