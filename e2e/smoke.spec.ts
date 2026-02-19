@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Smoke tests', () => {
+  test.use({ locale: 'en-US' });
+
   test('home page loads with app shell', async ({ page }) => {
     await page.goto('/');
 
@@ -27,11 +29,19 @@ test.describe('Smoke tests', () => {
     await page.goto('/');
 
     const html = page.locator('html');
-    const toggle = page.getByLabel(/switch to (light|dark) mode/i);
+    const toggle = page.getByRole('button', {
+      name: /switch to (light|dark) mode|zum (hellen|dunklen) modus wechseln/i
+    });
+
+    // Wait for client hydration/theme initialisation before interacting.
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('theme')))
+      .toMatch(/^(light|dark)$/);
+    await expect(html).toHaveAttribute('data-theme', /^(light|dark)$/);
     await expect(toggle).toBeVisible();
 
     // Get initial theme
-    const initialTheme = await html.getAttribute('data-theme');
+    const initialTheme = (await html.getAttribute('data-theme')) as 'light' | 'dark';
     const otherTheme = initialTheme === 'dark' ? 'light' : 'dark';
 
     await toggle.click();
@@ -39,6 +49,6 @@ test.describe('Smoke tests', () => {
 
     // Click again to restore
     await toggle.click();
-    await expect(html).toHaveAttribute('data-theme', initialTheme!);
+    await expect(html).toHaveAttribute('data-theme', initialTheme);
   });
 });

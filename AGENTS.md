@@ -99,6 +99,17 @@ The application must comply with **BITV 2.0** (German accessibility regulation, 
 - **Modals**: Always use a shared `Modal` component. Never use raw `<dialog>` elements directly. Control modals with a boolean `$state` and `bind:open`.
 - **Date/Time Pickers**: Always use a shared `DateTimePicker` component. Never use native `<input type="date">` or `<input type="datetime-local">` elements.
 
+### Internationalisation (i18n)
+
+The application uses **Paraglide-JS v2** for type-safe, compiler-based internationalisation. English is the default/fallback locale; German is also supported.
+
+- **Message files**: All user-visible strings go in `messages/en.json` and `messages/de.json`. Both files must always have the same keys.
+- **Import pattern**: `import * as m from '$lib/paraglide/messages.js'` — then use `m.key_name()` in templates and script blocks.
+- **Key naming**: Use flat keys with a feature prefix and underscores, e.g. `dashboard_welcome`, `nav_dashboard`, `header_user_menu`.
+- **Reactivity**: Data structures containing translated strings (e.g. nav sections, page title maps) must use `$derived` so they update when the locale changes.
+- **No hardcoded strings**: Never hardcode user-visible strings in `.svelte` files. This includes text content, `aria-label`, `title`, `placeholder`, and `alt` attributes.
+- **Adding new strings**: Add the key to both `messages/en.json` and `messages/de.json`, then run `npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide` to regenerate typed message functions.
+
 ## Commands
 
 ### Development

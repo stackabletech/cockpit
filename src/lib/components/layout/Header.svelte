@@ -1,8 +1,10 @@
 <script lang="ts">
+  import * as m from '$lib/paraglide/messages.js';
+  import LanguageSwitcher from './LanguageSwitcher.svelte';
   import ThemeToggle from './ThemeToggle.svelte';
 
   let {
-    title = 'Dashboard',
+    title = m.page_title_dashboard(),
     mobileOpen = false,
     onToggleMobile
   }: {
@@ -19,7 +21,7 @@
   <button
     class="btn btn-ghost btn-sm btn-square lg:hidden"
     onclick={onToggleMobile}
-    aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
+    aria-label={mobileOpen ? m.header_close_nav() : m.header_open_nav()}
     aria-expanded={mobileOpen}
     aria-controls="sidebar"
   >
@@ -42,8 +44,9 @@
   <div class="flex-1"></div>
 
   <div class="flex items-center gap-1">
+    <LanguageSwitcher />
     <ThemeToggle />
-    <button class="btn btn-ghost btn-circle" aria-label="User menu">
+    <button class="btn btn-ghost btn-circle" aria-label={m.header_user_menu()}>
       <span class="bg-primary/10 flex h-8 w-8 items-center justify-center rounded-full">
         <svg
           class="text-primary h-4 w-4"

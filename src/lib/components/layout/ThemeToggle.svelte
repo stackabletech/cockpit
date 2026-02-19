@@ -1,5 +1,6 @@
 <script lang="ts">
   import { browser } from '$app/environment';
+  import * as m from '$lib/paraglide/messages.js';
 
   let dark = $state(
     browser
@@ -20,7 +21,7 @@
 <button
   onclick={() => (dark = !dark)}
   class="btn btn-ghost btn-sm btn-square"
-  aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+  aria-label={dark ? m.theme_switch_light() : m.theme_switch_dark()}
 >
   {#if dark}
     <svg

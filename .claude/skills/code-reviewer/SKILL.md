@@ -95,6 +95,12 @@ Common duplication areas:
 - Colour contrast sufficient (4.5:1 normal text, 3:1 large text)?
 - Information not conveyed through colour alone?
 
+**Internationalisation:**
+
+- User-visible strings not wrapped in `m.*()` calls (text content, aria-labels, title attributes, placeholder text)?
+- Missing translations — new `m.*()` keys used but not present in both `messages/en.json` and `messages/de.json`?
+- Reactive data structures containing translated strings not using `$derived`?
+
 **Browser compatibility & mobile:**
 
 - Any Firefox-incompatible APIs or CSS (e.g., `isMobile` in Playwright, webkit-only features)?
@@ -110,6 +116,7 @@ Common duplication areas:
 - Commented-out code (remove it)
 - Console.logs left in (unless obviously intentional debug code)
 - Hard-coded colours instead of DaisyUI semantic classes
+- Hardcoded user-facing strings in `.svelte` files instead of using `m.*()` from Paraglide
 
 ## What NOT to Flag
 
