@@ -21,4 +21,4 @@
 
 export { logger } from './logger.js';
 export { requestLogger } from './request-logger.js';
-export type { RequestContext, LoggingConfig } from './types.js';
+export type { LoggingConfig } from './types.js';
