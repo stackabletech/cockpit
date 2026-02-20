@@ -5,7 +5,7 @@ export const load: PageServerLoad = async (event) => {
 
   log.debug('Loading dashboard data');
 
-  // Future: discover services via K8s API, fetch active queries from Trino
+  // This is just mock data to show how to log structured data/fields
   const serviceCount = 0;
   const healthy = true;
 

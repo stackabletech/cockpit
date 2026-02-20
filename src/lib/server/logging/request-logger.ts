@@ -17,8 +17,7 @@ export const requestLogger: Handle = async ({ event, resolve }) => {
   event.locals.logger = log;
   event.locals.requestId = requestId;
 
-  log.trace("Request"
-            + "\t \n started");
+  log.trace('Request started');
 
   const start = performance.now();
 
