@@ -1,3 +1,4 @@
+---
 apiVersion: v2
 name: stackable-ui
 description: Unified data platform UI for Stackable's data infrastructure

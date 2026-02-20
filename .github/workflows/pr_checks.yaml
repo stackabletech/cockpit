@@ -30,23 +30,22 @@ jobs:
       - name: Compile Paraglide messages
         run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
 
+      - name: Install hadolint
+        run: |
+          set -euo pipefail
+          HADOLINT_VERSION=v2.14.0
+          SYSTEM=$(uname -s)
+          ARCH=$(uname -m)
+          mkdir -p "$HOME/.local/bin"
+          curl -sL -o "$HOME/.local/bin/hadolint" "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-$SYSTEM-$ARCH"
+          chmod 755 "$HOME/.local/bin/hadolint"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+
       - name: Run pre-commit
         uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
-
-  helm-lint:
-    name: Helm Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      - name: Lint chart with default values
-        run: helm lint deploy/helm
-
-      - name: Template chart with default values
-        run: helm template test deploy/helm > /dev/null
 
   tests:
     name: E2E Tests

@@ -9,14 +9,14 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: detect-aws-credentials
-        args: ["--allow-missing-credentials"]
+        args: ['--allow-missing-credentials']
       - id: detect-private-key
 
   - repo: https://github.com/adrienverge/yamllint
     rev: cba56bcde1fdd01c1deb3f945e69764c291a6530 # 1.38.0
     hooks:
       - id: yamllint
-        args: ["--strict"]
+        args: ['--strict']
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
     rev: 76b3d32d3f4b965e1d6425253c59407420ae2c43 # 0.47.0
@@ -29,7 +29,7 @@ repos:
     rev: 99470f5e12208ff0fb17ab81c3c494f7620a1d8d # 0.11.0
     hooks:
       - id: shellcheck
-        args: ["--severity=info"]
+        args: ['--severity=info']
 
   - repo: https://github.com/rhysd/actionlint
     rev: 393031adb9afb225ee52ae2ccd7a5af5525e03e8 # 1.7.11
@@ -58,3 +58,19 @@ repos:
         stages: [pre-commit, pre-merge-commit]
         pass_filenames: false
         files: \.(svelte|ts|js)$
+
+      - id: helm-lint
+        name: helm lint
+        language: system
+        entry: helm lint deploy/helm/stackable-ui
+        stages: [pre-commit, pre-merge-commit]
+        pass_filenames: false
+        files: ^deploy/helm/
+
+      - id: helm-template
+        name: helm template
+        language: system
+        entry: bash -c 'helm template test deploy/helm/stackable-ui > /dev/null'
+        stages: [pre-commit, pre-merge-commit]
+        pass_filenames: false
+        files: ^deploy/helm/

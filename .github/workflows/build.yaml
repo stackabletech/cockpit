@@ -74,6 +74,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Compile paraglide
+        run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
+
+      - name: Install hadolint
+        run: |
+          set -euo pipefail
+          HADOLINT_VERSION=v2.14.0
+          SYSTEM=$(uname -s)
+          ARCH=$(uname -m)
+          mkdir -p "$HOME/.local/bin"
+          curl -sL -o "$HOME/.local/bin/hadolint" "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-$SYSTEM-$ARCH"
+          chmod 755 "$HOME/.local/bin/hadolint"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+
       - name: Run pre-commit
         uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
 
@@ -202,7 +219,7 @@ jobs:
           chart-registry-username: robot$sdp-charts+github-action-build
           chart-registry-password: ${{ secrets.HARBOR_ROBOT_SDP_CHARTS_GITHUB_ACTION_BUILD_SECRET }}
           chart-repository: sdp-charts
-          chart-directory: deploy/helm
+          chart-directory: deploy/helm/stackable-ui
           chart-version: ${{ needs.build-container-image.outputs.image-version }}
           app-version: ${{ needs.build-container-image.outputs.image-version }}
 
@@ -249,4 +266,3 @@ jobs:
             exit 1
           fi
           echo "All required jobs passed or were skipped"
-
