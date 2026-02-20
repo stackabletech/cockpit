@@ -130,9 +130,9 @@ npm run preview          # Preview production build
 ### Quality Checks (run after major changes)
 
 ```bash
-npm run format           # Format code
-npm run check            # Type checking
-npm run lint             # ESLint
+npm run format               # Format code
+pre-commit run --all-files   # Run all checks: lint (prettier + eslint), type checking,
+                             # markdownlint, yamllint, shellcheck, actionlint, hadolint, helm lint
 ```
 
 ### E2E Testing
