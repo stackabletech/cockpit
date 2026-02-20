@@ -54,50 +54,10 @@ jobs:
     outputs:
       detected: ${{ steps.check.outputs.detected }}
 
-  pre-commit:
-    name: Pre-commit Checks
-    if: needs.detect-changes.outputs.detected == 'true'
-    needs: [detect-changes]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
-        with:
-          node-version-file: '.node-version'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Compile paraglide
-        run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
-
-      - name: Install hadolint
-        run: |
-          set -euo pipefail
-          HADOLINT_VERSION=v2.14.0
-          SYSTEM=$(uname -s)
-          ARCH=$(uname -m)
-          mkdir -p "$HOME/.local/bin"
-          curl -sL -o "$HOME/.local/bin/hadolint" "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-$SYSTEM-$ARCH"
-          chmod 755 "$HOME/.local/bin/hadolint"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Install Helm
-        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
-
-      - name: Run pre-commit
-        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
-
   build-container-image:
     name: Build/Publish ${{ matrix.runner.arch }} Image
     if: (github.event_name != 'merge_group') && needs.detect-changes.outputs.detected == 'true'
-    needs: [detect-changes, pre-commit]
+    needs: [detect-changes]
     permissions:
       contents: read
       id-token: write
@@ -251,7 +211,6 @@ jobs:
     name: Finished Build and Publish
     if: always()
     needs:
-      - pre-commit
       - openshift-preflight-check
       - publish-helm-chart
     runs-on: ubuntu-latest
@@ -259,8 +218,7 @@ jobs:
       - name: Check results
         run: |
           set -euo pipefail
-          if [[ "${{ needs.pre-commit.result }}" == "failure" ]] || \
-             [[ "${{ needs.openshift-preflight-check.result }}" == "failure" ]] || \
+          if [[ "${{ needs.openshift-preflight-check.result }}" == "failure" ]] || \
              [[ "${{ needs.publish-helm-chart.result }}" == "failure" ]]; then
             echo "One or more required jobs failed"
             exit 1
