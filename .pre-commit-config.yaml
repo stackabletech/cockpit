@@ -1,0 +1,60 @@
+---
+default_language_version:
+  node: system
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # 6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: detect-aws-credentials
+        args: ["--allow-missing-credentials"]
+      - id: detect-private-key
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: cba56bcde1fdd01c1deb3f945e69764c291a6530 # 1.38.0
+    hooks:
+      - id: yamllint
+        args: ["--strict"]
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: 76b3d32d3f4b965e1d6425253c59407420ae2c43 # 0.47.0
+    hooks:
+      - id: markdownlint
+        types: [text]
+        files: \.md(\.j2)*$
+
+  - repo: https://github.com/koalaman/shellcheck-precommit
+    rev: 99470f5e12208ff0fb17ab81c3c494f7620a1d8d # 0.11.0
+    hooks:
+      - id: shellcheck
+        args: ["--severity=info"]
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: 393031adb9afb225ee52ae2ccd7a5af5525e03e8 # 1.7.11
+    hooks:
+      - id: actionlint
+
+  - repo: https://github.com/hadolint/hadolint
+    rev: 57e1618d78fd469a92c1e584e8c9313024656623 # 2.14.0
+    hooks:
+      - id: hadolint
+
+  - repo: local
+    hooks:
+      - id: npm-lint
+        name: npm lint (prettier + eslint)
+        language: system
+        entry: npm run lint
+        stages: [pre-commit, pre-merge-commit]
+        pass_filenames: false
+        files: \.(svelte|ts|js|css|html|json|md)$
+
+      - id: npm-check
+        name: npm check (svelte-check)
+        language: system
+        entry: npm run check
+        stages: [pre-commit, pre-merge-commit]
+        pass_filenames: false
+        files: \.(svelte|ts|js)$

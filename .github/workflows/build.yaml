@@ -54,8 +54,8 @@ jobs:
     outputs:
       detected: ${{ steps.check.outputs.detected }}
 
-  lint-and-check:
-    name: Lint and Type Check
+  pre-commit:
+    name: Pre-commit Checks
     if: needs.detect-changes.outputs.detected == 'true'
     needs: [detect-changes]
     runs-on: ubuntu-latest
@@ -74,16 +74,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run linting
-        run: npm run lint
-
-      - name: Run type checking
-        run: npm run check
+      - name: Run pre-commit
+        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
 
   build-container-image:
     name: Build/Publish ${{ matrix.runner.arch }} Image
     if: (github.event_name != 'merge_group') && needs.detect-changes.outputs.detected == 'true'
-    needs: [detect-changes, lint-and-check]
+    needs: [detect-changes, pre-commit]
     permissions:
       contents: read
       id-token: write
@@ -237,7 +234,7 @@ jobs:
     name: Finished Build and Publish
     if: always()
     needs:
-      - lint-and-check
+      - pre-commit
       - openshift-preflight-check
       - publish-helm-chart
     runs-on: ubuntu-latest
@@ -245,10 +242,11 @@ jobs:
       - name: Check results
         run: |
           set -euo pipefail
-          if [[ "${{ needs.lint-and-check.result }}" == "failure" ]] || \
+          if [[ "${{ needs.pre-commit.result }}" == "failure" ]] || \
              [[ "${{ needs.openshift-preflight-check.result }}" == "failure" ]] || \
              [[ "${{ needs.publish-helm-chart.result }}" == "failure" ]]; then
             echo "One or more required jobs failed"
             exit 1
           fi
           echo "All required jobs passed or were skipped"
+
