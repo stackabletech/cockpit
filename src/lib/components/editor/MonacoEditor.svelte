@@ -4,10 +4,12 @@
 
   let {
     value = $bindable(),
-    language = 'sql'
+    language = 'sql',
+    onExecute
   }: {
     value?: string;
     language?: string;
+    onExecute?: () => void;
   } = $props();
 
   let container: HTMLDivElement;
@@ -53,6 +55,15 @@
     editor.onDidChangeModelContent(() => {
       value = editor!.getValue();
     });
+
+    if (onExecute) {
+      editor.addAction({
+        id: 'execute-query',
+        label: 'Execute Query',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
+        run: onExecute
+      });
+    }
 
     // Watch for theme changes
     observer = new MutationObserver(() => {

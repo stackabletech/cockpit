@@ -242,7 +242,7 @@
       </button>
     </div>
     <div class="h-64">
-      <MonacoEditor bind:value={sql} language="sql" />
+      <MonacoEditor bind:value={sql} language="sql" onExecute={handleRunClick} />
     </div>
   </div>
 
