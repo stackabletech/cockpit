@@ -1,0 +1,18 @@
+---
+apiVersion: v2
+name: stackable-ui
+description: Unified data platform UI for Stackable's data infrastructure
+type: application
+version: 0.0.0-dev
+appVersion: "0.0.0-dev"
+home: https://stackable.tech
+sources:
+  - https://github.com/stackabletech/stackable-ui
+maintainers:
+  - name: Stackable GmbH
+    email: info@stackable.tech
+    url: https://stackable.tech
+keywords:
+  - stackable
+  - ui
+  - data-platform

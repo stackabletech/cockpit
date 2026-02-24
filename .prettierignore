@@ -11,6 +11,11 @@ dist/
 build/
 .output/
 e2e/test-results/
+src/lib/paraglide/
+project.inlang/
+
+# CI/CD workflows
+.github/
 
 # Cache directories
 .cache/
@@ -19,3 +24,6 @@ node_modules/
 
 # Database migrations
 /drizzle/
+
+# Helm templates
+deploy/helm/

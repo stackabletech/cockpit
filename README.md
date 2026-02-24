@@ -34,7 +34,7 @@ npm install
 npm run dev
 ```
 
-The application will be available at http://localhost:5173.
+The application will be available at <http://localhost:5173>.
 
 ## Development
 
@@ -69,15 +69,50 @@ npm run test:e2e
 
 Playwright is configured to start the dev server automatically during test runs.
 
+## Deployment
+
+### Kubernetes Deployment with Helm
+
+The application includes a Helm chart for deploying to Kubernetes.
+
+#### Quick Start
+
+```bash
+# Install with default values
+helm install stackable-ui ./deploy/helm/stackable-ui
+
+# Install with custom configuration
+helm install stackable-ui ./deploy/helm/stackable-ui \
+  -f your-values.yaml
+```
+
+#### Documentation
+
+For detailed Helm chart documentation, see [deploy/helm/stackable-ui/README.md](./deploy/helm/stackable-ui/README.md).
+
+### Docker Deployment
+
+Build and run the Docker image:
+
+```bash
+# Build the image
+docker build . -f docker/Dockerfile --build-arg TARGETARCH=x86 --build-arg VERSION=0.0.0-dev -t stackable-ui:0.0.0-dev
+
+# Run the container
+docker run -p 3000:3000 stackable-ui:0.0.0-dev
+```
+
 ## Contributing
 
 1. Make your changes
 2. Run quality checks:
+
    ```bash
    npm run format
    npm run check
    npm run lint
    ```
+
 3. Run E2E tests
 4. Submit pull request
 

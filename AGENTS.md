@@ -10,7 +10,7 @@ The application is designed with a **plugin/module architecture** so future Stac
 
 - **SvelteKit** with **Svelte 5** - Always use Svelte 5 syntax with runes (`$props`, `$state`, `$derived`, etc.)
 - **Tailwind CSS v4** - No tailwind.config.js file (uses CSS-based configuration)
-- **DaisyUI** - Use DaisyUI components/classes where possible for consistent UI - This is DaisyUI v5! A lot of classes you know about DON'T EXIST anymore. Check https://daisyui.com/docs/upgrade/?lang=enj if needed
+- **DaisyUI** - Use DaisyUI components/classes where possible for consistent UI - This is DaisyUI v5! A lot of classes you know about DON'T EXIST anymore. Check <https://daisyui.com/docs/upgrade/?lang=enj> if needed
 - **Monaco Editor** - SQL editor component (dynamic import, SSR-safe)
 - **ANTLR4** (antlr4ng) - Trino SQL parsing for syntax highlighting and code completion
 - **zod & superforms** - All forms are to use zod & superforms
@@ -22,7 +22,7 @@ The application is designed with a **plugin/module architecture** so future Stac
 
 This is a **single SvelteKit application** (not a monorepo).
 
-```
+```text
 ├── src/
 │   ├── lib/              # Shared utilities, components, stores
 │   ├── routes/           # SvelteKit routes
@@ -85,6 +85,7 @@ The app exposes a Prometheus scrape endpoint at `/metrics` via `src/routes/metri
 - Use British English
 - For the server side only: Always include logging at debug and info levels as appropriate
 - **Redirects**: Never wrap `throw redirect()` in try-catch. Put redirect AFTER try-catch to avoid it being caught.
+
   ```typescript
   try {
     await operation();
@@ -93,8 +94,9 @@ The app exposes a Prometheus scrape endpoint at `/metrics` via `src/routes/metri
   }
   throw redirect(303, '/path'); // Outside try-catch
   ```
+
 - **Public Routes**: Update `hooks.server.ts` when adding unauthenticated pages. The `/metrics` endpoint is permanently public (Prometheus scraping) — never add auth in front of it.
-- **Label-Element Association**: Always explicitly associate `<label>` elements with their form controls using `for` and `id` attributes. Generate unique IDs with `$props.id()` (see https://svelte.dev/docs/svelte/$props#$props.id()). Never rely on implicit association (wrapping the input inside the label).
+- **Label-Element Association**: Always explicitly associate `<label>` elements with their form controls using `for` and `id` attributes. Generate unique IDs with `$props.id()` (see <https://svelte.dev/docs/svelte/$props#$props.id()>). Never rely on implicit association (wrapping the input inside the label).
 
   ```svelte
   <script>
@@ -146,9 +148,9 @@ npm run preview          # Preview production build
 ### Quality Checks (run after major changes)
 
 ```bash
-npm run format           # Format code
-npm run check            # Type checking
-npm run lint             # ESLint
+npm run format               # Format code
+pre-commit run --all-files   # Run all checks: lint (prettier + eslint), type checking,
+                             # markdownlint, yamllint, shellcheck, actionlint, hadolint, helm lint
 ```
 
 ### E2E Testing
