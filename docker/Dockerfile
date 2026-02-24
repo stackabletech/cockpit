@@ -17,6 +17,10 @@ ARG TARGETARCH=amd64
 
 COPY .node-version /tmp/.node-version
 
+# Warning: Specify version with dnf install -y <package>-<version>
+# https://github.com/hadolint/hadolint/wiki/DL3041
+# It's good advice, but we're not set up to pin versions just yet
+# hadolint ignore=DL3041
 RUN NODEJS_VERSION=$(cat /tmp/.node-version) && \
     case "${TARGETARCH}" in \
         amd64|x86_64|x86) NODEJS_ARCH="x64" ;; \
@@ -69,6 +73,7 @@ ENV STACKABLE_USER_UID=782252253 \
     STACKABLE_USER_NAME=stackable \
     NODE_ENV=production
 
+# hadolint ignore=DL3041
 RUN microdnf install -y shadow-utils && \
     groupadd --gid ${STACKABLE_USER_GID} --system ${STACKABLE_USER_NAME} && \
     useradd \
