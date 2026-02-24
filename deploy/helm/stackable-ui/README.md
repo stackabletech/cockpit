@@ -42,7 +42,7 @@ The following table lists the configurable parameters of the Stackable UI chart 
 ### Global Parameters
 
 | Parameter | Description | Default |
-|-----------|-------------|---------|
+| --- | --- | --- |
 | `replicaCount` | Number of replicas | `1` |
 | `image.registry` | Container image registry | `oci.stackable.tech` |
 | `image.repository` | Container image repository | `sdp/stackable-ui` |
@@ -54,7 +54,7 @@ The following table lists the configurable parameters of the Stackable UI chart 
 ### Service Parameters
 
 | Parameter | Description | Default |
-|-----------|-------------|---------|
+| --- | --- | --- |
 | `service.type` | Kubernetes service type | `ClusterIP` |
 | `service.port` | Service port | `3000` |
 | `service.targetPort` | Container port | `3000` |
@@ -63,7 +63,7 @@ The following table lists the configurable parameters of the Stackable UI chart 
 ### Ingress Parameters
 
 | Parameter | Description | Default |
-|-----------|-------------|---------|
+| --- | --- | --- |
 | `ingress.enabled` | Enable ingress controller resource | `false` |
 | `ingress.className` | Ingress class name | `""` |
 | `ingress.annotations` | Ingress annotations | `{}` |
@@ -73,13 +73,13 @@ The following table lists the configurable parameters of the Stackable UI chart 
 ### Application Configuration
 
 | Parameter | Description | Default |
-|-----------|-------------|---------|
+| --- | --- | --- |
 | `config.nodeEnv` | Node.js environment | `production` |
 
 ### Security Parameters
 
 | Parameter | Description | Default |
-|-----------|-------------|---------|
+| --- | --- | --- |
 | `sessionSecret` | Session secret for signing cookies | `""` (auto-generated) |
 | `podSecurityContext` | Pod security context | See values.yaml |
 | `securityContext` | Container security context | See values.yaml |
@@ -87,7 +87,7 @@ The following table lists the configurable parameters of the Stackable UI chart 
 ### Resource Parameters
 
 | Parameter | Description | Default |
-|-----------|-------------|---------|
+| --- | --- | --- |
 | `resources.limits.cpu` | CPU limit | `500m` |
 | `resources.limits.memory` | Memory limit | `512Mi` |
 | `resources.requests.cpu` | CPU request | `100m` |
@@ -96,7 +96,7 @@ The following table lists the configurable parameters of the Stackable UI chart 
 ### Service Account Parameters
 
 | Parameter | Description | Default |
-|-----------|-------------|---------|
+| --- | --- | --- |
 | `serviceAccount.create` | Create a service account | `true` |
 | `serviceAccount.automount` | Automount service account token | `true` |
 | `serviceAccount.annotations` | Service account annotations | `{}` |
@@ -105,6 +105,7 @@ The following table lists the configurable parameters of the Stackable UI chart 
 ## Support
 
 For issues and questions:
-- GitHub: https://github.com/stackabletech/stackable-ui/issues
-- Documentation: https://docs.stackable.tech/
-- Email: info@stackable.tech
+
+- GitHub: <https://github.com/stackabletech/stackable-ui/issues>
+- Documentation: <https://docs.stackable.tech/>
+- Email: <info@stackable.tech>

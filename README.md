@@ -34,7 +34,7 @@ npm install
 npm run dev
 ```
 
-The application will be available at http://localhost:5173.
+The application will be available at <http://localhost:5173>.
 
 ## Development
 
@@ -79,16 +79,16 @@ The application includes a Helm chart for deploying to Kubernetes.
 
 ```bash
 # Install with default values
-helm install stackable-ui ./deploy/helm
+helm install stackable-ui ./deploy/helm/stackable-ui
 
 # Install with custom configuration
-helm install stackable-ui ./deploy/helm \
+helm install stackable-ui ./deploy/helm/stackable-ui \
   -f your-values.yaml
 ```
 
 #### Documentation
 
-For detailed Helm chart documentation, see [deploy/helm/README.md](./deploy/helm/README.md).
+For detailed Helm chart documentation, see [deploy/helm/stackable-ui/README.md](./deploy/helm/stackable-ui/README.md).
 
 ### Docker Deployment
 
@@ -106,11 +106,13 @@ docker run -p 3000:3000 stackable-ui:0.0.0-dev
 
 1. Make your changes
 2. Run quality checks:
+
    ```bash
    npm run format
    npm run check
    npm run lint
    ```
+
 3. Run E2E tests
 4. Submit pull request
 

@@ -1,0 +1,227 @@
+---
+name: Build Stackable UI Container Image
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '[0-9].[0-9]+.[0-9]+'
+      - '[0-9].[0-9]+.[0-9]+-rc[0-9]+'
+  schedule:
+    # Run every Saturday morning: https://crontab.guru/#15_3_*_*_6
+    - cron: '15 3 * * 6'
+  pull_request:
+    # Do not limit by paths. This workflow contains a required job.
+  merge_group:
+
+env:
+  IMAGE_NAME: 'stackable-ui'
+
+jobs:
+  detect-changes:
+    name: Detect relevant changed files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Check for changed files
+        id: check
+        uses: stackabletech/actions/detect-changes@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
+        with:
+          patterns: |
+            - '.github/workflows/build.yaml'
+            - '.dockerignore'
+            - 'docker/**'
+            - 'messages/**'
+            - 'package*.json'
+            - '.npmrc'
+            - '.node-version'
+            - 'project.inlang/**'
+            - 'src/**'
+            - 'static/**'
+            - 'svelte.config.js'
+            - 'tsconfig.json'
+            - 'vite.config.ts'
+            - '!e2e/**'
+            - 'deploy/**'
+    outputs:
+      detected: ${{ steps.check.outputs.detected }}
+
+  build-container-image:
+    name: Build/Publish ${{ matrix.runner.arch }} Image
+    if: (github.event_name != 'merge_group') && needs.detect-changes.outputs.detected == 'true'
+    needs: [detect-changes]
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - { name: 'ubuntu-latest', arch: 'amd64' }
+          - { name: 'ubicloud-standard-8-arm', arch: 'arm64' }
+    runs-on: ${{ matrix.runner.name }}
+    outputs:
+      image-version: ${{ steps.version.outputs.IMAGE_VERSION }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Determine Image Version
+        id: version
+        env:
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_DEBUG: ${{ runner.debug }}
+          GITHUB_REF_TYPE: ${{ github.ref_type }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -n "$GITHUB_DEBUG" ] && set -x
+
+          if [ "$GITHUB_EVENT_NAME" == 'pull_request' ]; then
+            # Include a PR suffix if this workflow is triggered by a PR
+            if [ "$PR_BASE_REF" == 'main' ]; then
+              IMAGE_VERSION="0.0.0-pr$PR_NUMBER"
+            else
+              # For PRs against non-main branches, use a version based on package.json
+              CURRENT_VERSION=$(node -p "require('./package.json').version")
+              IMAGE_VERSION="$CURRENT_VERSION-pr$PR_NUMBER"
+            fi
+          elif [ "$GITHUB_REF_TYPE" == 'tag' ]; then
+            # Use the tag name as the version
+            IMAGE_VERSION="$GITHUB_REF_NAME"
+          else
+            # Default to 0.0.0-dev for other events
+            IMAGE_VERSION="0.0.0-dev"
+          fi
+
+          echo "IMAGE_VERSION=$IMAGE_VERSION" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Build Container Image
+        id: build
+        uses: stackabletech/actions/build-container-image@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
+        with:
+          image-name: ${{ env.IMAGE_NAME }}
+          image-index-manifest-tag: ${{ steps.version.outputs.IMAGE_VERSION }}
+          build-arguments: |
+            VERSION=${{ steps.version.outputs.IMAGE_VERSION }}
+            TARGETARCH=${{ matrix.runner.arch }}
+          container-file: docker/Dockerfile
+
+      - name: Publish Container Image
+        uses: stackabletech/actions/publish-image@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
+        with:
+          image-registry-uri: oci.stackable.tech
+          image-registry-username: robot$sdp+github-action-build
+          image-registry-password: ${{ secrets.HARBOR_ROBOT_SDP_GITHUB_ACTION_BUILD_SECRET }}
+          image-repository: sdp/${{ env.IMAGE_NAME }}
+          image-manifest-tag: ${{ steps.build.outputs.image-manifest-tag }}
+          source-image-uri: ${{ steps.build.outputs.image-manifest-uri }}
+
+  publish-index-manifest:
+    name: Publish/Sign ${{ needs.build-container-image.outputs.image-version }} Index
+    if: (github.event_name != 'merge_group') && needs.detect-changes.outputs.detected == 'true'
+    needs:
+      - detect-changes
+      - build-container-image
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Publish and Sign Image Index
+        uses: stackabletech/actions/publish-image-index-manifest@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
+        with:
+          image-registry-uri: oci.stackable.tech
+          image-registry-username: robot$sdp+github-action-build
+          image-registry-password: ${{ secrets.HARBOR_ROBOT_SDP_GITHUB_ACTION_BUILD_SECRET }}
+          image-repository: sdp/${{ env.IMAGE_NAME }}
+          image-index-manifest-tag: ${{ needs.build-container-image.outputs.image-version }}
+
+  publish-helm-chart:
+    name: Package/Publish ${{ needs.build-container-image.outputs.image-version }} Helm Chart
+    if: (github.event_name != 'merge_group') && needs.detect-changes.outputs.detected == 'true'
+    needs:
+      - detect-changes
+      - build-container-image
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Package, Publish, and Sign Helm Chart
+        uses: stackabletech/actions/publish-helm-chart@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
+        with:
+          chart-registry-uri: oci.stackable.tech
+          chart-registry-username: robot$sdp-charts+github-action-build
+          chart-registry-password: ${{ secrets.HARBOR_ROBOT_SDP_CHARTS_GITHUB_ACTION_BUILD_SECRET }}
+          chart-repository: sdp-charts
+          chart-directory: deploy/helm/stackable-ui
+          chart-version: ${{ needs.build-container-image.outputs.image-version }}
+          app-version: ${{ needs.build-container-image.outputs.image-version }}
+
+  # openshift-preflight-check:
+  #   name: Run OpenShift Preflight Check for ${{ needs.build-container-image.outputs.image-version }}-${{ matrix.arch }}
+  #   if: (github.event_name != 'merge_group') && needs.detect-changes.outputs.detected == 'true'
+  #   needs:
+  #     - detect-changes
+  #     - build-container-image
+  #     - publish-index-manifest
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       arch:
+  #         - amd64
+  #         - arm64
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Run OpenShift Preflight Check
+  #       uses: stackabletech/actions/run-openshift-preflight@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
+  #       with:
+  #         image-index-uri: oci.stackable.tech/sdp/${{ env.IMAGE_NAME }}:${{ needs.build-container-image.outputs.image-version }}
+  #         image-architecture: ${{ matrix.arch }}
+
+  # This job is a required check in GitHub Settings for this repository.
+  finished:
+    # WARNING: Do not change the name unless you will also be changing the
+    # Required Checks (in branch protections) in GitHub settings.
+    name: Finished Build and Publish
+    if: always()
+    needs:
+      # - openshift-preflight-check
+      - publish-helm-chart
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        run: |
+          set -euo pipefail
+          # TODO: needs.openshift-preflight-check.result needs to be added back once the job is re-enabled
+          if [[ "${{ needs.publish-helm-chart.result }}" == "failure" ]]; then
+            echo "One or more required jobs failed"
+            exit 1
+          fi
+          echo "All required jobs passed or were skipped"

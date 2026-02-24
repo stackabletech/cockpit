@@ -11,6 +11,11 @@ dist/
 build/
 .output/
 e2e/test-results/
+src/lib/paraglide/
+project.inlang/
+
+# CI/CD workflows
+.github/
 
 # Cache directories
 .cache/
