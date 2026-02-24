@@ -77,6 +77,7 @@ The project uses **pino** for structured JSON logging (server-side only).
    ```
 
 2. **Module-level** (singletons, services) — create a child logger:
+
    ```typescript
    import { logger } from '$lib/server/logging';
    const log = logger.child({ module: 'trino-client' });
