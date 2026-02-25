@@ -3,6 +3,7 @@ import js from '@eslint/js';
 import { includeIgnoreFile } from '@eslint/compat';
 import svelte from 'eslint-plugin-svelte';
 import betterTailwindcss from 'eslint-plugin-better-tailwindcss';
+import security from 'eslint-plugin-security';
 import globals from 'globals';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript-eslint';
@@ -14,6 +15,7 @@ export default ts.config(
   js.configs.recommended,
   ...ts.configs.recommended,
   ...svelte.configs.recommended,
+  { ...security.configs.recommended, files: ['**/*.ts'] },
   prettier,
   ...svelte.configs.prettier,
   {
