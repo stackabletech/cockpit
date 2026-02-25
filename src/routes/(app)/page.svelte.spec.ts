@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import Page from './+page.svelte';
 
-const renderPage = () => render(Page);
+const renderPage = () =>
+  render(Page, { params: {}, data: { serviceCount: 0, healthy: true }, form: null });
 
 describe('/(app)/+page.svelte', () => {
   it('should render the welcome heading', async () => {

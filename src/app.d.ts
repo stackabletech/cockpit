@@ -3,8 +3,13 @@
 
 declare global {
   namespace App {
-    // interface Error {}
-    // interface Locals {}
+    interface Error {
+      requestId?: string;
+    }
+    interface Locals {
+      logger: import('pino').Logger;
+      requestId: string;
+    }
     // interface PageData {}
     // interface PageState {}
     // interface Platform {}
