@@ -199,7 +199,8 @@ export const POST: RequestHandler = async ({ request }) => {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('[trino] unexpected error on %s: %s', connection.url, message);
+    const cause = err instanceof Error ? err.cause : undefined;
+    console.error('[trino] unexpected error on %s: %s', connection.url, message, cause ?? '');
     return json({ error: message }, { status: 500 });
   }
 };
