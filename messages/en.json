@@ -36,5 +36,10 @@
   "setup_steps_label": "Setup steps",
   "language_label": "Language",
   "language_en": "English",
-  "language_de": "Deutsch"
+  "language_de": "Deutsch",
+  "auth_login_title": "Sign in to Stackable",
+  "auth_login_subtitle": "Use your organisation's SSO provider to access the platform.",
+  "auth_login_button": "Sign in with SSO",
+  "auth_login_error": "Sign-in failed. Please try again.",
+  "header_sign_out": "Sign out"
 }

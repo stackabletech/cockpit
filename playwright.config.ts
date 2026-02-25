@@ -19,18 +19,30 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 1280, height: 720 }
+      }
+    },
+    {
       name: 'firefox',
       use: {
         browserName: 'firefox',
-        viewport: { width: 1280, height: 720 }
-      }
+        viewport: { width: 1280, height: 720 },
+        storageState: 'e2e/.auth/user.json'
+      },
+      dependencies: ['setup']
     },
     {
       name: 'chromium',
       use: {
         browserName: 'chromium',
-        viewport: { width: 1280, height: 720 }
-      }
+        viewport: { width: 1280, height: 720 },
+        storageState: 'e2e/.auth/user.json'
+      },
+      dependencies: ['setup']
     },
     {
       name: 'mobile',
@@ -38,8 +50,10 @@ export default defineConfig({
         browserName: 'chromium',
         viewport: { width: 393, height: 851 },
         isMobile: true,
-        hasTouch: true
-      }
+        hasTouch: true,
+        storageState: 'e2e/.auth/user.json'
+      },
+      dependencies: ['setup']
     }
   ]
 });

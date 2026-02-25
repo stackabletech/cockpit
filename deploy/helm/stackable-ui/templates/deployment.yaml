@@ -63,12 +63,48 @@ spec:
                 secretKeyRef:
                   name: {{ include "stackable-ui.fullname" . }}
                   key: session-secret
+            - name: BETTER_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stackable-ui.fullname" . }}
+                  key: better-auth-secret
+            - name: AUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stackable-ui.fullname" . }}
+                  key: oidc-client-secret
+            - name: BETTER_AUTH_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "stackable-ui.fullname" . }}
+                  key: better-auth-url
+            - name: AUTH_ISSUER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "stackable-ui.fullname" . }}
+                  key: auth-issuer
+            - name: AUTH_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "stackable-ui.fullname" . }}
+                  key: auth-client-id
+            - name: DATABASE_PATH
+              value: {{ .Values.config.databasePath | quote }}
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: data
+              mountPath: /data
       volumes:
         - name: tmp
           emptyDir: {}
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ if .Values.persistence.existingClaim }}{{ .Values.persistence.existingClaim }}{{ else }}{{ include "stackable-ui.fullname" . }}-data{{ end }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

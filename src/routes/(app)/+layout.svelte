@@ -4,7 +4,7 @@
   import Sidebar from '$lib/components/layout/Sidebar.svelte';
   import Header from '$lib/components/layout/Header.svelte';
 
-  let { children } = $props();
+  let { children, data } = $props();
 
   let sidebarCollapsed = $state(false);
   let mobileOpen = $state(false);
@@ -24,7 +24,12 @@
   <Sidebar bind:collapsed={sidebarCollapsed} bind:mobileOpen />
 
   <div class="flex min-w-0 flex-1 flex-col">
-    <Header {title} {mobileOpen} onToggleMobile={() => (mobileOpen = !mobileOpen)} />
+    <Header
+      {title}
+      {mobileOpen}
+      user={data.user}
+      onToggleMobile={() => (mobileOpen = !mobileOpen)}
+    />
 
     <main class="bg-base-200 flex-1 overflow-auto p-6">
       {@render children()}

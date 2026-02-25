@@ -52,6 +52,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BASE_URL: http://localhost:4173
+      BETTER_AUTH_URL: http://localhost:4173
+      BETTER_AUTH_SECRET: ci-secret-for-testing-only-not-production
+      AUTH_ISSUER: http://localhost:8080/default
+      AUTH_CLIENT_ID: stackable-ui
+      AUTH_CLIENT_SECRET: ci-client-secret
+      DATABASE_PATH: /tmp/auth-test.db
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -69,6 +75,14 @@ jobs:
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox
+
+      - name: Start mock OAuth2 server
+        run: |
+          docker run -d \
+            --name mock-oauth2 \
+            -p 8080:8080 \
+            ghcr.io/navikt/mock-oauth2-server:2.1.10
+          timeout 30 bash -c 'until curl -sf http://localhost:8080/default/.well-known/openid-configuration > /dev/null; do sleep 1; done'
 
       - name: Build application
         run: npm run build

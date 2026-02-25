@@ -2,16 +2,32 @@
   import * as m from '$lib/paraglide/messages.js';
   import LanguageSwitcher from './LanguageSwitcher.svelte';
   import ThemeToggle from './ThemeToggle.svelte';
+  import type { auth } from '$lib/server/auth';
+
+  type User = typeof auth.$Infer.Session.user | null;
 
   let {
     title = m.page_title_dashboard(),
     mobileOpen = false,
+    user = null,
     onToggleMobile
   }: {
     title?: string;
     mobileOpen?: boolean;
+    user?: User;
     onToggleMobile?: () => void;
   } = $props();
+
+  const initials = $derived(
+    user?.name
+      ? user.name
+          .split(' ')
+          .map((n) => n[0])
+          .join('')
+          .toUpperCase()
+          .slice(0, 2)
+      : '?'
+  );
 </script>
 
 <header
@@ -46,22 +62,56 @@
   <div class="flex items-center gap-1">
     <LanguageSwitcher />
     <ThemeToggle />
-    <button class="btn btn-ghost btn-circle" aria-label={m.header_user_menu()}>
-      <span class="bg-primary/10 flex h-8 w-8 items-center justify-center rounded-full">
-        <svg
-          class="text-primary h-4 w-4"
+    <button
+      class="btn btn-ghost btn-circle"
+      aria-label={m.header_user_menu()}
+      popovertarget="user-menu"
+      style="anchor-name:--user-menu"
+    >
+      {#if user?.image}
+        <img src={user.image} alt={user.name ?? ''} class="h-8 w-8 rounded-full object-cover" />
+      {:else}
+        <span
+          class="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold"
           aria-hidden="true"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
         >
-          <circle cx="12" cy="8" r="4" />
-          <path d="M20 21a8 8 0 0 0-16 0" />
-        </svg>
-      </span>
+          {initials}
+        </span>
+      {/if}
     </button>
   </div>
 </header>
+
+<ul
+  class="dropdown dropdown-end menu bg-base-100 border-base-300 w-56 rounded-lg border p-1 shadow-lg"
+  popover
+  id="user-menu"
+  style="position-anchor:--user-menu"
+>
+  {#if user}
+    <li class="px-3 py-2">
+      <p class="text-base-content truncate text-sm font-semibold">{user.name}</p>
+      <p class="text-base-content/60 truncate text-xs">{user.email}</p>
+    </li>
+    <li><hr class="border-base-300 my-1" /></li>
+  {/if}
+  <li>
+    <a href="/auth/logout" class="text-sm">
+      <svg
+        class="h-4 w-4"
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" y1="12" x2="9" y2="12" />
+      </svg>
+      {m.header_sign_out()}
+    </a>
+  </li>
+</ul>

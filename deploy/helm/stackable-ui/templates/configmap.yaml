@@ -4,4 +4,7 @@ metadata:
   name: {{ include "stackable-ui.fullname" . }}
   labels:
     {{- include "stackable-ui.labels" . | nindent 4 }}
-data: {}
+data:
+  auth-issuer: {{ .Values.auth.issuer | quote }}
+  auth-client-id: {{ .Values.auth.clientId | quote }}
+  better-auth-url: {{ .Values.auth.url | quote }}

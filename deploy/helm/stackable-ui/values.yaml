@@ -1,6 +1,8 @@
 ---
 # Default values for stackable-ui
 
+# NOTE: SQLite requires a single writer. Keep replicaCount at 1 when
+# persistence.enabled is true to avoid concurrent-write corruption.
 replicaCount: 1
 
 image:
@@ -113,6 +115,36 @@ affinity: {}
 config:
   # Node.js environment
   nodeEnv: production
+  # SQLite database path inside the container (should be on the persistence volume)
+  databasePath: "/data/auth.db"
 
 # Session secret for signing cookies (auto-generated if not provided)
 sessionSecret: ""
+
+# Better Auth configuration
+auth:
+  # The publicly accessible base URL of this application (used for OIDC callback URLs)
+  # Required. Example: https://stackable-ui.example.com
+  url: ""
+  # Better Auth secret — long random string (min 32 chars). Auto-generated if not provided.
+  secret: ""
+  # OIDC provider issuer URL (without /.well-known/openid-configuration suffix)
+  # Required. Example: https://your-idp.example.com/realms/your-realm
+  issuer: ""
+  # Client ID registered in the OIDC provider
+  # Required.
+  clientId: ""
+  # Client secret registered in the OIDC provider
+  # Required.
+  clientSecret: ""
+
+# SQLite persistence for the Better Auth database.
+# NOTE: Requires replicaCount: 1 — SQLite does not support concurrent writes from multiple pods.
+persistence:
+  enabled: true
+  size: 1Gi
+  # Storage class name. Leave empty to use the cluster default.
+  storageClassName: ""
+  accessMode: ReadWriteOnce
+  # Set to reuse an existing PVC instead of creating a new one.
+  existingClaim: ""
