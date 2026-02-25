@@ -34,7 +34,12 @@ This is a **single SvelteKit application** (not a monorepo).
 ├── static/               # Static assets
 ├── Dockerfile            # Production container image
 └── CLAUDE.md             # AI assistant instructions
+└── TECH_DEBT.md          # Known tech debt and deferred security concerns
 ```
+
+## Tech Debt
+
+When introducing shortcuts, known issues, or deferred security work, add an entry to `TECH_DEBT.md`. Keep entries concise: what the issue is, why it is acceptable now, and what the correct long-term fix is.
 
 ## Development Guidelines
 
