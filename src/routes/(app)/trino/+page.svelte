@@ -103,7 +103,7 @@
         totalRows = data.totalRows ?? null;
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Unknown error';
+      error = err instanceof Error ? err.message : m.trino_unknown_error();
     } finally {
       running = false;
     }

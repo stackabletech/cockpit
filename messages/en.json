@@ -56,5 +56,6 @@
   "trino_auth_none": "No auth",
   "trino_auth_basic": "Basic",
   "trino_auth_username": "Username",
-  "trino_auth_password": "Password"
+  "trino_auth_password": "Password",
+  "trino_unknown_error": "Unknown error"
 }
