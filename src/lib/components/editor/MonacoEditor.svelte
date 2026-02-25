@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
+  import { theme } from '$lib/theme.svelte';
 
   let {
     value = $bindable(),
@@ -14,8 +15,7 @@
 
   let container: HTMLDivElement;
   let editor: import('monaco-editor').editor.IStandaloneCodeEditor | undefined;
-  let monaco: typeof import('monaco-editor') | undefined;
-  let observer: MutationObserver | undefined;
+  let monaco = $state<typeof import('monaco-editor') | undefined>(undefined);
 
   // Start loading in parallel with the rest of the page — not deferred to onMount.
   // Guarded by `browser` because SvelteKit evaluates component scripts on the server too.
@@ -24,11 +24,13 @@
     : null;
   const monacoImport = browser ? import('monaco-editor') : null;
 
-  // Detect current theme from DaisyUI data-theme attribute
-  function getMonacoTheme(): string {
-    if (!browser) return 'vs-dark';
-    return document.documentElement.dataset.theme === 'dark' ? 'vs-dark' : 'vs';
+  function toMonacoTheme(t: string): string {
+    return t === 'dark' ? 'vs-dark' : 'vs';
   }
+
+  $effect(() => {
+    monaco?.editor.setTheme(toMonacoTheme(theme.current));
+  });
 
   onMount(async () => {
     // By the time onMount fires the imports are likely already resolved.
@@ -42,7 +44,7 @@
     editor = monaco.editor.create(container, {
       value,
       language,
-      theme: getMonacoTheme(),
+      theme: toMonacoTheme(theme.current),
       minimap: { enabled: false },
       fontSize: 14,
       lineNumbers: 'on',
@@ -64,19 +66,9 @@
         run: onExecute
       });
     }
-
-    // Watch for theme changes
-    observer = new MutationObserver(() => {
-      monaco?.editor.setTheme(getMonacoTheme());
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme']
-    });
   });
 
   onDestroy(() => {
-    observer?.disconnect();
     editor?.dispose();
   });
 </script>
