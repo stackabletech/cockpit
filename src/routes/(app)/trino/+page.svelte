@@ -237,7 +237,7 @@
           {m.trino_running()}
         {:else}
           {m.trino_run_query()}
-          <kbd class="kbd kbd-sm opacity-60">Ctrl+↵</kbd>
+          <kbd class="kbd kbd-sm text-base-content opacity-60">Ctrl+↵</kbd>
         {/if}
       </button>
     </div>
