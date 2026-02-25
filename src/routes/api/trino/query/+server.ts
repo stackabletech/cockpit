@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import * as m from '$lib/paraglide/messages.js';
 import type { RequestHandler } from './$types';
 
 const POLL_TIMEOUT_MS = 30_000;
@@ -98,7 +99,9 @@ function parseConnection(raw: unknown): ConnectionConfig | null {
 
 const ALLOWED_PAGE_SIZES = new Set([25, 50, 100]);
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+  const log = locals.logger;
+
   const body = await request.json();
   const pageSize: number = ALLOWED_PAGE_SIZES.has(body.pageSize) ? body.pageSize : 25;
   const page: number = typeof body.page === 'number' && body.page >= 0 ? Math.floor(body.page) : 0;
@@ -107,11 +110,11 @@ export const POST: RequestHandler = async ({ request }) => {
   if (typeof body.queryId === 'string' && body.queryId) {
     const cached = queryCache.get(body.queryId);
     if (!cached) {
-      console.info('[trino] cache miss for queryId=%s (session expired)', body.queryId);
+      log.info({ query_id: body.queryId }, 'cache miss (session expired)');
       return json({ error: 'session_expired' }, { status: 404 });
     }
     const start = page * pageSize;
-    console.debug('[trino] cache hit queryId=%s page=%d pageSize=%d', body.queryId, page, pageSize);
+    log.debug({ query_id: body.queryId, page, page_size: pageSize }, 'cache hit');
     return json({
       queryId: body.queryId,
       columns: cached.columns,
@@ -124,26 +127,20 @@ export const POST: RequestHandler = async ({ request }) => {
   // New query execution — connection config required.
   const { sql } = body;
   if (!sql?.trim()) {
-    return json({ error: 'No SQL provided' }, { status: 400 });
+    return json({ error: m.trino_no_sql() }, { status: 400 });
   }
 
   const connection = parseConnection(body.connection);
   if (!connection) {
-    return json(
-      {
-        error:
-          'Invalid or missing connection config. Provide connection.url (http/https) and connection.auth.'
-      },
-      { status: 400 }
-    );
+    return json({ error: m.trino_invalid_connection() }, { status: 400 });
   }
 
   evictStale();
 
-  const start = Date.now();
-  console.info('[trino] executing query on %s', connection.url);
+  const queryStart = Date.now();
+  log.info({ trino_url: connection.url }, 'executing query');
 
-  const deadline = start + POLL_TIMEOUT_MS;
+  const deadline = queryStart + POLL_TIMEOUT_MS;
   let columns: TrinoColumn[] = [];
   let rows: unknown[][] = [];
 
@@ -155,7 +152,7 @@ export const POST: RequestHandler = async ({ request }) => {
     });
 
     if (response.error) {
-      console.info('[trino] query error: %s', response.error.message);
+      log.info({ err: response.error }, 'query error');
       return json({ error: response.error.message }, { status: 400 });
     }
 
@@ -164,14 +161,14 @@ export const POST: RequestHandler = async ({ request }) => {
 
     while (response.nextUri && rows.length < MAX_CACHED_ROWS) {
       if (Date.now() > deadline) {
-        console.info('[trino] query timed out after %dms on %s', POLL_TIMEOUT_MS, connection.url);
-        return json({ error: 'Query timed out after 30 seconds' }, { status: 408 });
+        log.info({ trino_url: connection.url, timeout_ms: POLL_TIMEOUT_MS }, 'query timed out');
+        return json({ error: m.trino_query_timeout() }, { status: 408 });
       }
 
       response = await trinoFetch(response.nextUri, connection.auth);
 
       if (response.error) {
-        console.info('[trino] query error: %s', response.error.message);
+        log.info({ err: response.error }, 'query error');
         return json({ error: response.error.message }, { status: 400 });
       }
 
@@ -182,12 +179,9 @@ export const POST: RequestHandler = async ({ request }) => {
     const queryId = crypto.randomUUID();
     queryCache.set(queryId, { columns, rows, createdAt: Date.now() });
 
-    console.info(
-      '[trino] query complete: %d rows, %d cols, %dms, queryId=%s',
-      rows.length,
-      columns.length,
-      Date.now() - start,
-      queryId
+    log.info(
+      { query_id: queryId, rows: rows.length, cols: columns.length, duration_ms: Date.now() - queryStart },
+      'query complete'
     );
 
     return json({
@@ -198,9 +192,8 @@ export const POST: RequestHandler = async ({ request }) => {
       totalRows: rows.length
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    const cause = err instanceof Error ? err.cause : undefined;
-    console.error('[trino] unexpected error on %s: %s', connection.url, message, cause ?? '');
+    log.error({ err, trino_url: connection.url }, 'unexpected error');
+    const message = err instanceof Error ? err.message : m.trino_unknown_error();
     return json({ error: message }, { status: 500 });
   }
 };

@@ -57,5 +57,8 @@
   "trino_auth_basic": "Basic",
   "trino_auth_username": "Benutzername",
   "trino_auth_password": "Passwort",
-  "trino_unknown_error": "Unbekannter Fehler"
+  "trino_unknown_error": "Unbekannter Fehler",
+  "trino_no_sql": "Keine SQL-Abfrage angegeben",
+  "trino_invalid_connection": "Die Verbindungskonfiguration ist ungültig oder fehlt. Bitte eine gültige URL und Authentifizierungsmethode angeben.",
+  "trino_query_timeout": "Abfrage nach 30 Sekunden abgebrochen"
 }
