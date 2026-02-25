@@ -45,7 +45,6 @@
   },
   "dependencies": {
     "@internationalized/date": "^3.11.0",
-    "monaco-editor": "^0.55.1",
-    "undici": "^7.22.0"
+    "monaco-editor": "^0.55.1"
   }
 }

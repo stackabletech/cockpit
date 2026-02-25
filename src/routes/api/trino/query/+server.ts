@@ -1,14 +1,9 @@
 import { json } from '@sveltejs/kit';
-import { Agent, fetch as undiciFetch } from 'undici';
 import type { RequestHandler } from './$types';
 
 const POLL_TIMEOUT_MS = 30_000;
 const MAX_CACHED_ROWS = 100_000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
-
-const agent = new Agent({
-  connect: { rejectUnauthorized: false }
-});
 
 interface TrinoColumn {
   name: string;
@@ -62,15 +57,14 @@ async function trinoFetch(
   auth: AuthConfig,
   options?: RequestInit
 ): Promise<TrinoResponse> {
-  const res = await undiciFetch(url, {
+  const res = await fetch(url, {
     ...options,
-    dispatcher: agent,
     headers: {
       ...buildAuthHeaders(auth),
       'X-Trino-Source': 'stackable-ui',
       ...(options?.headers ?? {})
     }
-  } as Parameters<typeof undiciFetch>[1]);
+  });
 
   if (!res.ok) {
     const text = await res.text();
