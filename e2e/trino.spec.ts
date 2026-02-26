@@ -1,4 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
+import * as http from 'node:http';
+import type { AddressInfo } from 'node:net';
 
 const COLUMNS = [
   { name: 'id', type: 'integer' },
@@ -13,6 +15,26 @@ async function waitForHydration(page: Page) {
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('theme')))
     .toMatch(/^(light|dark)$/);
+}
+
+// Starts a lightweight HTTP server that acts as a mock Trino endpoint.
+// The server action fetches `{trino_url}/v1/statement` from the SvelteKit server
+// (Node.js), so we need a real TCP server reachable by the server process.
+// page.route() only intercepts browser-side requests and cannot mock server-side
+// Node.js fetch calls.
+async function startMockTrinoServer(
+  handler: (req: http.IncomingMessage, res: http.ServerResponse) => void
+): Promise<{ url: string; stop: () => Promise<void> }> {
+  const server = http.createServer(handler);
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = (server.address() as AddressInfo).port;
+  return {
+    url: `http://127.0.0.1:${port}`,
+    stop: () =>
+      new Promise<void>((resolve, reject) =>
+        server.close((err) => (err ? reject(err) : resolve()))
+      )
+  };
 }
 
 test.describe('Trino query editor', () => {
@@ -46,161 +68,147 @@ test.describe('Trino query editor', () => {
   });
 
   test('running a query displays the results table', async ({ page }) => {
-    await page.route('**/api/trino/query', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          queryId: 'q1',
+    const { url, stop } = await startMockTrinoServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          id: 'test-query-id',
           columns: COLUMNS,
-          rows: [
+          data: [
             [1, 'Alice'],
             [2, 'Bob'],
             [3, 'Carol']
           ],
-          hasMore: false,
-          totalRows: 3
+          stats: { state: 'FINISHED' }
         })
-      });
+      );
     });
+    await page.addInitScript((trinoUrl) => {
+      localStorage.setItem('trino_url', trinoUrl);
+    }, url);
 
-    await page.goto('/trino');
-    await waitForHydration(page);
-    await page.getByRole('button', { name: 'Run query' }).click();
+    try {
+      await page.goto('/trino');
+      await waitForHydration(page);
+      await page.getByRole('button', { name: 'Run query' }).click();
 
-    const table = page.getByRole('table', { name: 'Query results' });
-    await expect(table).toBeVisible();
-    await expect(table.getByRole('columnheader', { name: 'id' })).toBeVisible();
-    await expect(table.getByRole('columnheader', { name: 'name' })).toBeVisible();
-    await expect(table.getByRole('cell', { name: '1' })).toBeVisible();
-    await expect(table.getByRole('cell', { name: 'Alice' })).toBeVisible();
-    await expect(page.getByText('Rows 1–3 of 3')).toBeVisible();
+      const table = page.getByRole('table', { name: 'Query results' });
+      await expect(table).toBeVisible();
+      await expect(table.getByRole('columnheader', { name: 'id' })).toBeVisible();
+      await expect(table.getByRole('columnheader', { name: 'name' })).toBeVisible();
+      await expect(table.getByRole('cell', { name: '1' })).toBeVisible();
+      await expect(table.getByRole('cell', { name: 'Alice' })).toBeVisible();
+      await expect(page.getByText('Rows 1–3 of 3')).toBeVisible();
+    } finally {
+      await stop();
+    }
   });
 
   test('Ctrl+Enter triggers query execution', async ({ page }) => {
     let called = false;
-    await page.route('**/api/trino/query', async (route) => {
+    const { url, stop } = await startMockTrinoServer((_req, res) => {
       called = true;
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          queryId: 'q1',
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          id: 'q1',
           columns: COLUMNS,
-          rows: [[1, 'Alice']],
-          hasMore: false,
-          totalRows: 1
+          data: [[1, 'Alice']],
+          stats: { state: 'FINISHED' }
         })
-      });
+      );
     });
+    await page.addInitScript((trinoUrl) => {
+      localStorage.setItem('trino_url', trinoUrl);
+    }, url);
 
-    await page.goto('/trino');
-    await waitForHydration(page);
-    await page.keyboard.press('Control+Enter');
+    try {
+      await page.goto('/trino');
+      await waitForHydration(page);
+      await page.keyboard.press('Control+Enter');
 
-    await expect.poll(() => called).toBe(true);
-    await expect(page.getByRole('table', { name: 'Query results' })).toBeVisible();
+      await expect.poll(() => called).toBe(true);
+      await expect(page.getByRole('table', { name: 'Query results' })).toBeVisible();
+    } finally {
+      await stop();
+    }
   });
 
   test('query error is shown in an alert', async ({ page }) => {
-    await page.route('**/api/trino/query', async (route) => {
-      await route.fulfill({
-        status: 400,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: 'syntax error at position 7' })
-      });
+    const { url, stop } = await startMockTrinoServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          id: 'q-err',
+          error: { message: 'syntax error at position 7', errorCode: 1 },
+          stats: { state: 'FAILED' }
+        })
+      );
     });
+    await page.addInitScript((trinoUrl) => {
+      localStorage.setItem('trino_url', trinoUrl);
+    }, url);
 
-    await page.goto('/trino');
-    await waitForHydration(page);
-    await page.getByRole('button', { name: 'Run query' }).click();
+    try {
+      await page.goto('/trino');
+      await waitForHydration(page);
+      await page.getByRole('button', { name: 'Run query' }).click();
 
-    // Monaco also renders role="alert" nodes for its own accessibility — filter by content.
-    const alert = page.getByRole('alert').filter({ hasText: 'Query error' });
-    await expect(alert).toBeVisible();
-    await expect(alert.getByText('syntax error at position 7')).toBeVisible();
+      // Monaco also renders role="alert" nodes for its own accessibility — filter by content.
+      const alert = page.getByRole('alert').filter({ hasText: 'Query error' });
+      await expect(alert).toBeVisible();
+      await expect(alert.getByText('syntax error at position 7')).toBeVisible();
+    } finally {
+      await stop();
+    }
   });
 
   test('pagination navigates between pages', async ({ page }) => {
+    // The server action caches all rows after the first query;
+    // prev/next page requests are served from the cache without hitting Trino again.
     const allRows = Array.from({ length: 30 }, (_, i) => [i + 1, `Row ${i + 1}`]);
-
-    await page.route('**/api/trino/query', async (route) => {
-      const body = JSON.parse((await route.request().postData()) ?? '{}');
-      const pg: number = body.page ?? 0;
-      const ps = 25;
-      const slice = allRows.slice(pg * ps, pg * ps + ps);
-
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          queryId: 'q-pages',
+    const { url, stop } = await startMockTrinoServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          id: 'q-pages',
           columns: COLUMNS,
-          rows: slice,
-          hasMore: (pg + 1) * ps < allRows.length,
-          totalRows: allRows.length
+          data: allRows,
+          stats: { state: 'FINISHED' }
         })
-      });
+      );
     });
+    await page.addInitScript((trinoUrl) => {
+      localStorage.setItem('trino_url', trinoUrl);
+    }, url);
 
-    await page.goto('/trino');
-    await waitForHydration(page);
-    await page.getByRole('button', { name: 'Run query' }).click();
+    try {
+      await page.goto('/trino');
+      await waitForHydration(page);
+      await page.getByRole('button', { name: 'Run query' }).click();
 
-    await expect(page.getByText('Rows 1–25 of 30')).toBeVisible();
+      await expect(page.getByText('Rows 1–25 of 30')).toBeVisible();
 
-    const nextBtn = page.getByRole('button', { name: 'Next page' });
-    const prevBtn = page.getByRole('button', { name: 'Previous page' });
-    await expect(prevBtn).toBeDisabled();
-    await expect(nextBtn).toBeEnabled();
+      const nextBtn = page.getByRole('button', { name: 'Next page' });
+      const prevBtn = page.getByRole('button', { name: 'Previous page' });
+      await expect(prevBtn).toBeDisabled();
+      await expect(nextBtn).toBeEnabled();
 
-    await nextBtn.click();
-    await expect(page.getByText('Rows 26–30 of 30')).toBeVisible();
-    await expect(prevBtn).toBeEnabled();
-    await expect(nextBtn).toBeDisabled();
+      await nextBtn.click();
+      await expect(page.getByText('Rows 26–30 of 30')).toBeVisible();
+      await expect(prevBtn).toBeEnabled();
+      await expect(nextBtn).toBeDisabled();
 
-    await prevBtn.click();
-    await expect(page.getByText('Rows 1–25 of 30')).toBeVisible();
-  });
-
-  test('session expired shows correct message', async ({ page }) => {
-    let call = 0;
-    await page.route('**/api/trino/query', async (route) => {
-      call++;
-      if (call === 1) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            queryId: 'exp-id',
-            columns: COLUMNS,
-            rows: [[1, 'Alice']],
-            hasMore: true,
-            totalRows: 50
-          })
-        });
-      } else {
-        await route.fulfill({
-          status: 404,
-          contentType: 'application/json',
-          body: JSON.stringify({ error: 'session_expired' })
-        });
-      }
-    });
-
-    await page.goto('/trino');
-    await waitForHydration(page);
-    await page.getByRole('button', { name: 'Run query' }).click();
-    await expect(page.getByRole('table')).toBeVisible();
-
-    await page.getByRole('button', { name: 'Next page' }).click();
-
-    const alert = page.getByRole('alert').filter({ hasText: 'Query session expired' });
-    await expect(alert).toBeVisible();
+      await prevBtn.click();
+      await expect(page.getByText('Rows 1–25 of 30')).toBeVisible();
+    } finally {
+      await stop();
+    }
   });
 
   test('connection section expands to reveal URL and auth controls', async ({ page }) => {
     await page.goto('/trino');
+    await waitForHydration(page);
 
     // The DaisyUI collapse uses a visually-hidden checkbox as its toggle.
     await page.getByRole('checkbox', { name: 'Connection' }).check({ force: true });
@@ -212,6 +220,7 @@ test.describe('Trino query editor', () => {
 
   test('switching to basic auth reveals credential fields', async ({ page }) => {
     await page.goto('/trino');
+    await waitForHydration(page);
     await page.getByRole('checkbox', { name: 'Connection' }).check({ force: true });
 
     // No credentials visible for 'none' auth
@@ -226,27 +235,32 @@ test.describe('Trino query editor', () => {
   });
 
   test('null cell values render as italic null placeholder', async ({ page }) => {
-    await page.route('**/api/trino/query', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          queryId: 'q-null',
+    const { url, stop } = await startMockTrinoServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          id: 'q-null',
           columns: [{ name: 'value', type: 'varchar' }],
-          rows: [[null], ['hello']],
-          hasMore: false,
-          totalRows: 2
+          data: [[null], ['hello']],
+          stats: { state: 'FINISHED' }
         })
-      });
+      );
     });
+    await page.addInitScript((trinoUrl) => {
+      localStorage.setItem('trino_url', trinoUrl);
+    }, url);
 
-    await page.goto('/trino');
-    await waitForHydration(page);
-    await page.getByRole('button', { name: 'Run query' }).click();
+    try {
+      await page.goto('/trino');
+      await waitForHydration(page);
+      await page.getByRole('button', { name: 'Run query' }).click();
 
-    const table = page.getByRole('table');
-    await expect(table).toBeVisible();
-    await expect(table.getByText('null')).toBeVisible();
-    await expect(table.getByText('hello')).toBeVisible();
+      const table = page.getByRole('table');
+      await expect(table).toBeVisible();
+      await expect(table.getByText('null')).toBeVisible();
+      await expect(table.getByText('hello')).toBeVisible();
+    } finally {
+      await stop();
+    }
   });
 });

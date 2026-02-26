@@ -51,6 +51,7 @@
   "trino_prev_page": "Previous page",
   "trino_next_page": "Next page",
   "trino_connection_label": "Connection",
+  "trino_connection_error": "Please configure a valid connection URL.",
   "trino_connection_url": "URL",
   "trino_connection_auth": "Auth",
   "trino_auth_none": "No auth",
