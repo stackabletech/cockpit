@@ -51,6 +51,7 @@
   },
   "dependencies": {
     "@internationalized/date": "^3.11.0",
+    "monaco-editor": "^0.55.1",
     "pino": "^10.3.1"
   }
 }

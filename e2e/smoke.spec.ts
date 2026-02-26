@@ -20,9 +20,10 @@ test.describe('Smoke tests', () => {
     // Dashboard content is rendered
     await expect(page.getByText('Welcome back')).toBeVisible();
 
-    // Trino nav item is present but disabled
+    // Trino nav item is present and navigable
     const trinoLink = page.getByRole('link', { name: 'Trino' });
-    await expect(trinoLink).toHaveAttribute('aria-disabled', 'true');
+    await expect(trinoLink).toBeVisible();
+    await expect(trinoLink).not.toHaveAttribute('aria-disabled', 'true');
   });
 
   test('theme toggle switches between light and dark', async ({ page }) => {
