@@ -1,21 +1,12 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { waitForHydration } from './helpers';
 
 const COLUMNS = [
   { name: 'id', type: 'integer' },
   { name: 'name', type: 'varchar' }
 ];
-
-// In SvelteKit + Vite dev mode, the `load` event fires before all dynamic module
-// imports finish. Svelte 5 attaches event handlers only after those imports
-// complete (hydration). Poll for the theme key — the layout writes it on mount —
-// as a reliable signal that the app is fully hydrated and interactive.
-async function waitForHydration(page: Page) {
-  await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('theme')))
-    .toMatch(/^(light|dark)$/);
-}
 
 // Starts a lightweight HTTP server that acts as a mock Trino endpoint.
 // The server action fetches `{trino_url}/v1/statement` from the SvelteKit server
