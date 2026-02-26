@@ -14,7 +14,8 @@
     "lint": "prettier --check --ignore-path .prettierignore . && eslint .",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "generate:antlr": "cd src/lib/editor/grammar && antlr4ng -visitor -listener -Dlanguage=TypeScript -o ../generated SqlBase.g4"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.2",
@@ -27,6 +28,7 @@
     "@tailwindcss/vite": "^4.2.1",
     "@types/node": "^24",
     "@vitest/browser-playwright": "^4.0.18",
+    "antlr4ng-cli": "^2.0.0",
     "daisyui": "^5.5.19",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
@@ -51,6 +53,7 @@
   },
   "dependencies": {
     "@internationalized/date": "^3.11.0",
+    "antlr4ng": "^3.0.16",
     "monaco-editor": "^0.55.1",
     "pino": "^10.3.1"
   }

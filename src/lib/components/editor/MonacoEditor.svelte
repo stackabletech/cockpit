@@ -2,10 +2,11 @@
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import { theme } from '$lib/theme.svelte';
+  import { registerTrinoSql, TRINO_SQL_LANGUAGE_ID } from '$lib/editor/trinosql';
 
   let {
     value = $bindable(),
-    language = 'sql',
+    language = TRINO_SQL_LANGUAGE_ID,
     onExecute
   }: {
     value?: string;
@@ -19,9 +20,7 @@
 
   // Start loading in parallel with the rest of the page — not deferred to onMount.
   // Guarded by `browser` because SvelteKit evaluates component scripts on the server too.
-  const workerImport = browser
-    ? import('monaco-editor/esm/vs/editor/editor.worker?worker')
-    : null;
+  const workerImport = browser ? import('monaco-editor/esm/vs/editor/editor.worker?worker') : null;
   const monacoImport = browser ? import('monaco-editor') : null;
 
   function toMonacoTheme(t: string): string {
@@ -40,6 +39,8 @@
     };
 
     monaco = await monacoImport!;
+
+    registerTrinoSql(monaco);
 
     editor = monaco.editor.create(container, {
       value,
