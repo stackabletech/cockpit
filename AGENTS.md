@@ -104,6 +104,29 @@ The project uses **pino** for structured JSON logging (server-side only).
 - The editor must be loaded client-side only
 - Use the custom `trinosql` language registration for Trino SQL support
 
+### Updating the Trino SQL Grammar (ANTLR)
+
+The grammar lives at `src/lib/editor/grammar/SqlBase.g4`. The authoritative source is the main Trino repository:
+
+```
+core/trino-grammar/src/main/antlr4/io/trino/grammar/sql/SqlBase.g4
+```
+
+Fetch the latest version with:
+
+```bash
+gh api "repos/trinodb/trino/contents/core/trino-grammar/src/main/antlr4/io/trino/grammar/sql/SqlBase.g4" \
+  --jq '.download_url' | xargs curl -s -o src/lib/editor/grammar/SqlBase.g4
+```
+
+Then regenerate the TypeScript lexer/parser:
+
+```bash
+npm run generate:antlr
+```
+
+After regeneration, compare the new token list against `src/lib/editor/tokenMap.ts`. Any token present in `SqlBaseLexer.ts` but missing from `tokenMap.ts` will fall back to `'identifier'` scope (no colour). Add missing tokens with an appropriate scope (`'keyword'`, `'delimiter'`, `'string'`, etc.).
+
 ### Code Style & Best Practices
 
 - Use spaces not tabs
