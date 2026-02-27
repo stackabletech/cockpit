@@ -217,8 +217,9 @@ test.describe('Trino query editor', () => {
     await expect(page.getByLabel('Username')).not.toBeVisible();
     await expect(page.getByLabel('Password')).not.toBeVisible();
 
-    // Switch to basic auth
-    await page.getByRole('radio', { name: 'Basic' }).check({ force: true });
+    // Switch to basic auth — native DOM click reliably triggers Svelte's bind:group
+    // reactivity in Firefox CI, unlike Playwright's synthesised click/check.
+    await page.getByRole('radio', { name: 'Basic' }).evaluate((el: HTMLInputElement) => el.click());
 
     await expect(page.getByLabel('Username')).toBeVisible();
     await expect(page.getByLabel('Password')).toBeVisible();
