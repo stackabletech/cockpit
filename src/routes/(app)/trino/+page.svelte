@@ -125,12 +125,6 @@
   let queryFormEl = $state<HTMLFormElement | undefined>(undefined);
   let paginateFormEl = $state<HTMLFormElement | undefined>(undefined);
 
-  function handleKeydown(event: KeyboardEvent) {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-      queryFormEl?.requestSubmit();
-    }
-  }
-
   function goToPrevPage() {
     const prevPage = currentPage - 1;
     $paginateFormData.queryId = queryId!;
@@ -161,7 +155,6 @@
   }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
 
 <div class="flex h-full flex-col gap-4">
   <!-- Query form: wraps connection config + editor -->
@@ -201,6 +194,7 @@
             class:input-error={$queryErrors.connectionUrl}
             placeholder={m.trino_connection_url_placeholder()}
             bind:value={connectionUrl}
+            onkeydown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
           />
           {#if $queryErrors.connectionUrl}
             <p class="text-error text-xs">{$queryErrors.connectionUrl?.join(' ')}</p>
@@ -245,6 +239,7 @@
                 class="input input-sm font-mono"
                 autocomplete="username"
                 bind:value={authUsername}
+                onkeydown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
               />
             </div>
             <div class="flex flex-col gap-1">
@@ -257,6 +252,7 @@
                 class="input input-sm font-mono"
                 autocomplete="current-password"
                 bind:value={authPassword}
+                onkeydown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
               />
             </div>
           </div>
