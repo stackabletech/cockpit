@@ -67,8 +67,7 @@
         hasMore = msg.hasMore;
         totalRows = msg.totalRows;
       } else {
-        queryError =
-          msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
+        queryError = msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
       }
     }
   });
@@ -90,8 +89,7 @@
         totalRows = msg.totalRows;
         queryError = null;
       } else {
-        queryError =
-          msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
+        queryError = msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
         if (msg.message === 'session_expired') queryId = null;
       }
     }
@@ -155,7 +153,6 @@
   }
 </script>
 
-
 <div class="flex h-full flex-col gap-4">
   <!-- Query form: wraps connection config + editor -->
   <form method="POST" action="?/query" use:queryEnhance bind:this={queryFormEl}>
@@ -194,7 +191,9 @@
             class:input-error={$queryErrors.connectionUrl}
             placeholder={m.trino_connection_url_placeholder()}
             bind:value={connectionUrl}
-            onkeydown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') e.preventDefault();
+            }}
           />
           {#if $queryErrors.connectionUrl}
             <p class="text-error text-xs">{$queryErrors.connectionUrl?.join(' ')}</p>
@@ -239,7 +238,9 @@
                 class="input input-sm font-mono"
                 autocomplete="username"
                 bind:value={authUsername}
-                onkeydown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                onkeydown={(e) => {
+                  if (e.key === 'Enter') e.preventDefault();
+                }}
               />
             </div>
             <div class="flex flex-col gap-1">
@@ -252,7 +253,9 @@
                 class="input input-sm font-mono"
                 autocomplete="current-password"
                 bind:value={authPassword}
-                onkeydown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                onkeydown={(e) => {
+                  if (e.key === 'Enter') e.preventDefault();
+                }}
               />
             </div>
           </div>

@@ -19,9 +19,7 @@
 
   // Start loading in parallel with the rest of the page — not deferred to onMount.
   // Guarded by `browser` because SvelteKit evaluates component scripts on the server too.
-  const workerImport = browser
-    ? import('monaco-editor/esm/vs/editor/editor.worker?worker')
-    : null;
+  const workerImport = browser ? import('monaco-editor/esm/vs/editor/editor.worker?worker') : null;
   const monacoImport = browser ? import('monaco-editor') : null;
 
   function toMonacoTheme(t: string): string {

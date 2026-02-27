@@ -22,9 +22,7 @@ async function startMockTrinoServer(
   return {
     url: `http://127.0.0.1:${port}`,
     stop: () =>
-      new Promise<void>((resolve, reject) =>
-        server.close((err) => (err ? reject(err) : resolve()))
-      )
+      new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())))
   };
 }
 
@@ -116,6 +114,7 @@ test.describe('Trino query editor', () => {
     try {
       await page.goto('/trino');
       await waitForHydration(page);
+      await page.locator('.monaco-editor').click();
       await page.keyboard.press('Control+Enter');
 
       await expect.poll(() => called).toBe(true);

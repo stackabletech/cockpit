@@ -11,7 +11,10 @@
     const observer = new MutationObserver(() => {
       theme.current = document.documentElement.dataset.theme ?? 'dark';
     });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
     return () => observer.disconnect();
   });
 </script>

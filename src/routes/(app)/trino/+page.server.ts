@@ -57,7 +57,11 @@ export const actions: Actions = {
 
       if (response.error) {
         log.info({ err: response.error }, 'query error');
-        return message(form, { type: 'error', message: response.error.message } satisfies FormMessage, { status: 400 });
+        return message(
+          form,
+          { type: 'error', message: response.error.message } satisfies FormMessage,
+          { status: 400 }
+        );
       }
 
       if (response.columns) columns = response.columns;
@@ -66,14 +70,22 @@ export const actions: Actions = {
       while (response.nextUri && rows.length < MAX_CACHED_ROWS) {
         if (Date.now() > deadline) {
           log.info({ trino_url: connectionUrl, timeout_ms: POLL_TIMEOUT_MS }, 'query timed out');
-          return message(form, { type: 'error', message: m.trino_query_timeout() } satisfies FormMessage, { status: 408 });
+          return message(
+            form,
+            { type: 'error', message: m.trino_query_timeout() } satisfies FormMessage,
+            { status: 408 }
+          );
         }
 
         response = await trinoFetch(response.nextUri, auth);
 
         if (response.error) {
           log.info({ err: response.error }, 'query error');
-          return message(form, { type: 'error', message: response.error.message } satisfies FormMessage, { status: 400 });
+          return message(
+            form,
+            { type: 'error', message: response.error.message } satisfies FormMessage,
+            { status: 400 }
+          );
         }
 
         if (response.columns && columns.length === 0) columns = response.columns;
@@ -84,7 +96,12 @@ export const actions: Actions = {
       queryCache.set(queryId, { columns, rows, createdAt: Date.now() });
 
       log.info(
-        { query_id: queryId, rows: rows.length, cols: columns.length, duration_ms: Date.now() - queryStart },
+        {
+          query_id: queryId,
+          rows: rows.length,
+          cols: columns.length,
+          duration_ms: Date.now() - queryStart
+        },
         'query complete'
       );
 
@@ -116,7 +133,9 @@ export const actions: Actions = {
 
     if (!cached) {
       log.info({ query_id: queryId }, 'cache miss (session expired)');
-      return message(form, { type: 'error', message: 'session_expired' } satisfies FormMessage, { status: 404 });
+      return message(form, { type: 'error', message: 'session_expired' } satisfies FormMessage, {
+        status: 404
+      });
     }
 
     const start = page * pageSize;

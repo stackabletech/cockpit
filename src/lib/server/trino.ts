@@ -18,9 +18,7 @@ export interface CacheEntry {
   createdAt: number;
 }
 
-export type AuthConfig =
-  | { type: 'none' }
-  | { type: 'basic'; username: string; password: string };
+export type AuthConfig = { type: 'none' } | { type: 'basic'; username: string; password: string };
 
 export const POLL_TIMEOUT_MS = 30_000;
 export const MAX_CACHED_ROWS = 100_000;
