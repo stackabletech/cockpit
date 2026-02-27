@@ -22,7 +22,7 @@
 </svelte:head>
 
 <div class="bg-base-100 flex h-dvh overflow-hidden">
-  <Sidebar bind:collapsed={sidebarCollapsed} bind:mobileOpen />
+  <Sidebar bind:collapsed={sidebarCollapsed} bind:mobileOpen authenticated={!!data.user} />
 
   <div class="flex min-w-0 flex-1 flex-col">
     <Header

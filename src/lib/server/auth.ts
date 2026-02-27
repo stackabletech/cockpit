@@ -1,12 +1,20 @@
 import { betterAuth } from 'better-auth';
 import { genericOAuth } from 'better-auth/plugins';
 import Database from 'better-sqlite3';
-import { env } from '$env/dynamic/private';
+
+// Use SvelteKit's $env when available, fall back to process.env for the
+// better-auth CLI which imports this file outside of SvelteKit via jiti.
+let env: Record<string, string | undefined>;
+try {
+  env = (await import('$env/dynamic/private')).env;
+} catch {
+  env = process.env as Record<string, string | undefined>;
+}
 
 export const auth = betterAuth({
-  secret: env.BETTER_AUTH_SECRET,
-  baseURL: env.BETTER_AUTH_URL,
-  database: new Database(env.DATABASE_PATH ?? '/data/auth.db'),
+  secret: env.STACKABLE_UI_SESSION_SECRET,
+  baseURL: env.STACKABLE_UI_BASE_URL,
+  database: new Database(env.STACKABLE_UI_SQLITE_PATH ?? '.data/auth.db'),
   session: {
     cookieCache: { enabled: true, maxAge: 5 * 60 }
   },
@@ -15,9 +23,9 @@ export const auth = betterAuth({
       config: [
         {
           providerId: 'oidc',
-          discoveryUrl: `${env.AUTH_ISSUER}/.well-known/openid-configuration`,
-          clientId: env.AUTH_CLIENT_ID,
-          clientSecret: env.AUTH_CLIENT_SECRET,
+          discoveryUrl: env.STACKABLE_UI_OIDC_DISCOVERY_URL,
+          clientId: env.STACKABLE_UI_OIDC_CLIENT_ID!,
+          clientSecret: env.STACKABLE_UI_OIDC_CLIENT_SECRET!,
           scopes: ['openid', 'profile', 'email'],
           pkce: true,
           mapProfileToUser: async (profile) => {

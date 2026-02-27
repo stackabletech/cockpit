@@ -4,10 +4,12 @@
 
   let {
     collapsed = $bindable(false),
-    mobileOpen = $bindable(false)
+    mobileOpen = $bindable(false),
+    authenticated = false
   }: {
     collapsed?: boolean;
     mobileOpen?: boolean;
+    authenticated?: boolean;
   } = $props();
 
   type NavItem = {
@@ -28,16 +30,20 @@
       title: m.nav_platform(),
       items: [{ label: m.nav_dashboard(), href: '/', icon: 'dashboard' }]
     },
-    {
-      title: m.nav_data_tools(),
-      items: [
-        {
-          label: m.nav_trino(),
-          href: '/trino',
-          icon: 'database'
-        }
-      ]
-    }
+    ...(authenticated
+      ? [
+          {
+            title: m.nav_data_tools(),
+            items: [
+              {
+                label: m.nav_trino(),
+                href: '/trino',
+                icon: 'database'
+              }
+            ]
+          }
+        ]
+      : [])
   ]);
 
   function isActive(href: string): boolean {
