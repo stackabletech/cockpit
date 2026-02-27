@@ -34,9 +34,7 @@
         {
           label: m.nav_trino(),
           href: '/trino',
-          icon: 'database',
-          badge: m.nav_badge_soon(),
-          disabled: true
+          icon: 'database'
         }
       ]
     }

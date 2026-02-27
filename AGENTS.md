@@ -34,7 +34,12 @@ This is a **single SvelteKit application** (not a monorepo).
 ├── static/               # Static assets
 ├── Dockerfile            # Production container image
 └── CLAUDE.md             # AI assistant instructions
+└── TECH_DEBT.md          # Known tech debt and deferred security concerns
 ```
+
+## Tech Debt
+
+When introducing shortcuts, known issues, or deferred security work, add an entry to `TECH_DEBT.md`. Keep entries concise: what the issue is, why it is acceptable now, and what the correct long-term fix is.
 
 ## Development Guidelines
 
@@ -62,6 +67,41 @@ The application must comply with **BITV 2.0** (German accessibility regulation, 
 - **Alt text**: Every `<img>` must have a meaningful `alt` attribute (or `alt=""` for decorative images).
 - **Language**: The `<html>` element must have a `lang` attribute. Use `lang` attributes on content in other languages.
 - **Screen reader support**: Ensure content is announced correctly. Hide decorative elements with `aria-hidden="true"`.
+
+### Logging
+
+The project uses **pino** for structured JSON logging (server-side only).
+
+**Two usage patterns:**
+
+1. **Request-scoped** (in `+page.server.ts`, `+server.ts`, hooks) — use the logger from `event.locals`:
+
+   ```typescript
+   const log = event.locals.logger;
+   log.info({ catalog_name: name }, 'Loading catalogue');
+   ```
+
+2. **Module-level** (singletons, services) — create a child logger:
+
+   ```typescript
+   import { logger } from '$lib/server/logging';
+   const log = logger.child({ module: 'trino-client' });
+   log.info({ trino_url: url }, 'Connecting to Trino');
+   ```
+
+**Log level guidance:**
+
+- `trace` — request lifecycle noise and highly detailed diagnostics (for example request start/completion for successful requests)
+- `debug` — verbose operational detail (cache hits, query plans, non-request-flow diagnostics)
+- `info` — significant business events (user login, query executed, service discovered)
+- `warn` — recoverable problems needing attention (deprecated config, retry succeeded)
+- `error` — failures requiring investigation (unhandled exceptions, external service down)
+
+**Conventions:**
+
+- Context object first, message string second: `log.info({ user_id }, 'User logged in')`
+- Use snake_case field names for queryability: `request_id`, `user_id`, `module`, `duration_ms`, `status_code`, `path`, `method`
+- Never log tokens, credentials, or full request/session objects directly — add redaction paths to `src/lib/server/logging/redaction.ts`
 
 ### Monaco Editor
 

@@ -84,6 +84,17 @@ Common duplication areas:
 - Superforms used correctly with Zod schemas?
 - Zod schemas defined once, not duplicated?
 
+**Logging (server-side code only):**
+
+- Server-side load functions, API endpoints, and hooks should include logging at appropriate levels
+- Uses `event.locals.logger` (request-scoped) in request handlers, not the root `logger` import
+- Module-level singletons/services use `logger.child({ module: '...' })`, not bare `console.log`
+- Context object first, message string second: `log.info({ user_id }, 'User logged in')`
+- Field names use snake_case consistently (`request_id`, `user_id`, `duration_ms`, `status_code`) — not camelCase variants
+- Tokens, credentials, passwords, or full request/session objects are never logged directly
+- If new sensitive fields are logged, redaction paths should be added to `src/lib/server/logging/redaction.ts`
+- No leftover `console.log`/`console.error` in server code (use pino logger instead)
+
 **Accessibility (BITV 2.0 / WCAG 2.1 AA):**
 
 - Semantic HTML elements used (`<nav>`, `<main>`, `<button>`, `<a>`, correct heading levels)?
@@ -114,7 +125,10 @@ Common duplication areas:
 - Prop drilling more than 2 levels deep
 - Magic numbers/strings without constants
 - Commented-out code (remove it)
-- Console.logs left in (unless obviously intentional debug code)
+- `console.log`/`console.error` in server-side code (use pino logger)
+- Root `logger` import used inside request handlers instead of `event.locals.logger`
+- Logging sensitive data (tokens, passwords, full session objects) without redaction
+- Inconsistent field naming in log context (camelCase vs snake_case)
 - Hard-coded colours instead of DaisyUI semantic classes
 - Hardcoded user-facing strings in `.svelte` files instead of using `m.*()` from Paraglide
 
@@ -162,6 +176,14 @@ Prioritise issues by severity: critical > important > minor. Only include sectio
 
 - **File**: path/to/file.svelte:30
 - **Problem**: What breaks and where
+- **Fix**: How to resolve it
+
+## Logging Issues
+
+[Missing logging, wrong logger used, sensitive data exposure, inconsistent field names]
+
+- **File**: path/to/file.ts:20
+- **Issue**: Describe the logging problem
 - **Fix**: How to resolve it
 
 ## Duplication Found
