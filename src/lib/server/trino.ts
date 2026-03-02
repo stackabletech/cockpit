@@ -18,9 +18,7 @@ export interface CacheEntry {
   createdAt: number;
 }
 
-export type AuthConfig =
-  | { type: 'none' }
-  | { type: 'basic'; username: string; password: string };
+export type AuthConfig = { type: 'none' } | { type: 'basic'; username: string; password: string };
 
 export const POLL_TIMEOUT_MS = 30_000;
 export const MAX_CACHED_ROWS = 100_000;
@@ -49,15 +47,20 @@ export function buildAuthHeaders(auth: AuthConfig): Record<string, string> {
 export async function trinoFetch(
   url: string,
   auth: AuthConfig,
-  options?: RequestInit
+  options?: RequestInit & { impersonateUser?: string }
 ): Promise<TrinoResponse> {
+  const { impersonateUser, ...fetchOptions } = options ?? {};
+  const headers: Record<string, string> = {
+    ...buildAuthHeaders(auth),
+    'X-Trino-Source': 'stackable-ui',
+    ...((fetchOptions.headers as Record<string, string>) ?? {})
+  };
+  if (impersonateUser) {
+    headers['X-Trino-User'] = impersonateUser;
+  }
   const res = await fetch(url, {
-    ...options,
-    headers: {
-      ...buildAuthHeaders(auth),
-      'X-Trino-Source': 'stackable-ui',
-      ...(options?.headers ?? {})
-    }
+    ...fetchOptions,
+    headers
   });
 
   if (!res.ok) {

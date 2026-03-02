@@ -4,8 +4,8 @@ test.describe('Authentication', () => {
   test.use({ locale: 'en-US' });
 
   test('unauthenticated access redirects to login page', async ({ browser }) => {
-    // Use a fresh context with no saved session
-    const context = await browser.newContext();
+    // Use a fresh context with explicitly empty storage state (no session cookies)
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await context.newPage();
 
     await page.goto('/');
@@ -17,7 +17,7 @@ test.describe('Authentication', () => {
   });
 
   test('login page preserves redirectTo query parameter', async ({ browser }) => {
-    const context = await browser.newContext();
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await context.newPage();
 
     await page.goto('/some-page?foo=bar');

@@ -33,11 +33,13 @@ export const actions: Actions = {
       return fail(400, { form });
     }
 
-    const { sql, pageSize, connectionUrl, authType, authUsername, authPassword } = form.data;
+    const { sql, pageSize, connectionUrl, authType, authUsername, authPassword, impersonation } =
+      form.data;
     const auth: AuthConfig =
       authType === 'basic'
         ? { type: 'basic', username: authUsername, password: authPassword }
         : { type: 'none' };
+    const impersonateUser = impersonation && locals.user?.name ? locals.user.name : undefined;
 
     evictStale();
 
@@ -52,12 +54,17 @@ export const actions: Actions = {
       let response = await trinoFetch(`${connectionUrl}/v1/statement`, auth, {
         method: 'POST',
         body: sql.replace(/;\s*$/, '').trim(),
-        headers: { 'Content-Type': 'text/plain' }
+        headers: { 'Content-Type': 'text/plain' },
+        impersonateUser
       });
 
       if (response.error) {
         log.info({ err: response.error }, 'query error');
-        return message(form, { type: 'error', message: response.error.message } satisfies FormMessage, { status: 400 });
+        return message(
+          form,
+          { type: 'error', message: response.error.message } satisfies FormMessage,
+          { status: 400 }
+        );
       }
 
       if (response.columns) columns = response.columns;
@@ -66,14 +73,22 @@ export const actions: Actions = {
       while (response.nextUri && rows.length < MAX_CACHED_ROWS) {
         if (Date.now() > deadline) {
           log.info({ trino_url: connectionUrl, timeout_ms: POLL_TIMEOUT_MS }, 'query timed out');
-          return message(form, { type: 'error', message: m.trino_query_timeout() } satisfies FormMessage, { status: 408 });
+          return message(
+            form,
+            { type: 'error', message: m.trino_query_timeout() } satisfies FormMessage,
+            { status: 408 }
+          );
         }
 
-        response = await trinoFetch(response.nextUri, auth);
+        response = await trinoFetch(response.nextUri, auth, { impersonateUser });
 
         if (response.error) {
           log.info({ err: response.error }, 'query error');
-          return message(form, { type: 'error', message: response.error.message } satisfies FormMessage, { status: 400 });
+          return message(
+            form,
+            { type: 'error', message: response.error.message } satisfies FormMessage,
+            { status: 400 }
+          );
         }
 
         if (response.columns && columns.length === 0) columns = response.columns;
@@ -84,7 +99,12 @@ export const actions: Actions = {
       queryCache.set(queryId, { columns, rows, createdAt: Date.now() });
 
       log.info(
-        { query_id: queryId, rows: rows.length, cols: columns.length, duration_ms: Date.now() - queryStart },
+        {
+          query_id: queryId,
+          rows: rows.length,
+          cols: columns.length,
+          duration_ms: Date.now() - queryStart
+        },
         'query complete'
       );
 
@@ -116,7 +136,9 @@ export const actions: Actions = {
 
     if (!cached) {
       log.info({ query_id: queryId }, 'cache miss (session expired)');
-      return message(form, { type: 'error', message: 'session_expired' } satisfies FormMessage, { status: 404 });
+      return message(form, { type: 'error', message: 'session_expired' } satisfies FormMessage, {
+        status: 404
+      });
     }
 
     const start = page * pageSize;

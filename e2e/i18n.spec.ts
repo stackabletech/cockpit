@@ -1,5 +1,20 @@
 import { test, expect } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { waitForHydration } from './helpers';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const authFile = path.join(__dirname, '.auth/user.json');
+
+/** Load the saved auth storage state, optionally stripping the locale cookie. */
+function loadAuthState({ withoutLocale = false } = {}) {
+  const state = JSON.parse(fs.readFileSync(authFile, 'utf-8'));
+  if (withoutLocale) {
+    state.cookies = state.cookies.filter((c: { name: string }) => c.name !== 'PARAGLIDE_LOCALE');
+  }
+  return state;
+}
 
 test.describe('Internationalisation', () => {
   test.use({ locale: 'en-US' });
@@ -17,9 +32,10 @@ test.describe('Internationalisation', () => {
   });
 
   test('language switcher changes to German', async ({ page, context, baseURL }) => {
-    const resolvedBaseURL = baseURL ?? 'http://localhost:5173';
+    const resolvedBaseURL = baseURL ?? 'http://localhost:4173';
 
-    await context.clearCookies();
+    // Only clear the locale cookie, keeping auth cookies intact
+    await context.clearCookies({ name: 'PARAGLIDE_LOCALE' });
     await context.addCookies([
       {
         name: 'PARAGLIDE_LOCALE',
@@ -76,9 +92,11 @@ test.describe('Internationalisation', () => {
   });
 
   test('Accept-Language header respected for first visit', async ({ browser }) => {
-    // Create a context with German Accept-Language
+    // Create a context with German Accept-Language but no locale cookie,
+    // so paraglide falls back to the Accept-Language header
     const context = await browser.newContext({
-      locale: 'de-DE'
+      locale: 'de-DE',
+      storageState: loadAuthState({ withoutLocale: true })
     });
     const page = await context.newPage();
 

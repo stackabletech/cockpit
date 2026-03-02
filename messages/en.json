@@ -66,5 +66,7 @@
   "trino_unknown_error": "Unknown error",
   "trino_no_sql": "No SQL provided",
   "trino_invalid_connection": "The connection configuration is invalid or missing. Please provide a valid URL and authentication method.",
-  "trino_query_timeout": "Query timed out after 30 seconds"
+  "trino_query_timeout": "Query timed out after 30 seconds",
+  "trino_impersonation": "User impersonation",
+  "trino_impersonation_description": "Run queries as {user} via the service account"
 }

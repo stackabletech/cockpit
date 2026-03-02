@@ -66,5 +66,7 @@
   "trino_unknown_error": "Unbekannter Fehler",
   "trino_no_sql": "Keine SQL-Abfrage angegeben",
   "trino_invalid_connection": "Die Verbindungskonfiguration ist ungültig oder fehlt. Bitte eine gültige URL und Authentifizierungsmethode angeben.",
-  "trino_query_timeout": "Abfrage nach 30 Sekunden abgebrochen"
+  "trino_query_timeout": "Abfrage nach 30 Sekunden abgebrochen",
+  "trino_impersonation": "Benutzer-Impersonierung",
+  "trino_impersonation_description": "Abfragen als {user} über das Dienstkonto ausführen"
 }

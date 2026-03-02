@@ -23,6 +23,7 @@
   let authType = $state<'none' | 'basic'>(ls('trino_auth_type', 'none') as 'none' | 'basic');
   let authUsername = $state(ls('trino_username', ''));
   let authPassword = $state(ls('trino_password', ''));
+  let impersonation = $state(ls('trino_impersonation', 'false') === 'true');
   let sql = $state(ls('trino_sql', 'SELECT 1'));
   let pageSize = $state<25 | 50 | 100>(25);
 
@@ -49,7 +50,6 @@
       queryId = null;
       totalRows = null;
       currentPage = 0;
-      connectionOpen = false;
     },
     onUpdated({ form }) {
       // Validation errors for connection fields — open the section so the user can see them.
@@ -67,8 +67,7 @@
         hasMore = msg.hasMore;
         totalRows = msg.totalRows;
       } else {
-        queryError =
-          msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
+        queryError = msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
       }
     }
   });
@@ -90,8 +89,7 @@
         totalRows = msg.totalRows;
         queryError = null;
       } else {
-        queryError =
-          msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
+        queryError = msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
         if (msg.message === 'session_expired') queryId = null;
       }
     }
@@ -105,6 +103,7 @@
     localStorage.setItem('trino_auth_type', authType);
     localStorage.setItem('trino_username', authUsername);
     localStorage.setItem('trino_password', authPassword);
+    localStorage.setItem('trino_impersonation', String(impersonation));
     queryId = null;
   });
 
@@ -173,6 +172,7 @@
     <input type="hidden" name="authType" value={authType} />
     <input type="hidden" name="authUsername" value={authUsername} />
     <input type="hidden" name="authPassword" value={authPassword} />
+    <input type="hidden" name="impersonation" value={impersonation} />
 
     <!-- Connection config section -->
     <div class="bg-base-100 border-base-300 collapse rounded-xl border">
@@ -259,6 +259,24 @@
                 bind:value={authPassword}
               />
             </div>
+          </div>
+        {/if}
+
+        <!-- User impersonation -->
+        {#if data.user?.name}
+          <div class="flex items-center gap-3">
+            <input
+              id="{uid}-impersonation"
+              type="checkbox"
+              class="toggle toggle-sm"
+              bind:checked={impersonation}
+            />
+            <label for="{uid}-impersonation" class="flex flex-col">
+              <span class="text-sm">{m.trino_impersonation()}</span>
+              <span class="text-base-content/50 text-xs">
+                {m.trino_impersonation_description({ user: data.user.name })}
+              </span>
+            </label>
           </div>
         {/if}
       </div>

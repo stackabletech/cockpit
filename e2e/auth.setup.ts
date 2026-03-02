@@ -1,6 +1,7 @@
 import { test as setup, expect } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { waitForHydration } from './helpers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const authFile = path.join(__dirname, '.auth/user.json');
@@ -10,14 +11,13 @@ setup('authenticate via mock OIDC', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveURL(/\/auth\/login/);
 
+  // Wait for hydration so the button's onclick handler is attached
+  await waitForHydration(page);
+
   // Click "Sign in with SSO"
   await page.getByRole('button', { name: /sign in with sso/i }).click();
 
-  // mock-oauth2-server presents a simple username form (input[name="username"], no label text)
-  await page.locator('input[name="username"]').fill('testuser');
-  await page.locator('input[type="submit"]').click();
-
-  // Should land back on the app dashboard
+  // Mock OIDC server auto-redirects — no form interaction needed
   await expect(page).toHaveURL('/');
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 

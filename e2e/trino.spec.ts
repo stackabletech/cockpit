@@ -22,9 +22,7 @@ async function startMockTrinoServer(
   return {
     url: `http://127.0.0.1:${port}`,
     stop: () =>
-      new Promise<void>((resolve, reject) =>
-        server.close((err) => (err ? reject(err) : resolve()))
-      )
+      new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())))
   };
 }
 
@@ -209,6 +207,14 @@ test.describe('Trino query editor', () => {
     await expect(urlInput).toHaveValue('http://trino.example.com:8080');
   });
 
+  test('impersonation toggle is visible in connection config', async ({ page }) => {
+    await page.goto('/trino');
+    await waitForHydration(page);
+    await page.getByRole('checkbox', { name: 'Connection' }).check({ force: true });
+
+    await expect(page.getByLabel('User impersonation')).toBeVisible();
+  });
+
   test('switching to basic auth reveals credential fields', async ({ page }) => {
     await page.goto('/trino');
     await waitForHydration(page);
@@ -219,7 +225,7 @@ test.describe('Trino query editor', () => {
     await expect(page.getByLabel('Password')).not.toBeVisible();
 
     // Switch to basic auth
-    await page.getByRole('radio', { name: 'Basic' }).check({ force: true });
+    await page.getByRole('radio', { name: 'Basic' }).click({ force: true });
 
     await expect(page.getByLabel('Username')).toBeVisible();
     await expect(page.getByLabel('Password')).toBeVisible();
