@@ -40,7 +40,8 @@ export const actions: Actions = {
       authType === 'basic'
         ? { type: 'basic', username: authUsername, password: authPassword }
         : { type: 'none' };
-    const impersonateUser = impersonation && locals.user?.name ? locals.user.name : undefined;
+    const impersonateUser =
+      impersonation && locals.user?.username ? locals.user.username : undefined;
 
     evictStale();
 

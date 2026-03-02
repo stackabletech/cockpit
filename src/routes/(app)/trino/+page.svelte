@@ -40,6 +40,8 @@
     errors: queryErrors
   } = superForm(data.queryForm, {
     dataType: 'json',
+    invalidateAll: false,
+    resetForm: false,
     onSubmit() {
       queryError = null;
       columns = [];
@@ -287,7 +289,7 @@
         {/if}
 
         <!-- User impersonation -->
-        {#if data.user?.name}
+        {#if data.user?.username}
           <div class="flex items-center gap-3">
             <input
               id="{uid}-impersonation"
@@ -298,7 +300,7 @@
             <label for="{uid}-impersonation" class="flex flex-col">
               <span class="text-sm">{m.trino_impersonation()}</span>
               <span class="text-base-content/50 text-xs">
-                {m.trino_impersonation_description({ user: data.user.name })}
+                {m.trino_impersonation_description({ user: data.user.username })}
               </span>
             </label>
           </div>

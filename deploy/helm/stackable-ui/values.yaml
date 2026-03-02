@@ -121,16 +121,14 @@ config:
 # Session secret for signing cookies (auto-generated if not provided)
 sessionSecret: ""
 
-# Better Auth configuration
+# OIDC authentication configuration
 auth:
   # The publicly accessible base URL of this application (used for OIDC callback URLs)
   # Required. Example: https://stackable-ui.example.com
-  url: ""
-  # Better Auth secret — long random string (min 32 chars). Auto-generated if not provided.
-  secret: ""
-  # OIDC provider issuer URL (without /.well-known/openid-configuration suffix)
-  # Required. Example: https://your-idp.example.com/realms/your-realm
-  issuer: ""
+  baseUrl: ""
+  # OIDC discovery URL (the full .well-known/openid-configuration URL)
+  # Required. Example: https://your-idp.example.com/realms/your-realm/.well-known/openid-configuration
+  discoveryUrl: ""
   # Client ID registered in the OIDC provider
   # Required.
   clientId: ""

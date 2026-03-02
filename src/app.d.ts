@@ -18,15 +18,6 @@ declare global {
     // interface PageState {}
     // interface Platform {}
   }
-
-  namespace svelteHTML {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    interface HTMLAttributes<T> {
-      popover?: boolean | '' | 'auto' | 'manual';
-      popovertarget?: string;
-      popovertargetaction?: 'show' | 'hide' | 'toggle';
-    }
-  }
 }
 
 export {};

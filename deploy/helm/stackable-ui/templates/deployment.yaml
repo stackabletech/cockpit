@@ -58,37 +58,32 @@ spec:
               value: {{ .Values.config.nodeEnv | quote }}
             - name: PORT
               value: {{ .Values.service.targetPort | quote }}
-            - name: SESSION_SECRET
+            - name: STACKABLE_UI_SESSION_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ include "stackable-ui.fullname" . }}
                   key: session-secret
-            - name: BETTER_AUTH_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "stackable-ui.fullname" . }}
-                  key: better-auth-secret
-            - name: AUTH_CLIENT_SECRET
+            - name: STACKABLE_UI_OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ include "stackable-ui.fullname" . }}
                   key: oidc-client-secret
-            - name: BETTER_AUTH_URL
+            - name: STACKABLE_UI_BASE_URL
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "stackable-ui.fullname" . }}
-                  key: better-auth-url
-            - name: AUTH_ISSUER
+                  key: base-url
+            - name: STACKABLE_UI_OIDC_DISCOVERY_URL
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "stackable-ui.fullname" . }}
-                  key: auth-issuer
-            - name: AUTH_CLIENT_ID
+                  key: oidc-discovery-url
+            - name: STACKABLE_UI_OIDC_CLIENT_ID
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "stackable-ui.fullname" . }}
-                  key: auth-client-id
-            - name: DATABASE_PATH
+                  key: oidc-client-id
+            - name: STACKABLE_UI_SQLITE_PATH
               value: {{ .Values.config.databasePath | quote }}
           volumeMounts:
             - name: tmp

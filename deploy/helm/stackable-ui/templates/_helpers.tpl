@@ -75,17 +75,6 @@ Generate session secret
 {{- end }}
 
 {{/*
-Generate Better Auth secret
-*/}}
-{{- define "stackable-ui.betterAuthSecret" -}}
-{{- if .Values.auth.secret }}
-{{- .Values.auth.secret }}
-{{- else }}
-{{- randAlphaNum 64 }}
-{{- end }}
-{{- end }}
-
-{{/*
 Image name
 */}}
 {{- define "stackable-ui.image" -}}

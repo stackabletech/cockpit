@@ -5,6 +5,6 @@ metadata:
   labels:
     {{- include "stackable-ui.labels" . | nindent 4 }}
 data:
-  auth-issuer: {{ .Values.auth.issuer | quote }}
-  auth-client-id: {{ .Values.auth.clientId | quote }}
-  better-auth-url: {{ .Values.auth.url | quote }}
+  oidc-discovery-url: {{ .Values.auth.discoveryUrl | quote }}
+  oidc-client-id: {{ .Values.auth.clientId | quote }}
+  base-url: {{ .Values.auth.baseUrl | quote }}

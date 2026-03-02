@@ -38,6 +38,14 @@ Trino error messages and Node.js exception messages are returned to the browser 
 
 ---
 
+### SQLite session store prevents horizontal scaling
+
+**File:** `src/lib/server/auth.ts`, `deploy/helm/stackable-ui/values.yaml`
+
+better-auth uses SQLite (via better-sqlite3) for session and user storage. SQLite only supports a single writer, so the deployment is limited to `replicaCount: 1`. A single pod failure means complete downtime with no failover. The long-term fix is to switch to PostgreSQL or a stateless session store (JWT/Redis) to allow horizontal scaling.
+
+---
+
 ## API & Validation
 
 ### API route request body not validated with Zod

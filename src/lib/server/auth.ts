@@ -11,21 +11,52 @@ try {
   env = process.env as Record<string, string | undefined>;
 }
 
+function requireEnv(name: string): string {
+  const value = env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+// Cache the OIDC discovery metadata (fetched once at startup) so the
+// end_session_endpoint is available for logout without a per-request fetch.
+export let oidcEndSessionEndpoint: string | undefined;
+
+const discoveryUrl = requireEnv('STACKABLE_UI_OIDC_DISCOVERY_URL');
+
+try {
+  const res = await fetch(discoveryUrl);
+  const discovery = await res.json();
+  oidcEndSessionEndpoint = discovery.end_session_endpoint;
+} catch {
+  // Discovery fetch may fail during CLI migrations or when the IdP is
+  // unreachable at startup. Logout will fall back to local-only sign-out.
+}
+
 export const auth = betterAuth({
-  secret: env.STACKABLE_UI_SESSION_SECRET,
-  baseURL: env.STACKABLE_UI_BASE_URL,
-  database: new Database(env.STACKABLE_UI_SQLITE_PATH ?? '.data/auth.db'),
+  secret: requireEnv('STACKABLE_UI_SESSION_SECRET'),
+  baseURL: requireEnv('STACKABLE_UI_BASE_URL'),
+  database: new Database(requireEnv('STACKABLE_UI_SQLITE_PATH')),
   session: {
     cookieCache: { enabled: true, maxAge: 5 * 60 }
+  },
+  user: {
+    additionalFields: {
+      username: {
+        type: 'string',
+        required: false
+      }
+    }
   },
   plugins: [
     genericOAuth({
       config: [
         {
           providerId: 'oidc',
-          discoveryUrl: env.STACKABLE_UI_OIDC_DISCOVERY_URL,
-          clientId: env.STACKABLE_UI_OIDC_CLIENT_ID!,
-          clientSecret: env.STACKABLE_UI_OIDC_CLIENT_SECRET!,
+          discoveryUrl: requireEnv('STACKABLE_UI_OIDC_DISCOVERY_URL'),
+          clientId: requireEnv('STACKABLE_UI_OIDC_CLIENT_ID'),
+          clientSecret: requireEnv('STACKABLE_UI_OIDC_CLIENT_SECRET'),
           scopes: ['openid', 'profile', 'email'],
           pkce: true,
           mapProfileToUser: async (profile) => {
@@ -33,7 +64,8 @@ export const auth = betterAuth({
             return {
               name: profile.name || fullName || profile.preferred_username || profile.email,
               email: profile.email || profile.preferred_username,
-              image: profile.picture || null
+              image: profile.picture || null,
+              username: profile.preferred_username || profile.email
             };
           }
         }
