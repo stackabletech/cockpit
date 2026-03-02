@@ -56,7 +56,16 @@ COPY messages/ ./messages/
 COPY svelte.config.js tsconfig.json vite.config.ts ./
 
 # Build the application
-RUN npm run build
+# Dummy values satisfy the module-level env validation in auth.ts during the
+# SvelteKit build. They are never used at runtime — real values are injected
+# via Kubernetes env vars / .env files.
+RUN STACKABLE_UI_SESSION_SECRET=build-placeholder \
+    STACKABLE_UI_BASE_URL=http://localhost \
+    STACKABLE_UI_OIDC_DISCOVERY_URL=http://localhost \
+    STACKABLE_UI_OIDC_CLIENT_ID=build \
+    STACKABLE_UI_OIDC_CLIENT_SECRET=build \
+    STACKABLE_UI_SQLITE_PATH=/tmp/build.db \
+    npm run build
 
 # Install only production dependencies
 RUN --mount=type=cache,target=/root/.npm npm ci --omit dev
