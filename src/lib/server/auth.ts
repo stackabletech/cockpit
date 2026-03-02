@@ -24,6 +24,7 @@ function requireEnv(name: string): string {
 export let oidcEndSessionEndpoint: string | undefined;
 
 const discoveryUrl = requireEnv('STACKABLE_UI_OIDC_DISCOVERY_URL');
+const usernameClaim = env.STACKABLE_UI_OIDC_USERNAME_CLAIM ?? 'preferred_username';
 
 try {
   const res = await fetch(discoveryUrl);
@@ -65,7 +66,7 @@ export const auth = betterAuth({
               name: profile.name || fullName || profile.preferred_username || profile.email,
               email: profile.email || profile.preferred_username,
               image: profile.picture || null,
-              username: profile.preferred_username || profile.email
+              username: profile[usernameClaim] || profile.preferred_username || profile.email
             };
           }
         }

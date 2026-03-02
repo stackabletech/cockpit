@@ -135,6 +135,8 @@ auth:
   # Client secret registered in the OIDC provider
   # Required.
   clientSecret: ""
+  # OIDC claim used as the username for Trino impersonation (default: preferred_username)
+  usernameClaim: ""
 
 # SQLite persistence for the Better Auth database.
 # NOTE: Requires replicaCount: 1 — SQLite does not support concurrent writes from multiple pods.

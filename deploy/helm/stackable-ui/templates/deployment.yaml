@@ -85,6 +85,10 @@ spec:
                   key: oidc-client-id
             - name: STACKABLE_UI_SQLITE_PATH
               value: {{ .Values.config.databasePath | quote }}
+            {{- if .Values.auth.usernameClaim }}
+            - name: STACKABLE_UI_OIDC_USERNAME_CLAIM
+              value: {{ .Values.auth.usernameClaim | quote }}
+            {{- end }}
           volumeMounts:
             - name: tmp
               mountPath: /tmp
