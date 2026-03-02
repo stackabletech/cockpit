@@ -10,10 +10,7 @@ export const QuerySchema = z.object({
   authType: z.enum(['none', 'basic']).default('none'),
   authUsername: z.string().default(''),
   authPassword: z.string().default(''),
-  impersonation: z
-    .string()
-    .default('false')
-    .transform((v) => v === 'true')
+  impersonation: z.boolean().default(false)
 });
 
 export const PaginateSchema = z.object({

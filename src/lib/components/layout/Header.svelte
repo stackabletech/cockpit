@@ -2,9 +2,9 @@
   import * as m from '$lib/paraglide/messages.js';
   import LanguageSwitcher from './LanguageSwitcher.svelte';
   import ThemeToggle from './ThemeToggle.svelte';
-  import type { auth } from '$lib/server/auth';
+  import { authClient } from '$lib/auth-client';
 
-  type User = typeof auth.$Infer.Session.user | null;
+  type User = typeof authClient.$Infer.Session.user;
 
   let {
     title = m.page_title_dashboard(),
@@ -14,7 +14,7 @@
   }: {
     title?: string;
     mobileOpen?: boolean;
-    user?: User;
+    user?: User | null;
     onToggleMobile?: () => void;
   } = $props();
 
