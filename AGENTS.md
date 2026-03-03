@@ -152,46 +152,15 @@ The application uses **Paraglide-JS v2** for type-safe, compiler-based internati
 - **No hardcoded strings**: Never hardcode user-visible strings in `.svelte` files. This includes text content, `aria-label`, `title`, `placeholder`, and `alt` attributes.
 - **Adding new strings**: Add the key to both `messages/en.json` and `messages/de.json`, then run `npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide` to regenerate typed message functions.
 
-## Local Authentication Setup
-
-The app uses generic OIDC via **better-auth**. For local development, run a Keycloak instance on a kind cluster:
-
-### 1. Start Keycloak
-
-```bash
-kubectl apply -f dev/keycloak.yaml
-```
-
-### 2. Create realm, client, and test users
-
-```bash
-./dev/keycloak-setup.sh
-```
-
-This creates the `stackable` realm, a `stackable-ui` client, and two test users (`alice`/`alicealice`, `bob`/`bobbob`). It prints the env vars to add to `.env.development`.
-
-### 3. Configure `.env.development`
-
-Copy the output from the setup script into `.env.development`. It should look like:
-
-```env
-STACKABLE_UI_SQLITE_PATH=.data/auth.db
-STACKABLE_UI_OIDC_DISCOVERY_URL=http://<kind-node-ip>:30080/realms/stackable/.well-known/openid-configuration
-STACKABLE_UI_OIDC_CLIENT_ID=stackable-ui
-STACKABLE_UI_OIDC_CLIENT_SECRET=<from setup script>
-STACKABLE_UI_SESSION_SECRET=<from setup script>
-STACKABLE_UI_BASE_URL=http://localhost:5173
-```
-
-### 4. Run database migrations
-
-```bash
-set -a && source .env.development && set +a && npx @better-auth/cli@latest migrate --yes
-```
-
-This creates the SQLite tables (`user`, `session`, `account`, `verification`) in `.data/auth.db`.
-
 ## Commands
+
+### Local Setup
+
+For a pre-configured local dev environment using OIDC, deploy & configure Keycloak and Trino on a kind cluster:
+
+```bash
+./dev/setup.sh           # Creates and configures Keycloak. Deploys Trino with OIDC authentication. Runs auth database migration. Writes to .env.development which is used by dev server.
+```
 
 ### Development
 
