@@ -16,6 +16,7 @@ The application is designed with a **plugin/module architecture** so future Stac
 - **zod & superforms** - All forms are to use zod & superforms
 - **Generic OIDC** (openid-client) - Authentication via any OIDC provider
 - **OPA** - Authorisation / feature visibility
+- **prom-client** - Prometheus metrics, exposed at `/metrics`
 
 ## Project Structure
 
@@ -32,8 +33,8 @@ This is a **single SvelteKit application** (not a monorepo).
 │   └── hooks.server.ts   # Server hooks (auth middleware)
 ├── e2e/                  # Playwright E2E tests
 ├── static/               # Static assets
-├── Dockerfile            # Production container image
-└── CLAUDE.md             # AI assistant instructions
+├── docker/Dockerfile     # Production container image
+├── CLAUDE.md             # AI assistant instructions
 └── TECH_DEBT.md          # Known tech debt and deferred security concerns
 ```
 
@@ -109,6 +110,14 @@ The project uses **pino** for structured JSON logging (server-side only).
 - The editor must be loaded client-side only
 - Use the custom `trinosql` language registration for Trino SQL support
 
+### Metrics
+
+The app exposes a Prometheus scrape endpoint at `/metrics` via `src/routes/metrics/+server.ts`. HTTP request duration is tracked automatically for all routes in `hooks.server.ts`.
+
+- **Adding custom metrics**: Define new counters, histograms, or gauges in `src/lib/server/metrics.ts` and import them in the relevant server-side code (e.g. track query execution counts, Trino errors, cache hits)
+- **Server-only**: Never import from `src/lib/server/metrics.ts` in client-side code or `.svelte` files
+- **When to add metrics**: New API endpoints, background operations, external service calls, and any operation where latency or error rates are operationally significant
+
 ### Code Style & Best Practices
 
 - Use spaces not tabs
@@ -126,7 +135,7 @@ The project uses **pino** for structured JSON logging (server-side only).
   throw redirect(303, '/path'); // Outside try-catch
   ```
 
-- **Public Routes**: Update `hooks.server.ts` when adding unauthenticated pages.
+- **Public Routes**: Update `hooks.server.ts` when adding unauthenticated pages. The `/metrics` endpoint is permanently public (Prometheus scraping) — never add auth in front of it.
 - **Label-Element Association**: Always explicitly associate `<label>` elements with their form controls using `for` and `id` attributes. Generate unique IDs with `$props.id()` (see <https://svelte.dev/docs/svelte/$props#$props.id()>). Never rely on implicit association (wrapping the input inside the label).
 
   ```svelte
@@ -153,6 +162,15 @@ The application uses **Paraglide-JS v2** for type-safe, compiler-based internati
 - **Adding new strings**: Add the key to both `messages/en.json` and `messages/de.json`, then run `npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide` to regenerate typed message functions.
 
 ## Commands
+
+### Node.js Version
+
+The required Node.js version is pinned in `.node-version`. Use `nvm` to install and activate it before running any `npm` commands — `npm` will hard-fail with engine errors otherwise (`.npmrc` sets `engine-strict=true`).
+
+```bash
+nvm install   # installs the version from .node-version
+nvm use       # activates it in the current shell
+```
 
 ### Local Setup
 
