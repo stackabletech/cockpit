@@ -34,7 +34,7 @@ This is a **single SvelteKit application** (not a monorepo).
 ├── e2e/                  # Playwright E2E tests
 ├── static/               # Static assets
 ├── docker/Dockerfile     # Production container image
-└── CLAUDE.md             # AI assistant instructions
+├── CLAUDE.md             # AI assistant instructions
 └── TECH_DEBT.md          # Known tech debt and deferred security concerns
 ```
 
