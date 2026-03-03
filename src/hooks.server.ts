@@ -1,4 +1,5 @@
 import { paraglideMiddleware } from '$lib/paraglide/server';
+import { httpRequestDuration } from '$lib/server/metrics';
 import { type Handle, type HandleServerError } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { dev } from '$app/environment';
@@ -10,6 +11,24 @@ if (dev) {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 }
 
+const handleMetrics: Handle = async ({ event, resolve }) => {
+  if (event.route.id === '/metrics') {
+    return resolve(event);
+  }
+  const start = performance.now();
+  const response = await resolve(event);
+  const duration = (performance.now() - start) / 1000;
+  httpRequestDuration.observe(
+    {
+      method: event.request.method,
+      route: event.route.id ?? 'unknown',
+      status: response.status
+    },
+    duration
+  );
+  return response;
+};
+
 const handleParaglide: Handle = ({ event, resolve }) =>
   paraglideMiddleware(event.request, ({ request, locale }) => {
     event.request = request;
@@ -20,8 +39,8 @@ const handleParaglide: Handle = ({ event, resolve }) =>
   });
 
 // Each function acts as a middleware, receiving the request handle
-// And returning a handle which gets passed to the next function
-export const handle = sequence(requestLogger, handleParaglide);
+// and returning a handle which gets passed to the next function
+export const handle = sequence(requestLogger, handleMetrics, handleParaglide);
 
 export const handleError: HandleServerError = ({ error, event, status, message }) => {
   const requestId = event.locals.requestId;

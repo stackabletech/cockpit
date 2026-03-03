@@ -6,6 +6,8 @@
   import type { FormMessage } from './schemas.js';
 
   let { data }: { data: PageData } = $props();
+  const queryFormData = $derived(data.queryForm);
+  const paginateFormData_ = $derived(data.paginateForm);
 
   const uid = $props.id();
   const PAGE_SIZES = [25, 50, 100];
@@ -41,7 +43,7 @@
     enhance: queryEnhance,
     submitting: querySubmitting,
     errors: queryErrors
-  } = superForm(data.queryForm, {
+  } = superForm(queryFormData, {
     onSubmit() {
       queryError = null;
       columns = [];
@@ -77,7 +79,7 @@
     form: paginateFormData,
     enhance: paginateEnhance,
     submitting: paginateSubmitting
-  } = superForm(data.paginateForm, {
+  } = superForm(paginateFormData_, {
     dataType: 'json',
     onUpdated({ form }) {
       const msg = form.message as FormMessage | undefined;
@@ -176,7 +178,7 @@
         class="collapse-title text-base-content flex items-center justify-between pr-4 text-sm font-medium"
       >
         <span>{m.trino_connection_label()}</span>
-        <span class="text-base-content/50 font-mono text-xs">{connectionSummary()}</span>
+        <span class="text-base-content/50 font-mono text-xs">{connectionSummary}</span>
       </div>
       <div class="collapse-content flex flex-col gap-4">
         <!-- URL -->
