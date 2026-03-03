@@ -78,6 +78,7 @@
     submitting: paginateSubmitting
   } = superForm(data.paginateForm, {
     dataType: 'json',
+    invalidateAll: false,
     onUpdated({ form }) {
       const msg = form.message as FormMessage | undefined;
       if (!msg) return;

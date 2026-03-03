@@ -19,11 +19,18 @@ export default defineConfig({
     trace: 'retain-on-failure',
     video: 'retain-on-failure'
   },
-  webServer: {
-    command: `npm run dev -- --mode test --port 4173`,
-    url: baseURL,
-    reuseExistingServer: false
-  },
+  webServer: [
+    {
+      command: 'npx tsx e2e/start-mock-oidc.ts',
+      url: 'http://localhost:9090/.well-known/openid-configuration',
+      reuseExistingServer: false
+    },
+    {
+      command: `npm run dev -- --mode test --port 4173`,
+      url: baseURL,
+      reuseExistingServer: false
+    }
+  ],
   projects: [
     {
       name: 'setup',

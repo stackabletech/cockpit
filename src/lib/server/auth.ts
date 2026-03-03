@@ -11,34 +11,36 @@ try {
   env = process.env as Record<string, string | undefined>;
 }
 
-function requireEnv(name: string): string {
-  const value = env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
+const usernameClaim = env.STACKABLE_UI_OIDC_USERNAME_CLAIM ?? 'preferred_username';
+
+// OIDC is enabled only when all required OIDC env vars are present.
+const oidcEnabled = !!(
+  env.STACKABLE_UI_OIDC_DISCOVERY_URL &&
+  env.STACKABLE_UI_OIDC_CLIENT_ID &&
+  env.STACKABLE_UI_OIDC_CLIENT_SECRET
+);
 
 // Cache the OIDC discovery metadata (fetched once at startup) so the
 // end_session_endpoint is available for logout without a per-request fetch.
 export let oidcEndSessionEndpoint: string | undefined;
 
-const discoveryUrl = requireEnv('STACKABLE_UI_OIDC_DISCOVERY_URL');
-const usernameClaim = env.STACKABLE_UI_OIDC_USERNAME_CLAIM ?? 'preferred_username';
-
-try {
-  const res = await fetch(discoveryUrl);
-  const discovery = await res.json();
-  oidcEndSessionEndpoint = discovery.end_session_endpoint;
-} catch {
-  // Discovery fetch may fail during CLI migrations or when the IdP is
-  // unreachable at startup. Logout will fall back to local-only sign-out.
+if (oidcEnabled) {
+  try {
+    const res = await fetch(env.STACKABLE_UI_OIDC_DISCOVERY_URL!);
+    const discovery = await res.json();
+    oidcEndSessionEndpoint = discovery.end_session_endpoint;
+  } catch (err) {
+    console.warn(
+      'Failed to fetch OIDC discovery for end_session_endpoint, logout will be local-only:',
+      err
+    );
+  }
 }
 
 export const auth = betterAuth({
-  secret: requireEnv('STACKABLE_UI_SESSION_SECRET'),
-  baseURL: requireEnv('STACKABLE_UI_BASE_URL'),
-  database: new Database(requireEnv('STACKABLE_UI_SQLITE_PATH')),
+  secret: env.STACKABLE_UI_SESSION_SECRET,
+  baseURL: env.STACKABLE_UI_BASE_URL,
+  database: new Database(env.STACKABLE_UI_SQLITE_PATH ?? '.data/auth.db'),
   session: {
     cookieCache: { enabled: true, maxAge: 5 * 60 }
   },
@@ -50,27 +52,31 @@ export const auth = betterAuth({
       }
     }
   },
-  plugins: [
-    genericOAuth({
-      config: [
-        {
-          providerId: 'oidc',
-          discoveryUrl: requireEnv('STACKABLE_UI_OIDC_DISCOVERY_URL'),
-          clientId: requireEnv('STACKABLE_UI_OIDC_CLIENT_ID'),
-          clientSecret: requireEnv('STACKABLE_UI_OIDC_CLIENT_SECRET'),
-          scopes: ['openid', 'profile', 'email'],
-          pkce: true,
-          mapProfileToUser: async (profile) => {
-            const fullName = [profile.given_name, profile.family_name].filter(Boolean).join(' ');
-            return {
-              name: profile.name || fullName || profile.preferred_username || profile.email,
-              email: profile.email || profile.preferred_username,
-              image: profile.picture || null,
-              username: profile[usernameClaim] || profile.preferred_username || profile.email
-            };
-          }
-        }
+  plugins: oidcEnabled
+    ? [
+        genericOAuth({
+          config: [
+            {
+              providerId: 'oidc',
+              discoveryUrl: env.STACKABLE_UI_OIDC_DISCOVERY_URL,
+              clientId: env.STACKABLE_UI_OIDC_CLIENT_ID!,
+              clientSecret: env.STACKABLE_UI_OIDC_CLIENT_SECRET!,
+              scopes: ['openid', 'profile', 'email'],
+              pkce: true,
+              mapProfileToUser: async (profile) => {
+                const fullName = [profile.given_name, profile.family_name]
+                  .filter(Boolean)
+                  .join(' ');
+                return {
+                  name: profile.name || fullName || profile.preferred_username || profile.email,
+                  email: profile.email || profile.preferred_username,
+                  image: profile.picture || null,
+                  username: profile[usernameClaim] || profile.preferred_username || profile.email
+                };
+              }
+            }
+          ]
+        })
       ]
-    })
-  ]
+    : []
 });
