@@ -51,11 +51,15 @@
   "trino_prev_page": "Vorherige Seite",
   "trino_next_page": "Nächste Seite",
   "trino_connection_label": "Verbindung",
+  "trino_connection_error": "Bitte konfigurieren Sie eine gültige Verbindungs-URL.",
   "trino_connection_url": "URL",
   "trino_connection_auth": "Authentifizierung",
   "trino_auth_none": "Keine",
   "trino_auth_basic": "Basic",
   "trino_auth_username": "Benutzername",
   "trino_auth_password": "Passwort",
-  "trino_unknown_error": "Unbekannter Fehler"
+  "trino_unknown_error": "Unbekannter Fehler",
+  "trino_no_sql": "Keine SQL-Abfrage angegeben",
+  "trino_invalid_connection": "Die Verbindungskonfiguration ist ungültig oder fehlt. Bitte eine gültige URL und Authentifizierungsmethode angeben.",
+  "trino_query_timeout": "Abfrage nach 30 Sekunden abgebrochen"
 }

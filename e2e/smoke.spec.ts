@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForHydration } from './helpers';
 
 test.describe('Smoke tests', () => {
   test.use({ locale: 'en-US' });
@@ -35,9 +36,7 @@ test.describe('Smoke tests', () => {
     });
 
     // Wait for client hydration/theme initialisation before interacting.
-    await expect
-      .poll(() => page.evaluate(() => localStorage.getItem('theme')))
-      .toMatch(/^(light|dark)$/);
+    await waitForHydration(page);
     await expect(html).toHaveAttribute('data-theme', /^(light|dark)$/);
     await expect(toggle).toBeVisible();
 

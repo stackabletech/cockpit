@@ -12,6 +12,7 @@ dist/
 build/
 .output/
 e2e/test-results/
+e2e/.auth/
 src/lib/paraglide/
 project.inlang/
 
