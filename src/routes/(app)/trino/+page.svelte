@@ -111,7 +111,7 @@
     localStorage.setItem('trino_sql', sql);
   });
 
-  const connectionSummary = $derived(() => {
+  const connectionSummary = $derived.by(() => {
     const host = connectionUrl ? connectionUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : '—';
     const auth = authType === 'basic' ? m.trino_auth_basic() : m.trino_auth_none();
     return `${host} · ${auth}`;
