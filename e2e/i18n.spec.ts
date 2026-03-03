@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForHydration } from './helpers';
 
 test.describe('Internationalisation', () => {
   test.use({ locale: 'en-US' });
@@ -31,9 +32,7 @@ test.describe('Internationalisation', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 
     // Wait for client hydration; locale switch relies on an attached click handler.
-    await expect
-      .poll(() => page.evaluate(() => localStorage.getItem('theme')))
-      .toMatch(/^(light|dark)$/);
+    await waitForHydration(page);
 
     await page.getByRole('button', { name: 'Language' }).click();
     const englishOption = page.locator('#lang-switcher button[lang="en"]');
