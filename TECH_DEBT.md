@@ -72,6 +72,14 @@ The `$effect` that persists connection settings only resets `queryId`, not `rows
 
 ---
 
+### No validation that the connection target is a Trino instance
+
+**File:** `src/routes/(app)/trino/+page.server.ts`
+
+The query action sends whatever SQL the user provides to the configured connection URL without first verifying that the endpoint is actually a Trino instance. A user could point the URL at any HTTP server, and the app would blindly POST to it. We should validate new connections (e.g. by calling Trino's `/v1/info` endpoint) and reject URLs that do not respond as a Trino server.
+
+---
+
 ## Infrastructure
 
 ### No Content Security Policy headers
