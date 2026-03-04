@@ -111,8 +111,8 @@
   const running = $derived($querySubmitting || $paginateSubmitting);
 
   const connKey = $derived(() => {
-    const { connectionUrl, authType, authUsername, authPassword, impersonation } = $queryFormData;
-    return `${connectionUrl}\0${authType}\0${authUsername}\0${authPassword}\0${impersonation}`;
+    const { connectionUrl, authType, authUsername, impersonation } = $queryFormData;
+    return `${connectionUrl}\0${authType}\0${authUsername}\0${impersonation}`;
   });
 
   // Invalidate results when connection settings change after a query.
