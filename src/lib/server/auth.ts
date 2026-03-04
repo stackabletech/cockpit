@@ -14,7 +14,7 @@ try {
 const usernameClaim = env.STACKABLE_UI_OIDC_USERNAME_CLAIM ?? 'preferred_username';
 
 // OIDC is enabled only when all required OIDC env vars are present.
-const oidcEnabled = !!(
+export const oidcEnabled = !!(
   env.STACKABLE_UI_OIDC_DISCOVERY_URL &&
   env.STACKABLE_UI_OIDC_CLIENT_ID &&
   env.STACKABLE_UI_OIDC_CLIENT_SECRET

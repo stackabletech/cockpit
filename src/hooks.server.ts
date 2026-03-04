@@ -4,7 +4,7 @@ import { building, dev } from '$app/environment';
 import { redirect, type Handle, type HandleServerError } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
-import { auth } from '$lib/server/auth';
+import { auth, oidcEnabled } from '$lib/server/auth';
 import { requestLogger, logger } from '$lib/server/logging';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
@@ -62,8 +62,7 @@ export const handle = sequence(
   requestLogger,
   handleMetrics,
   handleParaglide,
-  handleAuth,
-  handleAuthGuard
+  ...(oidcEnabled ? [handleAuth, handleAuthGuard] : [])
 );
 
 export const handleError: HandleServerError = ({ error, event, status, message }) => {
