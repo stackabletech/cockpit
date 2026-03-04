@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.16.0@sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6
-# check=error=true
+# check=error=true;skip=SecretsUsedInArgOrEnv
 
 # Find the latest version at https://catalog.redhat.com/software/containers/ubi10/ubi-minimal
 # IMPORTANT: Make sure to use the "Manifest List Digest" that references the images for multiple architectures
@@ -54,6 +54,13 @@ COPY static/ ./static/
 COPY project.inlang/ ./project.inlang/
 COPY messages/ ./messages/
 COPY svelte.config.js tsconfig.json vite.config.ts ./
+
+# Create the default SQLite directory and set dummy env vars so the build's
+# SSR prerender phase can initialise better-auth without errors.
+# These are only used during the build and discarded with the builder stage.
+RUN mkdir -p .data
+ENV STACKABLE_UI_SESSION_SECRET="build-time-placeholder" \
+    STACKABLE_UI_BASE_URL="http://localhost:3000"
 
 # Build the application
 RUN npm run build
