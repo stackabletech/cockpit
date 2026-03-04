@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import type { PageServerLoad } from './$types';
-import { auth, oidcEndSessionEndpoint } from '$lib/server/auth';
+import { auth, oidcEnabled, oidcEndSessionEndpoint } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ request, locals, cookies }) => {
   if (locals.session) {
@@ -16,5 +16,6 @@ export const load: PageServerLoad = async ({ request, locals, cookies }) => {
     throw redirect(302, url.toString());
   }
 
-  throw redirect(302, '/auth/login');
+  // When OIDC is disabled there is no login page, redirect to the home page.
+  throw redirect(302, oidcEnabled ? '/auth/login' : '/');
 };
