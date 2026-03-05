@@ -1,5 +1,6 @@
 // Registers the 'trinosql' language with Monaco Editor using an ANTLR-based tokenizer.
 // Based on https://github.com/trinodb/trino-query-ui/blob/fa6a5157058441b0ad318a75c13241f5b9dfc1e0/precise/src/QueryEditorPane.tsx#L678-L701
+// Licensed under the Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
 
 import type * as Monaco from 'monaco-editor';
 import { CharStream } from 'antlr4ng';

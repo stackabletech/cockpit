@@ -1,4 +1,5 @@
 // Copied from https://github.com/trinodb/trino-query-ui/blob/fa6a5157058441b0ad318a75c13241f5b9dfc1e0/precise/src/sql/TokenMap.ts
+// Licensed under the Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
 // Maps ANTLR token types to Monaco Editor token scope names for Trino SQL syntax highlighting.
 import { SqlBaseLexer } from './generated/SqlBaseLexer.js';
 
