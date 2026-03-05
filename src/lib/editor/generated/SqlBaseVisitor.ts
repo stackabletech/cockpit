@@ -1,4 +1,3 @@
-// Generated from SqlBase.g4 by ANTLR 4.13.1
 
 import { AbstractParseTreeVisitor } from "antlr4ng";
 
@@ -180,10 +179,10 @@ import { DescriptorArgumentContext } from "./SqlBaseParser.js";
 import { DescriptorFieldContext } from "./SqlBaseParser.js";
 import { CopartitionTablesContext } from "./SqlBaseParser.js";
 import { ExpressionContext } from "./SqlBaseParser.js";
-import { LogicalNotContext } from "./SqlBaseParser.js";
 import { PredicatedContext } from "./SqlBaseParser.js";
-import { OrContext } from "./SqlBaseParser.js";
+import { LogicalNotContext } from "./SqlBaseParser.js";
 import { AndContext } from "./SqlBaseParser.js";
+import { OrContext } from "./SqlBaseParser.js";
 import { ComparisonContext } from "./SqlBaseParser.js";
 import { QuantifiedComparisonContext } from "./SqlBaseParser.js";
 import { BetweenContext } from "./SqlBaseParser.js";
@@ -193,47 +192,47 @@ import { LikeContext } from "./SqlBaseParser.js";
 import { NullPredicateContext } from "./SqlBaseParser.js";
 import { DistinctFromContext } from "./SqlBaseParser.js";
 import { ValueExpressionDefaultContext } from "./SqlBaseParser.js";
-import { ConcatenationContext } from "./SqlBaseParser.js";
-import { ArithmeticBinaryContext } from "./SqlBaseParser.js";
 import { ArithmeticUnaryContext } from "./SqlBaseParser.js";
+import { ArithmeticBinaryContext } from "./SqlBaseParser.js";
+import { ConcatenationContext } from "./SqlBaseParser.js";
 import { AtTimeZoneContext } from "./SqlBaseParser.js";
-import { DereferenceContext } from "./SqlBaseParser.js";
-import { JsonValueContext } from "./SqlBaseParser.js";
 import { LiteralsContext } from "./SqlBaseParser.js";
-import { CurrentDateContext } from "./SqlBaseParser.js";
-import { SubstringContext } from "./SqlBaseParser.js";
-import { CastContext } from "./SqlBaseParser.js";
-import { LambdaContext } from "./SqlBaseParser.js";
-import { ParenthesizedExpressionContext } from "./SqlBaseParser.js";
-import { TrimContext } from "./SqlBaseParser.js";
 import { ParameterContext } from "./SqlBaseParser.js";
-import { NormalizeContext } from "./SqlBaseParser.js";
+import { PositionContext } from "./SqlBaseParser.js";
+import { RowConstructorContext } from "./SqlBaseParser.js";
+import { ListaggContext } from "./SqlBaseParser.js";
+import { FunctionCallContext } from "./SqlBaseParser.js";
+import { MeasureContext } from "./SqlBaseParser.js";
+import { LambdaContext } from "./SqlBaseParser.js";
+import { SubqueryExpressionContext } from "./SqlBaseParser.js";
+import { ExistsContext } from "./SqlBaseParser.js";
+import { SimpleCaseContext } from "./SqlBaseParser.js";
+import { SearchedCaseContext } from "./SqlBaseParser.js";
+import { CastContext } from "./SqlBaseParser.js";
+import { ArrayConstructorContext } from "./SqlBaseParser.js";
+import { ColumnReferenceContext } from "./SqlBaseParser.js";
+import { CurrentDateContext } from "./SqlBaseParser.js";
+import { CurrentTimeContext } from "./SqlBaseParser.js";
+import { CurrentTimestampContext } from "./SqlBaseParser.js";
+import { LocalTimeContext } from "./SqlBaseParser.js";
 import { LocalTimestampContext } from "./SqlBaseParser.js";
+import { CurrentUserContext } from "./SqlBaseParser.js";
+import { CurrentCatalogContext } from "./SqlBaseParser.js";
+import { CurrentSchemaContext } from "./SqlBaseParser.js";
+import { CurrentPathContext } from "./SqlBaseParser.js";
+import { TrimContext } from "./SqlBaseParser.js";
+import { SubstringContext } from "./SqlBaseParser.js";
+import { NormalizeContext } from "./SqlBaseParser.js";
+import { ExtractContext } from "./SqlBaseParser.js";
+import { ParenthesizedExpressionContext } from "./SqlBaseParser.js";
+import { GroupingOperationContext } from "./SqlBaseParser.js";
+import { JsonExistsContext } from "./SqlBaseParser.js";
+import { JsonValueContext } from "./SqlBaseParser.js";
+import { JsonQueryContext } from "./SqlBaseParser.js";
 import { JsonObjectContext } from "./SqlBaseParser.js";
 import { JsonArrayContext } from "./SqlBaseParser.js";
-import { SimpleCaseContext } from "./SqlBaseParser.js";
-import { ColumnReferenceContext } from "./SqlBaseParser.js";
-import { RowConstructorContext } from "./SqlBaseParser.js";
 import { SubscriptContext } from "./SqlBaseParser.js";
-import { JsonExistsContext } from "./SqlBaseParser.js";
-import { CurrentPathContext } from "./SqlBaseParser.js";
-import { SubqueryExpressionContext } from "./SqlBaseParser.js";
-import { CurrentTimeContext } from "./SqlBaseParser.js";
-import { LocalTimeContext } from "./SqlBaseParser.js";
-import { CurrentUserContext } from "./SqlBaseParser.js";
-import { JsonQueryContext } from "./SqlBaseParser.js";
-import { MeasureContext } from "./SqlBaseParser.js";
-import { ExtractContext } from "./SqlBaseParser.js";
-import { ArrayConstructorContext } from "./SqlBaseParser.js";
-import { FunctionCallContext } from "./SqlBaseParser.js";
-import { CurrentTimestampContext } from "./SqlBaseParser.js";
-import { CurrentSchemaContext } from "./SqlBaseParser.js";
-import { ExistsContext } from "./SqlBaseParser.js";
-import { PositionContext } from "./SqlBaseParser.js";
-import { ListaggContext } from "./SqlBaseParser.js";
-import { SearchedCaseContext } from "./SqlBaseParser.js";
-import { CurrentCatalogContext } from "./SqlBaseParser.js";
-import { GroupingOperationContext } from "./SqlBaseParser.js";
+import { DereferenceContext } from "./SqlBaseParser.js";
 import { IntervalLiteralContext } from "./SqlBaseParser.js";
 import { TypeConstructorContext } from "./SqlBaseParser.js";
 import { NumericLiteralContext } from "./SqlBaseParser.js";
@@ -264,12 +263,12 @@ import { IntervalContext } from "./SqlBaseParser.js";
 import { NormalFormContext } from "./SqlBaseParser.js";
 import { RowTypeContext } from "./SqlBaseParser.js";
 import { IntervalTypeContext } from "./SqlBaseParser.js";
-import { ArrayTypeContext } from "./SqlBaseParser.js";
+import { DateTimeTypeContext } from "./SqlBaseParser.js";
 import { DoublePrecisionTypeContext } from "./SqlBaseParser.js";
 import { LegacyArrayTypeContext } from "./SqlBaseParser.js";
-import { GenericTypeContext } from "./SqlBaseParser.js";
-import { DateTimeTypeContext } from "./SqlBaseParser.js";
 import { LegacyMapTypeContext } from "./SqlBaseParser.js";
+import { GenericTypeContext } from "./SqlBaseParser.js";
+import { ArrayTypeContext } from "./SqlBaseParser.js";
 import { CompositeYearToMonthIntervalContext } from "./SqlBaseParser.js";
 import { SimpleYearMonthIntervalContext } from "./SqlBaseParser.js";
 import { CompositeDayTimeIntervalContext } from "./SqlBaseParser.js";
@@ -1562,13 +1561,6 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitExpression?: (ctx: ExpressionContext) => Result;
     /**
-     * Visit a parse tree produced by the `logicalNot`
-     * labeled alternative in `SqlBaseParser.booleanExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitLogicalNot?: (ctx: LogicalNotContext) => Result;
-    /**
      * Visit a parse tree produced by the `predicated`
      * labeled alternative in `SqlBaseParser.booleanExpression`.
      * @param ctx the parse tree
@@ -1576,12 +1568,12 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitPredicated?: (ctx: PredicatedContext) => Result;
     /**
-     * Visit a parse tree produced by the `or`
+     * Visit a parse tree produced by the `logicalNot`
      * labeled alternative in `SqlBaseParser.booleanExpression`.
      * @param ctx the parse tree
      * @return the visitor result
      */
-    visitOr?: (ctx: OrContext) => Result;
+    visitLogicalNot?: (ctx: LogicalNotContext) => Result;
     /**
      * Visit a parse tree produced by the `and`
      * labeled alternative in `SqlBaseParser.booleanExpression`.
@@ -1589,6 +1581,13 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitAnd?: (ctx: AndContext) => Result;
+    /**
+     * Visit a parse tree produced by the `or`
+     * labeled alternative in `SqlBaseParser.booleanExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitOr?: (ctx: OrContext) => Result;
     /**
      * Visit a parse tree produced by the `comparison`
      * labeled alternative in `SqlBaseParser.predicate`.
@@ -1653,12 +1652,12 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitValueExpressionDefault?: (ctx: ValueExpressionDefaultContext) => Result;
     /**
-     * Visit a parse tree produced by the `concatenation`
+     * Visit a parse tree produced by the `arithmeticUnary`
      * labeled alternative in `SqlBaseParser.valueExpression`.
      * @param ctx the parse tree
      * @return the visitor result
      */
-    visitConcatenation?: (ctx: ConcatenationContext) => Result;
+    visitArithmeticUnary?: (ctx: ArithmeticUnaryContext) => Result;
     /**
      * Visit a parse tree produced by the `arithmeticBinary`
      * labeled alternative in `SqlBaseParser.valueExpression`.
@@ -1667,12 +1666,12 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitArithmeticBinary?: (ctx: ArithmeticBinaryContext) => Result;
     /**
-     * Visit a parse tree produced by the `arithmeticUnary`
+     * Visit a parse tree produced by the `concatenation`
      * labeled alternative in `SqlBaseParser.valueExpression`.
      * @param ctx the parse tree
      * @return the visitor result
      */
-    visitArithmeticUnary?: (ctx: ArithmeticUnaryContext) => Result;
+    visitConcatenation?: (ctx: ConcatenationContext) => Result;
     /**
      * Visit a parse tree produced by the `atTimeZone`
      * labeled alternative in `SqlBaseParser.valueExpression`.
@@ -1681,68 +1680,12 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitAtTimeZone?: (ctx: AtTimeZoneContext) => Result;
     /**
-     * Visit a parse tree produced by the `dereference`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitDereference?: (ctx: DereferenceContext) => Result;
-    /**
-     * Visit a parse tree produced by the `jsonValue`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitJsonValue?: (ctx: JsonValueContext) => Result;
-    /**
      * Visit a parse tree produced by the `literals`
      * labeled alternative in `SqlBaseParser.primaryExpression`.
      * @param ctx the parse tree
      * @return the visitor result
      */
     visitLiterals?: (ctx: LiteralsContext) => Result;
-    /**
-     * Visit a parse tree produced by the `currentDate`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitCurrentDate?: (ctx: CurrentDateContext) => Result;
-    /**
-     * Visit a parse tree produced by the `substring`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitSubstring?: (ctx: SubstringContext) => Result;
-    /**
-     * Visit a parse tree produced by the `cast`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitCast?: (ctx: CastContext) => Result;
-    /**
-     * Visit a parse tree produced by the `lambda`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitLambda?: (ctx: LambdaContext) => Result;
-    /**
-     * Visit a parse tree produced by the `parenthesizedExpression`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitParenthesizedExpression?: (ctx: ParenthesizedExpressionContext) => Result;
-    /**
-     * Visit a parse tree produced by the `trim`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitTrim?: (ctx: TrimContext) => Result;
     /**
      * Visit a parse tree produced by the `parameter`
      * labeled alternative in `SqlBaseParser.primaryExpression`.
@@ -1751,12 +1694,124 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitParameter?: (ctx: ParameterContext) => Result;
     /**
-     * Visit a parse tree produced by the `normalize`
+     * Visit a parse tree produced by the `position`
      * labeled alternative in `SqlBaseParser.primaryExpression`.
      * @param ctx the parse tree
      * @return the visitor result
      */
-    visitNormalize?: (ctx: NormalizeContext) => Result;
+    visitPosition?: (ctx: PositionContext) => Result;
+    /**
+     * Visit a parse tree produced by the `rowConstructor`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitRowConstructor?: (ctx: RowConstructorContext) => Result;
+    /**
+     * Visit a parse tree produced by the `listagg`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitListagg?: (ctx: ListaggContext) => Result;
+    /**
+     * Visit a parse tree produced by the `functionCall`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitFunctionCall?: (ctx: FunctionCallContext) => Result;
+    /**
+     * Visit a parse tree produced by the `measure`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitMeasure?: (ctx: MeasureContext) => Result;
+    /**
+     * Visit a parse tree produced by the `lambda`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitLambda?: (ctx: LambdaContext) => Result;
+    /**
+     * Visit a parse tree produced by the `subqueryExpression`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitSubqueryExpression?: (ctx: SubqueryExpressionContext) => Result;
+    /**
+     * Visit a parse tree produced by the `exists`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitExists?: (ctx: ExistsContext) => Result;
+    /**
+     * Visit a parse tree produced by the `simpleCase`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitSimpleCase?: (ctx: SimpleCaseContext) => Result;
+    /**
+     * Visit a parse tree produced by the `searchedCase`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitSearchedCase?: (ctx: SearchedCaseContext) => Result;
+    /**
+     * Visit a parse tree produced by the `cast`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitCast?: (ctx: CastContext) => Result;
+    /**
+     * Visit a parse tree produced by the `arrayConstructor`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitArrayConstructor?: (ctx: ArrayConstructorContext) => Result;
+    /**
+     * Visit a parse tree produced by the `columnReference`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitColumnReference?: (ctx: ColumnReferenceContext) => Result;
+    /**
+     * Visit a parse tree produced by the `currentDate`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitCurrentDate?: (ctx: CurrentDateContext) => Result;
+    /**
+     * Visit a parse tree produced by the `currentTime`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitCurrentTime?: (ctx: CurrentTimeContext) => Result;
+    /**
+     * Visit a parse tree produced by the `currentTimestamp`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitCurrentTimestamp?: (ctx: CurrentTimestampContext) => Result;
+    /**
+     * Visit a parse tree produced by the `localTime`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitLocalTime?: (ctx: LocalTimeContext) => Result;
     /**
      * Visit a parse tree produced by the `localTimestamp`
      * labeled alternative in `SqlBaseParser.primaryExpression`.
@@ -1764,6 +1819,97 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitLocalTimestamp?: (ctx: LocalTimestampContext) => Result;
+    /**
+     * Visit a parse tree produced by the `currentUser`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitCurrentUser?: (ctx: CurrentUserContext) => Result;
+    /**
+     * Visit a parse tree produced by the `currentCatalog`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitCurrentCatalog?: (ctx: CurrentCatalogContext) => Result;
+    /**
+     * Visit a parse tree produced by the `currentSchema`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitCurrentSchema?: (ctx: CurrentSchemaContext) => Result;
+    /**
+     * Visit a parse tree produced by the `currentPath`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitCurrentPath?: (ctx: CurrentPathContext) => Result;
+    /**
+     * Visit a parse tree produced by the `trim`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitTrim?: (ctx: TrimContext) => Result;
+    /**
+     * Visit a parse tree produced by the `substring`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitSubstring?: (ctx: SubstringContext) => Result;
+    /**
+     * Visit a parse tree produced by the `normalize`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitNormalize?: (ctx: NormalizeContext) => Result;
+    /**
+     * Visit a parse tree produced by the `extract`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitExtract?: (ctx: ExtractContext) => Result;
+    /**
+     * Visit a parse tree produced by the `parenthesizedExpression`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitParenthesizedExpression?: (ctx: ParenthesizedExpressionContext) => Result;
+    /**
+     * Visit a parse tree produced by the `groupingOperation`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitGroupingOperation?: (ctx: GroupingOperationContext) => Result;
+    /**
+     * Visit a parse tree produced by the `jsonExists`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitJsonExists?: (ctx: JsonExistsContext) => Result;
+    /**
+     * Visit a parse tree produced by the `jsonValue`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitJsonValue?: (ctx: JsonValueContext) => Result;
+    /**
+     * Visit a parse tree produced by the `jsonQuery`
+     * labeled alternative in `SqlBaseParser.primaryExpression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitJsonQuery?: (ctx: JsonQueryContext) => Result;
     /**
      * Visit a parse tree produced by the `jsonObject`
      * labeled alternative in `SqlBaseParser.primaryExpression`.
@@ -1779,27 +1925,6 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitJsonArray?: (ctx: JsonArrayContext) => Result;
     /**
-     * Visit a parse tree produced by the `simpleCase`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitSimpleCase?: (ctx: SimpleCaseContext) => Result;
-    /**
-     * Visit a parse tree produced by the `columnReference`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitColumnReference?: (ctx: ColumnReferenceContext) => Result;
-    /**
-     * Visit a parse tree produced by the `rowConstructor`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitRowConstructor?: (ctx: RowConstructorContext) => Result;
-    /**
      * Visit a parse tree produced by the `subscript`
      * labeled alternative in `SqlBaseParser.primaryExpression`.
      * @param ctx the parse tree
@@ -1807,138 +1932,12 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitSubscript?: (ctx: SubscriptContext) => Result;
     /**
-     * Visit a parse tree produced by the `jsonExists`
+     * Visit a parse tree produced by the `dereference`
      * labeled alternative in `SqlBaseParser.primaryExpression`.
      * @param ctx the parse tree
      * @return the visitor result
      */
-    visitJsonExists?: (ctx: JsonExistsContext) => Result;
-    /**
-     * Visit a parse tree produced by the `currentPath`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitCurrentPath?: (ctx: CurrentPathContext) => Result;
-    /**
-     * Visit a parse tree produced by the `subqueryExpression`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitSubqueryExpression?: (ctx: SubqueryExpressionContext) => Result;
-    /**
-     * Visit a parse tree produced by the `currentTime`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitCurrentTime?: (ctx: CurrentTimeContext) => Result;
-    /**
-     * Visit a parse tree produced by the `localTime`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitLocalTime?: (ctx: LocalTimeContext) => Result;
-    /**
-     * Visit a parse tree produced by the `currentUser`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitCurrentUser?: (ctx: CurrentUserContext) => Result;
-    /**
-     * Visit a parse tree produced by the `jsonQuery`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitJsonQuery?: (ctx: JsonQueryContext) => Result;
-    /**
-     * Visit a parse tree produced by the `measure`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitMeasure?: (ctx: MeasureContext) => Result;
-    /**
-     * Visit a parse tree produced by the `extract`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitExtract?: (ctx: ExtractContext) => Result;
-    /**
-     * Visit a parse tree produced by the `arrayConstructor`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitArrayConstructor?: (ctx: ArrayConstructorContext) => Result;
-    /**
-     * Visit a parse tree produced by the `functionCall`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitFunctionCall?: (ctx: FunctionCallContext) => Result;
-    /**
-     * Visit a parse tree produced by the `currentTimestamp`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitCurrentTimestamp?: (ctx: CurrentTimestampContext) => Result;
-    /**
-     * Visit a parse tree produced by the `currentSchema`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitCurrentSchema?: (ctx: CurrentSchemaContext) => Result;
-    /**
-     * Visit a parse tree produced by the `exists`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitExists?: (ctx: ExistsContext) => Result;
-    /**
-     * Visit a parse tree produced by the `position`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitPosition?: (ctx: PositionContext) => Result;
-    /**
-     * Visit a parse tree produced by the `listagg`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitListagg?: (ctx: ListaggContext) => Result;
-    /**
-     * Visit a parse tree produced by the `searchedCase`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitSearchedCase?: (ctx: SearchedCaseContext) => Result;
-    /**
-     * Visit a parse tree produced by the `currentCatalog`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitCurrentCatalog?: (ctx: CurrentCatalogContext) => Result;
-    /**
-     * Visit a parse tree produced by the `groupingOperation`
-     * labeled alternative in `SqlBaseParser.primaryExpression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitGroupingOperation?: (ctx: GroupingOperationContext) => Result;
+    visitDereference?: (ctx: DereferenceContext) => Result;
     /**
      * Visit a parse tree produced by the `intervalLiteral`
      * labeled alternative in `SqlBaseParser.literal`.
@@ -2133,12 +2132,12 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitIntervalType?: (ctx: IntervalTypeContext) => Result;
     /**
-     * Visit a parse tree produced by the `arrayType`
+     * Visit a parse tree produced by the `dateTimeType`
      * labeled alternative in `SqlBaseParser.type`.
      * @param ctx the parse tree
      * @return the visitor result
      */
-    visitArrayType?: (ctx: ArrayTypeContext) => Result;
+    visitDateTimeType?: (ctx: DateTimeTypeContext) => Result;
     /**
      * Visit a parse tree produced by the `doublePrecisionType`
      * labeled alternative in `SqlBaseParser.type`.
@@ -2154,6 +2153,13 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitLegacyArrayType?: (ctx: LegacyArrayTypeContext) => Result;
     /**
+     * Visit a parse tree produced by the `legacyMapType`
+     * labeled alternative in `SqlBaseParser.type`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitLegacyMapType?: (ctx: LegacyMapTypeContext) => Result;
+    /**
      * Visit a parse tree produced by the `genericType`
      * labeled alternative in `SqlBaseParser.type`.
      * @param ctx the parse tree
@@ -2161,19 +2167,12 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitGenericType?: (ctx: GenericTypeContext) => Result;
     /**
-     * Visit a parse tree produced by the `dateTimeType`
+     * Visit a parse tree produced by the `arrayType`
      * labeled alternative in `SqlBaseParser.type`.
      * @param ctx the parse tree
      * @return the visitor result
      */
-    visitDateTimeType?: (ctx: DateTimeTypeContext) => Result;
-    /**
-     * Visit a parse tree produced by the `legacyMapType`
-     * labeled alternative in `SqlBaseParser.type`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitLegacyMapType?: (ctx: LegacyMapTypeContext) => Result;
+    visitArrayType?: (ctx: ArrayTypeContext) => Result;
     /**
      * Visit a parse tree produced by the `compositeYearToMonthInterval`
      * labeled alternative in `SqlBaseParser.intervalQualifier`.

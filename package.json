@@ -15,7 +15,7 @@
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "generate:antlr": "cd src/lib/editor/grammar && antlr4ng -visitor -listener -Dlanguage=TypeScript -o ../generated SqlBase.g4"
+    "generate:antlr": "cd src/lib/editor/grammar && antlr-ng -v -l -Dlanguage=TypeScript -o ../generated SqlBase.g4"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.2",
@@ -28,7 +28,7 @@
     "@tailwindcss/vite": "^4.2.1",
     "@types/node": "^24",
     "@vitest/browser-playwright": "^4.0.18",
-    "antlr4ng-cli": "^2.0.0",
+    "antlr-ng": "^1.0.10",
     "daisyui": "^5.5.19",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",

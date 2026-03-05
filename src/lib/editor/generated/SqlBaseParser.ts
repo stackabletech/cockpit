@@ -1,4 +1,3 @@
-// Generated from SqlBase.g4 by ANTLR 4.13.1
 
 import * as antlr from "antlr4ng";
 import { Token } from "antlr4ng";
@@ -18428,220 +18427,27 @@ export class StatementContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class ExplainContext extends StatementContext {
+export class StatementDefaultContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public EXPLAIN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.EXPLAIN, 0)!;
-    }
-    public statement(): StatementContext {
-        return this.getRuleContext(0, StatementContext)!;
-    }
-    public explainOption(): ExplainOptionContext[];
-    public explainOption(i: number): ExplainOptionContext | null;
-    public explainOption(i?: number): ExplainOptionContext[] | ExplainOptionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ExplainOptionContext);
-        }
-
-        return this.getRuleContext(i, ExplainOptionContext);
+    public rootQueryWithSession(): RootQueryWithSessionContext {
+        return this.getRuleContext(0, RootQueryWithSessionContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterExplain) {
-             listener.enterExplain(this);
+        if(listener.enterStatementDefault) {
+             listener.enterStatementDefault(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitExplain) {
-             listener.exitExplain(this);
+        if(listener.exitStatementDefault) {
+             listener.exitStatementDefault(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitExplain) {
-            return visitor.visitExplain(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class PrepareContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public PREPARE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.PREPARE, 0)!;
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public FROM(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.FROM, 0)!;
-    }
-    public statement(): StatementContext {
-        return this.getRuleContext(0, StatementContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterPrepare) {
-             listener.enterPrepare(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitPrepare) {
-             listener.exitPrepare(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitPrepare) {
-            return visitor.visitPrepare(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class DropMaterializedViewContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public DROP(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DROP, 0)!;
-    }
-    public MATERIALIZED(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.MATERIALIZED, 0)!;
-    }
-    public VIEW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.VIEW, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public IF(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IF, 0);
-    }
-    public EXISTS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EXISTS, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDropMaterializedView) {
-             listener.enterDropMaterializedView(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDropMaterializedView) {
-             listener.exitDropMaterializedView(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDropMaterializedView) {
-            return visitor.visitDropMaterializedView(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class SetMaterializedViewPropertiesContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ALTER(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ALTER, 0)!;
-    }
-    public MATERIALIZED(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.MATERIALIZED, 0)!;
-    }
-    public VIEW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.VIEW, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public SET(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SET, 0)!;
-    }
-    public PROPERTIES(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.PROPERTIES, 0)!;
-    }
-    public propertyAssignments(): PropertyAssignmentsContext {
-        return this.getRuleContext(0, PropertyAssignmentsContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSetMaterializedViewProperties) {
-             listener.enterSetMaterializedViewProperties(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSetMaterializedViewProperties) {
-             listener.exitSetMaterializedViewProperties(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSetMaterializedViewProperties) {
-            return visitor.visitSetMaterializedViewProperties(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class DropNotNullConstraintContext extends StatementContext {
-    public _tableName?: QualifiedNameContext;
-    public _columnName?: IdentifierContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ALTER(): antlr.TerminalNode[];
-    public ALTER(i: number): antlr.TerminalNode | null;
-    public ALTER(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.ALTER);
-    	} else {
-    		return this.getToken(SqlBaseParser.ALTER, i);
-    	}
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public COLUMN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.COLUMN, 0)!;
-    }
-    public DROP(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DROP, 0)!;
-    }
-    public NOT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.NOT, 0)!;
-    }
-    public NULL(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.NULL, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public IF(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IF, 0);
-    }
-    public EXISTS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EXISTS, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDropNotNullConstraint) {
-             listener.enterDropNotNullConstraint(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDropNotNullConstraint) {
-             listener.exitDropNotNullConstraint(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDropNotNullConstraint) {
-            return visitor.visitDropNotNullConstraint(this);
+        if (visitor.visitStatementDefault) {
+            return visitor.visitStatementDefault(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -18684,122 +18490,9 @@ export class UseContext extends StatementContext {
         }
     }
 }
-export class DeallocateContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public DEALLOCATE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DEALLOCATE, 0)!;
-    }
-    public PREPARE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.PREPARE, 0)!;
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDeallocate) {
-             listener.enterDeallocate(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDeallocate) {
-             listener.exitDeallocate(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDeallocate) {
-            return visitor.visitDeallocate(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class RenameTableContext extends StatementContext {
-    public _from_?: QualifiedNameContext;
-    public _to?: QualifiedNameContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ALTER(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ALTER, 0)!;
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public RENAME(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.RENAME, 0)!;
-    }
-    public TO(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TO, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext[];
-    public qualifiedName(i: number): QualifiedNameContext | null;
-    public qualifiedName(i?: number): QualifiedNameContext[] | QualifiedNameContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(QualifiedNameContext);
-        }
-
-        return this.getRuleContext(i, QualifiedNameContext);
-    }
-    public IF(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IF, 0);
-    }
-    public EXISTS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EXISTS, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterRenameTable) {
-             listener.enterRenameTable(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitRenameTable) {
-             listener.exitRenameTable(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitRenameTable) {
-            return visitor.visitRenameTable(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CommitContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public COMMIT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.COMMIT, 0)!;
-    }
-    public WORK(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WORK, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCommit) {
-             listener.enterCommit(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCommit) {
-             listener.exitCommit(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCommit) {
-            return visitor.visitCommit(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CreateRoleContext extends StatementContext {
-    public _name?: IdentifierContext;
+export class CreateCatalogContext extends StatementContext {
     public _catalog?: IdentifierContext;
+    public _connectorName?: IdentifierContext;
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
@@ -18807,466 +18500,12 @@ export class CreateRoleContext extends StatementContext {
     public CREATE(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.CREATE, 0)!;
     }
-    public ROLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ROLE, 0)!;
-    }
-    public identifier(): IdentifierContext[];
-    public identifier(i: number): IdentifierContext | null;
-    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(IdentifierContext);
-        }
-
-        return this.getRuleContext(i, IdentifierContext);
-    }
-    public WITH(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WITH, 0);
-    }
-    public ADMIN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ADMIN, 0);
-    }
-    public grantor(): GrantorContext | null {
-        return this.getRuleContext(0, GrantorContext);
-    }
-    public IN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IN, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCreateRole) {
-             listener.enterCreateRole(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCreateRole) {
-             listener.exitCreateRole(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCreateRole) {
-            return visitor.visitCreateRole(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ShowCreateFunctionContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
-    }
-    public CREATE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CREATE, 0)!;
-    }
-    public FUNCTION(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.FUNCTION, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowCreateFunction) {
-             listener.enterShowCreateFunction(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowCreateFunction) {
-             listener.exitShowCreateFunction(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowCreateFunction) {
-            return visitor.visitShowCreateFunction(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class DropColumnContext extends StatementContext {
-    public _tableName?: QualifiedNameContext;
-    public _column?: QualifiedNameContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ALTER(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ALTER, 0)!;
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public DROP(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DROP, 0)!;
-    }
-    public COLUMN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.COLUMN, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext[];
-    public qualifiedName(i: number): QualifiedNameContext | null;
-    public qualifiedName(i?: number): QualifiedNameContext[] | QualifiedNameContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(QualifiedNameContext);
-        }
-
-        return this.getRuleContext(i, QualifiedNameContext);
-    }
-    public IF(): antlr.TerminalNode[];
-    public IF(i: number): antlr.TerminalNode | null;
-    public IF(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.IF);
-    	} else {
-    		return this.getToken(SqlBaseParser.IF, i);
-    	}
-    }
-    public EXISTS(): antlr.TerminalNode[];
-    public EXISTS(i: number): antlr.TerminalNode | null;
-    public EXISTS(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.EXISTS);
-    	} else {
-    		return this.getToken(SqlBaseParser.EXISTS, i);
-    	}
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDropColumn) {
-             listener.enterDropColumn(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDropColumn) {
-             listener.exitDropColumn(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDropColumn) {
-            return visitor.visitDropColumn(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class DropViewContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public DROP(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DROP, 0)!;
-    }
-    public VIEW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.VIEW, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public IF(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IF, 0);
-    }
-    public EXISTS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EXISTS, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDropView) {
-             listener.enterDropView(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDropView) {
-             listener.exitDropView(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDropView) {
-            return visitor.visitDropView(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ShowTablesContext extends StatementContext {
-    public _pattern?: StringContext;
-    public _escape?: StringContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
-    }
-    public TABLES(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLES, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext | null {
-        return this.getRuleContext(0, QualifiedNameContext);
-    }
-    public LIKE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.LIKE, 0);
-    }
-    public FROM(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FROM, 0);
-    }
-    public IN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IN, 0);
-    }
-    public string_(): StringContext[];
-    public string_(i: number): StringContext | null;
-    public string_(i?: number): StringContext[] | StringContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(StringContext);
-        }
-
-        return this.getRuleContext(i, StringContext);
-    }
-    public ESCAPE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ESCAPE, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowTables) {
-             listener.enterShowTables(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowTables) {
-             listener.exitShowTables(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowTables) {
-            return visitor.visitShowTables(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class DropDefaultValueContext extends StatementContext {
-    public _tableName?: QualifiedNameContext;
-    public _columnName?: QualifiedNameContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ALTER(): antlr.TerminalNode[];
-    public ALTER(i: number): antlr.TerminalNode | null;
-    public ALTER(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.ALTER);
-    	} else {
-    		return this.getToken(SqlBaseParser.ALTER, i);
-    	}
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public COLUMN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.COLUMN, 0)!;
-    }
-    public DROP(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DROP, 0)!;
-    }
-    public DEFAULT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DEFAULT, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext[];
-    public qualifiedName(i: number): QualifiedNameContext | null;
-    public qualifiedName(i?: number): QualifiedNameContext[] | QualifiedNameContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(QualifiedNameContext);
-        }
-
-        return this.getRuleContext(i, QualifiedNameContext);
-    }
-    public IF(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IF, 0);
-    }
-    public EXISTS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EXISTS, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDropDefaultValue) {
-             listener.enterDropDefaultValue(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDropDefaultValue) {
-             listener.exitDropDefaultValue(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDropDefaultValue) {
-            return visitor.visitDropDefaultValue(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ShowCatalogsContext extends StatementContext {
-    public _pattern?: StringContext;
-    public _escape?: StringContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
-    }
-    public CATALOGS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CATALOGS, 0)!;
-    }
-    public LIKE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.LIKE, 0);
-    }
-    public string_(): StringContext[];
-    public string_(i: number): StringContext | null;
-    public string_(i?: number): StringContext[] | StringContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(StringContext);
-        }
-
-        return this.getRuleContext(i, StringContext);
-    }
-    public ESCAPE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ESCAPE, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowCatalogs) {
-             listener.enterShowCatalogs(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowCatalogs) {
-             listener.exitShowCatalogs(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowCatalogs) {
-            return visitor.visitShowCatalogs(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ShowRolesContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
-    }
-    public ROLES(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ROLES, 0)!;
-    }
-    public CURRENT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.CURRENT, 0);
-    }
-    public identifier(): IdentifierContext | null {
-        return this.getRuleContext(0, IdentifierContext);
-    }
-    public FROM(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FROM, 0);
-    }
-    public IN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IN, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowRoles) {
-             listener.enterShowRoles(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowRoles) {
-             listener.exitShowRoles(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowRoles) {
-            return visitor.visitShowRoles(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class SetAuthorizationContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ALTER(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ALTER, 0)!;
-    }
-    public ownedEntityKind(): OwnedEntityKindContext {
-        return this.getRuleContext(0, OwnedEntityKindContext)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public SET(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SET, 0)!;
-    }
-    public AUTHORIZATION(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.AUTHORIZATION, 0)!;
-    }
-    public principal(): PrincipalContext {
-        return this.getRuleContext(0, PrincipalContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSetAuthorization) {
-             listener.enterSetAuthorization(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSetAuthorization) {
-             listener.exitSetAuthorization(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSetAuthorization) {
-            return visitor.visitSetAuthorization(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class MergeContext extends StatementContext {
-    public _branch?: IdentifierContext;
-    public _alias?: IdentifierContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public MERGE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.MERGE, 0)!;
-    }
-    public INTO(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.INTO, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
+    public CATALOG(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CATALOG, 0)!;
     }
     public USING(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.USING, 0)!;
     }
-    public relation(): RelationContext {
-        return this.getRuleContext(0, RelationContext)!;
-    }
-    public ON(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ON, 0)!;
-    }
-    public expression(): ExpressionContext {
-        return this.getRuleContext(0, ExpressionContext)!;
-    }
-    public mergeCase(): MergeCaseContext[];
-    public mergeCase(i: number): MergeCaseContext | null;
-    public mergeCase(i?: number): MergeCaseContext[] | MergeCaseContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(MergeCaseContext);
-        }
-
-        return this.getRuleContext(i, MergeCaseContext);
-    }
     public identifier(): IdentifierContext[];
     public identifier(i: number): IdentifierContext | null;
     public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
@@ -19276,597 +18515,91 @@ export class MergeContext extends StatementContext {
 
         return this.getRuleContext(i, IdentifierContext);
     }
-    public AS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.AS, 0);
+    public IF(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IF, 0);
     }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterMerge) {
-             listener.enterMerge(this);
-        }
+    public NOT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.NOT, 0);
     }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitMerge) {
-             listener.exitMerge(this);
-        }
+    public EXISTS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EXISTS, 0);
     }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitMerge) {
-            return visitor.visitMerge(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class RenameColumnContext extends StatementContext {
-    public _tableName?: QualifiedNameContext;
-    public _from_?: QualifiedNameContext;
-    public _to?: IdentifierContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ALTER(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ALTER, 0)!;
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public RENAME(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.RENAME, 0)!;
-    }
-    public COLUMN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.COLUMN, 0)!;
-    }
-    public TO(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TO, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext[];
-    public qualifiedName(i: number): QualifiedNameContext | null;
-    public qualifiedName(i?: number): QualifiedNameContext[] | QualifiedNameContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(QualifiedNameContext);
-        }
-
-        return this.getRuleContext(i, QualifiedNameContext);
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public IF(): antlr.TerminalNode[];
-    public IF(i: number): antlr.TerminalNode | null;
-    public IF(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.IF);
-    	} else {
-    		return this.getToken(SqlBaseParser.IF, i);
-    	}
-    }
-    public EXISTS(): antlr.TerminalNode[];
-    public EXISTS(i: number): antlr.TerminalNode | null;
-    public EXISTS(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.EXISTS);
-    	} else {
-    		return this.getToken(SqlBaseParser.EXISTS, i);
-    	}
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterRenameColumn) {
-             listener.enterRenameColumn(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitRenameColumn) {
-             listener.exitRenameColumn(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitRenameColumn) {
-            return visitor.visitRenameColumn(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CommentColumnContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public COMMENT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.COMMENT, 0)!;
-    }
-    public ON(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ON, 0)!;
-    }
-    public COLUMN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.COLUMN, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public IS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.IS, 0)!;
+    public COMMENT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.COMMENT, 0);
     }
     public string(): StringContext | null {
         return this.getRuleContext(0, StringContext);
     }
-    public NULL(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.NULL, 0);
+    public AUTHORIZATION(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.AUTHORIZATION, 0);
+    }
+    public principal(): PrincipalContext | null {
+        return this.getRuleContext(0, PrincipalContext);
+    }
+    public WITH(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WITH, 0);
+    }
+    public properties(): PropertiesContext | null {
+        return this.getRuleContext(0, PropertiesContext);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCommentColumn) {
-             listener.enterCommentColumn(this);
+        if(listener.enterCreateCatalog) {
+             listener.enterCreateCatalog(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCommentColumn) {
-             listener.exitCommentColumn(this);
+        if(listener.exitCreateCatalog) {
+             listener.exitCreateCatalog(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCommentColumn) {
-            return visitor.visitCommentColumn(this);
+        if (visitor.visitCreateCatalog) {
+            return visitor.visitCreateCatalog(this);
         } else {
             return visitor.visitChildren(this);
         }
     }
 }
-export class RevokeRolesContext extends StatementContext {
+export class DropCatalogContext extends StatementContext {
     public _catalog?: IdentifierContext;
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public REVOKE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.REVOKE, 0)!;
+    public DROP(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DROP, 0)!;
     }
-    public privilegeOrRole(): PrivilegeOrRoleContext[];
-    public privilegeOrRole(i: number): PrivilegeOrRoleContext | null;
-    public privilegeOrRole(i?: number): PrivilegeOrRoleContext[] | PrivilegeOrRoleContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(PrivilegeOrRoleContext);
-        }
-
-        return this.getRuleContext(i, PrivilegeOrRoleContext);
+    public CATALOG(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CATALOG, 0)!;
     }
-    public FROM(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.FROM, 0)!;
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
     }
-    public principal(): PrincipalContext[];
-    public principal(i: number): PrincipalContext | null;
-    public principal(i?: number): PrincipalContext[] | PrincipalContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(PrincipalContext);
-        }
-
-        return this.getRuleContext(i, PrincipalContext);
+    public IF(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IF, 0);
     }
-    public ADMIN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ADMIN, 0);
+    public EXISTS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EXISTS, 0);
     }
-    public OPTION(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.OPTION, 0);
+    public CASCADE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.CASCADE, 0);
     }
-    public FOR(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FOR, 0);
-    }
-    public GRANTED(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.GRANTED, 0);
-    }
-    public BY(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.BY, 0);
-    }
-    public grantor(): GrantorContext | null {
-        return this.getRuleContext(0, GrantorContext);
-    }
-    public IN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IN, 0);
-    }
-    public identifier(): IdentifierContext | null {
-        return this.getRuleContext(0, IdentifierContext);
+    public RESTRICT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.RESTRICT, 0);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterRevokeRoles) {
-             listener.enterRevokeRoles(this);
+        if(listener.enterDropCatalog) {
+             listener.enterDropCatalog(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitRevokeRoles) {
-             listener.exitRevokeRoles(this);
+        if(listener.exitDropCatalog) {
+             listener.exitDropCatalog(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitRevokeRoles) {
-            return visitor.visitRevokeRoles(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ShowCreateTableContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
-    }
-    public CREATE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CREATE, 0)!;
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowCreateTable) {
-             listener.enterShowCreateTable(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowCreateTable) {
-             listener.exitShowCreateTable(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowCreateTable) {
-            return visitor.visitShowCreateTable(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ShowColumnsContext extends StatementContext {
-    public _pattern?: StringContext;
-    public _escape?: StringContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SHOW(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.SHOW, 0);
-    }
-    public COLUMNS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.COLUMNS, 0);
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public FROM(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FROM, 0);
-    }
-    public IN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IN, 0);
-    }
-    public LIKE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.LIKE, 0);
-    }
-    public string_(): StringContext[];
-    public string_(i: number): StringContext | null;
-    public string_(i?: number): StringContext[] | StringContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(StringContext);
-        }
-
-        return this.getRuleContext(i, StringContext);
-    }
-    public ESCAPE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ESCAPE, 0);
-    }
-    public DESCRIBE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.DESCRIBE, 0);
-    }
-    public DESC(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.DESC, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowColumns) {
-             listener.enterShowColumns(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowColumns) {
-             listener.exitShowColumns(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowColumns) {
-            return visitor.visitShowColumns(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ShowRoleGrantsContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
-    }
-    public ROLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ROLE, 0)!;
-    }
-    public GRANTS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.GRANTS, 0)!;
-    }
-    public identifier(): IdentifierContext | null {
-        return this.getRuleContext(0, IdentifierContext);
-    }
-    public FROM(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FROM, 0);
-    }
-    public IN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IN, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowRoleGrants) {
-             listener.enterShowRoleGrants(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowRoleGrants) {
-             listener.exitShowRoleGrants(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowRoleGrants) {
-            return visitor.visitShowRoleGrants(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class AddColumnContext extends StatementContext {
-    public _tableName?: QualifiedNameContext;
-    public _column?: ColumnDefinitionContext;
-    public _after?: IdentifierContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ALTER(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ALTER, 0)!;
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public ADD(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ADD, 0)!;
-    }
-    public COLUMN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.COLUMN, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public columnDefinition(): ColumnDefinitionContext {
-        return this.getRuleContext(0, ColumnDefinitionContext)!;
-    }
-    public IF(): antlr.TerminalNode[];
-    public IF(i: number): antlr.TerminalNode | null;
-    public IF(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.IF);
-    	} else {
-    		return this.getToken(SqlBaseParser.IF, i);
-    	}
-    }
-    public EXISTS(): antlr.TerminalNode[];
-    public EXISTS(i: number): antlr.TerminalNode | null;
-    public EXISTS(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.EXISTS);
-    	} else {
-    		return this.getToken(SqlBaseParser.EXISTS, i);
-    	}
-    }
-    public NOT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.NOT, 0);
-    }
-    public FIRST(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FIRST, 0);
-    }
-    public LAST(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.LAST, 0);
-    }
-    public AFTER(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.AFTER, 0);
-    }
-    public identifier(): IdentifierContext | null {
-        return this.getRuleContext(0, IdentifierContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterAddColumn) {
-             listener.enterAddColumn(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitAddColumn) {
-             listener.exitAddColumn(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitAddColumn) {
-            return visitor.visitAddColumn(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class DenyContext extends StatementContext {
-    public _grantee?: PrincipalContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public DENY(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DENY, 0)!;
-    }
-    public ON(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ON, 0)!;
-    }
-    public grantObject(): GrantObjectContext {
-        return this.getRuleContext(0, GrantObjectContext)!;
-    }
-    public TO(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TO, 0)!;
-    }
-    public principal(): PrincipalContext {
-        return this.getRuleContext(0, PrincipalContext)!;
-    }
-    public privilege(): PrivilegeContext[];
-    public privilege(i: number): PrivilegeContext | null;
-    public privilege(i?: number): PrivilegeContext[] | PrivilegeContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(PrivilegeContext);
-        }
-
-        return this.getRuleContext(i, PrivilegeContext);
-    }
-    public ALL(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ALL, 0);
-    }
-    public PRIVILEGES(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.PRIVILEGES, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDeny) {
-             listener.enterDeny(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDeny) {
-             listener.exitDeny(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDeny) {
-            return visitor.visitDeny(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ResetSessionContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public RESET(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.RESET, 0)!;
-    }
-    public SESSION(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SESSION, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterResetSession) {
-             listener.enterResetSession(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitResetSession) {
-             listener.exitResetSession(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitResetSession) {
-            return visitor.visitResetSession(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class InsertIntoContext extends StatementContext {
-    public _branch?: IdentifierContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public INSERT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.INSERT, 0)!;
-    }
-    public INTO(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.INTO, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public rootQuery(): RootQueryContext {
-        return this.getRuleContext(0, RootQueryContext)!;
-    }
-    public columnAliases(): ColumnAliasesContext | null {
-        return this.getRuleContext(0, ColumnAliasesContext);
-    }
-    public identifier(): IdentifierContext | null {
-        return this.getRuleContext(0, IdentifierContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterInsertInto) {
-             listener.enterInsertInto(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitInsertInto) {
-             listener.exitInsertInto(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitInsertInto) {
-            return visitor.visitInsertInto(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ShowSessionContext extends StatementContext {
-    public _pattern?: StringContext;
-    public _escape?: StringContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
-    }
-    public SESSION(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SESSION, 0)!;
-    }
-    public LIKE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.LIKE, 0);
-    }
-    public string_(): StringContext[];
-    public string_(i: number): StringContext | null;
-    public string_(i?: number): StringContext[] | StringContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(StringContext);
-        }
-
-        return this.getRuleContext(i, StringContext);
-    }
-    public ESCAPE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ESCAPE, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowSession) {
-             listener.enterShowSession(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowSession) {
-             listener.exitShowSession(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowSession) {
-            return visitor.visitShowSession(this);
+        if (visitor.visitDropCatalog) {
+            return visitor.visitDropCatalog(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -19925,406 +18658,6 @@ export class CreateSchemaContext extends StatementContext {
         }
     }
 }
-export class SetSessionAuthorizationContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SET(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SET, 0)!;
-    }
-    public SESSION(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SESSION, 0)!;
-    }
-    public AUTHORIZATION(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.AUTHORIZATION, 0)!;
-    }
-    public authorizationUser(): AuthorizationUserContext {
-        return this.getRuleContext(0, AuthorizationUserContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSetSessionAuthorization) {
-             listener.enterSetSessionAuthorization(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSetSessionAuthorization) {
-             listener.exitSetSessionAuthorization(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSetSessionAuthorization) {
-            return visitor.visitSetSessionAuthorization(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ExplainAnalyzeContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public EXPLAIN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.EXPLAIN, 0)!;
-    }
-    public ANALYZE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ANALYZE, 0)!;
-    }
-    public statement(): StatementContext {
-        return this.getRuleContext(0, StatementContext)!;
-    }
-    public VERBOSE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.VERBOSE, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterExplainAnalyze) {
-             listener.enterExplainAnalyze(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitExplainAnalyze) {
-             listener.exitExplainAnalyze(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitExplainAnalyze) {
-            return visitor.visitExplainAnalyze(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ExecuteContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public EXECUTE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.EXECUTE, 0)!;
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public USING(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.USING, 0);
-    }
-    public expression(): ExpressionContext[];
-    public expression(i: number): ExpressionContext | null;
-    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ExpressionContext);
-        }
-
-        return this.getRuleContext(i, ExpressionContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterExecute) {
-             listener.enterExecute(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitExecute) {
-             listener.exitExecute(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitExecute) {
-            return visitor.visitExecute(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class RenameSchemaContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ALTER(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ALTER, 0)!;
-    }
-    public SCHEMA(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SCHEMA, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public RENAME(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.RENAME, 0)!;
-    }
-    public TO(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TO, 0)!;
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterRenameSchema) {
-             listener.enterRenameSchema(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitRenameSchema) {
-             listener.exitRenameSchema(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitRenameSchema) {
-            return visitor.visitRenameSchema(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class DropRoleContext extends StatementContext {
-    public _name?: IdentifierContext;
-    public _catalog?: IdentifierContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public DROP(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DROP, 0)!;
-    }
-    public ROLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ROLE, 0)!;
-    }
-    public identifier(): IdentifierContext[];
-    public identifier(i: number): IdentifierContext | null;
-    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(IdentifierContext);
-        }
-
-        return this.getRuleContext(i, IdentifierContext);
-    }
-    public IF(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IF, 0);
-    }
-    public EXISTS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EXISTS, 0);
-    }
-    public IN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IN, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDropRole) {
-             listener.enterDropRole(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDropRole) {
-             listener.exitDropRole(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDropRole) {
-            return visitor.visitDropRole(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class AnalyzeContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ANALYZE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ANALYZE, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public WITH(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WITH, 0);
-    }
-    public properties(): PropertiesContext | null {
-        return this.getRuleContext(0, PropertiesContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterAnalyze) {
-             listener.enterAnalyze(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitAnalyze) {
-             listener.exitAnalyze(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitAnalyze) {
-            return visitor.visitAnalyze(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class SetRoleContext extends StatementContext {
-    public _role?: IdentifierContext;
-    public _catalog?: IdentifierContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SET(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SET, 0)!;
-    }
-    public ROLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ROLE, 0)!;
-    }
-    public ALL(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ALL, 0);
-    }
-    public NONE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.NONE, 0);
-    }
-    public identifier(): IdentifierContext[];
-    public identifier(i: number): IdentifierContext | null;
-    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(IdentifierContext);
-        }
-
-        return this.getRuleContext(i, IdentifierContext);
-    }
-    public IN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IN, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSetRole) {
-             listener.enterSetRole(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSetRole) {
-             listener.exitSetRole(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSetRole) {
-            return visitor.visitSetRole(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CreateFunctionContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CREATE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CREATE, 0)!;
-    }
-    public functionSpecification(): FunctionSpecificationContext {
-        return this.getRuleContext(0, FunctionSpecificationContext)!;
-    }
-    public OR(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.OR, 0);
-    }
-    public REPLACE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.REPLACE, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCreateFunction) {
-             listener.enterCreateFunction(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCreateFunction) {
-             listener.exitCreateFunction(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCreateFunction) {
-            return visitor.visitCreateFunction(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class DropCatalogContext extends StatementContext {
-    public _catalog?: IdentifierContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public DROP(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DROP, 0)!;
-    }
-    public CATALOG(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CATALOG, 0)!;
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public IF(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IF, 0);
-    }
-    public EXISTS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EXISTS, 0);
-    }
-    public CASCADE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.CASCADE, 0);
-    }
-    public RESTRICT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.RESTRICT, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDropCatalog) {
-             listener.enterDropCatalog(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDropCatalog) {
-             listener.exitDropCatalog(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDropCatalog) {
-            return visitor.visitDropCatalog(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ShowGrantsContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
-    }
-    public GRANTS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.GRANTS, 0)!;
-    }
-    public ON(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ON, 0);
-    }
-    public grantObject(): GrantObjectContext | null {
-        return this.getRuleContext(0, GrantObjectContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowGrants) {
-             listener.enterShowGrants(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowGrants) {
-             listener.exitShowGrants(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowGrants) {
-            return visitor.visitShowGrants(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 export class DropSchemaContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
@@ -20369,303 +18702,42 @@ export class DropSchemaContext extends StatementContext {
         }
     }
 }
-export class ResetSessionAuthorizationContext extends StatementContext {
+export class RenameSchemaContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public RESET(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.RESET, 0)!;
+    public ALTER(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ALTER, 0)!;
     }
-    public SESSION(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SESSION, 0)!;
-    }
-    public AUTHORIZATION(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.AUTHORIZATION, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterResetSessionAuthorization) {
-             listener.enterResetSessionAuthorization(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitResetSessionAuthorization) {
-             listener.exitResetSessionAuthorization(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitResetSessionAuthorization) {
-            return visitor.visitResetSessionAuthorization(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ShowCreateViewContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
-    }
-    public CREATE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CREATE, 0)!;
-    }
-    public VIEW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.VIEW, 0)!;
+    public SCHEMA(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SCHEMA, 0)!;
     }
     public qualifiedName(): QualifiedNameContext {
         return this.getRuleContext(0, QualifiedNameContext)!;
     }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowCreateView) {
-             listener.enterShowCreateView(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowCreateView) {
-             listener.exitShowCreateView(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowCreateView) {
-            return visitor.visitShowCreateView(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class SetDefaultValueContext extends StatementContext {
-    public _tableName?: QualifiedNameContext;
-    public _columnName?: QualifiedNameContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ALTER(): antlr.TerminalNode[];
-    public ALTER(i: number): antlr.TerminalNode | null;
-    public ALTER(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.ALTER);
-    	} else {
-    		return this.getToken(SqlBaseParser.ALTER, i);
-    	}
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public COLUMN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.COLUMN, 0)!;
-    }
-    public SET(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SET, 0)!;
-    }
-    public DEFAULT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DEFAULT, 0)!;
-    }
-    public literal(): LiteralContext {
-        return this.getRuleContext(0, LiteralContext)!;
-    }
-    public qualifiedName(): QualifiedNameContext[];
-    public qualifiedName(i: number): QualifiedNameContext | null;
-    public qualifiedName(i?: number): QualifiedNameContext[] | QualifiedNameContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(QualifiedNameContext);
-        }
-
-        return this.getRuleContext(i, QualifiedNameContext);
-    }
-    public IF(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IF, 0);
-    }
-    public EXISTS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EXISTS, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSetDefaultValue) {
-             listener.enterSetDefaultValue(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSetDefaultValue) {
-             listener.exitSetDefaultValue(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSetDefaultValue) {
-            return visitor.visitSetDefaultValue(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CreateTableContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CREATE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CREATE, 0)!;
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public tableElement(): TableElementContext[];
-    public tableElement(i: number): TableElementContext | null;
-    public tableElement(i?: number): TableElementContext[] | TableElementContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(TableElementContext);
-        }
-
-        return this.getRuleContext(i, TableElementContext);
-    }
-    public OR(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.OR, 0);
-    }
-    public REPLACE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.REPLACE, 0);
-    }
-    public IF(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IF, 0);
-    }
-    public NOT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.NOT, 0);
-    }
-    public EXISTS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EXISTS, 0);
-    }
-    public COMMENT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.COMMENT, 0);
-    }
-    public string(): StringContext | null {
-        return this.getRuleContext(0, StringContext);
-    }
-    public WITH(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WITH, 0);
-    }
-    public properties(): PropertiesContext | null {
-        return this.getRuleContext(0, PropertiesContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCreateTable) {
-             listener.enterCreateTable(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCreateTable) {
-             listener.exitCreateTable(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCreateTable) {
-            return visitor.visitCreateTable(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class GrantPrivilegesContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public GRANT(): antlr.TerminalNode[];
-    public GRANT(i: number): antlr.TerminalNode | null;
-    public GRANT(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.GRANT);
-    	} else {
-    		return this.getToken(SqlBaseParser.GRANT, i);
-    	}
-    }
-    public ON(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ON, 0)!;
-    }
-    public grantObject(): GrantObjectContext {
-        return this.getRuleContext(0, GrantObjectContext)!;
+    public RENAME(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.RENAME, 0)!;
     }
     public TO(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.TO, 0)!;
     }
-    public principal(): PrincipalContext {
-        return this.getRuleContext(0, PrincipalContext)!;
-    }
-    public ALL(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ALL, 0);
-    }
-    public PRIVILEGES(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.PRIVILEGES, 0);
-    }
-    public WITH(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WITH, 0);
-    }
-    public OPTION(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.OPTION, 0);
-    }
-    public privilegeOrRole(): PrivilegeOrRoleContext[];
-    public privilegeOrRole(i: number): PrivilegeOrRoleContext | null;
-    public privilegeOrRole(i?: number): PrivilegeOrRoleContext[] | PrivilegeOrRoleContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(PrivilegeOrRoleContext);
-        }
-
-        return this.getRuleContext(i, PrivilegeOrRoleContext);
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterGrantPrivileges) {
-             listener.enterGrantPrivileges(this);
+        if(listener.enterRenameSchema) {
+             listener.enterRenameSchema(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitGrantPrivileges) {
-             listener.exitGrantPrivileges(this);
+        if(listener.exitRenameSchema) {
+             listener.exitRenameSchema(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitGrantPrivileges) {
-            return visitor.visitGrantPrivileges(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class StartTransactionContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public START(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.START, 0)!;
-    }
-    public TRANSACTION(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TRANSACTION, 0)!;
-    }
-    public transactionMode(): TransactionModeContext[];
-    public transactionMode(i: number): TransactionModeContext | null;
-    public transactionMode(i?: number): TransactionModeContext[] | TransactionModeContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(TransactionModeContext);
-        }
-
-        return this.getRuleContext(i, TransactionModeContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterStartTransaction) {
-             listener.enterStartTransaction(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitStartTransaction) {
-             listener.exitStartTransaction(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitStartTransaction) {
-            return visitor.visitStartTransaction(this);
+        if (visitor.visitRenameSchema) {
+            return visitor.visitRenameSchema(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -20751,184 +18823,75 @@ export class CreateTableAsSelectContext extends StatementContext {
         }
     }
 }
-export class CommentViewContext extends StatementContext {
+export class CreateTableContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
-    }
-    public COMMENT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.COMMENT, 0)!;
-    }
-    public ON(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ON, 0)!;
-    }
-    public VIEW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.VIEW, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public IS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.IS, 0)!;
-    }
-    public string(): StringContext | null {
-        return this.getRuleContext(0, StringContext);
-    }
-    public NULL(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.NULL, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCommentView) {
-             listener.enterCommentView(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCommentView) {
-             listener.exitCommentView(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCommentView) {
-            return visitor.visitCommentView(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ShowStatsContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
-    }
-    public STATS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.STATS, 0)!;
-    }
-    public FOR(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.FOR, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowStats) {
-             listener.enterShowStats(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowStats) {
-             listener.exitShowStats(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowStats) {
-            return visitor.visitShowStats(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ShowCreateSchemaContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
     }
     public CREATE(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.CREATE, 0)!;
     }
-    public SCHEMA(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SCHEMA, 0)!;
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
     }
     public qualifiedName(): QualifiedNameContext {
         return this.getRuleContext(0, QualifiedNameContext)!;
     }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowCreateSchema) {
-             listener.enterShowCreateSchema(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowCreateSchema) {
-             listener.exitShowCreateSchema(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowCreateSchema) {
-            return visitor.visitShowCreateSchema(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class RevokePrivilegesContext extends StatementContext {
-    public _grantee?: PrincipalContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public REVOKE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.REVOKE, 0)!;
-    }
-    public ON(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ON, 0)!;
-    }
-    public grantObject(): GrantObjectContext {
-        return this.getRuleContext(0, GrantObjectContext)!;
-    }
-    public FROM(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.FROM, 0)!;
-    }
-    public principal(): PrincipalContext {
-        return this.getRuleContext(0, PrincipalContext)!;
-    }
-    public ALL(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ALL, 0);
-    }
-    public PRIVILEGES(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.PRIVILEGES, 0);
-    }
-    public GRANT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.GRANT, 0);
-    }
-    public OPTION(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.OPTION, 0);
-    }
-    public FOR(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FOR, 0);
-    }
-    public privilegeOrRole(): PrivilegeOrRoleContext[];
-    public privilegeOrRole(i: number): PrivilegeOrRoleContext | null;
-    public privilegeOrRole(i?: number): PrivilegeOrRoleContext[] | PrivilegeOrRoleContext | null {
+    public tableElement(): TableElementContext[];
+    public tableElement(i: number): TableElementContext | null;
+    public tableElement(i?: number): TableElementContext[] | TableElementContext | null {
         if (i === undefined) {
-            return this.getRuleContexts(PrivilegeOrRoleContext);
+            return this.getRuleContexts(TableElementContext);
         }
 
-        return this.getRuleContext(i, PrivilegeOrRoleContext);
+        return this.getRuleContext(i, TableElementContext);
+    }
+    public OR(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.OR, 0);
+    }
+    public REPLACE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.REPLACE, 0);
+    }
+    public IF(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IF, 0);
+    }
+    public NOT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.NOT, 0);
+    }
+    public EXISTS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EXISTS, 0);
+    }
+    public COMMENT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.COMMENT, 0);
+    }
+    public string(): StringContext | null {
+        return this.getRuleContext(0, StringContext);
+    }
+    public WITH(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WITH, 0);
+    }
+    public properties(): PropertiesContext | null {
+        return this.getRuleContext(0, PropertiesContext);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterRevokePrivileges) {
-             listener.enterRevokePrivileges(this);
+        if(listener.enterCreateTable) {
+             listener.enterCreateTable(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitRevokePrivileges) {
-             listener.exitRevokePrivileges(this);
+        if(listener.exitCreateTable) {
+             listener.exitCreateTable(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitRevokePrivileges) {
-            return visitor.visitRevokePrivileges(this);
+        if (visitor.visitCreateTable) {
+            return visitor.visitCreateTable(this);
         } else {
             return visitor.visitChildren(this);
         }
     }
 }
-export class DropFunctionContext extends StatementContext {
+export class DropTableContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
@@ -20936,11 +18899,11 @@ export class DropFunctionContext extends StatementContext {
     public DROP(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.DROP, 0)!;
     }
-    public FUNCTION(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.FUNCTION, 0)!;
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
     }
-    public functionDeclaration(): FunctionDeclarationContext {
-        return this.getRuleContext(0, FunctionDeclarationContext)!;
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
     }
     public IF(): antlr.TerminalNode | null {
         return this.getToken(SqlBaseParser.IF, 0);
@@ -20949,126 +18912,60 @@ export class DropFunctionContext extends StatementContext {
         return this.getToken(SqlBaseParser.EXISTS, 0);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDropFunction) {
-             listener.enterDropFunction(this);
+        if(listener.enterDropTable) {
+             listener.enterDropTable(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDropFunction) {
-             listener.exitDropFunction(this);
+        if(listener.exitDropTable) {
+             listener.exitDropTable(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDropFunction) {
-            return visitor.visitDropFunction(this);
+        if (visitor.visitDropTable) {
+            return visitor.visitDropTable(this);
         } else {
             return visitor.visitChildren(this);
         }
     }
 }
-export class UpdateContext extends StatementContext {
+export class InsertIntoContext extends StatementContext {
     public _branch?: IdentifierContext;
-    public _where?: BooleanExpressionContext;
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public UPDATE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.UPDATE, 0)!;
+    public INSERT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.INSERT, 0)!;
+    }
+    public INTO(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.INTO, 0)!;
     }
     public qualifiedName(): QualifiedNameContext {
         return this.getRuleContext(0, QualifiedNameContext)!;
     }
-    public SET(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SET, 0)!;
+    public rootQuery(): RootQueryContext {
+        return this.getRuleContext(0, RootQueryContext)!;
     }
-    public updateAssignment(): UpdateAssignmentContext[];
-    public updateAssignment(i: number): UpdateAssignmentContext | null;
-    public updateAssignment(i?: number): UpdateAssignmentContext[] | UpdateAssignmentContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(UpdateAssignmentContext);
-        }
-
-        return this.getRuleContext(i, UpdateAssignmentContext);
-    }
-    public WHERE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WHERE, 0);
+    public columnAliases(): ColumnAliasesContext | null {
+        return this.getRuleContext(0, ColumnAliasesContext);
     }
     public identifier(): IdentifierContext | null {
         return this.getRuleContext(0, IdentifierContext);
     }
-    public booleanExpression(): BooleanExpressionContext | null {
-        return this.getRuleContext(0, BooleanExpressionContext);
-    }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterUpdate) {
-             listener.enterUpdate(this);
+        if(listener.enterInsertInto) {
+             listener.enterInsertInto(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitUpdate) {
-             listener.exitUpdate(this);
+        if(listener.exitInsertInto) {
+             listener.exitInsertInto(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitUpdate) {
-            return visitor.visitUpdate(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class TableExecuteContext extends StatementContext {
-    public _tableName?: QualifiedNameContext;
-    public _procedureName?: IdentifierContext;
-    public _where?: BooleanExpressionContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ALTER(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ALTER, 0)!;
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public EXECUTE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.EXECUTE, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public WHERE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WHERE, 0);
-    }
-    public booleanExpression(): BooleanExpressionContext | null {
-        return this.getRuleContext(0, BooleanExpressionContext);
-    }
-    public callArgument(): CallArgumentContext[];
-    public callArgument(i: number): CallArgumentContext | null;
-    public callArgument(i?: number): CallArgumentContext[] | CallArgumentContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(CallArgumentContext);
-        }
-
-        return this.getRuleContext(i, CallArgumentContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterTableExecute) {
-             listener.enterTableExecute(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitTableExecute) {
-             listener.exitTableExecute(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitTableExecute) {
-            return visitor.visitTableExecute(this);
+        if (visitor.visitInsertInto) {
+            return visitor.visitInsertInto(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -21116,68 +19013,554 @@ export class DeleteContext extends StatementContext {
         }
     }
 }
-export class DescribeInputContext extends StatementContext {
+export class TruncateTableContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public DESCRIBE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DESCRIBE, 0)!;
+    public TRUNCATE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TRUNCATE, 0)!;
     }
-    public INPUT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.INPUT, 0)!;
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
     }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDescribeInput) {
-             listener.enterDescribeInput(this);
+        if(listener.enterTruncateTable) {
+             listener.enterTruncateTable(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDescribeInput) {
-             listener.exitDescribeInput(this);
+        if(listener.exitTruncateTable) {
+             listener.exitTruncateTable(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDescribeInput) {
-            return visitor.visitDescribeInput(this);
+        if (visitor.visitTruncateTable) {
+            return visitor.visitTruncateTable(this);
         } else {
             return visitor.visitChildren(this);
         }
     }
 }
-export class ShowStatsForQueryContext extends StatementContext {
+export class CommentTableContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    public COMMENT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.COMMENT, 0)!;
     }
-    public STATS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.STATS, 0)!;
+    public ON(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ON, 0)!;
     }
-    public FOR(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.FOR, 0)!;
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
     }
-    public rootQuery(): RootQueryContext {
-        return this.getRuleContext(0, RootQueryContext)!;
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public IS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.IS, 0)!;
+    }
+    public string(): StringContext | null {
+        return this.getRuleContext(0, StringContext);
+    }
+    public NULL(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.NULL, 0);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowStatsForQuery) {
-             listener.enterShowStatsForQuery(this);
+        if(listener.enterCommentTable) {
+             listener.enterCommentTable(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowStatsForQuery) {
-             listener.exitShowStatsForQuery(this);
+        if(listener.exitCommentTable) {
+             listener.exitCommentTable(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowStatsForQuery) {
-            return visitor.visitShowStatsForQuery(this);
+        if (visitor.visitCommentTable) {
+            return visitor.visitCommentTable(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CommentViewContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public COMMENT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.COMMENT, 0)!;
+    }
+    public ON(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ON, 0)!;
+    }
+    public VIEW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.VIEW, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public IS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.IS, 0)!;
+    }
+    public string(): StringContext | null {
+        return this.getRuleContext(0, StringContext);
+    }
+    public NULL(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.NULL, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCommentView) {
+             listener.enterCommentView(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCommentView) {
+             listener.exitCommentView(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCommentView) {
+            return visitor.visitCommentView(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CommentColumnContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public COMMENT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.COMMENT, 0)!;
+    }
+    public ON(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ON, 0)!;
+    }
+    public COLUMN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.COLUMN, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public IS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.IS, 0)!;
+    }
+    public string(): StringContext | null {
+        return this.getRuleContext(0, StringContext);
+    }
+    public NULL(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.NULL, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCommentColumn) {
+             listener.enterCommentColumn(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCommentColumn) {
+             listener.exitCommentColumn(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCommentColumn) {
+            return visitor.visitCommentColumn(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class RenameTableContext extends StatementContext {
+    public _from_?: QualifiedNameContext;
+    public _to?: QualifiedNameContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public ALTER(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ALTER, 0)!;
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public RENAME(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.RENAME, 0)!;
+    }
+    public TO(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TO, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext[];
+    public qualifiedName(i: number): QualifiedNameContext | null;
+    public qualifiedName(i?: number): QualifiedNameContext[] | QualifiedNameContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(QualifiedNameContext);
+        }
+
+        return this.getRuleContext(i, QualifiedNameContext);
+    }
+    public IF(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IF, 0);
+    }
+    public EXISTS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EXISTS, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterRenameTable) {
+             listener.enterRenameTable(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitRenameTable) {
+             listener.exitRenameTable(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitRenameTable) {
+            return visitor.visitRenameTable(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class AddColumnContext extends StatementContext {
+    public _tableName?: QualifiedNameContext;
+    public _column?: ColumnDefinitionContext;
+    public _after?: IdentifierContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public ALTER(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ALTER, 0)!;
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public ADD(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ADD, 0)!;
+    }
+    public COLUMN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.COLUMN, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public columnDefinition(): ColumnDefinitionContext {
+        return this.getRuleContext(0, ColumnDefinitionContext)!;
+    }
+    public IF(): antlr.TerminalNode[];
+    public IF(i: number): antlr.TerminalNode | null;
+    public IF(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.IF);
+    	} else {
+    		return this.getToken(SqlBaseParser.IF, i);
+    	}
+    }
+    public EXISTS(): antlr.TerminalNode[];
+    public EXISTS(i: number): antlr.TerminalNode | null;
+    public EXISTS(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.EXISTS);
+    	} else {
+    		return this.getToken(SqlBaseParser.EXISTS, i);
+    	}
+    }
+    public NOT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.NOT, 0);
+    }
+    public FIRST(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FIRST, 0);
+    }
+    public LAST(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.LAST, 0);
+    }
+    public AFTER(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.AFTER, 0);
+    }
+    public identifier(): IdentifierContext | null {
+        return this.getRuleContext(0, IdentifierContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterAddColumn) {
+             listener.enterAddColumn(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitAddColumn) {
+             listener.exitAddColumn(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitAddColumn) {
+            return visitor.visitAddColumn(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class RenameColumnContext extends StatementContext {
+    public _tableName?: QualifiedNameContext;
+    public _from_?: QualifiedNameContext;
+    public _to?: IdentifierContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public ALTER(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ALTER, 0)!;
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public RENAME(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.RENAME, 0)!;
+    }
+    public COLUMN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.COLUMN, 0)!;
+    }
+    public TO(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TO, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext[];
+    public qualifiedName(i: number): QualifiedNameContext | null;
+    public qualifiedName(i?: number): QualifiedNameContext[] | QualifiedNameContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(QualifiedNameContext);
+        }
+
+        return this.getRuleContext(i, QualifiedNameContext);
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public IF(): antlr.TerminalNode[];
+    public IF(i: number): antlr.TerminalNode | null;
+    public IF(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.IF);
+    	} else {
+    		return this.getToken(SqlBaseParser.IF, i);
+    	}
+    }
+    public EXISTS(): antlr.TerminalNode[];
+    public EXISTS(i: number): antlr.TerminalNode | null;
+    public EXISTS(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.EXISTS);
+    	} else {
+    		return this.getToken(SqlBaseParser.EXISTS, i);
+    	}
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterRenameColumn) {
+             listener.enterRenameColumn(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitRenameColumn) {
+             listener.exitRenameColumn(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitRenameColumn) {
+            return visitor.visitRenameColumn(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class DropColumnContext extends StatementContext {
+    public _tableName?: QualifiedNameContext;
+    public _column?: QualifiedNameContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public ALTER(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ALTER, 0)!;
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public DROP(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DROP, 0)!;
+    }
+    public COLUMN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.COLUMN, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext[];
+    public qualifiedName(i: number): QualifiedNameContext | null;
+    public qualifiedName(i?: number): QualifiedNameContext[] | QualifiedNameContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(QualifiedNameContext);
+        }
+
+        return this.getRuleContext(i, QualifiedNameContext);
+    }
+    public IF(): antlr.TerminalNode[];
+    public IF(i: number): antlr.TerminalNode | null;
+    public IF(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.IF);
+    	} else {
+    		return this.getToken(SqlBaseParser.IF, i);
+    	}
+    }
+    public EXISTS(): antlr.TerminalNode[];
+    public EXISTS(i: number): antlr.TerminalNode | null;
+    public EXISTS(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.EXISTS);
+    	} else {
+    		return this.getToken(SqlBaseParser.EXISTS, i);
+    	}
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterDropColumn) {
+             listener.enterDropColumn(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitDropColumn) {
+             listener.exitDropColumn(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitDropColumn) {
+            return visitor.visitDropColumn(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SetDefaultValueContext extends StatementContext {
+    public _tableName?: QualifiedNameContext;
+    public _columnName?: QualifiedNameContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public ALTER(): antlr.TerminalNode[];
+    public ALTER(i: number): antlr.TerminalNode | null;
+    public ALTER(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.ALTER);
+    	} else {
+    		return this.getToken(SqlBaseParser.ALTER, i);
+    	}
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public COLUMN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.COLUMN, 0)!;
+    }
+    public SET(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SET, 0)!;
+    }
+    public DEFAULT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DEFAULT, 0)!;
+    }
+    public literal(): LiteralContext {
+        return this.getRuleContext(0, LiteralContext)!;
+    }
+    public qualifiedName(): QualifiedNameContext[];
+    public qualifiedName(i: number): QualifiedNameContext | null;
+    public qualifiedName(i?: number): QualifiedNameContext[] | QualifiedNameContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(QualifiedNameContext);
+        }
+
+        return this.getRuleContext(i, QualifiedNameContext);
+    }
+    public IF(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IF, 0);
+    }
+    public EXISTS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EXISTS, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSetDefaultValue) {
+             listener.enterSetDefaultValue(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSetDefaultValue) {
+             listener.exitSetDefaultValue(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSetDefaultValue) {
+            return visitor.visitSetDefaultValue(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class DropDefaultValueContext extends StatementContext {
+    public _tableName?: QualifiedNameContext;
+    public _columnName?: QualifiedNameContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public ALTER(): antlr.TerminalNode[];
+    public ALTER(i: number): antlr.TerminalNode | null;
+    public ALTER(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.ALTER);
+    	} else {
+    		return this.getToken(SqlBaseParser.ALTER, i);
+    	}
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public COLUMN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.COLUMN, 0)!;
+    }
+    public DROP(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DROP, 0)!;
+    }
+    public DEFAULT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DEFAULT, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext[];
+    public qualifiedName(i: number): QualifiedNameContext | null;
+    public qualifiedName(i?: number): QualifiedNameContext[] | QualifiedNameContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(QualifiedNameContext);
+        }
+
+        return this.getRuleContext(i, QualifiedNameContext);
+    }
+    public IF(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IF, 0);
+    }
+    public EXISTS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EXISTS, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterDropDefaultValue) {
+             listener.enterDropDefaultValue(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitDropDefaultValue) {
+             listener.exitDropDefaultValue(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitDropDefaultValue) {
+            return visitor.visitDropDefaultValue(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -21250,138 +19633,236 @@ export class SetColumnTypeContext extends StatementContext {
         }
     }
 }
-export class StatementDefaultContext extends StatementContext {
+export class DropNotNullConstraintContext extends StatementContext {
+    public _tableName?: QualifiedNameContext;
+    public _columnName?: IdentifierContext;
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public rootQueryWithSession(): RootQueryWithSessionContext {
-        return this.getRuleContext(0, RootQueryWithSessionContext)!;
+    public ALTER(): antlr.TerminalNode[];
+    public ALTER(i: number): antlr.TerminalNode | null;
+    public ALTER(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.ALTER);
+    	} else {
+    		return this.getToken(SqlBaseParser.ALTER, i);
+    	}
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public COLUMN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.COLUMN, 0)!;
+    }
+    public DROP(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DROP, 0)!;
+    }
+    public NOT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.NOT, 0)!;
+    }
+    public NULL(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.NULL, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public IF(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IF, 0);
+    }
+    public EXISTS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EXISTS, 0);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterStatementDefault) {
-             listener.enterStatementDefault(this);
+        if(listener.enterDropNotNullConstraint) {
+             listener.enterDropNotNullConstraint(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitStatementDefault) {
-             listener.exitStatementDefault(this);
+        if(listener.exitDropNotNullConstraint) {
+             listener.exitDropNotNullConstraint(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitStatementDefault) {
-            return visitor.visitStatementDefault(this);
+        if (visitor.visitDropNotNullConstraint) {
+            return visitor.visitDropNotNullConstraint(this);
         } else {
             return visitor.visitChildren(this);
         }
     }
 }
-export class SetTimeZoneContext extends StatementContext {
+export class SetTablePropertiesContext extends StatementContext {
+    public _tableName?: QualifiedNameContext;
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
+    }
+    public ALTER(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ALTER, 0)!;
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
     }
     public SET(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.SET, 0)!;
     }
-    public TIME(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TIME, 0)!;
+    public PROPERTIES(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.PROPERTIES, 0)!;
     }
-    public ZONE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ZONE, 0)!;
-    }
-    public LOCAL(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.LOCAL, 0);
-    }
-    public expression(): ExpressionContext | null {
-        return this.getRuleContext(0, ExpressionContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSetTimeZone) {
-             listener.enterSetTimeZone(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSetTimeZone) {
-             listener.exitSetTimeZone(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSetTimeZone) {
-            return visitor.visitSetTimeZone(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class TruncateTableContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public TRUNCATE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TRUNCATE, 0)!;
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    public propertyAssignments(): PropertyAssignmentsContext {
+        return this.getRuleContext(0, PropertyAssignmentsContext)!;
     }
     public qualifiedName(): QualifiedNameContext {
         return this.getRuleContext(0, QualifiedNameContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterTruncateTable) {
-             listener.enterTruncateTable(this);
+        if(listener.enterSetTableProperties) {
+             listener.enterSetTableProperties(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitTruncateTable) {
-             listener.exitTruncateTable(this);
+        if(listener.exitSetTableProperties) {
+             listener.exitSetTableProperties(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitTruncateTable) {
-            return visitor.visitTruncateTable(this);
+        if (visitor.visitSetTableProperties) {
+            return visitor.visitSetTableProperties(this);
         } else {
             return visitor.visitChildren(this);
         }
     }
 }
-export class ShowBranchesContext extends StatementContext {
+export class TableExecuteContext extends StatementContext {
+    public _tableName?: QualifiedNameContext;
+    public _procedureName?: IdentifierContext;
+    public _where?: BooleanExpressionContext;
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
-    }
-    public BRANCHES(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.BRANCHES, 0)!;
+    public ALTER(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ALTER, 0)!;
     }
     public TABLE(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.TABLE, 0)!;
     }
+    public EXECUTE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.EXECUTE, 0)!;
+    }
     public qualifiedName(): QualifiedNameContext {
         return this.getRuleContext(0, QualifiedNameContext)!;
     }
-    public FROM(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FROM, 0);
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
     }
-    public IN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IN, 0);
+    public WHERE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WHERE, 0);
+    }
+    public booleanExpression(): BooleanExpressionContext | null {
+        return this.getRuleContext(0, BooleanExpressionContext);
+    }
+    public callArgument(): CallArgumentContext[];
+    public callArgument(i: number): CallArgumentContext | null;
+    public callArgument(i?: number): CallArgumentContext[] | CallArgumentContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(CallArgumentContext);
+        }
+
+        return this.getRuleContext(i, CallArgumentContext);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowBranches) {
-             listener.enterShowBranches(this);
+        if(listener.enterTableExecute) {
+             listener.enterTableExecute(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowBranches) {
-             listener.exitShowBranches(this);
+        if(listener.exitTableExecute) {
+             listener.exitTableExecute(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowBranches) {
-            return visitor.visitShowBranches(this);
+        if (visitor.visitTableExecute) {
+            return visitor.visitTableExecute(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SetAuthorizationContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public ALTER(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ALTER, 0)!;
+    }
+    public ownedEntityKind(): OwnedEntityKindContext {
+        return this.getRuleContext(0, OwnedEntityKindContext)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public SET(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SET, 0)!;
+    }
+    public AUTHORIZATION(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.AUTHORIZATION, 0)!;
+    }
+    public principal(): PrincipalContext {
+        return this.getRuleContext(0, PrincipalContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSetAuthorization) {
+             listener.enterSetAuthorization(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSetAuthorization) {
+             listener.exitSetAuthorization(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSetAuthorization) {
+            return visitor.visitSetAuthorization(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class AnalyzeContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public ANALYZE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ANALYZE, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public WITH(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WITH, 0);
+    }
+    public properties(): PropertiesContext | null {
+        return this.getRuleContext(0, PropertiesContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterAnalyze) {
+             listener.enterAnalyze(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitAnalyze) {
+             listener.exitAnalyze(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitAnalyze) {
+            return visitor.visitAnalyze(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -21476,175 +19957,6 @@ export class CreateMaterializedViewContext extends StatementContext {
         }
     }
 }
-export class CreateBranchContext extends StatementContext {
-    public _branch?: IdentifierContext;
-    public _from_?: IdentifierContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CREATE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CREATE, 0)!;
-    }
-    public BRANCH(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.BRANCH, 0)!;
-    }
-    public IN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.IN, 0)!;
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public identifier(): IdentifierContext[];
-    public identifier(i: number): IdentifierContext | null;
-    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(IdentifierContext);
-        }
-
-        return this.getRuleContext(i, IdentifierContext);
-    }
-    public OR(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.OR, 0);
-    }
-    public REPLACE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.REPLACE, 0);
-    }
-    public IF(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IF, 0);
-    }
-    public NOT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.NOT, 0);
-    }
-    public EXISTS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EXISTS, 0);
-    }
-    public WITH(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WITH, 0);
-    }
-    public properties(): PropertiesContext | null {
-        return this.getRuleContext(0, PropertiesContext);
-    }
-    public FROM(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FROM, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCreateBranch) {
-             listener.enterCreateBranch(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCreateBranch) {
-             listener.exitCreateBranch(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCreateBranch) {
-            return visitor.visitCreateBranch(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class FastForwardBranchContext extends StatementContext {
-    public _source?: IdentifierContext;
-    public _target?: IdentifierContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ALTER(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ALTER, 0)!;
-    }
-    public BRANCH(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.BRANCH, 0)!;
-    }
-    public IN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.IN, 0)!;
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public FAST(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.FAST, 0)!;
-    }
-    public FORWARD(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.FORWARD, 0)!;
-    }
-    public TO(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TO, 0)!;
-    }
-    public identifier(): IdentifierContext[];
-    public identifier(i: number): IdentifierContext | null;
-    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(IdentifierContext);
-        }
-
-        return this.getRuleContext(i, IdentifierContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterFastForwardBranch) {
-             listener.enterFastForwardBranch(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitFastForwardBranch) {
-             listener.exitFastForwardBranch(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitFastForwardBranch) {
-            return visitor.visitFastForwardBranch(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class SetSessionContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SET(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SET, 0)!;
-    }
-    public SESSION(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SESSION, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public EQ(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.EQ, 0)!;
-    }
-    public expression(): ExpressionContext {
-        return this.getRuleContext(0, ExpressionContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSetSession) {
-             listener.enterSetSession(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSetSession) {
-             listener.exitSetSession(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSetSession) {
-            return visitor.visitSetSession(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 export class CreateViewContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
@@ -21710,6 +20022,82 @@ export class CreateViewContext extends StatementContext {
         }
     }
 }
+export class RefreshMaterializedViewContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public REFRESH(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.REFRESH, 0)!;
+    }
+    public MATERIALIZED(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.MATERIALIZED, 0)!;
+    }
+    public VIEW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.VIEW, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterRefreshMaterializedView) {
+             listener.enterRefreshMaterializedView(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitRefreshMaterializedView) {
+             listener.exitRefreshMaterializedView(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitRefreshMaterializedView) {
+            return visitor.visitRefreshMaterializedView(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class DropMaterializedViewContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public DROP(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DROP, 0)!;
+    }
+    public MATERIALIZED(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.MATERIALIZED, 0)!;
+    }
+    public VIEW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.VIEW, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public IF(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IF, 0);
+    }
+    public EXISTS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EXISTS, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterDropMaterializedView) {
+             listener.enterDropMaterializedView(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitDropMaterializedView) {
+             listener.exitDropMaterializedView(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitDropMaterializedView) {
+            return visitor.visitDropMaterializedView(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
 export class RenameMaterializedViewContext extends StatementContext {
     public _from_?: QualifiedNameContext;
     public _to?: QualifiedNameContext;
@@ -21765,62 +20153,51 @@ export class RenameMaterializedViewContext extends StatementContext {
         }
     }
 }
-export class ShowSchemasContext extends StatementContext {
-    public _pattern?: StringContext;
-    public _escape?: StringContext;
+export class SetMaterializedViewPropertiesContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public SHOW(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    public ALTER(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ALTER, 0)!;
     }
-    public SCHEMAS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SCHEMAS, 0)!;
+    public MATERIALIZED(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.MATERIALIZED, 0)!;
     }
-    public identifier(): IdentifierContext | null {
-        return this.getRuleContext(0, IdentifierContext);
+    public VIEW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.VIEW, 0)!;
     }
-    public LIKE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.LIKE, 0);
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
     }
-    public FROM(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FROM, 0);
+    public SET(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SET, 0)!;
     }
-    public IN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IN, 0);
+    public PROPERTIES(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.PROPERTIES, 0)!;
     }
-    public string_(): StringContext[];
-    public string_(i: number): StringContext | null;
-    public string_(i?: number): StringContext[] | StringContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(StringContext);
-        }
-
-        return this.getRuleContext(i, StringContext);
-    }
-    public ESCAPE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ESCAPE, 0);
+    public propertyAssignments(): PropertyAssignmentsContext {
+        return this.getRuleContext(0, PropertyAssignmentsContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterShowSchemas) {
-             listener.enterShowSchemas(this);
+        if(listener.enterSetMaterializedViewProperties) {
+             listener.enterSetMaterializedViewProperties(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitShowSchemas) {
-             listener.exitShowSchemas(this);
+        if(listener.exitSetMaterializedViewProperties) {
+             listener.exitSetMaterializedViewProperties(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitShowSchemas) {
-            return visitor.visitShowSchemas(this);
+        if (visitor.visitSetMaterializedViewProperties) {
+            return visitor.visitSetMaterializedViewProperties(this);
         } else {
             return visitor.visitChildren(this);
         }
     }
 }
-export class DropTableContext extends StatementContext {
+export class DropViewContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
@@ -21828,8 +20205,8 @@ export class DropTableContext extends StatementContext {
     public DROP(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.DROP, 0)!;
     }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    public VIEW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.VIEW, 0)!;
     }
     public qualifiedName(): QualifiedNameContext {
         return this.getRuleContext(0, QualifiedNameContext)!;
@@ -21841,135 +20218,18 @@ export class DropTableContext extends StatementContext {
         return this.getToken(SqlBaseParser.EXISTS, 0);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDropTable) {
-             listener.enterDropTable(this);
+        if(listener.enterDropView) {
+             listener.enterDropView(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDropTable) {
-             listener.exitDropTable(this);
+        if(listener.exitDropView) {
+             listener.exitDropView(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDropTable) {
-            return visitor.visitDropTable(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class RollbackContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ROLLBACK(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ROLLBACK, 0)!;
-    }
-    public WORK(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WORK, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterRollback) {
-             listener.enterRollback(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitRollback) {
-             listener.exitRollback(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitRollback) {
-            return visitor.visitRollback(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CommentTableContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public COMMENT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.COMMENT, 0)!;
-    }
-    public ON(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ON, 0)!;
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public IS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.IS, 0)!;
-    }
-    public string(): StringContext | null {
-        return this.getRuleContext(0, StringContext);
-    }
-    public NULL(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.NULL, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCommentTable) {
-             listener.enterCommentTable(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCommentTable) {
-             listener.exitCommentTable(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCommentTable) {
-            return visitor.visitCommentTable(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ExecuteImmediateContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public EXECUTE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.EXECUTE, 0)!;
-    }
-    public IMMEDIATE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.IMMEDIATE, 0)!;
-    }
-    public string(): StringContext {
-        return this.getRuleContext(0, StringContext)!;
-    }
-    public USING(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.USING, 0);
-    }
-    public expression(): ExpressionContext[];
-    public expression(i: number): ExpressionContext | null;
-    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ExpressionContext);
-        }
-
-        return this.getRuleContext(i, ExpressionContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterExecuteImmediate) {
-             listener.enterExecuteImmediate(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitExecuteImmediate) {
-             listener.exitExecuteImmediate(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitExecuteImmediate) {
-            return visitor.visitExecuteImmediate(this);
+        if (visitor.visitDropView) {
+            return visitor.visitDropView(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -22016,157 +20276,6 @@ export class RenameViewContext extends StatementContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitRenameView) {
             return visitor.visitRenameView(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class SetPathContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SET(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SET, 0)!;
-    }
-    public PATH(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.PATH, 0)!;
-    }
-    public pathSpecification(): PathSpecificationContext {
-        return this.getRuleContext(0, PathSpecificationContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSetPath) {
-             listener.enterSetPath(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSetPath) {
-             listener.exitSetPath(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSetPath) {
-            return visitor.visitSetPath(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class DropBranchContext extends StatementContext {
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public DROP(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DROP, 0)!;
-    }
-    public BRANCH(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.BRANCH, 0)!;
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public IN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.IN, 0)!;
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public IF(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IF, 0);
-    }
-    public EXISTS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EXISTS, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDropBranch) {
-             listener.enterDropBranch(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDropBranch) {
-             listener.exitDropBranch(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDropBranch) {
-            return visitor.visitDropBranch(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class GrantRolesContext extends StatementContext {
-    public _catalog?: IdentifierContext;
-    public constructor(ctx: StatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public GRANT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.GRANT, 0)!;
-    }
-    public privilegeOrRole(): PrivilegeOrRoleContext[];
-    public privilegeOrRole(i: number): PrivilegeOrRoleContext | null;
-    public privilegeOrRole(i?: number): PrivilegeOrRoleContext[] | PrivilegeOrRoleContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(PrivilegeOrRoleContext);
-        }
-
-        return this.getRuleContext(i, PrivilegeOrRoleContext);
-    }
-    public TO(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TO, 0)!;
-    }
-    public principal(): PrincipalContext[];
-    public principal(i: number): PrincipalContext | null;
-    public principal(i?: number): PrincipalContext[] | PrincipalContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(PrincipalContext);
-        }
-
-        return this.getRuleContext(i, PrincipalContext);
-    }
-    public WITH(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WITH, 0);
-    }
-    public ADMIN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ADMIN, 0);
-    }
-    public OPTION(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.OPTION, 0);
-    }
-    public GRANTED(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.GRANTED, 0);
-    }
-    public BY(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.BY, 0);
-    }
-    public grantor(): GrantorContext | null {
-        return this.getRuleContext(0, GrantorContext);
-    }
-    public IN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IN, 0);
-    }
-    public identifier(): IdentifierContext | null {
-        return this.getRuleContext(0, IdentifierContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterGrantRoles) {
-             listener.enterGrantRoles(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitGrantRoles) {
-             listener.exitGrantRoles(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitGrantRoles) {
-            return visitor.visitGrantRoles(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -22246,16 +20355,962 @@ export class CallContext extends StatementContext {
         }
     }
 }
-export class RefreshMaterializedViewContext extends StatementContext {
+export class CreateFunctionContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public REFRESH(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.REFRESH, 0)!;
+    public CREATE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CREATE, 0)!;
     }
-    public MATERIALIZED(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.MATERIALIZED, 0)!;
+    public functionSpecification(): FunctionSpecificationContext {
+        return this.getRuleContext(0, FunctionSpecificationContext)!;
+    }
+    public OR(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.OR, 0);
+    }
+    public REPLACE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.REPLACE, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCreateFunction) {
+             listener.enterCreateFunction(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCreateFunction) {
+             listener.exitCreateFunction(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCreateFunction) {
+            return visitor.visitCreateFunction(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class DropFunctionContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public DROP(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DROP, 0)!;
+    }
+    public FUNCTION(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.FUNCTION, 0)!;
+    }
+    public functionDeclaration(): FunctionDeclarationContext {
+        return this.getRuleContext(0, FunctionDeclarationContext)!;
+    }
+    public IF(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IF, 0);
+    }
+    public EXISTS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EXISTS, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterDropFunction) {
+             listener.enterDropFunction(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitDropFunction) {
+             listener.exitDropFunction(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitDropFunction) {
+            return visitor.visitDropFunction(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CreateBranchContext extends StatementContext {
+    public _branch?: IdentifierContext;
+    public _from_?: IdentifierContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CREATE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CREATE, 0)!;
+    }
+    public BRANCH(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.BRANCH, 0)!;
+    }
+    public IN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.IN, 0)!;
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public identifier(): IdentifierContext[];
+    public identifier(i: number): IdentifierContext | null;
+    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(IdentifierContext);
+        }
+
+        return this.getRuleContext(i, IdentifierContext);
+    }
+    public OR(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.OR, 0);
+    }
+    public REPLACE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.REPLACE, 0);
+    }
+    public IF(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IF, 0);
+    }
+    public NOT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.NOT, 0);
+    }
+    public EXISTS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EXISTS, 0);
+    }
+    public WITH(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WITH, 0);
+    }
+    public properties(): PropertiesContext | null {
+        return this.getRuleContext(0, PropertiesContext);
+    }
+    public FROM(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FROM, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCreateBranch) {
+             listener.enterCreateBranch(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCreateBranch) {
+             listener.exitCreateBranch(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCreateBranch) {
+            return visitor.visitCreateBranch(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class DropBranchContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public DROP(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DROP, 0)!;
+    }
+    public BRANCH(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.BRANCH, 0)!;
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public IN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.IN, 0)!;
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public IF(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IF, 0);
+    }
+    public EXISTS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EXISTS, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterDropBranch) {
+             listener.enterDropBranch(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitDropBranch) {
+             listener.exitDropBranch(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitDropBranch) {
+            return visitor.visitDropBranch(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class FastForwardBranchContext extends StatementContext {
+    public _source?: IdentifierContext;
+    public _target?: IdentifierContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public ALTER(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ALTER, 0)!;
+    }
+    public BRANCH(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.BRANCH, 0)!;
+    }
+    public IN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.IN, 0)!;
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public FAST(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.FAST, 0)!;
+    }
+    public FORWARD(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.FORWARD, 0)!;
+    }
+    public TO(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TO, 0)!;
+    }
+    public identifier(): IdentifierContext[];
+    public identifier(i: number): IdentifierContext | null;
+    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(IdentifierContext);
+        }
+
+        return this.getRuleContext(i, IdentifierContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterFastForwardBranch) {
+             listener.enterFastForwardBranch(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitFastForwardBranch) {
+             listener.exitFastForwardBranch(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitFastForwardBranch) {
+            return visitor.visitFastForwardBranch(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ShowBranchesContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
+    public BRANCHES(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.BRANCHES, 0)!;
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public FROM(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FROM, 0);
+    }
+    public IN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IN, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterShowBranches) {
+             listener.enterShowBranches(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitShowBranches) {
+             listener.exitShowBranches(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitShowBranches) {
+            return visitor.visitShowBranches(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CreateRoleContext extends StatementContext {
+    public _name?: IdentifierContext;
+    public _catalog?: IdentifierContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CREATE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CREATE, 0)!;
+    }
+    public ROLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ROLE, 0)!;
+    }
+    public identifier(): IdentifierContext[];
+    public identifier(i: number): IdentifierContext | null;
+    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(IdentifierContext);
+        }
+
+        return this.getRuleContext(i, IdentifierContext);
+    }
+    public WITH(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WITH, 0);
+    }
+    public ADMIN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ADMIN, 0);
+    }
+    public grantor(): GrantorContext | null {
+        return this.getRuleContext(0, GrantorContext);
+    }
+    public IN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IN, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCreateRole) {
+             listener.enterCreateRole(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCreateRole) {
+             listener.exitCreateRole(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCreateRole) {
+            return visitor.visitCreateRole(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class DropRoleContext extends StatementContext {
+    public _name?: IdentifierContext;
+    public _catalog?: IdentifierContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public DROP(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DROP, 0)!;
+    }
+    public ROLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ROLE, 0)!;
+    }
+    public identifier(): IdentifierContext[];
+    public identifier(i: number): IdentifierContext | null;
+    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(IdentifierContext);
+        }
+
+        return this.getRuleContext(i, IdentifierContext);
+    }
+    public IF(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IF, 0);
+    }
+    public EXISTS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EXISTS, 0);
+    }
+    public IN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IN, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterDropRole) {
+             listener.enterDropRole(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitDropRole) {
+             listener.exitDropRole(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitDropRole) {
+            return visitor.visitDropRole(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class GrantRolesContext extends StatementContext {
+    public _catalog?: IdentifierContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public GRANT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.GRANT, 0)!;
+    }
+    public privilegeOrRole(): PrivilegeOrRoleContext[];
+    public privilegeOrRole(i: number): PrivilegeOrRoleContext | null;
+    public privilegeOrRole(i?: number): PrivilegeOrRoleContext[] | PrivilegeOrRoleContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(PrivilegeOrRoleContext);
+        }
+
+        return this.getRuleContext(i, PrivilegeOrRoleContext);
+    }
+    public TO(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TO, 0)!;
+    }
+    public principal(): PrincipalContext[];
+    public principal(i: number): PrincipalContext | null;
+    public principal(i?: number): PrincipalContext[] | PrincipalContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(PrincipalContext);
+        }
+
+        return this.getRuleContext(i, PrincipalContext);
+    }
+    public WITH(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WITH, 0);
+    }
+    public ADMIN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ADMIN, 0);
+    }
+    public OPTION(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.OPTION, 0);
+    }
+    public GRANTED(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.GRANTED, 0);
+    }
+    public BY(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.BY, 0);
+    }
+    public grantor(): GrantorContext | null {
+        return this.getRuleContext(0, GrantorContext);
+    }
+    public IN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IN, 0);
+    }
+    public identifier(): IdentifierContext | null {
+        return this.getRuleContext(0, IdentifierContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterGrantRoles) {
+             listener.enterGrantRoles(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitGrantRoles) {
+             listener.exitGrantRoles(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitGrantRoles) {
+            return visitor.visitGrantRoles(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class GrantPrivilegesContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public GRANT(): antlr.TerminalNode[];
+    public GRANT(i: number): antlr.TerminalNode | null;
+    public GRANT(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.GRANT);
+    	} else {
+    		return this.getToken(SqlBaseParser.GRANT, i);
+    	}
+    }
+    public ON(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ON, 0)!;
+    }
+    public grantObject(): GrantObjectContext {
+        return this.getRuleContext(0, GrantObjectContext)!;
+    }
+    public TO(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TO, 0)!;
+    }
+    public principal(): PrincipalContext {
+        return this.getRuleContext(0, PrincipalContext)!;
+    }
+    public ALL(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ALL, 0);
+    }
+    public PRIVILEGES(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.PRIVILEGES, 0);
+    }
+    public WITH(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WITH, 0);
+    }
+    public OPTION(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.OPTION, 0);
+    }
+    public privilegeOrRole(): PrivilegeOrRoleContext[];
+    public privilegeOrRole(i: number): PrivilegeOrRoleContext | null;
+    public privilegeOrRole(i?: number): PrivilegeOrRoleContext[] | PrivilegeOrRoleContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(PrivilegeOrRoleContext);
+        }
+
+        return this.getRuleContext(i, PrivilegeOrRoleContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterGrantPrivileges) {
+             listener.enterGrantPrivileges(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitGrantPrivileges) {
+             listener.exitGrantPrivileges(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitGrantPrivileges) {
+            return visitor.visitGrantPrivileges(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class RevokeRolesContext extends StatementContext {
+    public _catalog?: IdentifierContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public REVOKE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.REVOKE, 0)!;
+    }
+    public privilegeOrRole(): PrivilegeOrRoleContext[];
+    public privilegeOrRole(i: number): PrivilegeOrRoleContext | null;
+    public privilegeOrRole(i?: number): PrivilegeOrRoleContext[] | PrivilegeOrRoleContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(PrivilegeOrRoleContext);
+        }
+
+        return this.getRuleContext(i, PrivilegeOrRoleContext);
+    }
+    public FROM(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.FROM, 0)!;
+    }
+    public principal(): PrincipalContext[];
+    public principal(i: number): PrincipalContext | null;
+    public principal(i?: number): PrincipalContext[] | PrincipalContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(PrincipalContext);
+        }
+
+        return this.getRuleContext(i, PrincipalContext);
+    }
+    public ADMIN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ADMIN, 0);
+    }
+    public OPTION(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.OPTION, 0);
+    }
+    public FOR(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FOR, 0);
+    }
+    public GRANTED(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.GRANTED, 0);
+    }
+    public BY(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.BY, 0);
+    }
+    public grantor(): GrantorContext | null {
+        return this.getRuleContext(0, GrantorContext);
+    }
+    public IN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IN, 0);
+    }
+    public identifier(): IdentifierContext | null {
+        return this.getRuleContext(0, IdentifierContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterRevokeRoles) {
+             listener.enterRevokeRoles(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitRevokeRoles) {
+             listener.exitRevokeRoles(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitRevokeRoles) {
+            return visitor.visitRevokeRoles(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class RevokePrivilegesContext extends StatementContext {
+    public _grantee?: PrincipalContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public REVOKE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.REVOKE, 0)!;
+    }
+    public ON(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ON, 0)!;
+    }
+    public grantObject(): GrantObjectContext {
+        return this.getRuleContext(0, GrantObjectContext)!;
+    }
+    public FROM(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.FROM, 0)!;
+    }
+    public principal(): PrincipalContext {
+        return this.getRuleContext(0, PrincipalContext)!;
+    }
+    public ALL(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ALL, 0);
+    }
+    public PRIVILEGES(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.PRIVILEGES, 0);
+    }
+    public GRANT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.GRANT, 0);
+    }
+    public OPTION(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.OPTION, 0);
+    }
+    public FOR(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FOR, 0);
+    }
+    public privilegeOrRole(): PrivilegeOrRoleContext[];
+    public privilegeOrRole(i: number): PrivilegeOrRoleContext | null;
+    public privilegeOrRole(i?: number): PrivilegeOrRoleContext[] | PrivilegeOrRoleContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(PrivilegeOrRoleContext);
+        }
+
+        return this.getRuleContext(i, PrivilegeOrRoleContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterRevokePrivileges) {
+             listener.enterRevokePrivileges(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitRevokePrivileges) {
+             listener.exitRevokePrivileges(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitRevokePrivileges) {
+            return visitor.visitRevokePrivileges(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class DenyContext extends StatementContext {
+    public _grantee?: PrincipalContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public DENY(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DENY, 0)!;
+    }
+    public ON(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ON, 0)!;
+    }
+    public grantObject(): GrantObjectContext {
+        return this.getRuleContext(0, GrantObjectContext)!;
+    }
+    public TO(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TO, 0)!;
+    }
+    public principal(): PrincipalContext {
+        return this.getRuleContext(0, PrincipalContext)!;
+    }
+    public privilege(): PrivilegeContext[];
+    public privilege(i: number): PrivilegeContext | null;
+    public privilege(i?: number): PrivilegeContext[] | PrivilegeContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(PrivilegeContext);
+        }
+
+        return this.getRuleContext(i, PrivilegeContext);
+    }
+    public ALL(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ALL, 0);
+    }
+    public PRIVILEGES(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.PRIVILEGES, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterDeny) {
+             listener.enterDeny(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitDeny) {
+             listener.exitDeny(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitDeny) {
+            return visitor.visitDeny(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SetRoleContext extends StatementContext {
+    public _role?: IdentifierContext;
+    public _catalog?: IdentifierContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SET(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SET, 0)!;
+    }
+    public ROLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ROLE, 0)!;
+    }
+    public ALL(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ALL, 0);
+    }
+    public NONE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.NONE, 0);
+    }
+    public identifier(): IdentifierContext[];
+    public identifier(i: number): IdentifierContext | null;
+    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(IdentifierContext);
+        }
+
+        return this.getRuleContext(i, IdentifierContext);
+    }
+    public IN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IN, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSetRole) {
+             listener.enterSetRole(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSetRole) {
+             listener.exitSetRole(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSetRole) {
+            return visitor.visitSetRole(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ShowGrantsContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
+    public GRANTS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.GRANTS, 0)!;
+    }
+    public ON(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ON, 0);
+    }
+    public grantObject(): GrantObjectContext | null {
+        return this.getRuleContext(0, GrantObjectContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterShowGrants) {
+             listener.enterShowGrants(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitShowGrants) {
+             listener.exitShowGrants(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitShowGrants) {
+            return visitor.visitShowGrants(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ExplainContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public EXPLAIN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.EXPLAIN, 0)!;
+    }
+    public statement(): StatementContext {
+        return this.getRuleContext(0, StatementContext)!;
+    }
+    public explainOption(): ExplainOptionContext[];
+    public explainOption(i: number): ExplainOptionContext | null;
+    public explainOption(i?: number): ExplainOptionContext[] | ExplainOptionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ExplainOptionContext);
+        }
+
+        return this.getRuleContext(i, ExplainOptionContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterExplain) {
+             listener.enterExplain(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitExplain) {
+             listener.exitExplain(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitExplain) {
+            return visitor.visitExplain(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ExplainAnalyzeContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public EXPLAIN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.EXPLAIN, 0)!;
+    }
+    public ANALYZE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ANALYZE, 0)!;
+    }
+    public statement(): StatementContext {
+        return this.getRuleContext(0, StatementContext)!;
+    }
+    public VERBOSE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.VERBOSE, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterExplainAnalyze) {
+             listener.enterExplainAnalyze(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitExplainAnalyze) {
+             listener.exitExplainAnalyze(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitExplainAnalyze) {
+            return visitor.visitExplainAnalyze(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ShowCreateTableContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
+    public CREATE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CREATE, 0)!;
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterShowCreateTable) {
+             listener.enterShowCreateTable(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitShowCreateTable) {
+             listener.exitShowCreateTable(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitShowCreateTable) {
+            return visitor.visitShowCreateTable(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ShowCreateSchemaContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
+    public CREATE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CREATE, 0)!;
+    }
+    public SCHEMA(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SCHEMA, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterShowCreateSchema) {
+             listener.enterShowCreateSchema(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitShowCreateSchema) {
+             listener.exitShowCreateSchema(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitShowCreateSchema) {
+            return visitor.visitShowCreateSchema(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ShowCreateViewContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
+    public CREATE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CREATE, 0)!;
     }
     public VIEW(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.VIEW, 0)!;
@@ -22264,18 +21319,18 @@ export class RefreshMaterializedViewContext extends StatementContext {
         return this.getRuleContext(0, QualifiedNameContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterRefreshMaterializedView) {
-             listener.enterRefreshMaterializedView(this);
+        if(listener.enterShowCreateView) {
+             listener.enterShowCreateView(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitRefreshMaterializedView) {
-             listener.exitRefreshMaterializedView(this);
+        if(listener.exitShowCreateView) {
+             listener.exitShowCreateView(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitRefreshMaterializedView) {
-            return visitor.visitRefreshMaterializedView(this);
+        if (visitor.visitShowCreateView) {
+            return visitor.visitShowCreateView(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -22319,71 +21374,405 @@ export class ShowCreateMaterializedViewContext extends StatementContext {
         }
     }
 }
-export class CreateCatalogContext extends StatementContext {
-    public _catalog?: IdentifierContext;
-    public _connectorName?: IdentifierContext;
+export class ShowCreateFunctionContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
     public CREATE(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.CREATE, 0)!;
     }
-    public CATALOG(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CATALOG, 0)!;
+    public FUNCTION(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.FUNCTION, 0)!;
     }
-    public USING(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.USING, 0)!;
-    }
-    public identifier(): IdentifierContext[];
-    public identifier(i: number): IdentifierContext | null;
-    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(IdentifierContext);
-        }
-
-        return this.getRuleContext(i, IdentifierContext);
-    }
-    public IF(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IF, 0);
-    }
-    public NOT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.NOT, 0);
-    }
-    public EXISTS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EXISTS, 0);
-    }
-    public COMMENT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.COMMENT, 0);
-    }
-    public string(): StringContext | null {
-        return this.getRuleContext(0, StringContext);
-    }
-    public AUTHORIZATION(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.AUTHORIZATION, 0);
-    }
-    public principal(): PrincipalContext | null {
-        return this.getRuleContext(0, PrincipalContext);
-    }
-    public WITH(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WITH, 0);
-    }
-    public properties(): PropertiesContext | null {
-        return this.getRuleContext(0, PropertiesContext);
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCreateCatalog) {
-             listener.enterCreateCatalog(this);
+        if(listener.enterShowCreateFunction) {
+             listener.enterShowCreateFunction(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCreateCatalog) {
-             listener.exitCreateCatalog(this);
+        if(listener.exitShowCreateFunction) {
+             listener.exitShowCreateFunction(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCreateCatalog) {
-            return visitor.visitCreateCatalog(this);
+        if (visitor.visitShowCreateFunction) {
+            return visitor.visitShowCreateFunction(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ShowTablesContext extends StatementContext {
+    public _pattern?: StringContext;
+    public _escape?: StringContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
+    public TABLES(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLES, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext | null {
+        return this.getRuleContext(0, QualifiedNameContext);
+    }
+    public LIKE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.LIKE, 0);
+    }
+    public FROM(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FROM, 0);
+    }
+    public IN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IN, 0);
+    }
+    public string_(): StringContext[];
+    public string_(i: number): StringContext | null;
+    public string_(i?: number): StringContext[] | StringContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(StringContext);
+        }
+
+        return this.getRuleContext(i, StringContext);
+    }
+    public ESCAPE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ESCAPE, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterShowTables) {
+             listener.enterShowTables(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitShowTables) {
+             listener.exitShowTables(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitShowTables) {
+            return visitor.visitShowTables(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ShowSchemasContext extends StatementContext {
+    public _pattern?: StringContext;
+    public _escape?: StringContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
+    public SCHEMAS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SCHEMAS, 0)!;
+    }
+    public identifier(): IdentifierContext | null {
+        return this.getRuleContext(0, IdentifierContext);
+    }
+    public LIKE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.LIKE, 0);
+    }
+    public FROM(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FROM, 0);
+    }
+    public IN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IN, 0);
+    }
+    public string_(): StringContext[];
+    public string_(i: number): StringContext | null;
+    public string_(i?: number): StringContext[] | StringContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(StringContext);
+        }
+
+        return this.getRuleContext(i, StringContext);
+    }
+    public ESCAPE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ESCAPE, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterShowSchemas) {
+             listener.enterShowSchemas(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitShowSchemas) {
+             listener.exitShowSchemas(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitShowSchemas) {
+            return visitor.visitShowSchemas(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ShowCatalogsContext extends StatementContext {
+    public _pattern?: StringContext;
+    public _escape?: StringContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
+    public CATALOGS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CATALOGS, 0)!;
+    }
+    public LIKE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.LIKE, 0);
+    }
+    public string_(): StringContext[];
+    public string_(i: number): StringContext | null;
+    public string_(i?: number): StringContext[] | StringContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(StringContext);
+        }
+
+        return this.getRuleContext(i, StringContext);
+    }
+    public ESCAPE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ESCAPE, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterShowCatalogs) {
+             listener.enterShowCatalogs(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitShowCatalogs) {
+             listener.exitShowCatalogs(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitShowCatalogs) {
+            return visitor.visitShowCatalogs(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ShowColumnsContext extends StatementContext {
+    public _pattern?: StringContext;
+    public _escape?: StringContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.SHOW, 0);
+    }
+    public COLUMNS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.COLUMNS, 0);
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public FROM(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FROM, 0);
+    }
+    public IN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IN, 0);
+    }
+    public LIKE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.LIKE, 0);
+    }
+    public string_(): StringContext[];
+    public string_(i: number): StringContext | null;
+    public string_(i?: number): StringContext[] | StringContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(StringContext);
+        }
+
+        return this.getRuleContext(i, StringContext);
+    }
+    public ESCAPE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ESCAPE, 0);
+    }
+    public DESCRIBE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.DESCRIBE, 0);
+    }
+    public DESC(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.DESC, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterShowColumns) {
+             listener.enterShowColumns(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitShowColumns) {
+             listener.exitShowColumns(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitShowColumns) {
+            return visitor.visitShowColumns(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ShowStatsContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
+    public STATS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.STATS, 0)!;
+    }
+    public FOR(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.FOR, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterShowStats) {
+             listener.enterShowStats(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitShowStats) {
+             listener.exitShowStats(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitShowStats) {
+            return visitor.visitShowStats(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ShowStatsForQueryContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
+    public STATS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.STATS, 0)!;
+    }
+    public FOR(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.FOR, 0)!;
+    }
+    public rootQuery(): RootQueryContext {
+        return this.getRuleContext(0, RootQueryContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterShowStatsForQuery) {
+             listener.enterShowStatsForQuery(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitShowStatsForQuery) {
+             listener.exitShowStatsForQuery(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitShowStatsForQuery) {
+            return visitor.visitShowStatsForQuery(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ShowRolesContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
+    public ROLES(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ROLES, 0)!;
+    }
+    public CURRENT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.CURRENT, 0);
+    }
+    public identifier(): IdentifierContext | null {
+        return this.getRuleContext(0, IdentifierContext);
+    }
+    public FROM(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FROM, 0);
+    }
+    public IN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IN, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterShowRoles) {
+             listener.enterShowRoles(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitShowRoles) {
+             listener.exitShowRoles(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitShowRoles) {
+            return visitor.visitShowRoles(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ShowRoleGrantsContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
+    public ROLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ROLE, 0)!;
+    }
+    public GRANTS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.GRANTS, 0)!;
+    }
+    public identifier(): IdentifierContext | null {
+        return this.getRuleContext(0, IdentifierContext);
+    }
+    public FROM(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FROM, 0);
+    }
+    public IN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IN, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterShowRoleGrants) {
+             listener.enterShowRoleGrants(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitShowRoleGrants) {
+             listener.exitShowRoleGrants(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitShowRoleGrants) {
+            return visitor.visitShowRoleGrants(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -22444,6 +21833,469 @@ export class ShowFunctionsContext extends StatementContext {
         }
     }
 }
+export class ShowSessionContext extends StatementContext {
+    public _pattern?: StringContext;
+    public _escape?: StringContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SHOW(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SHOW, 0)!;
+    }
+    public SESSION(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SESSION, 0)!;
+    }
+    public LIKE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.LIKE, 0);
+    }
+    public string_(): StringContext[];
+    public string_(i: number): StringContext | null;
+    public string_(i?: number): StringContext[] | StringContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(StringContext);
+        }
+
+        return this.getRuleContext(i, StringContext);
+    }
+    public ESCAPE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ESCAPE, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterShowSession) {
+             listener.enterShowSession(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitShowSession) {
+             listener.exitShowSession(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitShowSession) {
+            return visitor.visitShowSession(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SetSessionAuthorizationContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SET(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SET, 0)!;
+    }
+    public SESSION(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SESSION, 0)!;
+    }
+    public AUTHORIZATION(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.AUTHORIZATION, 0)!;
+    }
+    public authorizationUser(): AuthorizationUserContext {
+        return this.getRuleContext(0, AuthorizationUserContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSetSessionAuthorization) {
+             listener.enterSetSessionAuthorization(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSetSessionAuthorization) {
+             listener.exitSetSessionAuthorization(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSetSessionAuthorization) {
+            return visitor.visitSetSessionAuthorization(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ResetSessionAuthorizationContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public RESET(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.RESET, 0)!;
+    }
+    public SESSION(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SESSION, 0)!;
+    }
+    public AUTHORIZATION(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.AUTHORIZATION, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterResetSessionAuthorization) {
+             listener.enterResetSessionAuthorization(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitResetSessionAuthorization) {
+             listener.exitResetSessionAuthorization(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitResetSessionAuthorization) {
+            return visitor.visitResetSessionAuthorization(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SetSessionContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SET(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SET, 0)!;
+    }
+    public SESSION(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SESSION, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public EQ(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.EQ, 0)!;
+    }
+    public expression(): ExpressionContext {
+        return this.getRuleContext(0, ExpressionContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSetSession) {
+             listener.enterSetSession(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSetSession) {
+             listener.exitSetSession(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSetSession) {
+            return visitor.visitSetSession(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ResetSessionContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public RESET(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.RESET, 0)!;
+    }
+    public SESSION(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SESSION, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterResetSession) {
+             listener.enterResetSession(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitResetSession) {
+             listener.exitResetSession(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitResetSession) {
+            return visitor.visitResetSession(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class StartTransactionContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public START(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.START, 0)!;
+    }
+    public TRANSACTION(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TRANSACTION, 0)!;
+    }
+    public transactionMode(): TransactionModeContext[];
+    public transactionMode(i: number): TransactionModeContext | null;
+    public transactionMode(i?: number): TransactionModeContext[] | TransactionModeContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(TransactionModeContext);
+        }
+
+        return this.getRuleContext(i, TransactionModeContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterStartTransaction) {
+             listener.enterStartTransaction(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitStartTransaction) {
+             listener.exitStartTransaction(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitStartTransaction) {
+            return visitor.visitStartTransaction(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CommitContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public COMMIT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.COMMIT, 0)!;
+    }
+    public WORK(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WORK, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCommit) {
+             listener.enterCommit(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCommit) {
+             listener.exitCommit(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCommit) {
+            return visitor.visitCommit(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class RollbackContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public ROLLBACK(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ROLLBACK, 0)!;
+    }
+    public WORK(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WORK, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterRollback) {
+             listener.enterRollback(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitRollback) {
+             listener.exitRollback(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitRollback) {
+            return visitor.visitRollback(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class PrepareContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public PREPARE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.PREPARE, 0)!;
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public FROM(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.FROM, 0)!;
+    }
+    public statement(): StatementContext {
+        return this.getRuleContext(0, StatementContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterPrepare) {
+             listener.enterPrepare(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitPrepare) {
+             listener.exitPrepare(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitPrepare) {
+            return visitor.visitPrepare(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class DeallocateContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public DEALLOCATE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DEALLOCATE, 0)!;
+    }
+    public PREPARE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.PREPARE, 0)!;
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterDeallocate) {
+             listener.enterDeallocate(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitDeallocate) {
+             listener.exitDeallocate(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitDeallocate) {
+            return visitor.visitDeallocate(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ExecuteContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public EXECUTE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.EXECUTE, 0)!;
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public USING(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.USING, 0);
+    }
+    public expression(): ExpressionContext[];
+    public expression(i: number): ExpressionContext | null;
+    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ExpressionContext);
+        }
+
+        return this.getRuleContext(i, ExpressionContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterExecute) {
+             listener.enterExecute(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitExecute) {
+             listener.exitExecute(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitExecute) {
+            return visitor.visitExecute(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ExecuteImmediateContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public EXECUTE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.EXECUTE, 0)!;
+    }
+    public IMMEDIATE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.IMMEDIATE, 0)!;
+    }
+    public string(): StringContext {
+        return this.getRuleContext(0, StringContext)!;
+    }
+    public USING(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.USING, 0);
+    }
+    public expression(): ExpressionContext[];
+    public expression(i: number): ExpressionContext | null;
+    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ExpressionContext);
+        }
+
+        return this.getRuleContext(i, ExpressionContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterExecuteImmediate) {
+             listener.enterExecuteImmediate(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitExecuteImmediate) {
+             listener.exitExecuteImmediate(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitExecuteImmediate) {
+            return visitor.visitExecuteImmediate(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class DescribeInputContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public DESCRIBE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DESCRIBE, 0)!;
+    }
+    public INPUT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.INPUT, 0)!;
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterDescribeInput) {
+             listener.enterDescribeInput(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitDescribeInput) {
+             listener.exitDescribeInput(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitDescribeInput) {
+            return visitor.visitDescribeInput(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
 export class DescribeOutputContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
@@ -22476,43 +22328,190 @@ export class DescribeOutputContext extends StatementContext {
         }
     }
 }
-export class SetTablePropertiesContext extends StatementContext {
-    public _tableName?: QualifiedNameContext;
+export class SetPathContext extends StatementContext {
     public constructor(ctx: StatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public ALTER(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ALTER, 0)!;
+    public SET(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SET, 0)!;
     }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    public PATH(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.PATH, 0)!;
+    }
+    public pathSpecification(): PathSpecificationContext {
+        return this.getRuleContext(0, PathSpecificationContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSetPath) {
+             listener.enterSetPath(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSetPath) {
+             listener.exitSetPath(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSetPath) {
+            return visitor.visitSetPath(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SetTimeZoneContext extends StatementContext {
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
     }
     public SET(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.SET, 0)!;
     }
-    public PROPERTIES(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.PROPERTIES, 0)!;
+    public TIME(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TIME, 0)!;
     }
-    public propertyAssignments(): PropertyAssignmentsContext {
-        return this.getRuleContext(0, PropertyAssignmentsContext)!;
+    public ZONE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ZONE, 0)!;
+    }
+    public LOCAL(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.LOCAL, 0);
+    }
+    public expression(): ExpressionContext | null {
+        return this.getRuleContext(0, ExpressionContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSetTimeZone) {
+             listener.enterSetTimeZone(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSetTimeZone) {
+             listener.exitSetTimeZone(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSetTimeZone) {
+            return visitor.visitSetTimeZone(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class UpdateContext extends StatementContext {
+    public _branch?: IdentifierContext;
+    public _where?: BooleanExpressionContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public UPDATE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.UPDATE, 0)!;
     }
     public qualifiedName(): QualifiedNameContext {
         return this.getRuleContext(0, QualifiedNameContext)!;
     }
+    public SET(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SET, 0)!;
+    }
+    public updateAssignment(): UpdateAssignmentContext[];
+    public updateAssignment(i: number): UpdateAssignmentContext | null;
+    public updateAssignment(i?: number): UpdateAssignmentContext[] | UpdateAssignmentContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(UpdateAssignmentContext);
+        }
+
+        return this.getRuleContext(i, UpdateAssignmentContext);
+    }
+    public WHERE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WHERE, 0);
+    }
+    public identifier(): IdentifierContext | null {
+        return this.getRuleContext(0, IdentifierContext);
+    }
+    public booleanExpression(): BooleanExpressionContext | null {
+        return this.getRuleContext(0, BooleanExpressionContext);
+    }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSetTableProperties) {
-             listener.enterSetTableProperties(this);
+        if(listener.enterUpdate) {
+             listener.enterUpdate(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSetTableProperties) {
-             listener.exitSetTableProperties(this);
+        if(listener.exitUpdate) {
+             listener.exitUpdate(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSetTableProperties) {
-            return visitor.visitSetTableProperties(this);
+        if (visitor.visitUpdate) {
+            return visitor.visitUpdate(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class MergeContext extends StatementContext {
+    public _branch?: IdentifierContext;
+    public _alias?: IdentifierContext;
+    public constructor(ctx: StatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public MERGE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.MERGE, 0)!;
+    }
+    public INTO(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.INTO, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public USING(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.USING, 0)!;
+    }
+    public relation(): RelationContext {
+        return this.getRuleContext(0, RelationContext)!;
+    }
+    public ON(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ON, 0)!;
+    }
+    public expression(): ExpressionContext {
+        return this.getRuleContext(0, ExpressionContext)!;
+    }
+    public mergeCase(): MergeCaseContext[];
+    public mergeCase(i: number): MergeCaseContext | null;
+    public mergeCase(i?: number): MergeCaseContext[] | MergeCaseContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(MergeCaseContext);
+        }
+
+        return this.getRuleContext(i, MergeCaseContext);
+    }
+    public identifier(): IdentifierContext[];
+    public identifier(i: number): IdentifierContext | null;
+    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(IdentifierContext);
+        }
+
+        return this.getRuleContext(i, IdentifierContext);
+    }
+    public AS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.AS, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterMerge) {
+             listener.enterMerge(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitMerge) {
+             listener.exitMerge(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitMerge) {
+            return visitor.visitMerge(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -23316,32 +23315,6 @@ export class QueryPrimaryContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class SubqueryContext extends QueryPrimaryContext {
-    public constructor(ctx: QueryPrimaryContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public queryNoWith(): QueryNoWithContext {
-        return this.getRuleContext(0, QueryNoWithContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSubquery) {
-             listener.enterSubquery(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSubquery) {
-             listener.exitSubquery(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSubquery) {
-            return visitor.visitSubquery(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 export class QueryPrimaryDefaultContext extends QueryPrimaryContext {
     public constructor(ctx: QueryPrimaryContext) {
         super(ctx.parent, ctx.invokingState);
@@ -23427,6 +23400,32 @@ export class InlineTableContext extends QueryPrimaryContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitInlineTable) {
             return visitor.visitInlineTable(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SubqueryContext extends QueryPrimaryContext {
+    public constructor(ctx: QueryPrimaryContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public queryNoWith(): QueryNoWithContext {
+        return this.getRuleContext(0, QueryNoWithContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSubquery) {
+             listener.enterSubquery(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSubquery) {
+             listener.exitSubquery(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSubquery) {
+            return visitor.visitSubquery(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -23659,39 +23658,27 @@ export class GroupingElementContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class MultipleGroupingSetsContext extends GroupingElementContext {
+export class SingleGroupingSetContext extends GroupingElementContext {
     public constructor(ctx: GroupingElementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public GROUPING(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.GROUPING, 0)!;
-    }
-    public SETS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SETS, 0)!;
-    }
-    public groupingSet(): GroupingSetContext[];
-    public groupingSet(i: number): GroupingSetContext | null;
-    public groupingSet(i?: number): GroupingSetContext[] | GroupingSetContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(GroupingSetContext);
-        }
-
-        return this.getRuleContext(i, GroupingSetContext);
+    public groupingSet(): GroupingSetContext {
+        return this.getRuleContext(0, GroupingSetContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterMultipleGroupingSets) {
-             listener.enterMultipleGroupingSets(this);
+        if(listener.enterSingleGroupingSet) {
+             listener.enterSingleGroupingSet(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitMultipleGroupingSets) {
-             listener.exitMultipleGroupingSets(this);
+        if(listener.exitSingleGroupingSet) {
+             listener.exitSingleGroupingSet(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitMultipleGroupingSets) {
-            return visitor.visitMultipleGroupingSets(this);
+        if (visitor.visitSingleGroupingSet) {
+            return visitor.visitSingleGroupingSet(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -23723,27 +23710,36 @@ export class AutoContext extends GroupingElementContext {
         }
     }
 }
-export class SingleGroupingSetContext extends GroupingElementContext {
+export class RollupContext extends GroupingElementContext {
     public constructor(ctx: GroupingElementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public groupingSet(): GroupingSetContext {
-        return this.getRuleContext(0, GroupingSetContext)!;
+    public ROLLUP(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ROLLUP, 0)!;
+    }
+    public groupingSet(): GroupingSetContext[];
+    public groupingSet(i: number): GroupingSetContext | null;
+    public groupingSet(i?: number): GroupingSetContext[] | GroupingSetContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(GroupingSetContext);
+        }
+
+        return this.getRuleContext(i, GroupingSetContext);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSingleGroupingSet) {
-             listener.enterSingleGroupingSet(this);
+        if(listener.enterRollup) {
+             listener.enterRollup(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSingleGroupingSet) {
-             listener.exitSingleGroupingSet(this);
+        if(listener.exitRollup) {
+             listener.exitRollup(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSingleGroupingSet) {
-            return visitor.visitSingleGroupingSet(this);
+        if (visitor.visitRollup) {
+            return visitor.visitRollup(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -23784,13 +23780,16 @@ export class CubeContext extends GroupingElementContext {
         }
     }
 }
-export class RollupContext extends GroupingElementContext {
+export class MultipleGroupingSetsContext extends GroupingElementContext {
     public constructor(ctx: GroupingElementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public ROLLUP(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ROLLUP, 0)!;
+    public GROUPING(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.GROUPING, 0)!;
+    }
+    public SETS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SETS, 0)!;
     }
     public groupingSet(): GroupingSetContext[];
     public groupingSet(i: number): GroupingSetContext | null;
@@ -23802,18 +23801,18 @@ export class RollupContext extends GroupingElementContext {
         return this.getRuleContext(i, GroupingSetContext);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterRollup) {
-             listener.enterRollup(this);
+        if(listener.enterMultipleGroupingSets) {
+             listener.enterMultipleGroupingSets(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitRollup) {
-             listener.exitRollup(this);
+        if(listener.exitMultipleGroupingSets) {
+             listener.exitMultipleGroupingSets(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitRollup) {
-            return visitor.visitRollup(this);
+        if (visitor.visitMultipleGroupingSets) {
+            return visitor.visitMultipleGroupingSets(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -24032,6 +24031,38 @@ export class SelectItemContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
+export class SelectSingleContext extends SelectItemContext {
+    public constructor(ctx: SelectItemContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public expression(): ExpressionContext {
+        return this.getRuleContext(0, ExpressionContext)!;
+    }
+    public identifier(): IdentifierContext | null {
+        return this.getRuleContext(0, IdentifierContext);
+    }
+    public AS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.AS, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSelectSingle) {
+             listener.enterSelectSingle(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSelectSingle) {
+             listener.exitSelectSingle(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSelectSingle) {
+            return visitor.visitSelectSingle(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
 export class SelectAllContext extends SelectItemContext {
     public constructor(ctx: SelectItemContext) {
         super(ctx.parent, ctx.invokingState);
@@ -24062,38 +24093,6 @@ export class SelectAllContext extends SelectItemContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitSelectAll) {
             return visitor.visitSelectAll(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class SelectSingleContext extends SelectItemContext {
-    public constructor(ctx: SelectItemContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public expression(): ExpressionContext {
-        return this.getRuleContext(0, ExpressionContext)!;
-    }
-    public identifier(): IdentifierContext | null {
-        return this.getRuleContext(0, IdentifierContext);
-    }
-    public AS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.AS, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSelectSingle) {
-             listener.enterSelectSingle(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSelectSingle) {
-             listener.exitSelectSingle(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSelectSingle) {
-            return visitor.visitSelectSingle(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -24930,6 +24929,35 @@ export class RelationPrimaryContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
+export class TableNameContext extends RelationPrimaryContext {
+    public constructor(ctx: RelationPrimaryContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public queryPeriod(): QueryPeriodContext | null {
+        return this.getRuleContext(0, QueryPeriodContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterTableName) {
+             listener.enterTableName(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitTableName) {
+             listener.exitTableName(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitTableName) {
+            return visitor.visitTableName(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
 export class SubqueryRelationContext extends RelationPrimaryContext {
     public constructor(ctx: RelationPrimaryContext) {
         super(ctx.parent, ctx.invokingState);
@@ -24951,6 +24979,131 @@ export class SubqueryRelationContext extends RelationPrimaryContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitSubqueryRelation) {
             return visitor.visitSubqueryRelation(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class UnnestContext extends RelationPrimaryContext {
+    public constructor(ctx: RelationPrimaryContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public UNNEST(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.UNNEST, 0)!;
+    }
+    public expression(): ExpressionContext[];
+    public expression(i: number): ExpressionContext | null;
+    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ExpressionContext);
+        }
+
+        return this.getRuleContext(i, ExpressionContext);
+    }
+    public WITH(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WITH, 0);
+    }
+    public ORDINALITY(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ORDINALITY, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterUnnest) {
+             listener.enterUnnest(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitUnnest) {
+             listener.exitUnnest(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitUnnest) {
+            return visitor.visitUnnest(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class LateralContext extends RelationPrimaryContext {
+    public constructor(ctx: RelationPrimaryContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public LATERAL(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.LATERAL, 0)!;
+    }
+    public query(): QueryContext {
+        return this.getRuleContext(0, QueryContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterLateral) {
+             listener.enterLateral(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitLateral) {
+             listener.exitLateral(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitLateral) {
+            return visitor.visitLateral(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class TableFunctionInvocationContext extends RelationPrimaryContext {
+    public constructor(ctx: RelationPrimaryContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public tableFunctionCall(): TableFunctionCallContext {
+        return this.getRuleContext(0, TableFunctionCallContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterTableFunctionInvocation) {
+             listener.enterTableFunctionInvocation(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitTableFunctionInvocation) {
+             listener.exitTableFunctionInvocation(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitTableFunctionInvocation) {
+            return visitor.visitTableFunctionInvocation(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ParenthesizedRelationContext extends RelationPrimaryContext {
+    public constructor(ctx: RelationPrimaryContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public relation(): RelationContext {
+        return this.getRuleContext(0, RelationContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterParenthesizedRelation) {
+             listener.enterParenthesizedRelation(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitParenthesizedRelation) {
+             listener.exitParenthesizedRelation(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitParenthesizedRelation) {
+            return visitor.visitParenthesizedRelation(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -25024,160 +25177,6 @@ export class JsonTableContext extends RelationPrimaryContext {
         }
     }
 }
-export class ParenthesizedRelationContext extends RelationPrimaryContext {
-    public constructor(ctx: RelationPrimaryContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public relation(): RelationContext {
-        return this.getRuleContext(0, RelationContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterParenthesizedRelation) {
-             listener.enterParenthesizedRelation(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitParenthesizedRelation) {
-             listener.exitParenthesizedRelation(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitParenthesizedRelation) {
-            return visitor.visitParenthesizedRelation(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class UnnestContext extends RelationPrimaryContext {
-    public constructor(ctx: RelationPrimaryContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public UNNEST(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.UNNEST, 0)!;
-    }
-    public expression(): ExpressionContext[];
-    public expression(i: number): ExpressionContext | null;
-    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ExpressionContext);
-        }
-
-        return this.getRuleContext(i, ExpressionContext);
-    }
-    public WITH(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WITH, 0);
-    }
-    public ORDINALITY(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ORDINALITY, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterUnnest) {
-             listener.enterUnnest(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitUnnest) {
-             listener.exitUnnest(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitUnnest) {
-            return visitor.visitUnnest(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class TableFunctionInvocationContext extends RelationPrimaryContext {
-    public constructor(ctx: RelationPrimaryContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public tableFunctionCall(): TableFunctionCallContext {
-        return this.getRuleContext(0, TableFunctionCallContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterTableFunctionInvocation) {
-             listener.enterTableFunctionInvocation(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitTableFunctionInvocation) {
-             listener.exitTableFunctionInvocation(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitTableFunctionInvocation) {
-            return visitor.visitTableFunctionInvocation(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class LateralContext extends RelationPrimaryContext {
-    public constructor(ctx: RelationPrimaryContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public LATERAL(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.LATERAL, 0)!;
-    }
-    public query(): QueryContext {
-        return this.getRuleContext(0, QueryContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterLateral) {
-             listener.enterLateral(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitLateral) {
-             listener.exitLateral(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitLateral) {
-            return visitor.visitLateral(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class TableNameContext extends RelationPrimaryContext {
-    public constructor(ctx: RelationPrimaryContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public queryPeriod(): QueryPeriodContext | null {
-        return this.getRuleContext(0, QueryPeriodContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterTableName) {
-             listener.enterTableName(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitTableName) {
-             listener.exitTableName(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitTableName) {
-            return visitor.visitTableName(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 
 
 export class JsonTableColumnContext extends antlr.ParserRuleContext {
@@ -25189,6 +25188,99 @@ export class JsonTableColumnContext extends antlr.ParserRuleContext {
     }
     public override copyFrom(ctx: JsonTableColumnContext): void {
         super.copyFrom(ctx);
+    }
+}
+export class OrdinalityColumnContext extends JsonTableColumnContext {
+    public constructor(ctx: JsonTableColumnContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public FOR(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.FOR, 0)!;
+    }
+    public ORDINALITY(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ORDINALITY, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterOrdinalityColumn) {
+             listener.enterOrdinalityColumn(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitOrdinalityColumn) {
+             listener.exitOrdinalityColumn(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitOrdinalityColumn) {
+            return visitor.visitOrdinalityColumn(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ValueColumnContext extends JsonTableColumnContext {
+    public _emptyBehavior?: JsonValueBehaviorContext;
+    public _errorBehavior?: JsonValueBehaviorContext;
+    public constructor(ctx: JsonTableColumnContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public type(): TypeContext {
+        return this.getRuleContext(0, TypeContext)!;
+    }
+    public PATH(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.PATH, 0);
+    }
+    public string(): StringContext | null {
+        return this.getRuleContext(0, StringContext);
+    }
+    public ON(): antlr.TerminalNode[];
+    public ON(i: number): antlr.TerminalNode | null;
+    public ON(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.ON);
+    	} else {
+    		return this.getToken(SqlBaseParser.ON, i);
+    	}
+    }
+    public EMPTY(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EMPTY, 0);
+    }
+    public ERROR(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ERROR, 0);
+    }
+    public jsonValueBehavior(): JsonValueBehaviorContext[];
+    public jsonValueBehavior(i: number): JsonValueBehaviorContext | null;
+    public jsonValueBehavior(i?: number): JsonValueBehaviorContext[] | JsonValueBehaviorContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(JsonValueBehaviorContext);
+        }
+
+        return this.getRuleContext(i, JsonValueBehaviorContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterValueColumn) {
+             listener.enterValueColumn(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitValueColumn) {
+             listener.exitValueColumn(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitValueColumn) {
+            return visitor.visitValueColumn(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
     }
 }
 export class QueryColumnContext extends JsonTableColumnContext {
@@ -25329,99 +25421,6 @@ export class NestedColumnsContext extends JsonTableColumnContext {
         }
     }
 }
-export class ValueColumnContext extends JsonTableColumnContext {
-    public _emptyBehavior?: JsonValueBehaviorContext;
-    public _errorBehavior?: JsonValueBehaviorContext;
-    public constructor(ctx: JsonTableColumnContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public type(): TypeContext {
-        return this.getRuleContext(0, TypeContext)!;
-    }
-    public PATH(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.PATH, 0);
-    }
-    public string(): StringContext | null {
-        return this.getRuleContext(0, StringContext);
-    }
-    public ON(): antlr.TerminalNode[];
-    public ON(i: number): antlr.TerminalNode | null;
-    public ON(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.ON);
-    	} else {
-    		return this.getToken(SqlBaseParser.ON, i);
-    	}
-    }
-    public EMPTY(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EMPTY, 0);
-    }
-    public ERROR(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ERROR, 0);
-    }
-    public jsonValueBehavior(): JsonValueBehaviorContext[];
-    public jsonValueBehavior(i: number): JsonValueBehaviorContext | null;
-    public jsonValueBehavior(i?: number): JsonValueBehaviorContext[] | JsonValueBehaviorContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(JsonValueBehaviorContext);
-        }
-
-        return this.getRuleContext(i, JsonValueBehaviorContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterValueColumn) {
-             listener.enterValueColumn(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitValueColumn) {
-             listener.exitValueColumn(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitValueColumn) {
-            return visitor.visitValueColumn(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class OrdinalityColumnContext extends JsonTableColumnContext {
-    public constructor(ctx: JsonTableColumnContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public FOR(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.FOR, 0)!;
-    }
-    public ORDINALITY(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ORDINALITY, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterOrdinalityColumn) {
-             listener.enterOrdinalityColumn(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitOrdinalityColumn) {
-             listener.exitOrdinalityColumn(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitOrdinalityColumn) {
-            return visitor.visitOrdinalityColumn(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 
 
 export class JsonTableSpecificPlanContext extends antlr.ParserRuleContext {
@@ -25435,42 +25434,27 @@ export class JsonTableSpecificPlanContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class CrossPlanContext extends JsonTableSpecificPlanContext {
+export class LeafPlanContext extends JsonTableSpecificPlanContext {
     public constructor(ctx: JsonTableSpecificPlanContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public planPrimary(): PlanPrimaryContext[];
-    public planPrimary(i: number): PlanPrimaryContext | null;
-    public planPrimary(i?: number): PlanPrimaryContext[] | PlanPrimaryContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(PlanPrimaryContext);
-        }
-
-        return this.getRuleContext(i, PlanPrimaryContext);
-    }
-    public CROSS(): antlr.TerminalNode[];
-    public CROSS(i: number): antlr.TerminalNode | null;
-    public CROSS(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.CROSS);
-    	} else {
-    		return this.getToken(SqlBaseParser.CROSS, i);
-    	}
+    public jsonTablePathName(): JsonTablePathNameContext {
+        return this.getRuleContext(0, JsonTablePathNameContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCrossPlan) {
-             listener.enterCrossPlan(this);
+        if(listener.enterLeafPlan) {
+             listener.enterLeafPlan(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCrossPlan) {
-             listener.exitCrossPlan(this);
+        if(listener.exitLeafPlan) {
+             listener.exitLeafPlan(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCrossPlan) {
-            return visitor.visitCrossPlan(this);
+        if (visitor.visitLeafPlan) {
+            return visitor.visitLeafPlan(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -25506,32 +25490,6 @@ export class JoinPlanContext extends JsonTableSpecificPlanContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitJoinPlan) {
             return visitor.visitJoinPlan(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class LeafPlanContext extends JsonTableSpecificPlanContext {
-    public constructor(ctx: JsonTableSpecificPlanContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public jsonTablePathName(): JsonTablePathNameContext {
-        return this.getRuleContext(0, JsonTablePathNameContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterLeafPlan) {
-             listener.enterLeafPlan(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitLeafPlan) {
-             listener.exitLeafPlan(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitLeafPlan) {
-            return visitor.visitLeafPlan(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -25573,6 +25531,47 @@ export class UnionPlanContext extends JsonTableSpecificPlanContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitUnionPlan) {
             return visitor.visitUnionPlan(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CrossPlanContext extends JsonTableSpecificPlanContext {
+    public constructor(ctx: JsonTableSpecificPlanContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public planPrimary(): PlanPrimaryContext[];
+    public planPrimary(i: number): PlanPrimaryContext | null;
+    public planPrimary(i?: number): PlanPrimaryContext[] | PlanPrimaryContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(PlanPrimaryContext);
+        }
+
+        return this.getRuleContext(i, PlanPrimaryContext);
+    }
+    public CROSS(): antlr.TerminalNode[];
+    public CROSS(i: number): antlr.TerminalNode | null;
+    public CROSS(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.CROSS);
+    	} else {
+    		return this.getToken(SqlBaseParser.CROSS, i);
+    	}
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCrossPlan) {
+             listener.enterCrossPlan(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCrossPlan) {
+             listener.exitCrossPlan(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCrossPlan) {
+            return visitor.visitCrossPlan(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -25858,44 +25857,6 @@ export class TableArgumentRelationContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class TableArgumentQueryContext extends TableArgumentRelationContext {
-    public constructor(ctx: TableArgumentRelationContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public TABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TABLE, 0)!;
-    }
-    public query(): QueryContext {
-        return this.getRuleContext(0, QueryContext)!;
-    }
-    public identifier(): IdentifierContext | null {
-        return this.getRuleContext(0, IdentifierContext);
-    }
-    public AS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.AS, 0);
-    }
-    public columnAliases(): ColumnAliasesContext | null {
-        return this.getRuleContext(0, ColumnAliasesContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterTableArgumentQuery) {
-             listener.enterTableArgumentQuery(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitTableArgumentQuery) {
-             listener.exitTableArgumentQuery(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitTableArgumentQuery) {
-            return visitor.visitTableArgumentQuery(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 export class TableArgumentTableContext extends TableArgumentRelationContext {
     public constructor(ctx: TableArgumentRelationContext) {
         super(ctx.parent, ctx.invokingState);
@@ -25929,6 +25890,44 @@ export class TableArgumentTableContext extends TableArgumentRelationContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitTableArgumentTable) {
             return visitor.visitTableArgumentTable(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class TableArgumentQueryContext extends TableArgumentRelationContext {
+    public constructor(ctx: TableArgumentRelationContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public TABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TABLE, 0)!;
+    }
+    public query(): QueryContext {
+        return this.getRuleContext(0, QueryContext)!;
+    }
+    public identifier(): IdentifierContext | null {
+        return this.getRuleContext(0, IdentifierContext);
+    }
+    public AS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.AS, 0);
+    }
+    public columnAliases(): ColumnAliasesContext | null {
+        return this.getRuleContext(0, ColumnAliasesContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterTableArgumentQuery) {
+             listener.enterTableArgumentQuery(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitTableArgumentQuery) {
+             listener.exitTableArgumentQuery(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitTableArgumentQuery) {
+            return visitor.visitTableArgumentQuery(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -26094,35 +26093,6 @@ export class BooleanExpressionContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class LogicalNotContext extends BooleanExpressionContext {
-    public constructor(ctx: BooleanExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public NOT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.NOT, 0)!;
-    }
-    public booleanExpression(): BooleanExpressionContext {
-        return this.getRuleContext(0, BooleanExpressionContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterLogicalNot) {
-             listener.enterLogicalNot(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitLogicalNot) {
-             listener.exitLogicalNot(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitLogicalNot) {
-            return visitor.visitLogicalNot(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 export class PredicatedContext extends BooleanExpressionContext {
     public _valueExpression?: ValueExpressionContext;
     public constructor(ctx: BooleanExpressionContext) {
@@ -26153,36 +26123,30 @@ export class PredicatedContext extends BooleanExpressionContext {
         }
     }
 }
-export class OrContext extends BooleanExpressionContext {
+export class LogicalNotContext extends BooleanExpressionContext {
     public constructor(ctx: BooleanExpressionContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public booleanExpression(): BooleanExpressionContext[];
-    public booleanExpression(i: number): BooleanExpressionContext | null;
-    public booleanExpression(i?: number): BooleanExpressionContext[] | BooleanExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(BooleanExpressionContext);
-        }
-
-        return this.getRuleContext(i, BooleanExpressionContext);
+    public NOT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.NOT, 0)!;
     }
-    public OR(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.OR, 0)!;
+    public booleanExpression(): BooleanExpressionContext {
+        return this.getRuleContext(0, BooleanExpressionContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterOr) {
-             listener.enterOr(this);
+        if(listener.enterLogicalNot) {
+             listener.enterLogicalNot(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitOr) {
-             listener.exitOr(this);
+        if(listener.exitLogicalNot) {
+             listener.exitLogicalNot(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitOr) {
-            return visitor.visitOr(this);
+        if (visitor.visitLogicalNot) {
+            return visitor.visitLogicalNot(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -26218,6 +26182,41 @@ export class AndContext extends BooleanExpressionContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitAnd) {
             return visitor.visitAnd(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class OrContext extends BooleanExpressionContext {
+    public constructor(ctx: BooleanExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public booleanExpression(): BooleanExpressionContext[];
+    public booleanExpression(i: number): BooleanExpressionContext | null;
+    public booleanExpression(i?: number): BooleanExpressionContext[] | BooleanExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(BooleanExpressionContext);
+        }
+
+        return this.getRuleContext(i, BooleanExpressionContext);
+    }
+    public OR(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.OR, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterOr) {
+             listener.enterOr(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitOr) {
+             listener.exitOr(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitOr) {
+            return visitor.visitOr(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -26269,185 +26268,33 @@ export class ComparisonContext extends PredicateContext {
         }
     }
 }
-export class LikeContext extends PredicateContext {
-    public _pattern?: ValueExpressionContext;
-    public _escape?: ValueExpressionContext;
+export class QuantifiedComparisonContext extends PredicateContext {
     public constructor(ctx: PredicateContext) {
         super(ctx.parent, ctx.invokingState, ctx.value);
         super.copyFrom(ctx);
     }
-    public LIKE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.LIKE, 0)!;
+    public comparisonOperator(): ComparisonOperatorContext {
+        return this.getRuleContext(0, ComparisonOperatorContext)!;
     }
-    public valueExpression(): ValueExpressionContext[];
-    public valueExpression(i: number): ValueExpressionContext | null;
-    public valueExpression(i?: number): ValueExpressionContext[] | ValueExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ValueExpressionContext);
-        }
-
-        return this.getRuleContext(i, ValueExpressionContext);
-    }
-    public NOT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.NOT, 0);
-    }
-    public ESCAPE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ESCAPE, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterLike) {
-             listener.enterLike(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitLike) {
-             listener.exitLike(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitLike) {
-            return visitor.visitLike(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class InSubqueryContext extends PredicateContext {
-    public constructor(ctx: PredicateContext) {
-        super(ctx.parent, ctx.invokingState, ctx.value);
-        super.copyFrom(ctx);
-    }
-    public IN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.IN, 0)!;
+    public comparisonQuantifier(): ComparisonQuantifierContext {
+        return this.getRuleContext(0, ComparisonQuantifierContext)!;
     }
     public query(): QueryContext {
         return this.getRuleContext(0, QueryContext)!;
     }
-    public NOT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.NOT, 0);
-    }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterInSubquery) {
-             listener.enterInSubquery(this);
+        if(listener.enterQuantifiedComparison) {
+             listener.enterQuantifiedComparison(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitInSubquery) {
-             listener.exitInSubquery(this);
+        if(listener.exitQuantifiedComparison) {
+             listener.exitQuantifiedComparison(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitInSubquery) {
-            return visitor.visitInSubquery(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class DistinctFromContext extends PredicateContext {
-    public _right?: ValueExpressionContext;
-    public constructor(ctx: PredicateContext) {
-        super(ctx.parent, ctx.invokingState, ctx.value);
-        super.copyFrom(ctx);
-    }
-    public IS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.IS, 0)!;
-    }
-    public DISTINCT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DISTINCT, 0)!;
-    }
-    public FROM(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.FROM, 0)!;
-    }
-    public valueExpression(): ValueExpressionContext {
-        return this.getRuleContext(0, ValueExpressionContext)!;
-    }
-    public NOT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.NOT, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDistinctFrom) {
-             listener.enterDistinctFrom(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDistinctFrom) {
-             listener.exitDistinctFrom(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDistinctFrom) {
-            return visitor.visitDistinctFrom(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class InListContext extends PredicateContext {
-    public constructor(ctx: PredicateContext) {
-        super(ctx.parent, ctx.invokingState, ctx.value);
-        super.copyFrom(ctx);
-    }
-    public IN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.IN, 0)!;
-    }
-    public expression(): ExpressionContext[];
-    public expression(i: number): ExpressionContext | null;
-    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ExpressionContext);
-        }
-
-        return this.getRuleContext(i, ExpressionContext);
-    }
-    public NOT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.NOT, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterInList) {
-             listener.enterInList(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitInList) {
-             listener.exitInList(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitInList) {
-            return visitor.visitInList(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class NullPredicateContext extends PredicateContext {
-    public constructor(ctx: PredicateContext) {
-        super(ctx.parent, ctx.invokingState, ctx.value);
-        super.copyFrom(ctx);
-    }
-    public IS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.IS, 0)!;
-    }
-    public NULL(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.NULL, 0)!;
-    }
-    public NOT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.NOT, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterNullPredicate) {
-             listener.enterNullPredicate(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitNullPredicate) {
-             listener.exitNullPredicate(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitNullPredicate) {
-            return visitor.visitNullPredicate(this);
+        if (visitor.visitQuantifiedComparison) {
+            return visitor.visitQuantifiedComparison(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -26496,33 +26343,185 @@ export class BetweenContext extends PredicateContext {
         }
     }
 }
-export class QuantifiedComparisonContext extends PredicateContext {
+export class InListContext extends PredicateContext {
     public constructor(ctx: PredicateContext) {
         super(ctx.parent, ctx.invokingState, ctx.value);
         super.copyFrom(ctx);
     }
-    public comparisonOperator(): ComparisonOperatorContext {
-        return this.getRuleContext(0, ComparisonOperatorContext)!;
+    public IN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.IN, 0)!;
     }
-    public comparisonQuantifier(): ComparisonQuantifierContext {
-        return this.getRuleContext(0, ComparisonQuantifierContext)!;
+    public expression(): ExpressionContext[];
+    public expression(i: number): ExpressionContext | null;
+    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ExpressionContext);
+        }
+
+        return this.getRuleContext(i, ExpressionContext);
+    }
+    public NOT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.NOT, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterInList) {
+             listener.enterInList(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitInList) {
+             listener.exitInList(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitInList) {
+            return visitor.visitInList(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class InSubqueryContext extends PredicateContext {
+    public constructor(ctx: PredicateContext) {
+        super(ctx.parent, ctx.invokingState, ctx.value);
+        super.copyFrom(ctx);
+    }
+    public IN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.IN, 0)!;
     }
     public query(): QueryContext {
         return this.getRuleContext(0, QueryContext)!;
     }
+    public NOT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.NOT, 0);
+    }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterQuantifiedComparison) {
-             listener.enterQuantifiedComparison(this);
+        if(listener.enterInSubquery) {
+             listener.enterInSubquery(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitQuantifiedComparison) {
-             listener.exitQuantifiedComparison(this);
+        if(listener.exitInSubquery) {
+             listener.exitInSubquery(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitQuantifiedComparison) {
-            return visitor.visitQuantifiedComparison(this);
+        if (visitor.visitInSubquery) {
+            return visitor.visitInSubquery(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class LikeContext extends PredicateContext {
+    public _pattern?: ValueExpressionContext;
+    public _escape?: ValueExpressionContext;
+    public constructor(ctx: PredicateContext) {
+        super(ctx.parent, ctx.invokingState, ctx.value);
+        super.copyFrom(ctx);
+    }
+    public LIKE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.LIKE, 0)!;
+    }
+    public valueExpression(): ValueExpressionContext[];
+    public valueExpression(i: number): ValueExpressionContext | null;
+    public valueExpression(i?: number): ValueExpressionContext[] | ValueExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ValueExpressionContext);
+        }
+
+        return this.getRuleContext(i, ValueExpressionContext);
+    }
+    public NOT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.NOT, 0);
+    }
+    public ESCAPE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ESCAPE, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterLike) {
+             listener.enterLike(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitLike) {
+             listener.exitLike(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitLike) {
+            return visitor.visitLike(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class NullPredicateContext extends PredicateContext {
+    public constructor(ctx: PredicateContext) {
+        super(ctx.parent, ctx.invokingState, ctx.value);
+        super.copyFrom(ctx);
+    }
+    public IS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.IS, 0)!;
+    }
+    public NULL(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.NULL, 0)!;
+    }
+    public NOT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.NOT, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterNullPredicate) {
+             listener.enterNullPredicate(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitNullPredicate) {
+             listener.exitNullPredicate(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitNullPredicate) {
+            return visitor.visitNullPredicate(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class DistinctFromContext extends PredicateContext {
+    public _right?: ValueExpressionContext;
+    public constructor(ctx: PredicateContext) {
+        super(ctx.parent, ctx.invokingState, ctx.value);
+        super.copyFrom(ctx);
+    }
+    public IS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.IS, 0)!;
+    }
+    public DISTINCT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DISTINCT, 0)!;
+    }
+    public FROM(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.FROM, 0)!;
+    }
+    public valueExpression(): ValueExpressionContext {
+        return this.getRuleContext(0, ValueExpressionContext)!;
+    }
+    public NOT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.NOT, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterDistinctFrom) {
+             listener.enterDistinctFrom(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitDistinctFrom) {
+             listener.exitDistinctFrom(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitDistinctFrom) {
+            return visitor.visitDistinctFrom(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -26567,38 +26566,34 @@ export class ValueExpressionDefaultContext extends ValueExpressionContext {
         }
     }
 }
-export class ConcatenationContext extends ValueExpressionContext {
-    public _left?: ValueExpressionContext;
-    public _right?: ValueExpressionContext;
+export class ArithmeticUnaryContext extends ValueExpressionContext {
+    public _operator?: Token | null;
     public constructor(ctx: ValueExpressionContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public CONCAT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CONCAT, 0)!;
+    public valueExpression(): ValueExpressionContext {
+        return this.getRuleContext(0, ValueExpressionContext)!;
     }
-    public valueExpression(): ValueExpressionContext[];
-    public valueExpression(i: number): ValueExpressionContext | null;
-    public valueExpression(i?: number): ValueExpressionContext[] | ValueExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ValueExpressionContext);
-        }
-
-        return this.getRuleContext(i, ValueExpressionContext);
+    public MINUS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.MINUS, 0);
+    }
+    public PLUS(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.PLUS, 0);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterConcatenation) {
-             listener.enterConcatenation(this);
+        if(listener.enterArithmeticUnary) {
+             listener.enterArithmeticUnary(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitConcatenation) {
-             listener.exitConcatenation(this);
+        if(listener.exitArithmeticUnary) {
+             listener.exitArithmeticUnary(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitConcatenation) {
-            return visitor.visitConcatenation(this);
+        if (visitor.visitArithmeticUnary) {
+            return visitor.visitArithmeticUnary(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -26654,34 +26649,38 @@ export class ArithmeticBinaryContext extends ValueExpressionContext {
         }
     }
 }
-export class ArithmeticUnaryContext extends ValueExpressionContext {
-    public _operator?: Token | null;
+export class ConcatenationContext extends ValueExpressionContext {
+    public _left?: ValueExpressionContext;
+    public _right?: ValueExpressionContext;
     public constructor(ctx: ValueExpressionContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public valueExpression(): ValueExpressionContext {
-        return this.getRuleContext(0, ValueExpressionContext)!;
+    public CONCAT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CONCAT, 0)!;
     }
-    public MINUS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.MINUS, 0);
-    }
-    public PLUS(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.PLUS, 0);
+    public valueExpression(): ValueExpressionContext[];
+    public valueExpression(i: number): ValueExpressionContext | null;
+    public valueExpression(i?: number): ValueExpressionContext[] | ValueExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ValueExpressionContext);
+        }
+
+        return this.getRuleContext(i, ValueExpressionContext);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterArithmeticUnary) {
-             listener.enterArithmeticUnary(this);
+        if(listener.enterConcatenation) {
+             listener.enterConcatenation(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitArithmeticUnary) {
-             listener.exitArithmeticUnary(this);
+        if(listener.exitConcatenation) {
+             listener.exitConcatenation(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitArithmeticUnary) {
-            return visitor.visitArithmeticUnary(this);
+        if (visitor.visitConcatenation) {
+            return visitor.visitConcatenation(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -26732,32 +26731,1079 @@ export class PrimaryExpressionContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class DereferenceContext extends PrimaryExpressionContext {
-    public _base?: PrimaryExpressionContext;
-    public _fieldName?: IdentifierContext;
+export class LiteralsContext extends PrimaryExpressionContext {
     public constructor(ctx: PrimaryExpressionContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public primaryExpression(): PrimaryExpressionContext {
-        return this.getRuleContext(0, PrimaryExpressionContext)!;
+    public literal(): LiteralContext {
+        return this.getRuleContext(0, LiteralContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterLiterals) {
+             listener.enterLiterals(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitLiterals) {
+             listener.exitLiterals(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitLiterals) {
+            return visitor.visitLiterals(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ParameterContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public QUESTION_MARK(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.QUESTION_MARK, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterParameter) {
+             listener.enterParameter(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitParameter) {
+             listener.exitParameter(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitParameter) {
+            return visitor.visitParameter(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class PositionContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public POSITION(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.POSITION, 0)!;
+    }
+    public valueExpression(): ValueExpressionContext[];
+    public valueExpression(i: number): ValueExpressionContext | null;
+    public valueExpression(i?: number): ValueExpressionContext[] | ValueExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ValueExpressionContext);
+        }
+
+        return this.getRuleContext(i, ValueExpressionContext);
+    }
+    public IN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.IN, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterPosition) {
+             listener.enterPosition(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitPosition) {
+             listener.exitPosition(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitPosition) {
+            return visitor.visitPosition(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class RowConstructorContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public expression(): ExpressionContext[];
+    public expression(i: number): ExpressionContext | null;
+    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ExpressionContext);
+        }
+
+        return this.getRuleContext(i, ExpressionContext);
+    }
+    public ROW(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ROW, 0);
+    }
+    public fieldConstructor(): FieldConstructorContext[];
+    public fieldConstructor(i: number): FieldConstructorContext | null;
+    public fieldConstructor(i?: number): FieldConstructorContext[] | FieldConstructorContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(FieldConstructorContext);
+        }
+
+        return this.getRuleContext(i, FieldConstructorContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterRowConstructor) {
+             listener.enterRowConstructor(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitRowConstructor) {
+             listener.exitRowConstructor(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitRowConstructor) {
+            return visitor.visitRowConstructor(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ListaggContext extends PrimaryExpressionContext {
+    public _name?: Token | null;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public expression(): ExpressionContext {
+        return this.getRuleContext(0, ExpressionContext)!;
+    }
+    public LISTAGG(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.LISTAGG, 0)!;
+    }
+    public WITHIN(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WITHIN, 0);
+    }
+    public GROUP(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.GROUP, 0);
+    }
+    public orderBy(): OrderByContext | null {
+        return this.getRuleContext(0, OrderByContext);
+    }
+    public setQuantifier(): SetQuantifierContext | null {
+        return this.getRuleContext(0, SetQuantifierContext);
+    }
+    public string(): StringContext | null {
+        return this.getRuleContext(0, StringContext);
+    }
+    public ON(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ON, 0);
+    }
+    public OVERFLOW(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.OVERFLOW, 0);
+    }
+    public listAggOverflowBehavior(): ListAggOverflowBehaviorContext | null {
+        return this.getRuleContext(0, ListAggOverflowBehaviorContext);
+    }
+    public filter(): FilterContext | null {
+        return this.getRuleContext(0, FilterContext);
+    }
+    public over(): OverContext | null {
+        return this.getRuleContext(0, OverContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterListagg) {
+             listener.enterListagg(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitListagg) {
+             listener.exitListagg(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitListagg) {
+            return visitor.visitListagg(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class FunctionCallContext extends PrimaryExpressionContext {
+    public _label?: IdentifierContext;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public qualifiedName(): QualifiedNameContext {
+        return this.getRuleContext(0, QualifiedNameContext)!;
+    }
+    public ASTERISK(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ASTERISK, 0);
+    }
+    public processingMode(): ProcessingModeContext | null {
+        return this.getRuleContext(0, ProcessingModeContext);
+    }
+    public filter(): FilterContext | null {
+        return this.getRuleContext(0, FilterContext);
+    }
+    public over(): OverContext | null {
+        return this.getRuleContext(0, OverContext);
+    }
+    public identifier(): IdentifierContext | null {
+        return this.getRuleContext(0, IdentifierContext);
+    }
+    public expression(): ExpressionContext[];
+    public expression(i: number): ExpressionContext | null;
+    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ExpressionContext);
+        }
+
+        return this.getRuleContext(i, ExpressionContext);
+    }
+    public orderBy(): OrderByContext | null {
+        return this.getRuleContext(0, OrderByContext);
+    }
+    public setQuantifier(): SetQuantifierContext | null {
+        return this.getRuleContext(0, SetQuantifierContext);
+    }
+    public nullTreatment(): NullTreatmentContext | null {
+        return this.getRuleContext(0, NullTreatmentContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterFunctionCall) {
+             listener.enterFunctionCall(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitFunctionCall) {
+             listener.exitFunctionCall(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitFunctionCall) {
+            return visitor.visitFunctionCall(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class MeasureContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public over(): OverContext {
+        return this.getRuleContext(0, OverContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterMeasure) {
+             listener.enterMeasure(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitMeasure) {
+             listener.exitMeasure(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitMeasure) {
+            return visitor.visitMeasure(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class LambdaContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public identifier(): IdentifierContext[];
+    public identifier(i: number): IdentifierContext | null;
+    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(IdentifierContext);
+        }
+
+        return this.getRuleContext(i, IdentifierContext);
+    }
+    public expression(): ExpressionContext {
+        return this.getRuleContext(0, ExpressionContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterLambda) {
+             listener.enterLambda(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitLambda) {
+             listener.exitLambda(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitLambda) {
+            return visitor.visitLambda(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SubqueryExpressionContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public query(): QueryContext {
+        return this.getRuleContext(0, QueryContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSubqueryExpression) {
+             listener.enterSubqueryExpression(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSubqueryExpression) {
+             listener.exitSubqueryExpression(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSubqueryExpression) {
+            return visitor.visitSubqueryExpression(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ExistsContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public EXISTS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.EXISTS, 0)!;
+    }
+    public query(): QueryContext {
+        return this.getRuleContext(0, QueryContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterExists) {
+             listener.enterExists(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitExists) {
+             listener.exitExists(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitExists) {
+            return visitor.visitExists(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SimpleCaseContext extends PrimaryExpressionContext {
+    public _operand?: ExpressionContext;
+    public _elseExpression?: ExpressionContext;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CASE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CASE, 0)!;
+    }
+    public END(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.END, 0)!;
+    }
+    public expression(): ExpressionContext[];
+    public expression(i: number): ExpressionContext | null;
+    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ExpressionContext);
+        }
+
+        return this.getRuleContext(i, ExpressionContext);
+    }
+    public whenClause(): WhenClauseContext[];
+    public whenClause(i: number): WhenClauseContext | null;
+    public whenClause(i?: number): WhenClauseContext[] | WhenClauseContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(WhenClauseContext);
+        }
+
+        return this.getRuleContext(i, WhenClauseContext);
+    }
+    public ELSE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ELSE, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSimpleCase) {
+             listener.enterSimpleCase(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSimpleCase) {
+             listener.exitSimpleCase(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSimpleCase) {
+            return visitor.visitSimpleCase(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SearchedCaseContext extends PrimaryExpressionContext {
+    public _elseExpression?: ExpressionContext;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CASE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CASE, 0)!;
+    }
+    public END(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.END, 0)!;
+    }
+    public whenClause(): WhenClauseContext[];
+    public whenClause(i: number): WhenClauseContext | null;
+    public whenClause(i?: number): WhenClauseContext[] | WhenClauseContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(WhenClauseContext);
+        }
+
+        return this.getRuleContext(i, WhenClauseContext);
+    }
+    public ELSE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ELSE, 0);
+    }
+    public expression(): ExpressionContext | null {
+        return this.getRuleContext(0, ExpressionContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSearchedCase) {
+             listener.enterSearchedCase(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSearchedCase) {
+             listener.exitSearchedCase(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSearchedCase) {
+            return visitor.visitSearchedCase(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CastContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CAST(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.CAST, 0);
+    }
+    public expression(): ExpressionContext {
+        return this.getRuleContext(0, ExpressionContext)!;
+    }
+    public AS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.AS, 0)!;
+    }
+    public type(): TypeContext {
+        return this.getRuleContext(0, TypeContext)!;
+    }
+    public TRY_CAST(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.TRY_CAST, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCast) {
+             listener.enterCast(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCast) {
+             listener.exitCast(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCast) {
+            return visitor.visitCast(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ArrayConstructorContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public ARRAY(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ARRAY, 0);
+    }
+    public expression(): ExpressionContext[];
+    public expression(i: number): ExpressionContext | null;
+    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ExpressionContext);
+        }
+
+        return this.getRuleContext(i, ExpressionContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterArrayConstructor) {
+             listener.enterArrayConstructor(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitArrayConstructor) {
+             listener.exitArrayConstructor(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitArrayConstructor) {
+            return visitor.visitArrayConstructor(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ColumnReferenceContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
     }
     public identifier(): IdentifierContext {
         return this.getRuleContext(0, IdentifierContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDereference) {
-             listener.enterDereference(this);
+        if(listener.enterColumnReference) {
+             listener.enterColumnReference(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDereference) {
-             listener.exitDereference(this);
+        if(listener.exitColumnReference) {
+             listener.exitColumnReference(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDereference) {
-            return visitor.visitDereference(this);
+        if (visitor.visitColumnReference) {
+            return visitor.visitColumnReference(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CurrentDateContext extends PrimaryExpressionContext {
+    public _name?: Token | null;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CURRENT_DATE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CURRENT_DATE, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCurrentDate) {
+             listener.enterCurrentDate(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCurrentDate) {
+             listener.exitCurrentDate(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCurrentDate) {
+            return visitor.visitCurrentDate(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CurrentTimeContext extends PrimaryExpressionContext {
+    public _name?: Token | null;
+    public _precision?: Token | null;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CURRENT_TIME(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CURRENT_TIME, 0)!;
+    }
+    public INTEGER_VALUE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.INTEGER_VALUE, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCurrentTime) {
+             listener.enterCurrentTime(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCurrentTime) {
+             listener.exitCurrentTime(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCurrentTime) {
+            return visitor.visitCurrentTime(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CurrentTimestampContext extends PrimaryExpressionContext {
+    public _name?: Token | null;
+    public _precision?: Token | null;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CURRENT_TIMESTAMP(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CURRENT_TIMESTAMP, 0)!;
+    }
+    public INTEGER_VALUE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.INTEGER_VALUE, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCurrentTimestamp) {
+             listener.enterCurrentTimestamp(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCurrentTimestamp) {
+             listener.exitCurrentTimestamp(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCurrentTimestamp) {
+            return visitor.visitCurrentTimestamp(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class LocalTimeContext extends PrimaryExpressionContext {
+    public _name?: Token | null;
+    public _precision?: Token | null;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public LOCALTIME(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.LOCALTIME, 0)!;
+    }
+    public INTEGER_VALUE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.INTEGER_VALUE, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterLocalTime) {
+             listener.enterLocalTime(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitLocalTime) {
+             listener.exitLocalTime(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitLocalTime) {
+            return visitor.visitLocalTime(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class LocalTimestampContext extends PrimaryExpressionContext {
+    public _name?: Token | null;
+    public _precision?: Token | null;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public LOCALTIMESTAMP(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.LOCALTIMESTAMP, 0)!;
+    }
+    public INTEGER_VALUE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.INTEGER_VALUE, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterLocalTimestamp) {
+             listener.enterLocalTimestamp(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitLocalTimestamp) {
+             listener.exitLocalTimestamp(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitLocalTimestamp) {
+            return visitor.visitLocalTimestamp(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CurrentUserContext extends PrimaryExpressionContext {
+    public _name?: Token | null;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CURRENT_USER(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CURRENT_USER, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCurrentUser) {
+             listener.enterCurrentUser(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCurrentUser) {
+             listener.exitCurrentUser(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCurrentUser) {
+            return visitor.visitCurrentUser(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CurrentCatalogContext extends PrimaryExpressionContext {
+    public _name?: Token | null;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CURRENT_CATALOG(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CURRENT_CATALOG, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCurrentCatalog) {
+             listener.enterCurrentCatalog(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCurrentCatalog) {
+             listener.exitCurrentCatalog(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCurrentCatalog) {
+            return visitor.visitCurrentCatalog(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CurrentSchemaContext extends PrimaryExpressionContext {
+    public _name?: Token | null;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CURRENT_SCHEMA(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CURRENT_SCHEMA, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCurrentSchema) {
+             listener.enterCurrentSchema(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCurrentSchema) {
+             listener.exitCurrentSchema(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCurrentSchema) {
+            return visitor.visitCurrentSchema(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CurrentPathContext extends PrimaryExpressionContext {
+    public _name?: Token | null;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CURRENT_PATH(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CURRENT_PATH, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCurrentPath) {
+             listener.enterCurrentPath(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCurrentPath) {
+             listener.exitCurrentPath(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCurrentPath) {
+            return visitor.visitCurrentPath(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class TrimContext extends PrimaryExpressionContext {
+    public _trimChar?: ValueExpressionContext;
+    public _trimSource?: ValueExpressionContext;
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public TRIM(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.TRIM, 0)!;
+    }
+    public valueExpression(): ValueExpressionContext[];
+    public valueExpression(i: number): ValueExpressionContext | null;
+    public valueExpression(i?: number): ValueExpressionContext[] | ValueExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ValueExpressionContext);
+        }
+
+        return this.getRuleContext(i, ValueExpressionContext);
+    }
+    public FROM(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FROM, 0);
+    }
+    public trimsSpecification(): TrimsSpecificationContext | null {
+        return this.getRuleContext(0, TrimsSpecificationContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterTrim) {
+             listener.enterTrim(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitTrim) {
+             listener.exitTrim(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitTrim) {
+            return visitor.visitTrim(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SubstringContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SUBSTRING(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SUBSTRING, 0)!;
+    }
+    public valueExpression(): ValueExpressionContext[];
+    public valueExpression(i: number): ValueExpressionContext | null;
+    public valueExpression(i?: number): ValueExpressionContext[] | ValueExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ValueExpressionContext);
+        }
+
+        return this.getRuleContext(i, ValueExpressionContext);
+    }
+    public FROM(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.FROM, 0)!;
+    }
+    public FOR(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FOR, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSubstring) {
+             listener.enterSubstring(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSubstring) {
+             listener.exitSubstring(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSubstring) {
+            return visitor.visitSubstring(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class NormalizeContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public NORMALIZE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.NORMALIZE, 0)!;
+    }
+    public valueExpression(): ValueExpressionContext {
+        return this.getRuleContext(0, ValueExpressionContext)!;
+    }
+    public normalForm(): NormalFormContext | null {
+        return this.getRuleContext(0, NormalFormContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterNormalize) {
+             listener.enterNormalize(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitNormalize) {
+             listener.exitNormalize(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitNormalize) {
+            return visitor.visitNormalize(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ExtractContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public EXTRACT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.EXTRACT, 0)!;
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public FROM(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.FROM, 0)!;
+    }
+    public valueExpression(): ValueExpressionContext {
+        return this.getRuleContext(0, ValueExpressionContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterExtract) {
+             listener.enterExtract(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitExtract) {
+             listener.exitExtract(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitExtract) {
+            return visitor.visitExtract(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ParenthesizedExpressionContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public expression(): ExpressionContext {
+        return this.getRuleContext(0, ExpressionContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterParenthesizedExpression) {
+             listener.enterParenthesizedExpression(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitParenthesizedExpression) {
+             listener.exitParenthesizedExpression(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitParenthesizedExpression) {
+            return visitor.visitParenthesizedExpression(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class GroupingOperationContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public GROUPING(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.GROUPING, 0)!;
+    }
+    public qualifiedName(): QualifiedNameContext[];
+    public qualifiedName(i: number): QualifiedNameContext | null;
+    public qualifiedName(i?: number): QualifiedNameContext[] | QualifiedNameContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(QualifiedNameContext);
+        }
+
+        return this.getRuleContext(i, QualifiedNameContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterGroupingOperation) {
+             listener.enterGroupingOperation(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitGroupingOperation) {
+             listener.exitGroupingOperation(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitGroupingOperation) {
+            return visitor.visitGroupingOperation(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class JsonExistsContext extends PrimaryExpressionContext {
+    public constructor(ctx: PrimaryExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public JSON_EXISTS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.JSON_EXISTS, 0)!;
+    }
+    public jsonPathInvocation(): JsonPathInvocationContext {
+        return this.getRuleContext(0, JsonPathInvocationContext)!;
+    }
+    public jsonExistsErrorBehavior(): JsonExistsErrorBehaviorContext | null {
+        return this.getRuleContext(0, JsonExistsErrorBehaviorContext);
+    }
+    public ON(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ON, 0);
+    }
+    public ERROR(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ERROR, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterJsonExists) {
+             listener.enterJsonExists(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitJsonExists) {
+             listener.exitJsonExists(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitJsonExists) {
+            return visitor.visitJsonExists(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -26824,326 +27870,89 @@ export class JsonValueContext extends PrimaryExpressionContext {
         }
     }
 }
-export class LiteralsContext extends PrimaryExpressionContext {
+export class JsonQueryContext extends PrimaryExpressionContext {
+    public _emptyBehavior?: JsonQueryBehaviorContext;
+    public _errorBehavior?: JsonQueryBehaviorContext;
     public constructor(ctx: PrimaryExpressionContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public literal(): LiteralContext {
-        return this.getRuleContext(0, LiteralContext)!;
+    public JSON_QUERY(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.JSON_QUERY, 0)!;
     }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterLiterals) {
-             listener.enterLiterals(this);
-        }
+    public jsonPathInvocation(): JsonPathInvocationContext {
+        return this.getRuleContext(0, JsonPathInvocationContext)!;
     }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitLiterals) {
-             listener.exitLiterals(this);
-        }
+    public RETURNING(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.RETURNING, 0);
     }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitLiterals) {
-            return visitor.visitLiterals(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
+    public type(): TypeContext | null {
+        return this.getRuleContext(0, TypeContext);
     }
-}
-export class CurrentDateContext extends PrimaryExpressionContext {
-    public _name?: Token | null;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
+    public jsonQueryWrapperBehavior(): JsonQueryWrapperBehaviorContext | null {
+        return this.getRuleContext(0, JsonQueryWrapperBehaviorContext);
     }
-    public CURRENT_DATE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CURRENT_DATE, 0)!;
+    public WRAPPER(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WRAPPER, 0);
     }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCurrentDate) {
-             listener.enterCurrentDate(this);
-        }
+    public QUOTES(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.QUOTES, 0);
     }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCurrentDate) {
-             listener.exitCurrentDate(this);
-        }
+    public ON(): antlr.TerminalNode[];
+    public ON(i: number): antlr.TerminalNode | null;
+    public ON(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.ON);
+    	} else {
+    		return this.getToken(SqlBaseParser.ON, i);
+    	}
     }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCurrentDate) {
-            return visitor.visitCurrentDate(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
+    public EMPTY(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.EMPTY, 0);
     }
-}
-export class SubstringContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
+    public ERROR(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ERROR, 0);
     }
-    public SUBSTRING(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SUBSTRING, 0)!;
+    public KEEP(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.KEEP, 0);
     }
-    public valueExpression(): ValueExpressionContext[];
-    public valueExpression(i: number): ValueExpressionContext | null;
-    public valueExpression(i?: number): ValueExpressionContext[] | ValueExpressionContext | null {
+    public OMIT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.OMIT, 0);
+    }
+    public jsonQueryBehavior(): JsonQueryBehaviorContext[];
+    public jsonQueryBehavior(i: number): JsonQueryBehaviorContext | null;
+    public jsonQueryBehavior(i?: number): JsonQueryBehaviorContext[] | JsonQueryBehaviorContext | null {
         if (i === undefined) {
-            return this.getRuleContexts(ValueExpressionContext);
+            return this.getRuleContexts(JsonQueryBehaviorContext);
         }
 
-        return this.getRuleContext(i, ValueExpressionContext);
+        return this.getRuleContext(i, JsonQueryBehaviorContext);
     }
-    public FROM(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.FROM, 0)!;
+    public FORMAT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FORMAT, 0);
     }
-    public FOR(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FOR, 0);
+    public jsonRepresentation(): JsonRepresentationContext | null {
+        return this.getRuleContext(0, JsonRepresentationContext);
+    }
+    public SCALAR(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.SCALAR, 0);
+    }
+    public TEXT_STRING(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.TEXT_STRING, 0);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSubstring) {
-             listener.enterSubstring(this);
+        if(listener.enterJsonQuery) {
+             listener.enterJsonQuery(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSubstring) {
-             listener.exitSubstring(this);
+        if(listener.exitJsonQuery) {
+             listener.exitJsonQuery(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSubstring) {
-            return visitor.visitSubstring(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CastContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CAST(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.CAST, 0);
-    }
-    public expression(): ExpressionContext {
-        return this.getRuleContext(0, ExpressionContext)!;
-    }
-    public AS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.AS, 0)!;
-    }
-    public type(): TypeContext {
-        return this.getRuleContext(0, TypeContext)!;
-    }
-    public TRY_CAST(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.TRY_CAST, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCast) {
-             listener.enterCast(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCast) {
-             listener.exitCast(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCast) {
-            return visitor.visitCast(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class LambdaContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public identifier(): IdentifierContext[];
-    public identifier(i: number): IdentifierContext | null;
-    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(IdentifierContext);
-        }
-
-        return this.getRuleContext(i, IdentifierContext);
-    }
-    public expression(): ExpressionContext {
-        return this.getRuleContext(0, ExpressionContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterLambda) {
-             listener.enterLambda(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitLambda) {
-             listener.exitLambda(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitLambda) {
-            return visitor.visitLambda(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ParenthesizedExpressionContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public expression(): ExpressionContext {
-        return this.getRuleContext(0, ExpressionContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterParenthesizedExpression) {
-             listener.enterParenthesizedExpression(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitParenthesizedExpression) {
-             listener.exitParenthesizedExpression(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitParenthesizedExpression) {
-            return visitor.visitParenthesizedExpression(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class TrimContext extends PrimaryExpressionContext {
-    public _trimChar?: ValueExpressionContext;
-    public _trimSource?: ValueExpressionContext;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public TRIM(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.TRIM, 0)!;
-    }
-    public valueExpression(): ValueExpressionContext[];
-    public valueExpression(i: number): ValueExpressionContext | null;
-    public valueExpression(i?: number): ValueExpressionContext[] | ValueExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ValueExpressionContext);
-        }
-
-        return this.getRuleContext(i, ValueExpressionContext);
-    }
-    public FROM(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FROM, 0);
-    }
-    public trimsSpecification(): TrimsSpecificationContext | null {
-        return this.getRuleContext(0, TrimsSpecificationContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterTrim) {
-             listener.enterTrim(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitTrim) {
-             listener.exitTrim(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitTrim) {
-            return visitor.visitTrim(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ParameterContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public QUESTION_MARK(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.QUESTION_MARK, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterParameter) {
-             listener.enterParameter(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitParameter) {
-             listener.exitParameter(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitParameter) {
-            return visitor.visitParameter(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class NormalizeContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public NORMALIZE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.NORMALIZE, 0)!;
-    }
-    public valueExpression(): ValueExpressionContext {
-        return this.getRuleContext(0, ValueExpressionContext)!;
-    }
-    public normalForm(): NormalFormContext | null {
-        return this.getRuleContext(0, NormalFormContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterNormalize) {
-             listener.enterNormalize(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitNormalize) {
-             listener.exitNormalize(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitNormalize) {
-            return visitor.visitNormalize(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class LocalTimestampContext extends PrimaryExpressionContext {
-    public _name?: Token | null;
-    public _precision?: Token | null;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public LOCALTIMESTAMP(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.LOCALTIMESTAMP, 0)!;
-    }
-    public INTEGER_VALUE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.INTEGER_VALUE, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterLocalTimestamp) {
-             listener.enterLocalTimestamp(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitLocalTimestamp) {
-             listener.exitLocalTimestamp(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitLocalTimestamp) {
-            return visitor.visitLocalTimestamp(this);
+        if (visitor.visitJsonQuery) {
+            return visitor.visitJsonQuery(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -27285,128 +28094,6 @@ export class JsonArrayContext extends PrimaryExpressionContext {
         }
     }
 }
-export class SimpleCaseContext extends PrimaryExpressionContext {
-    public _operand?: ExpressionContext;
-    public _elseExpression?: ExpressionContext;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CASE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CASE, 0)!;
-    }
-    public END(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.END, 0)!;
-    }
-    public expression(): ExpressionContext[];
-    public expression(i: number): ExpressionContext | null;
-    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ExpressionContext);
-        }
-
-        return this.getRuleContext(i, ExpressionContext);
-    }
-    public whenClause(): WhenClauseContext[];
-    public whenClause(i: number): WhenClauseContext | null;
-    public whenClause(i?: number): WhenClauseContext[] | WhenClauseContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(WhenClauseContext);
-        }
-
-        return this.getRuleContext(i, WhenClauseContext);
-    }
-    public ELSE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ELSE, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSimpleCase) {
-             listener.enterSimpleCase(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSimpleCase) {
-             listener.exitSimpleCase(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSimpleCase) {
-            return visitor.visitSimpleCase(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ColumnReferenceContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterColumnReference) {
-             listener.enterColumnReference(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitColumnReference) {
-             listener.exitColumnReference(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitColumnReference) {
-            return visitor.visitColumnReference(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class RowConstructorContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public expression(): ExpressionContext[];
-    public expression(i: number): ExpressionContext | null;
-    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ExpressionContext);
-        }
-
-        return this.getRuleContext(i, ExpressionContext);
-    }
-    public ROW(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ROW, 0);
-    }
-    public fieldConstructor(): FieldConstructorContext[];
-    public fieldConstructor(i: number): FieldConstructorContext | null;
-    public fieldConstructor(i?: number): FieldConstructorContext[] | FieldConstructorContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(FieldConstructorContext);
-        }
-
-        return this.getRuleContext(i, FieldConstructorContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterRowConstructor) {
-             listener.enterRowConstructor(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitRowConstructor) {
-             listener.exitRowConstructor(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitRowConstructor) {
-            return visitor.visitRowConstructor(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 export class SubscriptContext extends PrimaryExpressionContext {
     public _value?: PrimaryExpressionContext;
     public _index?: ValueExpressionContext;
@@ -27438,720 +28125,32 @@ export class SubscriptContext extends PrimaryExpressionContext {
         }
     }
 }
-export class JsonExistsContext extends PrimaryExpressionContext {
+export class DereferenceContext extends PrimaryExpressionContext {
+    public _base?: PrimaryExpressionContext;
+    public _fieldName?: IdentifierContext;
     public constructor(ctx: PrimaryExpressionContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public JSON_EXISTS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.JSON_EXISTS, 0)!;
-    }
-    public jsonPathInvocation(): JsonPathInvocationContext {
-        return this.getRuleContext(0, JsonPathInvocationContext)!;
-    }
-    public jsonExistsErrorBehavior(): JsonExistsErrorBehaviorContext | null {
-        return this.getRuleContext(0, JsonExistsErrorBehaviorContext);
-    }
-    public ON(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ON, 0);
-    }
-    public ERROR(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ERROR, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterJsonExists) {
-             listener.enterJsonExists(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitJsonExists) {
-             listener.exitJsonExists(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitJsonExists) {
-            return visitor.visitJsonExists(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CurrentPathContext extends PrimaryExpressionContext {
-    public _name?: Token | null;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CURRENT_PATH(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CURRENT_PATH, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCurrentPath) {
-             listener.enterCurrentPath(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCurrentPath) {
-             listener.exitCurrentPath(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCurrentPath) {
-            return visitor.visitCurrentPath(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class SubqueryExpressionContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public query(): QueryContext {
-        return this.getRuleContext(0, QueryContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSubqueryExpression) {
-             listener.enterSubqueryExpression(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSubqueryExpression) {
-             listener.exitSubqueryExpression(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSubqueryExpression) {
-            return visitor.visitSubqueryExpression(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CurrentTimeContext extends PrimaryExpressionContext {
-    public _name?: Token | null;
-    public _precision?: Token | null;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CURRENT_TIME(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CURRENT_TIME, 0)!;
-    }
-    public INTEGER_VALUE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.INTEGER_VALUE, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCurrentTime) {
-             listener.enterCurrentTime(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCurrentTime) {
-             listener.exitCurrentTime(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCurrentTime) {
-            return visitor.visitCurrentTime(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class LocalTimeContext extends PrimaryExpressionContext {
-    public _name?: Token | null;
-    public _precision?: Token | null;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public LOCALTIME(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.LOCALTIME, 0)!;
-    }
-    public INTEGER_VALUE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.INTEGER_VALUE, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterLocalTime) {
-             listener.enterLocalTime(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitLocalTime) {
-             listener.exitLocalTime(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitLocalTime) {
-            return visitor.visitLocalTime(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CurrentUserContext extends PrimaryExpressionContext {
-    public _name?: Token | null;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CURRENT_USER(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CURRENT_USER, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCurrentUser) {
-             listener.enterCurrentUser(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCurrentUser) {
-             listener.exitCurrentUser(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCurrentUser) {
-            return visitor.visitCurrentUser(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class JsonQueryContext extends PrimaryExpressionContext {
-    public _emptyBehavior?: JsonQueryBehaviorContext;
-    public _errorBehavior?: JsonQueryBehaviorContext;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public JSON_QUERY(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.JSON_QUERY, 0)!;
-    }
-    public jsonPathInvocation(): JsonPathInvocationContext {
-        return this.getRuleContext(0, JsonPathInvocationContext)!;
-    }
-    public RETURNING(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.RETURNING, 0);
-    }
-    public type(): TypeContext | null {
-        return this.getRuleContext(0, TypeContext);
-    }
-    public jsonQueryWrapperBehavior(): JsonQueryWrapperBehaviorContext | null {
-        return this.getRuleContext(0, JsonQueryWrapperBehaviorContext);
-    }
-    public WRAPPER(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WRAPPER, 0);
-    }
-    public QUOTES(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.QUOTES, 0);
-    }
-    public ON(): antlr.TerminalNode[];
-    public ON(i: number): antlr.TerminalNode | null;
-    public ON(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.ON);
-    	} else {
-    		return this.getToken(SqlBaseParser.ON, i);
-    	}
-    }
-    public EMPTY(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.EMPTY, 0);
-    }
-    public ERROR(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ERROR, 0);
-    }
-    public KEEP(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.KEEP, 0);
-    }
-    public OMIT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.OMIT, 0);
-    }
-    public jsonQueryBehavior(): JsonQueryBehaviorContext[];
-    public jsonQueryBehavior(i: number): JsonQueryBehaviorContext | null;
-    public jsonQueryBehavior(i?: number): JsonQueryBehaviorContext[] | JsonQueryBehaviorContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(JsonQueryBehaviorContext);
-        }
-
-        return this.getRuleContext(i, JsonQueryBehaviorContext);
-    }
-    public FORMAT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FORMAT, 0);
-    }
-    public jsonRepresentation(): JsonRepresentationContext | null {
-        return this.getRuleContext(0, JsonRepresentationContext);
-    }
-    public SCALAR(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.SCALAR, 0);
-    }
-    public TEXT_STRING(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.TEXT_STRING, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterJsonQuery) {
-             listener.enterJsonQuery(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitJsonQuery) {
-             listener.exitJsonQuery(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitJsonQuery) {
-            return visitor.visitJsonQuery(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class MeasureContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
+    public primaryExpression(): PrimaryExpressionContext {
+        return this.getRuleContext(0, PrimaryExpressionContext)!;
     }
     public identifier(): IdentifierContext {
         return this.getRuleContext(0, IdentifierContext)!;
     }
-    public over(): OverContext {
-        return this.getRuleContext(0, OverContext)!;
-    }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterMeasure) {
-             listener.enterMeasure(this);
+        if(listener.enterDereference) {
+             listener.enterDereference(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitMeasure) {
-             listener.exitMeasure(this);
+        if(listener.exitDereference) {
+             listener.exitDereference(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitMeasure) {
-            return visitor.visitMeasure(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ExtractContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public EXTRACT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.EXTRACT, 0)!;
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public FROM(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.FROM, 0)!;
-    }
-    public valueExpression(): ValueExpressionContext {
-        return this.getRuleContext(0, ValueExpressionContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterExtract) {
-             listener.enterExtract(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitExtract) {
-             listener.exitExtract(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitExtract) {
-            return visitor.visitExtract(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ArrayConstructorContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ARRAY(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ARRAY, 0);
-    }
-    public expression(): ExpressionContext[];
-    public expression(i: number): ExpressionContext | null;
-    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ExpressionContext);
-        }
-
-        return this.getRuleContext(i, ExpressionContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterArrayConstructor) {
-             listener.enterArrayConstructor(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitArrayConstructor) {
-             listener.exitArrayConstructor(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitArrayConstructor) {
-            return visitor.visitArrayConstructor(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class FunctionCallContext extends PrimaryExpressionContext {
-    public _label?: IdentifierContext;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public qualifiedName(): QualifiedNameContext {
-        return this.getRuleContext(0, QualifiedNameContext)!;
-    }
-    public ASTERISK(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ASTERISK, 0);
-    }
-    public processingMode(): ProcessingModeContext | null {
-        return this.getRuleContext(0, ProcessingModeContext);
-    }
-    public filter(): FilterContext | null {
-        return this.getRuleContext(0, FilterContext);
-    }
-    public over(): OverContext | null {
-        return this.getRuleContext(0, OverContext);
-    }
-    public identifier(): IdentifierContext | null {
-        return this.getRuleContext(0, IdentifierContext);
-    }
-    public expression(): ExpressionContext[];
-    public expression(i: number): ExpressionContext | null;
-    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ExpressionContext);
-        }
-
-        return this.getRuleContext(i, ExpressionContext);
-    }
-    public orderBy(): OrderByContext | null {
-        return this.getRuleContext(0, OrderByContext);
-    }
-    public setQuantifier(): SetQuantifierContext | null {
-        return this.getRuleContext(0, SetQuantifierContext);
-    }
-    public nullTreatment(): NullTreatmentContext | null {
-        return this.getRuleContext(0, NullTreatmentContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterFunctionCall) {
-             listener.enterFunctionCall(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitFunctionCall) {
-             listener.exitFunctionCall(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitFunctionCall) {
-            return visitor.visitFunctionCall(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CurrentTimestampContext extends PrimaryExpressionContext {
-    public _name?: Token | null;
-    public _precision?: Token | null;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CURRENT_TIMESTAMP(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CURRENT_TIMESTAMP, 0)!;
-    }
-    public INTEGER_VALUE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.INTEGER_VALUE, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCurrentTimestamp) {
-             listener.enterCurrentTimestamp(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCurrentTimestamp) {
-             listener.exitCurrentTimestamp(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCurrentTimestamp) {
-            return visitor.visitCurrentTimestamp(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CurrentSchemaContext extends PrimaryExpressionContext {
-    public _name?: Token | null;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CURRENT_SCHEMA(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CURRENT_SCHEMA, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCurrentSchema) {
-             listener.enterCurrentSchema(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCurrentSchema) {
-             listener.exitCurrentSchema(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCurrentSchema) {
-            return visitor.visitCurrentSchema(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ExistsContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public EXISTS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.EXISTS, 0)!;
-    }
-    public query(): QueryContext {
-        return this.getRuleContext(0, QueryContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterExists) {
-             listener.enterExists(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitExists) {
-             listener.exitExists(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitExists) {
-            return visitor.visitExists(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class PositionContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public POSITION(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.POSITION, 0)!;
-    }
-    public valueExpression(): ValueExpressionContext[];
-    public valueExpression(i: number): ValueExpressionContext | null;
-    public valueExpression(i?: number): ValueExpressionContext[] | ValueExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ValueExpressionContext);
-        }
-
-        return this.getRuleContext(i, ValueExpressionContext);
-    }
-    public IN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.IN, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterPosition) {
-             listener.enterPosition(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitPosition) {
-             listener.exitPosition(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitPosition) {
-            return visitor.visitPosition(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ListaggContext extends PrimaryExpressionContext {
-    public _name?: Token | null;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public expression(): ExpressionContext {
-        return this.getRuleContext(0, ExpressionContext)!;
-    }
-    public LISTAGG(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.LISTAGG, 0)!;
-    }
-    public WITHIN(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WITHIN, 0);
-    }
-    public GROUP(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.GROUP, 0);
-    }
-    public orderBy(): OrderByContext | null {
-        return this.getRuleContext(0, OrderByContext);
-    }
-    public setQuantifier(): SetQuantifierContext | null {
-        return this.getRuleContext(0, SetQuantifierContext);
-    }
-    public string(): StringContext | null {
-        return this.getRuleContext(0, StringContext);
-    }
-    public ON(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ON, 0);
-    }
-    public OVERFLOW(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.OVERFLOW, 0);
-    }
-    public listAggOverflowBehavior(): ListAggOverflowBehaviorContext | null {
-        return this.getRuleContext(0, ListAggOverflowBehaviorContext);
-    }
-    public filter(): FilterContext | null {
-        return this.getRuleContext(0, FilterContext);
-    }
-    public over(): OverContext | null {
-        return this.getRuleContext(0, OverContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterListagg) {
-             listener.enterListagg(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitListagg) {
-             listener.exitListagg(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitListagg) {
-            return visitor.visitListagg(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class SearchedCaseContext extends PrimaryExpressionContext {
-    public _elseExpression?: ExpressionContext;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CASE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CASE, 0)!;
-    }
-    public END(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.END, 0)!;
-    }
-    public whenClause(): WhenClauseContext[];
-    public whenClause(i: number): WhenClauseContext | null;
-    public whenClause(i?: number): WhenClauseContext[] | WhenClauseContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(WhenClauseContext);
-        }
-
-        return this.getRuleContext(i, WhenClauseContext);
-    }
-    public ELSE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ELSE, 0);
-    }
-    public expression(): ExpressionContext | null {
-        return this.getRuleContext(0, ExpressionContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSearchedCase) {
-             listener.enterSearchedCase(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSearchedCase) {
-             listener.exitSearchedCase(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSearchedCase) {
-            return visitor.visitSearchedCase(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CurrentCatalogContext extends PrimaryExpressionContext {
-    public _name?: Token | null;
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CURRENT_CATALOG(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CURRENT_CATALOG, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCurrentCatalog) {
-             listener.enterCurrentCatalog(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCurrentCatalog) {
-             listener.exitCurrentCatalog(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCurrentCatalog) {
-            return visitor.visitCurrentCatalog(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class GroupingOperationContext extends PrimaryExpressionContext {
-    public constructor(ctx: PrimaryExpressionContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public GROUPING(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.GROUPING, 0)!;
-    }
-    public qualifiedName(): QualifiedNameContext[];
-    public qualifiedName(i: number): QualifiedNameContext | null;
-    public qualifiedName(i?: number): QualifiedNameContext[] | QualifiedNameContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(QualifiedNameContext);
-        }
-
-        return this.getRuleContext(i, QualifiedNameContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterGroupingOperation) {
-             listener.enterGroupingOperation(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitGroupingOperation) {
-             listener.exitGroupingOperation(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitGroupingOperation) {
-            return visitor.visitGroupingOperation(this);
+        if (visitor.visitDereference) {
+            return visitor.visitDereference(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -28170,79 +28169,27 @@ export class LiteralContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class BinaryLiteralContext extends LiteralContext {
+export class IntervalLiteralContext extends LiteralContext {
     public constructor(ctx: LiteralContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public BINARY_LITERAL(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.BINARY_LITERAL, 0)!;
+    public interval(): IntervalContext {
+        return this.getRuleContext(0, IntervalContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterBinaryLiteral) {
-             listener.enterBinaryLiteral(this);
+        if(listener.enterIntervalLiteral) {
+             listener.enterIntervalLiteral(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitBinaryLiteral) {
-             listener.exitBinaryLiteral(this);
+        if(listener.exitIntervalLiteral) {
+             listener.exitIntervalLiteral(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitBinaryLiteral) {
-            return visitor.visitBinaryLiteral(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class NullLiteralContext extends LiteralContext {
-    public constructor(ctx: LiteralContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public NULL(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.NULL, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterNullLiteral) {
-             listener.enterNullLiteral(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitNullLiteral) {
-             listener.exitNullLiteral(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitNullLiteral) {
-            return visitor.visitNullLiteral(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class StringLiteralContext extends LiteralContext {
-    public constructor(ctx: LiteralContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public string(): StringContext {
-        return this.getRuleContext(0, StringContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterStringLiteral) {
-             listener.enterStringLiteral(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitStringLiteral) {
-             listener.exitStringLiteral(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitStringLiteral) {
-            return visitor.visitStringLiteral(this);
+        if (visitor.visitIntervalLiteral) {
+            return visitor.visitIntervalLiteral(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -28278,32 +28225,6 @@ export class TypeConstructorContext extends LiteralContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitTypeConstructor) {
             return visitor.visitTypeConstructor(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class IntervalLiteralContext extends LiteralContext {
-    public constructor(ctx: LiteralContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public interval(): IntervalContext {
-        return this.getRuleContext(0, IntervalContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterIntervalLiteral) {
-             listener.enterIntervalLiteral(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitIntervalLiteral) {
-             listener.exitIntervalLiteral(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitIntervalLiteral) {
-            return visitor.visitIntervalLiteral(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -28356,6 +28277,84 @@ export class BooleanLiteralContext extends LiteralContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitBooleanLiteral) {
             return visitor.visitBooleanLiteral(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class StringLiteralContext extends LiteralContext {
+    public constructor(ctx: LiteralContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public string(): StringContext {
+        return this.getRuleContext(0, StringContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterStringLiteral) {
+             listener.enterStringLiteral(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitStringLiteral) {
+             listener.exitStringLiteral(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitStringLiteral) {
+            return visitor.visitStringLiteral(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class BinaryLiteralContext extends LiteralContext {
+    public constructor(ctx: LiteralContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public BINARY_LITERAL(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.BINARY_LITERAL, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterBinaryLiteral) {
+             listener.enterBinaryLiteral(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitBinaryLiteral) {
+             listener.exitBinaryLiteral(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitBinaryLiteral) {
+            return visitor.visitBinaryLiteral(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class NullLiteralContext extends LiteralContext {
+    public constructor(ctx: LiteralContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public NULL(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.NULL, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterNullLiteral) {
+             listener.enterNullLiteral(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitNullLiteral) {
+             listener.exitNullLiteral(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitNullLiteral) {
+            return visitor.visitNullLiteral(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -28847,6 +28846,32 @@ export class StringContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
+export class BasicStringLiteralContext extends StringContext {
+    public constructor(ctx: StringContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public STRING(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.STRING, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterBasicStringLiteral) {
+             listener.enterBasicStringLiteral(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitBasicStringLiteral) {
+             listener.exitBasicStringLiteral(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitBasicStringLiteral) {
+            return visitor.visitBasicStringLiteral(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
 export class UnicodeStringLiteralContext extends StringContext {
     public constructor(ctx: StringContext) {
         super(ctx.parent, ctx.invokingState);
@@ -28874,32 +28899,6 @@ export class UnicodeStringLiteralContext extends StringContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitUnicodeStringLiteral) {
             return visitor.visitUnicodeStringLiteral(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class BasicStringLiteralContext extends StringContext {
-    public constructor(ctx: StringContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public STRING(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.STRING, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterBasicStringLiteral) {
-             listener.enterBasicStringLiteral(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitBasicStringLiteral) {
-             listener.exitBasicStringLiteral(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitBasicStringLiteral) {
-            return visitor.visitBasicStringLiteral(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -29255,33 +29254,50 @@ export class IntervalTypeContext extends TypeContext {
         }
     }
 }
-export class ArrayTypeContext extends TypeContext {
+export class DateTimeTypeContext extends TypeContext {
+    public _base?: Token | null;
+    public _precision?: TypeParameterContext;
     public constructor(ctx: TypeContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public type(): TypeContext {
-        return this.getRuleContext(0, TypeContext)!;
+    public TIMESTAMP(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.TIMESTAMP, 0);
     }
-    public ARRAY(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ARRAY, 0)!;
+    public WITHOUT(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WITHOUT, 0);
     }
-    public INTEGER_VALUE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.INTEGER_VALUE, 0);
+    public TIME(): antlr.TerminalNode[];
+    public TIME(i: number): antlr.TerminalNode | null;
+    public TIME(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.TIME);
+    	} else {
+    		return this.getToken(SqlBaseParser.TIME, i);
+    	}
+    }
+    public ZONE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.ZONE, 0);
+    }
+    public typeParameter(): TypeParameterContext | null {
+        return this.getRuleContext(0, TypeParameterContext);
+    }
+    public WITH(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WITH, 0);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterArrayType) {
-             listener.enterArrayType(this);
+        if(listener.enterDateTimeType) {
+             listener.enterDateTimeType(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitArrayType) {
-             listener.exitArrayType(this);
+        if(listener.exitDateTimeType) {
+             listener.exitDateTimeType(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitArrayType) {
-            return visitor.visitArrayType(this);
+        if (visitor.visitDateTimeType) {
+            return visitor.visitDateTimeType(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -29351,90 +29367,6 @@ export class LegacyArrayTypeContext extends TypeContext {
         }
     }
 }
-export class GenericTypeContext extends TypeContext {
-    public constructor(ctx: TypeContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public typeParameter(): TypeParameterContext[];
-    public typeParameter(i: number): TypeParameterContext | null;
-    public typeParameter(i?: number): TypeParameterContext[] | TypeParameterContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(TypeParameterContext);
-        }
-
-        return this.getRuleContext(i, TypeParameterContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterGenericType) {
-             listener.enterGenericType(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitGenericType) {
-             listener.exitGenericType(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitGenericType) {
-            return visitor.visitGenericType(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class DateTimeTypeContext extends TypeContext {
-    public _base?: Token | null;
-    public _precision?: TypeParameterContext;
-    public constructor(ctx: TypeContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public TIMESTAMP(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.TIMESTAMP, 0);
-    }
-    public WITHOUT(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WITHOUT, 0);
-    }
-    public TIME(): antlr.TerminalNode[];
-    public TIME(i: number): antlr.TerminalNode | null;
-    public TIME(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.TIME);
-    	} else {
-    		return this.getToken(SqlBaseParser.TIME, i);
-    	}
-    }
-    public ZONE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.ZONE, 0);
-    }
-    public typeParameter(): TypeParameterContext | null {
-        return this.getRuleContext(0, TypeParameterContext);
-    }
-    public WITH(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WITH, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterDateTimeType) {
-             listener.enterDateTimeType(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitDateTimeType) {
-             listener.exitDateTimeType(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitDateTimeType) {
-            return visitor.visitDateTimeType(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 export class LegacyMapTypeContext extends TypeContext {
     public _keyType?: TypeContext;
     public _valueType?: TypeContext;
@@ -29478,6 +29410,73 @@ export class LegacyMapTypeContext extends TypeContext {
         }
     }
 }
+export class GenericTypeContext extends TypeContext {
+    public constructor(ctx: TypeContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public typeParameter(): TypeParameterContext[];
+    public typeParameter(i: number): TypeParameterContext | null;
+    public typeParameter(i?: number): TypeParameterContext[] | TypeParameterContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(TypeParameterContext);
+        }
+
+        return this.getRuleContext(i, TypeParameterContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterGenericType) {
+             listener.enterGenericType(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitGenericType) {
+             listener.exitGenericType(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitGenericType) {
+            return visitor.visitGenericType(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class ArrayTypeContext extends TypeContext {
+    public constructor(ctx: TypeContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public type(): TypeContext {
+        return this.getRuleContext(0, TypeContext)!;
+    }
+    public ARRAY(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ARRAY, 0)!;
+    }
+    public INTEGER_VALUE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.INTEGER_VALUE, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterArrayType) {
+             listener.enterArrayType(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitArrayType) {
+             listener.exitArrayType(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitArrayType) {
+            return visitor.visitArrayType(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
 
 
 export class IntervalQualifierContext extends antlr.ParserRuleContext {
@@ -29489,40 +29488,6 @@ export class IntervalQualifierContext extends antlr.ParserRuleContext {
     }
     public override copyFrom(ctx: IntervalQualifierContext): void {
         super.copyFrom(ctx);
-    }
-}
-export class SimpleYearMonthIntervalContext extends IntervalQualifierContext {
-    public _field?: Token | null;
-    public _precision?: Token | null;
-    public constructor(ctx: IntervalQualifierContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public YEAR(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.YEAR, 0);
-    }
-    public MONTH(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.MONTH, 0);
-    }
-    public INTEGER_VALUE(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.INTEGER_VALUE, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSimpleYearMonthInterval) {
-             listener.enterSimpleYearMonthInterval(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSimpleYearMonthInterval) {
-             listener.exitSimpleYearMonthInterval(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSimpleYearMonthInterval) {
-            return visitor.visitSimpleYearMonthInterval(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
     }
 }
 export class CompositeYearToMonthIntervalContext extends IntervalQualifierContext {
@@ -29561,38 +29526,35 @@ export class CompositeYearToMonthIntervalContext extends IntervalQualifierContex
         }
     }
 }
-export class SecondsDayTimeIntervalContext extends IntervalQualifierContext {
-    public _leadingPrecision?: Token | null;
-    public _fractionalPrecision?: Token | null;
+export class SimpleYearMonthIntervalContext extends IntervalQualifierContext {
+    public _field?: Token | null;
+    public _precision?: Token | null;
     public constructor(ctx: IntervalQualifierContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public SECOND(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SECOND, 0)!;
+    public YEAR(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.YEAR, 0);
     }
-    public INTEGER_VALUE(): antlr.TerminalNode[];
-    public INTEGER_VALUE(i: number): antlr.TerminalNode | null;
-    public INTEGER_VALUE(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.INTEGER_VALUE);
-    	} else {
-    		return this.getToken(SqlBaseParser.INTEGER_VALUE, i);
-    	}
+    public MONTH(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.MONTH, 0);
+    }
+    public INTEGER_VALUE(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.INTEGER_VALUE, 0);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSecondsDayTimeInterval) {
-             listener.enterSecondsDayTimeInterval(this);
+        if(listener.enterSimpleYearMonthInterval) {
+             listener.enterSimpleYearMonthInterval(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSecondsDayTimeInterval) {
-             listener.exitSecondsDayTimeInterval(this);
+        if(listener.exitSimpleYearMonthInterval) {
+             listener.exitSimpleYearMonthInterval(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSecondsDayTimeInterval) {
-            return visitor.visitSecondsDayTimeInterval(this);
+        if (visitor.visitSimpleYearMonthInterval) {
+            return visitor.visitSimpleYearMonthInterval(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -29693,6 +29655,43 @@ export class SimpleDayTimeIntervalContext extends IntervalQualifierContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitSimpleDayTimeInterval) {
             return visitor.visitSimpleDayTimeInterval(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SecondsDayTimeIntervalContext extends IntervalQualifierContext {
+    public _leadingPrecision?: Token | null;
+    public _fractionalPrecision?: Token | null;
+    public constructor(ctx: IntervalQualifierContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SECOND(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SECOND, 0)!;
+    }
+    public INTEGER_VALUE(): antlr.TerminalNode[];
+    public INTEGER_VALUE(i: number): antlr.TerminalNode | null;
+    public INTEGER_VALUE(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.INTEGER_VALUE);
+    	} else {
+    		return this.getToken(SqlBaseParser.INTEGER_VALUE, i);
+    	}
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSecondsDayTimeInterval) {
+             listener.enterSecondsDayTimeInterval(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSecondsDayTimeInterval) {
+             listener.exitSecondsDayTimeInterval(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSecondsDayTimeInterval) {
+            return visitor.visitSecondsDayTimeInterval(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -29857,73 +29856,6 @@ export class MergeCaseContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class MergeInsertContext extends MergeCaseContext {
-    public _condition?: ExpressionContext;
-    public _identifier?: IdentifierContext;
-    public _targets: IdentifierContext[] = [];
-    public _expression?: ExpressionContext;
-    public _values: ExpressionContext[] = [];
-    public constructor(ctx: MergeCaseContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public WHEN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.WHEN, 0)!;
-    }
-    public NOT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.NOT, 0)!;
-    }
-    public MATCHED(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.MATCHED, 0)!;
-    }
-    public THEN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.THEN, 0)!;
-    }
-    public INSERT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.INSERT, 0)!;
-    }
-    public VALUES(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.VALUES, 0)!;
-    }
-    public expression(): ExpressionContext[];
-    public expression(i: number): ExpressionContext | null;
-    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ExpressionContext);
-        }
-
-        return this.getRuleContext(i, ExpressionContext);
-    }
-    public AND(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.AND, 0);
-    }
-    public identifier(): IdentifierContext[];
-    public identifier(i: number): IdentifierContext | null;
-    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(IdentifierContext);
-        }
-
-        return this.getRuleContext(i, IdentifierContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterMergeInsert) {
-             listener.enterMergeInsert(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitMergeInsert) {
-             listener.exitMergeInsert(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitMergeInsert) {
-            return visitor.visitMergeInsert(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 export class MergeUpdateContext extends MergeCaseContext {
     public _condition?: ExpressionContext;
     public _identifier?: IdentifierContext;
@@ -30034,6 +29966,73 @@ export class MergeDeleteContext extends MergeCaseContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitMergeDelete) {
             return visitor.visitMergeDelete(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class MergeInsertContext extends MergeCaseContext {
+    public _condition?: ExpressionContext;
+    public _identifier?: IdentifierContext;
+    public _targets: IdentifierContext[] = [];
+    public _expression?: ExpressionContext;
+    public _values: ExpressionContext[] = [];
+    public constructor(ctx: MergeCaseContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public WHEN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.WHEN, 0)!;
+    }
+    public NOT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.NOT, 0)!;
+    }
+    public MATCHED(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.MATCHED, 0)!;
+    }
+    public THEN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.THEN, 0)!;
+    }
+    public INSERT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.INSERT, 0)!;
+    }
+    public VALUES(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.VALUES, 0)!;
+    }
+    public expression(): ExpressionContext[];
+    public expression(i: number): ExpressionContext | null;
+    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ExpressionContext);
+        }
+
+        return this.getRuleContext(i, ExpressionContext);
+    }
+    public AND(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.AND, 0);
+    }
+    public identifier(): IdentifierContext[];
+    public identifier(i: number): IdentifierContext | null;
+    public identifier(i?: number): IdentifierContext[] | IdentifierContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(IdentifierContext);
+        }
+
+        return this.getRuleContext(i, IdentifierContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterMergeInsert) {
+             listener.enterMergeInsert(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitMergeInsert) {
+             listener.exitMergeInsert(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitMergeInsert) {
+            return visitor.visitMergeInsert(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -30230,39 +30229,6 @@ export class FrameBoundContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class BoundedFrameContext extends FrameBoundContext {
-    public _boundType?: Token | null;
-    public constructor(ctx: FrameBoundContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public expression(): ExpressionContext {
-        return this.getRuleContext(0, ExpressionContext)!;
-    }
-    public PRECEDING(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.PRECEDING, 0);
-    }
-    public FOLLOWING(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.FOLLOWING, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterBoundedFrame) {
-             listener.enterBoundedFrame(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitBoundedFrame) {
-             listener.exitBoundedFrame(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitBoundedFrame) {
-            return visitor.visitBoundedFrame(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 export class UnboundedFrameContext extends FrameBoundContext {
     public _boundType?: Token | null;
     public constructor(ctx: FrameBoundContext) {
@@ -30320,6 +30286,39 @@ export class CurrentRowBoundContext extends FrameBoundContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitCurrentRowBound) {
             return visitor.visitCurrentRowBound(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class BoundedFrameContext extends FrameBoundContext {
+    public _boundType?: Token | null;
+    public constructor(ctx: FrameBoundContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public expression(): ExpressionContext {
+        return this.getRuleContext(0, ExpressionContext)!;
+    }
+    public PRECEDING(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.PRECEDING, 0);
+    }
+    public FOLLOWING(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.FOLLOWING, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterBoundedFrame) {
+             listener.enterBoundedFrame(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitBoundedFrame) {
+             listener.exitBoundedFrame(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitBoundedFrame) {
+            return visitor.visitBoundedFrame(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -30444,6 +30443,55 @@ export class PatternPrimaryContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
+export class PatternVariableContext extends PatternPrimaryContext {
+    public constructor(ctx: PatternPrimaryContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterPatternVariable) {
+             listener.enterPatternVariable(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitPatternVariable) {
+             listener.exitPatternVariable(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitPatternVariable) {
+            return visitor.visitPatternVariable(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class EmptyPatternContext extends PatternPrimaryContext {
+    public constructor(ctx: PatternPrimaryContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterEmptyPattern) {
+             listener.enterEmptyPattern(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitEmptyPattern) {
+             listener.exitEmptyPattern(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitEmptyPattern) {
+            return visitor.visitEmptyPattern(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
 export class PatternPermutationContext extends PatternPrimaryContext {
     public constructor(ctx: PatternPrimaryContext) {
         super(ctx.parent, ctx.invokingState);
@@ -30479,56 +30527,7 @@ export class PatternPermutationContext extends PatternPrimaryContext {
         }
     }
 }
-export class PartitionEndAnchorContext extends PatternPrimaryContext {
-    public constructor(ctx: PatternPrimaryContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterPartitionEndAnchor) {
-             listener.enterPartitionEndAnchor(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitPartitionEndAnchor) {
-             listener.exitPartitionEndAnchor(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitPartitionEndAnchor) {
-            return visitor.visitPartitionEndAnchor(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class PatternVariableContext extends PatternPrimaryContext {
-    public constructor(ctx: PatternPrimaryContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterPatternVariable) {
-             listener.enterPatternVariable(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitPatternVariable) {
-             listener.exitPatternVariable(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitPatternVariable) {
-            return visitor.visitPatternVariable(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ExcludedPatternContext extends PatternPrimaryContext {
+export class GroupedPatternContext extends PatternPrimaryContext {
     public constructor(ctx: PatternPrimaryContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
@@ -30537,18 +30536,18 @@ export class ExcludedPatternContext extends PatternPrimaryContext {
         return this.getRuleContext(0, RowPatternContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterExcludedPattern) {
-             listener.enterExcludedPattern(this);
+        if(listener.enterGroupedPattern) {
+             listener.enterGroupedPattern(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitExcludedPattern) {
-             listener.exitExcludedPattern(this);
+        if(listener.exitGroupedPattern) {
+             listener.exitGroupedPattern(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitExcludedPattern) {
-            return visitor.visitExcludedPattern(this);
+        if (visitor.visitGroupedPattern) {
+            return visitor.visitGroupedPattern(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -30577,30 +30576,30 @@ export class PartitionStartAnchorContext extends PatternPrimaryContext {
         }
     }
 }
-export class EmptyPatternContext extends PatternPrimaryContext {
+export class PartitionEndAnchorContext extends PatternPrimaryContext {
     public constructor(ctx: PatternPrimaryContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterEmptyPattern) {
-             listener.enterEmptyPattern(this);
+        if(listener.enterPartitionEndAnchor) {
+             listener.enterPartitionEndAnchor(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitEmptyPattern) {
-             listener.exitEmptyPattern(this);
+        if(listener.exitPartitionEndAnchor) {
+             listener.exitPartitionEndAnchor(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitEmptyPattern) {
-            return visitor.visitEmptyPattern(this);
+        if (visitor.visitPartitionEndAnchor) {
+            return visitor.visitPartitionEndAnchor(this);
         } else {
             return visitor.visitChildren(this);
         }
     }
 }
-export class GroupedPatternContext extends PatternPrimaryContext {
+export class ExcludedPatternContext extends PatternPrimaryContext {
     public constructor(ctx: PatternPrimaryContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
@@ -30609,18 +30608,18 @@ export class GroupedPatternContext extends PatternPrimaryContext {
         return this.getRuleContext(0, RowPatternContext)!;
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterGroupedPattern) {
-             listener.enterGroupedPattern(this);
+        if(listener.enterExcludedPattern) {
+             listener.enterExcludedPattern(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitGroupedPattern) {
-             listener.exitGroupedPattern(this);
+        if(listener.exitExcludedPattern) {
+             listener.exitExcludedPattern(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitGroupedPattern) {
-            return visitor.visitGroupedPattern(this);
+        if (visitor.visitExcludedPattern) {
+            return visitor.visitExcludedPattern(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -30908,6 +30907,38 @@ export class TransactionModeContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
+export class IsolationLevelContext extends TransactionModeContext {
+    public constructor(ctx: TransactionModeContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public ISOLATION(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ISOLATION, 0)!;
+    }
+    public LEVEL(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.LEVEL, 0)!;
+    }
+    public levelOfIsolation(): LevelOfIsolationContext {
+        return this.getRuleContext(0, LevelOfIsolationContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterIsolationLevel) {
+             listener.enterIsolationLevel(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitIsolationLevel) {
+             listener.exitIsolationLevel(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitIsolationLevel) {
+            return visitor.visitIsolationLevel(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
 export class TransactionAccessModeContext extends TransactionModeContext {
     public _accessMode?: Token | null;
     public constructor(ctx: TransactionModeContext) {
@@ -30936,38 +30967,6 @@ export class TransactionAccessModeContext extends TransactionModeContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitTransactionAccessMode) {
             return visitor.visitTransactionAccessMode(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class IsolationLevelContext extends TransactionModeContext {
-    public constructor(ctx: TransactionModeContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ISOLATION(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ISOLATION, 0)!;
-    }
-    public LEVEL(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.LEVEL, 0)!;
-    }
-    public levelOfIsolation(): LevelOfIsolationContext {
-        return this.getRuleContext(0, LevelOfIsolationContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterIsolationLevel) {
-             listener.enterIsolationLevel(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitIsolationLevel) {
-             listener.exitIsolationLevel(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitIsolationLevel) {
-            return visitor.visitIsolationLevel(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -31010,32 +31009,6 @@ export class ReadUncommittedContext extends LevelOfIsolationContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitReadUncommitted) {
             return visitor.visitReadUncommitted(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class SerializableContext extends LevelOfIsolationContext {
-    public constructor(ctx: LevelOfIsolationContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SERIALIZABLE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SERIALIZABLE, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSerializable) {
-             listener.enterSerializable(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSerializable) {
-             listener.exitSerializable(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSerializable) {
-            return visitor.visitSerializable(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -31094,6 +31067,32 @@ export class RepeatableReadContext extends LevelOfIsolationContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitRepeatableRead) {
             return visitor.visitRepeatableRead(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SerializableContext extends LevelOfIsolationContext {
+    public constructor(ctx: LevelOfIsolationContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SERIALIZABLE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SERIALIZABLE, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSerializable) {
+             listener.enterSerializable(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSerializable) {
+             listener.exitSerializable(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSerializable) {
+            return visitor.visitSerializable(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -31476,172 +31475,6 @@ export class RoutineCharacteristicContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class ReturnsNullOnNullInputCharacteristicContext extends RoutineCharacteristicContext {
-    public constructor(ctx: RoutineCharacteristicContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public RETURNS(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.RETURNS, 0)!;
-    }
-    public NULL(): antlr.TerminalNode[];
-    public NULL(i: number): antlr.TerminalNode | null;
-    public NULL(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.NULL);
-    	} else {
-    		return this.getToken(SqlBaseParser.NULL, i);
-    	}
-    }
-    public ON(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ON, 0)!;
-    }
-    public INPUT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.INPUT, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterReturnsNullOnNullInputCharacteristic) {
-             listener.enterReturnsNullOnNullInputCharacteristic(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitReturnsNullOnNullInputCharacteristic) {
-             listener.exitReturnsNullOnNullInputCharacteristic(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitReturnsNullOnNullInputCharacteristic) {
-            return visitor.visitReturnsNullOnNullInputCharacteristic(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class SecurityCharacteristicContext extends RoutineCharacteristicContext {
-    public constructor(ctx: RoutineCharacteristicContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public SECURITY(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SECURITY, 0)!;
-    }
-    public DEFINER(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.DEFINER, 0);
-    }
-    public INVOKER(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.INVOKER, 0);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSecurityCharacteristic) {
-             listener.enterSecurityCharacteristic(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSecurityCharacteristic) {
-             listener.exitSecurityCharacteristic(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSecurityCharacteristic) {
-            return visitor.visitSecurityCharacteristic(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CalledOnNullInputCharacteristicContext extends RoutineCharacteristicContext {
-    public constructor(ctx: RoutineCharacteristicContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CALLED(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CALLED, 0)!;
-    }
-    public ON(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ON, 0)!;
-    }
-    public NULL(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.NULL, 0)!;
-    }
-    public INPUT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.INPUT, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCalledOnNullInputCharacteristic) {
-             listener.enterCalledOnNullInputCharacteristic(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCalledOnNullInputCharacteristic) {
-             listener.exitCalledOnNullInputCharacteristic(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCalledOnNullInputCharacteristic) {
-            return visitor.visitCalledOnNullInputCharacteristic(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class PropertiesCharacteristicContext extends RoutineCharacteristicContext {
-    public constructor(ctx: RoutineCharacteristicContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public WITH(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.WITH, 0);
-    }
-    public properties(): PropertiesContext | null {
-        return this.getRuleContext(0, PropertiesContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterPropertiesCharacteristic) {
-             listener.enterPropertiesCharacteristic(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitPropertiesCharacteristic) {
-             listener.exitPropertiesCharacteristic(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitPropertiesCharacteristic) {
-            return visitor.visitPropertiesCharacteristic(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class CommentCharacteristicContext extends RoutineCharacteristicContext {
-    public constructor(ctx: RoutineCharacteristicContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public COMMENT(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.COMMENT, 0)!;
-    }
-    public string(): StringContext {
-        return this.getRuleContext(0, StringContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCommentCharacteristic) {
-             listener.enterCommentCharacteristic(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCommentCharacteristic) {
-             listener.exitCommentCharacteristic(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCommentCharacteristic) {
-            return visitor.visitCommentCharacteristic(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 export class LanguageCharacteristicContext extends RoutineCharacteristicContext {
     public constructor(ctx: RoutineCharacteristicContext) {
         super(ctx.parent, ctx.invokingState);
@@ -31700,6 +31533,172 @@ export class DeterministicCharacteristicContext extends RoutineCharacteristicCon
         }
     }
 }
+export class ReturnsNullOnNullInputCharacteristicContext extends RoutineCharacteristicContext {
+    public constructor(ctx: RoutineCharacteristicContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public RETURNS(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.RETURNS, 0)!;
+    }
+    public NULL(): antlr.TerminalNode[];
+    public NULL(i: number): antlr.TerminalNode | null;
+    public NULL(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.NULL);
+    	} else {
+    		return this.getToken(SqlBaseParser.NULL, i);
+    	}
+    }
+    public ON(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ON, 0)!;
+    }
+    public INPUT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.INPUT, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterReturnsNullOnNullInputCharacteristic) {
+             listener.enterReturnsNullOnNullInputCharacteristic(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitReturnsNullOnNullInputCharacteristic) {
+             listener.exitReturnsNullOnNullInputCharacteristic(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitReturnsNullOnNullInputCharacteristic) {
+            return visitor.visitReturnsNullOnNullInputCharacteristic(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CalledOnNullInputCharacteristicContext extends RoutineCharacteristicContext {
+    public constructor(ctx: RoutineCharacteristicContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CALLED(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CALLED, 0)!;
+    }
+    public ON(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ON, 0)!;
+    }
+    public NULL(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.NULL, 0)!;
+    }
+    public INPUT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.INPUT, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCalledOnNullInputCharacteristic) {
+             listener.enterCalledOnNullInputCharacteristic(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCalledOnNullInputCharacteristic) {
+             listener.exitCalledOnNullInputCharacteristic(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCalledOnNullInputCharacteristic) {
+            return visitor.visitCalledOnNullInputCharacteristic(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class SecurityCharacteristicContext extends RoutineCharacteristicContext {
+    public constructor(ctx: RoutineCharacteristicContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SECURITY(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SECURITY, 0)!;
+    }
+    public DEFINER(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.DEFINER, 0);
+    }
+    public INVOKER(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.INVOKER, 0);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterSecurityCharacteristic) {
+             listener.enterSecurityCharacteristic(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitSecurityCharacteristic) {
+             listener.exitSecurityCharacteristic(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitSecurityCharacteristic) {
+            return visitor.visitSecurityCharacteristic(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CommentCharacteristicContext extends RoutineCharacteristicContext {
+    public constructor(ctx: RoutineCharacteristicContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public COMMENT(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.COMMENT, 0)!;
+    }
+    public string(): StringContext {
+        return this.getRuleContext(0, StringContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCommentCharacteristic) {
+             listener.enterCommentCharacteristic(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCommentCharacteristic) {
+             listener.exitCommentCharacteristic(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCommentCharacteristic) {
+            return visitor.visitCommentCharacteristic(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class PropertiesCharacteristicContext extends RoutineCharacteristicContext {
+    public constructor(ctx: RoutineCharacteristicContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public WITH(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.WITH, 0);
+    }
+    public properties(): PropertiesContext | null {
+        return this.getRuleContext(0, PropertiesContext);
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterPropertiesCharacteristic) {
+             listener.enterPropertiesCharacteristic(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitPropertiesCharacteristic) {
+             listener.exitPropertiesCharacteristic(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitPropertiesCharacteristic) {
+            return visitor.visitPropertiesCharacteristic(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
 
 
 export class ControlStatementContext extends antlr.ParserRuleContext {
@@ -31713,49 +31712,65 @@ export class ControlStatementContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class WhileStatementContext extends ControlStatementContext {
-    public _label?: IdentifierContext;
+export class ReturnStatementContext extends ControlStatementContext {
     public constructor(ctx: ControlStatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public WHILE(): antlr.TerminalNode[];
-    public WHILE(i: number): antlr.TerminalNode | null;
-    public WHILE(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
-    	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.WHILE);
-    	} else {
-    		return this.getToken(SqlBaseParser.WHILE, i);
-    	}
+    public RETURN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.RETURN, 0)!;
+    }
+    public valueExpression(): ValueExpressionContext {
+        return this.getRuleContext(0, ValueExpressionContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterReturnStatement) {
+             listener.enterReturnStatement(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitReturnStatement) {
+             listener.exitReturnStatement(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitReturnStatement) {
+            return visitor.visitReturnStatement(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class AssignmentStatementContext extends ControlStatementContext {
+    public constructor(ctx: ControlStatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public SET(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.SET, 0)!;
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public EQ(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.EQ, 0)!;
     }
     public expression(): ExpressionContext {
         return this.getRuleContext(0, ExpressionContext)!;
     }
-    public DO(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.DO, 0)!;
-    }
-    public sqlStatementList(): SqlStatementListContext {
-        return this.getRuleContext(0, SqlStatementListContext)!;
-    }
-    public END(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.END, 0)!;
-    }
-    public identifier(): IdentifierContext | null {
-        return this.getRuleContext(0, IdentifierContext);
-    }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterWhileStatement) {
-             listener.enterWhileStatement(this);
+        if(listener.enterAssignmentStatement) {
+             listener.enterAssignmentStatement(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitWhileStatement) {
-             listener.exitWhileStatement(this);
+        if(listener.exitAssignmentStatement) {
+             listener.exitAssignmentStatement(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitWhileStatement) {
-            return visitor.visitWhileStatement(this);
+        if (visitor.visitAssignmentStatement) {
+            return visitor.visitAssignmentStatement(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -31811,84 +31826,133 @@ export class SimpleCaseStatementContext extends ControlStatementContext {
         }
     }
 }
-export class RepeatStatementContext extends ControlStatementContext {
-    public _label?: IdentifierContext;
+export class SearchedCaseStatementContext extends ControlStatementContext {
     public constructor(ctx: ControlStatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public REPEAT(): antlr.TerminalNode[];
-    public REPEAT(i: number): antlr.TerminalNode | null;
-    public REPEAT(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    public CASE(): antlr.TerminalNode[];
+    public CASE(i: number): antlr.TerminalNode | null;
+    public CASE(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
     	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.REPEAT);
+    		return this.getTokens(SqlBaseParser.CASE);
     	} else {
-    		return this.getToken(SqlBaseParser.REPEAT, i);
+    		return this.getToken(SqlBaseParser.CASE, i);
     	}
-    }
-    public sqlStatementList(): SqlStatementListContext {
-        return this.getRuleContext(0, SqlStatementListContext)!;
-    }
-    public UNTIL(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.UNTIL, 0)!;
-    }
-    public expression(): ExpressionContext {
-        return this.getRuleContext(0, ExpressionContext)!;
     }
     public END(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.END, 0)!;
     }
-    public identifier(): IdentifierContext | null {
-        return this.getRuleContext(0, IdentifierContext);
+    public caseStatementWhenClause(): CaseStatementWhenClauseContext[];
+    public caseStatementWhenClause(i: number): CaseStatementWhenClauseContext | null;
+    public caseStatementWhenClause(i?: number): CaseStatementWhenClauseContext[] | CaseStatementWhenClauseContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(CaseStatementWhenClauseContext);
+        }
+
+        return this.getRuleContext(i, CaseStatementWhenClauseContext);
+    }
+    public elseClause(): ElseClauseContext | null {
+        return this.getRuleContext(0, ElseClauseContext);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterRepeatStatement) {
-             listener.enterRepeatStatement(this);
+        if(listener.enterSearchedCaseStatement) {
+             listener.enterSearchedCaseStatement(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitRepeatStatement) {
-             listener.exitRepeatStatement(this);
+        if(listener.exitSearchedCaseStatement) {
+             listener.exitSearchedCaseStatement(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitRepeatStatement) {
-            return visitor.visitRepeatStatement(this);
+        if (visitor.visitSearchedCaseStatement) {
+            return visitor.visitSearchedCaseStatement(this);
         } else {
             return visitor.visitChildren(this);
         }
     }
 }
-export class AssignmentStatementContext extends ControlStatementContext {
+export class IfStatementContext extends ControlStatementContext {
     public constructor(ctx: ControlStatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public SET(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.SET, 0)!;
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public EQ(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.EQ, 0)!;
+    public IF(): antlr.TerminalNode[];
+    public IF(i: number): antlr.TerminalNode | null;
+    public IF(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    	if (i === undefined) {
+    		return this.getTokens(SqlBaseParser.IF);
+    	} else {
+    		return this.getToken(SqlBaseParser.IF, i);
+    	}
     }
     public expression(): ExpressionContext {
         return this.getRuleContext(0, ExpressionContext)!;
     }
+    public THEN(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.THEN, 0)!;
+    }
+    public sqlStatementList(): SqlStatementListContext {
+        return this.getRuleContext(0, SqlStatementListContext)!;
+    }
+    public END(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.END, 0)!;
+    }
+    public elseIfClause(): ElseIfClauseContext[];
+    public elseIfClause(i: number): ElseIfClauseContext | null;
+    public elseIfClause(i?: number): ElseIfClauseContext[] | ElseIfClauseContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ElseIfClauseContext);
+        }
+
+        return this.getRuleContext(i, ElseIfClauseContext);
+    }
+    public elseClause(): ElseClauseContext | null {
+        return this.getRuleContext(0, ElseClauseContext);
+    }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterAssignmentStatement) {
-             listener.enterAssignmentStatement(this);
+        if(listener.enterIfStatement) {
+             listener.enterIfStatement(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitAssignmentStatement) {
-             listener.exitAssignmentStatement(this);
+        if(listener.exitIfStatement) {
+             listener.exitIfStatement(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitAssignmentStatement) {
-            return visitor.visitAssignmentStatement(this);
+        if (visitor.visitIfStatement) {
+            return visitor.visitIfStatement(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class IterateStatementContext extends ControlStatementContext {
+    public constructor(ctx: ControlStatementContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public ITERATE(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.ITERATE, 0)!;
+    }
+    public identifier(): IdentifierContext {
+        return this.getRuleContext(0, IdentifierContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterIterateStatement) {
+             listener.enterIterateStatement(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitIterateStatement) {
+             listener.exitIterateStatement(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitIterateStatement) {
+            return visitor.visitIterateStatement(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -31973,35 +32037,6 @@ export class CompoundStatementContext extends ControlStatementContext {
         }
     }
 }
-export class IterateStatementContext extends ControlStatementContext {
-    public constructor(ctx: ControlStatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public ITERATE(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.ITERATE, 0)!;
-    }
-    public identifier(): IdentifierContext {
-        return this.getRuleContext(0, IdentifierContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterIterateStatement) {
-             listener.enterIterateStatement(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitIterateStatement) {
-             listener.exitIterateStatement(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitIterateStatement) {
-            return visitor.visitIterateStatement(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 export class LoopStatementContext extends ControlStatementContext {
     public _label?: IdentifierContext;
     public constructor(ctx: ControlStatementContext) {
@@ -32044,54 +32079,26 @@ export class LoopStatementContext extends ControlStatementContext {
         }
     }
 }
-export class ReturnStatementContext extends ControlStatementContext {
+export class WhileStatementContext extends ControlStatementContext {
+    public _label?: IdentifierContext;
     public constructor(ctx: ControlStatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public RETURN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.RETURN, 0)!;
-    }
-    public valueExpression(): ValueExpressionContext {
-        return this.getRuleContext(0, ValueExpressionContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterReturnStatement) {
-             listener.enterReturnStatement(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitReturnStatement) {
-             listener.exitReturnStatement(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitReturnStatement) {
-            return visitor.visitReturnStatement(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class IfStatementContext extends ControlStatementContext {
-    public constructor(ctx: ControlStatementContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public IF(): antlr.TerminalNode[];
-    public IF(i: number): antlr.TerminalNode | null;
-    public IF(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    public WHILE(): antlr.TerminalNode[];
+    public WHILE(i: number): antlr.TerminalNode | null;
+    public WHILE(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
     	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.IF);
+    		return this.getTokens(SqlBaseParser.WHILE);
     	} else {
-    		return this.getToken(SqlBaseParser.IF, i);
+    		return this.getToken(SqlBaseParser.WHILE, i);
     	}
     }
     public expression(): ExpressionContext {
         return this.getRuleContext(0, ExpressionContext)!;
     }
-    public THEN(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.THEN, 0)!;
+    public DO(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.DO, 0)!;
     }
     public sqlStatementList(): SqlStatementListContext {
         return this.getRuleContext(0, SqlStatementListContext)!;
@@ -32099,78 +32106,70 @@ export class IfStatementContext extends ControlStatementContext {
     public END(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.END, 0)!;
     }
-    public elseIfClause(): ElseIfClauseContext[];
-    public elseIfClause(i: number): ElseIfClauseContext | null;
-    public elseIfClause(i?: number): ElseIfClauseContext[] | ElseIfClauseContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(ElseIfClauseContext);
-        }
-
-        return this.getRuleContext(i, ElseIfClauseContext);
-    }
-    public elseClause(): ElseClauseContext | null {
-        return this.getRuleContext(0, ElseClauseContext);
+    public identifier(): IdentifierContext | null {
+        return this.getRuleContext(0, IdentifierContext);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterIfStatement) {
-             listener.enterIfStatement(this);
+        if(listener.enterWhileStatement) {
+             listener.enterWhileStatement(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitIfStatement) {
-             listener.exitIfStatement(this);
+        if(listener.exitWhileStatement) {
+             listener.exitWhileStatement(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitIfStatement) {
-            return visitor.visitIfStatement(this);
+        if (visitor.visitWhileStatement) {
+            return visitor.visitWhileStatement(this);
         } else {
             return visitor.visitChildren(this);
         }
     }
 }
-export class SearchedCaseStatementContext extends ControlStatementContext {
+export class RepeatStatementContext extends ControlStatementContext {
+    public _label?: IdentifierContext;
     public constructor(ctx: ControlStatementContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public CASE(): antlr.TerminalNode[];
-    public CASE(i: number): antlr.TerminalNode | null;
-    public CASE(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
+    public REPEAT(): antlr.TerminalNode[];
+    public REPEAT(i: number): antlr.TerminalNode | null;
+    public REPEAT(i?: number): antlr.TerminalNode | null | antlr.TerminalNode[] {
     	if (i === undefined) {
-    		return this.getTokens(SqlBaseParser.CASE);
+    		return this.getTokens(SqlBaseParser.REPEAT);
     	} else {
-    		return this.getToken(SqlBaseParser.CASE, i);
+    		return this.getToken(SqlBaseParser.REPEAT, i);
     	}
+    }
+    public sqlStatementList(): SqlStatementListContext {
+        return this.getRuleContext(0, SqlStatementListContext)!;
+    }
+    public UNTIL(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.UNTIL, 0)!;
+    }
+    public expression(): ExpressionContext {
+        return this.getRuleContext(0, ExpressionContext)!;
     }
     public END(): antlr.TerminalNode {
         return this.getToken(SqlBaseParser.END, 0)!;
     }
-    public caseStatementWhenClause(): CaseStatementWhenClauseContext[];
-    public caseStatementWhenClause(i: number): CaseStatementWhenClauseContext | null;
-    public caseStatementWhenClause(i?: number): CaseStatementWhenClauseContext[] | CaseStatementWhenClauseContext | null {
-        if (i === undefined) {
-            return this.getRuleContexts(CaseStatementWhenClauseContext);
-        }
-
-        return this.getRuleContext(i, CaseStatementWhenClauseContext);
-    }
-    public elseClause(): ElseClauseContext | null {
-        return this.getRuleContext(0, ElseClauseContext);
+    public identifier(): IdentifierContext | null {
+        return this.getRuleContext(0, IdentifierContext);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterSearchedCaseStatement) {
-             listener.enterSearchedCaseStatement(this);
+        if(listener.enterRepeatStatement) {
+             listener.enterRepeatStatement(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitSearchedCaseStatement) {
-             listener.exitSearchedCaseStatement(this);
+        if(listener.exitRepeatStatement) {
+             listener.exitRepeatStatement(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitSearchedCaseStatement) {
-            return visitor.visitSearchedCaseStatement(this);
+        if (visitor.visitRepeatStatement) {
+            return visitor.visitRepeatStatement(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -32674,32 +32673,6 @@ export class GrantorContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class CurrentUserGrantorContext extends GrantorContext {
-    public constructor(ctx: GrantorContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public CURRENT_USER(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.CURRENT_USER, 0)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterCurrentUserGrantor) {
-             listener.enterCurrentUserGrantor(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitCurrentUserGrantor) {
-             listener.exitCurrentUserGrantor(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitCurrentUserGrantor) {
-            return visitor.visitCurrentUserGrantor(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 export class SpecifiedPrincipalContext extends GrantorContext {
     public constructor(ctx: GrantorContext) {
         super(ctx.parent, ctx.invokingState);
@@ -32721,6 +32694,32 @@ export class SpecifiedPrincipalContext extends GrantorContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitSpecifiedPrincipal) {
             return visitor.visitSpecifiedPrincipal(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class CurrentUserGrantorContext extends GrantorContext {
+    public constructor(ctx: GrantorContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public CURRENT_USER(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.CURRENT_USER, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterCurrentUserGrantor) {
+             listener.enterCurrentUserGrantor(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitCurrentUserGrantor) {
+             listener.exitCurrentUserGrantor(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitCurrentUserGrantor) {
+            return visitor.visitCurrentUserGrantor(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -32910,27 +32909,30 @@ export class IdentifierContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class BackQuotedIdentifierContext extends IdentifierContext {
+export class UnquotedIdentifierContext extends IdentifierContext {
     public constructor(ctx: IdentifierContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
     }
-    public BACKQUOTED_IDENTIFIER(): antlr.TerminalNode {
-        return this.getToken(SqlBaseParser.BACKQUOTED_IDENTIFIER, 0)!;
+    public IDENTIFIER(): antlr.TerminalNode | null {
+        return this.getToken(SqlBaseParser.IDENTIFIER, 0);
+    }
+    public nonReserved(): NonReservedContext | null {
+        return this.getRuleContext(0, NonReservedContext);
     }
     public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterBackQuotedIdentifier) {
-             listener.enterBackQuotedIdentifier(this);
+        if(listener.enterUnquotedIdentifier) {
+             listener.enterUnquotedIdentifier(this);
         }
     }
     public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitBackQuotedIdentifier) {
-             listener.exitBackQuotedIdentifier(this);
+        if(listener.exitUnquotedIdentifier) {
+             listener.exitUnquotedIdentifier(this);
         }
     }
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitBackQuotedIdentifier) {
-            return visitor.visitBackQuotedIdentifier(this);
+        if (visitor.visitUnquotedIdentifier) {
+            return visitor.visitUnquotedIdentifier(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -32962,6 +32964,32 @@ export class QuotedIdentifierContext extends IdentifierContext {
         }
     }
 }
+export class BackQuotedIdentifierContext extends IdentifierContext {
+    public constructor(ctx: IdentifierContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public BACKQUOTED_IDENTIFIER(): antlr.TerminalNode {
+        return this.getToken(SqlBaseParser.BACKQUOTED_IDENTIFIER, 0)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterBackQuotedIdentifier) {
+             listener.enterBackQuotedIdentifier(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitBackQuotedIdentifier) {
+             listener.exitBackQuotedIdentifier(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitBackQuotedIdentifier) {
+            return visitor.visitBackQuotedIdentifier(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
 export class DigitIdentifierContext extends IdentifierContext {
     public constructor(ctx: IdentifierContext) {
         super(ctx.parent, ctx.invokingState);
@@ -32983,35 +33011,6 @@ export class DigitIdentifierContext extends IdentifierContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitDigitIdentifier) {
             return visitor.visitDigitIdentifier(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class UnquotedIdentifierContext extends IdentifierContext {
-    public constructor(ctx: IdentifierContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public IDENTIFIER(): antlr.TerminalNode | null {
-        return this.getToken(SqlBaseParser.IDENTIFIER, 0);
-    }
-    public nonReserved(): NonReservedContext | null {
-        return this.getRuleContext(0, NonReservedContext);
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterUnquotedIdentifier) {
-             listener.enterUnquotedIdentifier(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitUnquotedIdentifier) {
-             listener.exitUnquotedIdentifier(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitUnquotedIdentifier) {
-            return visitor.visitUnquotedIdentifier(this);
         } else {
             return visitor.visitChildren(this);
         }
@@ -33130,32 +33129,6 @@ export class AuthorizationUserContext extends antlr.ParserRuleContext {
         super.copyFrom(ctx);
     }
 }
-export class StringUserContext extends AuthorizationUserContext {
-    public constructor(ctx: AuthorizationUserContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public string(): StringContext {
-        return this.getRuleContext(0, StringContext)!;
-    }
-    public override enterRule(listener: SqlBaseListener): void {
-        if(listener.enterStringUser) {
-             listener.enterStringUser(this);
-        }
-    }
-    public override exitRule(listener: SqlBaseListener): void {
-        if(listener.exitStringUser) {
-             listener.exitStringUser(this);
-        }
-    }
-    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
-        if (visitor.visitStringUser) {
-            return visitor.visitStringUser(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
 export class IdentifierUserContext extends AuthorizationUserContext {
     public constructor(ctx: AuthorizationUserContext) {
         super(ctx.parent, ctx.invokingState);
@@ -33177,6 +33150,32 @@ export class IdentifierUserContext extends AuthorizationUserContext {
     public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
         if (visitor.visitIdentifierUser) {
             return visitor.visitIdentifierUser(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class StringUserContext extends AuthorizationUserContext {
+    public constructor(ctx: AuthorizationUserContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public string(): StringContext {
+        return this.getRuleContext(0, StringContext)!;
+    }
+    public override enterRule(listener: SqlBaseListener): void {
+        if(listener.enterStringUser) {
+             listener.enterStringUser(this);
+        }
+    }
+    public override exitRule(listener: SqlBaseListener): void {
+        if(listener.exitStringUser) {
+             listener.exitStringUser(this);
+        }
+    }
+    public override accept<Result>(visitor: SqlBaseVisitor<Result>): Result | null {
+        if (visitor.visitStringUser) {
+            return visitor.visitStringUser(this);
         } else {
             return visitor.visitChildren(this);
         }
