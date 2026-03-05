@@ -45,6 +45,9 @@ WORKDIR /build
 # Copy package files for dependency installation
 COPY package.json package-lock.json .npmrc ./
 
+# Copy ANTLR grammar so the prepare script can generate TypeScript files during npm ci
+COPY src/lib/editor/grammar/ ./src/lib/editor/grammar/
+
 # Install all dependencies (including dev dependencies for build)
 RUN --mount=type=cache,target=/root/.npm npm ci
 
@@ -58,8 +61,9 @@ COPY svelte.config.js tsconfig.json vite.config.ts ./
 # Build the application
 RUN npm run build
 
-# Install only production dependencies
-RUN --mount=type=cache,target=/root/.npm npm ci --omit dev
+# Install only production dependencies; --ignore-scripts skips the prepare script
+# (which would fail because antlr-ng is a devDependency and not available here)
+RUN --mount=type=cache,target=/root/.npm npm ci --omit dev --ignore-scripts
 
 #
 # Production stage - minimal runtime image
