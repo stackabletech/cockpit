@@ -1,6 +1,9 @@
 import { betterAuth } from 'better-auth';
 import { genericOAuth } from 'better-auth/plugins';
 import Database from 'better-sqlite3';
+import { logger } from '$lib/server/logging';
+
+const log = logger.child({ module: 'auth' });
 
 // Use SvelteKit's $env when available, fall back to process.env for the
 // better-auth CLI which imports this file outside of SvelteKit via jiti.
@@ -30,9 +33,9 @@ if (oidcEnabled) {
     const discovery = await res.json();
     oidcEndSessionEndpoint = discovery.end_session_endpoint;
   } catch (err) {
-    console.warn(
-      'Failed to fetch OIDC discovery for end_session_endpoint, logout will be local-only:',
-      err
+    log.warn(
+      { err },
+      'Failed to fetch OIDC discovery for end_session_endpoint, logout will be local-only'
     );
   }
 }
