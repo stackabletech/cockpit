@@ -4558,4 +4558,3 @@ export class SqlBaseListener implements ParseTreeListener {
     enterEveryRule(node: ParserRuleContext): void {}
     exitEveryRule(node: ParserRuleContext): void {}
 }
-

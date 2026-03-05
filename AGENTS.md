@@ -114,7 +114,7 @@ The project uses **pino** for structured JSON logging (server-side only).
 
 The grammar lives at `src/lib/editor/grammar/SqlBase.g4`. The authoritative source is the main Trino repository:
 
-```
+```text
 core/trino-grammar/src/main/antlr4/io/trino/grammar/sql/SqlBase.g4
 ```
 
@@ -132,6 +132,7 @@ npm run generate:antlr
 ```
 
 After regeneration, compare the new token list against `src/lib/editor/tokenMap.ts`. Any token present in `SqlBaseLexer.ts` but missing from `tokenMap.ts` will fall back to `'identifier'` scope (no colour). Add missing tokens with an appropriate scope (`'keyword'`, `'delimiter'`, `'string'`, etc.).
+
 ### Metrics
 
 The app exposes a Prometheus scrape endpoint at `/metrics` via `src/routes/metrics/+server.ts`. HTTP request duration is tracked automatically for all routes in `hooks.server.ts`.

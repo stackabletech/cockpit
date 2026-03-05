@@ -2832,4 +2832,3 @@ export class SqlBaseVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitNonReserved?: (ctx: NonReservedContext) => Result;
 }
-
