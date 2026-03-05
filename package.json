@@ -17,6 +17,7 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "devDependencies": {
+    "@better-auth/cli": "^1.4.19",
     "@eslint/compat": "^2.0.2",
     "@eslint/js": "^9.39.2",
     "@inlang/paraglide-js": "^2.12.0",

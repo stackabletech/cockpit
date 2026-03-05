@@ -166,7 +166,7 @@ echo "Resetting auth database..."
 rm -f "$PROJECT_DIR/.data/auth.db"
 echo "Running database migrations..."
 # shellcheck source=/dev/null
-(cd "$PROJECT_DIR" && set -a && source "$ENV_FILE" && set +a && npx @better-auth/cli@latest migrate --yes)
+(cd "$PROJECT_DIR" && set -a && source "$ENV_FILE" && set +a && npx @better-auth/cli migrate --yes)
 
 # ------------------------------------------------------------------
 # 9. Wait for Trino to be ready

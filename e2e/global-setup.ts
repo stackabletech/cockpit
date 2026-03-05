@@ -22,7 +22,7 @@ export default async function globalSetup() {
   const testEnv = parseEnvFile(path.join(__dirname, '..', '.env.test'));
 
   // Run database migration with all test env vars so the OIDC plugin tables are created
-  execSync('npx @better-auth/cli@latest migrate --yes', {
+  execSync('npx @better-auth/cli migrate --yes', {
     cwd: path.join(__dirname, '..'),
     env: {
       ...process.env,
