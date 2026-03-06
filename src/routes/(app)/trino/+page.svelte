@@ -285,11 +285,7 @@
         </button>
       </div>
       <div class="h-64">
-        <MonacoEditor
-          bind:value={sql}
-          language="sql"
-          onExecute={() => queryFormEl?.requestSubmit()}
-        />
+        <MonacoEditor bind:value={sql} onExecute={() => queryFormEl?.requestSubmit()} />
       </div>
     </div>
   </form>
