@@ -52,11 +52,10 @@ export const actions: Actions = {
     let columns: TrinoColumn[] = [];
     const rows: unknown[][] = [];
     let nextUri: string | undefined = `${connectionUrl}/v1/statement`;
-    let fetchOptions: RequestInit & { impersonateUser?: string } = {
+    let fetchOptions: RequestInit = {
       method: 'POST',
       body: sql.replace(/;\s*$/, '').trim(),
-      headers: { 'Content-Type': 'text/plain' },
-      impersonateUser
+      headers: { 'Content-Type': 'text/plain' }
     };
 
     try {
@@ -70,7 +69,12 @@ export const actions: Actions = {
           );
         }
 
-        const response: TrinoResponse = await trinoFetch(nextUri, auth, fetchOptions);
+        const response: TrinoResponse = await trinoFetch(
+          nextUri,
+          auth,
+          fetchOptions,
+          impersonateUser
+        );
 
         if (response.error) {
           log.info({ err: response.error }, 'query error');
@@ -86,7 +90,7 @@ export const actions: Actions = {
 
         nextUri = response.nextUri;
         // Subsequent requests are GETs to the nextUri
-        fetchOptions = { impersonateUser };
+        fetchOptions = {};
       }
 
       const queryId = crypto.randomUUID();

@@ -47,19 +47,19 @@ export function buildAuthHeaders(auth: AuthConfig): Record<string, string> {
 export async function trinoFetch(
   url: string,
   auth: AuthConfig,
-  options?: RequestInit & { impersonateUser?: string }
+  options?: RequestInit,
+  impersonateUser?: string
 ): Promise<TrinoResponse> {
-  const { impersonateUser, ...fetchOptions } = options ?? {};
   const headers: Record<string, string> = {
     ...buildAuthHeaders(auth),
     'X-Trino-Source': 'stackable-ui',
-    ...((fetchOptions.headers as Record<string, string>) ?? {})
+    ...((options?.headers as Record<string, string>) ?? {})
   };
   if (impersonateUser) {
     headers['X-Trino-User'] = impersonateUser;
   }
   const res = await fetch(url, {
-    ...fetchOptions,
+    ...options,
     headers
   });
 

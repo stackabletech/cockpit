@@ -11,7 +11,13 @@
   const uid = $props.id();
   const PAGE_SIZES = [25, 50, 100];
 
-  function ls(key: string, fallback: string): string {
+  /** Translate known error codes, pass through other messages as-is. */
+  function translateError(errorMessage: string): string {
+    if (errorMessage === 'session_expired') return m.trino_session_expired();
+    return errorMessage;
+  }
+
+  function getStoredValue(key: string, fallback: string): string {
     try {
       return localStorage.getItem(key) ?? fallback;
     } catch {
@@ -66,7 +72,7 @@
         hasMore = msg.hasMore;
         totalRows = msg.totalRows;
       } else {
-        queryError = msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
+        queryError = translateError(msg.message);
       }
     }
   });
@@ -89,7 +95,7 @@
         totalRows = msg.totalRows;
         queryError = null;
       } else {
-        queryError = msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
+        queryError = translateError(msg.message);
         if (msg.message === 'session_expired') queryId = null;
       }
     }
@@ -98,13 +104,14 @@
   let hydrated = $state(false);
 
   onMount(() => {
-    $queryFormData.connectionUrl = ls('trino_url', '');
-    $queryFormData.authType = ls('trino_auth_type', 'none') as 'none' | 'basic';
-    $queryFormData.authUsername = ls('trino_username', '');
-    $queryFormData.authPassword = ls('trino_password', '');
-    $queryFormData.impersonation = ls('trino_impersonation', 'false') === 'true';
-    $queryFormData.sql = ls('trino_sql', 'SELECT 1');
-    $queryFormData.pageSize = parseInt(ls('trino_page_size', '25'), 10) as 25 | 50 | 100;
+    $queryFormData.connectionUrl = getStoredValue('trino_url', '');
+    $queryFormData.authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
+    $queryFormData.authUsername = getStoredValue('trino_username', '');
+    $queryFormData.authPassword = getStoredValue('trino_password', '');
+    $queryFormData.impersonation = getStoredValue('trino_impersonation', 'false') === 'true';
+    $queryFormData.sql = getStoredValue('trino_sql', 'SELECT 1');
+    const storedPageSize = parseInt(getStoredValue('trino_page_size', '25'), 10);
+    $queryFormData.pageSize = PAGE_SIZES.includes(storedPageSize) ? storedPageSize : 25;
     hydrated = true;
   });
 
@@ -112,7 +119,7 @@
 
   const connKey = $derived(() => {
     const { connectionUrl, authType, authUsername, impersonation } = $queryFormData;
-    return `${connectionUrl}\0${authType}\0${authUsername}\0${impersonation}`;
+    return [connectionUrl, authType, authUsername, impersonation].join('|');
   });
 
   // Invalidate results when connection settings change after a query.
