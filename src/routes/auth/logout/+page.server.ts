@@ -1,7 +1,6 @@
 import { redirect } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
 import type { PageServerLoad } from './$types';
-import { auth, oidcEnabled, oidcEndSessionEndpoint } from '$lib/server/auth';
+import { auth, oidcEnabled } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ request, locals, cookies }) => {
   if (locals.session) {
@@ -9,13 +8,8 @@ export const load: PageServerLoad = async ({ request, locals, cookies }) => {
     cookies.delete('better-auth.session_token', { path: '/' });
   }
 
-  // RP-initiated logout: redirect to the IdP so the SSO session is terminated
-  if (oidcEndSessionEndpoint) {
-    const url = new URL(oidcEndSessionEndpoint);
-    url.searchParams.set('post_logout_redirect_uri', `${env.STACKABLE_UI_BASE_URL}/auth/login`);
-    throw redirect(302, url.toString());
-  }
-
-  // When OIDC is disabled there is no login page, redirect to the home page.
+  // Local-only logout: we intentionally do not call the IdP's end_session_endpoint
+  // because RP-initiated logout would terminate the user's entire SSO session,
+  // logging them out of all applications — not just this one.
   throw redirect(302, oidcEnabled ? '/auth/login' : '/');
 };

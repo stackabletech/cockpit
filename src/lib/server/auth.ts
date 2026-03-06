@@ -1,9 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { genericOAuth } from 'better-auth/plugins';
 import Database from 'better-sqlite3';
-import { logger } from '$lib/server/logging';
-
-const log = logger.child({ module: 'auth' });
 
 // Use SvelteKit's $env when available, fall back to process.env for the
 // better-auth CLI which imports this file outside of SvelteKit via jiti.
@@ -22,23 +19,6 @@ export const oidcEnabled = !!(
   env.STACKABLE_UI_OIDC_CLIENT_ID &&
   env.STACKABLE_UI_OIDC_CLIENT_SECRET
 );
-
-// Cache the OIDC discovery metadata (fetched once at startup) so the
-// end_session_endpoint is available for logout without a per-request fetch.
-export let oidcEndSessionEndpoint: string | undefined;
-
-if (oidcEnabled) {
-  try {
-    const res = await fetch(env.STACKABLE_UI_OIDC_DISCOVERY_URL!);
-    const discovery = await res.json();
-    oidcEndSessionEndpoint = discovery.end_session_endpoint;
-  } catch (err) {
-    log.warn(
-      { err },
-      'Failed to fetch OIDC discovery for end_session_endpoint, logout will be local-only'
-    );
-  }
-}
 
 export const auth = betterAuth({
   secret: env.STACKABLE_UI_SESSION_SECRET,
