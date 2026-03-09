@@ -2,10 +2,11 @@
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import { theme } from '$lib/theme.svelte';
+  import { registerTrinoSql, TRINO_SQL_LANGUAGE_ID } from '$lib/editor/trinosql';
 
   let {
     value = $bindable(),
-    language = 'sql',
+    language = TRINO_SQL_LANGUAGE_ID,
     onExecute
   }: {
     value?: string;
@@ -38,6 +39,8 @@
     };
 
     monaco = await monacoImport!;
+
+    registerTrinoSql(monaco);
 
     editor = monaco.editor.create(container, {
       value,

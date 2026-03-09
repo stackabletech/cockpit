@@ -55,6 +55,9 @@ npm run lint             # Linting
 
 # E2E Tests
 npm run test:e2e         # Run all tests
+
+# ANTLR (after updating src/lib/editor/grammar/SqlBase.g4)
+npm run generate:antlr   # Regenerate TypeScript lexer/parser from grammar
 ```
 
 ## E2E Testing

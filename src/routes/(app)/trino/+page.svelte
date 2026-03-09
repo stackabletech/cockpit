@@ -338,7 +338,6 @@
       <div class="h-64">
         <MonacoEditor
           bind:value={$queryFormData.sql}
-          language="sql"
           onExecute={() => queryFormEl?.requestSubmit()}
         />
       </div>
