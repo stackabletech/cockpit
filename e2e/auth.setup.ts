@@ -1,10 +1,8 @@
 import { test as setup, expect } from '@playwright/test';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { waitForHydration } from './helpers.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const authFile = path.join(__dirname, '.auth/user.json');
+const authFile = path.join(import.meta.dirname, '.auth/user.json');
 
 setup('authenticate via mock OIDC', async ({ page }) => {
   // Navigate to the app — auth guard redirects to /auth/login

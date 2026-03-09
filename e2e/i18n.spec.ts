@@ -1,11 +1,9 @@
 import { test, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { waitForHydration } from './helpers';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const authFile = path.join(__dirname, '.auth/user.json');
+const authFile = path.join(import.meta.dirname, '.auth/user.json');
 
 /** Load the saved auth storage state, optionally stripping the locale cookie. */
 function loadAuthState({ withoutLocale = false } = {}) {
