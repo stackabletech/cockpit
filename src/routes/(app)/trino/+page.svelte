@@ -55,7 +55,7 @@
       queryId = null;
       totalRows = null;
       currentPage = 0;
-      queriedConnKey = connKey();
+      queriedConnKey = connKey;
     },
     onUpdated({ form }) {
       if (form.errors.connectionUrl) {
@@ -117,14 +117,14 @@
 
   const running = $derived($querySubmitting || $paginateSubmitting);
 
-  const connKey = $derived(() => {
+  const connKey = $derived.by(() => {
     const { connectionUrl, authType, authUsername, impersonation } = $queryFormData;
     return [connectionUrl, authType, authUsername, impersonation].join('|');
   });
 
   // Invalidate results when connection settings change after a query.
   $effect(() => {
-    const key = connKey();
+    const key = connKey;
     if (queriedConnKey && key !== queriedConnKey) {
       columns = [];
       rows = [];
@@ -153,7 +153,7 @@
     localStorage.setItem('trino_page_size', String(pageSize));
   });
 
-  const connectionSummary = $derived(() => {
+  const connectionSummary = $derived.by(() => {
     const host = $queryFormData.connectionUrl
       ? $queryFormData.connectionUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
       : '—';
@@ -220,7 +220,7 @@
         class="collapse-title text-base-content flex items-center justify-between pr-4 text-sm font-medium"
       >
         <span>{m.trino_connection_label()}</span>
-        <span class="text-base-content/50 font-mono text-xs">{connectionSummary()}</span>
+        <span class="text-base-content/50 font-mono text-xs">{connectionSummary}</span>
       </div>
       <div class="collapse-content flex flex-col gap-4">
         <!-- URL -->
