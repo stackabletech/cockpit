@@ -1,5 +1,5 @@
 import { betterAuth } from 'better-auth';
-import { genericOAuth } from 'better-auth/plugins';
+import { genericOAuth, openAPI } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import Database from 'better-sqlite3';
 import type { RequestEvent } from '@sveltejs/kit';
@@ -38,6 +38,7 @@ export const auth = betterAuth({
   },
   plugins: [
     sveltekitCookies(getRequestEvent),
+    openAPI(),
     ...(oidcEnabled
       ? [
           genericOAuth({
