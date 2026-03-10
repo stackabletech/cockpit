@@ -58,17 +58,52 @@ spec:
               value: {{ .Values.config.nodeEnv | quote }}
             - name: PORT
               value: {{ .Values.service.targetPort | quote }}
-            - name: SESSION_SECRET
+            - name: STACKABLE_UI_SESSION_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ include "stackable-ui.fullname" . }}
                   key: session-secret
+            - name: STACKABLE_UI_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stackable-ui.fullname" . }}
+                  key: oidc-client-secret
+            - name: STACKABLE_UI_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "stackable-ui.fullname" . }}
+                  key: base-url
+            - name: STACKABLE_UI_OIDC_DISCOVERY_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "stackable-ui.fullname" . }}
+                  key: oidc-discovery-url
+            - name: STACKABLE_UI_OIDC_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "stackable-ui.fullname" . }}
+                  key: oidc-client-id
+            - name: STACKABLE_UI_SQLITE_PATH
+              value: {{ .Values.config.databasePath | quote }}
+            {{- if .Values.auth.usernameClaim }}
+            - name: STACKABLE_UI_OIDC_USERNAME_CLAIM
+              value: {{ .Values.auth.usernameClaim | quote }}
+            {{- end }}
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: data
+              mountPath: /data
       volumes:
         - name: tmp
           emptyDir: {}
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ if .Values.persistence.existingClaim }}{{ .Values.persistence.existingClaim }}{{ else }}{{ include "stackable-ui.fullname" . }}-data{{ end }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

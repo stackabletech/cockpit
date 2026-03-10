@@ -38,6 +38,11 @@
   "language_label": "Sprache",
   "language_en": "English",
   "language_de": "Deutsch",
+  "auth_login_title": "Bei Stackable anmelden",
+  "auth_login_subtitle": "Verwenden Sie den SSO-Anbieter Ihrer Organisation, um auf die Plattform zuzugreifen.",
+  "auth_login_button": "Mit SSO anmelden",
+  "auth_login_error": "Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+  "header_sign_out": "Abmelden",
   "trino_run_query": "Abfrage ausführen",
   "trino_results_empty": "Keine Ergebnisse",
   "trino_query_error": "Abfragefehler",
@@ -61,5 +66,7 @@
   "trino_unknown_error": "Unbekannter Fehler",
   "trino_no_sql": "Keine SQL-Abfrage angegeben",
   "trino_invalid_connection": "Die Verbindungskonfiguration ist ungültig oder fehlt. Bitte eine gültige URL und Authentifizierungsmethode angeben.",
-  "trino_query_timeout": "Abfrage nach 30 Sekunden abgebrochen"
+  "trino_query_timeout": "Abfrage nach 30 Sekunden abgebrochen",
+  "trino_impersonation": "Benutzer-Impersonierung",
+  "trino_impersonation_description": "Abfragen als {user} über das Dienstkonto ausführen"
 }

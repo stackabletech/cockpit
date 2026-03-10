@@ -38,6 +38,11 @@
   "language_label": "Language",
   "language_en": "English",
   "language_de": "Deutsch",
+  "auth_login_title": "Sign in to Stackable",
+  "auth_login_subtitle": "Use your organisation's SSO provider to access the platform.",
+  "auth_login_button": "Sign in with SSO",
+  "auth_login_error": "Sign-in failed. Please try again.",
+  "header_sign_out": "Sign out",
   "trino_run_query": "Run query",
   "trino_results_empty": "No results",
   "trino_query_error": "Query error",
@@ -61,5 +66,7 @@
   "trino_unknown_error": "Unknown error",
   "trino_no_sql": "No SQL provided",
   "trino_invalid_connection": "The connection configuration is invalid or missing. Please provide a valid URL and authentication method.",
-  "trino_query_timeout": "Query timed out after 30 seconds"
+  "trino_query_timeout": "Query timed out after 30 seconds",
+  "trino_impersonation": "User impersonation",
+  "trino_impersonation_description": "Run queries as {user} via the service account"
 }

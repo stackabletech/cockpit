@@ -1,0 +1,118 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: trino-static-users
+  namespace: default
+stringData:
+  # Service account used by Stackable UI to connect to Trino.
+  stackable-ui: stackable-ui-dev
+---
+apiVersion: authentication.stackable.tech/v1alpha1
+kind: AuthenticationClass
+metadata:
+  name: trino-static
+spec:
+  provider:
+    static:
+      userCredentialsSecret:
+        name: trino-static-users
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: trino-oidc-client
+  namespace: default
+stringData:
+  clientId: trino
+  clientSecret: trino-oidc-dev
+---
+apiVersion: authentication.stackable.tech/v1alpha1
+kind: AuthenticationClass
+metadata:
+  name: trino-oidc
+spec:
+  provider:
+    oidc:
+      hostname: ${NODE_IP}
+      port: 30080
+      rootPath: /realms/stackable
+      scopes:
+        - openid
+        - profile
+        - email
+      principalClaim: preferred_username
+---
+apiVersion: trino.stackable.tech/v1alpha1
+kind: TrinoCatalog
+metadata:
+  name: tpch
+  namespace: default
+  labels:
+    trino: trino
+spec:
+  connector:
+    tpch: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-access-control
+  namespace: default
+data:
+  rules.json: |
+    {
+      "impersonation": [
+        {
+          "original_user": "stackable-ui",
+          "new_user": ".*",
+          "allow": true
+        }
+      ]
+    }
+---
+apiVersion: trino.stackable.tech/v1alpha1
+kind: TrinoCluster
+metadata:
+  name: trino
+  namespace: default
+spec:
+  image:
+    productVersion: '477'
+  clusterConfig:
+    catalogLabelSelector:
+      matchLabels:
+        trino: trino
+    authentication:
+      - authenticationClass: trino-static
+      - authenticationClass: trino-oidc
+        oidc:
+          clientCredentialsSecret: trino-oidc-client
+    tls:
+      serverSecretClass: tls
+  coordinators:
+    roleConfig:
+      listenerClass: external-unstable
+    configOverrides:
+      access-control.properties:
+        access-control.name: file
+        security.config-file: /stackable/access-control/rules.json
+    podOverrides:
+      spec:
+        volumes:
+          - name: access-control
+            configMap:
+              name: trino-access-control
+        containers:
+          - name: trino
+            volumeMounts:
+              - name: access-control
+                mountPath: /stackable/access-control
+                readOnly: true
+    roleGroups:
+      default:
+        replicas: 1
+  workers:
+    roleGroups:
+      default:
+        replicas: 1

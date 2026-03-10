@@ -195,6 +195,14 @@ nvm install   # installs the version from .node-version
 nvm use       # activates it in the current shell
 ```
 
+### Local Setup
+
+For a pre-configured local dev environment using OIDC, deploy & configure Keycloak and Trino on a kind cluster:
+
+```bash
+./dev/setup.sh           # Creates and configures Keycloak. Deploys Trino with OIDC authentication. Runs auth database migration. Writes to .env.development which is used by dev server.
+```
+
 ### Development
 
 ```bash

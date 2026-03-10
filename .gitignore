@@ -17,6 +17,8 @@ Thumbs.db
 
 # Env
 .env
+.env.development
+.env.development.bak
 !.env.example
 !.env.test
 
@@ -33,6 +35,9 @@ dist/
 
 # Playwright
 e2e/test-results
+e2e/.auth
 # Paraglide
 src/lib/paraglide
 project.inlang/cache/
+.data/*
+!.data/.gitkeep

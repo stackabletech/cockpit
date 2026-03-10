@@ -2,13 +2,14 @@
   import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
 
-  let dark = $state(
-    browser
-      ? localStorage.getItem('theme') === 'dark' ||
-          (!localStorage.getItem('theme') &&
-            window.matchMedia('(prefers-color-scheme: dark)').matches)
-      : false
-  );
+  function prefersDark(): boolean {
+    if (!browser) return false;
+    const stored = localStorage.getItem('theme');
+    if (stored) return stored === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  let dark = $state(prefersDark());
 
   $effect(() => {
     if (!browser) return;

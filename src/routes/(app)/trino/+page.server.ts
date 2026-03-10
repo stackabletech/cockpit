@@ -9,7 +9,8 @@ import {
   POLL_TIMEOUT_MS,
   MAX_CACHED_ROWS,
   type AuthConfig,
-  type TrinoColumn
+  type TrinoColumn,
+  type TrinoResponse
 } from '$lib/server/trino.js';
 import { QuerySchema, PaginateSchema, type FormMessage } from './schemas.js';
 import type { Actions, PageServerLoad } from './$types';
@@ -33,11 +34,14 @@ export const actions: Actions = {
       return fail(400, { form });
     }
 
-    const { sql, pageSize, connectionUrl, authType, authUsername, authPassword } = form.data;
+    const { sql, pageSize, connectionUrl, authType, authUsername, authPassword, impersonation } =
+      form.data;
     const auth: AuthConfig =
       authType === 'basic'
         ? { type: 'basic', username: authUsername, password: authPassword }
         : { type: 'none' };
+    const impersonateUser =
+      impersonation && locals.user?.username ? locals.user.username : undefined;
 
     evictStale();
 
@@ -46,28 +50,16 @@ export const actions: Actions = {
 
     const deadline = queryStart + POLL_TIMEOUT_MS;
     let columns: TrinoColumn[] = [];
-    let rows: unknown[][] = [];
+    const rows: unknown[][] = [];
+    let nextUri: string | undefined = `${connectionUrl}/v1/statement`;
+    let fetchOptions: RequestInit = {
+      method: 'POST',
+      body: sql.replace(/;\s*$/, '').trim(),
+      headers: { 'Content-Type': 'text/plain' }
+    };
 
     try {
-      let response = await trinoFetch(`${connectionUrl}/v1/statement`, auth, {
-        method: 'POST',
-        body: sql.replace(/;\s*$/, '').trim(),
-        headers: { 'Content-Type': 'text/plain' }
-      });
-
-      if (response.error) {
-        log.info({ err: response.error }, 'query error');
-        return message(
-          form,
-          { type: 'error', message: response.error.message } satisfies FormMessage,
-          { status: 400 }
-        );
-      }
-
-      if (response.columns) columns = response.columns;
-      if (response.data) rows = rows.concat(response.data);
-
-      while (response.nextUri && rows.length < MAX_CACHED_ROWS) {
+      while (nextUri && rows.length < MAX_CACHED_ROWS) {
         if (Date.now() > deadline) {
           log.info({ trino_url: connectionUrl, timeout_ms: POLL_TIMEOUT_MS }, 'query timed out');
           return message(
@@ -77,7 +69,12 @@ export const actions: Actions = {
           );
         }
 
-        response = await trinoFetch(response.nextUri, auth);
+        const response: TrinoResponse = await trinoFetch(
+          nextUri,
+          auth,
+          fetchOptions,
+          impersonateUser
+        );
 
         if (response.error) {
           log.info({ err: response.error }, 'query error');
@@ -89,7 +86,11 @@ export const actions: Actions = {
         }
 
         if (response.columns && columns.length === 0) columns = response.columns;
-        if (response.data) rows = rows.concat(response.data);
+        if (response.data) rows.push(...response.data);
+
+        nextUri = response.nextUri;
+        // Subsequent requests are GETs to the nextUri
+        fetchOptions = {};
       }
 
       const queryId = crypto.randomUUID();

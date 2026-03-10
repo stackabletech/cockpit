@@ -114,7 +114,6 @@ test.describe('Trino query editor', () => {
     try {
       await page.goto('/trino');
       await waitForHydration(page);
-      await page.locator('.monaco-editor').click();
       await page.keyboard.press('Control+Enter');
 
       await expect.poll(() => called).toBe(true);
@@ -206,6 +205,14 @@ test.describe('Trino query editor', () => {
     const urlInput = page.getByRole('textbox', { name: 'URL' });
     await expect(urlInput).toBeVisible();
     await expect(urlInput).toHaveValue('http://trino.example.com:8080');
+  });
+
+  test('impersonation toggle is visible in connection config', async ({ page }) => {
+    await page.goto('/trino');
+    await waitForHydration(page);
+    await page.getByRole('checkbox', { name: 'Connection' }).check({ force: true });
+
+    await expect(page.getByLabel('User impersonation')).toBeVisible();
   });
 
   test('switching to basic auth reveals credential fields', async ({ page }) => {

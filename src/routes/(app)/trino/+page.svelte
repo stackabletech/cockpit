@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import { superForm } from 'sveltekit-superforms';
@@ -6,27 +7,23 @@
   import type { FormMessage } from './schemas.js';
 
   let { data }: { data: PageData } = $props();
-  const queryFormData = $derived(data.queryForm);
-  const paginateFormData_ = $derived(data.paginateForm);
 
   const uid = $props.id();
   const PAGE_SIZES = [25, 50, 100];
 
-  function ls(key: string, fallback: string): string {
+  /** Translate known error codes, pass through other messages as-is. */
+  function translateError(errorMessage: string): string {
+    if (errorMessage === 'session_expired') return m.trino_session_expired();
+    return errorMessage;
+  }
+
+  function getStoredValue(key: string, fallback: string): string {
     try {
       return localStorage.getItem(key) ?? fallback;
     } catch {
       return fallback;
     }
   }
-
-  // Connection config and SQL — local state persisted to localStorage.
-  let connectionUrl = $state(ls('trino_url', ''));
-  let authType = $state<'none' | 'basic'>(ls('trino_auth_type', 'none') as 'none' | 'basic');
-  let authUsername = $state(ls('trino_username', ''));
-  let authPassword = $state(ls('trino_password', ''));
-  let sql = $state(ls('trino_sql', 'SELECT 1'));
-  let pageSize = $state<25 | 50 | 100>(25);
 
   // Query result state — updated from form messages.
   let columns = $state<{ name: string; type: string }[]>([]);
@@ -38,12 +35,19 @@
   let totalRows = $state<number | null>(null);
   let connectionOpen = $state(false);
 
-  // Query form — submits connection config + SQL as hidden inputs (FormData).
+  // Connection fingerprint used when the last query ran — null until first query.
+  let queriedConnKey = $state<string | null>(null);
+
+  // Query form
   const {
+    form: queryFormData,
     enhance: queryEnhance,
     submitting: querySubmitting,
     errors: queryErrors
-  } = superForm(queryFormData, {
+  } = superForm(data.queryForm, {
+    dataType: 'json',
+    invalidateAll: false,
+    resetForm: false,
     onSubmit() {
       queryError = null;
       columns = [];
@@ -51,10 +55,9 @@
       queryId = null;
       totalRows = null;
       currentPage = 0;
-      connectionOpen = false;
+      queriedConnKey = connKey;
     },
     onUpdated({ form }) {
-      // Validation errors for connection fields — open the section so the user can see them.
       if (form.errors.connectionUrl) {
         connectionOpen = true;
         queryError = m.trino_connection_error();
@@ -69,18 +72,19 @@
         hasMore = msg.hasMore;
         totalRows = msg.totalRows;
       } else {
-        queryError = msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
+        queryError = translateError(msg.message);
       }
     }
   });
 
-  // Paginate form — submits as JSON so store values are used directly.
+  // Paginate form
   const {
     form: paginateFormData,
     enhance: paginateEnhance,
     submitting: paginateSubmitting
-  } = superForm(paginateFormData_, {
+  } = superForm(data.paginateForm, {
     dataType: 'json',
+    invalidateAll: false,
     onUpdated({ form }) {
       const msg = form.message as FormMessage | undefined;
       if (!msg) return;
@@ -91,45 +95,89 @@
         totalRows = msg.totalRows;
         queryError = null;
       } else {
-        queryError = msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
+        queryError = translateError(msg.message);
         if (msg.message === 'session_expired') queryId = null;
       }
     }
   });
 
+  let hydrated = $state(false);
+
+  onMount(() => {
+    $queryFormData.connectionUrl = getStoredValue('trino_url', '');
+    $queryFormData.authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
+    $queryFormData.authUsername = getStoredValue('trino_username', '');
+    $queryFormData.authPassword = getStoredValue('trino_password', '');
+    $queryFormData.impersonation = getStoredValue('trino_impersonation', 'false') === 'true';
+    $queryFormData.sql = getStoredValue('trino_sql', 'SELECT 1');
+    const storedPageSize = parseInt(getStoredValue('trino_page_size', '25'), 10);
+    $queryFormData.pageSize = PAGE_SIZES.includes(storedPageSize) ? storedPageSize : 25;
+    hydrated = true;
+  });
+
   const running = $derived($querySubmitting || $paginateSubmitting);
 
-  // Persist connection config; invalidate queryId on change.
+  const connKey = $derived.by(() => {
+    const { connectionUrl, authType, authUsername, impersonation } = $queryFormData;
+    return [connectionUrl, authType, authUsername, impersonation].join('|');
+  });
+
+  // Invalidate results when connection settings change after a query.
   $effect(() => {
+    const key = connKey;
+    if (queriedConnKey && key !== queriedConnKey) {
+      columns = [];
+      rows = [];
+      queryError = null;
+      queryId = null;
+      totalRows = null;
+      currentPage = 0;
+      hasMore = false;
+      queriedConnKey = null;
+    }
+  });
+
+  // Persist connection config & SQL.
+  $effect(() => {
+    const { connectionUrl, authType, authUsername, authPassword, impersonation, sql, pageSize } =
+      $queryFormData;
+
+    if (!hydrated) return;
+
     localStorage.setItem('trino_url', connectionUrl);
     localStorage.setItem('trino_auth_type', authType);
     localStorage.setItem('trino_username', authUsername);
     localStorage.setItem('trino_password', authPassword);
-    queryId = null;
-  });
-
-  // Persist SQL.
-  $effect(() => {
+    localStorage.setItem('trino_impersonation', String(impersonation));
     localStorage.setItem('trino_sql', sql);
+    localStorage.setItem('trino_page_size', String(pageSize));
   });
 
   const connectionSummary = $derived.by(() => {
-    const host = connectionUrl ? connectionUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : '—';
-    const auth = authType === 'basic' ? m.trino_auth_basic() : m.trino_auth_none();
+    const host = $queryFormData.connectionUrl
+      ? $queryFormData.connectionUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
+      : '—';
+    const auth = $queryFormData.authType === 'basic' ? m.trino_auth_basic() : m.trino_auth_none();
     return `${host} · ${auth}`;
   });
 
-  const rowStart = $derived(currentPage * pageSize + 1);
-  const rowEnd = $derived(currentPage * pageSize + rows.length);
+  const rowStart = $derived(currentPage * $queryFormData.pageSize + 1);
+  const rowEnd = $derived(currentPage * $queryFormData.pageSize + rows.length);
 
   let queryFormEl = $state<HTMLFormElement | undefined>(undefined);
   let paginateFormEl = $state<HTMLFormElement | undefined>(undefined);
+
+  function handleKeydown(event: KeyboardEvent) {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      queryFormEl?.requestSubmit();
+    }
+  }
 
   function goToPrevPage() {
     const prevPage = currentPage - 1;
     $paginateFormData.queryId = queryId!;
     $paginateFormData.page = prevPage;
-    $paginateFormData.pageSize = pageSize;
+    $paginateFormData.pageSize = $queryFormData.pageSize;
     currentPage = prevPage;
     paginateFormEl?.requestSubmit();
   }
@@ -138,34 +186,28 @@
     const nextPage = currentPage + 1;
     $paginateFormData.queryId = queryId!;
     $paginateFormData.page = nextPage;
-    $paginateFormData.pageSize = pageSize;
+    $paginateFormData.pageSize = $queryFormData.pageSize;
     currentPage = nextPage;
     paginateFormEl?.requestSubmit();
   }
 
   function handlePageSizeChange(event: Event) {
-    pageSize = parseInt((event.target as HTMLSelectElement).value, 10) as 25 | 50 | 100;
+    const size = parseInt((event.target as HTMLSelectElement).value, 10) as 25 | 50 | 100;
+    $queryFormData.pageSize = size;
     if (queryId) {
       $paginateFormData.queryId = queryId;
       $paginateFormData.page = 0;
-      $paginateFormData.pageSize = pageSize;
+      $paginateFormData.pageSize = size;
       currentPage = 0;
       paginateFormEl?.requestSubmit();
     }
   }
 </script>
 
-<div class="flex h-full flex-col gap-4">
-  <!-- Query form: wraps connection config + editor -->
-  <form method="POST" action="?/query" use:queryEnhance bind:this={queryFormEl}>
-    <!-- Hidden inputs carry localStorage state to the server action -->
-    <input type="hidden" name="sql" value={sql} />
-    <input type="hidden" name="pageSize" value={pageSize} />
-    <input type="hidden" name="connectionUrl" value={connectionUrl} />
-    <input type="hidden" name="authType" value={authType} />
-    <input type="hidden" name="authUsername" value={authUsername} />
-    <input type="hidden" name="authPassword" value={authPassword} />
+<svelte:window onkeydown={handleKeydown} />
 
+<div class="flex h-full flex-col gap-4">
+  <form method="POST" action="?/query" use:queryEnhance bind:this={queryFormEl}>
     <!-- Connection config section -->
     <div class="bg-base-100 border-base-300 collapse rounded-xl border">
       <input
@@ -192,10 +234,7 @@
             class="input input-sm w-full font-mono"
             class:input-error={$queryErrors.connectionUrl}
             placeholder={m.trino_connection_url_placeholder()}
-            bind:value={connectionUrl}
-            onkeydown={(e) => {
-              if (e.key === 'Enter') e.preventDefault();
-            }}
+            bind:value={$queryFormData.connectionUrl}
           />
           {#if $queryErrors.connectionUrl}
             <p class="text-error text-xs">{$queryErrors.connectionUrl?.join(' ')}</p>
@@ -213,7 +252,7 @@
               name="{uid}-auth"
               aria-label={m.trino_auth_none()}
               value="none"
-              bind:group={authType}
+              bind:group={$queryFormData.authType}
             />
             <input
               id="{uid}-auth-basic"
@@ -222,13 +261,13 @@
               name="{uid}-auth"
               aria-label={m.trino_auth_basic()}
               value="basic"
-              bind:group={authType}
+              bind:group={$queryFormData.authType}
             />
           </div>
         </div>
 
         <!-- Basic auth credentials -->
-        {#if authType === 'basic'}
+        {#if $queryFormData.authType === 'basic'}
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div class="flex flex-col gap-1">
               <label for="{uid}-auth-username" class="label text-sm">
@@ -239,10 +278,7 @@
                 type="text"
                 class="input input-sm font-mono"
                 autocomplete="username"
-                bind:value={authUsername}
-                onkeydown={(e) => {
-                  if (e.key === 'Enter') e.preventDefault();
-                }}
+                bind:value={$queryFormData.authUsername}
               />
             </div>
             <div class="flex flex-col gap-1">
@@ -254,12 +290,27 @@
                 type="password"
                 class="input input-sm font-mono"
                 autocomplete="current-password"
-                bind:value={authPassword}
-                onkeydown={(e) => {
-                  if (e.key === 'Enter') e.preventDefault();
-                }}
+                bind:value={$queryFormData.authPassword}
               />
             </div>
+          </div>
+        {/if}
+
+        <!-- User impersonation -->
+        {#if data.user?.username}
+          <div class="flex items-center gap-3">
+            <input
+              id="{uid}-impersonation"
+              type="checkbox"
+              class="toggle toggle-sm"
+              bind:checked={$queryFormData.impersonation}
+            />
+            <label for="{uid}-impersonation" class="flex flex-col">
+              <span class="text-sm">{m.trino_impersonation()}</span>
+              <span class="text-base-content/50 text-xs">
+                {m.trino_impersonation_description({ user: data.user.username })}
+              </span>
+            </label>
           </div>
         {/if}
       </div>
@@ -285,12 +336,15 @@
         </button>
       </div>
       <div class="h-64">
-        <MonacoEditor bind:value={sql} onExecute={() => queryFormEl?.requestSubmit()} />
+        <MonacoEditor
+          bind:value={$queryFormData.sql}
+          onExecute={() => queryFormEl?.requestSubmit()}
+        />
       </div>
     </div>
   </form>
 
-  <!-- Hidden paginate form — buttons in the results section submit this via requestSubmit(). -->
+  <!-- Hidden paginate form -->
   <form
     method="POST"
     action="?/paginate"
@@ -392,7 +446,7 @@
           <select
             id="{uid}-page-size"
             class="select select-sm"
-            value={pageSize}
+            value={$queryFormData.pageSize}
             onchange={handlePageSizeChange}
             disabled={running}
           >
