@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { waitForHydration } from './helpers';
+import { waitForHydration, saveTrinoConnection, waitForQueryComplete } from './helpers';
 
 const COLUMNS = [
   { name: 'id', type: 'integer' },
@@ -79,7 +79,9 @@ test.describe('Trino query editor', () => {
     try {
       await page.goto('/trino');
       await waitForHydration(page);
+      await saveTrinoConnection(page);
       await page.getByRole('button', { name: 'Run query' }).click();
+      await waitForQueryComplete(page);
 
       const table = page.getByRole('table', { name: 'Query results' });
       await expect(table).toBeVisible();
@@ -94,9 +96,7 @@ test.describe('Trino query editor', () => {
   });
 
   test('Ctrl+Enter triggers query execution', async ({ page }) => {
-    let called = false;
     const { url, stop } = await startMockTrinoServer((_req, res) => {
-      called = true;
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({
@@ -114,10 +114,10 @@ test.describe('Trino query editor', () => {
     try {
       await page.goto('/trino');
       await waitForHydration(page);
-      await page.locator('.monaco-editor').click();
+      await saveTrinoConnection(page);
       await page.keyboard.press('Control+Enter');
+      await waitForQueryComplete(page);
 
-      await expect.poll(() => called).toBe(true);
       await expect(page.getByRole('table', { name: 'Query results' })).toBeVisible();
     } finally {
       await stop();
@@ -142,7 +142,9 @@ test.describe('Trino query editor', () => {
     try {
       await page.goto('/trino');
       await waitForHydration(page);
+      await saveTrinoConnection(page);
       await page.getByRole('button', { name: 'Run query' }).click();
+      await waitForQueryComplete(page);
 
       // Monaco also renders role="alert" nodes for its own accessibility — filter by content.
       const alert = page.getByRole('alert').filter({ hasText: 'Query error' });
@@ -175,7 +177,9 @@ test.describe('Trino query editor', () => {
     try {
       await page.goto('/trino');
       await waitForHydration(page);
+      await saveTrinoConnection(page);
       await page.getByRole('button', { name: 'Run query' }).click();
+      await waitForQueryComplete(page);
 
       await expect(page.getByText('Rows 1–25 of 30')).toBeVisible();
 
@@ -206,6 +210,14 @@ test.describe('Trino query editor', () => {
     const urlInput = page.getByRole('textbox', { name: 'URL' });
     await expect(urlInput).toBeVisible();
     await expect(urlInput).toHaveValue('http://trino.example.com:8080');
+  });
+
+  test('impersonation toggle is visible in connection config', async ({ page }) => {
+    await page.goto('/trino');
+    await waitForHydration(page);
+    await page.getByRole('checkbox', { name: 'Connection' }).check({ force: true });
+
+    await expect(page.getByLabel('User impersonation')).toBeVisible();
   });
 
   test('switching to basic auth reveals credential fields', async ({ page }) => {
@@ -244,7 +256,9 @@ test.describe('Trino query editor', () => {
     try {
       await page.goto('/trino');
       await waitForHydration(page);
+      await saveTrinoConnection(page);
       await page.getByRole('button', { name: 'Run query' }).click();
+      await waitForQueryComplete(page);
 
       const table = page.getByRole('table');
       await expect(table).toBeVisible();

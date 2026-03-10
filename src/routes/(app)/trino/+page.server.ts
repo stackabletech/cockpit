@@ -21,13 +21,15 @@ export const actions: Actions = {
       return fail(400, { form });
     }
 
-    const { connectionUrl, authType, authUsername, authPassword } = form.data;
+    const { connectionUrl, authType, authUsername, authPassword, impersonation } = form.data;
     const auth: AuthConfig =
       authType === 'basic'
         ? { type: 'basic', username: authUsername, password: authPassword }
         : { type: 'none' };
+    const impersonateUser =
+      impersonation && locals.user?.username ? locals.user.username : undefined;
 
-    setConnection({ connectionUrl, auth });
+    setConnection({ connectionUrl, auth, impersonateUser });
 
     log.info({ trino_url: connectionUrl }, 'connection saved');
 

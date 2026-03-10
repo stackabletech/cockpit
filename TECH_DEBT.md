@@ -46,6 +46,14 @@ Trino error messages and Node.js exception messages are returned to the browser 
 
 ---
 
+### SQLite session store prevents horizontal scaling
+
+**File:** `src/lib/server/auth.ts`, `deploy/helm/stackable-ui/values.yaml`
+
+better-auth uses SQLite (via better-sqlite3) for session and user storage. SQLite only supports a single writer, so the deployment is limited to `replicaCount: 1`. A single pod failure means complete downtime with no failover. The long-term fix is to switch to PostgreSQL or a stateless session store (JWT/Redis) to allow horizontal scaling.
+
+---
+
 ## API & Validation
 
 ### API route request body not validated with Zod
@@ -69,6 +77,14 @@ The client accumulates all result rows in memory up to `MAX_CLIENT_ROWS` (10,000
 **File:** `src/routes/(app)/trino/+page.svelte`
 
 After saving a new connection, the previous query results remain visible until a new query is run. Consider calling `queryRunner.reset()` when the connection changes.
+
+---
+
+### No validation that the connection target is a Trino instance
+
+**File:** `src/routes/(app)/trino/+page.server.ts`
+
+The query action sends whatever SQL the user provides to the configured connection URL without first verifying that the endpoint is actually a Trino instance. A user could point the URL at any HTTP server, and the app would blindly POST to it. We should validate new connections (e.g. by calling Trino's `/v1/info` endpoint) and reject URLs that do not respond as a Trino server.
 
 ---
 

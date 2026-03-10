@@ -58,8 +58,13 @@ COPY project.inlang/ ./project.inlang/
 COPY messages/ ./messages/
 COPY svelte.config.js tsconfig.json vite.config.ts ./
 
-# Build the application
-RUN npm run build
+# Build the application. The dummy env vars let better-auth initialise during
+# SSR prerender; they are scoped to this single RUN and discarded with the
+# builder stage.
+RUN mkdir -p .data && \
+    STACKABLE_UI_SESSION_SECRET="build-time-placeholder" \
+    STACKABLE_UI_BASE_URL="http://localhost:3000" \
+    npm run build
 
 # Install only production dependencies; --ignore-scripts skips the prepare script
 # (which would fail because antlr-ng is a devDependency and not available here)

@@ -38,6 +38,11 @@
   "language_label": "Language",
   "language_en": "English",
   "language_de": "Deutsch",
+  "auth_login_title": "Sign in to Stackable",
+  "auth_login_subtitle": "Use your organisation's SSO provider to access the platform.",
+  "auth_login_button": "Sign in with SSO",
+  "auth_login_error": "Sign-in failed. Please try again.",
+  "header_sign_out": "Sign out",
   "trino_run_query": "Run query",
   "trino_results_empty": "No results",
   "trino_query_error": "Query error",
@@ -72,5 +77,7 @@
   "trino_state_failed": "Failed",
   "trino_state_cancelled": "Cancelled",
   "trino_progress_info": "{rows} rows | {elapsed}s",
-  "trino_row_limit_reached": "Row limit of {limit} reached — query cancelled."
+  "trino_row_limit_reached": "Row limit of {limit} reached — query cancelled.",
+  "trino_impersonation": "User impersonation",
+  "trino_impersonation_description": "Run queries as {user} via the service account"
 }

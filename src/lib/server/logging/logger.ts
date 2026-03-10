@@ -1,13 +1,18 @@
 import pino from 'pino';
-import { dev } from '$app/environment';
-import { env } from '$env/dynamic/private';
 import { redactionPaths, redactionCensor } from './redaction.js';
 import type { LoggingConfig } from './types.js';
 
+// Use process.env directly instead of SvelteKit's $app/environment and
+// $env/dynamic/private so the logger can be imported from any Node.js context
+// (e.g. the better-auth CLI which loads auth.ts outside of SvelteKit via jiti).
+// This is safe because the file lives under $lib/server/ which SvelteKit
+// already prevents from being imported client-side.
+const dev = process.env.NODE_ENV !== 'production';
+
 function resolveConfig(): LoggingConfig {
-  const level = env.LOG_LEVEL ?? (dev ? 'trace' : 'info');
-  const pretty = env.LOG_PRETTY === undefined ? dev : env.LOG_PRETTY === 'true';
-  const jsonLogFile = env.LOG_JSON_FILE || undefined;
+  const level = process.env.LOG_LEVEL ?? (dev ? 'trace' : 'info');
+  const pretty = process.env.LOG_PRETTY === undefined ? dev : process.env.LOG_PRETTY === 'true';
+  const jsonLogFile = process.env.LOG_JSON_FILE || undefined;
   return { level, pretty, jsonLogFile };
 }
 

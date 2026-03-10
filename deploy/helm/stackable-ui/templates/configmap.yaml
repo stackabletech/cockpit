@@ -4,4 +4,7 @@ metadata:
   name: {{ include "stackable-ui.fullname" . }}
   labels:
     {{- include "stackable-ui.labels" . | nindent 4 }}
-data: {}
+data:
+  oidc-discovery-url: {{ .Values.auth.discoveryUrl | quote }}
+  oidc-client-id: {{ .Values.auth.clientId | quote }}
+  base-url: {{ .Values.auth.baseUrl | quote }}

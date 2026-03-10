@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import { superForm } from 'sveltekit-superforms';
@@ -11,7 +12,7 @@
   const uid = $props.id();
   const PAGE_SIZES = [25, 50, 100] as const;
 
-  function ls(key: string, fallback: string): string {
+  function getStoredValue(key: string, fallback: string): string {
     try {
       return localStorage.getItem(key) ?? fallback;
     } catch {
@@ -20,14 +21,30 @@
   }
 
   // Connection config — local state persisted to localStorage.
-  let connectionUrl = $state(ls('trino_url', ''));
-  let authType = $state<'none' | 'basic'>(ls('trino_auth_type', 'none') as 'none' | 'basic');
-  let authUsername = $state(ls('trino_username', ''));
-  let authPassword = $state(ls('trino_password', ''));
-  let sql = $state(ls('trino_sql', 'SELECT 1'));
+  let connectionUrl = $state('');
+  let authType = $state<'none' | 'basic'>('none');
+  let authUsername = $state('');
+  let authPassword = $state('');
+  let impersonation = $state(false);
+  let sql = $state('SELECT 1');
   let pageSize = $state<25 | 50 | 100>(25);
   let connectionOpen = $state(false);
   let currentPage = $state(0);
+  let hydrated = $state(false);
+
+  onMount(() => {
+    connectionUrl = getStoredValue('trino_url', '');
+    authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
+    authUsername = getStoredValue('trino_username', '');
+    authPassword = getStoredValue('trino_password', '');
+    impersonation = getStoredValue('trino_impersonation', 'false') === 'true';
+    sql = getStoredValue('trino_sql', 'SELECT 1');
+    const storedPageSize = parseInt(getStoredValue('trino_page_size', '25'), 10);
+    pageSize = PAGE_SIZES.includes(storedPageSize as 25 | 50 | 100)
+      ? (storedPageSize as 25 | 50 | 100)
+      : 25;
+    hydrated = true;
+  });
 
   // Connection form (SuperForms).
   const {
@@ -56,15 +73,19 @@
 
   // Persist connection config to localStorage.
   $effect(() => {
+    if (!hydrated) return;
     localStorage.setItem('trino_url', connectionUrl);
     localStorage.setItem('trino_auth_type', authType);
     localStorage.setItem('trino_username', authUsername);
     localStorage.setItem('trino_password', authPassword);
+    localStorage.setItem('trino_impersonation', String(impersonation));
   });
 
   // Persist SQL.
   $effect(() => {
+    if (!hydrated) return;
     localStorage.setItem('trino_sql', sql);
+    localStorage.setItem('trino_page_size', String(pageSize));
   });
 
   // Reset pagination when rows change.
@@ -143,6 +164,12 @@
     queryRunner.execute(sql);
   }
 
+  function handleKeydown(event: KeyboardEvent) {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      handleExecute();
+    }
+  }
+
   function goToPrevPage() {
     currentPage = Math.max(0, currentPage - 1);
   }
@@ -157,6 +184,8 @@
   }
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
+
 <div class="flex h-full flex-col gap-4">
   <!-- Connection config form -->
   <form method="POST" action="?/save" use:connectionEnhance>
@@ -164,6 +193,7 @@
     <input type="hidden" name="authType" value={authType} />
     <input type="hidden" name="authUsername" value={authUsername} />
     <input type="hidden" name="authPassword" value={authPassword} />
+    <input type="hidden" name="impersonation" value={String(impersonation)} />
 
     <div class="bg-base-100 border-base-300 collapse rounded-xl border">
       <input
@@ -191,9 +221,6 @@
             class:input-error={$connectionErrors.connectionUrl}
             placeholder={m.trino_connection_url_placeholder()}
             bind:value={connectionUrl}
-            onkeydown={(e) => {
-              if (e.key === 'Enter') e.preventDefault();
-            }}
           />
           {#if $connectionErrors.connectionUrl}
             <p class="text-error text-xs">{$connectionErrors.connectionUrl}</p>
@@ -238,9 +265,6 @@
                 class="input input-sm font-mono"
                 autocomplete="username"
                 bind:value={authUsername}
-                onkeydown={(e) => {
-                  if (e.key === 'Enter') e.preventDefault();
-                }}
               />
             </div>
             <div class="flex flex-col gap-1">
@@ -253,11 +277,26 @@
                 class="input input-sm font-mono"
                 autocomplete="current-password"
                 bind:value={authPassword}
-                onkeydown={(e) => {
-                  if (e.key === 'Enter') e.preventDefault();
-                }}
               />
             </div>
+          </div>
+        {/if}
+
+        <!-- User impersonation -->
+        {#if data.user?.username}
+          <div class="flex items-center gap-3">
+            <input
+              id="{uid}-impersonation"
+              type="checkbox"
+              class="toggle toggle-sm"
+              bind:checked={impersonation}
+            />
+            <label for="{uid}-impersonation" class="flex flex-col">
+              <span class="text-sm">{m.trino_impersonation()}</span>
+              <span class="text-base-content/50 text-xs">
+                {m.trino_impersonation_description({ user: data.user.username })}
+              </span>
+            </label>
           </div>
         {/if}
 
@@ -319,7 +358,11 @@
 
   <!-- Status display -->
   {#if queryRunner.state !== 'IDLE'}
-    <div class="flex flex-wrap items-center gap-3 px-1" aria-live="polite">
+    <div
+      class="flex flex-wrap items-center gap-3 px-1"
+      aria-live="polite"
+      data-query-state={queryRunner.state}
+    >
       {#if stateLabel}
         <span class="badge {stateBadgeClass}">{stateLabel}</span>
       {/if}

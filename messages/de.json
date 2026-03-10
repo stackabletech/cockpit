@@ -38,6 +38,11 @@
   "language_label": "Sprache",
   "language_en": "English",
   "language_de": "Deutsch",
+  "auth_login_title": "Bei Stackable anmelden",
+  "auth_login_subtitle": "Verwenden Sie den SSO-Anbieter Ihrer Organisation, um auf die Plattform zuzugreifen.",
+  "auth_login_button": "Mit SSO anmelden",
+  "auth_login_error": "Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+  "header_sign_out": "Abmelden",
   "trino_run_query": "Abfrage ausführen",
   "trino_results_empty": "Keine Ergebnisse",
   "trino_query_error": "Abfragefehler",
@@ -72,5 +77,7 @@
   "trino_state_failed": "Fehlgeschlagen",
   "trino_state_cancelled": "Abgebrochen",
   "trino_progress_info": "{rows} Zeilen | {elapsed} s",
-  "trino_row_limit_reached": "Zeilenlimit von {limit} erreicht — Abfrage abgebrochen."
+  "trino_row_limit_reached": "Zeilenlimit von {limit} erreicht — Abfrage abgebrochen.",
+  "trino_impersonation": "Benutzer-Impersonierung",
+  "trino_impersonation_description": "Abfragen als {user} über das Dienstkonto ausführen"
 }

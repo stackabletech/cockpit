@@ -110,7 +110,10 @@ async function execute(sql: string) {
 
     if (!submitRes.ok || submitData.error) {
       state = 'FAILED';
-      error = typeof submitData.error === 'string' ? submitData.error : 'Failed to submit query';
+      error =
+        typeof submitData.error === 'string'
+          ? submitData.error
+          : (submitData.error?.message ?? 'Failed to submit query');
       return;
     }
 

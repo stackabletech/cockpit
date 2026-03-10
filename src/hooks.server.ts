@@ -1,10 +1,11 @@
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { httpRequestDuration } from '$lib/server/metrics';
-import { type Handle, type HandleServerError } from '@sveltejs/kit';
+import { building, dev } from '$app/environment';
+import { redirect, type Handle, type HandleServerError } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
-import { dev } from '$app/environment';
-import { requestLogger } from '$lib/server/logging';
-import { logger } from '$lib/server/logging';
+import { svelteKitHandler } from 'better-auth/svelte-kit';
+import { auth, oidcEnabled } from '$lib/server/auth';
+import { requestLogger, logger } from '$lib/server/logging';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
 if (dev) {
@@ -38,9 +39,31 @@ const handleParaglide: Handle = ({ event, resolve }) =>
     });
   });
 
-// Each function acts as a middleware, receiving the request handle
-// and returning a handle which gets passed to the next function
-export const handle = sequence(requestLogger, handleMetrics, handleParaglide);
+const handleAuth: Handle = ({ event, resolve }) =>
+  svelteKitHandler({ event, resolve, auth, building });
+
+const PUBLIC_PATHS = ['/auth/login', '/auth/logout', '/api/auth', '/metrics'];
+
+const handleAuthGuard: Handle = async ({ event, resolve }) => {
+  const session = await auth.api.getSession({ headers: event.request.headers });
+  event.locals.user = session?.user ?? null;
+  event.locals.session = session?.session ?? null;
+
+  const isPublic = PUBLIC_PATHS.some((p) => event.url.pathname.startsWith(p));
+  if (!isPublic && !event.locals.user) {
+    const redirectTo = encodeURIComponent(event.url.pathname + event.url.search);
+    throw redirect(302, `/auth/login?redirectTo=${redirectTo}`);
+  }
+
+  return resolve(event);
+};
+
+export const handle = sequence(
+  requestLogger,
+  handleMetrics,
+  handleParaglide,
+  ...(oidcEnabled ? [handleAuth, handleAuthGuard] : [])
+);
 
 export const handleError: HandleServerError = ({ error, event, status, message }) => {
   const requestId = event.locals.requestId;

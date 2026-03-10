@@ -37,6 +37,7 @@ export const MAX_CLIENT_ROWS = 10_000;
 interface ConnectionConfig {
   connectionUrl: string;
   auth: AuthConfig;
+  impersonateUser?: string;
 }
 
 let activeConnection: ConnectionConfig | null = null;
@@ -86,15 +87,20 @@ export function buildAuthHeaders(auth: AuthConfig): Record<string, string> {
 export async function trinoFetch(
   url: string,
   auth: AuthConfig,
-  options?: RequestInit
+  options?: RequestInit,
+  impersonateUser?: string
 ): Promise<TrinoResponse> {
+  const headers: Record<string, string> = {
+    ...buildAuthHeaders(auth),
+    'X-Trino-Source': 'stackable-ui',
+    ...((options?.headers as Record<string, string>) ?? {})
+  };
+  if (impersonateUser) {
+    headers['X-Trino-User'] = impersonateUser;
+  }
   const res = await fetch(url, {
     ...options,
-    headers: {
-      ...buildAuthHeaders(auth),
-      'X-Trino-Source': 'stackable-ui',
-      ...(options?.headers ?? {})
-    }
+    headers
   });
 
   if (!res.ok) {
