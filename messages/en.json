@@ -46,7 +46,6 @@
   "trino_editor_label": "SQL editor",
   "trino_results_label": "Query results",
   "trino_rows_range": "Rows {start}–{end} of {total}",
-  "trino_session_expired": "Query session expired — please re-run the query.",
   "trino_page_size": "Rows per page",
   "trino_prev_page": "Previous page",
   "trino_next_page": "Next page",
@@ -61,5 +60,17 @@
   "trino_unknown_error": "Unknown error",
   "trino_no_sql": "No SQL provided",
   "trino_invalid_connection": "The connection configuration is invalid or missing. Please provide a valid URL and authentication method.",
-  "trino_query_timeout": "Query timed out after 30 seconds"
+  "trino_save_connection": "Save",
+  "trino_connection_saved": "Connection saved.",
+  "trino_no_connection": "No connection configured. Please save a connection first.",
+  "trino_cancel_query": "Cancel",
+  "trino_state_queued": "Queued",
+  "trino_state_planning": "Planning",
+  "trino_state_running": "Running",
+  "trino_state_finishing": "Finishing",
+  "trino_state_finished": "Finished",
+  "trino_state_failed": "Failed",
+  "trino_state_cancelled": "Cancelled",
+  "trino_progress_info": "{rows} rows | {elapsed}s",
+  "trino_row_limit_reached": "Row limit of {limit} reached — query cancelled."
 }

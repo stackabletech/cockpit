@@ -30,6 +30,14 @@ Because there is no server-side session yet, connection credentials (including p
 
 ---
 
+### Connection config is in-memory only
+
+**File:** `src/lib/server/trino.ts`
+
+The active connection configuration (URL + credentials) is stored in a module-level variable. It is not persisted across server restarts and is not shared across multiple processes/instances. Acceptable for single-instance deployments during development. Long-term: persist to a session store or database, keyed by authenticated user.
+
+---
+
 ### Raw upstream error messages returned to the client
 
 **File:** `src/routes/api/trino/query/+server.ts:165, 181, 209`
@@ -48,19 +56,19 @@ Trino error messages and Node.js exception messages are returned to the browser 
 
 ---
 
-### In-memory query cache has no total size bound
+### Client-side row accumulation has no memory bound
 
-**File:** `src/routes/api/trino/query/+server.ts:40–47`
+**File:** `src/routes/(app)/trino/query-runner.svelte.ts`
 
-Each cached query can hold up to `MAX_CACHED_ROWS` (100 000) rows. `evictStale()` is only called when a new query arrives, not on a timer, so a long idle period followed by many concurrent queries could accumulate significant memory before eviction runs. Needs a bounded cache (e.g. LRU with a memory cap) and a periodic eviction timer.
+The client accumulates all result rows in memory up to `MAX_CLIENT_ROWS` (10,000). For wide result sets this could consume significant browser memory. Consider implementing streaming/virtual scrolling for large results.
 
 ---
 
 ### Displayed results not cleared on connection change
 
-**File:** `src/routes/(app)/trino/+page.svelte:40–46`
+**File:** `src/routes/(app)/trino/+page.svelte`
 
-The `$effect` that persists connection settings only resets `queryId`, not `rows`, `columns`, or `error`. After switching to a different Trino instance the previous result set remains visible until a new query is run, which is confusing.
+After saving a new connection, the previous query results remain visible until a new query is run. Consider calling `queryRunner.reset()` when the connection changes.
 
 ---
 

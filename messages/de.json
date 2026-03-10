@@ -46,7 +46,6 @@
   "trino_editor_label": "SQL-Editor",
   "trino_results_label": "Abfrageergebnisse",
   "trino_rows_range": "Zeilen {start}–{end} von {total}",
-  "trino_session_expired": "Abfragesitzung abgelaufen – bitte Abfrage erneut ausführen.",
   "trino_page_size": "Zeilen pro Seite",
   "trino_prev_page": "Vorherige Seite",
   "trino_next_page": "Nächste Seite",
@@ -61,5 +60,17 @@
   "trino_unknown_error": "Unbekannter Fehler",
   "trino_no_sql": "Keine SQL-Abfrage angegeben",
   "trino_invalid_connection": "Die Verbindungskonfiguration ist ungültig oder fehlt. Bitte eine gültige URL und Authentifizierungsmethode angeben.",
-  "trino_query_timeout": "Abfrage nach 30 Sekunden abgebrochen"
+  "trino_save_connection": "Speichern",
+  "trino_connection_saved": "Verbindung gespeichert.",
+  "trino_no_connection": "Keine Verbindung konfiguriert. Bitte zuerst eine Verbindung speichern.",
+  "trino_cancel_query": "Abbrechen",
+  "trino_state_queued": "Warteschlange",
+  "trino_state_planning": "Planung",
+  "trino_state_running": "Wird ausgeführt",
+  "trino_state_finishing": "Abschluss",
+  "trino_state_finished": "Abgeschlossen",
+  "trino_state_failed": "Fehlgeschlagen",
+  "trino_state_cancelled": "Abgebrochen",
+  "trino_progress_info": "{rows} Zeilen | {elapsed} s",
+  "trino_row_limit_reached": "Zeilenlimit von {limit} erreicht — Abfrage abgebrochen."
 }

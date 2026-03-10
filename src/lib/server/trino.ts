@@ -1,6 +1,22 @@
+import { logger } from '$lib/server/logging';
+
+const log = logger.child({ module: 'trino-client' });
+
 export interface TrinoColumn {
   name: string;
   type: string;
+}
+
+export interface TrinoStats {
+  state: string;
+  progressPercentage?: number;
+  nodes?: number;
+  totalSplits?: number;
+  runningSplits?: number;
+  completedSplits?: number;
+  processedRows?: number;
+  processedBytes?: number;
+  elapsedTimeMillis?: number;
 }
 
 export interface TrinoResponse {
@@ -8,30 +24,53 @@ export interface TrinoResponse {
   nextUri?: string;
   columns?: TrinoColumn[];
   data?: unknown[][];
-  stats?: { state: string };
+  stats?: TrinoStats;
   error?: { message: string; errorCode: number };
-}
-
-export interface CacheEntry {
-  columns: TrinoColumn[];
-  rows: unknown[][];
-  createdAt: number;
 }
 
 export type AuthConfig = { type: 'none' } | { type: 'basic'; username: string; password: string };
 
-export const POLL_TIMEOUT_MS = 30_000;
-export const MAX_CACHED_ROWS = 100_000;
-export const CACHE_TTL_MS = 5 * 60 * 1000;
+export const MAX_CLIENT_ROWS = 10_000;
 
-export const queryCache = new Map<string, CacheEntry>();
+// --- Connection store (in-memory, single-instance) ---
 
-export function evictStale() {
-  const cutoff = Date.now() - CACHE_TTL_MS;
-  for (const [id, entry] of queryCache) {
-    if (entry.createdAt < cutoff) queryCache.delete(id);
+interface ConnectionConfig {
+  connectionUrl: string;
+  auth: AuthConfig;
+}
+
+let activeConnection: ConnectionConfig | null = null;
+
+export function setConnection(config: ConnectionConfig): void {
+  log.info({ trino_url: config.connectionUrl }, 'connection saved');
+  activeConnection = config;
+}
+
+export function getConnection(): ConnectionConfig | null {
+  return activeConnection;
+}
+
+export function clearConnection(): void {
+  activeConnection = null;
+}
+
+// --- SSRF protection ---
+
+export function validateTargetUrl(targetUrl: string, connectionUrl: string): boolean {
+  try {
+    const target = new URL(targetUrl);
+    const allowed = new URL(connectionUrl);
+    return (
+      target.protocol === allowed.protocol &&
+      target.hostname === allowed.hostname &&
+      target.port === allowed.port
+    );
+  } catch {
+    return false;
   }
 }
+
+// --- HTTP helpers ---
 
 export function buildAuthHeaders(auth: AuthConfig): Record<string, string> {
   if (auth.type === 'basic') {
@@ -61,6 +100,11 @@ export async function trinoFetch(
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Trino HTTP ${res.status}: ${text}`);
+  }
+
+  // Trino returns 204 with no body on DELETE (cancel).
+  if (res.status === 204) {
+    return {};
   }
 
   return res.json() as Promise<TrinoResponse>;

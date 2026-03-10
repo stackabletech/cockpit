@@ -3,14 +3,13 @@
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import { superForm } from 'sveltekit-superforms';
   import type { PageData } from './$types';
-  import type { FormMessage } from './schemas.js';
+  import type { ConnectionMessage } from './schemas.js';
+  import { queryRunner } from './query-runner.svelte.js';
 
   let { data }: { data: PageData } = $props();
-  const queryFormData = $derived(data.queryForm);
-  const paginateFormData_ = $derived(data.paginateForm);
 
   const uid = $props.id();
-  const PAGE_SIZES = [25, 50, 100];
+  const PAGE_SIZES = [25, 50, 100] as const;
 
   function ls(key: string, fallback: string): string {
     try {
@@ -20,97 +19,62 @@
     }
   }
 
-  // Connection config and SQL — local state persisted to localStorage.
+  // Connection config — local state persisted to localStorage.
   let connectionUrl = $state(ls('trino_url', ''));
   let authType = $state<'none' | 'basic'>(ls('trino_auth_type', 'none') as 'none' | 'basic');
   let authUsername = $state(ls('trino_username', ''));
   let authPassword = $state(ls('trino_password', ''));
   let sql = $state(ls('trino_sql', 'SELECT 1'));
   let pageSize = $state<25 | 50 | 100>(25);
-
-  // Query result state — updated from form messages.
-  let columns = $state<{ name: string; type: string }[]>([]);
-  let rows = $state<unknown[][]>([]);
-  let queryError = $state<string | null>(null);
-  let currentPage = $state(0);
-  let hasMore = $state(false);
-  let queryId = $state<string | null>(null);
-  let totalRows = $state<number | null>(null);
   let connectionOpen = $state(false);
+  let currentPage = $state(0);
 
-  // Query form — submits connection config + SQL as hidden inputs (FormData).
+  // Connection form (SuperForms).
   const {
-    enhance: queryEnhance,
-    submitting: querySubmitting,
-    errors: queryErrors
-  } = superForm(queryFormData, {
-    onSubmit() {
-      queryError = null;
-      columns = [];
-      rows = [];
-      queryId = null;
-      totalRows = null;
-      currentPage = 0;
-      connectionOpen = false;
-    },
+    enhance: connectionEnhance,
+    errors: connectionErrors,
+    message: connectionMessage
+  } = superForm(data.connectionForm, {
     onUpdated({ form }) {
-      // Validation errors for connection fields — open the section so the user can see them.
-      if (form.errors.connectionUrl) {
+      const msg = form.message as ConnectionMessage | undefined;
+      if (msg?.type === 'error') {
         connectionOpen = true;
-        queryError = m.trino_connection_error();
-        return;
-      }
-      const msg = form.message as FormMessage | undefined;
-      if (!msg) return;
-      if (msg.type === 'result') {
-        queryId = msg.queryId;
-        columns = msg.columns;
-        rows = msg.rows;
-        hasMore = msg.hasMore;
-        totalRows = msg.totalRows;
-      } else {
-        queryError = msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
       }
     }
   });
 
-  // Paginate form — submits as JSON so store values are used directly.
-  const {
-    form: paginateFormData,
-    enhance: paginateEnhance,
-    submitting: paginateSubmitting
-  } = superForm(paginateFormData_, {
-    dataType: 'json',
-    onUpdated({ form }) {
-      const msg = form.message as FormMessage | undefined;
-      if (!msg) return;
-      if (msg.type === 'result') {
-        columns = msg.columns;
-        rows = msg.rows;
-        hasMore = msg.hasMore;
-        totalRows = msg.totalRows;
-        queryError = null;
-      } else {
-        queryError = msg.message === 'session_expired' ? m.trino_session_expired() : msg.message;
-        if (msg.message === 'session_expired') queryId = null;
-      }
-    }
+  const isActive = $derived.by(() => {
+    const s = queryRunner.state;
+    return (
+      s === 'SUBMITTING' ||
+      s === 'QUEUED' ||
+      s === 'PLANNING' ||
+      s === 'RUNNING' ||
+      s === 'FINISHING'
+    );
   });
 
-  const running = $derived($querySubmitting || $paginateSubmitting);
-
-  // Persist connection config; invalidate queryId on change.
+  // Persist connection config to localStorage.
   $effect(() => {
     localStorage.setItem('trino_url', connectionUrl);
     localStorage.setItem('trino_auth_type', authType);
     localStorage.setItem('trino_username', authUsername);
     localStorage.setItem('trino_password', authPassword);
-    queryId = null;
   });
 
   // Persist SQL.
   $effect(() => {
     localStorage.setItem('trino_sql', sql);
+  });
+
+  // Reset pagination when rows change.
+  let prevRowCount = $state(0);
+  $effect(() => {
+    const count = queryRunner.rows.length;
+    if (count !== prevRowCount && count > 0 && prevRowCount === 0) {
+      currentPage = 0;
+    }
+    prevRowCount = count;
   });
 
   const connectionSummary = $derived.by(() => {
@@ -119,54 +83,88 @@
     return `${host} · ${auth}`;
   });
 
+  const totalRows = $derived(queryRunner.rows.length);
+  const displayedRows = $derived(
+    queryRunner.rows.slice(currentPage * pageSize, (currentPage + 1) * pageSize)
+  );
+  const hasMore = $derived((currentPage + 1) * pageSize < totalRows);
   const rowStart = $derived(currentPage * pageSize + 1);
-  const rowEnd = $derived(currentPage * pageSize + rows.length);
+  const rowEnd = $derived(currentPage * pageSize + displayedRows.length);
 
-  let queryFormEl = $state<HTMLFormElement | undefined>(undefined);
-  let paginateFormEl = $state<HTMLFormElement | undefined>(undefined);
+  const stateLabel = $derived.by(() => {
+    const stateMap: Record<string, () => string> = {
+      QUEUED: m.trino_state_queued,
+      PLANNING: m.trino_state_planning,
+      RUNNING: m.trino_state_running,
+      FINISHING: m.trino_state_finishing,
+      FINISHED: m.trino_state_finished,
+      FAILED: m.trino_state_failed,
+      CANCELLED: m.trino_state_cancelled
+    };
+    return stateMap[queryRunner.state]?.() ?? null;
+  });
+
+  const stateBadgeClass = $derived.by(() => {
+    switch (queryRunner.state) {
+      case 'QUEUED':
+      case 'PLANNING':
+        return 'badge-warning';
+      case 'RUNNING':
+      case 'FINISHING':
+      case 'SUBMITTING':
+        return 'badge-info';
+      case 'FINISHED':
+        return 'badge-success';
+      case 'FAILED':
+        return 'badge-error';
+      case 'CANCELLED':
+        return 'badge-neutral';
+      default:
+        return '';
+    }
+  });
+
+  const rowLimitError = $derived.by(() => {
+    if (queryRunner.error?.startsWith('ROW_LIMIT:')) {
+      const limit = queryRunner.error.split(':')[1];
+      return m.trino_row_limit_reached({ limit });
+    }
+    return null;
+  });
+
+  const queryError = $derived.by(() => {
+    if (!queryRunner.error) return null;
+    if (queryRunner.error.startsWith('ROW_LIMIT:')) return null;
+    return queryRunner.error;
+  });
+
+  function handleExecute() {
+    currentPage = 0;
+    queryRunner.execute(sql);
+  }
 
   function goToPrevPage() {
-    const prevPage = currentPage - 1;
-    $paginateFormData.queryId = queryId!;
-    $paginateFormData.page = prevPage;
-    $paginateFormData.pageSize = pageSize;
-    currentPage = prevPage;
-    paginateFormEl?.requestSubmit();
+    currentPage = Math.max(0, currentPage - 1);
   }
 
   function goToNextPage() {
-    const nextPage = currentPage + 1;
-    $paginateFormData.queryId = queryId!;
-    $paginateFormData.page = nextPage;
-    $paginateFormData.pageSize = pageSize;
-    currentPage = nextPage;
-    paginateFormEl?.requestSubmit();
+    if (hasMore) currentPage += 1;
   }
 
   function handlePageSizeChange(event: Event) {
     pageSize = parseInt((event.target as HTMLSelectElement).value, 10) as 25 | 50 | 100;
-    if (queryId) {
-      $paginateFormData.queryId = queryId;
-      $paginateFormData.page = 0;
-      $paginateFormData.pageSize = pageSize;
-      currentPage = 0;
-      paginateFormEl?.requestSubmit();
-    }
+    currentPage = 0;
   }
 </script>
 
 <div class="flex h-full flex-col gap-4">
-  <!-- Query form: wraps connection config + editor -->
-  <form method="POST" action="?/query" use:queryEnhance bind:this={queryFormEl}>
-    <!-- Hidden inputs carry localStorage state to the server action -->
-    <input type="hidden" name="sql" value={sql} />
-    <input type="hidden" name="pageSize" value={pageSize} />
+  <!-- Connection config form -->
+  <form method="POST" action="?/save" use:connectionEnhance>
     <input type="hidden" name="connectionUrl" value={connectionUrl} />
     <input type="hidden" name="authType" value={authType} />
     <input type="hidden" name="authUsername" value={authUsername} />
     <input type="hidden" name="authPassword" value={authPassword} />
 
-    <!-- Connection config section -->
     <div class="bg-base-100 border-base-300 collapse rounded-xl border">
       <input
         type="checkbox"
@@ -190,15 +188,15 @@
             id="{uid}-conn-url"
             type="url"
             class="input input-sm w-full font-mono"
-            class:input-error={$queryErrors.connectionUrl}
+            class:input-error={$connectionErrors.connectionUrl}
             placeholder={m.trino_connection_url_placeholder()}
             bind:value={connectionUrl}
             onkeydown={(e) => {
               if (e.key === 'Enter') e.preventDefault();
             }}
           />
-          {#if $queryErrors.connectionUrl}
-            <p class="text-error text-xs">{$queryErrors.connectionUrl?.join(' ')}</p>
+          {#if $connectionErrors.connectionUrl}
+            <p class="text-error text-xs">{$connectionErrors.connectionUrl}</p>
           {/if}
         </div>
 
@@ -262,20 +260,49 @@
             </div>
           </div>
         {/if}
+
+        <!-- Save button -->
+        <div class="flex justify-end">
+          <button type="submit" class="btn btn-primary btn-sm">
+            {m.trino_save_connection()}
+          </button>
+        </div>
+
+        {#if $connectionMessage}
+          {@const msg = $connectionMessage as ConnectionMessage}
+          {#if msg.type === 'success'}
+            <p class="text-success text-sm">{m.trino_connection_saved()}</p>
+          {:else}
+            <p class="text-error text-sm">{msg.message}</p>
+          {/if}
+        {/if}
       </div>
     </div>
+  </form>
 
-    <!-- Editor section -->
-    <div class="bg-base-100 border-base-300 mt-4 flex flex-col rounded-xl border">
-      <div class="border-base-300 flex items-center justify-between border-b px-4 py-2">
-        <span class="text-base-content/60 text-sm font-medium">{m.trino_editor_label()}</span>
+  <!-- Editor section (standalone, not a form) -->
+  <div class="bg-base-100 border-base-300 flex flex-col rounded-xl border">
+    <div class="border-base-300 flex items-center justify-between border-b px-4 py-2">
+      <span class="text-base-content/60 text-sm font-medium">{m.trino_editor_label()}</span>
+      <div class="flex gap-2">
+        {#if isActive}
+          <button
+            type="button"
+            class="btn btn-error btn-sm"
+            onclick={() => queryRunner.cancel()}
+            aria-label={m.trino_cancel_query()}
+          >
+            {m.trino_cancel_query()}
+          </button>
+        {/if}
         <button
-          type="submit"
+          type="button"
           class="btn btn-primary btn-sm"
-          disabled={running}
+          disabled={isActive}
           aria-label={m.trino_run_query()}
+          onclick={handleExecute}
         >
-          {#if running}
+          {#if isActive}
             <span class="loading loading-spinner loading-xs"></span>
             {m.trino_running()}
           {:else}
@@ -284,29 +311,44 @@
           {/if}
         </button>
       </div>
-      <div class="h-64">
-        <MonacoEditor bind:value={sql} onExecute={() => queryFormEl?.requestSubmit()} />
-      </div>
     </div>
-  </form>
+    <div class="h-64">
+      <MonacoEditor bind:value={sql} onExecute={handleExecute} />
+    </div>
+  </div>
 
-  <!-- Hidden paginate form — buttons in the results section submit this via requestSubmit(). -->
-  <form
-    method="POST"
-    action="?/paginate"
-    use:paginateEnhance
-    bind:this={paginateFormEl}
-    class="sr-only"
-    aria-hidden="true"
-  >
-    <button type="submit">{m.trino_next_page()}</button>
-  </form>
+  <!-- Status display -->
+  {#if queryRunner.state !== 'IDLE'}
+    <div class="flex flex-wrap items-center gap-3 px-1" aria-live="polite">
+      {#if stateLabel}
+        <span class="badge {stateBadgeClass}">{stateLabel}</span>
+      {/if}
+      {#if queryRunner.state === 'RUNNING' && queryRunner.progress.progressPercentage > 0}
+        <progress
+          class="progress progress-primary w-32"
+          value={queryRunner.progress.progressPercentage}
+          max="100"
+        ></progress>
+      {/if}
+      {#if queryRunner.progress.processedRows > 0 || queryRunner.progress.elapsedTimeMillis > 0}
+        <span class="text-base-content/60 text-xs">
+          {m.trino_progress_info({
+            rows: queryRunner.progress.processedRows.toLocaleString(),
+            elapsed: (queryRunner.progress.elapsedTimeMillis / 1000).toFixed(1)
+          })}
+        </span>
+      {/if}
+      {#if rowLimitError}
+        <span class="text-warning text-xs">{rowLimitError}</span>
+      {/if}
+    </div>
+  {/if}
 
   <!-- Results section -->
   <div class="bg-base-100 border-base-300 flex min-h-0 flex-1 flex-col rounded-xl border">
     <div class="border-base-300 flex items-center border-b px-4 py-2">
       <span class="text-base-content/60 text-sm font-medium">{m.trino_results_label()}</span>
-      {#if rows.length > 0 && totalRows !== null}
+      {#if displayedRows.length > 0 && totalRows > 0}
         <span class="text-base-content/40 ml-2 text-xs">
           {m.trino_rows_range({ start: rowStart, end: rowEnd, total: totalRows })}
         </span>
@@ -332,18 +374,18 @@
             <p class="text-sm opacity-80">{queryError}</p>
           </div>
         </div>
-      {:else if columns.length > 0}
-        <div class="overflow-x-auto" class:opacity-50={running}>
+      {:else if queryRunner.columns.length > 0}
+        <div class="overflow-x-auto" class:opacity-50={isActive}>
           <table class="table-sm table-zebra table" aria-label={m.trino_results_label()}>
             <thead>
               <tr>
-                {#each columns as col (col.name)}
+                {#each queryRunner.columns as col (col.name)}
                   <th scope="col" class="whitespace-nowrap">{col.name}</th>
                 {/each}
               </tr>
             </thead>
             <tbody>
-              {#each rows as row, rowIdx (rowIdx)}
+              {#each displayedRows as row, rowIdx (rowIdx)}
                 <tr>
                   {#each row as cell, cellIdx (cellIdx)}
                     <td class="font-mono text-xs whitespace-nowrap">
@@ -359,18 +401,18 @@
             </tbody>
           </table>
         </div>
-      {:else if !running}
+      {:else if !isActive && queryRunner.state === 'IDLE'}
         <p class="text-base-content/40 py-8 text-center text-sm">{m.trino_results_empty()}</p>
       {/if}
     </div>
 
-    {#if columns.length > 0}
+    {#if queryRunner.columns.length > 0}
       <div class="border-base-300 flex items-center justify-between border-t px-4 py-3">
         <div class="join">
           <button
             class="btn btn-sm join-item"
             onclick={goToPrevPage}
-            disabled={currentPage === 0 || running}
+            disabled={currentPage === 0}
             aria-label={m.trino_prev_page()}
           >
             ‹
@@ -378,7 +420,7 @@
           <button
             class="btn btn-sm join-item"
             onclick={goToNextPage}
-            disabled={!hasMore || running}
+            disabled={!hasMore}
             aria-label={m.trino_next_page()}
           >
             ›
@@ -394,7 +436,6 @@
             class="select select-sm"
             value={pageSize}
             onchange={handlePageSizeChange}
-            disabled={running}
           >
             {#each PAGE_SIZES as size (size)}
               <option value={size}>{size}</option>
