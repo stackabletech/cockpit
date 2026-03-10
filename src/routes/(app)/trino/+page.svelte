@@ -183,10 +183,6 @@
     localStorage.setItem('trino_page_size', String(pageSize));
     localStorage.setItem('trino_default_catalog', defaultCatalog);
     localStorage.setItem('trino_default_schema', defaultSchema);
-  });
-
-  // Persist catalog browser open state.
-  $effect(() => {
     localStorage.setItem('trino_catalog_browser_open', String(catalogBrowserOpen));
   });
 
@@ -240,10 +236,6 @@
     }
   }
 
-  function handleInsertFromCatalog(qualifiedName: string) {
-    monacoEditor?.insertAtCursor(qualifiedName);
-  }
-
   function toggleCatalogBrowser() {
     if (browser && !window.matchMedia('(min-width: 1024px)').matches) {
       mobileCatalogOpen = !mobileCatalogOpen;
@@ -254,6 +246,19 @@
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
+
+{#snippet closeIcon()}
+  <svg
+    class="h-4 w-4"
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
+  >
+{/snippet}
 
 <div class="flex h-full gap-4">
   <!-- Catalog browser panel -->
@@ -268,16 +273,7 @@
           onclick={toggleCatalogBrowser}
           aria-label={m.trino_catalog_browser_toggle()}
         >
-          <svg
-            class="h-4 w-4"
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
-          >
+          {@render closeIcon()}
         </button>
       </div>
       <CatalogBrowser
@@ -287,7 +283,7 @@
         authPassword={$queryFormData.authPassword}
         bind:defaultCatalog={$queryFormData.defaultCatalog}
         bind:defaultSchema={$queryFormData.defaultSchema}
-        onInsert={handleInsertFromCatalog}
+        onInsert={(name) => monacoEditor?.insertAtCursor(name)}
       />
     </aside>
   {/if}
@@ -303,19 +299,9 @@
         <button
           class="btn btn-ghost btn-xs"
           onclick={() => (mobileCatalogOpen = false)}
-          title={m.trino_catalog_browser_toggle()}
           aria-label={m.trino_catalog_browser_toggle()}
         >
-          <svg
-            class="h-4 w-4"
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
-          >
+          {@render closeIcon()}
         </button>
       </div>
       <CatalogBrowser
@@ -326,7 +312,7 @@
         bind:defaultCatalog={$queryFormData.defaultCatalog}
         bind:defaultSchema={$queryFormData.defaultSchema}
         onInsert={(name) => {
-          handleInsertFromCatalog(name);
+          monacoEditor?.insertAtCursor(name);
           mobileCatalogOpen = false;
         }}
       />
