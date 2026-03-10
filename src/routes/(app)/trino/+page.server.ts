@@ -3,14 +3,11 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import * as m from '$lib/paraglide/messages.js';
 import {
-  trinoFetch,
+  trinoQuery,
   evictStale,
   queryCache,
-  POLL_TIMEOUT_MS,
   MAX_CACHED_ROWS,
-  type AuthConfig,
-  type TrinoColumn,
-  type TrinoResponse
+  type AuthConfig
 } from '$lib/server/trino.js';
 import { QuerySchema, PaginateSchema, type FormMessage } from './schemas.js';
 import type { Actions, PageServerLoad } from './$types';
@@ -57,54 +54,17 @@ export const actions: Actions = {
     const queryStart = Date.now();
     log.info({ trino_url: connectionUrl }, 'executing query');
 
-    const deadline = queryStart + POLL_TIMEOUT_MS;
-    let columns: TrinoColumn[] = [];
-    const rows: unknown[][] = [];
-    let nextUri: string | undefined = `${connectionUrl}/v1/statement`;
     const contextHeaders: Record<string, string> = {};
     if (defaultCatalog) contextHeaders['X-Trino-Catalog'] = defaultCatalog;
     if (defaultSchema) contextHeaders['X-Trino-Schema'] = defaultSchema;
 
-    let fetchOptions: RequestInit = {
-      method: 'POST',
-      body: sql.replace(/;\s*$/, '').trim(),
-      headers: { 'Content-Type': 'text/plain', ...contextHeaders }
-    };
-
     try {
-      while (nextUri && rows.length < MAX_CACHED_ROWS) {
-        if (Date.now() > deadline) {
-          log.info({ trino_url: connectionUrl, timeout_ms: POLL_TIMEOUT_MS }, 'query timed out');
-          return message(
-            form,
-            { type: 'error', message: m.trino_query_timeout() } satisfies FormMessage,
-            { status: 408 }
-          );
-        }
-
-        const response: TrinoResponse = await trinoFetch(
-          nextUri,
-          auth,
-          fetchOptions,
-          impersonateUser
-        );
-
-        if (response.error) {
-          log.info({ err: response.error }, 'query error');
-          return message(
-            form,
-            { type: 'error', message: response.error.message } satisfies FormMessage,
-            { status: 400 }
-          );
-        }
-
-        if (response.columns && columns.length === 0) columns = response.columns;
-        if (response.data) rows.push(...response.data);
-
-        nextUri = response.nextUri;
-        // Subsequent requests are GETs to the nextUri
-        fetchOptions = {};
-      }
+      const { columns, rows } = await trinoQuery(
+        connectionUrl,
+        auth,
+        sql.replace(/;\s*$/, '').trim(),
+        { impersonateUser, contextHeaders, maxRows: MAX_CACHED_ROWS }
+      );
 
       const queryId = crypto.randomUUID();
       queryCache.set(queryId, { columns, rows, createdAt: Date.now() });
@@ -128,8 +88,16 @@ export const actions: Actions = {
         totalRows: rows.length
       } satisfies FormMessage);
     } catch (err) {
-      log.error({ err, trino_url: connectionUrl }, 'unexpected error');
       const msg = err instanceof Error ? err.message : m.trino_unknown_error();
+      if (msg === 'query timed out') {
+        log.info({ trino_url: connectionUrl, timeout_ms: 'POLL_TIMEOUT_MS' }, 'query timed out');
+        return message(
+          form,
+          { type: 'error', message: m.trino_query_timeout() } satisfies FormMessage,
+          { status: 408 }
+        );
+      }
+      log.error({ err, trino_url: connectionUrl }, 'unexpected error');
       return message(form, { type: 'error', message: msg } satisfies FormMessage, { status: 500 });
     }
   },

@@ -1,47 +1,6 @@
 import { json, error } from '@sveltejs/kit';
-import { trinoFetch, POLL_TIMEOUT_MS, type AuthConfig } from '$lib/server/trino.js';
+import { trinoQuery, type AuthConfig } from '$lib/server/trino.js';
 import type { RequestHandler } from './$types';
-
-/**
- * Executes a metadata query against Trino and polls until results are complete.
- * Returns the collected rows as a flat array of arrays.
- */
-async function queryMetadata(
-  connectionUrl: string,
-  auth: AuthConfig,
-  sql: string
-): Promise<unknown[][]> {
-  const deadline = Date.now() + POLL_TIMEOUT_MS;
-  let rows: unknown[][] = [];
-
-  let response = await trinoFetch(`${connectionUrl}/v1/statement`, auth, {
-    method: 'POST',
-    body: sql,
-    headers: { 'Content-Type': 'text/plain' }
-  });
-
-  if (response.error) {
-    throw new Error(response.error.message);
-  }
-
-  if (response.data) rows = rows.concat(response.data);
-
-  while (response.nextUri) {
-    if (Date.now() > deadline) {
-      throw new Error('metadata query timed out');
-    }
-
-    response = await trinoFetch(response.nextUri, auth);
-
-    if (response.error) {
-      throw new Error(response.error.message);
-    }
-
-    if (response.data) rows = rows.concat(response.data);
-  }
-
-  return rows;
-}
 
 function parseAuth(url: URL): AuthConfig {
   const authType = url.searchParams.get('authType') ?? 'none';
@@ -94,7 +53,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
   try {
     log.debug({ level, catalog, schema, table }, 'fetching catalog metadata');
-    const rows = await queryMetadata(connectionUrl, auth, sql);
+    const { rows } = await trinoQuery(connectionUrl, auth, sql);
     log.debug(
       { level, catalog, schema, table, row_count: rows.length },
       'catalog metadata fetched'
