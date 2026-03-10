@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 import path from 'path';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4173';
+const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 export default defineConfig({
   testDir: path.join(import.meta.dirname, 'e2e'),
@@ -52,7 +53,8 @@ export default defineConfig({
       use: {
         browserName: 'chromium',
         viewport: { width: 1280, height: 720 },
-        storageState: 'e2e/.auth/user.json'
+        storageState: 'e2e/.auth/user.json',
+        ...(chromiumExecutablePath && { launchOptions: { executablePath: chromiumExecutablePath } })
       },
       dependencies: ['setup']
     },
@@ -63,7 +65,8 @@ export default defineConfig({
         viewport: { width: 393, height: 851 },
         isMobile: true,
         hasTouch: true,
-        storageState: 'e2e/.auth/user.json'
+        storageState: 'e2e/.auth/user.json',
+        ...(chromiumExecutablePath && { launchOptions: { executablePath: chromiumExecutablePath } })
       },
       dependencies: ['setup']
     }

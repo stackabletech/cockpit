@@ -37,6 +37,6 @@ describe('/(app)/+page.svelte', () => {
 
     await expect.element(page.getByText('Configure OIDC authentication')).toBeInTheDocument();
     await expect.element(page.getByText('Connect Trino instances')).toBeInTheDocument();
-    await expect.element(page.getByText('Browse catalogues and query')).toBeInTheDocument();
+    await expect.element(page.getByText('Browse catalogs and query')).toBeInTheDocument();
   });
 });

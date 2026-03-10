@@ -34,8 +34,17 @@ export const actions: Actions = {
       return fail(400, { form });
     }
 
-    const { sql, pageSize, connectionUrl, authType, authUsername, authPassword, impersonation } =
-      form.data;
+    const {
+      sql,
+      pageSize,
+      connectionUrl,
+      authType,
+      authUsername,
+      authPassword,
+      defaultCatalog,
+      defaultSchema,
+      impersonation
+    } = form.data;
     const auth: AuthConfig =
       authType === 'basic'
         ? { type: 'basic', username: authUsername, password: authPassword }
@@ -52,10 +61,14 @@ export const actions: Actions = {
     let columns: TrinoColumn[] = [];
     const rows: unknown[][] = [];
     let nextUri: string | undefined = `${connectionUrl}/v1/statement`;
+    const contextHeaders: Record<string, string> = {};
+    if (defaultCatalog) contextHeaders['X-Trino-Catalog'] = defaultCatalog;
+    if (defaultSchema) contextHeaders['X-Trino-Schema'] = defaultSchema;
+
     let fetchOptions: RequestInit = {
       method: 'POST',
       body: sql.replace(/;\s*$/, '').trim(),
-      headers: { 'Content-Type': 'text/plain' }
+      headers: { 'Content-Type': 'text/plain', ...contextHeaders }
     };
 
     try {

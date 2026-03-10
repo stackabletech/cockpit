@@ -18,6 +18,14 @@
   let editor: import('monaco-editor').editor.IStandaloneCodeEditor | undefined;
   let monaco = $state<typeof import('monaco-editor') | undefined>(undefined);
 
+  export function insertAtCursor(text: string) {
+    if (!editor || !monaco) return;
+    const selection = editor.getSelection();
+    if (!selection) return;
+    editor.executeEdits('catalog-browser', [{ range: selection, text, forceMoveMarkers: true }]);
+    editor.focus();
+  }
+
   // Start loading in parallel with the rest of the page — not deferred to onMount.
   // Guarded by `browser` because SvelteKit evaluates component scripts on the server too.
   const workerImport = browser ? import('monaco-editor/esm/vs/editor/editor.worker?worker') : null;
