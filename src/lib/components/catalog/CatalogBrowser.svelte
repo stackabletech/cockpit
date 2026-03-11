@@ -185,6 +185,9 @@
   });
 
   // When default catalog changes, load its schemas for the dropdown.
+  // untrack() is required: loadSchemas() internally reads connectionUrl,
+  // authType, etc. via buildQueryParams. Without untrack, this effect
+  // would also re-run on connection changes, duplicating Effect 1 above.
   // State writes happen inside the async .then() callback to avoid
   // synchronous writes during effect execution (which cause cascading
   // update warnings). The empty-catalog case is handled by
