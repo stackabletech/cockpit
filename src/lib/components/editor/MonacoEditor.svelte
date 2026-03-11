@@ -20,8 +20,8 @@
 
   export function insertAtCursor(text: string) {
     if (!editor || !monaco) return;
-    const selection = editor.getSelection();
-    if (!selection) return;
+    // Fall back to position (1,1) when the editor has never been focused (Firefox).
+    const selection = editor.getSelection() ?? new monaco.Selection(1, 1, 1, 1);
     editor.executeEdits('catalog-browser', [{ range: selection, text, forceMoveMarkers: true }]);
     editor.focus();
   }

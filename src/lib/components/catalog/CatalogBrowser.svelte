@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { SvelteSet } from 'svelte/reactivity';
   import * as m from '$lib/paraglide/messages.js';
   import CatalogTree from './CatalogTree.svelte';
   import type { TreeNode } from './types.js';
@@ -25,7 +26,7 @@
   const uid = $props.id();
 
   let catalogs = $state<TreeNode[]>([]);
-  let expanded = $state<Set<string>>(new Set());
+  let expanded = new SvelteSet<string>();
   let loadError = $state<string | null>(null);
   let catalogsLoading = $state(false);
 
@@ -128,13 +129,11 @@
   }
 
   function handleToggle(path: string) {
-    const next = new Set(expanded);
-    if (next.has(path)) {
-      next.delete(path);
+    if (expanded.has(path)) {
+      expanded.delete(path);
     } else {
-      next.add(path);
+      expanded.add(path);
     }
-    expanded = next;
   }
 
   async function handleLoadChildren(path: string, node: TreeNode) {
