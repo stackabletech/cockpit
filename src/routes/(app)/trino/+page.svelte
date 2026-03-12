@@ -261,21 +261,16 @@
 {/snippet}
 
 <div class="flex h-full gap-4">
-  <!-- Catalog browser panel -->
-  {#if catalogBrowserOpen}
-    <aside
-      class="bg-base-100 border-base-300 hidden w-72 shrink-0 flex-col overflow-hidden rounded-xl border lg:flex"
-    >
-      <div class="border-base-300 flex items-center justify-between border-b px-3 py-2">
-        <span class="text-base-content/60 text-sm font-medium">{m.trino_catalog_browser()}</span>
-        <button
-          class="btn btn-ghost btn-xs"
-          onclick={toggleCatalogBrowser}
-          aria-label={m.trino_catalog_browser_toggle()}
-        >
-          {@render closeIcon()}
-        </button>
-      </div>
+  <!-- Catalog browser panel (desktop) — always in DOM, collapses via width transition -->
+  <aside
+    class="bg-base-100 border-base-300 hidden shrink-0 flex-col overflow-hidden rounded-xl border transition-[width] duration-200 ease-out lg:flex {catalogBrowserOpen
+      ? 'w-72'
+      : 'w-0 border-0'}"
+  >
+    <div class="border-base-300 flex w-72 items-center justify-between border-b px-3 py-2">
+      <span class="text-base-content/60 text-sm font-medium">{m.trino_catalog_browser()}</span>
+    </div>
+    <div class="w-72">
       <CatalogBrowser
         connectionUrl={$queryFormData.connectionUrl}
         authType={$queryFormData.authType}
@@ -286,8 +281,8 @@
         bind:defaultSchema={$queryFormData.defaultSchema}
         onInsert={(name) => monacoEditor?.insertAtCursor(name)}
       />
-    </aside>
-  {/if}
+    </div>
+  </aside>
 
   <!-- Mobile catalog browser overlay -->
   <Modal
@@ -436,16 +431,29 @@
       <div class="bg-base-100 border-base-300 mt-4 flex flex-col rounded-xl border">
         <div class="border-base-300 flex items-center justify-between border-b px-4 py-2">
           <div class="flex items-center gap-2">
-            {#if !catalogBrowserOpen}
-              <div class="tooltip tooltip-right" data-tip={m.trino_catalog_browser_toggle()}>
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-xs"
-                  onclick={toggleCatalogBrowser}
-                  aria-label={m.trino_catalog_browser_toggle()}
-                >
+            <div class="tooltip tooltip-right" data-tip={m.trino_catalog_browser_toggle()}>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                onclick={toggleCatalogBrowser}
+                aria-label={m.trino_catalog_browser_toggle()}
+              >
+                {#if catalogBrowserOpen}
                   <svg
-                    class="h-4 w-4"
+                    class="hidden h-4 w-4 lg:block"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    ><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" /><path
+                      d="m14 9-3 3 3 3"
+                    /></svg
+                  >
+                  <svg
+                    class="h-4 w-4 lg:hidden"
                     aria-hidden="true"
                     viewBox="0 0 24 24"
                     fill="none"
@@ -454,9 +462,23 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg
                   >
-                </button>
-              </div>
-            {/if}
+                {:else}
+                  <svg
+                    class="h-4 w-4"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    ><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" /><path
+                      d="m12 9 3 3-3 3"
+                    /></svg
+                  >
+                {/if}
+              </button>
+            </div>
             <span class="text-base-content/60 text-sm font-medium">{m.trino_editor_label()}</span>
           </div>
           <button

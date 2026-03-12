@@ -126,7 +126,7 @@ test.describe('Catalog browser', () => {
 
     await expect(browser).not.toBeVisible();
 
-    // Reopen, the toggle button should now be in the editor header.
+    // Reopen via the same toggle button in the editor header.
     await page.getByRole('button', { name: 'Toggle catalog browser' }).click();
     await expect(browser).toBeVisible();
   });
