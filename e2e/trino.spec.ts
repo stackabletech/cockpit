@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-import * as http from 'node:http';
 import { waitForHydration, startMockTrinoServer } from './helpers';
 
 const COLUMNS = [
