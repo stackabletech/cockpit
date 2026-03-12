@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
-import { getConnection, trinoFetch } from '$lib/server/trino.js';
-import { trinoQueryTotal } from '$lib/server/metrics.js';
+import { z } from 'zod';
+import { getConnection } from '$lib/server/trino.js';
+import { getUserId, startQuery } from '$lib/server/query-store.js';
 import { StatementRequestSchema } from '../../schemas.js';
 import type { RequestHandler } from './$types';
 
@@ -16,7 +17,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
   const parsed = StatementRequestSchema.safeParse(body);
   if (!parsed.success) {
-    return json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
+    return json({ error: z.prettifyError(parsed.error) }, { status: 400 });
   }
 
   const connection = getConnection();
@@ -24,23 +25,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     return json({ error: 'No connection configured' }, { status: 400 });
   }
 
-  const queryId = crypto.randomUUID();
-  const sql = parsed.data.sql.replace(/;\s*$/, '').trim();
-
-  log.info({ query_id: queryId, trino_url: connection.connectionUrl }, 'submitting query');
-  trinoQueryTotal.inc({ outcome: 'submitted' });
+  const userId = getUserId(locals);
 
   try {
-    const response = await trinoFetch(`${connection.connectionUrl}/v1/statement`, connection.auth, {
-      method: 'POST',
-      body: sql,
-      headers: { 'Content-Type': 'text/plain' }
-    });
-
-    return json({ queryId, ...response });
+    const trinoQueryId = await startQuery(userId, parsed.data.sql, connection);
+    log.info({ trino_query_id: trinoQueryId, user_id: userId }, 'query submitted');
+    return json({ trinoQueryId });
   } catch (err) {
-    log.error({ err, query_id: queryId }, 'failed to submit query');
-    trinoQueryTotal.inc({ outcome: 'failed' });
+    log.error({ err }, 'failed to submit query');
     const message = err instanceof Error ? err.message : 'Unknown error';
     return json({ error: message }, { status: 502 });
   }

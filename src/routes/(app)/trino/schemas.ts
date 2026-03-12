@@ -15,14 +15,4 @@ export const StatementRequestSchema = z.object({
   sql: z.string().min(1)
 });
 
-export const NextRequestSchema = z.object({
-  queryId: z.string().min(1),
-  nextUri: z.string().url()
-});
-
-export const CancelRequestSchema = z.object({
-  queryId: z.string().min(1),
-  nextUri: z.string().url()
-});
-
 export type ConnectionMessage = { type: 'success' } | { type: 'error'; message: string };

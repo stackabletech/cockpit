@@ -69,6 +69,7 @@
   "trino_connection_saved": "Connection saved.",
   "trino_no_connection": "No connection configured. Please save a connection first.",
   "trino_cancel_query": "Cancel",
+  "trino_state_submitting": "Submitting",
   "trino_state_queued": "Queued",
   "trino_state_planning": "Planning",
   "trino_state_running": "Running",
@@ -76,8 +77,9 @@
   "trino_state_finished": "Finished",
   "trino_state_failed": "Failed",
   "trino_state_cancelled": "Cancelled",
-  "trino_progress_info": "{rows} rows | {elapsed}s",
+  "trino_progress_info": "{rows} rows processed | {elapsed}s",
   "trino_row_limit_reached": "Row limit of {limit} reached — query cancelled.",
   "trino_impersonation": "User impersonation",
-  "trino_impersonation_description": "Run queries as {user} via the service account"
+  "trino_impersonation_description": "Run queries as {user} via the service account",
+  "trino_view_in_trino": "View in Trino"
 }

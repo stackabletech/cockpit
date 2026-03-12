@@ -2,13 +2,16 @@ import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { setConnection, type AuthConfig } from '$lib/server/trino.js';
+import { getUserId, getQuerySnapshot } from '$lib/server/query-store.js';
 import { ConnectionSchema, type ConnectionMessage } from './schemas.js';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
   locals.logger.debug('loading Trino page');
   const connectionForm = await superValidate(zod(ConnectionSchema));
-  return { connectionForm };
+  const userId = getUserId(locals);
+  const activeQuery = getQuerySnapshot(userId) ?? null;
+  return { connectionForm, activeQuery };
 };
 
 export const actions: Actions = {

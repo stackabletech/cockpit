@@ -54,6 +54,38 @@ better-auth uses SQLite (via better-sqlite3) for session and user storage. SQLit
 
 ---
 
+### Anonymous users share a single query slot
+
+**File:** `src/lib/server/query-store.ts`
+
+When OIDC is disabled, all users are identified as `'anonymous'` and share a single active query slot. Submitting a new query cancels the previous one. Once OIDC is required in production this is a non-issue, but for development with multiple anonymous users it can cause unexpected cancellations.
+
+---
+
+### In-memory query store lost on server restart
+
+**File:** `src/lib/server/query-store.ts`
+
+All server-side query state (progress, rows, status) is held in a module-level `Map`. A server restart clears all state — running queries become orphaned in Trino and completed results are lost. Acceptable during development; long-term this should be backed by Redis or a persistent store.
+
+---
+
+### Completed query results are ephemeral (30-minute TTL)
+
+**File:** `src/lib/server/query-store.ts`
+
+Completed query snapshots (including result rows) are cleaned up after 30 minutes. If a user leaves and returns later, the results will be gone. Consider persisting results to disk or a cache with configurable TTL.
+
+---
+
+### Status endpoint returns full rows array on each poll
+
+**File:** `src/routes/(app)/trino/api/query/status/+server.ts`
+
+The status endpoint returns the entire accumulated `rows` array on every poll request. With the 10k row cap this is acceptable, but for very wide result sets it is wasteful. A future optimisation could accept a `?rowOffset=N` parameter and return only new rows.
+
+---
+
 ## API & Validation
 
 ### API route request body not validated with Zod

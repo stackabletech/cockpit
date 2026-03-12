@@ -44,6 +44,24 @@
       ? (storedPageSize as 25 | 50 | 100)
       : 25;
     hydrated = true;
+
+    // Re-establish server-side connection from localStorage on page reload.
+    if (connectionUrl) {
+      const body = new FormData();
+      body.set('connectionUrl', connectionUrl);
+      body.set('authType', authType);
+      body.set('authUsername', authUsername);
+      body.set('authPassword', authPassword);
+      body.set('impersonation', String(impersonation));
+      fetch('?/save', {
+        method: 'POST',
+        body,
+        headers: { 'x-sveltekit-action': 'true' }
+      });
+    }
+
+    // Resume active query from server-side state (survives page reloads).
+    queryRunner.initialise(data.activeQuery);
   });
 
   // Connection form (SuperForms).
@@ -114,6 +132,7 @@
 
   const stateLabel = $derived.by(() => {
     const stateMap: Record<string, () => string> = {
+      SUBMITTING: m.trino_state_submitting,
       QUEUED: m.trino_state_queued,
       PLANNING: m.trino_state_planning,
       RUNNING: m.trino_state_running,
@@ -143,6 +162,12 @@
       default:
         return '';
     }
+  });
+
+  const trinoQueryUrl = $derived.by(() => {
+    if (!queryRunner.trinoQueryId || !connectionUrl) return null;
+    const base = connectionUrl.replace(/\/+$/, '');
+    return `${base}/ui/query.html?${queryRunner.trinoQueryId}`;
   });
 
   const rowLimitError = $derived.by(() => {
@@ -366,9 +391,13 @@
       {#if stateLabel}
         <span class="badge {stateBadgeClass}">{stateLabel}</span>
       {/if}
-      {#if queryRunner.state === 'RUNNING' && queryRunner.progress.progressPercentage > 0}
+      {#if queryRunner.state === 'RUNNING'}
+        <span class="text-base-content/60 text-xs tabular-nums"
+          >{Math.round(queryRunner.progress.progressPercentage)}%</span
+        >
         <progress
-          class="progress progress-primary w-32"
+          class="progress progress-primary shrink-0"
+          style="width: 8rem"
           value={queryRunner.progress.progressPercentage}
           max="100"
         ></progress>
@@ -381,6 +410,16 @@
           })}
         </span>
       {/if}
+      {#if trinoQueryUrl}
+        <a
+          href={trinoQueryUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="link link-primary text-xs"
+        >
+          {m.trino_view_in_trino()}
+        </a>
+      {/if}
       {#if rowLimitError}
         <span class="text-warning text-xs">{rowLimitError}</span>
       {/if}
@@ -391,7 +430,7 @@
   <div class="bg-base-100 border-base-300 flex min-h-0 flex-1 flex-col rounded-xl border">
     <div class="border-base-300 flex items-center border-b px-4 py-2">
       <span class="text-base-content/60 text-sm font-medium">{m.trino_results_label()}</span>
-      {#if displayedRows.length > 0 && totalRows > 0}
+      {#if queryRunner.state === 'FINISHED' && displayedRows.length > 0 && totalRows > 0}
         <span class="text-base-content/40 ml-2 text-xs">
           {m.trino_rows_range({ start: rowStart, end: rowEnd, total: totalRows })}
         </span>
@@ -400,25 +439,13 @@
 
     <div class="min-h-0 flex-1 overflow-auto p-4">
       {#if queryError}
-        <div class="alert alert-error" role="alert">
-          <svg
-            class="h-5 w-5 shrink-0"
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v4m0 4h.01" />
-          </svg>
-          <div>
-            <p class="font-semibold">{m.trino_query_error()}</p>
-            <p class="text-sm opacity-80">{queryError}</p>
-          </div>
+        <div class="flex flex-col gap-2" role="alert">
+          <p class="text-error text-sm font-semibold">{m.trino_query_error()}</p>
+          <pre
+            class="bg-base-200 text-base-content overflow-x-auto rounded-lg p-3 text-xs whitespace-pre-wrap">{queryError}</pre>
         </div>
-      {:else if queryRunner.columns.length > 0}
-        <div class="overflow-x-auto" class:opacity-50={isActive}>
+      {:else if queryRunner.state === 'FINISHED' && queryRunner.columns.length > 0}
+        <div class="overflow-x-auto">
           <table class="table-sm table-zebra table" aria-label={m.trino_results_label()}>
             <thead>
               <tr>
@@ -444,12 +471,12 @@
             </tbody>
           </table>
         </div>
-      {:else if !isActive && queryRunner.state === 'IDLE'}
+      {:else if !isActive && !queryError}
         <p class="text-base-content/40 py-8 text-center text-sm">{m.trino_results_empty()}</p>
       {/if}
     </div>
 
-    {#if queryRunner.columns.length > 0}
+    {#if queryRunner.state === 'FINISHED' && queryRunner.columns.length > 0}
       <div class="border-base-300 flex items-center justify-between border-t px-4 py-3">
         <div class="join">
           <button
