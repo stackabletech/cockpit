@@ -281,6 +281,7 @@
         authType={$queryFormData.authType}
         authUsername={$queryFormData.authUsername}
         authPassword={$queryFormData.authPassword}
+        impersonation={$queryFormData.impersonation}
         bind:defaultCatalog={$queryFormData.defaultCatalog}
         bind:defaultSchema={$queryFormData.defaultSchema}
         onInsert={(name) => monacoEditor?.insertAtCursor(name)}
@@ -309,6 +310,7 @@
         authType={$queryFormData.authType}
         authUsername={$queryFormData.authUsername}
         authPassword={$queryFormData.authPassword}
+        impersonation={$queryFormData.impersonation}
         bind:defaultCatalog={$queryFormData.defaultCatalog}
         bind:defaultSchema={$queryFormData.defaultSchema}
         onInsert={(name) => {

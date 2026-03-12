@@ -10,6 +10,7 @@
     authType,
     authUsername,
     authPassword,
+    impersonation = false,
     defaultCatalog = $bindable(''),
     defaultSchema = $bindable(''),
     onInsert
@@ -18,6 +19,7 @@
     authType: 'none' | 'basic';
     authUsername: string;
     authPassword: string;
+    impersonation: boolean;
     defaultCatalog: string;
     defaultSchema: string;
     onInsert: (qualifiedName: string) => void;
@@ -39,6 +41,7 @@
       authType,
       authUsername,
       authPassword,
+      impersonation: String(impersonation),
       ...extra
     });
     return params.toString();

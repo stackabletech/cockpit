@@ -24,6 +24,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   }
 
   const auth = parseAuth(url);
+  const impersonation = url.searchParams.get('impersonation') === 'true';
+  const impersonateUser = impersonation && locals.user?.username ? locals.user.username : undefined;
   const catalog = url.searchParams.get('catalog');
   const schema = url.searchParams.get('schema');
   const table = url.searchParams.get('table');
@@ -53,7 +55,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
   try {
     log.debug({ level, catalog, schema, table }, 'fetching catalog metadata');
-    const { rows } = await trinoQuery(connectionUrl, auth, sql);
+    const { rows } = await trinoQuery(connectionUrl, auth, sql, { impersonateUser });
     log.debug(
       { level, catalog, schema, table, row_count: rows.length },
       'catalog metadata fetched'
