@@ -1,21 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as http from 'node:http';
-import type { AddressInfo } from 'node:net';
-import { waitForHydration, ensureCatalogBrowserOpen } from './helpers';
-
-// Mock Trino server that responds to different metadata queries.
-async function startMockTrinoServer(
-  handler: (req: http.IncomingMessage, res: http.ServerResponse) => void
-): Promise<{ url: string; stop: () => Promise<void> }> {
-  const server = http.createServer(handler);
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const port = (server.address() as AddressInfo).port;
-  return {
-    url: `http://127.0.0.1:${port}`,
-    stop: () =>
-      new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())))
-  };
-}
+import { waitForHydration, ensureCatalogBrowserOpen, startMockTrinoServer } from './helpers';
 
 function catalogHandler(req: http.IncomingMessage, res: http.ServerResponse) {
   let body = '';
