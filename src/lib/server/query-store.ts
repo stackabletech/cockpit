@@ -1,26 +1,25 @@
 import { logger } from '$lib/server/logging';
 import { trinoActiveQueries, trinoQueryTotal } from '$lib/server/metrics.js';
 import {
-  type AuthConfig,
+  type ConnectionConfig,
   type TrinoColumn,
   type TrinoResponse,
   type TrinoStats,
   trinoFetch,
   validateTargetUrl
 } from '$lib/server/trino.js';
-import type { QueryProgress, QuerySnapshot, QueryState } from '$lib/types/query.js';
+import {
+  INITIAL_PROGRESS,
+  MAX_CLIENT_ROWS,
+  type QueryProgress,
+  type QuerySnapshot,
+  type QueryState
+} from '$lib/types/query.js';
 
 const log = logger.child({ module: 'query-store' });
 
-const MAX_CLIENT_ROWS = 10_000;
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 const COMPLETED_TTL_MS = 30 * 60 * 1000;
-
-interface ConnectionConfig {
-  connectionUrl: string;
-  auth: AuthConfig;
-  impersonateUser?: string;
-}
 
 interface ActiveQuery {
   trinoQueryId: string;
@@ -36,12 +35,6 @@ interface ActiveQuery {
   userId: string;
   completedAt: number | null;
 }
-
-const INITIAL_PROGRESS: QueryProgress = {
-  progressPercentage: 0,
-  processedRows: 0,
-  elapsedTimeMillis: 0
-};
 
 /** All queries keyed by Trino query ID. */
 const queries = new Map<string, ActiveQuery>();
@@ -191,7 +184,7 @@ async function pollLoop(trinoQueryId: string): Promise<void> {
     }
 
     if (response.data) {
-      q.rows = [...q.rows, ...response.data];
+      q.rows.push(...response.data);
     }
 
     if (response.stats) {
@@ -285,6 +278,7 @@ export async function startQuery(
     q.error = response.error.message ?? 'Query failed';
     q.state = 'FAILED';
     q.completedAt = Date.now();
+    trinoQueryTotal.inc({ outcome: 'failed' });
   }
 
   queries.set(trinoQueryId, q);
@@ -306,9 +300,7 @@ export async function startQuery(
         trinoQueryTotal.inc({ outcome: 'failed' });
       }
     });
-  } else if (isTerminal(q.state)) {
-    // Already terminal from the initial response (e.g. error).
-  } else {
+  } else if (!isTerminal(q.state)) {
     // No nextUri but not terminal — mark finished.
     q.state = 'FINISHED';
     q.completedAt = Date.now();

@@ -30,11 +30,9 @@ export interface TrinoResponse {
 
 export type AuthConfig = { type: 'none' } | { type: 'basic'; username: string; password: string };
 
-export const MAX_CLIENT_ROWS = 10_000;
-
 // --- Connection store (in-memory, single-instance) ---
 
-interface ConnectionConfig {
+export interface ConnectionConfig {
   connectionUrl: string;
   auth: AuthConfig;
   impersonateUser?: string;

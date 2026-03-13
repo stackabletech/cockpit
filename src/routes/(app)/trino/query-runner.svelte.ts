@@ -1,15 +1,12 @@
-import type { QueryProgress, QuerySnapshot, QueryState } from '$lib/types/query.js';
 import type { TrinoColumn } from '$lib/server/trino.js';
+import {
+  INITIAL_PROGRESS,
+  type QueryProgress,
+  type QuerySnapshot,
+  type QueryState
+} from '$lib/types/query.js';
 
-export { type QueryState, type QueryProgress } from '$lib/types/query.js';
-
-export const MAX_CLIENT_ROWS = 10_000;
-
-const INITIAL_PROGRESS: QueryProgress = {
-  progressPercentage: 0,
-  processedRows: 0,
-  elapsedTimeMillis: 0
-};
+export { INITIAL_PROGRESS, type QueryState, type QueryProgress } from '$lib/types/query.js';
 
 let state = $state<QueryState>('IDLE');
 let progress = $state<QueryProgress>(INITIAL_PROGRESS);

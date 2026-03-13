@@ -1,5 +1,13 @@
 import type { TrinoColumn } from '$lib/server/trino.js';
 
+export const MAX_CLIENT_ROWS = 10_000;
+
+export const INITIAL_PROGRESS: QueryProgress = {
+  progressPercentage: 0,
+  processedRows: 0,
+  elapsedTimeMillis: 0
+};
+
 export type QueryState =
   | 'IDLE'
   | 'SUBMITTING'

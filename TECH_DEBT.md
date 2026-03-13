@@ -62,11 +62,11 @@ When OIDC is disabled, all users are identified as `'anonymous'` and share a sin
 
 ---
 
-### In-memory query store lost on server restart
+### In-memory query store lost on server restart and prevents horizontal scaling
 
 **File:** `src/lib/server/query-store.ts`
 
-All server-side query state (progress, rows, status) is held in a module-level `Map`. A server restart clears all state — running queries become orphaned in Trino and completed results are lost. Acceptable during development; long-term this should be backed by Redis or a persistent store.
+All server-side query state (progress, rows, status) is held in a module-level `Map`. A server restart clears all state — running queries become orphaned in Trino and completed results are lost. Additionally, because the state is process-local, multiple server instances cannot share query state: a query started on instance A is invisible to instance B. Combined with the SQLite session store limitation (see above), the deployment is limited to a single replica. Acceptable during development; long-term this should be backed by Redis or a persistent store to enable horizontal scaling and resilience.
 
 ---
 
