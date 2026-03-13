@@ -20,10 +20,10 @@
 
   export function insertAtCursor(text: string) {
     if (!editor || !monaco) return;
-    // Fall back to position (1,1) when the editor has never been focused (Firefox).
+    // Focus first so getSelection() returns a valid position (needed for Firefox).
+    editor.focus();
     const selection = editor.getSelection() ?? new monaco.Selection(1, 1, 1, 1);
     editor.executeEdits('catalog-browser', [{ range: selection, text, forceMoveMarkers: true }]);
-    editor.focus();
   }
 
   // Start loading in parallel with the rest of the page — not deferred to onMount.

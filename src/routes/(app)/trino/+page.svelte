@@ -265,7 +265,7 @@
   <aside
     class="bg-base-100 border-base-300 hidden shrink-0 flex-col overflow-hidden rounded-xl border transition-[width] duration-200 ease-out lg:flex {catalogBrowserOpen
       ? 'w-72'
-      : 'w-0 border-0'}"
+      : 'invisible w-0 border-0'}"
   >
     <div class="border-base-300 flex w-72 items-center justify-between border-b px-3 py-2">
       <span class="text-base-content/60 text-sm font-medium">{m.trino_catalog_browser()}</span>
