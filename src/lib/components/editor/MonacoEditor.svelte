@@ -17,6 +17,7 @@
   let container: HTMLDivElement;
   let editor: import('monaco-editor').editor.IStandaloneCodeEditor | undefined;
   let monaco = $state<typeof import('monaco-editor') | undefined>(undefined);
+  let ready = $state(false);
 
   export function insertAtCursor(text: string) {
     if (!editor || !monaco) return;
@@ -67,6 +68,8 @@
       value = editor!.getValue();
     });
 
+    ready = true;
+
     if (onExecute) {
       editor.addAction({
         id: 'execute-query',
@@ -82,4 +85,4 @@
   });
 </script>
 
-<div bind:this={container} class="h-full w-full"></div>
+<div bind:this={container} class="h-full w-full" data-ready={ready || undefined}></div>

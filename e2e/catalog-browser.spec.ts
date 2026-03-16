@@ -197,6 +197,9 @@ test.describe('Catalog browser', () => {
     await browser.getByRole('button', { name: 'sf1', exact: true }).click();
     await expect(browser.getByText('customer', { exact: true })).toBeVisible();
 
+    // Wait for the Monaco editor to be fully initialised (Firefox can be slower).
+    await page.locator('[data-ready]').waitFor();
+
     // Click the insert button (the table name text).
     await browser
       .getByRole('button', { name: 'Insert table name: tpch.sf1.customer', exact: true })
