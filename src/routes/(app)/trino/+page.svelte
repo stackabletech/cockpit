@@ -1,7 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
+  import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
+  import Modal from '$lib/components/Modal.svelte';
   import { superForm } from 'sveltekit-superforms';
   import type { PageData } from './$types';
   import type { ConnectionMessage } from './schemas.js';
@@ -28,9 +31,26 @@
   let impersonation = $state(false);
   let sql = $state('SELECT 1');
   let pageSize = $state<25 | 50 | 100>(25);
+  let defaultCatalog = $state('');
+  let defaultSchema = $state('');
   let connectionOpen = $state(false);
   let currentPage = $state(0);
   let hydrated = $state(false);
+
+  // Catalog browser state. On mobile, always start closed; on desktop, restore from localStorage.
+  function getInitialCatalogOpen(): boolean {
+    if (!browser) return false;
+    try {
+      const isMobile = !window.matchMedia('(min-width: 1024px)').matches;
+      if (isMobile) return false;
+      return (localStorage.getItem('trino_catalog_browser_open') ?? 'true') === 'true';
+    } catch {
+      return false;
+    }
+  }
+  let catalogBrowserOpen = $state(getInitialCatalogOpen());
+  let monacoEditor = $state<MonacoEditor | undefined>(undefined);
+  let mobileCatalogOpen = $state(false);
 
   onMount(() => {
     connectionUrl = getStoredValue('trino_url', '');
@@ -39,6 +59,8 @@
     authPassword = getStoredValue('trino_password', '');
     impersonation = getStoredValue('trino_impersonation', 'false') === 'true';
     sql = getStoredValue('trino_sql', 'SELECT 1');
+    defaultCatalog = getStoredValue('trino_default_catalog', '');
+    defaultSchema = getStoredValue('trino_default_schema', '');
     const storedPageSize = parseInt(getStoredValue('trino_page_size', '25'), 10);
     pageSize = PAGE_SIZES.includes(storedPageSize as 25 | 50 | 100)
       ? (storedPageSize as 25 | 50 | 100)
@@ -99,11 +121,14 @@
     localStorage.setItem('trino_impersonation', String(impersonation));
   });
 
-  // Persist SQL.
+  // Persist SQL and other settings.
   $effect(() => {
     if (!hydrated) return;
     localStorage.setItem('trino_sql', sql);
     localStorage.setItem('trino_page_size', String(pageSize));
+    localStorage.setItem('trino_default_catalog', defaultCatalog);
+    localStorage.setItem('trino_default_schema', defaultSchema);
+    localStorage.setItem('trino_catalog_browser_open', String(catalogBrowserOpen));
   });
 
   // Reset pagination when rows change.
@@ -207,312 +232,441 @@
     pageSize = parseInt((event.target as HTMLSelectElement).value, 10) as 25 | 50 | 100;
     currentPage = 0;
   }
+
+  function toggleCatalogBrowser() {
+    if (browser && !window.matchMedia('(min-width: 1024px)').matches) {
+      mobileCatalogOpen = !mobileCatalogOpen;
+    } else {
+      catalogBrowserOpen = !catalogBrowserOpen;
+    }
+  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="flex h-full flex-col gap-4">
-  <!-- Connection config form -->
-  <form method="POST" action="?/save" use:connectionEnhance>
-    <input type="hidden" name="connectionUrl" value={connectionUrl} />
-    <input type="hidden" name="authType" value={authType} />
-    <input type="hidden" name="authUsername" value={authUsername} />
-    <input type="hidden" name="authPassword" value={authPassword} />
-    <input type="hidden" name="impersonation" value={String(impersonation)} />
+{#snippet closeIcon()}
+  <svg
+    class="h-4 w-4"
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
+  >
+{/snippet}
 
-    <div class="bg-base-100 border-base-300 collapse rounded-xl border">
-      <input
-        type="checkbox"
-        class="peer"
-        aria-label={m.trino_connection_label()}
-        bind:checked={connectionOpen}
-      />
-      <div
-        class="collapse-title text-base-content flex items-center justify-between pr-4 text-sm font-medium"
-      >
-        <span>{m.trino_connection_label()}</span>
-        <span class="text-base-content/50 font-mono text-xs">{connectionSummary}</span>
-      </div>
-      <div class="collapse-content flex flex-col gap-4">
-        <!-- URL -->
-        <div class="flex flex-col gap-1">
-          <label for="{uid}-conn-url" class="label text-sm">
-            {m.trino_connection_url()}
-          </label>
-          <input
-            id="{uid}-conn-url"
-            type="url"
-            class="input input-sm w-full font-mono"
-            class:input-error={$connectionErrors.connectionUrl}
-            placeholder={m.trino_connection_url_placeholder()}
-            bind:value={connectionUrl}
-          />
-          {#if $connectionErrors.connectionUrl}
-            <p class="text-error text-xs">{$connectionErrors.connectionUrl}</p>
-          {/if}
-        </div>
-
-        <!-- Auth type toggle -->
-        <div class="flex flex-col gap-1">
-          <span class="label text-sm">{m.trino_connection_auth()}</span>
-          <div class="join" role="group" aria-label={m.trino_connection_auth()}>
-            <input
-              id="{uid}-auth-none"
-              class="join-item btn btn-sm"
-              type="radio"
-              name="{uid}-auth"
-              aria-label={m.trino_auth_none()}
-              value="none"
-              bind:group={authType}
-            />
-            <input
-              id="{uid}-auth-basic"
-              class="join-item btn btn-sm"
-              type="radio"
-              name="{uid}-auth"
-              aria-label={m.trino_auth_basic()}
-              value="basic"
-              bind:group={authType}
-            />
-          </div>
-        </div>
-
-        <!-- Basic auth credentials -->
-        {#if authType === 'basic'}
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div class="flex flex-col gap-1">
-              <label for="{uid}-auth-username" class="label text-sm">
-                {m.trino_auth_username()}
-              </label>
-              <input
-                id="{uid}-auth-username"
-                type="text"
-                class="input input-sm font-mono"
-                autocomplete="username"
-                bind:value={authUsername}
-              />
-            </div>
-            <div class="flex flex-col gap-1">
-              <label for="{uid}-auth-password" class="label text-sm">
-                {m.trino_auth_password()}
-              </label>
-              <input
-                id="{uid}-auth-password"
-                type="password"
-                class="input input-sm font-mono"
-                autocomplete="current-password"
-                bind:value={authPassword}
-              />
-            </div>
-          </div>
-        {/if}
-
-        <!-- User impersonation -->
-        {#if data.user?.username}
-          <div class="flex items-center gap-3">
-            <input
-              id="{uid}-impersonation"
-              type="checkbox"
-              class="toggle toggle-sm"
-              bind:checked={impersonation}
-            />
-            <label for="{uid}-impersonation" class="flex flex-col">
-              <span class="text-sm">{m.trino_impersonation()}</span>
-              <span class="text-base-content/50 text-xs">
-                {m.trino_impersonation_description({ user: data.user.username })}
-              </span>
-            </label>
-          </div>
-        {/if}
-
-        <!-- Save button -->
-        <div class="flex justify-end">
-          <button type="submit" class="btn btn-primary btn-sm">
-            {m.trino_save_connection()}
-          </button>
-        </div>
-
-        {#if $connectionMessage}
-          {@const msg = $connectionMessage as ConnectionMessage}
-          {#if msg.type === 'success'}
-            <p class="text-success text-sm">{m.trino_connection_saved()}</p>
-          {:else}
-            <p class="text-error text-sm">{msg.message}</p>
-          {/if}
-        {/if}
-      </div>
+<div class="flex h-full gap-4">
+  <!-- Catalog browser panel (desktop) — always in DOM, collapses via width transition -->
+  <aside
+    class="bg-base-100 border-base-300 hidden shrink-0 flex-col overflow-hidden rounded-xl border transition-[width] duration-200 ease-out lg:flex {catalogBrowserOpen
+      ? 'w-72'
+      : 'invisible w-0 border-0'}"
+  >
+    <div class="border-base-300 flex w-72 items-center justify-between border-b px-3 py-2">
+      <span class="text-base-content/60 text-sm font-medium">{m.trino_catalog_browser()}</span>
     </div>
-  </form>
+    <div class="w-72">
+      <CatalogBrowser
+        {connectionUrl}
+        {authType}
+        {authUsername}
+        {authPassword}
+        {impersonation}
+        bind:defaultCatalog
+        bind:defaultSchema
+        onInsert={(name) => monacoEditor?.insertAtCursor(name)}
+      />
+    </div>
+  </aside>
 
-  <!-- Editor section (standalone, not a form) -->
-  <div class="bg-base-100 border-base-300 flex flex-col rounded-xl border">
-    <div class="border-base-300 flex items-center justify-between border-b px-4 py-2">
-      <span class="text-base-content/60 text-sm font-medium">{m.trino_editor_label()}</span>
-      <div class="flex gap-2">
-        {#if isActive}
-          <button
-            type="button"
-            class="btn btn-error btn-sm"
-            onclick={() => queryRunner.cancel()}
-            aria-label={m.trino_cancel_query()}
-          >
-            {m.trino_cancel_query()}
-          </button>
-        {/if}
+  <!-- Mobile catalog browser overlay -->
+  <Modal
+    bind:open={mobileCatalogOpen}
+    class="bg-base-100 fixed inset-0 z-40 h-full max-h-full w-full max-w-full p-0 lg:hidden"
+  >
+    <div class="flex h-full flex-col">
+      <div class="border-base-300 flex items-center justify-between border-b px-3 py-2">
+        <span class="text-base-content/60 text-sm font-medium">{m.trino_catalog_browser()}</span>
         <button
-          type="button"
-          class="btn btn-primary btn-sm"
-          disabled={isActive}
-          aria-label={m.trino_run_query()}
-          onclick={handleExecute}
+          class="btn btn-ghost btn-xs"
+          onclick={() => (mobileCatalogOpen = false)}
+          aria-label={m.trino_catalog_browser_toggle()}
         >
-          {#if isActive}
-            <span class="loading loading-spinner loading-xs"></span>
-            {m.trino_running()}
-          {:else}
-            {m.trino_run_query()}
-            <kbd class="kbd kbd-sm text-base-content opacity-60">Ctrl+↵</kbd>
-          {/if}
+          {@render closeIcon()}
         </button>
       </div>
+      <CatalogBrowser
+        {connectionUrl}
+        {authType}
+        {authUsername}
+        {authPassword}
+        {impersonation}
+        bind:defaultCatalog
+        bind:defaultSchema
+        onInsert={(name) => {
+          monacoEditor?.insertAtCursor(name);
+          mobileCatalogOpen = false;
+        }}
+      />
     </div>
-    <div class="h-64">
-      <MonacoEditor bind:value={sql} onExecute={handleExecute} />
-    </div>
-  </div>
+  </Modal>
 
-  <!-- Status display -->
-  {#if queryRunner.state !== 'IDLE'}
-    <div
-      class="flex flex-wrap items-center gap-3 px-1"
-      aria-live="polite"
-      data-query-state={queryRunner.state}
-    >
-      {#if stateLabel}
-        <span class="badge {stateBadgeClass}">{stateLabel}</span>
-      {/if}
-      {#if queryRunner.state === 'RUNNING'}
-        <span class="text-base-content/60 text-xs tabular-nums"
-          >{Math.round(queryRunner.progress.progressPercentage)}%</span
+  <!-- Main editor + results column -->
+  <div class="flex min-w-0 flex-1 flex-col gap-4">
+    <!-- Connection config form -->
+    <form method="POST" action="?/save" use:connectionEnhance>
+      <input type="hidden" name="connectionUrl" value={connectionUrl} />
+      <input type="hidden" name="authType" value={authType} />
+      <input type="hidden" name="authUsername" value={authUsername} />
+      <input type="hidden" name="authPassword" value={authPassword} />
+      <input type="hidden" name="impersonation" value={String(impersonation)} />
+
+      <div class="bg-base-100 border-base-300 collapse rounded-xl border">
+        <input
+          type="checkbox"
+          class="peer"
+          aria-label={m.trino_connection_label()}
+          bind:checked={connectionOpen}
+        />
+        <div
+          class="collapse-title text-base-content flex items-center justify-between pr-4 text-sm font-medium"
         >
-        <progress
-          class="progress progress-primary shrink-0"
-          style="width: 8rem"
-          value={queryRunner.progress.progressPercentage}
-          max="100"
-        ></progress>
-      {/if}
-      {#if queryRunner.progress.processedRows > 0 || queryRunner.progress.elapsedTimeMillis > 0}
-        <span class="text-base-content/60 text-xs">
-          {m.trino_progress_info({
-            rows: queryRunner.progress.processedRows.toLocaleString(),
-            elapsed: (queryRunner.progress.elapsedTimeMillis / 1000).toFixed(1)
-          })}
-        </span>
-      {/if}
-      {#if trinoQueryUrl}
-        <a
-          href={trinoQueryUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="link link-primary text-xs"
-        >
-          {m.trino_view_in_trino()}
-        </a>
-      {/if}
-      {#if rowLimitError}
-        <span class="text-warning text-xs">{rowLimitError}</span>
-      {/if}
-    </div>
-  {/if}
-
-  <!-- Results section -->
-  <div class="bg-base-100 border-base-300 flex min-h-0 flex-1 flex-col rounded-xl border">
-    <div class="border-base-300 flex items-center border-b px-4 py-2">
-      <span class="text-base-content/60 text-sm font-medium">{m.trino_results_label()}</span>
-      {#if queryRunner.state === 'FINISHED' && displayedRows.length > 0 && totalRows > 0}
-        <span class="text-base-content/40 ml-2 text-xs">
-          {m.trino_rows_range({ start: rowStart, end: rowEnd, total: totalRows })}
-        </span>
-      {/if}
-    </div>
-
-    <div class="min-h-0 flex-1 overflow-auto p-4">
-      {#if queryError}
-        <div class="flex flex-col gap-2" role="alert">
-          <p class="text-error text-sm font-semibold">{m.trino_query_error()}</p>
-          <pre
-            class="bg-base-200 text-base-content overflow-x-auto rounded-lg p-3 text-xs whitespace-pre-wrap">{queryError}</pre>
+          <span>{m.trino_connection_label()}</span>
+          <span class="text-base-content/50 font-mono text-xs">{connectionSummary}</span>
         </div>
-      {:else if queryRunner.state === 'FINISHED' && queryRunner.columns.length > 0}
-        <div class="overflow-x-auto">
-          <table class="table-sm table-zebra table" aria-label={m.trino_results_label()}>
-            <thead>
-              <tr>
-                {#each queryRunner.columns as col (col.name)}
-                  <th scope="col" class="whitespace-nowrap">{col.name}</th>
-                {/each}
-              </tr>
-            </thead>
-            <tbody>
-              {#each displayedRows as row, rowIdx (rowIdx)}
-                <tr>
-                  {#each row as cell, cellIdx (cellIdx)}
-                    <td class="font-mono text-xs whitespace-nowrap">
-                      {#if cell === null}
-                        <span class="text-base-content/50 italic">null</span>
-                      {:else}
-                        {String(cell)}
-                      {/if}
-                    </td>
-                  {/each}
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-      {:else if !isActive && !queryError}
-        <p class="text-base-content/40 py-8 text-center text-sm">{m.trino_results_empty()}</p>
-      {/if}
-    </div>
+        <div class="collapse-content flex flex-col gap-4">
+          <!-- URL -->
+          <div class="flex flex-col gap-1">
+            <label for="{uid}-conn-url" class="label text-sm">
+              {m.trino_connection_url()}
+            </label>
+            <input
+              id="{uid}-conn-url"
+              type="url"
+              class="input input-sm w-full font-mono"
+              class:input-error={$connectionErrors.connectionUrl}
+              placeholder={m.trino_connection_url_placeholder()}
+              bind:value={connectionUrl}
+            />
+            {#if $connectionErrors.connectionUrl}
+              <p class="text-error text-xs">{$connectionErrors.connectionUrl}</p>
+            {/if}
+          </div>
 
-    {#if queryRunner.state === 'FINISHED' && queryRunner.columns.length > 0}
-      <div class="border-base-300 flex items-center justify-between border-t px-4 py-3">
-        <div class="join">
-          <button
-            class="btn btn-sm join-item"
-            onclick={goToPrevPage}
-            disabled={currentPage === 0}
-            aria-label={m.trino_prev_page()}
-          >
-            ‹
-          </button>
-          <button
-            class="btn btn-sm join-item"
-            onclick={goToNextPage}
-            disabled={!hasMore}
-            aria-label={m.trino_next_page()}
-          >
-            ›
-          </button>
-        </div>
+          <!-- Auth type toggle -->
+          <div class="flex flex-col gap-1">
+            <span class="label text-sm">{m.trino_connection_auth()}</span>
+            <div class="join" role="group" aria-label={m.trino_connection_auth()}>
+              <input
+                id="{uid}-auth-none"
+                class="join-item btn btn-sm"
+                type="radio"
+                name="{uid}-auth"
+                aria-label={m.trino_auth_none()}
+                value="none"
+                bind:group={authType}
+              />
+              <input
+                id="{uid}-auth-basic"
+                class="join-item btn btn-sm"
+                type="radio"
+                name="{uid}-auth"
+                aria-label={m.trino_auth_basic()}
+                value="basic"
+                bind:group={authType}
+              />
+            </div>
+          </div>
 
-        <div class="flex items-center gap-3">
-          <label for="{uid}-page-size" class="text-base-content/60 text-sm whitespace-nowrap">
-            {m.trino_page_size()}
-          </label>
-          <select
-            id="{uid}-page-size"
-            class="select select-sm"
-            value={pageSize}
-            onchange={handlePageSizeChange}
-          >
-            {#each PAGE_SIZES as size (size)}
-              <option value={size}>{size}</option>
-            {/each}
-          </select>
+          <!-- Basic auth credentials -->
+          {#if authType === 'basic'}
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div class="flex flex-col gap-1">
+                <label for="{uid}-auth-username" class="label text-sm">
+                  {m.trino_auth_username()}
+                </label>
+                <input
+                  id="{uid}-auth-username"
+                  type="text"
+                  class="input input-sm font-mono"
+                  autocomplete="username"
+                  bind:value={authUsername}
+                />
+              </div>
+              <div class="flex flex-col gap-1">
+                <label for="{uid}-auth-password" class="label text-sm">
+                  {m.trino_auth_password()}
+                </label>
+                <input
+                  id="{uid}-auth-password"
+                  type="password"
+                  class="input input-sm font-mono"
+                  autocomplete="current-password"
+                  bind:value={authPassword}
+                />
+              </div>
+            </div>
+          {/if}
+
+          <!-- User impersonation -->
+          {#if data.user?.username}
+            <div class="flex items-center gap-3">
+              <input
+                id="{uid}-impersonation"
+                type="checkbox"
+                class="toggle toggle-sm"
+                bind:checked={impersonation}
+              />
+              <label for="{uid}-impersonation" class="flex flex-col">
+                <span class="text-sm">{m.trino_impersonation()}</span>
+                <span class="text-base-content/50 text-xs">
+                  {m.trino_impersonation_description({ user: data.user.username })}
+                </span>
+              </label>
+            </div>
+          {/if}
+
+          <!-- Save button -->
+          <div class="flex justify-end">
+            <button type="submit" class="btn btn-primary btn-sm">
+              {m.trino_save_connection()}
+            </button>
+          </div>
+
+          {#if $connectionMessage}
+            {@const msg = $connectionMessage as ConnectionMessage}
+            {#if msg.type === 'success'}
+              <p class="text-success text-sm">{m.trino_connection_saved()}</p>
+            {:else}
+              <p class="text-error text-sm">{msg.message}</p>
+            {/if}
+          {/if}
         </div>
       </div>
+    </form>
+
+    <!-- Editor section (standalone, not a form) -->
+    <div class="bg-base-100 border-base-300 flex flex-col rounded-xl border">
+      <div class="border-base-300 flex items-center justify-between border-b px-4 py-2">
+        <div class="flex items-center gap-2">
+          <div class="tooltip tooltip-right" data-tip={m.trino_catalog_browser_toggle()}>
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs"
+              onclick={toggleCatalogBrowser}
+              aria-label={m.trino_catalog_browser_toggle()}
+            >
+              {#if catalogBrowserOpen}
+                <svg
+                  class="hidden h-4 w-4 lg:block"
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  ><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" /><path
+                    d="m14 9-3 3 3 3"
+                  /></svg
+                >
+                <svg
+                  class="h-4 w-4 lg:hidden"
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg
+                >
+              {:else}
+                <svg
+                  class="h-4 w-4"
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  ><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" /><path
+                    d="m12 9 3 3-3 3"
+                  /></svg
+                >
+              {/if}
+            </button>
+          </div>
+          <span class="text-base-content/60 text-sm font-medium">{m.trino_editor_label()}</span>
+        </div>
+        <div class="flex gap-2">
+          {#if isActive}
+            <button
+              type="button"
+              class="btn btn-error btn-sm"
+              onclick={() => queryRunner.cancel()}
+              aria-label={m.trino_cancel_query()}
+            >
+              {m.trino_cancel_query()}
+            </button>
+          {/if}
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            disabled={isActive}
+            aria-label={m.trino_run_query()}
+            onclick={handleExecute}
+          >
+            {#if isActive}
+              <span class="loading loading-spinner loading-xs"></span>
+              {m.trino_running()}
+            {:else}
+              {m.trino_run_query()}
+              <kbd class="kbd kbd-sm text-base-content opacity-60">Ctrl+↵</kbd>
+            {/if}
+          </button>
+        </div>
+      </div>
+      <div class="h-64">
+        <MonacoEditor bind:this={monacoEditor} bind:value={sql} onExecute={handleExecute} />
+      </div>
+    </div>
+
+    <!-- Status display -->
+    {#if queryRunner.state !== 'IDLE'}
+      <div
+        class="flex flex-wrap items-center gap-3 px-1"
+        aria-live="polite"
+        data-query-state={queryRunner.state}
+      >
+        {#if stateLabel}
+          <span class="badge {stateBadgeClass}">{stateLabel}</span>
+        {/if}
+        {#if queryRunner.state === 'RUNNING'}
+          <span class="text-base-content/60 text-xs tabular-nums"
+            >{Math.round(queryRunner.progress.progressPercentage)}%</span
+          >
+          <progress
+            class="progress progress-primary shrink-0"
+            style="width: 8rem"
+            value={queryRunner.progress.progressPercentage}
+            max="100"
+          ></progress>
+        {/if}
+        {#if queryRunner.progress.processedRows > 0 || queryRunner.progress.elapsedTimeMillis > 0}
+          <span class="text-base-content/60 text-xs">
+            {m.trino_progress_info({
+              rows: queryRunner.progress.processedRows.toLocaleString(),
+              elapsed: (queryRunner.progress.elapsedTimeMillis / 1000).toFixed(1)
+            })}
+          </span>
+        {/if}
+        {#if trinoQueryUrl}
+          <a
+            href={trinoQueryUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="link link-primary text-xs"
+          >
+            {m.trino_view_in_trino()}
+          </a>
+        {/if}
+        {#if rowLimitError}
+          <span class="text-warning text-xs">{rowLimitError}</span>
+        {/if}
+      </div>
     {/if}
+
+    <!-- Results section -->
+    <div class="bg-base-100 border-base-300 flex min-h-0 flex-1 flex-col rounded-xl border">
+      <div class="border-base-300 flex items-center border-b px-4 py-2">
+        <span class="text-base-content/60 text-sm font-medium">{m.trino_results_label()}</span>
+        {#if queryRunner.state === 'FINISHED' && displayedRows.length > 0 && totalRows > 0}
+          <span class="text-base-content/40 ml-2 text-xs">
+            {m.trino_rows_range({ start: rowStart, end: rowEnd, total: totalRows })}
+          </span>
+        {/if}
+      </div>
+
+      <div class="min-h-0 flex-1 overflow-auto p-4">
+        {#if queryError}
+          <div class="flex flex-col gap-2" role="alert">
+            <p class="text-error text-sm font-semibold">{m.trino_query_error()}</p>
+            <pre
+              class="bg-base-200 text-base-content overflow-x-auto rounded-lg p-3 text-xs whitespace-pre-wrap">{queryError}</pre>
+          </div>
+        {:else if queryRunner.state === 'FINISHED' && queryRunner.columns.length > 0}
+          <div class="overflow-x-auto">
+            <table class="table-sm table-zebra table" aria-label={m.trino_results_label()}>
+              <thead>
+                <tr>
+                  {#each queryRunner.columns as col (col.name)}
+                    <th scope="col" class="whitespace-nowrap">{col.name}</th>
+                  {/each}
+                </tr>
+              </thead>
+              <tbody>
+                {#each displayedRows as row, rowIdx (rowIdx)}
+                  <tr>
+                    {#each row as cell, cellIdx (cellIdx)}
+                      <td class="font-mono text-xs whitespace-nowrap">
+                        {#if cell === null}
+                          <span class="text-base-content/50 italic">null</span>
+                        {:else}
+                          {String(cell)}
+                        {/if}
+                      </td>
+                    {/each}
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {:else if !isActive && !queryError}
+          <p class="text-base-content/40 py-8 text-center text-sm">{m.trino_results_empty()}</p>
+        {/if}
+      </div>
+
+      {#if queryRunner.state === 'FINISHED' && queryRunner.columns.length > 0}
+        <div class="border-base-300 flex items-center justify-between border-t px-4 py-3">
+          <div class="join">
+            <button
+              class="btn btn-sm join-item"
+              onclick={goToPrevPage}
+              disabled={currentPage === 0}
+              aria-label={m.trino_prev_page()}
+            >
+              ‹
+            </button>
+            <button
+              class="btn btn-sm join-item"
+              onclick={goToNextPage}
+              disabled={!hasMore}
+              aria-label={m.trino_next_page()}
+            >
+              ›
+            </button>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <label for="{uid}-page-size" class="text-base-content/60 text-sm whitespace-nowrap">
+              {m.trino_page_size()}
+            </label>
+            <select
+              id="{uid}-page-size"
+              class="select select-sm"
+              value={pageSize}
+              onchange={handlePageSizeChange}
+            >
+              {#each PAGE_SIZES as size (size)}
+                <option value={size}>{size}</option>
+              {/each}
+            </select>
+          </div>
+        </div>
+      {/if}
+    </div>
   </div>
 </div>

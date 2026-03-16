@@ -66,6 +66,9 @@ RUN mkdir -p .data && \
     STACKABLE_UI_BASE_URL="http://localhost:3000" \
     npm run build
 
+# Generate CycloneDX SBOM for production dependencies
+RUN npx @cyclonedx/cyclonedx-npm --omit dev --output-file /build/stackable-ui.cdx.json
+
 # Install only production dependencies; --ignore-scripts skips the prepare script
 # (which would fail because antlr-ng is a devDependency and not available here)
 RUN --mount=type=cache,target=/root/.npm npm ci --omit dev --ignore-scripts
@@ -102,6 +105,7 @@ WORKDIR /stackable/app
 COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/build ./build
 COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node_modules
 COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
+COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/stackable-ui.cdx.json ./stackable-ui.cdx.json
 RUN chmod -R g=u /stackable/app
 
 USER ${STACKABLE_USER_UID}

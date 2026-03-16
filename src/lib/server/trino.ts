@@ -2,6 +2,8 @@ import { logger } from '$lib/server/logging';
 
 const log = logger.child({ module: 'trino-client' });
 
+export const POLL_TIMEOUT_MS = 30_000;
+
 export interface TrinoColumn {
   name: string;
   type: string;
@@ -112,4 +114,53 @@ export async function trinoFetch(
   }
 
   return res.json() as Promise<TrinoResponse>;
+}
+
+export interface TrinoQueryOptions {
+  impersonateUser?: string;
+  contextHeaders?: Record<string, string>;
+  maxRows?: number;
+}
+
+/**
+ * Execute a SQL statement against Trino and poll until all results are collected.
+ * Throws on Trino errors or timeout.
+ */
+export async function trinoQuery(
+  connectionUrl: string,
+  auth: AuthConfig,
+  sql: string,
+  options?: TrinoQueryOptions
+): Promise<{ columns: TrinoColumn[]; rows: unknown[][] }> {
+  const deadline = Date.now() + POLL_TIMEOUT_MS;
+  let columns: TrinoColumn[] = [];
+  const rows: unknown[][] = [];
+  const maxRows = options?.maxRows ?? Infinity;
+
+  let nextUri: string | undefined = `${connectionUrl}/v1/statement`;
+  let fetchOptions: RequestInit | undefined = {
+    method: 'POST',
+    body: sql,
+    headers: { 'Content-Type': 'text/plain', ...options?.contextHeaders }
+  };
+
+  while (nextUri && rows.length < maxRows) {
+    if (Date.now() > deadline) {
+      throw new Error('query timed out');
+    }
+
+    const response = await trinoFetch(nextUri, auth, fetchOptions, options?.impersonateUser);
+
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    if (response.columns && columns.length === 0) columns = response.columns;
+    if (response.data) rows.push(...response.data);
+
+    nextUri = response.nextUri;
+    fetchOptions = undefined;
+  }
+
+  return { columns, rows };
 }
