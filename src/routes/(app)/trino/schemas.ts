@@ -10,6 +10,8 @@ export const QuerySchema = z.object({
   authType: z.enum(['none', 'basic']).default('none'),
   authUsername: z.string().default(''),
   authPassword: z.string().default(''),
+  defaultCatalog: z.string().default(''),
+  defaultSchema: z.string().default(''),
   impersonation: z.boolean().default(false)
 });
 
