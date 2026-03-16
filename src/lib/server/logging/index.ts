@@ -6,7 +6,7 @@
  * ```typescript
  * export const load: PageServerLoad = async (event) => {
  *   const log = event.locals.logger;
- *   log.info({ catalog_name }, 'Loading catalogue');
+ *   log.info({ catalog_name }, 'Loading catalog');
  * };
  * ```
  *
