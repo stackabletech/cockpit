@@ -7,7 +7,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { superForm } from 'sveltekit-superforms';
   import type { PageData } from './$types';
-  import type { ConnectionMessage } from './schemas.js';
+  import type { ConnectionMessage } from './validation.js';
   import { queryRunner } from './query-runner.svelte.js';
 
   let { data }: { data: PageData } = $props();
@@ -28,12 +28,12 @@
   let authType = $state<'none' | 'basic'>('none');
   let authUsername = $state('');
   let authPassword = $state('');
-  let impersonation = $state(false);
   let sql = $state('SELECT 1');
   let pageSize = $state<25 | 50 | 100>(25);
   let defaultCatalog = $state('');
   let defaultSchema = $state('');
   let connectionOpen = $state(false);
+  let connectionVersion = $state(0);
   let currentPage = $state(0);
   let hydrated = $state(false);
 
@@ -57,7 +57,6 @@
     authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
     authUsername = getStoredValue('trino_username', '');
     authPassword = getStoredValue('trino_password', '');
-    impersonation = getStoredValue('trino_impersonation', 'false') === 'true';
     sql = getStoredValue('trino_sql', 'SELECT 1');
     defaultCatalog = getStoredValue('trino_default_catalog', '');
     defaultSchema = getStoredValue('trino_default_schema', '');
@@ -74,7 +73,8 @@
       body.set('authType', authType);
       body.set('authUsername', authUsername);
       body.set('authPassword', authPassword);
-      body.set('impersonation', String(impersonation));
+      body.set('defaultCatalog', defaultCatalog);
+      body.set('defaultSchema', defaultSchema);
       fetch('?/save', {
         method: 'POST',
         body,
@@ -94,7 +94,9 @@
   } = superForm(data.connectionForm, {
     onUpdated({ form }) {
       const msg = form.message as ConnectionMessage | undefined;
-      if (msg?.type === 'error') {
+      if (msg?.type === 'success') {
+        connectionVersion++;
+      } else if (msg?.type === 'error') {
         connectionOpen = true;
       }
     }
@@ -118,7 +120,6 @@
     localStorage.setItem('trino_auth_type', authType);
     localStorage.setItem('trino_username', authUsername);
     localStorage.setItem('trino_password', authPassword);
-    localStorage.setItem('trino_impersonation', String(impersonation));
   });
 
   // Persist SQL and other settings.
@@ -187,12 +188,6 @@
       default:
         return '';
     }
-  });
-
-  const trinoQueryUrl = $derived.by(() => {
-    if (!queryRunner.trinoQueryId || !connectionUrl) return null;
-    const base = connectionUrl.replace(/\/+$/, '');
-    return `${base}/ui/query.html?${queryRunner.trinoQueryId}`;
   });
 
   const rowLimitError = $derived.by(() => {
@@ -269,11 +264,7 @@
     </div>
     <div class="w-72">
       <CatalogBrowser
-        {connectionUrl}
-        {authType}
-        {authUsername}
-        {authPassword}
-        {impersonation}
+        {connectionVersion}
         bind:defaultCatalog
         bind:defaultSchema
         onInsert={(name) => monacoEditor?.insertAtCursor(name)}
@@ -298,11 +289,7 @@
         </button>
       </div>
       <CatalogBrowser
-        {connectionUrl}
-        {authType}
-        {authUsername}
-        {authPassword}
-        {impersonation}
+        {connectionVersion}
         bind:defaultCatalog
         bind:defaultSchema
         onInsert={(name) => {
@@ -321,7 +308,8 @@
       <input type="hidden" name="authType" value={authType} />
       <input type="hidden" name="authUsername" value={authUsername} />
       <input type="hidden" name="authPassword" value={authPassword} />
-      <input type="hidden" name="impersonation" value={String(impersonation)} />
+      <input type="hidden" name="defaultCatalog" value={defaultCatalog} />
+      <input type="hidden" name="defaultSchema" value={defaultSchema} />
 
       <div class="bg-base-100 border-base-300 collapse rounded-xl border">
         <input
@@ -407,24 +395,6 @@
                   bind:value={authPassword}
                 />
               </div>
-            </div>
-          {/if}
-
-          <!-- User impersonation -->
-          {#if data.user?.username}
-            <div class="flex items-center gap-3">
-              <input
-                id="{uid}-impersonation"
-                type="checkbox"
-                class="toggle toggle-sm"
-                bind:checked={impersonation}
-              />
-              <label for="{uid}-impersonation" class="flex flex-col">
-                <span class="text-sm">{m.trino_impersonation()}</span>
-                <span class="text-base-content/50 text-xs">
-                  {m.trino_impersonation_description({ user: data.user.username })}
-                </span>
-              </label>
             </div>
           {/if}
 
@@ -563,9 +533,9 @@
             })}
           </span>
         {/if}
-        {#if trinoQueryUrl}
+        {#if queryRunner.trinoQueryUrl}
           <a
-            href={trinoQueryUrl}
+            href={queryRunner.trinoQueryUrl}
             target="_blank"
             rel="noopener noreferrer"
             class="link link-primary text-xs"

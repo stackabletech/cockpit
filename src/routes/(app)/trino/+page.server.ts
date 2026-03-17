@@ -1,9 +1,11 @@
 import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
-import { setConnection, type AuthConfig } from '$lib/server/trino.js';
-import { getUserId, getQuerySnapshot } from '$lib/server/query-store.js';
-import { ConnectionSchema, type ConnectionMessage } from './schemas.js';
+import type { AuthConfig } from '$lib/server/trino-config.js';
+import { setUserConnection } from '$lib/server/trino-clients.js';
+import { getUserId } from '$lib/server/auth-utils.js';
+import { cancelQuery, getQuerySnapshot } from '$lib/server/trino-queries.js';
+import { ConnectionSchema, type ConnectionMessage } from './validation.js';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -24,15 +26,25 @@ export const actions: Actions = {
       return fail(400, { form });
     }
 
-    const { connectionUrl, authType, authUsername, authPassword, impersonation } = form.data;
+    const { connectionUrl, authType, authUsername, authPassword, defaultCatalog, defaultSchema } =
+      form.data;
     const auth: AuthConfig =
       authType === 'basic'
         ? { type: 'basic', username: authUsername, password: authPassword }
         : { type: 'none' };
-    const impersonateUser =
-      impersonation && locals.user?.username ? locals.user.username : undefined;
 
-    setConnection({ connectionUrl, auth, impersonateUser });
+    const userId = getUserId(locals);
+
+    // Cancel any running query before replacing the connection.
+    await cancelQuery(userId);
+
+    setUserConnection(userId, {
+      connectionUrl,
+      auth,
+      username: locals.user?.username ?? 'anonymous',
+      defaultCatalog,
+      defaultSchema
+    });
 
     log.info({ trino_url: connectionUrl }, 'connection saved');
 

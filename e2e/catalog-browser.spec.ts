@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
 import * as http from 'node:http';
-import { waitForHydration, ensureCatalogBrowserOpen, startMockTrinoServer } from './helpers';
+import {
+  waitForHydration,
+  ensureCatalogBrowserOpen,
+  saveTrinoConnection,
+  startMockTrinoServer
+} from './helpers';
 
 function catalogHandler(req: http.IncomingMessage, res: http.ServerResponse) {
   let body = '';
@@ -98,24 +103,23 @@ test.describe('Catalog browser', () => {
       localStorage.setItem('trino_sql', 'SELECT 1');
       localStorage.setItem('trino_catalog_browser_open', 'true');
     }, mockUrl);
+    await page.goto('/trino');
+    await waitForHydration(page);
+    await saveTrinoConnection(page);
   });
 
   test('catalog browser panel renders with tree', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
     await ensureCatalogBrowserOpen(page);
 
     const browser = page.getByRole('navigation', { name: 'Catalog browser' });
     await expect(browser).toBeVisible();
 
-    // Catalogs should load automatically.
+    // Catalogs should load after connection save.
     await expect(browser.getByRole('button', { name: 'tpch' })).toBeVisible();
     await expect(browser.getByRole('button', { name: 'system' })).toBeVisible();
   });
 
   test('catalog browser can be toggled', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
     await ensureCatalogBrowserOpen(page);
 
     const browser = page.getByRole('navigation', { name: 'Catalog browser' });
@@ -132,8 +136,6 @@ test.describe('Catalog browser', () => {
   });
 
   test('expanding a catalog loads schemas', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
     await ensureCatalogBrowserOpen(page);
 
     const browser = page.getByRole('navigation', { name: 'Catalog browser' });
@@ -146,8 +148,6 @@ test.describe('Catalog browser', () => {
   });
 
   test('expanding a schema loads tables', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
     await ensureCatalogBrowserOpen(page);
 
     const browser = page.getByRole('navigation', { name: 'Catalog browser' });
@@ -163,8 +163,6 @@ test.describe('Catalog browser', () => {
   });
 
   test('expanding a table loads columns', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
     await ensureCatalogBrowserOpen(page);
 
     const browser = page.getByRole('navigation', { name: 'Catalog browser' });
@@ -185,8 +183,6 @@ test.describe('Catalog browser', () => {
   });
 
   test('clicking a table name inserts qualified name into editor', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
     await ensureCatalogBrowserOpen(page);
 
     const browser = page.getByRole('navigation', { name: 'Catalog browser' });
@@ -211,8 +207,6 @@ test.describe('Catalog browser', () => {
   });
 
   test('schema context selectors are populated', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
     await ensureCatalogBrowserOpen(page);
 
     const browser = page.getByRole('navigation', { name: 'Catalog browser' });

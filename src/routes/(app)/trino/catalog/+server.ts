@@ -1,31 +1,18 @@
 import { json, error } from '@sveltejs/kit';
-import { trinoQuery, type AuthConfig } from '$lib/server/trino.js';
+import { getUserId } from '$lib/server/auth-utils.js';
+import { getUserTrinoClient, trinoMetadataQuery } from '$lib/server/trino-clients.js';
 import type { RequestHandler } from './$types';
-
-function parseAuth(url: URL): AuthConfig {
-  const authType = url.searchParams.get('authType') ?? 'none';
-  if (authType === 'basic') {
-    return {
-      type: 'basic',
-      username: url.searchParams.get('authUsername') ?? '',
-      password: url.searchParams.get('authPassword') ?? ''
-    };
-  }
-  return { type: 'none' };
-}
 
 export const GET: RequestHandler = async ({ url, locals }) => {
   const log = locals.logger;
-  const level = url.searchParams.get('level');
-  const connectionUrl = url.searchParams.get('connectionUrl');
+  const userId = getUserId(locals);
+  const trinoClient = getUserTrinoClient(userId);
 
-  if (!connectionUrl) {
-    error(400, 'connectionUrl is required');
+  if (!trinoClient) {
+    error(400, 'No connection configured');
   }
 
-  const auth = parseAuth(url);
-  const impersonation = url.searchParams.get('impersonation') === 'true';
-  const impersonateUser = impersonation && locals.user?.username ? locals.user.username : undefined;
+  const level = url.searchParams.get('level');
   const catalog = url.searchParams.get('catalog');
   const schema = url.searchParams.get('schema');
   const table = url.searchParams.get('table');
@@ -55,7 +42,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
   try {
     log.debug({ level, catalog, schema, table }, 'fetching catalog metadata');
-    const { rows } = await trinoQuery(connectionUrl, auth, sql, { impersonateUser });
+    const { rows } = await trinoMetadataQuery(trinoClient, sql);
     log.debug(
       { level, catalog, schema, table, row_count: rows.length },
       'catalog metadata fetched'

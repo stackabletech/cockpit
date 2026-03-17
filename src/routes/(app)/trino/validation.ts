@@ -9,8 +9,7 @@ export const ConnectionSchema = z.object({
   authUsername: z.string().default(''),
   authPassword: z.string().default(''),
   defaultCatalog: z.string().default(''),
-  defaultSchema: z.string().default(''),
-  impersonation: z.boolean().default(false)
+  defaultSchema: z.string().default('')
 });
 
 export const StatementRequestSchema = z.object({

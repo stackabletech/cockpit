@@ -1,6 +1,7 @@
-import type { TrinoColumn } from '$lib/server/trino.js';
 import {
   INITIAL_PROGRESS,
+  isTerminal,
+  type Column,
   type QueryProgress,
   type QuerySnapshot,
   type QueryState
@@ -10,20 +11,16 @@ export { INITIAL_PROGRESS, type QueryState, type QueryProgress } from '$lib/type
 
 let state = $state<QueryState>('IDLE');
 let progress = $state<QueryProgress>(INITIAL_PROGRESS);
-let columns = $state<TrinoColumn[]>([]);
+let columns = $state<Column[]>([]);
 let rows = $state<unknown[][]>([]);
 let error = $state<string | null>(null);
-let trinoQueryId = $state<string | null>(null);
+let trinoQueryUrl = $state<string | null>(null);
 
 let polling = false;
 let pollAbort: AbortController | null = null;
 
-function isTerminal(s: QueryState): boolean {
-  return s === 'FINISHED' || s === 'FAILED' || s === 'CANCELLED' || s === 'IDLE';
-}
-
 function applySnapshot(snapshot: QuerySnapshot) {
-  trinoQueryId = snapshot.trinoQueryId;
+  trinoQueryUrl = snapshot.trinoQueryUrl;
   state = snapshot.state;
   progress = snapshot.progress;
   columns = snapshot.columns;
@@ -37,7 +34,7 @@ function reset() {
   columns = [];
   rows = [];
   error = null;
-  trinoQueryId = null;
+  trinoQueryUrl = null;
   stopPolling();
 }
 
@@ -49,7 +46,7 @@ function stopPolling() {
   }
 }
 
-async function pollStatus(queryId: string) {
+async function pollStatus() {
   if (polling) return;
   polling = true;
   pollAbort = new AbortController();
@@ -59,9 +56,7 @@ async function pollStatus(queryId: string) {
 
   while (polling && !signal.aborted) {
     try {
-      const res = await fetch(`/trino/api/query/status?queryId=${encodeURIComponent(queryId)}`, {
-        signal
-      });
+      const res = await fetch('/trino/api/query', { signal });
 
       if (!res.ok) {
         // Server error — stop polling.
@@ -105,13 +100,13 @@ function initialise(snapshot: QuerySnapshot | null) {
   applySnapshot(snapshot);
 
   if (!isTerminal(snapshot.state)) {
-    pollStatus(snapshot.trinoQueryId);
+    pollStatus();
   }
 }
 
 async function execute(sql: string) {
   // Cancel any in-flight query first.
-  if (!isTerminal(state)) {
+  if (state !== 'IDLE' && !isTerminal(state)) {
     await cancel();
   }
 
@@ -119,28 +114,26 @@ async function execute(sql: string) {
   state = 'SUBMITTING';
 
   try {
-    const res = await fetch('/trino/api/statement', {
+    const res = await fetch('/trino/api/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sql })
     });
 
-    const data = await res.json();
-
-    if (!res.ok || data.error) {
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
       state = 'FAILED';
       error =
-        typeof data.error === 'string'
+        typeof data?.error === 'string'
           ? data.error
-          : (data.error?.message ?? 'Failed to submit query');
+          : (data?.error?.message ?? `Query submission failed (HTTP ${res.status})`);
       return;
     }
 
-    trinoQueryId = data.trinoQueryId;
     state = 'QUEUED';
 
     // Start polling the server for status updates.
-    pollStatus(data.trinoQueryId);
+    pollStatus();
   } catch (err) {
     state = 'FAILED';
     error = err instanceof Error ? err.message : 'Unknown error';
@@ -151,7 +144,7 @@ async function cancel() {
   stopPolling();
 
   try {
-    await fetch('/trino/api/cancel', { method: 'POST' });
+    await fetch('/trino/api/query', { method: 'DELETE' });
   } catch {
     // Best-effort cancel.
   }
@@ -175,8 +168,8 @@ export const queryRunner = {
   get error() {
     return error;
   },
-  get trinoQueryId() {
-    return trinoQueryId;
+  get trinoQueryUrl() {
+    return trinoQueryUrl;
   },
   execute,
   cancel,

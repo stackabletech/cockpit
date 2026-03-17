@@ -1,5 +1,3 @@
-import type { TrinoColumn } from '$lib/server/trino.js';
-
 export const MAX_CLIENT_ROWS = 10_000;
 
 export const INITIAL_PROGRESS: QueryProgress = {
@@ -7,6 +5,11 @@ export const INITIAL_PROGRESS: QueryProgress = {
   processedRows: 0,
   elapsedTimeMillis: 0
 };
+
+export interface Column {
+  name: string;
+  type: string;
+}
 
 export type QueryState =
   | 'IDLE'
@@ -25,11 +28,16 @@ export interface QueryProgress {
   elapsedTimeMillis: number;
 }
 
+/** Whether the query state is terminal (no further transitions expected). */
+export function isTerminal(state: QueryState): boolean {
+  return state === 'FINISHED' || state === 'FAILED' || state === 'CANCELLED';
+}
+
 export interface QuerySnapshot {
-  trinoQueryId: string;
+  trinoQueryUrl: string | null;
   state: QueryState;
   progress: QueryProgress;
-  columns: TrinoColumn[];
+  columns: Column[];
   rows: unknown[][];
   error: string | null;
   sql: string;

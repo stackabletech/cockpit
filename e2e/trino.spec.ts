@@ -197,14 +197,6 @@ test.describe('Trino query editor', () => {
     await expect(urlInput).toHaveValue('http://trino.example.com:8080');
   });
 
-  test('impersonation toggle is visible in connection config', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
-    await page.getByRole('checkbox', { name: 'Connection' }).check({ force: true });
-
-    await expect(page.getByLabel('User impersonation')).toBeVisible();
-  });
-
   test('switching to basic auth reveals credential fields', async ({ page }) => {
     await page.goto('/trino');
     await waitForHydration(page);
