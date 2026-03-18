@@ -138,6 +138,25 @@ auth:
   # OIDC claim used as the username for Trino impersonation (default: preferred_username)
   usernameClaim: ""
 
+# Optional: Pre-configure the Trino connection for all users.
+# When trino.url is set, the connection form is hidden and the specified
+# Trino endpoint is used automatically.
+trino:
+  # Trino coordinator URL (e.g. https://trino.example.com:8443)
+  url: ""
+  # Authentication type: "none" or "basic"
+  authType: ""
+  # Credentials for basic auth
+  authUsername: ""
+  authPassword: ""
+  # TLS certificate verification
+  tlsInsecure: false
+  # Path to a custom CA certificate file (mounted via extraVolumes)
+  tlsCaCert: ""
+  # Stackable SecretClass name for provisioning the Trino CA certificate.
+  # The Secret Operator mounts ca.crt into /stackable/trino-tls.
+  tlsSecretClass: ""
+
 # SQLite persistence for the Better Auth database.
 # NOTE: Requires replicaCount: 1 — SQLite does not support concurrent writes from multiple pods.
 persistence:

@@ -1,8 +1,9 @@
 import { json } from '@sveltejs/kit';
 import { z } from 'zod';
-import { getUserTrinoClient } from '$lib/server/trino-clients.js';
+import { getUserTrinoClient, setUserConnection } from '$lib/server/trino-clients.js';
 import { getUserId } from '$lib/server/auth-utils.js';
 import { startQuery, getQuerySnapshot, cancelQuery } from '$lib/server/trino-queries.js';
+import { trinoEnvConfigured, buildEnvConnectionConfig } from '$lib/server/trino-env-config.js';
 import { StatementRequestSchema } from '../../validation.js';
 import type { RequestHandler } from './$types';
 
@@ -22,7 +23,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   }
 
   const userId = getUserId(locals);
-  const trinoClient = getUserTrinoClient(userId);
+  let trinoClient = getUserTrinoClient(userId);
+  if (!trinoClient && trinoEnvConfigured) {
+    const config = buildEnvConnectionConfig(locals.user?.username ?? 'anonymous');
+    setUserConnection(userId, config);
+    trinoClient = getUserTrinoClient(userId)!;
+  }
   if (!trinoClient) {
     return json({ error: 'No connection configured' }, { status: 400 });
   }

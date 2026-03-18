@@ -30,6 +30,7 @@ export function setUserConnection(userId: string, config: ConnectionConfig): voi
       config.auth.type === 'basic'
         ? new BasicAuth(config.auth.username, config.auth.password)
         : undefined,
+    ssl: config.ssl,
     extraHeaders: { 'X-Trino-User': config.username }
   };
 

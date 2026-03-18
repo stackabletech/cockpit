@@ -15,8 +15,13 @@ export async function waitForHydration(page: Page) {
 /**
  * Save the Trino connection config via the UI so the server-side
  * connection store is populated (required before query execution).
+ *
+ * Waits for network idle first because onMount fires a raw fetch to
+ * `?/save` when `trino_url` is set in localStorage. Without this wait,
+ * the auto-save and the form submit race and cause flaky failures.
  */
 export async function saveTrinoConnection(page: Page) {
+  await page.waitForLoadState('networkidle');
   await page.getByRole('checkbox', { name: 'Connection' }).check({ force: true });
   const saveBtn = page.getByRole('button', { name: 'Save' });
   await saveBtn.waitFor({ state: 'visible', timeout: 5_000 });

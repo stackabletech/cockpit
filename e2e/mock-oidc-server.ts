@@ -11,21 +11,29 @@ export async function startMockOidc(): Promise<string> {
 
   await server.issuer.keys.generate('RS256');
 
+  // Each auth flow gets a unique user so that parallel Playwright projects
+  // (chromium, firefox, mobile) don't share the same server-side session
+  // and Trino connection store entry.
+  let userCounter = 0;
+  let lastSub = 'mock-user-001';
+
   // Add OIDC profile claims to every issued token
   server.service.on('beforeTokenSigning', (token) => {
-    token.payload.sub = 'mock-user-001';
-    token.payload.name = 'Test User';
-    token.payload.email = 'testuser@example.com';
-    token.payload.preferred_username = 'testuser';
+    userCounter++;
+    lastSub = `mock-user-${String(userCounter).padStart(3, '0')}`;
+    token.payload.sub = lastSub;
+    token.payload.name = `Test User ${userCounter}`;
+    token.payload.email = `testuser${userCounter}@example.com`;
+    token.payload.preferred_username = `testuser${userCounter}`;
   });
 
   // Return the same claims from the userinfo endpoint
   server.service.on('beforeUserinfo', (response) => {
     response.body = {
-      sub: 'mock-user-001',
-      name: 'Test User',
-      email: 'testuser@example.com',
-      preferred_username: 'testuser'
+      sub: lastSub,
+      name: `Test User ${userCounter}`,
+      email: `testuser${userCounter}@example.com`,
+      preferred_username: `testuser${userCounter}`
     };
   });
 
