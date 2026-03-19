@@ -5,9 +5,7 @@
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import Modal from '$lib/components/Modal.svelte';
-  import { superForm } from 'sveltekit-superforms';
   import type { PageData } from './$types';
-  import type { ConnectionMessage } from './validation.js';
   import { queryRunner } from './query-runner.svelte.js';
 
   let { data }: { data: PageData } = $props();
@@ -23,19 +21,15 @@
     }
   }
 
-  // Connection config — local state persisted to localStorage.
-  let connectionUrl = $state('');
-  let authType = $state<'none' | 'basic'>('none');
-  let authUsername = $state('');
-  let authPassword = $state('');
   let sql = $state('SELECT 1');
   let pageSize = $state<25 | 50 | 100>(25);
   let defaultCatalog = $state('');
   let defaultSchema = $state('');
-  let connectionOpen = $state(false);
-  let connectionVersion = $state(0);
   let currentPage = $state(0);
   let hydrated = $state(false);
+
+  // Signal to trigger catalog browser load (1 = load on mount).
+  let catalogVersion = $state(0);
 
   // Catalog browser state. On mobile, always start closed; on desktop, restore from localStorage.
   function getInitialCatalogOpen(): boolean {
@@ -53,12 +47,6 @@
   let mobileCatalogOpen = $state(false);
 
   onMount(() => {
-    if (!data.trinoEnvConfigured) {
-      connectionUrl = getStoredValue('trino_url', '');
-      authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
-      authUsername = getStoredValue('trino_username', '');
-      authPassword = getStoredValue('trino_password', '');
-    }
     sql = getStoredValue('trino_sql', 'SELECT 1');
     defaultCatalog = getStoredValue('trino_default_catalog', '');
     defaultSchema = getStoredValue('trino_default_schema', '');
@@ -68,43 +56,12 @@
       : 25;
     hydrated = true;
 
-    if (data.trinoEnvConfigured) {
-      // Server already provisioned the connection; bump version so catalog browser loads.
-      connectionVersion++;
-    } else if (connectionUrl) {
-      // Re-establish server-side connection from localStorage on page reload.
-      const body = new FormData();
-      body.set('connectionUrl', connectionUrl);
-      body.set('authType', authType);
-      body.set('authUsername', authUsername);
-      body.set('authPassword', authPassword);
-      body.set('defaultCatalog', defaultCatalog);
-      body.set('defaultSchema', defaultSchema);
-      fetch('?/save', {
-        method: 'POST',
-        body,
-        headers: { 'x-sveltekit-action': 'true' }
-      });
+    if (data.trinoConfigured) {
+      catalogVersion++;
     }
 
     // Resume active query from server-side state (survives page reloads).
     queryRunner.initialise(data.activeQuery);
-  });
-
-  // Connection form (SuperForms).
-  const {
-    enhance: connectionEnhance,
-    errors: connectionErrors,
-    message: connectionMessage
-  } = superForm(data.connectionForm, {
-    onUpdated({ form }) {
-      const msg = form.message as ConnectionMessage | undefined;
-      if (msg?.type === 'success') {
-        connectionVersion++;
-      } else if (msg?.type === 'error') {
-        connectionOpen = true;
-      }
-    }
   });
 
   const isActive = $derived.by(() => {
@@ -116,15 +73,6 @@
       s === 'RUNNING' ||
       s === 'FINISHING'
     );
-  });
-
-  // Persist connection config to localStorage (only in per-user mode).
-  $effect(() => {
-    if (!hydrated || data.trinoEnvConfigured) return;
-    localStorage.setItem('trino_url', connectionUrl);
-    localStorage.setItem('trino_auth_type', authType);
-    localStorage.setItem('trino_username', authUsername);
-    localStorage.setItem('trino_password', authPassword);
   });
 
   // Persist SQL and other settings.
@@ -145,12 +93,6 @@
       currentPage = 0;
     }
     prevRowCount = count;
-  });
-
-  const connectionSummary = $derived.by(() => {
-    const host = connectionUrl ? connectionUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : '—';
-    const auth = authType === 'basic' ? m.trino_auth_basic() : m.trino_auth_none();
-    return `${host} · ${auth}`;
   });
 
   const totalRows = $derived(queryRunner.rows.length);
@@ -211,7 +153,10 @@
 
   function handleExecute() {
     currentPage = 0;
-    queryRunner.execute(sql);
+    queryRunner.execute(sql, {
+      catalog: defaultCatalog || undefined,
+      schema: defaultSchema || undefined
+    });
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -269,7 +214,7 @@
     </div>
     <div class="w-72">
       <CatalogBrowser
-        {connectionVersion}
+        connectionVersion={catalogVersion}
         bind:defaultCatalog
         bind:defaultSchema
         onInsert={(name) => monacoEditor?.insertAtCursor(name)}
@@ -294,7 +239,7 @@
         </button>
       </div>
       <CatalogBrowser
-        {connectionVersion}
+        connectionVersion={catalogVersion}
         bind:defaultCatalog
         bind:defaultSchema
         onInsert={(name) => {
@@ -307,124 +252,7 @@
 
   <!-- Main editor + results column -->
   <div class="flex min-w-0 flex-1 flex-col gap-4">
-    <!-- Connection config form (hidden when Trino is env-configured) -->
-    {#if !data.trinoEnvConfigured}
-      <form method="POST" action="?/save" use:connectionEnhance>
-        <input type="hidden" name="connectionUrl" value={connectionUrl} />
-        <input type="hidden" name="authType" value={authType} />
-        <input type="hidden" name="authUsername" value={authUsername} />
-        <input type="hidden" name="authPassword" value={authPassword} />
-        <input type="hidden" name="defaultCatalog" value={defaultCatalog} />
-        <input type="hidden" name="defaultSchema" value={defaultSchema} />
-
-        <div class="bg-base-100 border-base-300 collapse rounded-xl border">
-          <input
-            type="checkbox"
-            class="peer"
-            aria-label={m.trino_connection_label()}
-            bind:checked={connectionOpen}
-          />
-          <div
-            class="collapse-title text-base-content flex items-center justify-between pr-4 text-sm font-medium"
-          >
-            <span>{m.trino_connection_label()}</span>
-            <span class="text-base-content/50 font-mono text-xs">{connectionSummary}</span>
-          </div>
-          <div class="collapse-content flex flex-col gap-4">
-            <!-- URL -->
-            <div class="flex flex-col gap-1">
-              <label for="{uid}-conn-url" class="label text-sm">
-                {m.trino_connection_url()}
-              </label>
-              <input
-                id="{uid}-conn-url"
-                type="url"
-                class="input input-sm w-full font-mono"
-                class:input-error={$connectionErrors.connectionUrl}
-                placeholder={m.trino_connection_url_placeholder()}
-                bind:value={connectionUrl}
-              />
-              {#if $connectionErrors.connectionUrl}
-                <p class="text-error text-xs">{$connectionErrors.connectionUrl}</p>
-              {/if}
-            </div>
-
-            <!-- Auth type toggle -->
-            <div class="flex flex-col gap-1">
-              <span class="label text-sm">{m.trino_connection_auth()}</span>
-              <div class="join" role="group" aria-label={m.trino_connection_auth()}>
-                <input
-                  id="{uid}-auth-none"
-                  class="join-item btn btn-sm"
-                  type="radio"
-                  name="{uid}-auth"
-                  aria-label={m.trino_auth_none()}
-                  value="none"
-                  bind:group={authType}
-                />
-                <input
-                  id="{uid}-auth-basic"
-                  class="join-item btn btn-sm"
-                  type="radio"
-                  name="{uid}-auth"
-                  aria-label={m.trino_auth_basic()}
-                  value="basic"
-                  bind:group={authType}
-                />
-              </div>
-            </div>
-
-            <!-- Basic auth credentials -->
-            {#if authType === 'basic'}
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div class="flex flex-col gap-1">
-                  <label for="{uid}-auth-username" class="label text-sm">
-                    {m.trino_auth_username()}
-                  </label>
-                  <input
-                    id="{uid}-auth-username"
-                    type="text"
-                    class="input input-sm font-mono"
-                    autocomplete="username"
-                    bind:value={authUsername}
-                  />
-                </div>
-                <div class="flex flex-col gap-1">
-                  <label for="{uid}-auth-password" class="label text-sm">
-                    {m.trino_auth_password()}
-                  </label>
-                  <input
-                    id="{uid}-auth-password"
-                    type="password"
-                    class="input input-sm font-mono"
-                    autocomplete="current-password"
-                    bind:value={authPassword}
-                  />
-                </div>
-              </div>
-            {/if}
-
-            <!-- Save button -->
-            <div class="flex justify-end">
-              <button type="submit" class="btn btn-primary btn-sm">
-                {m.trino_save_connection()}
-              </button>
-            </div>
-
-            {#if $connectionMessage}
-              {@const msg = $connectionMessage as ConnectionMessage}
-              {#if msg.type === 'success'}
-                <p class="text-success text-sm">{m.trino_connection_saved()}</p>
-              {:else}
-                <p class="text-error text-sm">{msg.message}</p>
-              {/if}
-            {/if}
-          </div>
-        </div>
-      </form>
-    {/if}
-
-    <!-- Editor section (standalone, not a form) -->
+    <!-- Editor section -->
     <div class="bg-base-100 border-base-300 flex flex-col rounded-xl border">
       <div class="border-base-300 flex items-center justify-between border-b px-4 py-2">
         <div class="flex items-center gap-2">

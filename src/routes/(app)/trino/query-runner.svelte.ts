@@ -56,7 +56,7 @@ async function pollStatus() {
 
   while (polling && !signal.aborted) {
     try {
-      const res = await fetch('/trino/api/query', { signal });
+      const res = await fetch('/trino/query', { signal });
 
       if (!res.ok) {
         // Server error — stop polling.
@@ -104,7 +104,7 @@ function initialise(snapshot: QuerySnapshot | null) {
   }
 }
 
-async function execute(sql: string) {
+async function execute(sql: string, options?: { catalog?: string; schema?: string }) {
   // Cancel any in-flight query first.
   if (state !== 'IDLE' && !isTerminal(state)) {
     await cancel();
@@ -114,10 +114,10 @@ async function execute(sql: string) {
   state = 'SUBMITTING';
 
   try {
-    const res = await fetch('/trino/api/query', {
+    const res = await fetch('/trino/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sql })
+      body: JSON.stringify({ sql, catalog: options?.catalog, schema: options?.schema })
     });
 
     if (!res.ok) {
@@ -144,7 +144,7 @@ async function cancel() {
   stopPolling();
 
   try {
-    await fetch('/trino/api/query', { method: 'DELETE' });
+    await fetch('/trino/query', { method: 'DELETE' });
   } catch {
     // Best-effort cancel.
   }

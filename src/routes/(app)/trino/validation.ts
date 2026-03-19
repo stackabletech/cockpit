@@ -3,17 +3,8 @@ import { z } from 'zod';
 export const ALLOWED_PAGE_SIZES = [25, 50, 100] as const;
 export type PageSize = 25 | 50 | 100;
 
-export const ConnectionSchema = z.object({
-  connectionUrl: z.string().url(),
-  authType: z.enum(['none', 'basic']).default('none'),
-  authUsername: z.string().default(''),
-  authPassword: z.string().default(''),
-  defaultCatalog: z.string().default(''),
-  defaultSchema: z.string().default('')
-});
-
 export const StatementRequestSchema = z.object({
-  sql: z.string().min(1)
+  sql: z.string().min(1),
+  catalog: z.string().optional(),
+  schema: z.string().optional()
 });
-
-export type ConnectionMessage = { type: 'success' } | { type: 'error'; message: string };

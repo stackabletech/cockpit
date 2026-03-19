@@ -1,28 +1,15 @@
 import { json, error } from '@sveltejs/kit';
-import { getUserId } from '$lib/server/auth-utils.js';
-import {
-  getUserTrinoClient,
-  setUserConnection,
-  trinoMetadataQuery
-} from '$lib/server/trino-clients.js';
-import { trinoEnvConfigured, buildEnvConnectionConfig } from '$lib/server/trino-env-config.js';
+import { trinoConfigured, trinoMetadataQuery } from '$lib/server/trino/client.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
   const log = locals.logger;
-  const userId = getUserId(locals);
-  let trinoClient = getUserTrinoClient(userId);
 
-  if (!trinoClient && trinoEnvConfigured) {
-    const config = buildEnvConnectionConfig(locals.user?.username ?? 'anonymous');
-    setUserConnection(userId, config);
-    trinoClient = getUserTrinoClient(userId)!;
+  if (!trinoConfigured) {
+    error(400, 'No Trino connection configured');
   }
 
-  if (!trinoClient) {
-    error(400, 'No connection configured');
-  }
-
+  const user = locals.user?.username ?? 'anonymous';
   const level = url.searchParams.get('level');
   const catalog = url.searchParams.get('catalog');
   const schema = url.searchParams.get('schema');
@@ -53,7 +40,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
   try {
     log.debug({ level, catalog, schema, table }, 'fetching catalog metadata');
-    const { rows } = await trinoMetadataQuery(trinoClient, sql);
+    const { rows } = await trinoMetadataQuery(sql, { user });
     log.debug(
       { level, catalog, schema, table, row_count: rows.length },
       'catalog metadata fetched'

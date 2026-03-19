@@ -1,14 +1,17 @@
 import { json } from '@sveltejs/kit';
 import { z } from 'zod';
-import { getUserTrinoClient, setUserConnection } from '$lib/server/trino-clients.js';
 import { getUserId } from '$lib/server/auth-utils.js';
-import { startQuery, getQuerySnapshot, cancelQuery } from '$lib/server/trino-queries.js';
-import { trinoEnvConfigured, buildEnvConnectionConfig } from '$lib/server/trino-env-config.js';
-import { StatementRequestSchema } from '../../validation.js';
+import { startQuery, getQuerySnapshot, cancelQuery } from '$lib/server/trino/queries.js';
+import { trinoConfigured } from '$lib/server/trino/client.js';
+import { StatementRequestSchema } from '../validation.js';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   const log = locals.logger;
+
+  if (!trinoConfigured) {
+    return json({ error: 'No Trino connection configured' }, { status: 400 });
+  }
 
   let body: unknown;
   try {
@@ -23,18 +26,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   }
 
   const userId = getUserId(locals);
-  let trinoClient = getUserTrinoClient(userId);
-  if (!trinoClient && trinoEnvConfigured) {
-    const config = buildEnvConnectionConfig(locals.user?.username ?? 'anonymous');
-    setUserConnection(userId, config);
-    trinoClient = getUserTrinoClient(userId)!;
-  }
-  if (!trinoClient) {
-    return json({ error: 'No connection configured' }, { status: 400 });
-  }
+  const user = locals.user?.username ?? 'anonymous';
 
   try {
-    await startQuery(userId, parsed.data.sql, trinoClient);
+    await startQuery(userId, parsed.data.sql, {
+      user,
+      catalog: parsed.data.catalog,
+      schema: parsed.data.schema
+    });
     log.info({ user_id: userId }, 'query submitted');
     return new Response(null, { status: 204 });
   } catch (err) {

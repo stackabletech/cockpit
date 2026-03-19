@@ -1,32 +1,29 @@
 import { logger } from '$lib/server/logging';
 import { trinoQueryTotal } from '$lib/server/metrics.js';
-import type { QueryResult } from 'trino-client';
 import { MAX_CLIENT_ROWS, isTerminal } from '$lib/types/query.js';
-import {
-  type TrinoQuery,
-  toQueryState,
-  toQueryProgress,
-  terminateQuery
-} from './trino-query-model.js';
+import { type TrinoQuery, mapTrinoState, toQueryProgress, terminateQuery } from './queries.js';
 
 const log = logger.child({ module: 'trino-result-collector' });
 
 /**
- * Continue iterating the Trino query result set, accumulating data into
+ * Poll the Trino REST API page-by-page, accumulating data into
  * the TrinoQuery. The first result has already been processed by
- * startQuery — this picks up from the iterator's current position.
+ * startQuery — this picks up from the initial response's nextUri.
+ *
+ * Follows every nextUri so the UI receives every state transition
+ * (QUEUED → PLANNING → RUNNING → FINISHED).
  *
  * Runs as a fire-and-forget background task — never awaited by the caller.
  */
 export async function collectResults(query: TrinoQuery): Promise<void> {
-  const iterator = query.iterator;
+  let nextUri = query.nextUri;
 
-  while (true) {
+  while (nextUri) {
     if (isTerminal(query.state)) return;
 
-    let iteratorResult: IteratorResult<QueryResult>;
+    let result;
     try {
-      iteratorResult = await iterator.next();
+      result = await query.client.poll(nextUri);
     } catch (err) {
       if (isTerminal(query.state)) return;
 
@@ -38,8 +35,6 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
     }
 
     if (isTerminal(query.state)) return;
-
-    const result: QueryResult = iteratorResult.value;
 
     log.debug({ trino_query_id: query.trinoQueryId, state: result.stats?.state }, 'polled next');
 
@@ -54,7 +49,7 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
     }
 
     if (result.stats) {
-      query.state = toQueryState(result.stats.state);
+      query.state = mapTrinoState(result.stats.state);
       query.progress = toQueryProgress(result.stats);
     }
 
@@ -69,7 +64,7 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
     if (query.rows.length >= MAX_CLIENT_ROWS) {
       query.error = `ROW_LIMIT:${MAX_CLIENT_ROWS}`;
       try {
-        await query.trinoClient.cancel(query.trinoQueryId);
+        await query.client.cancel(query.trinoQueryId);
       } catch (err) {
         log.warn({ err, trino_query_id: query.trinoQueryId }, 'failed to cancel after row limit');
       }
@@ -78,10 +73,10 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
       return;
     }
 
-    if (iteratorResult.done) break;
+    nextUri = result.nextUri;
   }
 
-  // Iterator exhausted — query complete.
+  // No more pages — query complete.
   if (!isTerminal(query.state)) {
     terminateQuery(query, 'FINISHED');
     trinoQueryTotal.inc({ outcome: 'completed' });
