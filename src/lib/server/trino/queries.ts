@@ -18,7 +18,7 @@ import { collectResults } from './result-collector.js';
 
 const log = logger.child({ module: 'trino-queries' });
 
-// --- TrinoQuery model (merged from trino-query-model.ts) ---
+// --- TrinoQuery model ---
 
 export interface TrinoQuery {
   trinoQueryId: string;
@@ -64,11 +64,16 @@ export function toQueryProgress(stats: TrinoQueryStats | undefined): QueryProgre
   };
 }
 
+// Idempotent: the poll loop and external cancellation may both attempt to
+// terminate — only the first call decrements the gauge.
+// Pass decrementGauge: false for paths that never called trinoActiveQueries.inc()
+// (e.g. submit error, no nextUri).
 export function terminateQuery(
   query: TrinoQuery,
   state: QueryState,
   { decrementGauge = true } = {}
 ) {
+  if (query.completedAt !== null) return;
   query.state = state;
   query.completedAt = Date.now();
   if (decrementGauge) trinoActiveQueries.dec();
@@ -168,6 +173,7 @@ export async function startQuery(
     // Fire-and-forget — the poll loop runs independently.
     collectResults(query).catch((err) => {
       log.error({ err, trino_query_id: trinoQueryId }, 'poll loop crashed');
+      // Skip if already terminated by cancelQuery during the poll.
       if (!isTerminal(query.state)) {
         query.error = 'Internal poll error';
         terminateQuery(query, 'FAILED');

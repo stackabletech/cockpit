@@ -115,6 +115,7 @@ export class TrinoClient {
       dispatcher: this.dispatcher
     });
 
+    // 404 is expected — the query may have already finished and been cleaned up.
     if (!res.ok && res.status !== 404) {
       const text = await res.text().catch(() => '');
       throw new Error(`Trino DELETE /v1/query failed (${res.status}): ${text}`);

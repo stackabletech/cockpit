@@ -10,8 +10,8 @@ const log = logger.child({ module: 'trino-result-collector' });
  * the TrinoQuery. The first result has already been processed by
  * startQuery — this picks up from the initial response's nextUri.
  *
- * Follows every nextUri so the UI receives every state transition
- * (QUEUED → PLANNING → RUNNING → FINISHED).
+ * Terminal state (FINISHED/FAILED) is deferred until all pages are drained,
+ * so the browser keeps polling and receives all rows.
  *
  * Runs as a fire-and-forget background task — never awaited by the caller.
  */
@@ -19,6 +19,8 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
   let nextUri = query.nextUri;
 
   while (nextUri) {
+    // The await below is a yield point where external cancellation can land.
+    // Check before (skip the call) and after (discard stale result).
     if (isTerminal(query.state)) return;
 
     let result;
@@ -49,7 +51,12 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
     }
 
     if (result.stats) {
-      query.state = mapTrinoState(result.stats.state);
+      const mappedState = mapTrinoState(result.stats.state);
+      // Don't expose a terminal state until all result pages have been collected,
+      // otherwise the browser stops polling and misses trailing rows.
+      if (!isTerminal(mappedState)) {
+        query.state = mappedState;
+      }
       query.progress = toQueryProgress(result.stats);
     }
 
@@ -76,10 +83,9 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
     nextUri = result.nextUri;
   }
 
-  // No more pages — query complete.
-  if (!isTerminal(query.state)) {
-    terminateQuery(query, 'FINISHED');
-    trinoQueryTotal.inc({ outcome: 'completed' });
-    log.info({ trino_query_id: query.trinoQueryId }, 'query completed');
-  }
+  // All pages drained. Safe even if cancelled concurrently (terminateQuery
+  // is idempotent).
+  terminateQuery(query, 'FINISHED');
+  trinoQueryTotal.inc({ outcome: 'completed' });
+  log.info({ trino_query_id: query.trinoQueryId }, 'query completed');
 }
