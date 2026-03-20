@@ -14,13 +14,13 @@ export const httpRequestDuration = new Histogram({
 
 export const trinoQueryTotal = new Counter({
   name: 'trino_query_total',
-  help: 'Total Trino queries submitted through the proxy',
+  help: 'Total Trino queries submitted through Stackable UI',
   labelNames: ['outcome'],
   registers: [register]
 });
 
 export const trinoActiveQueries = new Gauge({
   name: 'trino_active_queries',
-  help: 'Number of currently running Trino queries',
+  help: 'Number of active Trino queries submitted through Stackable UI',
   registers: [register]
 });
