@@ -26,6 +26,11 @@ export default defineConfig({
       reuseExistingServer: false
     },
     {
+      command: 'npx tsx e2e/start-mock-trino.ts',
+      url: 'http://localhost:8080',
+      reuseExistingServer: false
+    },
+    {
       command: `npm run dev -- --mode test --port 4173`,
       url: baseURL,
       reuseExistingServer: false
@@ -47,7 +52,7 @@ export default defineConfig({
       name: 'setup-firefox',
       testMatch: /auth\.setup\.ts/,
       use: {
-        browserName: 'chromium',
+        browserName: 'firefox',
         viewport: { width: 1280, height: 720 }
       }
     },
@@ -56,7 +61,7 @@ export default defineConfig({
       testMatch: /auth\.setup\.ts/,
       use: {
         browserName: 'chromium',
-        viewport: { width: 1280, height: 720 }
+        viewport: { width: 393, height: 851 }
       }
     },
     {

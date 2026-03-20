@@ -1,111 +1,16 @@
 import { test, expect } from '@playwright/test';
-import * as http from 'node:http';
-import {
-  waitForHydration,
-  ensureCatalogBrowserOpen,
-  saveTrinoConnection,
-  startMockTrinoServer
-} from './helpers';
-
-function catalogHandler(req: http.IncomingMessage, res: http.ServerResponse) {
-  let body = '';
-  req.on('data', (chunk: Buffer) => {
-    body += chunk.toString();
-  });
-  req.on('end', () => {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-
-    // Detect which metadata query is being run based on the SQL body.
-    if (body.includes('system.metadata.catalogs')) {
-      res.end(
-        JSON.stringify({
-          id: 'q-catalogs',
-          columns: [{ name: 'catalog_name', type: 'varchar' }],
-          data: [['tpch'], ['system']],
-          stats: { state: 'FINISHED' }
-        })
-      );
-    } else if (body.includes('information_schema.schemata')) {
-      res.end(
-        JSON.stringify({
-          id: 'q-schemas',
-          columns: [{ name: 'schema_name', type: 'varchar' }],
-          data: [['information_schema'], ['sf1'], ['sf100']],
-          stats: { state: 'FINISHED' }
-        })
-      );
-    } else if (body.includes('information_schema.tables')) {
-      res.end(
-        JSON.stringify({
-          id: 'q-tables',
-          columns: [
-            { name: 'table_name', type: 'varchar' },
-            { name: 'table_type', type: 'varchar' }
-          ],
-          data: [
-            ['customer', 'BASE TABLE'],
-            ['orders', 'BASE TABLE'],
-            ['customer_view', 'VIEW']
-          ],
-          stats: { state: 'FINISHED' }
-        })
-      );
-    } else if (body.includes('information_schema.columns')) {
-      res.end(
-        JSON.stringify({
-          id: 'q-columns',
-          columns: [
-            { name: 'column_name', type: 'varchar' },
-            { name: 'data_type', type: 'varchar' }
-          ],
-          data: [
-            ['custkey', 'bigint'],
-            ['name', 'varchar'],
-            ['address', 'varchar']
-          ],
-          stats: { state: 'FINISHED' }
-        })
-      );
-    } else {
-      // Regular query execution.
-      res.end(
-        JSON.stringify({
-          id: 'q-regular',
-          columns: [{ name: 'result', type: 'integer' }],
-          data: [[1]],
-          stats: { state: 'FINISHED' }
-        })
-      );
-    }
-  });
-}
+import { waitForHydration, ensureCatalogBrowserOpen } from './helpers';
 
 test.describe('Catalog browser', () => {
   test.use({ locale: 'en-US' });
 
-  let mockUrl: string;
-  let stopMock: () => Promise<void>;
-
-  test.beforeAll(async () => {
-    const mock = await startMockTrinoServer(catalogHandler);
-    mockUrl = mock.url;
-    stopMock = mock.stop;
-  });
-
-  test.afterAll(async () => {
-    await stopMock();
-  });
-
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript((trinoUrl) => {
-      localStorage.setItem('trino_url', trinoUrl);
-      localStorage.setItem('trino_auth_type', 'none');
+    await page.addInitScript(() => {
       localStorage.setItem('trino_sql', 'SELECT 1');
       localStorage.setItem('trino_catalog_browser_open', 'true');
-    }, mockUrl);
+    });
     await page.goto('/trino');
     await waitForHydration(page);
-    await saveTrinoConnection(page);
   });
 
   test('catalog browser panel renders with tree', async ({ page }) => {
@@ -114,7 +19,7 @@ test.describe('Catalog browser', () => {
     const browser = page.getByRole('navigation', { name: 'Catalog browser' });
     await expect(browser).toBeVisible();
 
-    // Catalogs should load after connection save.
+    // Catalogs should load automatically when Trino is configured.
     await expect(browser.getByRole('button', { name: 'tpch' })).toBeVisible();
     await expect(browser.getByRole('button', { name: 'system' })).toBeVisible();
   });
