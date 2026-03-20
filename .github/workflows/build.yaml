@@ -184,26 +184,26 @@ jobs:
           chart-version: ${{ needs.build-container-image.outputs.image-version }}
           app-version: ${{ needs.build-container-image.outputs.image-version }}
 
-  # openshift-preflight-check:
-  #   name: Run OpenShift Preflight Check for ${{ needs.build-container-image.outputs.image-version }}-${{ matrix.arch }}
-  #   if: (github.event_name != 'merge_group') && needs.detect-changes.outputs.detected == 'true'
-  #   needs:
-  #     - detect-changes
-  #     - build-container-image
-  #     - publish-index-manifest
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       arch:
-  #         - amd64
-  #         - arm64
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Run OpenShift Preflight Check
-  #       uses: stackabletech/actions/run-openshift-preflight@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
-  #       with:
-  #         image-index-uri: oci.stackable.tech/sdp/${{ env.IMAGE_NAME }}:${{ needs.build-container-image.outputs.image-version }}
-  #         image-architecture: ${{ matrix.arch }}
+  openshift-preflight-check:
+    name: Run OpenShift Preflight Check for ${{ needs.build-container-image.outputs.image-version }}-${{ matrix.arch }}
+    if: (github.event_name != 'merge_group') && needs.detect-changes.outputs.detected == 'true'
+    needs:
+      - detect-changes
+      - build-container-image
+      - publish-index-manifest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run OpenShift Preflight Check
+        uses: stackabletech/actions/run-openshift-preflight@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
+        with:
+          image-index-uri: oci.stackable.tech/sdp/${{ env.IMAGE_NAME }}:${{ needs.build-container-image.outputs.image-version }}
+          image-architecture: ${{ matrix.arch }}
 
   # This job is a required check in GitHub Settings for this repository.
   finished:
@@ -212,15 +212,14 @@ jobs:
     name: Finished Build and Publish
     if: always()
     needs:
-      # - openshift-preflight-check
+      - openshift-preflight-check
       - publish-helm-chart
     runs-on: ubuntu-latest
     steps:
       - name: Check results
         run: |
           set -euo pipefail
-          # TODO: needs.openshift-preflight-check.result needs to be added back once the job is re-enabled
-          if [[ "${{ needs.publish-helm-chart.result }}" == "failure" ]]; then
+          if [[ "${{ needs.openshift-preflight-check.result }}" == "failure" || "${{ needs.publish-helm-chart.result }}" == "failure" ]]; then
             echo "One or more required jobs failed"
             exit 1
           fi
