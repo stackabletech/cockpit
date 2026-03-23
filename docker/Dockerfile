@@ -106,6 +106,7 @@ COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/build ./build
 COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node_modules
 COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
 COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/stackable-ui.cdx.json ./stackable-ui.cdx.json
+COPY --chown=${STACKABLE_USER_UID}:0 LICENSE /licenses/LICENSE
 RUN chmod -R g=u /stackable/app
 
 USER ${STACKABLE_USER_UID}
@@ -134,5 +135,6 @@ LABEL org.opencontainers.image.authors="info@stackable.tech"
 LABEL org.opencontainers.image.url="https://stackable.tech"
 LABEL org.opencontainers.image.source="https://github.com/stackabletech/stackable-ui/"
 LABEL org.opencontainers.image.vendor="Stackable GmbH"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 CMD ["node", "build/index.js"]
