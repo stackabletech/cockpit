@@ -1,12 +1,15 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
+  import { SvelteMap } from 'svelte/reactivity';
   import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import TabBar from '$lib/components/TabBar.svelte';
+  import { tabStore } from '$lib/stores/tab-store.svelte.js';
+  import { getOrCreateQueryRunner, destroyQueryRunner } from './query-runner.svelte.js';
   import type { PageData } from './$types';
-  import { queryRunner } from './query-runner.svelte.js';
 
   let { data }: { data: PageData } = $props();
 
@@ -21,11 +24,11 @@
     }
   }
 
-  let sql = $state('SELECT 1');
+  let sql = $state(tabStore.activeTab.sql);
   let pageSize = $state<25 | 50 | 100>(25);
   let defaultCatalog = $state('');
   let defaultSchema = $state('');
-  let currentPage = $state(0);
+  let currentPages = new SvelteMap<string, number>();
   let hydrated = $state(false);
 
   // Signal to trigger catalog browser load (1 = load on mount).
@@ -46,8 +49,34 @@
   let monacoEditor = $state<MonacoEditor | undefined>(undefined);
   let mobileCatalogOpen = $state(false);
 
+  // Per-tab Monaco view states, keyed by tab ID.
+  const viewStates = new SvelteMap<
+    string,
+    import('monaco-editor').editor.ICodeEditorViewState | null
+  >();
+
+  // Non-reactive tracker for tab switching.
+  let lastTabId: string | null = null;
+
+  // Get current page for active tab.
+  const currentPage = $derived(currentPages.get(tabStore.activeTabId) ?? 0);
+
+  function setCurrentPage(page: number) {
+    currentPages.set(tabStore.activeTabId, page);
+  }
+
+  // Get the query runner for the active tab.
+  const runner = $derived(getOrCreateQueryRunner(tabStore.activeTabId));
+
+  // Tab bar items derived from tab store.
+  const tabItems = $derived(
+    tabStore.tabs.map((t) => ({
+      id: t.id,
+      label: tabStore.getTabLabel(t)
+    }))
+  );
+
   onMount(() => {
-    sql = getStoredValue('trino_sql', 'SELECT 1');
     defaultCatalog = getStoredValue('trino_default_catalog', '');
     defaultSchema = getStoredValue('trino_default_schema', '');
     const storedPageSize = parseInt(getStoredValue('trino_page_size', '25'), 10);
@@ -55,17 +84,20 @@
       ? (storedPageSize as 25 | 50 | 100)
       : 25;
     hydrated = true;
+    lastTabId = tabStore.activeTabId;
 
     if (data.trinoConfigured) {
       catalogVersion++;
     }
 
-    // Resume active query from server-side state (survives page reloads).
-    queryRunner.initialise(data.activeQuery);
+    // Resume active queries from server-side state (survives page reloads).
+    for (const [tabId, snapshot] of Object.entries(data.activeQueries)) {
+      getOrCreateQueryRunner(tabId).initialise(snapshot);
+    }
   });
 
   const isActive = $derived.by(() => {
-    const s = queryRunner.state;
+    const s = runner.state;
     return (
       s === 'SUBMITTING' ||
       s === 'QUEUED' ||
@@ -75,29 +107,60 @@
     );
   });
 
-  // Persist SQL and other settings.
+  // Persist settings.
   $effect(() => {
     if (!hydrated) return;
-    localStorage.setItem('trino_sql', sql);
     localStorage.setItem('trino_page_size', String(pageSize));
     localStorage.setItem('trino_default_catalog', defaultCatalog);
     localStorage.setItem('trino_default_schema', defaultSchema);
     localStorage.setItem('trino_catalog_browser_open', String(catalogBrowserOpen));
   });
 
-  // Reset pagination when rows change.
+  // Handle tab switches: save/restore Monaco view state.
+  $effect(() => {
+    const currentTabId = tabStore.activeTabId;
+    // Only read activeTabId reactively; use untrack for the rest.
+    untrack(() => {
+      if (lastTabId && lastTabId !== currentTabId && monacoEditor) {
+        viewStates.set(lastTabId, monacoEditor.getViewState());
+      }
+
+      if (monacoEditor && currentTabId) {
+        const tab = tabStore.activeTab;
+        monacoEditor.setValue(tab.sql);
+        sql = tab.sql;
+        const savedState = viewStates.get(currentTabId) ?? null;
+        monacoEditor.restoreViewState(savedState);
+      }
+
+      lastTabId = currentTabId;
+    });
+  });
+
+  // Sync Monaco content changes back to the tab store.
+  $effect(() => {
+    if (hydrated) {
+      // Read sql reactively.
+      const currentSql = sql;
+      untrack(() => {
+        tabStore.updateSql(tabStore.activeTabId, currentSql);
+      });
+    }
+  });
+
+  // Reset pagination when rows change for the active runner.
   let prevRowCount = $state(0);
   $effect(() => {
-    const count = queryRunner.rows.length;
+    const count = runner.rows.length;
     if (count !== prevRowCount && count > 0 && prevRowCount === 0) {
-      currentPage = 0;
+      setCurrentPage(0);
     }
     prevRowCount = count;
   });
 
-  const totalRows = $derived(queryRunner.rows.length);
+  const totalRows = $derived(runner.rows.length);
   const displayedRows = $derived(
-    queryRunner.rows.slice(currentPage * pageSize, (currentPage + 1) * pageSize)
+    runner.rows.slice(currentPage * pageSize, (currentPage + 1) * pageSize)
   );
   const hasMore = $derived((currentPage + 1) * pageSize < totalRows);
   const rowStart = $derived(currentPage * pageSize + 1);
@@ -114,11 +177,11 @@
       FAILED: m.trino_state_failed,
       CANCELLED: m.trino_state_cancelled
     };
-    return stateMap[queryRunner.state]?.() ?? null;
+    return stateMap[runner.state]?.() ?? null;
   });
 
   const stateBadgeClass = $derived.by(() => {
-    switch (queryRunner.state) {
+    switch (runner.state) {
       case 'QUEUED':
       case 'PLANNING':
         return 'badge-warning';
@@ -138,22 +201,22 @@
   });
 
   const rowLimitError = $derived.by(() => {
-    if (queryRunner.error?.startsWith('ROW_LIMIT:')) {
-      const limit = queryRunner.error.split(':')[1];
+    if (runner.error?.startsWith('ROW_LIMIT:')) {
+      const limit = runner.error.split(':')[1];
       return m.trino_row_limit_reached({ limit });
     }
     return null;
   });
 
   const queryError = $derived.by(() => {
-    if (!queryRunner.error) return null;
-    if (queryRunner.error.startsWith('ROW_LIMIT:')) return null;
-    return queryRunner.error;
+    if (!runner.error) return null;
+    if (runner.error.startsWith('ROW_LIMIT:')) return null;
+    return runner.error;
   });
 
   function handleExecute() {
-    currentPage = 0;
-    queryRunner.execute(sql, {
+    setCurrentPage(0);
+    runner.execute(sql, {
       catalog: defaultCatalog || undefined,
       schema: defaultSchema || undefined
     });
@@ -166,16 +229,16 @@
   }
 
   function goToPrevPage() {
-    currentPage = Math.max(0, currentPage - 1);
+    setCurrentPage(Math.max(0, currentPage - 1));
   }
 
   function goToNextPage() {
-    if (hasMore) currentPage += 1;
+    if (hasMore) setCurrentPage(currentPage + 1);
   }
 
   function handlePageSizeChange(event: Event) {
     pageSize = parseInt((event.target as HTMLSelectElement).value, 10) as 25 | 50 | 100;
-    currentPage = 0;
+    setCurrentPage(0);
   }
 
   function toggleCatalogBrowser() {
@@ -184,6 +247,29 @@
     } else {
       catalogBrowserOpen = !catalogBrowserOpen;
     }
+  }
+
+  function handleTabSelect(id: string) {
+    tabStore.switchTab(id);
+  }
+
+  function handleTabClose(id: string) {
+    destroyQueryRunner(id);
+    viewStates.delete(id);
+    currentPages.delete(id);
+    tabStore.closeTab(id);
+  }
+
+  function handleTabAdd() {
+    tabStore.createTab();
+  }
+
+  function handleTabRename(id: string, newLabel: string) {
+    tabStore.renameTab(id, newLabel);
+  }
+
+  function handleTabReorder(from: number, to: number) {
+    tabStore.reorderTabs(from, to);
   }
 </script>
 
@@ -311,7 +397,7 @@
             <button
               type="button"
               class="btn btn-error btn-sm"
-              onclick={() => queryRunner.cancel()}
+              onclick={() => runner.cancel()}
               aria-label={m.trino_cancel_query()}
             >
               {m.trino_cancel_query()}
@@ -334,43 +420,56 @@
           </button>
         </div>
       </div>
+      <!-- Tab bar -->
+      <div class="border-base-300 border-b px-2 pt-1">
+        <TabBar
+          items={tabItems}
+          activeId={tabStore.activeTabId}
+          onSelect={handleTabSelect}
+          onClose={handleTabClose}
+          onAdd={handleTabAdd}
+          onRename={handleTabRename}
+          onReorder={handleTabReorder}
+          maxItems={tabStore.maxTabs}
+        />
+      </div>
       <div class="h-64">
         <MonacoEditor bind:this={monacoEditor} bind:value={sql} onExecute={handleExecute} />
       </div>
     </div>
 
     <!-- Status display -->
-    {#if queryRunner.state !== 'IDLE'}
+    {#if runner.state !== 'IDLE'}
       <div
         class="flex flex-wrap items-center gap-3 px-1"
         aria-live="polite"
-        data-query-state={queryRunner.state}
+        data-query-state={runner.state}
       >
         {#if stateLabel}
           <span class="badge {stateBadgeClass}">{stateLabel}</span>
         {/if}
-        {#if queryRunner.state === 'RUNNING'}
+        {#if runner.state === 'RUNNING'}
           <span class="text-base-content/60 text-xs tabular-nums"
-            >{Math.round(queryRunner.progress.progressPercentage)}%</span
+            >{Math.round(runner.progress.progressPercentage)}%</span
           >
           <progress
             class="progress progress-primary shrink-0"
             style="width: 8rem"
-            value={queryRunner.progress.progressPercentage}
+            value={runner.progress.progressPercentage}
             max="100"
           ></progress>
         {/if}
-        {#if queryRunner.progress.processedRows > 0 || queryRunner.progress.elapsedTimeMillis > 0}
+        {#if runner.progress.processedRows > 0 || runner.progress.elapsedTimeMillis > 0}
           <span class="text-base-content/60 text-xs">
             {m.trino_progress_info({
-              rows: queryRunner.progress.processedRows.toLocaleString(),
-              elapsed: (queryRunner.progress.elapsedTimeMillis / 1000).toFixed(1)
+              rows: runner.progress.processedRows.toLocaleString(),
+              elapsed: (runner.progress.elapsedTimeMillis / 1000).toFixed(1)
             })}
           </span>
         {/if}
-        {#if queryRunner.trinoQueryUrl}
+        {#if runner.trinoQueryUrl}
           <a
-            href={queryRunner.trinoQueryUrl}
+            href={runner.trinoQueryUrl}
             target="_blank"
             rel="noopener noreferrer"
             class="link link-primary text-xs"
@@ -388,7 +487,7 @@
     <div class="bg-base-100 border-base-300 flex min-h-0 flex-1 flex-col rounded-xl border">
       <div class="border-base-300 flex items-center border-b px-4 py-2">
         <span class="text-base-content/60 text-sm font-medium">{m.trino_results_label()}</span>
-        {#if queryRunner.state === 'FINISHED' && displayedRows.length > 0 && totalRows > 0}
+        {#if runner.state === 'FINISHED' && displayedRows.length > 0 && totalRows > 0}
           <span class="text-base-content/40 ml-2 text-xs">
             {m.trino_rows_range({ start: rowStart, end: rowEnd, total: totalRows })}
           </span>
@@ -402,12 +501,12 @@
             <pre
               class="bg-base-200 text-base-content overflow-x-auto rounded-lg p-3 text-xs whitespace-pre-wrap">{queryError}</pre>
           </div>
-        {:else if queryRunner.state === 'FINISHED' && queryRunner.columns.length > 0}
+        {:else if runner.state === 'FINISHED' && runner.columns.length > 0}
           <div class="overflow-x-auto">
             <table class="table-sm table-zebra table" aria-label={m.trino_results_label()}>
               <thead>
                 <tr>
-                  {#each queryRunner.columns as col (col.name)}
+                  {#each runner.columns as col (col.name)}
                     <th scope="col" class="whitespace-nowrap">{col.name}</th>
                   {/each}
                 </tr>
@@ -434,7 +533,7 @@
         {/if}
       </div>
 
-      {#if queryRunner.state === 'FINISHED' && queryRunner.columns.length > 0}
+      {#if runner.state === 'FINISHED' && runner.columns.length > 0}
         <div class="border-base-300 flex items-center justify-between border-t px-4 py-3">
           <div class="join">
             <button

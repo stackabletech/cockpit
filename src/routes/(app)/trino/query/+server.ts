@@ -29,12 +29,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const user = locals.user?.username ?? 'anonymous';
 
   try {
-    await startQuery(userId, parsed.data.sql, {
+    await startQuery(userId, parsed.data.tabId, parsed.data.sql, {
       user,
       catalog: parsed.data.catalog,
       schema: parsed.data.schema
     });
-    log.info({ user_id: userId }, 'query submitted');
+    log.info({ user_id: userId, tab_id: parsed.data.tabId }, 'query submitted');
     return new Response(null, { status: 204 });
   } catch (err) {
     log.error({ err }, 'failed to submit query');
@@ -43,24 +43,35 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   }
 };
 
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
   const log = locals.logger;
   const userId = getUserId(locals);
-  const snapshot = getQuerySnapshot(userId);
+  const tabId = url.searchParams.get('tabId');
 
-  log.trace({ user_id: userId, found: !!snapshot }, 'status poll');
+  if (!tabId) {
+    return json({ error: 'Missing tabId parameter' }, { status: 400 });
+  }
+
+  const snapshot = getQuerySnapshot(userId, tabId);
+
+  log.trace({ user_id: userId, tab_id: tabId, found: !!snapshot }, 'status poll');
 
   if (!snapshot) return json(null);
   return json(snapshot);
 };
 
-export const DELETE: RequestHandler = async ({ locals }) => {
+export const DELETE: RequestHandler = async ({ url, locals }) => {
   const log = locals.logger;
   const userId = getUserId(locals);
+  const tabId = url.searchParams.get('tabId');
 
-  log.info({ user_id: userId }, 'cancel request received');
+  if (!tabId) {
+    return json({ error: 'Missing tabId parameter' }, { status: 400 });
+  }
 
-  const cancelled = await cancelQuery(userId);
+  log.info({ user_id: userId, tab_id: tabId }, 'cancel request received');
+
+  const cancelled = await cancelQuery(userId, tabId);
   if (!cancelled) {
     return json({ error: 'No active query to cancel' }, { status: 404 });
   }

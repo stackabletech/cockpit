@@ -88,5 +88,10 @@
   "trino_table_type_view": "View",
   "trino_catalog_error": "Failed to load catalog",
   "trino_catalog_load_children_error": "Failed to load",
-  "trino_view_in_trino": "View in Trino"
+  "trino_view_in_trino": "View in Trino",
+  "trino_tab_new": "New tab",
+  "trino_tab_close": "Close tab {name}",
+  "trino_tab_default_name": "Query {number}",
+  "trino_tab_limit_reached": "Maximum of {limit} tabs reached",
+  "trino_tab_rename": "Rename tab"
 }
