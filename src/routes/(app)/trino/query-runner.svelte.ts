@@ -82,7 +82,7 @@ async function pollStatus() {
       }
     } catch (err) {
       if (signal.aborted) return;
-      // Network error — keep trying a few times then give up.
+      // Network error — give up immediately.
       state = 'FAILED';
       error = err instanceof Error ? err.message : 'Unknown error';
       stopPolling();

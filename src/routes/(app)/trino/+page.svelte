@@ -7,11 +7,12 @@
   import Modal from '$lib/components/Modal.svelte';
   import type { PageData } from './$types';
   import { queryRunner } from './query-runner.svelte.js';
+  import { ALLOWED_PAGE_SIZES } from './validation';
+  import { isTerminal } from '$lib/types/query';
 
   let { data }: { data: PageData } = $props();
 
   const uid = $props.id();
-  const PAGE_SIZES = [25, 50, 100] as const;
 
   function getStoredValue(key: string, fallback: string): string {
     try {
@@ -51,7 +52,7 @@
     defaultCatalog = getStoredValue('trino_default_catalog', '');
     defaultSchema = getStoredValue('trino_default_schema', '');
     const storedPageSize = parseInt(getStoredValue('trino_page_size', '25'), 10);
-    pageSize = PAGE_SIZES.includes(storedPageSize as 25 | 50 | 100)
+    pageSize = ALLOWED_PAGE_SIZES.includes(storedPageSize as 25 | 50 | 100)
       ? (storedPageSize as 25 | 50 | 100)
       : 25;
     hydrated = true;
@@ -64,16 +65,7 @@
     queryRunner.initialise(data.activeQuery);
   });
 
-  const isActive = $derived.by(() => {
-    const s = queryRunner.state;
-    return (
-      s === 'SUBMITTING' ||
-      s === 'QUEUED' ||
-      s === 'PLANNING' ||
-      s === 'RUNNING' ||
-      s === 'FINISHING'
-    );
-  });
+  const isActive = $derived(queryRunner.state !== 'IDLE' && !isTerminal(queryRunner.state));
 
   // Persist SQL and other settings.
   $effect(() => {
@@ -465,7 +457,7 @@
               value={pageSize}
               onchange={handlePageSizeChange}
             >
-              {#each PAGE_SIZES as size (size)}
+              {#each ALLOWED_PAGE_SIZES as size (size)}
                 <option value={size}>{size}</option>
               {/each}
             </select>
