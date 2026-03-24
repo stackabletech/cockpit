@@ -35,24 +35,13 @@ export interface TrinoQuery {
   completedAt: number | null;
 }
 
+const TRINO_STATES = new Set(['QUEUED', 'PLANNING', 'RUNNING', 'FINISHING', 'FINISHED', 'FAILED']);
+
 export function mapTrinoState(trinoState: string | undefined): QueryState {
-  switch (trinoState) {
-    case 'QUEUED':
-      return 'QUEUED';
-    case 'PLANNING':
-      return 'PLANNING';
-    case 'STARTING':
-    case 'RUNNING':
-      return 'RUNNING';
-    case 'FINISHING':
-      return 'FINISHING';
-    case 'FINISHED':
-      return 'FINISHED';
-    case 'FAILED':
-      return 'FAILED';
-    default:
-      return 'RUNNING';
+  if (trinoState && TRINO_STATES.has(trinoState)) {
+    return trinoState as QueryState;
   }
+  return 'RUNNING'; // STARTING & unknown states are mapped to RUNNING
 }
 
 export function toQueryProgress(stats: TrinoQueryStats | undefined): QueryProgress {
