@@ -12,7 +12,7 @@ export { INITIAL_PROGRESS, type QueryState, type QueryProgress } from '$lib/type
 let state = $state<QueryState>('IDLE');
 let progress = $state<QueryProgress>(INITIAL_PROGRESS);
 let columns = $state<Column[]>([]);
-let rows = $state<unknown[][]>([]);
+let rows = $state.raw<unknown[][]>([]);
 let error = $state<string | null>(null);
 let trinoQueryUrl = $state<string | null>(null);
 
