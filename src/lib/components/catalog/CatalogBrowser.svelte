@@ -6,20 +6,12 @@
   import type { TreeNode } from './types.js';
 
   let {
-    connectionUrl,
-    authType,
-    authUsername,
-    authPassword,
-    impersonation = false,
+    connectionVersion = 0,
     defaultCatalog = $bindable(''),
     defaultSchema = $bindable(''),
     onInsert
   }: {
-    connectionUrl: string;
-    authType: 'none' | 'basic';
-    authUsername: string;
-    authPassword: string;
-    impersonation: boolean;
+    connectionVersion: number;
     defaultCatalog: string;
     defaultSchema: string;
     onInsert: (qualifiedName: string) => void;
@@ -35,20 +27,9 @@
   // Available schemas for the context selector dropdown.
   let availableSchemas = $state<string[]>([]);
 
-  function buildQueryParams(extra: Record<string, string>): string {
-    const params = new URLSearchParams({
-      connectionUrl,
-      authType,
-      authUsername,
-      authPassword,
-      impersonation: String(impersonation),
-      ...extra
-    });
-    return params.toString();
-  }
-
   async function fetchLevel(params: Record<string, string>): Promise<unknown[][]> {
-    const res = await fetch(`/trino/catalog?${buildQueryParams(params)}`);
+    const qs = new URLSearchParams(params).toString();
+    const res = await fetch(`/trino/catalog?${qs}`);
     if (!res.ok) {
       const text = await res.text();
       throw new Error(text);
@@ -57,7 +38,6 @@
   }
 
   async function loadCatalogs() {
-    if (!connectionUrl) return;
     catalogsLoading = true;
     loadError = null;
     try {
@@ -176,12 +156,10 @@
     catalogs = [...catalogs]; // Trigger reactivity.
   }
 
-  // Load catalogs when connection changes.
-  let lastConnectionKey = $state('');
+  // Reload catalogs whenever the connection version bumps (i.e. after save).
   $effect(() => {
-    const key = `${connectionUrl}|${authType}|${authUsername}|${authPassword}`;
-    if (key !== lastConnectionKey && connectionUrl) {
-      lastConnectionKey = key;
+    // Read connectionVersion to subscribe to changes.
+    if (connectionVersion > 0) {
       loadCatalogs();
     }
   });

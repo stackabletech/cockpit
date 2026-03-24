@@ -1,2 +1,10 @@
 @import 'tailwindcss';
 @plugin 'daisyui';
+
+/* Disable default browser transition on progress bar fill so value updates don't "fly" */
+progress.progress::-webkit-progress-value {
+  transition: none;
+}
+progress.progress::-moz-progress-bar {
+  transition: none;
+}

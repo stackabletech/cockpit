@@ -3,10 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import { waitForHydration } from './helpers';
 
-const authFile = path.join(import.meta.dirname, '.auth/user.json');
-
 /** Load the saved auth storage state, optionally stripping the locale cookie. */
-function loadAuthState({ withoutLocale = false } = {}) {
+function loadAuthState(projectName: string, { withoutLocale = false } = {}) {
+  const authFile = path.join(import.meta.dirname, `.auth/user-setup-${projectName}.json`);
   const state = JSON.parse(fs.readFileSync(authFile, 'utf-8'));
   if (withoutLocale) {
     state.cookies = state.cookies.filter((c: { name: string }) => c.name !== 'PARAGLIDE_LOCALE');
@@ -89,12 +88,12 @@ test.describe('Internationalisation', () => {
     await expect(page.getByText('Willkommen zurück')).toBeVisible();
   });
 
-  test('Accept-Language header respected for first visit', async ({ browser }) => {
+  test('Accept-Language header respected for first visit', async ({ browser }, testInfo) => {
     // Create a context with German Accept-Language but no locale cookie,
     // so paraglide falls back to the Accept-Language header
     const context = await browser.newContext({
       locale: 'de-DE',
-      storageState: loadAuthState({ withoutLocale: true })
+      storageState: loadAuthState(testInfo.project.name, { withoutLocale: true })
     });
     const page = await context.newPage();
 

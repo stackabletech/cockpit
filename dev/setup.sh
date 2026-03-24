@@ -147,6 +147,8 @@ if [ -f "$ENV_FILE" ]; then
   cp "$ENV_FILE" "$ENV_FILE.bak"
 fi
 
+TRINO_PORT=$(kubectl get svc trino-coordinator -o jsonpath='{.spec.ports[0].nodePort}')
+
 cat > "$ENV_FILE" <<EOF
 STACKABLE_UI_SQLITE_PATH=.data/auth.db
 STACKABLE_UI_OIDC_DISCOVERY_URL=http://${NODE_IP}:30080/realms/stackable/.well-known/openid-configuration
@@ -154,6 +156,11 @@ STACKABLE_UI_OIDC_CLIENT_ID=stackable-ui
 STACKABLE_UI_OIDC_CLIENT_SECRET=${SECRET}
 STACKABLE_UI_SESSION_SECRET=${SESSION_SECRET}
 STACKABLE_UI_BASE_URL=http://localhost:5173
+STACKABLE_UI_TRINO_URL=https://${NODE_IP}:${TRINO_PORT}
+STACKABLE_UI_TRINO_AUTH_TYPE=basic
+STACKABLE_UI_TRINO_AUTH_USERNAME=stackable-ui
+STACKABLE_UI_TRINO_AUTH_PASSWORD=stackable-ui-dev
+STACKABLE_UI_TRINO_TLS_INSECURE=true
 EOF
 
 echo "Wrote $ENV_FILE"
@@ -175,7 +182,6 @@ echo ""
 echo "Waiting for Trino to be ready..."
 kubectl rollout status statefulset/trino-coordinator-default --timeout=300s
 
-TRINO_PORT=$(kubectl get svc trino-coordinator -o jsonpath='{.spec.ports[0].nodePort}')
 echo "Trino endpoint: https://${NODE_IP}:${TRINO_PORT}"
 
 # ------------------------------------------------------------------
@@ -191,9 +197,7 @@ echo "  Admin:        admin / admin"
 echo ""
 echo "Trino endpoint: https://${NODE_IP}:${TRINO_PORT}"
 echo ""
-echo "Trino static credentials (for connection config):"
-echo "  Username: stackable-ui"
-echo "  Password: stackable-ui-dev"
+echo "Trino connection is pre-configured via STACKABLE_UI_TRINO_* env vars."
 echo ""
 echo "Test users (OIDC):"
 echo "  alice / alicealice"

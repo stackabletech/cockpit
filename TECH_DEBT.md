@@ -30,6 +30,14 @@ Because there is no server-side session yet, connection credentials (including p
 
 ---
 
+### Connection config is in-memory only
+
+**File:** `src/lib/server/trino.ts`
+
+The active connection configuration (URL + credentials) is stored in a module-level variable. It is not persisted across server restarts and is not shared across multiple processes/instances. Acceptable for single-instance deployments during development. Long-term: persist to a session store or database, keyed by authenticated user.
+
+---
+
 ### Raw upstream error messages returned to the client
 
 **File:** `src/routes/api/trino/query/+server.ts:165, 181, 209`
@@ -46,6 +54,38 @@ better-auth uses SQLite (via better-sqlite3) for session and user storage. SQLit
 
 ---
 
+### Anonymous users share a single query slot
+
+**File:** `src/lib/server/query-store.ts`
+
+When OIDC is disabled, all users are identified as `'anonymous'` and share a single active query slot. Submitting a new query cancels the previous one. Once OIDC is required in production this is a non-issue, but for development with multiple anonymous users it can cause unexpected cancellations.
+
+---
+
+### In-memory query store lost on server restart and prevents horizontal scaling
+
+**File:** `src/lib/server/query-store.ts`
+
+All server-side query state (progress, rows, status) is held in a module-level `Map`. A server restart clears all state — running queries become orphaned in Trino and completed results are lost. Additionally, because the state is process-local, multiple server instances cannot share query state: a query started on instance A is invisible to instance B. Combined with the SQLite session store limitation (see above), the deployment is limited to a single replica. Acceptable during development; long-term this should be backed by Redis or a persistent store to enable horizontal scaling and resilience.
+
+---
+
+### Completed query results are ephemeral (30-minute TTL)
+
+**File:** `src/lib/server/query-store.ts`
+
+Completed query snapshots (including result rows) are cleaned up after 30 minutes. If a user leaves and returns later, the results will be gone. Consider persisting results to disk or a cache with configurable TTL.
+
+---
+
+### Status endpoint returns full rows array on each poll
+
+**File:** `src/routes/(app)/trino/api/query/status/+server.ts`
+
+The status endpoint returns the entire accumulated `rows` array on every poll request. With the 10k row cap this is acceptable, but for very wide result sets it is wasteful. A future optimisation could accept a `?rowOffset=N` parameter and return only new rows.
+
+---
+
 ## API & Validation
 
 ### API route request body not validated with Zod
@@ -56,19 +96,19 @@ better-auth uses SQLite (via better-sqlite3) for session and user storage. SQLit
 
 ---
 
-### In-memory query cache has no total size bound
+### Client-side row accumulation has no memory bound
 
-**File:** `src/routes/api/trino/query/+server.ts:40–47`
+**File:** `src/routes/(app)/trino/query-runner.svelte.ts`
 
-Each cached query can hold up to `MAX_CACHED_ROWS` (100 000) rows. `evictStale()` is only called when a new query arrives, not on a timer, so a long idle period followed by many concurrent queries could accumulate significant memory before eviction runs. Needs a bounded cache (e.g. LRU with a memory cap) and a periodic eviction timer.
+The client accumulates all result rows in memory up to `MAX_CLIENT_ROWS` (10,000). For wide result sets this could consume significant browser memory. Consider implementing streaming/virtual scrolling for large results.
 
 ---
 
 ### Displayed results not cleared on connection change
 
-**File:** `src/routes/(app)/trino/+page.svelte:40–46`
+**File:** `src/routes/(app)/trino/+page.svelte`
 
-The `$effect` that persists connection settings only resets `queryId`, not `rows`, `columns`, or `error`. After switching to a different Trino instance the previous result set remains visible until a new query is run, which is confusing.
+After saving a new connection, the previous query results remain visible until a new query is run. Consider calling `queryRunner.reset()` when the connection changes.
 
 ---
 

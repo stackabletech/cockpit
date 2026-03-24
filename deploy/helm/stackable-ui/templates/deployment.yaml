@@ -89,14 +89,74 @@ spec:
             - name: STACKABLE_UI_OIDC_USERNAME_CLAIM
               value: {{ .Values.auth.usernameClaim | quote }}
             {{- end }}
+            {{- if .Values.trino.url }}
+            - name: STACKABLE_UI_TRINO_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "stackable-ui.fullname" . }}
+                  key: trino-url
+            {{- end }}
+            {{- if .Values.trino.authType }}
+            - name: STACKABLE_UI_TRINO_AUTH_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "stackable-ui.fullname" . }}
+                  key: trino-auth-type
+            {{- end }}
+            {{- if .Values.trino.authUsername }}
+            - name: STACKABLE_UI_TRINO_AUTH_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "stackable-ui.fullname" . }}
+                  key: trino-auth-username
+            {{- end }}
+            {{- if .Values.trino.authPassword }}
+            - name: STACKABLE_UI_TRINO_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stackable-ui.fullname" . }}
+                  key: trino-auth-password
+            {{- end }}
+            {{- if .Values.trino.tlsInsecure }}
+            - name: STACKABLE_UI_TRINO_TLS_INSECURE
+              value: "true"
+            {{- end }}
+            {{- if .Values.trino.tlsCaCert }}
+            - name: STACKABLE_UI_TRINO_TLS_CA_CERT
+              value: {{ .Values.trino.tlsCaCert | quote }}
+            {{- else if .Values.trino.tlsSecretClass }}
+            - name: STACKABLE_UI_TRINO_TLS_CA_CERT
+              value: /stackable/trino-tls/ca.crt
+            {{- end }}
           volumeMounts:
             - name: tmp
               mountPath: /tmp
             - name: data
               mountPath: /data
+            {{- if .Values.trino.tlsSecretClass }}
+            - name: trino-tls
+              mountPath: /stackable/trino-tls
+              readOnly: true
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
+        {{- if .Values.trino.tlsSecretClass }}
+        - name: trino-tls
+          ephemeral:
+            volumeClaimTemplate:
+              metadata:
+                annotations:
+                  secrets.stackable.tech/class: {{ .Values.trino.tlsSecretClass | quote }}
+                  secrets.stackable.tech/scope: pod
+              spec:
+                storageClassName: secrets.stackable.tech
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1
+        {{- end }}
         - name: data
           {{- if .Values.persistence.enabled }}
           persistentVolumeClaim:
