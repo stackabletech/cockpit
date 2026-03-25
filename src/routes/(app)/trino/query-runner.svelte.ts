@@ -20,6 +20,7 @@ export interface QueryRunner {
   cancel: () => Promise<void>;
   reset: () => void;
   initialise: (snapshot: QuerySnapshot | null) => void;
+  fetchResults: () => Promise<void>;
 }
 
 // Plain Map — not SvelteMap — because getOrCreateQueryRunner is called
@@ -164,6 +165,18 @@ function createQueryRunner(tabId: string): QueryRunner {
     }
   }
 
+  async function fetchResults() {
+    if (!isTerminal(state) || rows.length > 0) return;
+    try {
+      const res = await fetch(`/trino/query?tabId=${encodeURIComponent(tabId)}`);
+      if (!res.ok) return;
+      const snapshot: QuerySnapshot | null = await res.json();
+      if (snapshot) applySnapshot(snapshot);
+    } catch {
+      // Best-effort fetch.
+    }
+  }
+
   return {
     get state() {
       return state;
@@ -186,7 +199,8 @@ function createQueryRunner(tabId: string): QueryRunner {
     execute,
     cancel,
     reset,
-    initialise
+    initialise,
+    fetchResults
   };
 }
 

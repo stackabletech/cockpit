@@ -90,10 +90,11 @@
       catalogVersion++;
     }
 
-    // Resume active queries from server-side state (survives page reloads).
+    // Initialise runners from lightweight summaries (rows fetched on demand).
     for (const [tabId, snapshot] of Object.entries(data.activeQueries)) {
       getOrCreateQueryRunner(tabId).initialise(snapshot);
     }
+    getOrCreateQueryRunner(tabStore.activeTabId).fetchResults();
   });
 
   const isActive = $derived(runner.state !== 'IDLE' && !isTerminal(runner.state));
@@ -125,6 +126,7 @@
       }
 
       lastTabId = currentTabId;
+      getOrCreateQueryRunner(currentTabId).fetchResults();
     });
   });
 

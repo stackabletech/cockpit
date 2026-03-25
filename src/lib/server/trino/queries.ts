@@ -201,12 +201,23 @@ export function getQuerySnapshot(userId: string, tabId: string): QuerySnapshot |
   return buildSnapshot(query);
 }
 
-export function getAllQuerySnapshots(userId: string): Record<string, QuerySnapshot> {
+/** Lightweight snapshot without rows/columns — used for SSR to keep the payload small. */
+export function getAllQuerySummaries(userId: string): Record<string, QuerySnapshot> {
   const tabMap = userQueries.get(userId);
   if (!tabMap) return {};
+  const trinoServerUrl = getTrinoServerUrl();
   const result: Record<string, QuerySnapshot> = {};
   for (const [tabId, query] of tabMap) {
-    result[tabId] = buildSnapshot(query);
+    result[tabId] = {
+      trinoQueryUrl: `${trinoServerUrl}/ui/query.html?${query.trinoQueryId}`,
+      state: query.state,
+      progress: query.progress,
+      columns: [],
+      rows: [],
+      error: query.error,
+      sql: query.sql,
+      startedAt: query.startedAt
+    };
   }
   return result;
 }
