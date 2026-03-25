@@ -7,7 +7,7 @@
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import TabBar from '$lib/components/TabBar.svelte';
-  import { tabStore } from '$lib/stores/tab-store.svelte.js';
+  import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
   import { getOrCreateQueryRunner, destroyQueryRunner } from './query-runner.svelte.js';
   import type { PageData } from './$types';
   import { ALLOWED_PAGE_SIZES } from './validation';
@@ -137,13 +137,17 @@
     });
   });
 
-  // Sync Monaco content changes back to the tab store.
+  // Sync Monaco content changes back to the tab store, clamping to max length.
   $effect(() => {
     if (hydrated) {
       // Read sql reactively.
       const currentSql = sql;
       untrack(() => {
-        tabStore.updateSql(tabStore.activeTabId, currentSql);
+        if (currentSql.length > MAX_SQL_LENGTH) {
+          sql = currentSql.slice(0, MAX_SQL_LENGTH);
+          monacoEditor?.setValue(sql);
+        }
+        tabStore.updateSql(tabStore.activeTabId, sql);
       });
     }
   });
@@ -337,9 +341,34 @@
   </Modal>
 
   <!-- Main editor + results column -->
-  <div class="flex min-w-0 flex-1 flex-col gap-4">
-    <!-- Editor section -->
-    <div class="bg-base-100 border-base-300 flex flex-col rounded-xl border">
+  <div class="flex min-w-0 flex-1 flex-col">
+    <!-- Tab bar -->
+    <div class="px-2 pt-1">
+      <TabBar
+        items={tabItems}
+        activeId={tabStore.activeTabId}
+        onSelect={handleTabSelect}
+        onClose={handleTabClose}
+        onAdd={handleTabAdd}
+        onRename={handleTabRename}
+        onReorder={handleTabReorder}
+        maxItems={tabStore.maxTabs}
+      />
+    </div>
+
+    <!-- Persistence warning -->
+    {#if tabStore.persistError}
+      <div class="px-2" role="alert">
+        <div class="alert alert-warning text-sm">
+          {m.trino_tabs_persist_error()}
+        </div>
+      </div>
+    {/if}
+
+    <!-- Content card (editor + status + results) -->
+    <div
+      class="bg-base-100 border-base-300 flex min-h-0 flex-1 flex-col rounded-t-none rounded-b-xl border"
+    >
       <div class="border-base-300 flex items-center justify-between border-b px-4 py-2">
         <div class="flex items-center gap-2">
           <div class="tooltip tooltip-right" data-tip={m.trino_catalog_browser_toggle()}>
@@ -420,72 +449,57 @@
           </button>
         </div>
       </div>
-      <!-- Tab bar -->
-      <div class="border-base-300 border-b px-2 pt-1">
-        <TabBar
-          items={tabItems}
-          activeId={tabStore.activeTabId}
-          onSelect={handleTabSelect}
-          onClose={handleTabClose}
-          onAdd={handleTabAdd}
-          onRename={handleTabRename}
-          onReorder={handleTabReorder}
-          maxItems={tabStore.maxTabs}
-        />
-      </div>
-      <div class="h-64">
+      <div class="h-64 px-4 py-2">
         <MonacoEditor bind:this={monacoEditor} bind:value={sql} onExecute={handleExecute} />
       </div>
-    </div>
 
-    <!-- Status display -->
-    {#if runner.state !== 'IDLE'}
-      <div
-        class="flex flex-wrap items-center gap-3 px-1"
-        aria-live="polite"
-        data-query-state={runner.state}
-      >
-        {#if stateLabel}
-          <span class="badge {stateBadgeClass}">{stateLabel}</span>
-        {/if}
-        {#if runner.state === 'RUNNING'}
-          <span class="text-base-content/60 text-xs tabular-nums"
-            >{Math.round(runner.progress.progressPercentage)}%</span
-          >
-          <progress
-            class="progress progress-primary shrink-0"
-            style="width: 8rem"
-            value={runner.progress.progressPercentage}
-            max="100"
-          ></progress>
-        {/if}
-        {#if runner.progress.processedRows > 0 || runner.progress.elapsedTimeMillis > 0}
-          <span class="text-base-content/60 text-xs">
-            {m.trino_progress_info({
-              rows: runner.progress.processedRows.toLocaleString(),
-              elapsed: (runner.progress.elapsedTimeMillis / 1000).toFixed(1)
-            })}
-          </span>
-        {/if}
-        {#if runner.trinoQueryUrl}
-          <a
-            href={runner.trinoQueryUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="link link-primary text-xs"
-          >
-            {m.trino_view_in_trino()}
-          </a>
-        {/if}
-        {#if rowLimitError}
-          <span class="text-warning text-xs">{rowLimitError}</span>
-        {/if}
-      </div>
-    {/if}
+      <!-- Status display -->
+      {#if runner.state !== 'IDLE'}
+        <div
+          class="border-base-300 flex flex-wrap items-center gap-3 border-t px-4 py-2"
+          aria-live="polite"
+          data-query-state={runner.state}
+        >
+          {#if stateLabel}
+            <span class="badge {stateBadgeClass}">{stateLabel}</span>
+          {/if}
+          {#if runner.state === 'RUNNING'}
+            <span class="text-base-content/60 text-xs tabular-nums"
+              >{Math.round(runner.progress.progressPercentage)}%</span
+            >
+            <progress
+              class="progress progress-primary shrink-0"
+              style="width: 8rem"
+              value={runner.progress.progressPercentage}
+              max="100"
+            ></progress>
+          {/if}
+          {#if runner.progress.processedRows > 0 || runner.progress.elapsedTimeMillis > 0}
+            <span class="text-base-content/60 text-xs">
+              {m.trino_progress_info({
+                rows: runner.progress.processedRows.toLocaleString(),
+                elapsed: (runner.progress.elapsedTimeMillis / 1000).toFixed(1)
+              })}
+            </span>
+          {/if}
+          {#if runner.trinoQueryUrl}
+            <a
+              href={runner.trinoQueryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="link link-primary text-xs"
+            >
+              {m.trino_view_in_trino()}
+            </a>
+          {/if}
+          {#if rowLimitError}
+            <span class="text-warning text-xs">{rowLimitError}</span>
+          {/if}
+        </div>
+      {/if}
 
-    <!-- Results section -->
-    <div class="bg-base-100 border-base-300 flex min-h-0 flex-1 flex-col rounded-xl border">
-      <div class="border-base-300 flex items-center border-b px-4 py-2">
+      <!-- Results section -->
+      <div class="border-base-300 flex items-center border-t px-4 py-2">
         <span class="text-base-content/60 text-sm font-medium">{m.trino_results_label()}</span>
         {#if runner.state === 'FINISHED' && displayedRows.length > 0 && totalRows > 0}
           <span class="text-base-content/40 ml-2 text-xs">

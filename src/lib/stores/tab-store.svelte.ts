@@ -2,9 +2,13 @@ import { browser } from '$app/environment';
 import * as m from '$lib/paraglide/messages.js';
 
 const MAX_TABS = 8;
-const STORAGE_KEY = 'trino_tabs';
-const LEGACY_SQL_KEY = 'trino_sql';
+const INDEX_KEY = 'trino_tabs_index';
+const TAB_KEY_PREFIX = 'trino_tab_';
 const DEFAULT_SQL = 'SELECT 1';
+const DEBOUNCE_MS = 500;
+
+/** Maximum characters allowed per tab's SQL content. */
+export const MAX_SQL_LENGTH = 250_000;
 
 export interface TabState {
   id: string;
@@ -13,8 +17,8 @@ export interface TabState {
   createdAt: number;
 }
 
-interface PersistedState {
-  tabs: TabState[];
+interface IndexData {
+  tabs: { id: string; label: string | null; createdAt: number }[];
   activeTabId: string;
 }
 
@@ -22,25 +26,9 @@ function generateId(): string {
   return crypto.randomUUID();
 }
 
-/** Derive a short tab name from the SQL content. */
-function deriveLabel(sql: string, index: number): string {
-  const trimmed = sql.trim();
-  if (!trimmed) return m.trino_tab_default_name({ number: String(index + 1) });
-
-  // Try to extract first keyword + object name from first line.
-  const firstLine = trimmed.split('\n')[0].trim();
-  const match = firstLine.match(
-    /^(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|WITH|SHOW|DESCRIBE|EXPLAIN|USE)\b\s*(.*)/i
-  );
-  if (match) {
-    const keyword = match[1].toUpperCase();
-    const rest = match[2].trim().substring(0, 30);
-    if (rest) return `${keyword} ${rest}`;
-    return keyword;
-  }
-
-  // Fallback: first 30 chars of first line.
-  return firstLine.substring(0, 30) || m.trino_tab_default_name({ number: String(index + 1) });
+/** Return the default tab name. */
+function deriveLabel(): string {
+  return m.trino_tab_default_name();
 }
 
 function makeTab(sql: string = DEFAULT_SQL): TabState {
@@ -52,15 +40,17 @@ function makeTab(sql: string = DEFAULT_SQL): TabState {
   };
 }
 
-function loadFromStorage(): PersistedState | null {
-  if (!browser) return null;
+// ---------------------------------------------------------------------------
+// Storage helpers
+// ---------------------------------------------------------------------------
+
+function readIndex(): IndexData | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as PersistedState;
-      if (Array.isArray(parsed.tabs) && parsed.tabs.length > 0 && parsed.activeTabId) {
-        return parsed;
-      }
+    const raw = localStorage.getItem(INDEX_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as IndexData;
+    if (Array.isArray(parsed.tabs) && parsed.tabs.length > 0 && parsed.activeTabId) {
+      return parsed;
     }
   } catch {
     // Ignore corrupt data.
@@ -68,65 +58,147 @@ function loadFromStorage(): PersistedState | null {
   return null;
 }
 
-/** Migrate from legacy single-SQL localStorage to tab state. */
-function migrateFromLegacy(): PersistedState | null {
-  if (!browser) return null;
+function readTabSql(id: string): string {
   try {
-    const legacySql = localStorage.getItem(LEGACY_SQL_KEY);
-    if (legacySql !== null) {
-      const tab = makeTab(legacySql);
-      localStorage.removeItem(LEGACY_SQL_KEY);
-      return { tabs: [tab], activeTabId: tab.id };
-    }
+    return localStorage.getItem(TAB_KEY_PREFIX + id) ?? DEFAULT_SQL;
   } catch {
-    // Ignore.
+    return DEFAULT_SQL;
   }
+}
+
+/** Load tabs from the new split format, falling back through legacy formats. */
+function loadFromStorage(): { tabs: TabState[]; activeTabId: string } | null {
+  if (!browser) return null;
+
+  const index = readIndex();
+  if (index) {
+    const tabs: TabState[] = index.tabs.map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      createdAt: entry.createdAt,
+      sql: readTabSql(entry.id)
+    }));
+    return { tabs, activeTabId: index.activeTabId };
+  }
+
   return null;
 }
 
-function createDefaultState(): PersistedState {
+function createDefaultState(): { tabs: TabState[]; activeTabId: string } {
   const tab = makeTab();
   return { tabs: [tab], activeTabId: tab.id };
 }
 
-function persistToStorage(tabs: TabState[], activeTabId: string) {
-  if (!browser) return;
+// ---------------------------------------------------------------------------
+// Persist helpers (write)
+// ---------------------------------------------------------------------------
+
+/** Track whether the last write failed due to quota. */
+let _persistError = false;
+
+function persistIndex(tabs: TabState[], activeTabId: string): boolean {
+  if (!browser) return true;
   try {
-    const data: PersistedState = {
-      tabs: tabs.map((t) => ({ id: t.id, sql: t.sql, label: t.label, createdAt: t.createdAt })),
+    const data: IndexData = {
+      tabs: tabs.map((t) => ({ id: t.id, label: t.label, createdAt: t.createdAt })),
       activeTabId
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(INDEX_KEY, JSON.stringify(data));
+    _persistError = false;
+    return true;
   } catch {
-    // Ignore storage errors.
+    _persistError = true;
+    return false;
   }
 }
 
+function persistTabSql(id: string, sql: string): boolean {
+  if (!browser) return true;
+  try {
+    localStorage.setItem(TAB_KEY_PREFIX + id, sql);
+    _persistError = false;
+    return true;
+  } catch {
+    _persistError = true;
+    return false;
+  }
+}
+
+function removeTabSql(id: string) {
+  if (!browser) return;
+  try {
+    localStorage.removeItem(TAB_KEY_PREFIX + id);
+  } catch {
+    // Best effort.
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Store
+// ---------------------------------------------------------------------------
+
 function createTabStore() {
-  // Initialise from storage, legacy migration, or default.
-  const initial = loadFromStorage() ?? migrateFromLegacy() ?? createDefaultState();
+  const initial = loadFromStorage() ?? createDefaultState();
 
   // eslint-disable-next-line prefer-const -- $state arrays are mutated in place
   let tabs = $state<TabState[]>(initial.tabs);
   let activeTabId = $state<string>(initial.activeTabId);
+  let persistError = $state(_persistError);
 
   // Ensure activeTabId points to a valid tab.
   if (!tabs.some((t) => t.id === activeTabId)) {
     activeTabId = tabs[0].id;
   }
 
+  // Persist the initial state if this was a fresh default or migration.
+  if (!readIndex()) {
+    persistIndex(tabs, activeTabId);
+    for (const tab of tabs) {
+      persistTabSql(tab.id, tab.sql);
+    }
+  }
+
   const activeTab = $derived(tabs.find((t) => t.id === activeTabId)!);
 
-  function save() {
-    persistToStorage(tabs, activeTabId);
+  // Debounce timer for SQL persistence.
+  let sqlDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function saveIndex() {
+    const ok = persistIndex(tabs, activeTabId);
+    persistError = _persistError;
+    return ok;
+  }
+
+  function saveSqlDebounced(id: string, sql: string) {
+    clearTimeout(sqlDebounceTimer);
+    sqlDebounceTimer = setTimeout(() => {
+      persistTabSql(id, sql);
+      persistError = _persistError;
+    }, DEBOUNCE_MS);
+  }
+
+  function flushPendingSql() {
+    if (sqlDebounceTimer !== undefined) {
+      clearTimeout(sqlDebounceTimer);
+      sqlDebounceTimer = undefined;
+      // Flush the current active tab's SQL immediately.
+      const tab = tabs.find((t) => t.id === activeTabId);
+      if (tab) {
+        persistTabSql(tab.id, tab.sql);
+        persistError = _persistError;
+      }
+    }
   }
 
   function createTab(): TabState | null {
     if (tabs.length >= MAX_TABS) return null;
+    flushPendingSql();
     const tab = makeTab();
     tabs.push(tab);
     activeTabId = tab.id;
-    save();
+    saveIndex();
+    persistTabSql(tab.id, tab.sql);
+    persistError = _persistError;
     return tab;
   }
 
@@ -135,20 +207,27 @@ function createTabStore() {
     const index = tabs.findIndex((t) => t.id === id);
     if (index === -1) return;
 
+    // If closing the tab that has a pending debounce, cancel it.
+    if (id === activeTabId) {
+      clearTimeout(sqlDebounceTimer);
+      sqlDebounceTimer = undefined;
+    }
+
     tabs.splice(index, 1);
+    removeTabSql(id);
 
     if (activeTabId === id) {
-      // Switch to the tab at the same position, or the last one.
       const newIndex = Math.min(index, tabs.length - 1);
       activeTabId = tabs[newIndex].id;
     }
-    save();
+    saveIndex();
   }
 
   function switchTab(id: string): void {
     if (tabs.some((t) => t.id === id)) {
+      flushPendingSql();
       activeTabId = id;
-      save();
+      saveIndex();
     }
   }
 
@@ -158,14 +237,15 @@ function createTabStore() {
     if (toIndex < 0 || toIndex >= tabs.length) return;
     const [moved] = tabs.splice(fromIndex, 1);
     tabs.splice(toIndex, 0, moved);
-    save();
+    saveIndex();
   }
 
   function updateSql(id: string, sql: string): void {
     const tab = tabs.find((t) => t.id === id);
     if (tab) {
-      tab.sql = sql;
-      save();
+      const clamped = sql.length > MAX_SQL_LENGTH ? sql.slice(0, MAX_SQL_LENGTH) : sql;
+      tab.sql = clamped;
+      saveSqlDebounced(id, clamped);
     }
   }
 
@@ -173,14 +253,13 @@ function createTabStore() {
     const tab = tabs.find((t) => t.id === id);
     if (tab) {
       tab.label = label && label.trim() ? label.trim() : null;
-      save();
+      saveIndex();
     }
   }
 
   function getTabLabel(tab: TabState): string {
     if (tab.label) return tab.label;
-    const index = tabs.indexOf(tab);
-    return deriveLabel(tab.sql, index);
+    return deriveLabel();
   }
 
   return {
@@ -195,6 +274,9 @@ function createTabStore() {
     },
     get maxTabs() {
       return MAX_TABS;
+    },
+    get persistError() {
+      return persistError;
     },
     createTab,
     closeTab,

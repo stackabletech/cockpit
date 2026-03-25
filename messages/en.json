@@ -91,7 +91,9 @@
   "trino_view_in_trino": "View in Trino",
   "trino_tab_new": "New tab",
   "trino_tab_close": "Close tab {name}",
-  "trino_tab_default_name": "Query {number}",
+  "trino_tab_default_name": "Untitled",
   "trino_tab_limit_reached": "Maximum of {limit} tabs reached",
-  "trino_tab_rename": "Rename tab"
+  "trino_tab_rename": "Rename tab",
+  "trino_tabs_persist_error": "Tab content too large to save. Some changes may be lost on reload.",
+  "trino_editor_char_limit_reached": "Character limit reached ({limit} characters)"
 }

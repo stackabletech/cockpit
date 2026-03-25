@@ -120,7 +120,7 @@
     {@const isDragOver =
       dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index}
     <div
-      class="group flex max-w-48 items-center gap-1 rounded-t-lg border-x border-t px-3 py-1.5 text-sm transition-colors select-none
+      class="group flex max-w-56 items-center gap-1 rounded-t-lg border-x border-t px-3 py-1.5 text-sm transition-colors select-none
         {isActive
         ? 'border-base-300 bg-base-100 text-base-content'
         : 'bg-base-200/50 text-base-content/60 hover:bg-base-200 hover:text-base-content/80 border-transparent'}
@@ -141,7 +141,7 @@
         <input
           bind:this={editInput}
           bind:value={editValue}
-          class="input input-xs w-24 min-w-0"
+          class="w-24 min-w-0 border-b border-current bg-transparent text-sm outline-none"
           aria-label={m.trino_tab_rename()}
           onblur={commitRename}
           onkeydown={handleEditKeydown}

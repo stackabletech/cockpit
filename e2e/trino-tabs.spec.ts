@@ -3,7 +3,7 @@ import { waitForHydration, waitForQueryComplete } from './helpers';
 
 /**
  * Helper to set up tab state in localStorage before page load.
- * Creates a single tab with the given SQL, or multiple tabs.
+ * Uses the new split storage format: trino_tabs_index + trino_tab_{id}.
  */
 function setTabState(
   tabs: { id: string; sql: string; label?: string | null }[],
@@ -12,16 +12,18 @@ function setTabState(
   return (page: import('@playwright/test').Page) =>
     page.addInitScript(
       ({ tabs, activeTabId }) => {
-        const state = {
+        const index = {
           tabs: tabs.map((t) => ({
             id: t.id,
-            sql: t.sql,
             label: t.label ?? null,
             createdAt: Date.now()
           })),
           activeTabId: activeTabId ?? tabs[0].id
         };
-        localStorage.setItem('trino_tabs', JSON.stringify(state));
+        localStorage.setItem('trino_tabs_index', JSON.stringify(index));
+        for (const t of tabs) {
+          localStorage.setItem('trino_tab_' + t.id, t.sql);
+        }
       },
       { tabs, activeTabId }
     );
@@ -103,7 +105,7 @@ test.describe('Trino editor tabs', () => {
     await expect(closeBtn).toHaveCount(0);
   });
 
-  test('tab name is auto-derived from SQL content', async ({ page }) => {
+  test('tab without custom label shows default name', async ({ page }) => {
     await setTabState([{ id: '00000000-0000-0000-0000-000000000001', sql: 'SELECT * FROM users' }])(
       page
     );
@@ -112,7 +114,7 @@ test.describe('Trino editor tabs', () => {
     await waitForHydration(page);
 
     const tab = page.locator('[role="tab"]').first();
-    await expect(tab).toContainText('SELECT * FROM users');
+    await expect(tab).toContainText('Untitled');
   });
 
   test('double-click to rename tab', async ({ page }) => {
@@ -192,19 +194,5 @@ test.describe('Trino editor tabs', () => {
     await expect(page.locator('[role="tab"]')).toHaveCount(2);
     await expect(page.locator('[role="tab"]').nth(0)).toContainText('Tab A');
     await expect(page.locator('[role="tab"]').nth(1)).toContainText('Tab B');
-  });
-
-  test('legacy trino_sql key is migrated to tab state', async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem('trino_sql', 'SELECT legacy_query FROM old_table');
-      localStorage.removeItem('trino_tabs');
-    });
-
-    await page.goto('/trino');
-    await waitForHydration(page);
-
-    const tabs = page.locator('[role="tab"]');
-    await expect(tabs).toHaveCount(1);
-    await expect(tabs.first()).toContainText('SELECT legacy_query FROM');
   });
 });

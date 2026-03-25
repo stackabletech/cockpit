@@ -5,11 +5,12 @@ function setTabSql(sql: string) {
   return (page: import('@playwright/test').Page) =>
     page.addInitScript((s) => {
       const tabId = '00000000-0000-0000-0000-000000000001';
-      const state = {
-        tabs: [{ id: tabId, sql: s, label: null, createdAt: Date.now() }],
+      const index = {
+        tabs: [{ id: tabId, label: null, createdAt: Date.now() }],
         activeTabId: tabId
       };
-      localStorage.setItem('trino_tabs', JSON.stringify(state));
+      localStorage.setItem('trino_tabs_index', JSON.stringify(index));
+      localStorage.setItem('trino_tab_' + tabId, s);
     }, sql);
 }
 
