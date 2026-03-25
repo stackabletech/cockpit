@@ -8,12 +8,7 @@ import {
   type QuerySnapshot,
   type QueryState
 } from '$lib/types/query.js';
-import {
-  type TrinoClient,
-  type TrinoQueryStats,
-  getTrinoClient,
-  getTrinoServerUrl
-} from './client.js';
+import { type TrinoClient, type TrinoQueryStats, resolveTrinoServerUrl } from './client.js';
 import { collectResults } from './result-collector.js';
 
 const log = logger.child({ module: 'trino-queries' });
@@ -74,9 +69,9 @@ export function terminateQuery(
 const userQueries = new Map<string, TrinoQuery>();
 
 function buildSnapshot(query: TrinoQuery): QuerySnapshot {
-  const trinoServerUrl = getTrinoServerUrl();
+  const trinoServerUrl = resolveTrinoServerUrl(query.userId);
   return {
-    trinoQueryUrl: `${trinoServerUrl}/ui/query.html?${query.trinoQueryId}`,
+    trinoQueryUrl: trinoServerUrl ? `${trinoServerUrl}/ui/query.html?${query.trinoQueryId}` : null,
     state: query.state,
     progress: query.progress,
     columns: query.columns,
@@ -107,6 +102,7 @@ async function cancelPreviousQuery(userId: string): Promise<void> {
 // --- Public API ---
 
 export async function startQuery(
+  client: TrinoClient,
   userId: string,
   sql: string,
   options: { user: string; catalog?: string; schema?: string }
@@ -119,8 +115,6 @@ export async function startQuery(
 
   log.info({ user_id: userId }, 'submitting query');
   trinoQueryTotal.inc({ outcome: 'submitted' });
-
-  const client = getTrinoClient();
   let submitResult;
   try {
     submitResult = await client.submit(sanitisedSql, options);
