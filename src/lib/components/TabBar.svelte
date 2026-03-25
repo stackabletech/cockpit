@@ -65,19 +65,35 @@
     }
   }
 
+  function focusTab(id: string) {
+    document.getElementById(`tab-${id}`)?.focus();
+  }
+
   function handleTabKeydown(event: KeyboardEvent, index: number) {
     if (event.key === 'ArrowRight') {
       event.preventDefault();
       const next = items[index + 1] ?? items[0];
       onSelect(next.id);
+      focusTab(next.id);
     } else if (event.key === 'ArrowLeft') {
       event.preventDefault();
       const prev = items[index - 1] ?? items[items.length - 1];
       onSelect(prev.id);
+      focusTab(prev.id);
+    } else if (
+      (event.key === 'Enter' || event.key === ' ') &&
+      event.target === event.currentTarget
+    ) {
+      event.preventDefault();
+      onSelect(items[index].id);
     } else if (event.key === 'Delete' && onClose && showClose) {
       event.preventDefault();
       const item = items[index];
-      if (item.closable !== false) onClose(item.id);
+      if (item.closable !== false) {
+        const nextId = (items[index + 1] ?? items[index - 1])?.id;
+        onClose(item.id);
+        if (nextId) requestAnimationFrame(() => focusTab(nextId));
+      }
     }
   }
 
@@ -114,13 +130,14 @@
   }
 </script>
 
-<div class="flex items-end gap-1 overflow-x-auto" role="tablist">
+<div class="flex items-end gap-1 overflow-x-auto px-0.5" role="tablist">
   {#each items as item, index (item.id)}
     {@const isActive = item.id === activeId}
     {@const isDragOver =
       dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index}
     <div
-      class="group flex max-w-56 items-center gap-1 rounded-t-lg border-x border-t px-3 py-1.5 text-sm transition-colors select-none
+      id="tab-{item.id}"
+      class="group focus-visible:ring-primary flex max-w-56 items-center gap-1 rounded-t-lg border-x border-t px-3 py-1.5 text-sm transition-colors select-none focus-visible:ring-2 focus-visible:outline-none
         {isActive
         ? 'border-base-300 bg-base-100 text-base-content'
         : 'bg-base-200/50 text-base-content/60 hover:bg-base-200 hover:text-base-content/80 border-transparent'}
@@ -153,7 +170,7 @@
       {#if showClose && item.closable !== false}
         <button
           type="button"
-          class="btn btn-ghost btn-xs ml-1 h-5 min-h-0 w-5 p-0 opacity-0 group-hover:opacity-100
+          class="btn btn-ghost btn-xs ml-1 h-5 min-h-0 w-5 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100
             {isActive ? 'opacity-60' : ''}"
           aria-label={m.trino_tab_close({ name: item.label })}
           onclick={(e: MouseEvent) => {
@@ -181,7 +198,10 @@
       type="button"
       class="btn btn-ghost btn-xs mb-0.5 h-7 min-h-0 px-2"
       aria-label={m.trino_tab_new()}
-      onclick={onAdd}
+      onclick={() => {
+        onAdd!();
+        requestAnimationFrame(() => focusTab(activeId));
+      }}
     >
       <svg
         class="h-4 w-4"

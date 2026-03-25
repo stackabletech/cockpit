@@ -1,6 +1,39 @@
 import { expect, type Page } from '@playwright/test';
 
 /**
+ * Set up tab state in localStorage before page load.
+ * Uses the split storage format: trino_tabs_index + trino_tab_{id}.
+ */
+export function setTabState(
+  page: Page,
+  tabs: { id: string; sql: string; label?: string | null }[],
+  activeTabId?: string
+) {
+  return page.addInitScript(
+    ({ tabs, activeTabId }) => {
+      const index = {
+        tabs: tabs.map((t) => ({
+          id: t.id,
+          label: t.label ?? null,
+          createdAt: Date.now()
+        })),
+        activeTabId: activeTabId ?? tabs[0].id
+      };
+      localStorage.setItem('trino_tabs_index', JSON.stringify(index));
+      for (const t of tabs) {
+        localStorage.setItem('trino_tab_' + t.id, t.sql);
+      }
+    },
+    { tabs, activeTabId }
+  );
+}
+
+/** Shorthand to set up a single tab with given SQL. */
+export function setTabSql(page: Page, sql: string) {
+  return setTabState(page, [{ id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql }]);
+}
+
+/**
  * Wait for SvelteKit client-side hydration to complete.
  *
  * The root layout adds a `hydrated` class to `<body>` inside `onMount`,

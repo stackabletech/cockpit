@@ -262,6 +262,8 @@
     viewStates.delete(id);
     currentPages.delete(id);
     tabStore.closeTab(id);
+    // Clean up server-side query state for this tab.
+    fetch(`/trino/query?tabId=${encodeURIComponent(id)}&cleanup=true`, { method: 'DELETE' });
   }
 
   function handleTabAdd() {
@@ -368,6 +370,8 @@
     <!-- Content card (editor + status + results) -->
     <div
       class="bg-base-100 border-base-300 flex min-h-0 flex-1 flex-col rounded-t-none rounded-b-xl border"
+      role="tabpanel"
+      aria-labelledby="tab-{tabStore.activeTabId}"
     >
       <div class="border-base-300 flex items-center justify-between border-b px-4 py-2">
         <div class="flex items-center gap-2">

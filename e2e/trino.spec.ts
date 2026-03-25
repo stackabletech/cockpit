@@ -1,24 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { waitForHydration, waitForQueryComplete } from './helpers';
-
-function setTabSql(sql: string) {
-  return (page: import('@playwright/test').Page) =>
-    page.addInitScript((s) => {
-      const tabId = '00000000-0000-0000-0000-000000000001';
-      const index = {
-        tabs: [{ id: tabId, label: null, createdAt: Date.now() }],
-        activeTabId: tabId
-      };
-      localStorage.setItem('trino_tabs_index', JSON.stringify(index));
-      localStorage.setItem('trino_tab_' + tabId, s);
-    }, sql);
-}
+import { waitForHydration, waitForQueryComplete, setTabSql } from './helpers';
 
 test.describe('Trino query editor', () => {
   test.use({ locale: 'en-US' });
 
   test.beforeEach(async ({ page }) => {
-    await setTabSql('SELECT id, name FROM users')(page);
+    await setTabSql(page, 'SELECT id, name FROM users');
   });
 
   test('page renders with editor and results sections', async ({ page }) => {
@@ -63,7 +50,7 @@ test.describe('Trino query editor', () => {
   });
 
   test('query error is shown in an alert', async ({ page }) => {
-    await setTabSql('SHOULD_ERROR')(page);
+    await setTabSql(page, 'SHOULD_ERROR');
 
     await page.goto('/trino');
     await waitForHydration(page);
@@ -77,7 +64,7 @@ test.describe('Trino query editor', () => {
   });
 
   test('pagination navigates between pages', async ({ page }) => {
-    await setTabSql('SELECT id, name FROM large_table')(page);
+    await setTabSql(page, 'SELECT id, name FROM large_table');
 
     await page.goto('/trino');
     await waitForHydration(page);
@@ -101,7 +88,7 @@ test.describe('Trino query editor', () => {
   });
 
   test('null cell values render as italic null placeholder', async ({ page }) => {
-    await setTabSql('SELECT value FROM nullable_table')(page);
+    await setTabSql(page, 'SELECT value FROM nullable_table');
 
     await page.goto('/trino');
     await waitForHydration(page);

@@ -31,7 +31,7 @@ function createQueryRunner(tabId: string): QueryRunner {
   let state = $state<QueryState>('IDLE');
   let progress = $state<QueryProgress>(INITIAL_PROGRESS);
   let columns = $state<Column[]>([]);
-  let rows = $state<unknown[][]>([]);
+  let rows = $state.raw<unknown[][]>([]);
   let error = $state<string | null>(null);
   let trinoQueryUrl = $state<string | null>(null);
 
@@ -155,14 +155,13 @@ function createQueryRunner(tabId: string): QueryRunner {
 
   async function cancel() {
     stopPolling();
+    state = 'CANCELLED';
 
     try {
       await fetch(`/trino/query?tabId=${encodeURIComponent(tabId)}`, { method: 'DELETE' });
     } catch {
       // Best-effort cancel.
     }
-
-    state = 'CANCELLED';
   }
 
   return {

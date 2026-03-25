@@ -211,6 +211,16 @@ export function getAllQuerySnapshots(userId: string): Record<string, QuerySnapsh
   return result;
 }
 
+/** Remove the stored query state for a tab (frees memory). */
+export function removeTabQuery(userId: string, tabId: string): void {
+  const tabMap = userQueries.get(userId);
+  if (!tabMap) return;
+  tabMap.delete(tabId);
+  if (tabMap.size === 0) {
+    userQueries.delete(userId);
+  }
+}
+
 export async function cancelQuery(userId: string, tabId: string): Promise<boolean> {
   const tabMap = userQueries.get(userId);
   if (!tabMap) return false;

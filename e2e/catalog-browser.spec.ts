@@ -1,18 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { waitForHydration, ensureCatalogBrowserOpen } from './helpers';
+import { waitForHydration, ensureCatalogBrowserOpen, setTabSql } from './helpers';
 
 test.describe('Catalog browser', () => {
   test.use({ locale: 'en-US' });
 
   test.beforeEach(async ({ page }) => {
+    await setTabSql(page, 'SELECT 1');
     await page.addInitScript(() => {
-      const tabId = '00000000-0000-0000-0000-000000000001';
-      const index = {
-        tabs: [{ id: tabId, label: null, createdAt: Date.now() }],
-        activeTabId: tabId
-      };
-      localStorage.setItem('trino_tabs_index', JSON.stringify(index));
-      localStorage.setItem('trino_tab_' + tabId, 'SELECT 1');
       localStorage.setItem('trino_catalog_browser_open', 'true');
     });
     await page.goto('/trino');
