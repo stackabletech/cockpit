@@ -80,12 +80,6 @@
       const prev = items[index - 1] ?? items[items.length - 1];
       onSelect(prev.id);
       focusTab(prev.id);
-    } else if (
-      (event.key === 'Enter' || event.key === ' ') &&
-      event.target === event.currentTarget
-    ) {
-      event.preventDefault();
-      onSelect(items[index].id);
     } else if (event.key === 'Delete' && onClose && showClose) {
       event.preventDefault();
       const item = items[index];
