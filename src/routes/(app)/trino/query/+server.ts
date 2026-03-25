@@ -8,10 +8,8 @@ import {
   removeTabQuery
 } from '$lib/server/trino/queries.js';
 import { trinoConfigured } from '$lib/server/trino/client.js';
-import { StatementRequestSchema } from '../validation.js';
+import { StatementRequestSchema, TabIdSchema } from '../validation.js';
 import type { RequestHandler } from './$types';
-
-const TabIdSchema = z.uuid();
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   const log = locals.logger;

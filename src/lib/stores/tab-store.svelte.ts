@@ -26,7 +26,6 @@ function generateId(): string {
   return crypto.randomUUID();
 }
 
-/** Return the default tab name. */
 function deriveLabel(): string {
   return m.trino_tab_default_name();
 }

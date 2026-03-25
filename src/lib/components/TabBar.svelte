@@ -9,7 +9,7 @@
 
   let {
     items,
-    activeId = $bindable(),
+    activeId,
     onSelect,
     onClose,
     onReorder,

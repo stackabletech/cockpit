@@ -7,8 +7,9 @@
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import TabBar from '$lib/components/TabBar.svelte';
-  import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
+  import { tabStore } from '$lib/stores/tab-store.svelte.js';
   import { getOrCreateQueryRunner, destroyQueryRunner } from './query-runner.svelte.js';
+  import { isTerminal } from '$lib/types/query';
   import type { PageData } from './$types';
   import { ALLOWED_PAGE_SIZES } from './validation';
 
@@ -49,7 +50,6 @@
   let monacoEditor = $state<MonacoEditor | undefined>(undefined);
   let mobileCatalogOpen = $state(false);
 
-  // Per-tab Monaco view states, keyed by tab ID.
   const viewStates = new SvelteMap<
     string,
     import('monaco-editor').editor.ICodeEditorViewState | null
@@ -96,16 +96,7 @@
     }
   });
 
-  const isActive = $derived.by(() => {
-    const s = runner.state;
-    return (
-      s === 'SUBMITTING' ||
-      s === 'QUEUED' ||
-      s === 'PLANNING' ||
-      s === 'RUNNING' ||
-      s === 'FINISHING'
-    );
-  });
+  const isActive = $derived(runner.state !== 'IDLE' && !isTerminal(runner.state));
 
   // Persist settings.
   $effect(() => {
@@ -137,19 +128,13 @@
     });
   });
 
-  // Sync Monaco content changes back to the tab store, clamping to max length.
+  // Sync Monaco content changes back to the tab store.
   $effect(() => {
-    if (hydrated) {
-      // Read sql reactively.
-      const currentSql = sql;
-      untrack(() => {
-        if (currentSql.length > MAX_SQL_LENGTH) {
-          sql = currentSql.slice(0, MAX_SQL_LENGTH);
-          monacoEditor?.setValue(sql);
-        }
-        tabStore.updateSql(tabStore.activeTabId, sql);
-      });
-    }
+    if (!hydrated) return;
+    // Read sql reactively to trigger on changes; untrack the store call
+    // to avoid re-running when activeTabId changes.
+    const value = sql;
+    untrack(() => tabStore.updateSql(tabStore.activeTabId, value));
   });
 
   // Reset pagination when rows change for the active runner.
