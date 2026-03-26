@@ -7,7 +7,7 @@
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import TabBar from '$lib/components/TabBar.svelte';
-  import { tabStore } from '$lib/stores/tab-store.svelte.js';
+  import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
   import { getOrCreateQueryRunner, destroyQueryRunner } from './query-runner.svelte.js';
   import { isTerminal } from '$lib/types/query';
   import type { PageData } from './$types';
@@ -190,6 +190,8 @@
         return '';
     }
   });
+
+  const charLimitReached = $derived(sql.length >= MAX_SQL_LENGTH);
 
   const rowLimitError = $derived.by(() => {
     if (runner.error?.startsWith('ROW_LIMIT:')) {
@@ -411,6 +413,11 @@
             </button>
           </div>
           <span class="text-base-content/60 text-sm font-medium">{m.trino_editor_label()}</span>
+          {#if charLimitReached}
+            <span class="text-warning text-xs" role="status"
+              >{m.trino_editor_char_limit_reached({ limit: MAX_SQL_LENGTH.toLocaleString() })}</span
+            >
+          {/if}
         </div>
         <div class="flex gap-2">
           {#if isActive}

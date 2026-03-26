@@ -95,5 +95,5 @@
   "trino_tab_limit_reached": "Maximum von {limit} Tabs erreicht",
   "trino_tab_rename": "Tab umbenennen",
   "trino_tabs_persist_error": "Tab-Inhalt zu groß zum Speichern. Einige Änderungen gehen beim Neuladen möglicherweise verloren.",
-  "trino_editor_char_limit_reached": "Zeichenlimit erreicht ({limit} Zeichen)"
+  "trino_editor_char_limit_reached": "Abfrage überschreitet {limit} Zeichen und wird nicht zwischen Sitzungen gespeichert"
 }
