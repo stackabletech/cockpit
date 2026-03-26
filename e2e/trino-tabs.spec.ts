@@ -4,18 +4,17 @@ import { waitForHydration, waitForQueryComplete, setTabState } from './helpers';
 test.describe('Trino editor tabs', () => {
   test.use({ locale: 'en-US' });
 
-  test('default state shows one tab', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
     await page.goto('/trino');
     await waitForHydration(page);
+  });
 
+  test('default state shows one tab', async ({ page }) => {
     const tabs = page.locator('[role="tab"]');
     await expect(tabs).toHaveCount(1);
   });
 
   test('create new tab via + button', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
-
     await page.getByRole('button', { name: 'New tab' }).click();
 
     const tabs = page.locator('[role="tab"]');
@@ -29,7 +28,6 @@ test.describe('Trino editor tabs', () => {
       { id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql: 'SELECT 1 AS first' },
       { id: '642f03a2-7d98-4b12-922f-f21a9ec6188d', sql: 'SELECT 2 AS second' }
     ]);
-
     await page.goto('/trino');
     await waitForHydration(page);
 
@@ -51,7 +49,6 @@ test.describe('Trino editor tabs', () => {
       { id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql: 'SELECT 1' },
       { id: '642f03a2-7d98-4b12-922f-f21a9ec6188d', sql: 'SELECT 2' }
     ]);
-
     await page.goto('/trino');
     await waitForHydration(page);
 
@@ -66,9 +63,6 @@ test.describe('Trino editor tabs', () => {
   });
 
   test('cannot close last remaining tab', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
-
     // With only one tab, close button should not be visible.
     const tabs = page.locator('[role="tab"]');
     await expect(tabs).toHaveCount(1);
@@ -81,7 +75,6 @@ test.describe('Trino editor tabs', () => {
     await setTabState(page, [
       { id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql: 'SELECT * FROM users' }
     ]);
-
     await page.goto('/trino');
     await waitForHydration(page);
 
@@ -91,7 +84,6 @@ test.describe('Trino editor tabs', () => {
 
   test('double-click to rename tab', async ({ page }) => {
     await setTabState(page, [{ id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql: 'SELECT 1' }]);
-
     await page.goto('/trino');
     await waitForHydration(page);
 
@@ -121,7 +113,6 @@ test.describe('Trino editor tabs', () => {
     ];
     const tabs = tabIds.map((id, i) => ({ id, sql: `SELECT ${i + 1}` }));
     await setTabState(page, tabs);
-
     await page.goto('/trino');
     await waitForHydration(page);
 
@@ -134,7 +125,6 @@ test.describe('Trino editor tabs', () => {
       { id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql: 'SELECT id, name FROM users' },
       { id: '642f03a2-7d98-4b12-922f-f21a9ec6188d', sql: 'SELECT 2' }
     ]);
-
     await page.goto('/trino');
     await waitForHydration(page);
 
@@ -157,7 +147,6 @@ test.describe('Trino editor tabs', () => {
       { id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql: 'SELECT 1', label: 'Tab A' },
       { id: '642f03a2-7d98-4b12-922f-f21a9ec6188d', sql: 'SELECT 2', label: 'Tab B' }
     ]);
-
     await page.goto('/trino');
     await waitForHydration(page);
 

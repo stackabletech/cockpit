@@ -6,11 +6,11 @@ test.describe('Trino query editor', () => {
 
   test.beforeEach(async ({ page }) => {
     await setTabSql(page, 'SELECT id, name FROM users');
+    await page.goto('/trino');
+    await waitForHydration(page);
   });
 
   test('page renders with editor and results sections', async ({ page }) => {
-    await page.goto('/trino');
-
     await expect(page.getByRole('heading', { name: 'Trino' })).toBeVisible();
     await expect(page.getByText('SQL editor')).toBeVisible();
     await expect(page.getByText('Query results')).toBeVisible();
@@ -19,15 +19,11 @@ test.describe('Trino query editor', () => {
   });
 
   test('Trino nav item is active when on /trino', async ({ page }) => {
-    await page.goto('/trino');
-
     const trinoLink = page.getByRole('link', { name: 'Trino' });
     await expect(trinoLink).toHaveAttribute('aria-current', 'page');
   });
 
   test('running a query displays the results table', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
     await page.getByRole('button', { name: 'Run query' }).click();
     await waitForQueryComplete(page);
 
@@ -41,8 +37,6 @@ test.describe('Trino query editor', () => {
   });
 
   test('Ctrl+Enter triggers query execution', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
     await page.keyboard.press('Control+Enter');
     await waitForQueryComplete(page);
 
@@ -51,9 +45,9 @@ test.describe('Trino query editor', () => {
 
   test('query error is shown in an alert', async ({ page }) => {
     await setTabSql(page, 'SHOULD_ERROR');
-
     await page.goto('/trino');
     await waitForHydration(page);
+
     await page.getByRole('button', { name: 'Run query' }).click();
     await waitForQueryComplete(page);
 
@@ -65,9 +59,9 @@ test.describe('Trino query editor', () => {
 
   test('pagination navigates between pages', async ({ page }) => {
     await setTabSql(page, 'SELECT id, name FROM large_table');
-
     await page.goto('/trino');
     await waitForHydration(page);
+
     await page.getByRole('button', { name: 'Run query' }).click();
     await waitForQueryComplete(page);
 
@@ -89,9 +83,9 @@ test.describe('Trino query editor', () => {
 
   test('null cell values render as italic null placeholder', async ({ page }) => {
     await setTabSql(page, 'SELECT value FROM nullable_table');
-
     await page.goto('/trino');
     await waitForHydration(page);
+
     await page.getByRole('button', { name: 'Run query' }).click();
     await waitForQueryComplete(page);
 
