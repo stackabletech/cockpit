@@ -55,8 +55,11 @@ test.describe('Trino editor tabs', () => {
     const tabs = page.locator('[role="tab"]');
     await expect(tabs).toHaveCount(2);
 
-    // Close the first tab.
-    const closeBtn = tabs.nth(0).getByRole('button', { name: /Close tab/ });
+    // Close the first tab (close button is a sibling of the tab button).
+    const closeBtn = tabs
+      .nth(0)
+      .locator('..')
+      .getByRole('button', { name: /Close tab/ });
     await closeBtn.click();
 
     await expect(tabs).toHaveCount(1);
@@ -67,7 +70,10 @@ test.describe('Trino editor tabs', () => {
     const tabs = page.locator('[role="tab"]');
     await expect(tabs).toHaveCount(1);
 
-    const closeBtn = tabs.nth(0).getByRole('button', { name: /Close tab/ });
+    const closeBtn = tabs
+      .nth(0)
+      .locator('..')
+      .getByRole('button', { name: /Close tab/ });
     await expect(closeBtn).toHaveCount(0);
   });
 

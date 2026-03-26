@@ -130,47 +130,51 @@
     {@const isDragOver =
       dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index}
     <div
-      id="tab-{item.id}"
-      class="group focus-visible:ring-primary flex max-w-56 items-center gap-1 rounded-t-lg border-x border-t px-3 py-1.5 text-sm transition-colors select-none focus-visible:ring-2 focus-visible:outline-none
+      class="group has-[:focus-visible]:ring-primary flex max-w-56 items-center rounded-t-lg border-x border-t transition-colors has-[:focus-visible]:ring-2
         {isActive
         ? 'border-base-300 bg-base-100 text-base-content'
         : 'bg-base-200/50 text-base-content/60 hover:bg-base-200 hover:text-base-content/80 border-transparent'}
         {isDragOver ? 'ring-primary ring-2' : ''}"
-      role="tab"
-      aria-selected={isActive}
-      tabindex={isActive ? 0 : -1}
-      draggable={onReorder ? 'true' : 'false'}
-      ondragstart={(e) => handleDragStart(e, index)}
-      ondragover={(e) => handleDragOver(e, index)}
-      ondrop={(e) => handleDrop(e, index)}
-      ondragend={handleDragEnd}
-      onclick={() => onSelect(item.id)}
-      onkeydown={(e) => handleTabKeydown(e, index)}
-      ondblclick={() => startRename(item.id, item.label)}
     >
-      {#if editingId === item.id}
-        <input
-          bind:this={editInput}
-          bind:value={editValue}
-          class="w-24 min-w-0 border-b border-current bg-transparent text-sm outline-none"
-          aria-label={m.trino_tab_rename()}
-          onblur={commitRename}
-          onkeydown={handleEditKeydown}
-        />
-      {:else}
-        <span class="truncate">{item.label}</span>
-      {/if}
+      <button
+        type="button"
+        id="tab-{item.id}"
+        class="flex min-w-0 flex-1 items-center gap-1 rounded-t-lg px-3 py-1.5 text-sm select-none focus-visible:outline-none"
+        role="tab"
+        aria-selected={isActive}
+        tabindex={isActive ? 0 : -1}
+        draggable={onReorder ? 'true' : 'false'}
+        ondragstart={(e) => handleDragStart(e, index)}
+        ondragover={(e) => handleDragOver(e, index)}
+        ondrop={(e) => handleDrop(e, index)}
+        ondragend={handleDragEnd}
+        onclick={() => onSelect(item.id)}
+        onkeydown={(e) => handleTabKeydown(e, index)}
+        ondblclick={() => startRename(item.id, item.label)}
+      >
+        {#if editingId === item.id}
+          <input
+            bind:this={editInput}
+            bind:value={editValue}
+            class="w-24 min-w-0 border-b border-current bg-transparent text-sm outline-none"
+            aria-label={m.trino_tab_rename()}
+            onblur={commitRename}
+            onkeydown={handleEditKeydown}
+            onclick={(e: MouseEvent) => e.stopPropagation()}
+          />
+        {:else}
+          <span class="truncate">{item.label}</span>
+        {/if}
+      </button>
 
       {#if showClose && item.closable !== false}
         <button
           type="button"
-          class="btn btn-ghost btn-xs ml-1 h-5 min-h-0 w-5 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100
+          class="btn btn-ghost btn-xs mr-1 h-5 min-h-0 w-5 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100
             {isActive ? 'opacity-60' : ''}"
+          tabindex={isActive ? 0 : -1}
           aria-label={m.trino_tab_close({ name: item.label })}
-          onclick={(e: MouseEvent) => {
-            e.stopPropagation();
-            onClose?.(item.id);
-          }}
+          onclick={() => onClose?.(item.id)}
         >
           <svg
             class="h-3 w-3"
