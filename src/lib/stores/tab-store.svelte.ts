@@ -92,9 +92,6 @@ function createDefaultState(): { tabs: TabState[]; activeTabId: string } {
 // Persist helpers (write)
 // ---------------------------------------------------------------------------
 
-/** Track whether the last write failed due to quota. */
-let _persistError = false;
-
 function persistIndex(tabs: TabState[], activeTabId: string): boolean {
   if (!browser) return true;
   try {
@@ -103,10 +100,8 @@ function persistIndex(tabs: TabState[], activeTabId: string): boolean {
       activeTabId
     };
     localStorage.setItem(INDEX_KEY, JSON.stringify(data));
-    _persistError = false;
     return true;
   } catch {
-    _persistError = true;
     return false;
   }
 }
@@ -115,10 +110,8 @@ function persistTabSql(id: string, sql: string): boolean {
   if (!browser) return true;
   try {
     localStorage.setItem(TAB_KEY_PREFIX + id, sql);
-    _persistError = false;
     return true;
   } catch {
-    _persistError = true;
     return false;
   }
 }
@@ -142,7 +135,7 @@ function createTabStore() {
   // eslint-disable-next-line prefer-const -- $state arrays are mutated in place
   let tabs = $state<TabState[]>(initial.tabs);
   let activeTabId = $state<string>(initial.activeTabId);
-  let persistError = $state(_persistError);
+  let persistError = $state(false);
 
   // Ensure activeTabId points to a valid tab.
   if (!tabs.some((t) => t.id === activeTabId)) {
@@ -163,29 +156,25 @@ function createTabStore() {
   let sqlDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   function saveIndex() {
-    const ok = persistIndex(tabs, activeTabId);
-    persistError = _persistError;
-    return ok;
+    persistError = !persistIndex(tabs, activeTabId);
+    return !persistError;
+  }
+
+  function saveSql(id: string, sql: string) {
+    persistError = !persistTabSql(id, sql);
   }
 
   function saveSqlDebounced(id: string, sql: string) {
     clearTimeout(sqlDebounceTimer);
-    sqlDebounceTimer = setTimeout(() => {
-      persistTabSql(id, sql);
-      persistError = _persistError;
-    }, DEBOUNCE_MS);
+    sqlDebounceTimer = setTimeout(() => saveSql(id, sql), DEBOUNCE_MS);
   }
 
   function flushPendingSql() {
     if (sqlDebounceTimer !== undefined) {
       clearTimeout(sqlDebounceTimer);
       sqlDebounceTimer = undefined;
-      // Flush the current active tab's SQL immediately.
       const tab = tabs.find((t) => t.id === activeTabId);
-      if (tab) {
-        persistTabSql(tab.id, tab.sql);
-        persistError = _persistError;
-      }
+      if (tab) saveSql(tab.id, tab.sql);
     }
   }
 
@@ -196,8 +185,7 @@ function createTabStore() {
     tabs.push(tab);
     activeTabId = tab.id;
     saveIndex();
-    persistTabSql(tab.id, tab.sql);
-    persistError = _persistError;
+    saveSql(tab.id, tab.sql);
     return tab;
   }
 
