@@ -19,7 +19,6 @@
     "generate:antlr": "cd src/lib/editor/grammar && antlr-ng -v -l -Dlanguage=TypeScript -o ../generated SqlBase.g4"
   },
   "devDependencies": {
-    "@better-auth/cli": "^1.4.19",
     "@cyclonedx/cyclonedx-npm": "^4.2.1",
     "@eslint/compat": "^2.0.2",
     "@eslint/js": "^9.39.2",
@@ -29,7 +28,6 @@
     "@sveltejs/kit": "^2.53.0",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@tailwindcss/vite": "^4.2.1",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24",
     "@vitest/browser-playwright": "^4.0.18",
     "antlr-ng": "^1.0.10",
@@ -60,7 +58,6 @@
     "@internationalized/date": "^3.11.0",
     "antlr4ng": "^3.0.16",
     "better-auth": "^1.5.4",
-    "better-sqlite3": "^12.6.2",
     "monaco-editor": "^0.55.1",
     "pino": "^10.3.1",
     "prom-client": "^15.1.3",
