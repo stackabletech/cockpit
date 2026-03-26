@@ -139,7 +139,7 @@
       <button
         type="button"
         id="tab-{item.id}"
-        class="flex min-w-0 flex-1 items-center gap-1 rounded-t-lg px-3 py-1.5 text-sm select-none focus-visible:outline-none"
+        class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-t-lg px-3 py-1.5 text-sm select-none focus-visible:outline-none"
         role="tab"
         aria-selected={isActive}
         tabindex={isActive ? 0 : -1}
