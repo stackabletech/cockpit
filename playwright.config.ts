@@ -8,7 +8,6 @@ export default defineConfig({
   testDir: path.join(import.meta.dirname, 'e2e'),
   outputDir: path.join(import.meta.dirname, 'e2e/test-results'),
   globalSetup: path.join(import.meta.dirname, 'e2e/global-setup.ts'),
-  globalTeardown: path.join(import.meta.dirname, 'e2e/global-teardown.ts'),
   timeout: 30_000,
   retries: 2,
   expect: {
