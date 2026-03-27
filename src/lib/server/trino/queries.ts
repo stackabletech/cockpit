@@ -203,7 +203,9 @@ export function getAllQuerySummaries(userId: string): Record<string, QuerySnapsh
   const result: Record<string, QuerySnapshot> = {};
   for (const [tabId, query] of tabMap) {
     result[tabId] = {
-      trinoQueryUrl: trinoServerUrl ? `${trinoServerUrl}/ui/query.html?${query.trinoQueryId}` : null,
+      trinoQueryUrl: trinoServerUrl
+        ? `${trinoServerUrl}/ui/query.html?${query.trinoQueryId}`
+        : null,
       state: query.state,
       progress: query.progress,
       columns: [],
