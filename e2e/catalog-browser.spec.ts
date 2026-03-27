@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { waitForHydration, ensureCatalogBrowserOpen } from './helpers';
+import { waitForHydration, ensureCatalogBrowserOpen, setTabSql } from './helpers';
 
 test.describe('Catalog browser', () => {
   test.use({ locale: 'en-US' });
 
   test.beforeEach(async ({ page }) => {
+    await setTabSql(page, 'SELECT 1');
     await page.addInitScript(() => {
-      localStorage.setItem('trino_sql', 'SELECT 1');
       localStorage.setItem('trino_catalog_browser_open', 'true');
     });
     await page.goto('/trino');

@@ -65,8 +65,17 @@ export function terminateQuery(
 
 // --- Active query store ---
 
-/** Current or most recently completed query per user. */
-const userQueries = new Map<string, TrinoQuery>();
+/** Current or most recently completed query per user per tab. */
+const userQueries = new Map<string, Map<string, TrinoQuery>>();
+
+function getUserTabMap(userId: string): Map<string, TrinoQuery> {
+  let tabMap = userQueries.get(userId);
+  if (!tabMap) {
+    tabMap = new Map();
+    userQueries.set(userId, tabMap);
+  }
+  return tabMap;
+}
 
 function buildSnapshot(query: TrinoQuery): QuerySnapshot {
   const trinoServerUrl = resolveTrinoServerUrl(query.userId);
@@ -82,19 +91,22 @@ function buildSnapshot(query: TrinoQuery): QuerySnapshot {
   };
 }
 
-/** Cancel the user's current query if it is still active. */
-async function cancelPreviousQuery(userId: string): Promise<void> {
-  const query = userQueries.get(userId);
+/** Cancel the query for a specific tab if it is still active. */
+async function cancelPreviousTabQuery(userId: string, tabId: string): Promise<void> {
+  const tabMap = userQueries.get(userId);
+  if (!tabMap) return;
+  const query = tabMap.get(tabId);
   if (!query || isTerminal(query.state)) return;
 
-  log.info({ trino_query_id: query.trinoQueryId, user_id: userId }, 'cancelling previous query');
+  log.info(
+    { trino_query_id: query.trinoQueryId, user_id: userId, tab_id: tabId },
+    'cancelling previous query for tab'
+  );
   try {
     await query.client.cancel(query.trinoQueryId);
   } catch (err) {
     log.warn({ err, trino_query_id: query.trinoQueryId }, 'failed to cancel query in Trino');
   }
-  // Always terminate locally so the poll loop stops and the gauge is decremented,
-  // even if the remote cancel RPC failed.
   terminateQuery(query, 'CANCELLED');
   trinoQueryTotal.inc({ outcome: 'cancelled' });
 }
@@ -104,16 +116,17 @@ async function cancelPreviousQuery(userId: string): Promise<void> {
 export async function startQuery(
   client: TrinoClient,
   userId: string,
+  tabId: string,
   sql: string,
   options: { user: string; catalog?: string; schema?: string }
 ): Promise<string> {
-  // Cancel existing active query for this user (single-query limit).
-  await cancelPreviousQuery(userId);
+  // Cancel existing active query for this tab.
+  await cancelPreviousTabQuery(userId, tabId);
 
   // Trino's REST API rejects SQL ending with a semicolon.
   const sanitisedSql = sql.replace(/;\s*$/, '').trim();
 
-  log.info({ user_id: userId }, 'submitting query');
+  log.info({ user_id: userId, tab_id: tabId }, 'submitting query');
   trinoQueryTotal.inc({ outcome: 'submitted' });
   let submitResult;
   try {
@@ -149,7 +162,8 @@ export async function startQuery(
     trinoQueryTotal.inc({ outcome: 'failed' });
   }
 
-  userQueries.set(userId, query);
+  const tabMap = getUserTabMap(userId);
+  tabMap.set(tabId, query);
 
   if (!isTerminal(query.state) && query.nextUri) {
     trinoActiveQueries.inc();
@@ -169,21 +183,59 @@ export async function startQuery(
     trinoQueryTotal.inc({ outcome: 'completed' });
   }
 
-  log.info({ trino_query_id: trinoQueryId, user_id: userId }, 'query started');
+  log.info({ trino_query_id: trinoQueryId, user_id: userId, tab_id: tabId }, 'query started');
   return trinoQueryId;
 }
 
-export function getQuerySnapshot(userId: string): QuerySnapshot | null {
-  const query = userQueries.get(userId);
+export function getQuerySnapshot(userId: string, tabId: string): QuerySnapshot | null {
+  const tabMap = userQueries.get(userId);
+  if (!tabMap) return null;
+  const query = tabMap.get(tabId);
   if (!query) return null;
   return buildSnapshot(query);
 }
 
-export async function cancelQuery(userId: string): Promise<boolean> {
-  const query = userQueries.get(userId);
+/** Lightweight snapshot without rows/columns — used for SSR to keep the payload small. */
+export function getAllQuerySummaries(userId: string): Record<string, QuerySnapshot> {
+  const tabMap = userQueries.get(userId);
+  if (!tabMap) return {};
+  const trinoServerUrl = resolveTrinoServerUrl(userId);
+  const result: Record<string, QuerySnapshot> = {};
+  for (const [tabId, query] of tabMap) {
+    result[tabId] = {
+      trinoQueryUrl: trinoServerUrl ? `${trinoServerUrl}/ui/query.html?${query.trinoQueryId}` : null,
+      state: query.state,
+      progress: query.progress,
+      columns: [],
+      rows: [],
+      error: query.error,
+      sql: query.sql,
+      startedAt: query.startedAt
+    };
+  }
+  return result;
+}
+
+/** Remove the stored query state for a tab (frees memory). */
+export function removeTabQuery(userId: string, tabId: string): void {
+  const tabMap = userQueries.get(userId);
+  if (!tabMap) return;
+  tabMap.delete(tabId);
+  if (tabMap.size === 0) {
+    userQueries.delete(userId);
+  }
+}
+
+export async function cancelQuery(userId: string, tabId: string): Promise<boolean> {
+  const tabMap = userQueries.get(userId);
+  if (!tabMap) return false;
+  const query = tabMap.get(tabId);
   if (!query || isTerminal(query.state)) return false;
 
-  log.info({ trino_query_id: query.trinoQueryId, user_id: userId }, 'cancelling query');
+  log.info(
+    { trino_query_id: query.trinoQueryId, user_id: userId, tab_id: tabId },
+    'cancelling query'
+  );
 
   try {
     await query.client.cancel(query.trinoQueryId);

@@ -88,5 +88,11 @@
   "trino_table_type_view": "Ansicht",
   "trino_catalog_error": "Katalog konnte nicht geladen werden",
   "trino_catalog_load_children_error": "Laden fehlgeschlagen",
-  "trino_view_in_trino": "In Trino anzeigen"
+  "trino_view_in_trino": "In Trino anzeigen",
+  "trino_tab_new": "Neuer Tab",
+  "trino_tab_close": "Tab {name} schließen",
+  "trino_tab_default_name": "Unbenannt",
+  "trino_tab_rename": "Tab umbenennen",
+  "trino_tabs_persist_error": "Tab-Inhalt zu groß zum Speichern. Einige Änderungen gehen beim Neuladen möglicherweise verloren.",
+  "trino_editor_char_limit_reached": "Abfrage überschreitet {limit} Zeichen und wird nicht zwischen Sitzungen gespeichert"
 }

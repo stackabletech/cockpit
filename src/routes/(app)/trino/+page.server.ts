@@ -2,7 +2,7 @@ import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { getUserId } from '$lib/server/auth-utils.js';
-import { getQuerySnapshot, cancelQuery } from '$lib/server/trino/queries.js';
+import { getAllQuerySummaries, cancelQuery } from '$lib/server/trino/queries.js';
 import { trinoConfigured } from '$lib/server/trino/client.js';
 import { createUserTrinoClient, getUserTrinoClient } from '$lib/server/trino/user-clients.js';
 import { ConnectionSchema, type ConnectionMessage } from './validation.js';
@@ -12,9 +12,9 @@ export const load: PageServerLoad = async ({ locals }) => {
   locals.logger.debug('loading Trino page');
   const connectionForm = await superValidate(zod(ConnectionSchema));
   const userId = getUserId(locals);
-  const activeQuery = getQuerySnapshot(userId) ?? null;
+  const activeQueries = getAllQuerySummaries(userId);
   const userClientExists = getUserTrinoClient(userId) !== null;
-  return { connectionForm, activeQuery, trinoConfigured, userClientExists };
+  return { connectionForm, activeQueries, trinoConfigured, userClientExists };
 };
 
 export const actions: Actions = {
@@ -35,7 +35,9 @@ export const actions: Actions = {
     const userId = getUserId(locals);
 
     // Cancel any running query before replacing the connection.
-    await cancelQuery(userId);
+    for (const tabId of Object.keys(getAllQuerySummaries(userId))) {
+      await cancelQuery(userId, tabId);
+    }
 
     const { connectionUrl, authType, authUsername, authPassword } = form.data;
 
