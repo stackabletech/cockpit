@@ -12,7 +12,7 @@ export interface UserConnectionConfig {
 
 interface UserEntry {
   client: TrinoClient;
-  config: UserConnectionConfig;
+  url: string;
 }
 
 const userClients = new Map<string, UserEntry>();
@@ -29,7 +29,7 @@ export function createUserTrinoClient(userId: string, config: UserConnectionConf
     authorization
   });
 
-  userClients.set(userId, { client, config });
+  userClients.set(userId, { client, url: config.url });
   log.info({ user_id: userId, trino_url: config.url }, 'user connection created');
 }
 
@@ -40,5 +40,5 @@ export function getUserTrinoClient(userId: string): TrinoClient | null {
 
 /** Returns the per-user connection URL, or null if none has been configured. */
 export function getUserTrinoUrl(userId: string): string | null {
-  return userClients.get(userId)?.config.url ?? null;
+  return userClients.get(userId)?.url ?? null;
 }
