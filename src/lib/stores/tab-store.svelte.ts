@@ -26,10 +26,6 @@ function generateId(): string {
   return crypto.randomUUID();
 }
 
-function deriveLabel(): string {
-  return m.trino_tab_default_name();
-}
-
 function makeTab(sql: string = DEFAULT_SQL): TabState {
   return {
     id: generateId(),
@@ -246,7 +242,7 @@ function createTabStore() {
 
   function getTabLabel(tab: TabState): string {
     if (tab.label) return tab.label;
-    return deriveLabel();
+    return m.trino_tab_default_name();
   }
 
   return {
