@@ -92,7 +92,6 @@
   "trino_tab_new": "Neuer Tab",
   "trino_tab_close": "Tab {name} schließen",
   "trino_tab_default_name": "Unbenannt",
-  "trino_tab_limit_reached": "Maximum von {limit} Tabs erreicht",
   "trino_tab_rename": "Tab umbenennen",
   "trino_tabs_persist_error": "Tab-Inhalt zu groß zum Speichern. Einige Änderungen gehen beim Neuladen möglicherweise verloren.",
   "trino_editor_char_limit_reached": "Abfrage überschreitet {limit} Zeichen und wird nicht zwischen Sitzungen gespeichert"
