@@ -19,7 +19,7 @@ test.describe('Trino query editor', () => {
   });
 
   test('Trino nav item is active when on /trino', async ({ page }) => {
-    const trinoLink = page.getByRole('link', { name: 'Trino' });
+    const trinoLink = page.getByRole('link', { name: 'Trino', exact: true });
     await expect(trinoLink).toHaveAttribute('aria-current', 'page');
   });
 

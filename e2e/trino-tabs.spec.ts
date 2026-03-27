@@ -24,10 +24,7 @@ test.describe('Trino editor tabs', () => {
   });
 
   test('switch between tabs preserves SQL content', async ({ page }) => {
-    await setTabState(page, [
-      { id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql: 'SELECT 1 AS first' },
-      { id: '642f03a2-7d98-4b12-922f-f21a9ec6188d', sql: 'SELECT 2 AS second' }
-    ]);
+    await setTabState(page, [{ sql: 'SELECT 1 AS first' }, { sql: 'SELECT 2 AS second' }]);
     await page.goto('/trino');
     await waitForHydration(page);
 
@@ -45,10 +42,7 @@ test.describe('Trino editor tabs', () => {
   });
 
   test('close tab removes it and activates adjacent', async ({ page }) => {
-    await setTabState(page, [
-      { id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql: 'SELECT 1' },
-      { id: '642f03a2-7d98-4b12-922f-f21a9ec6188d', sql: 'SELECT 2' }
-    ]);
+    await setTabState(page, [{ sql: 'SELECT 1' }, { sql: 'SELECT 2' }]);
     await page.goto('/trino');
     await waitForHydration(page);
 
@@ -78,9 +72,7 @@ test.describe('Trino editor tabs', () => {
   });
 
   test('tab without custom label shows default name', async ({ page }) => {
-    await setTabState(page, [
-      { id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql: 'SELECT * FROM users' }
-    ]);
+    await setTabState(page, [{ sql: 'SELECT * FROM users' }]);
     await page.goto('/trino');
     await waitForHydration(page);
 
@@ -89,7 +81,7 @@ test.describe('Trino editor tabs', () => {
   });
 
   test('double-click to rename tab', async ({ page }) => {
-    await setTabState(page, [{ id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql: 'SELECT 1' }]);
+    await setTabState(page, [{ sql: 'SELECT 1' }]);
     await page.goto('/trino');
     await waitForHydration(page);
 
@@ -107,17 +99,7 @@ test.describe('Trino editor tabs', () => {
   });
 
   test('tab limit enforced — add button disappears at 8 tabs', async ({ page }) => {
-    const tabIds = [
-      '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33',
-      '642f03a2-7d98-4b12-922f-f21a9ec6188d',
-      'd85ef5ed-8092-4f27-9d82-69c3d41b6ce1',
-      '08b6f5ec-a8e4-427f-8e87-c7dd09757771',
-      'f6aaf21d-4685-44c6-97da-ce6f626c32ba',
-      'c59569d1-d68b-41e4-a141-c1775f28221d',
-      '907b9d67-38ca-421f-9687-c85d640619be',
-      'f240cb08-ee23-49b0-aed6-dc6411ee6e92'
-    ];
-    const tabs = tabIds.map((id, i) => ({ id, sql: `SELECT ${i + 1}` }));
+    const tabs = Array.from({ length: 8 }, (_, i) => ({ sql: `SELECT ${i + 1}` }));
     await setTabState(page, tabs);
     await page.goto('/trino');
     await waitForHydration(page);
@@ -127,10 +109,7 @@ test.describe('Trino editor tabs', () => {
   });
 
   test('query execution is scoped to active tab', async ({ page }) => {
-    await setTabState(page, [
-      { id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql: 'SELECT id, name FROM users' },
-      { id: '642f03a2-7d98-4b12-922f-f21a9ec6188d', sql: 'SELECT 2' }
-    ]);
+    await setTabState(page, [{ sql: 'SELECT id, name FROM users' }, { sql: 'SELECT 2' }]);
     await page.goto('/trino');
     await waitForHydration(page);
 
@@ -150,8 +129,8 @@ test.describe('Trino editor tabs', () => {
 
   test('page reload preserves tabs via localStorage', async ({ page }) => {
     await setTabState(page, [
-      { id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql: 'SELECT 1', label: 'Tab A' },
-      { id: '642f03a2-7d98-4b12-922f-f21a9ec6188d', sql: 'SELECT 2', label: 'Tab B' }
+      { sql: 'SELECT 1', label: 'Tab A' },
+      { sql: 'SELECT 2', label: 'Tab B' }
     ]);
     await page.goto('/trino');
     await waitForHydration(page);

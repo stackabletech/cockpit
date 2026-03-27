@@ -1,14 +1,18 @@
 import { expect, type Page } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 
 /**
  * Set up tab state in localStorage before page load.
  * Uses the split storage format: trino_tabs_index + trino_tab_{id}.
+ * When no explicit IDs are provided, unique UUIDs are generated so that
+ * server-side query state never leaks between tests.
  */
 export function setTabState(
   page: Page,
-  tabs: { id: string; sql: string; label?: string | null }[],
+  tabs: { id?: string; sql: string; label?: string | null }[],
   activeTabId?: string
 ) {
+  const resolved = tabs.map((t) => ({ ...t, id: t.id ?? randomUUID() }));
   return page.addInitScript(
     ({ tabs, activeTabId }) => {
       const index = {
@@ -24,13 +28,13 @@ export function setTabState(
         localStorage.setItem('trino_tab_' + t.id, t.sql);
       }
     },
-    { tabs, activeTabId }
+    { tabs: resolved, activeTabId }
   );
 }
 
 /** Shorthand to set up a single tab with given SQL. */
 export function setTabSql(page: Page, sql: string) {
-  return setTabState(page, [{ id: '2e57e7f1-43be-42a1-95f6-2fb3c8c45e33', sql }]);
+  return setTabState(page, [{ sql }]);
 }
 
 /**
