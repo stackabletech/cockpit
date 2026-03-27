@@ -73,8 +73,8 @@
       : 25;
     hydrated = true;
 
-    if (data.trinoConfigured) {
-      // Server already provisioned the connection; bump version so catalog browser loads.
+    if (data.trinoConfigured || data.userClientExists) {
+      // Server already has a connection (env-based or per-user); load catalogues.
       catalogVersion++;
     } else if (connectionUrl && authType === 'none') {
       // Re-establish server-side connection from localStorage on page reload.

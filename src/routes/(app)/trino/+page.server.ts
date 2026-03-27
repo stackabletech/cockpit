@@ -4,7 +4,7 @@ import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { getUserId } from '$lib/server/auth-utils.js';
 import { getQuerySnapshot, cancelQuery } from '$lib/server/trino/queries.js';
 import { trinoConfigured } from '$lib/server/trino/client.js';
-import { createUserTrinoClient } from '$lib/server/trino/user-clients.js';
+import { createUserTrinoClient, getUserTrinoClient } from '$lib/server/trino/user-clients.js';
 import { ConnectionSchema, type ConnectionMessage } from './validation.js';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -13,7 +13,8 @@ export const load: PageServerLoad = async ({ locals }) => {
   const connectionForm = await superValidate(zod(ConnectionSchema));
   const userId = getUserId(locals);
   const activeQuery = getQuerySnapshot(userId) ?? null;
-  return { connectionForm, activeQuery, trinoConfigured };
+  const userClientExists = getUserTrinoClient(userId) !== null;
+  return { connectionForm, activeQuery, trinoConfigured, userClientExists };
 };
 
 export const actions: Actions = {
