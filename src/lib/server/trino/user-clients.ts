@@ -18,7 +18,7 @@ interface UserEntry {
 const userClients = new Map<string, UserEntry>();
 
 /** Create or replace the per-user Trino connection. */
-export function setUserConnection(userId: string, config: UserConnectionConfig): void {
+export function createUserTrinoClient(userId: string, config: UserConnectionConfig): void {
   const authorization =
     config.authType === 'basic' && config.username && config.password
       ? buildBasicAuthHeader(config.username, config.password)

@@ -4,7 +4,7 @@ import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { getUserId } from '$lib/server/auth-utils.js';
 import { getQuerySnapshot, cancelQuery } from '$lib/server/trino/queries.js';
 import { trinoConfigured } from '$lib/server/trino/client.js';
-import { setUserConnection } from '$lib/server/trino/user-clients.js';
+import { createUserTrinoClient } from '$lib/server/trino/user-clients.js';
 import { ConnectionSchema, type ConnectionMessage } from './validation.js';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -38,7 +38,7 @@ export const actions: Actions = {
 
     const { connectionUrl, authType, authUsername, authPassword } = form.data;
 
-    setUserConnection(userId, {
+    createUserTrinoClient(userId, {
       url: connectionUrl,
       authType,
       username: authUsername,
