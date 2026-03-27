@@ -11,7 +11,7 @@
   import { getOrCreateQueryRunner, destroyQueryRunner } from './query-runner.svelte.js';
   import { isTerminal } from '$lib/types/query';
   import type { PageData } from './$types';
-  import { ALLOWED_PAGE_SIZES } from './validation';
+  import { ALLOWED_PAGE_SIZES, isPageSize, type PageSize } from './validation';
 
   let { data }: { data: PageData } = $props();
 
@@ -26,7 +26,7 @@
   }
 
   let sql = $state(tabStore.activeTab.sql);
-  let pageSize = $state<25 | 50 | 100>(25);
+  let pageSize = $state<PageSize>(25);
   let defaultCatalog = $state('');
   let defaultSchema = $state('');
   let currentPages = new SvelteMap<string, number>();
@@ -80,9 +80,7 @@
     defaultCatalog = getStoredValue('trino_default_catalog', '');
     defaultSchema = getStoredValue('trino_default_schema', '');
     const storedPageSize = parseInt(getStoredValue('trino_page_size', '25'), 10);
-    pageSize = ALLOWED_PAGE_SIZES.includes(storedPageSize as 25 | 50 | 100)
-      ? (storedPageSize as 25 | 50 | 100)
-      : 25;
+    pageSize = isPageSize(storedPageSize) ? storedPageSize : 25;
     hydrated = true;
     lastTabId = tabStore.activeTabId;
 
@@ -230,7 +228,8 @@
   }
 
   function handlePageSizeChange(event: Event) {
-    pageSize = parseInt((event.target as HTMLSelectElement).value, 10) as 25 | 50 | 100;
+    const n = parseInt((event.target as HTMLSelectElement).value, 10);
+    if (isPageSize(n)) pageSize = n;
     setCurrentPage(0);
   }
 
