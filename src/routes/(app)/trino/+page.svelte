@@ -61,7 +61,8 @@
       connectionUrl = getStoredValue('trino_url', '');
       authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
       authUsername = getStoredValue('trino_username', '');
-      authPassword = getStoredValue('trino_password', '');
+      // Remove any previously stored password (no longer persisted for security).
+      localStorage.removeItem('trino_password');
     }
     sql = getStoredValue('trino_sql', 'SELECT 1');
     defaultCatalog = getStoredValue('trino_default_catalog', '');
@@ -75,13 +76,14 @@
     if (data.trinoConfigured) {
       // Server already provisioned the connection; bump version so catalog browser loads.
       catalogVersion++;
-    } else if (connectionUrl) {
+    } else if (connectionUrl && authType === 'none') {
       // Re-establish server-side connection from localStorage on page reload.
+      // Only possible for unauthenticated connections since the password is not persisted.
       const body = new FormData();
       body.set('connectionUrl', connectionUrl);
       body.set('authType', authType);
-      body.set('authUsername', authUsername);
-      body.set('authPassword', authPassword);
+      body.set('authUsername', '');
+      body.set('authPassword', '');
       fetch('?/save', {
         method: 'POST',
         body,
@@ -96,8 +98,10 @@
           connectionUrl = '';
           authType = 'none';
           authUsername = '';
-          authPassword = '';
         });
+    } else if (connectionUrl && authType === 'basic') {
+      // Password is not persisted; prompt the user to re-enter credentials.
+      connectionOpen = true;
     }
 
     // Resume active query from server-side state (survives page reloads).
@@ -123,12 +127,12 @@
   const isActive = $derived(queryRunner.state !== 'IDLE' && !isTerminal(queryRunner.state));
 
   // Persist connection config to localStorage (only in per-user mode).
+  // Password is intentionally excluded -- credentials should not be stored client-side.
   $effect(() => {
     if (!hydrated || data.trinoConfigured) return;
     localStorage.setItem('trino_url', connectionUrl);
     localStorage.setItem('trino_auth_type', authType);
     localStorage.setItem('trino_username', authUsername);
-    localStorage.setItem('trino_password', authPassword);
   });
 
   // Persist SQL and other settings.
