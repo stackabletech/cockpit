@@ -61,8 +61,6 @@
       connectionUrl = getStoredValue('trino_url', '');
       authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
       authUsername = getStoredValue('trino_username', '');
-      // Remove any previously stored password (no longer persisted for security).
-      localStorage.removeItem('trino_password');
     }
     sql = getStoredValue('trino_sql', 'SELECT 1');
     defaultCatalog = getStoredValue('trino_default_catalog', '');
