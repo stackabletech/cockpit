@@ -19,6 +19,24 @@
   let monaco = $state<typeof import('monaco-editor') | undefined>(undefined);
   let ready = $state(false);
 
+  export function getViewState(): import('monaco-editor').editor.ICodeEditorViewState | null {
+    return editor?.saveViewState() ?? null;
+  }
+
+  export function restoreViewState(
+    state: import('monaco-editor').editor.ICodeEditorViewState | null
+  ) {
+    if (editor && state) {
+      editor.restoreViewState(state);
+    }
+  }
+
+  export function setValue(text: string) {
+    if (editor) {
+      editor.setValue(text);
+    }
+  }
+
   export function insertAtCursor(text: string) {
     if (!editor || !monaco) return;
     // Focus first so getSelection() returns a valid position (needed for Firefox).

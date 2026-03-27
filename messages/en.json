@@ -88,5 +88,11 @@
   "trino_table_type_view": "View",
   "trino_catalog_error": "Failed to load catalog",
   "trino_catalog_load_children_error": "Failed to load",
-  "trino_view_in_trino": "View in Trino"
+  "trino_view_in_trino": "View in Trino",
+  "trino_tab_new": "New tab",
+  "trino_tab_close": "Close tab {name}",
+  "trino_tab_default_name": "Untitled",
+  "trino_tab_rename": "Rename tab",
+  "trino_tabs_persist_error": "Tab content too large to save. Some changes may be lost on reload.",
+  "trino_editor_char_limit_reached": "Query exceeds {limit} characters and will not be saved between sessions"
 }
