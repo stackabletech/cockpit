@@ -4,22 +4,27 @@ import {
   type Column,
   type QueryProgress,
   type QuerySnapshot,
-  type QueryState
+  type QueryState,
+  type ScriptProgress
 } from '$lib/types/query.js';
+import type { SqlStatement } from '$lib/editor/split-statements.js';
 
 export { INITIAL_PROGRESS, type QueryState, type QueryProgress } from '$lib/types/query.js';
+export type { ScriptProgress } from '$lib/types/query.js';
 
 export interface QueryRunner {
   readonly state: QueryState;
   readonly progress: QueryProgress;
-  readonly columns: Column[];
-  readonly rows: unknown[][];
-  readonly error: string | null;
-  readonly trinoQueryUrl: string | null;
+  readonly results: QuerySnapshot[];
+  readonly scriptProgress: ScriptProgress | null;
   execute: (sql: string, options?: { catalog?: string; schema?: string }) => Promise<void>;
+  executeScript: (
+    statements: SqlStatement[],
+    options?: { catalog?: string; schema?: string }
+  ) => Promise<void>;
   cancel: () => Promise<void>;
   reset: () => void;
-  initialise: (snapshot: QuerySnapshot | null) => void;
+  initialise: (snapshots: QuerySnapshot[]) => void;
   fetchResults: () => Promise<void>;
 }
 
@@ -29,15 +34,30 @@ export interface QueryRunner {
 const runners = new Map<string, QueryRunner>();
 
 function createQueryRunner(tabId: string): QueryRunner {
+  // Reactive state exposed to the UI for the live progress indicator.
   let state = $state<QueryState>('IDLE');
   let progress = $state<QueryProgress>(INITIAL_PROGRESS);
-  let columns = $state<Column[]>([]);
-  let rows = $state.raw<unknown[][]>([]);
-  let error = $state<string | null>(null);
-  let trinoQueryUrl = $state<string | null>(null);
+
+  // Current query's data — updated by pollStatus, snapshot into results on completion.
+  let columns: Column[] = [];
+  let rows: unknown[][] = [];
+  let error: string | null = null;
+  let trinoQueryUrl: string | null = null;
+  let executingSql = '';
+
+  // All completed query results. Uses $state.raw to avoid proxying large row arrays.
+  let results = $state.raw<QuerySnapshot[]>([]);
+  let scriptProgress = $state<ScriptProgress | null>(null);
 
   let polling = false;
   let pollAbort: AbortController | null = null;
+  let scriptAborted = false;
+  let resolveCompletion: (() => void) | null = null;
+
+  function settleCompletion() {
+    resolveCompletion?.();
+    resolveCompletion = null;
+  }
 
   function applySnapshot(snapshot: QuerySnapshot) {
     trinoQueryUrl = snapshot.trinoQueryUrl;
@@ -55,7 +75,24 @@ function createQueryRunner(tabId: string): QueryRunner {
     rows = [];
     error = null;
     trinoQueryUrl = null;
+    executingSql = '';
+    results = [];
+    scriptProgress = null;
+    scriptAborted = false;
     stopPolling();
+  }
+
+  function captureResult(): QuerySnapshot {
+    return {
+      sql: executingSql,
+      state,
+      progress,
+      columns,
+      rows,
+      error,
+      trinoQueryUrl,
+      startedAt: Date.now()
+    };
   }
 
   function stopPolling() {
@@ -82,13 +119,14 @@ function createQueryRunner(tabId: string): QueryRunner {
           state = 'FAILED';
           error = `Status check failed (HTTP ${res.status})`;
           stopPolling();
+          settleCompletion();
           return;
         }
 
         const snapshot: QuerySnapshot | null = await res.json();
-
         if (!snapshot) {
           stopPolling();
+          settleCompletion();
           return;
         }
 
@@ -96,13 +134,18 @@ function createQueryRunner(tabId: string): QueryRunner {
 
         if (isTerminal(snapshot.state)) {
           stopPolling();
+          settleCompletion();
           return;
         }
       } catch (err) {
-        if (signal.aborted) return;
+        if (signal.aborted) {
+          settleCompletion();
+          return;
+        }
         state = 'FAILED';
         error = err instanceof Error ? err.message : 'Unknown error';
         stopPolling();
+        settleCompletion();
         return;
       }
 
@@ -111,12 +154,71 @@ function createQueryRunner(tabId: string): QueryRunner {
     }
   }
 
-  function initialise(snapshot: QuerySnapshot | null) {
-    if (!snapshot) return;
+  /** Submits one statement and awaits terminal state. Does not update results — execute() and executeScript() do that after calling this. */
+  async function _execute(
+    sql: string,
+    options?: { catalog?: string; schema?: string },
+    resetServer = false
+  ) {
+    stopPolling();
+    progress = INITIAL_PROGRESS;
+    columns = [];
+    rows = [];
+    error = null;
+    trinoQueryUrl = null;
+    executingSql = sql;
+    state = 'SUBMITTING';
 
-    applySnapshot(snapshot);
+    const completionPromise = new Promise<void>((resolve) => {
+      resolveCompletion = resolve;
+    });
 
-    if (!isTerminal(snapshot.state)) {
+    try {
+      const res = await fetch('/trino/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sql,
+          tabId,
+          catalog: options?.catalog,
+          schema: options?.schema,
+          reset: resetServer
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        state = 'FAILED';
+        error = data?.error?.message ?? data?.error ?? `HTTP ${res.status}`;
+        settleCompletion();
+        return;
+      }
+
+      state = 'QUEUED';
+      pollStatus();
+    } catch (err) {
+      state = 'FAILED';
+      error = err instanceof Error ? err.message : 'Unknown error';
+      settleCompletion();
+      return;
+    }
+
+    await completionPromise;
+  }
+
+  function initialise(snapshots: QuerySnapshot[]) {
+    if (snapshots.length === 0) return;
+
+    const last = snapshots[snapshots.length - 1];
+    applySnapshot(last);
+    executingSql = last.sql;
+
+    if (isTerminal(last.state)) {
+      // All snapshots are terminal — restore full results.
+      results = snapshots;
+    } else {
+      // Last query is still running — restore completed results and poll the active one.
+      results = snapshots.slice(0, -1);
       pollStatus();
     }
   }
@@ -127,36 +229,43 @@ function createQueryRunner(tabId: string): QueryRunner {
     }
 
     reset();
-    state = 'SUBMITTING';
+    await _execute(sql, options, true);
+    results = [captureResult()];
+  }
 
-    try {
-      const res = await fetch('/trino/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sql, tabId, catalog: options?.catalog, schema: options?.schema })
-      });
+  async function executeScript(
+    statements: SqlStatement[],
+    options?: { catalog?: string; schema?: string }
+  ) {
+    reset();
+    scriptAborted = false;
+    scriptProgress = {
+      totalStatements: statements.length,
+      completedStatements: 0,
+      currentStatementIndex: 0
+    };
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        state = 'FAILED';
-        error =
-          typeof data?.error === 'string'
-            ? data.error
-            : (data?.error?.message ?? `Query submission failed (HTTP ${res.status})`);
-        return;
-      }
+    for (let i = 0; i < statements.length; i++) {
+      if (scriptAborted) break;
 
-      state = 'QUEUED';
-      pollStatus();
-    } catch (err) {
-      state = 'FAILED';
-      error = err instanceof Error ? err.message : 'Unknown error';
+      scriptProgress = { ...scriptProgress!, currentStatementIndex: i };
+
+      // First statement resets server-side results; subsequent ones append.
+      await _execute(statements[i].sql, options, i === 0);
+
+      results = [...results, captureResult()];
+      scriptProgress = { ...scriptProgress!, completedStatements: i + 1 };
+
+      if (state === 'FAILED' || state === 'CANCELLED') break;
     }
   }
 
   async function cancel() {
+    scriptAborted = true;
     stopPolling();
     state = 'CANCELLED';
+    resolveCompletion?.();
+    resolveCompletion = null;
 
     try {
       await fetch(`/trino/query?tabId=${encodeURIComponent(tabId)}`, { method: 'DELETE' });
@@ -166,12 +275,20 @@ function createQueryRunner(tabId: string): QueryRunner {
   }
 
   async function fetchResults() {
-    if (!isTerminal(state) || rows.length > 0) return;
+    // Only fetch if we have results but the last one has no rows (deferred loading).
+    if (!isTerminal(state)) return;
+    if (results.length > 0 && results[results.length - 1].rows.length > 0) return;
+
     try {
-      const res = await fetch(`/trino/query?tabId=${encodeURIComponent(tabId)}`);
+      const res = await fetch(`/trino/query?tabId=${encodeURIComponent(tabId)}&full=true`);
       if (!res.ok) return;
-      const snapshot: QuerySnapshot | null = await res.json();
-      if (snapshot) applySnapshot(snapshot);
+      const snapshots: QuerySnapshot[] = await res.json();
+      if (snapshots.length > 0) {
+        const last = snapshots[snapshots.length - 1];
+        applySnapshot(last);
+        executingSql = last.sql;
+        results = snapshots;
+      }
     } catch {
       // Best-effort fetch.
     }
@@ -184,19 +301,14 @@ function createQueryRunner(tabId: string): QueryRunner {
     get progress() {
       return progress;
     },
-    get columns() {
-      return columns;
+    get results() {
+      return results;
     },
-    get rows() {
-      return rows;
-    },
-    get error() {
-      return error;
-    },
-    get trinoQueryUrl() {
-      return trinoQueryUrl;
+    get scriptProgress() {
+      return scriptProgress;
     },
     execute,
+    executeScript,
     cancel,
     reset,
     initialise,

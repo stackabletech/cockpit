@@ -3,9 +3,10 @@ import { z } from 'zod';
 import { getUserId } from '$lib/server/auth-utils.js';
 import {
   startQuery,
-  getQuerySnapshot,
+  getQuerySnapshots,
   cancelQuery,
-  removeTabQuery
+  removeTabQuery,
+  resetTabQueries
 } from '$lib/server/trino/queries.js';
 import { resolveTrinoClient } from '$lib/server/trino/client.js';
 import { StatementRequestSchema, TabIdSchema } from '../validation.js';
@@ -35,6 +36,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
   const user = locals.user?.username ?? 'anonymous';
 
+  // If reset=true, clear all previous results before starting.
+  if (parsed.data.reset) {
+    await resetTabQueries(userId, parsed.data.tabId);
+  }
+
   try {
     await startQuery(client, userId, parsed.data.tabId, parsed.data.sql, {
       user,
@@ -58,12 +64,18 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     return json({ error: 'Missing or invalid tabId parameter' }, { status: 400 });
   }
 
-  const snapshot = getQuerySnapshot(userId, parsed.data);
+  const full = url.searchParams.get('full') === 'true';
+  const snapshots = getQuerySnapshots(userId, parsed.data);
 
-  log.trace({ user_id: userId, tab_id: parsed.data, found: !!snapshot }, 'status poll');
+  if (full) {
+    log.trace({ user_id: userId, tab_id: parsed.data, count: snapshots.length }, 'results fetch');
+    return json(snapshots);
+  }
 
-  if (!snapshot) return json(null);
-  return json(snapshot);
+  // Polling: return only the last (active) snapshot to avoid re-transmitting completed results.
+  const last = snapshots[snapshots.length - 1] ?? null;
+  log.trace({ user_id: userId, tab_id: parsed.data, found: !!last }, 'status poll');
+  return json(last);
 };
 
 export const DELETE: RequestHandler = async ({ url, locals }) => {

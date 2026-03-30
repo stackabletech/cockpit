@@ -7,17 +7,22 @@
   let {
     value = $bindable(),
     language = TRINO_SQL_LANGUAGE_ID,
-    onExecute
+    onExecute,
+    onExecuteAll
   }: {
     value?: string;
     language?: string;
     onExecute?: () => void;
+    onExecuteAll?: () => void;
   } = $props();
 
   let container: HTMLDivElement;
   let editor: import('monaco-editor').editor.IStandaloneCodeEditor | undefined;
   let monaco = $state<typeof import('monaco-editor') | undefined>(undefined);
   let ready = $state(false);
+
+  // Cache the last multi-line selection so it survives focus loss (e.g. clicking Run button).
+  let lastSelection: { startOffset: number; endOffset: number } | null = null;
 
   export function getViewState(): import('monaco-editor').editor.ICodeEditorViewState | null {
     return editor?.saveViewState() ?? null;
@@ -35,6 +40,32 @@
     if (editor) {
       editor.setValue(text);
     }
+  }
+
+  export function getCursorOffset(): number | null {
+    if (!editor) return null;
+    const model = editor.getModel();
+    if (!model) return null;
+    return model.getOffsetAt(editor.getPosition()!);
+  }
+
+  export function getSelection(): { startOffset: number; endOffset: number } | null {
+    if (!editor) return null;
+    const sel = editor.getSelection();
+    if (sel && !sel.isEmpty() && sel.startLineNumber !== sel.endLineNumber) {
+      const model = editor.getModel();
+      if (!model) return null;
+      return {
+        startOffset: model.getOffsetAt(sel.getStartPosition()),
+        endOffset: model.getOffsetAt(sel.getEndPosition())
+      };
+    }
+    // Fall back to cached selection from before blur.
+    return lastSelection;
+  }
+
+  export function clearSelection(): void {
+    lastSelection = null;
   }
 
   export function insertAtCursor(text: string) {
@@ -84,6 +115,20 @@
 
     editor.onDidChangeModelContent(() => {
       value = editor!.getValue();
+      lastSelection = null;
+    });
+
+    editor.onDidBlurEditorWidget(() => {
+      const sel = editor!.getSelection();
+      const model = editor!.getModel();
+      if (sel && !sel.isEmpty() && sel.startLineNumber !== sel.endLineNumber && model) {
+        lastSelection = {
+          startOffset: model.getOffsetAt(sel.getStartPosition()),
+          endOffset: model.getOffsetAt(sel.getEndPosition())
+        };
+      } else {
+        lastSelection = null;
+      }
     });
 
     ready = true;
@@ -94,6 +139,15 @@
         label: 'Execute Query',
         keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
         run: onExecute
+      });
+    }
+
+    if (onExecuteAll) {
+      editor.addAction({
+        id: 'execute-all',
+        label: 'Execute All Queries',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter],
+        run: onExecuteAll
       });
     }
   });

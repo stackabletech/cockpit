@@ -43,7 +43,6 @@
   "auth_login_button": "Mit SSO anmelden",
   "auth_login_error": "Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.",
   "header_sign_out": "Abmelden",
-  "trino_run_query": "Abfrage ausführen",
   "trino_results_empty": "Keine Ergebnisse",
   "trino_query_error": "Abfragefehler",
   "trino_running": "Wird ausgeführt...",
@@ -94,5 +93,11 @@
   "trino_tab_default_name": "Unbenannt",
   "trino_tab_rename": "Tab umbenennen",
   "trino_tabs_persist_error": "Tab-Inhalt zu groß zum Speichern. Einige Änderungen gehen beim Neuladen möglicherweise verloren.",
-  "trino_editor_char_limit_reached": "Abfrage überschreitet {limit} Zeichen und wird nicht zwischen Sitzungen gespeichert"
+  "trino_editor_char_limit_reached": "Abfrage überschreitet {limit} Zeichen und wird nicht zwischen Sitzungen gespeichert",
+  "trino_run_at_cursor": "Ausführen",
+  "trino_run_all": "Alle ausführen",
+  "trino_run_selected": "Auswahl ausführen",
+  "trino_script_progress": "Anweisung {current} von {total}",
+  "trino_statement_header": "Anweisung {index}",
+  "trino_statement_collapse": "Ergebnisse von Anweisung {index} ein-/ausblenden"
 }

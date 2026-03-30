@@ -41,5 +41,6 @@ export const StatementRequestSchema = z.object({
   sql: z.string().min(1),
   tabId: TabIdSchema,
   catalog: z.string().optional(),
-  schema: z.string().optional()
+  schema: z.string().optional(),
+  reset: z.boolean().optional()
 });

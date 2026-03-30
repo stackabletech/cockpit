@@ -33,13 +33,20 @@ export function isTerminal(state: QueryState): boolean {
   return state === 'FINISHED' || state === 'FAILED' || state === 'CANCELLED';
 }
 
+/** A single query result — used both as the server wire format and client-side result. */
 export interface QuerySnapshot {
-  trinoQueryUrl: string | null;
+  sql: string;
   state: QueryState;
   progress: QueryProgress;
   columns: Column[];
   rows: unknown[][];
   error: string | null;
-  sql: string;
+  trinoQueryUrl: string | null;
   startedAt: number;
+}
+
+export interface ScriptProgress {
+  totalStatements: number;
+  completedStatements: number;
+  currentStatementIndex: number;
 }

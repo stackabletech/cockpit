@@ -65,10 +65,10 @@ export function terminateQuery(
 
 // --- Active query store ---
 
-/** Current or most recently completed query per user per tab. */
-const userQueries = new Map<string, Map<string, TrinoQuery>>();
+/** All queries for a tab (ordered by execution). */
+const userQueries = new Map<string, Map<string, TrinoQuery[]>>();
 
-function getUserTabMap(userId: string): Map<string, TrinoQuery> {
+function getUserTabMap(userId: string): Map<string, TrinoQuery[]> {
   let tabMap = userQueries.get(userId);
   if (!tabMap) {
     tabMap = new Map();
@@ -77,26 +77,39 @@ function getUserTabMap(userId: string): Map<string, TrinoQuery> {
   return tabMap;
 }
 
-function buildSnapshot(query: TrinoQuery): QuerySnapshot {
-  const trinoServerUrl = resolveTrinoServerUrl(query.userId);
+function getTabQueries(userId: string, tabId: string): TrinoQuery[] {
+  const tabMap = userQueries.get(userId);
+  return tabMap?.get(tabId) ?? [];
+}
+
+/** Returns the currently active (non-terminal) query for a tab, if any. */
+function getActiveQuery(userId: string, tabId: string): TrinoQuery | undefined {
+  const queries = getTabQueries(userId, tabId);
+  const last = queries[queries.length - 1];
+  return last && !isTerminal(last.state) ? last : undefined;
+}
+
+function buildSnapshot(
+  query: TrinoQuery,
+  trinoServerUrl: string | null,
+  lightweight = false
+): QuerySnapshot {
   return {
     trinoQueryUrl: trinoServerUrl ? `${trinoServerUrl}/ui/query.html?${query.trinoQueryId}` : null,
     state: query.state,
     progress: query.progress,
-    columns: query.columns,
-    rows: query.rows,
+    columns: lightweight ? [] : query.columns,
+    rows: lightweight ? [] : query.rows,
     error: query.error,
     sql: query.sql,
     startedAt: query.startedAt
   };
 }
 
-/** Cancel the query for a specific tab if it is still active. */
-async function cancelPreviousTabQuery(userId: string, tabId: string): Promise<void> {
-  const tabMap = userQueries.get(userId);
-  if (!tabMap) return;
-  const query = tabMap.get(tabId);
-  if (!query || isTerminal(query.state)) return;
+/** Cancel the active query for a specific tab if it is still running. */
+async function cancelActiveTabQuery(userId: string, tabId: string): Promise<void> {
+  const query = getActiveQuery(userId, tabId);
+  if (!query) return;
 
   log.info(
     { trino_query_id: query.trinoQueryId, user_id: userId, tab_id: tabId },
@@ -113,6 +126,13 @@ async function cancelPreviousTabQuery(userId: string, tabId: string): Promise<vo
 
 // --- Public API ---
 
+/** Clear all stored results for a tab and cancel any active query. */
+export async function resetTabQueries(userId: string, tabId: string): Promise<void> {
+  await cancelActiveTabQuery(userId, tabId);
+  const tabMap = getUserTabMap(userId);
+  tabMap.set(tabId, []);
+}
+
 export async function startQuery(
   client: TrinoClient,
   userId: string,
@@ -120,8 +140,8 @@ export async function startQuery(
   sql: string,
   options: { user: string; catalog?: string; schema?: string }
 ): Promise<string> {
-  // Cancel existing active query for this tab.
-  await cancelPreviousTabQuery(userId, tabId);
+  // Cancel existing active query for this tab (but keep completed results).
+  await cancelActiveTabQuery(userId, tabId);
 
   // Trino's REST API rejects SQL ending with a semicolon.
   const sanitisedSql = sql.replace(/;\s*$/, '').trim();
@@ -163,7 +183,9 @@ export async function startQuery(
   }
 
   const tabMap = getUserTabMap(userId);
-  tabMap.set(tabId, query);
+  const queries = tabMap.get(tabId) ?? [];
+  queries.push(query);
+  tabMap.set(tabId, queries);
 
   if (!isTerminal(query.state) && query.nextUri) {
     trinoActiveQueries.inc();
@@ -187,33 +209,20 @@ export async function startQuery(
   return trinoQueryId;
 }
 
-export function getQuerySnapshot(userId: string, tabId: string): QuerySnapshot | null {
-  const tabMap = userQueries.get(userId);
-  if (!tabMap) return null;
-  const query = tabMap.get(tabId);
-  if (!query) return null;
-  return buildSnapshot(query);
+/** Returns snapshots for all queries in a tab (completed + active). */
+export function getQuerySnapshots(userId: string, tabId: string): QuerySnapshot[] {
+  const trinoServerUrl = resolveTrinoServerUrl(userId);
+  return getTabQueries(userId, tabId).map((q) => buildSnapshot(q, trinoServerUrl));
 }
 
-/** Lightweight snapshot without rows/columns — used for SSR to keep the payload small. */
-export function getAllQuerySummaries(userId: string): Record<string, QuerySnapshot> {
+/** Lightweight summaries without rows/columns — used for SSR to keep the payload small. */
+export function getAllQuerySummaries(userId: string): Record<string, QuerySnapshot[]> {
   const tabMap = userQueries.get(userId);
   if (!tabMap) return {};
   const trinoServerUrl = resolveTrinoServerUrl(userId);
-  const result: Record<string, QuerySnapshot> = {};
-  for (const [tabId, query] of tabMap) {
-    result[tabId] = {
-      trinoQueryUrl: trinoServerUrl
-        ? `${trinoServerUrl}/ui/query.html?${query.trinoQueryId}`
-        : null,
-      state: query.state,
-      progress: query.progress,
-      columns: [],
-      rows: [],
-      error: query.error,
-      sql: query.sql,
-      startedAt: query.startedAt
-    };
+  const result: Record<string, QuerySnapshot[]> = {};
+  for (const [tabId, queries] of tabMap) {
+    result[tabId] = queries.map((q) => buildSnapshot(q, trinoServerUrl, true));
   }
   return result;
 }
@@ -229,10 +238,8 @@ export function removeTabQuery(userId: string, tabId: string): void {
 }
 
 export async function cancelQuery(userId: string, tabId: string): Promise<boolean> {
-  const tabMap = userQueries.get(userId);
-  if (!tabMap) return false;
-  const query = tabMap.get(tabId);
-  if (!query || isTerminal(query.state)) return false;
+  const query = getActiveQuery(userId, tabId);
+  if (!query) return false;
 
   log.info(
     { trino_query_id: query.trinoQueryId, user_id: userId, tab_id: tabId },
