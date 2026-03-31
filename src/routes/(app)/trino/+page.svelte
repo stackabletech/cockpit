@@ -480,9 +480,13 @@
                     id="{uid}-auth-username"
                     type="text"
                     class="input input-sm font-mono"
+                    class:input-error={$connectionErrors.authUsername}
                     autocomplete="username"
                     bind:value={authUsername}
                   />
+                  {#if $connectionErrors.authUsername}
+                    <p class="text-error text-xs">{$connectionErrors.authUsername}</p>
+                  {/if}
                 </div>
                 <div class="flex flex-col gap-1">
                   <label for="{uid}-auth-password" class="label text-sm">
@@ -492,9 +496,13 @@
                     id="{uid}-auth-password"
                     type="password"
                     class="input input-sm font-mono"
+                    class:input-error={$connectionErrors.authPassword}
                     autocomplete="current-password"
                     bind:value={authPassword}
                   />
+                  {#if $connectionErrors.authPassword}
+                    <p class="text-error text-xs">{$connectionErrors.authPassword}</p>
+                  {/if}
                 </div>
               </div>
             {/if}
