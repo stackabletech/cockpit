@@ -34,6 +34,11 @@ export default defineConfig({
       command: `npm run dev -- --mode test --port 4173`,
       url: baseURL,
       reuseExistingServer: false
+    },
+    {
+      command: `npm run dev -- --mode test-manual --port 4174`,
+      url: 'http://localhost:4174',
+      reuseExistingServer: false
     }
   ],
   projects: [

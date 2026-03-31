@@ -2,35 +2,15 @@ import { test, expect } from '@playwright/test';
 import { waitForHydration } from './helpers';
 
 /**
- * Tests for the manual Trino connection form.
+ * Tests for the Trino connection form.
  *
- * The test environment has STACKABLE_UI_TRINO_URL set, so trinoConfigured=true
- * by default. We use route interception to override the SSR HTML and SvelteKit
- * data responses, simulating an environment where Trino is not ENV-configured.
+ * The main dev server (port 4173) has STACKABLE_UI_TRINO_URL set
+ * (trinoConfigured=true) — used for the env-configured tests.
+ *
+ * A second dev server (port 4174) runs WITHOUT STACKABLE_UI_TRINO_URL
+ * (trinoConfigured=false) — used for the manual-mode tests.
  */
-
-// ---------------------------------------------------------------------------
-// Helper: intercept SSR HTML and SvelteKit __data.json to flip trinoConfigured
-// ---------------------------------------------------------------------------
-function interceptTrinoConfigured(page: import('@playwright/test').Page, value: boolean) {
-  const from = `"trinoConfigured":${!value}`;
-  const to = `"trinoConfigured":${value}`;
-
-  // SSR HTML (initial page load) — the boolean is embedded in a script tag.
-  page.route('**/trino', async (route, request) => {
-    if (request.resourceType() !== 'document') return route.continue();
-    const response = await route.fetch();
-    const html = await response.text();
-    await route.fulfill({ response, body: html.replaceAll(from, to) });
-  });
-
-  // Client-side data fetch (SvelteKit navigation).
-  page.route('**/trino/__data.json*', async (route) => {
-    const response = await route.fetch();
-    const body = await response.text();
-    await route.fulfill({ response, body: body.replaceAll(from, to) });
-  });
-}
+const MANUAL_BASE_URL = 'http://localhost:4174';
 
 // ---------------------------------------------------------------------------
 // 1. When Trino IS env-configured, the form must be hidden
@@ -51,7 +31,7 @@ test.describe('Connection form (env-configured)', () => {
 // 2. When Trino is NOT env-configured, the form must be shown
 // ---------------------------------------------------------------------------
 test.describe('Connection form (manual mode)', () => {
-  test.use({ locale: 'en-US' });
+  test.use({ locale: 'en-US', baseURL: MANUAL_BASE_URL });
 
   test.beforeEach(async ({ page }) => {
     // Clear any stored connection from previous test runs.
@@ -61,8 +41,6 @@ test.describe('Connection form (manual mode)', () => {
       localStorage.removeItem('trino_username');
       localStorage.removeItem('trino_password');
     });
-
-    interceptTrinoConfigured(page, false);
   });
 
   test('connection form is visible', async ({ page }) => {
