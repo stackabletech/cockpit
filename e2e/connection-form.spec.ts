@@ -118,8 +118,9 @@ test.describe('Connection form (manual mode)', () => {
 
     await page.getByRole('button', { name: 'Save' }).click();
 
-    // Should show validation error for missing credentials.
-    await expect(page.locator('.text-error')).toBeVisible();
+    // Should show validation errors for missing credentials.
+    await expect(page.getByText('Username is required')).toBeVisible();
+    await expect(page.getByText('Password is required')).toBeVisible();
   });
 
   test('connection details persist to localStorage', async ({ page }) => {
