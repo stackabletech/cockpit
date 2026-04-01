@@ -108,20 +108,7 @@ function buildSnapshot(
 
 /** Cancel the active query for a specific tab if it is still running. */
 async function cancelActiveTabQuery(userId: string, tabId: string): Promise<void> {
-  const query = getActiveQuery(userId, tabId);
-  if (!query) return;
-
-  log.info(
-    { trino_query_id: query.trinoQueryId, user_id: userId, tab_id: tabId },
-    'cancelling previous query for tab'
-  );
-  try {
-    await query.client.cancel(query.trinoQueryId);
-  } catch (err) {
-    log.warn({ err, trino_query_id: query.trinoQueryId }, 'failed to cancel query in Trino');
-  }
-  terminateQuery(query, 'CANCELLED');
-  trinoQueryTotal.inc({ outcome: 'cancelled' });
+  await cancelQuery(userId, tabId);
 }
 
 // --- Public API ---
@@ -242,11 +229,7 @@ export function getQuerySnapshots(
   lightweight = false
 ): QuerySnapshot[] {
   const trinoServerUrl = resolveTrinoServerUrl(userId);
-  return getTabQueries(userId, tabId).map((q, i, arr) => {
-    // In lightweight mode, omit rows/columns for completed queries to keep polling payloads small.
-    const isLast = i === arr.length - 1;
-    return buildSnapshot(q, trinoServerUrl, lightweight && !isLast);
-  });
+  return getTabQueries(userId, tabId).map((q) => buildSnapshot(q, trinoServerUrl, lightweight));
 }
 
 /** Lightweight summaries without rows/columns — used for SSR to keep the payload small. */
