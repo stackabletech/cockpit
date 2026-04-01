@@ -6,6 +6,11 @@ export const DISCOVERY_URL = `${ISSUER_URL}/.well-known/openid-configuration`;
 
 let server: OAuth2Server | null = null;
 
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  const base64 = token.split('.')[1];
+  return JSON.parse(Buffer.from(base64, 'base64url').toString());
+}
+
 export async function startMockOidc(): Promise<string> {
   server = new OAuth2Server();
 
@@ -15,26 +20,44 @@ export async function startMockOidc(): Promise<string> {
   // (chromium, firefox, mobile) don't share the same server-side session
   // and Trino connection store entry.
   let userCounter = 0;
-  let lastSub = 'mock-user-001';
+
+  // Map sub → profile claims so the userinfo endpoint can look them up
+  // from the access token instead of relying on shared mutable state.
+  const users = new Map<string, { name: string; email: string; preferred_username: string }>();
 
   // Add OIDC profile claims to every issued token
   server.service.on('beforeTokenSigning', (token) => {
     userCounter++;
-    lastSub = `mock-user-${String(userCounter).padStart(3, '0')}`;
-    token.payload.sub = lastSub;
-    token.payload.name = `Test User ${userCounter}`;
-    token.payload.email = `testuser${userCounter}@example.com`;
-    token.payload.preferred_username = `testuser${userCounter}`;
-  });
-
-  // Return the same claims from the userinfo endpoint
-  server.service.on('beforeUserinfo', (response) => {
-    response.body = {
-      sub: lastSub,
+    const sub = `mock-user-${String(userCounter).padStart(3, '0')}`;
+    const profile = {
       name: `Test User ${userCounter}`,
       email: `testuser${userCounter}@example.com`,
       preferred_username: `testuser${userCounter}`
     };
+    users.set(sub, profile);
+    token.payload.sub = sub;
+    Object.assign(token.payload, profile);
+  });
+
+  // Return claims from the userinfo endpoint, derived from the access token
+  // so concurrent auth flows don't interfere with each other.
+  server.service.on('beforeUserinfo', (response, req) => {
+    const auth = (req as { headers: Record<string, string> }).headers.authorization ?? '';
+    const accessToken = auth.replace(/^Bearer\s+/i, '');
+
+    try {
+      const payload = decodeJwtPayload(accessToken);
+      const sub = payload.sub as string;
+      const profile = users.get(sub);
+      if (profile) {
+        response.body = { sub, ...profile };
+        return;
+      }
+    } catch {
+      // Fall through to default
+    }
+
+    response.body = { sub: 'unknown', name: 'Unknown User' };
   });
 
   await server.start(MOCK_OIDC_PORT, 'localhost');

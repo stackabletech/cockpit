@@ -8,12 +8,7 @@ import {
   type QuerySnapshot,
   type QueryState
 } from '$lib/types/query.js';
-import {
-  type TrinoClient,
-  type TrinoQueryStats,
-  getTrinoClient,
-  getTrinoServerUrl
-} from './client.js';
+import { type TrinoClient, type TrinoQueryStats, resolveTrinoServerUrl } from './client.js';
 import { collectResults } from './result-collector.js';
 
 const log = logger.child({ module: 'trino-queries' });
@@ -83,9 +78,9 @@ function getUserTabMap(userId: string): Map<string, TrinoQuery> {
 }
 
 function buildSnapshot(query: TrinoQuery): QuerySnapshot {
-  const trinoServerUrl = getTrinoServerUrl();
+  const trinoServerUrl = resolveTrinoServerUrl(query.userId);
   return {
-    trinoQueryUrl: `${trinoServerUrl}/ui/query.html?${query.trinoQueryId}`,
+    trinoQueryUrl: trinoServerUrl ? `${trinoServerUrl}/ui/query.html?${query.trinoQueryId}` : null,
     state: query.state,
     progress: query.progress,
     columns: query.columns,
@@ -119,6 +114,7 @@ async function cancelPreviousTabQuery(userId: string, tabId: string): Promise<vo
 // --- Public API ---
 
 export async function startQuery(
+  client: TrinoClient,
   userId: string,
   tabId: string,
   sql: string,
@@ -132,8 +128,6 @@ export async function startQuery(
 
   log.info({ user_id: userId, tab_id: tabId }, 'submitting query');
   trinoQueryTotal.inc({ outcome: 'submitted' });
-
-  const client = getTrinoClient();
   let submitResult;
   try {
     submitResult = await client.submit(sanitisedSql, options);
@@ -205,11 +199,13 @@ export function getQuerySnapshot(userId: string, tabId: string): QuerySnapshot |
 export function getAllQuerySummaries(userId: string): Record<string, QuerySnapshot> {
   const tabMap = userQueries.get(userId);
   if (!tabMap) return {};
-  const trinoServerUrl = getTrinoServerUrl();
+  const trinoServerUrl = resolveTrinoServerUrl(userId);
   const result: Record<string, QuerySnapshot> = {};
   for (const [tabId, query] of tabMap) {
     result[tabId] = {
-      trinoQueryUrl: `${trinoServerUrl}/ui/query.html?${query.trinoQueryId}`,
+      trinoQueryUrl: trinoServerUrl
+        ? `${trinoServerUrl}/ui/query.html?${query.trinoQueryId}`
+        : null,
       state: query.state,
       progress: query.progress,
       columns: [],

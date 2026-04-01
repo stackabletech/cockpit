@@ -7,14 +7,17 @@ import {
   cancelQuery,
   removeTabQuery
 } from '$lib/server/trino/queries.js';
-import { trinoConfigured } from '$lib/server/trino/client.js';
+import { resolveTrinoClient } from '$lib/server/trino/client.js';
 import { StatementRequestSchema, TabIdSchema } from '../validation.js';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   const log = locals.logger;
 
-  if (!trinoConfigured) {
+  const userId = getUserId(locals);
+  const client = resolveTrinoClient(userId);
+
+  if (!client) {
     return json({ error: 'No Trino connection configured' }, { status: 400 });
   }
 
@@ -30,11 +33,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     return json({ error: z.prettifyError(parsed.error) }, { status: 400 });
   }
 
-  const userId = getUserId(locals);
   const user = locals.user?.username ?? 'anonymous';
 
   try {
-    await startQuery(userId, parsed.data.tabId, parsed.data.sql, {
+    await startQuery(client, userId, parsed.data.tabId, parsed.data.sql, {
       user,
       catalog: parsed.data.catalog,
       schema: parsed.data.schema

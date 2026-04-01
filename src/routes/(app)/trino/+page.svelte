@@ -6,6 +6,8 @@
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import { superForm } from 'sveltekit-superforms';
+  import type { ConnectionMessage } from './validation.js';
   import TabBar from '$lib/components/TabBar.svelte';
   import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
   import { getOrCreateQueryRunner, destroyQueryRunner } from './query-runner.svelte.js';
@@ -24,6 +26,13 @@
       return fallback;
     }
   }
+
+  // Connection config - local state persisted to localStorage.
+  let connectionUrl = $state('');
+  let authType = $state<'none' | 'basic'>('none');
+  let authUsername = $state('');
+  let authPassword = $state('');
+  let connectionOpen = $state(false);
 
   let sql = $state(tabStore.activeTab.sql);
   let pageSize = $state<PageSize>(25);
@@ -77,6 +86,11 @@
   );
 
   onMount(() => {
+    if (!data.trinoConfigured) {
+      connectionUrl = getStoredValue('trino_url', '');
+      authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
+      authUsername = getStoredValue('trino_username', '');
+    }
     defaultCatalog = getStoredValue('trino_default_catalog', '');
     defaultSchema = getStoredValue('trino_default_schema', '');
     const storedPageSize = parseInt(getStoredValue('trino_page_size', '25'), 10);
@@ -84,8 +98,35 @@
     hydrated = true;
     lastTabId = tabStore.activeTabId;
 
-    if (data.trinoConfigured) {
+    if (data.trinoConfigured || data.userClientExists) {
+      // Server already has a connection (env-based or per-user); load catalogues.
       catalogVersion++;
+    } else if (connectionUrl && authType === 'none') {
+      // Re-establish server-side connection from localStorage on page reload.
+      // Only possible for unauthenticated connections since the password is not persisted.
+      const body = new FormData();
+      body.set('connectionUrl', connectionUrl);
+      body.set('authType', authType);
+      body.set('authUsername', '');
+      body.set('authPassword', '');
+      fetch('?/save', {
+        method: 'POST',
+        body,
+        headers: { 'x-sveltekit-action': 'true' }
+      })
+        .then(() => {
+          catalogVersion++;
+        })
+        .catch(() => {
+          // Server-side connection could not be re-established from localStorage.
+          // Clear stale state so the user is prompted to re-enter.
+          connectionUrl = '';
+          authType = 'none';
+          authUsername = '';
+        });
+    } else if (connectionUrl && authType === 'basic') {
+      // Password is not persisted; prompt the user to re-enter credentials.
+      connectionOpen = true;
     }
 
     // Initialise runners from lightweight summaries (rows fetched on demand).
@@ -95,7 +136,32 @@
     getOrCreateQueryRunner(tabStore.activeTabId).fetchResults();
   });
 
+  // Connection form (SuperForms).
+  const {
+    enhance: connectionEnhance,
+    errors: connectionErrors,
+    message: connectionMessage
+  } = superForm(data.connectionForm, {
+    onUpdated({ form }) {
+      const msg = form.message as ConnectionMessage | undefined;
+      if (msg?.type === 'success') {
+        catalogVersion++;
+      } else if (msg?.type === 'error') {
+        connectionOpen = true;
+      }
+    }
+  });
+
   const isActive = $derived(runner.state !== 'IDLE' && !isTerminal(runner.state));
+
+  // Persist connection config to localStorage (only in per-user mode).
+  // Password is intentionally excluded -- credentials should not be stored client-side.
+  $effect(() => {
+    if (!hydrated || data.trinoConfigured) return;
+    localStorage.setItem('trino_url', connectionUrl);
+    localStorage.setItem('trino_auth_type', authType);
+    localStorage.setItem('trino_username', authUsername);
+  });
 
   // Persist settings.
   $effect(() => {
@@ -145,6 +211,12 @@
       setCurrentPage(0);
     }
     prevRowCount = count;
+  });
+
+  const connectionSummary = $derived.by(() => {
+    const host = connectionUrl ? connectionUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : '-';
+    const auth = authType === 'basic' ? m.trino_auth_basic() : m.trino_auth_none();
+    return `${host} \u00b7 ${auth}`;
   });
 
   const totalRows = $derived(runner.rows.length);
@@ -332,6 +404,129 @@
 
   <!-- Main editor + results column -->
   <div class="flex min-w-0 flex-1 flex-col">
+    <!-- Connection config form (hidden when Trino is env-configured) -->
+    {#if !data.trinoConfigured}
+      <form method="POST" action="?/save" use:connectionEnhance class="px-2 pt-1">
+        <input type="hidden" name="connectionUrl" value={connectionUrl} />
+        <input type="hidden" name="authType" value={authType} />
+        <input type="hidden" name="authUsername" value={authUsername} />
+        <input type="hidden" name="authPassword" value={authPassword} />
+
+        <div class="bg-base-100 border-base-300 collapse rounded-xl border">
+          <input
+            type="checkbox"
+            class="peer"
+            aria-label={m.trino_connection_label()}
+            bind:checked={connectionOpen}
+          />
+          <div
+            class="collapse-title text-base-content flex items-center justify-between pr-4 text-sm font-medium"
+          >
+            <span>{m.trino_connection_label()}</span>
+            <span class="text-base-content/50 font-mono text-xs">{connectionSummary}</span>
+          </div>
+          <div class="collapse-content flex flex-col gap-4">
+            <!-- URL -->
+            <div class="flex flex-col gap-1">
+              <label for="{uid}-conn-url" class="label text-sm">
+                {m.trino_connection_url()}
+              </label>
+              <input
+                id="{uid}-conn-url"
+                type="url"
+                class="input input-sm w-full font-mono"
+                class:input-error={$connectionErrors.connectionUrl}
+                placeholder={m.trino_connection_url_placeholder()}
+                bind:value={connectionUrl}
+              />
+              {#if $connectionErrors.connectionUrl}
+                <p class="text-error text-xs">{$connectionErrors.connectionUrl}</p>
+              {/if}
+            </div>
+
+            <!-- Auth type toggle -->
+            <div class="flex flex-col gap-1">
+              <span class="label text-sm">{m.trino_connection_auth()}</span>
+              <div class="join" role="group" aria-label={m.trino_connection_auth()}>
+                <input
+                  id="{uid}-auth-none"
+                  class="join-item btn btn-sm"
+                  type="radio"
+                  name="{uid}-auth"
+                  aria-label={m.trino_auth_none()}
+                  value="none"
+                  bind:group={authType}
+                />
+                <input
+                  id="{uid}-auth-basic"
+                  class="join-item btn btn-sm"
+                  type="radio"
+                  name="{uid}-auth"
+                  aria-label={m.trino_auth_basic()}
+                  value="basic"
+                  bind:group={authType}
+                />
+              </div>
+            </div>
+
+            <!-- Basic auth credentials -->
+            {#if authType === 'basic'}
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div class="flex flex-col gap-1">
+                  <label for="{uid}-auth-username" class="label text-sm">
+                    {m.trino_auth_username()}
+                  </label>
+                  <input
+                    id="{uid}-auth-username"
+                    type="text"
+                    class="input input-sm font-mono"
+                    class:input-error={$connectionErrors.authUsername}
+                    autocomplete="username"
+                    bind:value={authUsername}
+                  />
+                  {#if $connectionErrors.authUsername}
+                    <p class="text-error text-xs">{$connectionErrors.authUsername}</p>
+                  {/if}
+                </div>
+                <div class="flex flex-col gap-1">
+                  <label for="{uid}-auth-password" class="label text-sm">
+                    {m.trino_auth_password()}
+                  </label>
+                  <input
+                    id="{uid}-auth-password"
+                    type="password"
+                    class="input input-sm font-mono"
+                    class:input-error={$connectionErrors.authPassword}
+                    autocomplete="current-password"
+                    bind:value={authPassword}
+                  />
+                  {#if $connectionErrors.authPassword}
+                    <p class="text-error text-xs">{$connectionErrors.authPassword}</p>
+                  {/if}
+                </div>
+              </div>
+            {/if}
+
+            <!-- Save button -->
+            <div class="flex justify-end">
+              <button type="submit" class="btn btn-primary btn-sm">
+                {m.trino_save_connection()}
+              </button>
+            </div>
+
+            {#if $connectionMessage}
+              {@const msg = $connectionMessage as ConnectionMessage}
+              {#if msg.type === 'success'}
+                <p class="text-success text-sm">{m.trino_connection_saved()}</p>
+              {:else}
+                <p class="text-error text-sm">{msg.message}</p>
+              {/if}
+            {/if}
+          </div>
+        </div>
+      </form>
+    {/if}
+
     <!-- Tab bar -->
     <div class="px-2 pt-1">
       <TabBar

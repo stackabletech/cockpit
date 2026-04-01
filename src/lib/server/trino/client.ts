@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { Agent } from 'undici';
 import { logger } from '$lib/server/logging';
+import { getUserTrinoClient, getUserTrinoUrl } from './user-clients.js';
 
 const log = logger.child({ module: 'trino-client' });
 
@@ -123,6 +124,13 @@ export class TrinoClient {
   }
 }
 
+// --- Auth helper ---
+
+/** Build a Basic auth header value from username and password. */
+export function buildBasicAuthHeader(username: string, password: string): string {
+  return 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
+}
+
 // --- Singleton & env config ---
 
 const envModule = await import('$env/dynamic/private').catch(() => null);
@@ -159,7 +167,7 @@ if (trinoConfigured) {
 
   const authorization =
     authType === 'basic' && authUsername && authPassword
-      ? 'Basic ' + Buffer.from(`${authUsername}:${authPassword}`).toString('base64')
+      ? buildBasicAuthHeader(authUsername, authPassword)
       : undefined;
 
   singleton = new TrinoClient({
@@ -174,20 +182,19 @@ if (trinoConfigured) {
   );
 }
 
-/** Returns the singleton TrinoClient. Throws if Trino is not configured. */
-export function getTrinoClient(): TrinoClient {
-  if (!singleton) {
-    throw new Error('Trino is not configured — set STACKABLE_UI_TRINO_URL');
-  }
-  return singleton;
+/**
+ * Returns the TrinoClient for a user. Prefers the ENV-configured singleton;
+ * falls back to the per-user connection. Returns null when neither exists.
+ */
+export function resolveTrinoClient(userId: string): TrinoClient | null {
+  if (singleton) return singleton;
+  return getUserTrinoClient(userId);
 }
 
-/** Returns the configured Trino server URL (for building UI links). */
-export function getTrinoServerUrl(): string {
-  if (!trinoUrl) {
-    throw new Error('Trino is not configured — set STACKABLE_UI_TRINO_URL');
-  }
-  return trinoUrl.replace(/\/+$/, '');
+/** Returns the Trino server URL for a user (for building UI links). */
+export function resolveTrinoServerUrl(userId: string): string | null {
+  if (trinoUrl) return trinoUrl.replace(/\/+$/, '');
+  return getUserTrinoUrl(userId);
 }
 
 // --- Metadata helper ---
@@ -197,10 +204,10 @@ export function getTrinoServerUrl(): string {
  * Used for simple metadata queries (catalog browser).
  */
 export async function trinoMetadataQuery(
+  client: TrinoClient,
   sql: string,
   options: { user: string; catalog?: string; schema?: string }
 ): Promise<{ columns: TrinoColumn[]; rows: unknown[][] }> {
-  const client = getTrinoClient();
   let result = await client.submit(sql, options);
 
   let columns: TrinoColumn[] = result.columns ?? [];
