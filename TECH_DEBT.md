@@ -120,6 +120,14 @@ The query action sends whatever SQL the user provides to the configured connecti
 
 ---
 
+## Testing
+
+### Mobile viewport E2E tests skipped in CI
+
+Mobile viewport tests (393×851, touch-enabled) are excluded from CI runs to reduce resource pressure on GitHub Actions runners (2 vCPU). They still run locally. The long-term fix is to either run mobile tests in a separate scheduled workflow or provision larger CI runners.
+
+---
+
 ## Infrastructure
 
 ### No Content Security Policy headers
