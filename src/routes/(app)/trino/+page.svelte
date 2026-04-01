@@ -919,8 +919,8 @@
                   {#if stmtRowLimitError}
                     <span class="text-warning mt-1 block text-xs">{stmtRowLimitError}</span>
                   {/if}
-                  {#if stmtTotalRows > pageSize}
-                    <div class="flex items-center justify-between pt-2">
+                  <div class="flex items-center justify-between pt-2">
+                    {#if stmtTotalRows > pageSize}
                       <div class="join">
                         <button
                           class="btn btn-xs join-item"
@@ -941,33 +941,35 @@
                           ›
                         </button>
                       </div>
-                      <span class="text-base-content/40 text-xs">
-                        {m.trino_rows_range({
-                          start: stmtRowStart,
-                          end: stmtRowEnd,
-                          total: stmtTotalRows
-                        })}
-                      </span>
-                      <div class="flex items-center gap-2">
-                        <label
-                          for="{uid}-page-size-{idx}"
-                          class="text-base-content/60 text-xs whitespace-nowrap"
-                        >
-                          {m.trino_page_size()}
-                        </label>
-                        <select
-                          id="{uid}-page-size-{idx}"
-                          class="select select-xs"
-                          value={pageSize}
-                          onchange={handlePageSizeChange}
-                        >
-                          {#each ALLOWED_PAGE_SIZES as size (size)}
-                            <option value={size}>{size}</option>
-                          {/each}
-                        </select>
-                      </div>
+                    {:else}
+                      <div></div>
+                    {/if}
+                    <span class="text-base-content/40 text-xs">
+                      {m.trino_rows_range({
+                        start: stmtRowStart,
+                        end: stmtRowEnd,
+                        total: stmtTotalRows
+                      })}
+                    </span>
+                    <div class="flex items-center gap-2">
+                      <label
+                        for="{uid}-page-size-{idx}"
+                        class="text-base-content/60 text-xs whitespace-nowrap"
+                      >
+                        {m.trino_page_size()}
+                      </label>
+                      <select
+                        id="{uid}-page-size-{idx}"
+                        class="select select-xs"
+                        value={pageSize}
+                        onchange={handlePageSizeChange}
+                      >
+                        {#each ALLOWED_PAGE_SIZES as size (size)}
+                          <option value={size}>{size}</option>
+                        {/each}
+                      </select>
                     </div>
-                  {/if}
+                  </div>
                 {:else if result.state === 'FINISHED' && result.columns.length === 0}
                   <p class="text-base-content/40 py-2 text-sm">{m.trino_results_empty()}</p>
                 {/if}

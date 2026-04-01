@@ -8,13 +8,15 @@ test.describe('Trino query editor', () => {
     await setTabSql(page, 'SELECT id, name FROM users');
     await page.goto('/trino');
     await waitForHydration(page);
+    // Focus the editor so the cursor position is set for "Run at cursor".
+    await page.locator('.monaco-editor').first().click();
   });
 
   test('page renders with editor and results sections', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Trino' })).toBeVisible();
     await expect(page.getByText('SQL editor')).toBeVisible();
     await expect(page.getByText('Query results')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Run query' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
     await expect(page.getByText('No results')).toBeVisible();
   });
 
@@ -24,7 +26,7 @@ test.describe('Trino query editor', () => {
   });
 
   test('running a query displays the results table', async ({ page }) => {
-    await page.getByRole('button', { name: 'Run query' }).click();
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
     await waitForQueryComplete(page);
 
     const table = page.getByRole('table', { name: 'Query results' });
@@ -47,8 +49,9 @@ test.describe('Trino query editor', () => {
     await setTabSql(page, 'SHOULD_ERROR');
     await page.goto('/trino');
     await waitForHydration(page);
+    await page.locator('.monaco-editor').first().click();
 
-    await page.getByRole('button', { name: 'Run query' }).click();
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
     await waitForQueryComplete(page);
 
     // Monaco also renders role="alert" nodes for its own accessibility — filter by content.
@@ -61,8 +64,9 @@ test.describe('Trino query editor', () => {
     await setTabSql(page, 'SELECT id, name FROM large_table');
     await page.goto('/trino');
     await waitForHydration(page);
+    await page.locator('.monaco-editor').first().click();
 
-    await page.getByRole('button', { name: 'Run query' }).click();
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
     await waitForQueryComplete(page);
 
     await expect(page.getByText('Rows 1–25 of 30')).toBeVisible();
@@ -85,8 +89,9 @@ test.describe('Trino query editor', () => {
     await setTabSql(page, 'SELECT value FROM nullable_table');
     await page.goto('/trino');
     await waitForHydration(page);
+    await page.locator('.monaco-editor').first().click();
 
-    await page.getByRole('button', { name: 'Run query' }).click();
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
     await waitForQueryComplete(page);
 
     const table = page.getByRole('table');

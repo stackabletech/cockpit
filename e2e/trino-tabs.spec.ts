@@ -113,8 +113,9 @@ test.describe('Trino editor tabs', () => {
     await page.goto('/trino');
     await waitForHydration(page);
 
-    // Run query on first tab.
-    await page.getByRole('button', { name: 'Run query' }).click();
+    // Focus editor and run query on first tab.
+    await page.locator('.monaco-editor').first().click();
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
     await waitForQueryComplete(page);
 
     // Results should be visible.
