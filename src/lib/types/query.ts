@@ -35,13 +35,13 @@ export function isTerminal(state: QueryState): boolean {
 
 /** A single query result — used both as the server wire format and client-side result. */
 export interface QuerySnapshot {
-  sql: string;
+  trinoQueryUrl: string | null;
   state: QueryState;
   progress: QueryProgress;
   columns: Column[];
   rows: unknown[][];
   error: string | null;
-  trinoQueryUrl: string | null;
+  sql: string;
   startedAt: number;
 }
 
