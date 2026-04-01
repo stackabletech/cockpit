@@ -133,24 +133,19 @@ export async function resetTabQueries(userId: string, tabId: string): Promise<vo
   tabMap.set(tabId, []);
 }
 
-export async function startQuery(
+/** Submit a single SQL statement to Trino and store the TrinoQuery. */
+async function submitStatement(
   client: TrinoClient,
   userId: string,
   tabId: string,
   sql: string,
   options: { user: string; catalog?: string; schema?: string }
-): Promise<string> {
-  // Cancel existing active query for this tab (but keep completed results).
-  await cancelActiveTabQuery(userId, tabId);
-
-  // Trino's REST API rejects SQL ending with a semicolon.
-  const sanitisedSql = sql.replace(/;\s*$/, '').trim();
-
+): Promise<TrinoQuery> {
   log.info({ user_id: userId, tab_id: tabId }, 'submitting query');
   trinoQueryTotal.inc({ outcome: 'submitted' });
   let submitResult;
   try {
-    submitResult = await client.submit(sanitisedSql, options);
+    submitResult = await client.submit(sql, options);
   } catch (err) {
     trinoQueryTotal.inc({ outcome: 'failed' });
     throw err;
@@ -168,7 +163,7 @@ export async function startQuery(
     columns: submitResult.columns ?? [],
     rows: submitResult.data ?? [],
     error: null,
-    sql: sanitisedSql,
+    sql,
     startedAt: Date.now(),
     nextUri: submitResult.nextUri,
     client,
@@ -187,32 +182,71 @@ export async function startQuery(
   queries.push(query);
   tabMap.set(tabId, queries);
 
-  if (!isTerminal(query.state) && query.nextUri) {
-    trinoActiveQueries.inc();
-    // Fire-and-forget — the poll loop runs independently.
-    collectResults(query).catch((err) => {
-      log.error({ err, trino_query_id: trinoQueryId }, 'poll loop crashed');
-      // Skip if already terminated by cancelQuery during the poll.
-      if (!isTerminal(query.state)) {
-        query.error = 'Internal poll error';
-        terminateQuery(query, 'FAILED');
-        trinoQueryTotal.inc({ outcome: 'failed' });
-      }
-    });
-  } else if (!isTerminal(query.state)) {
-    // No more pages — query already complete.
-    terminateQuery(query, 'FINISHED', { decrementGauge: false });
-    trinoQueryTotal.inc({ outcome: 'completed' });
-  }
-
   log.info({ trino_query_id: trinoQueryId, user_id: userId, tab_id: tabId }, 'query started');
-  return trinoQueryId;
+  return query;
+}
+
+/**
+ * Submit and sequentially execute an array of SQL statements.
+ * Runs in the background (fire-and-forget from the POST handler).
+ * Stops on first failure, cancellation, or submit error.
+ */
+export async function startScript(
+  client: TrinoClient,
+  userId: string,
+  tabId: string,
+  statements: string[],
+  options: { user: string; catalog?: string; schema?: string }
+): Promise<void> {
+  await resetTabQueries(userId, tabId);
+
+  log.info(
+    { user_id: userId, tab_id: tabId, statement_count: statements.length },
+    'starting script execution'
+  );
+
+  for (const sql of statements) {
+    let query: TrinoQuery;
+    try {
+      query = await submitStatement(client, userId, tabId, sql, options);
+    } catch (err) {
+      log.error({ err, user_id: userId, tab_id: tabId }, 'failed to submit statement in script');
+      break;
+    }
+
+    if (!isTerminal(query.state) && query.nextUri) {
+      trinoActiveQueries.inc();
+      try {
+        await collectResults(query);
+      } catch (err) {
+        log.error({ err, trino_query_id: query.trinoQueryId }, 'poll loop crashed');
+        if (!isTerminal(query.state)) {
+          query.error = 'Internal poll error';
+          terminateQuery(query, 'FAILED');
+          trinoQueryTotal.inc({ outcome: 'failed' });
+        }
+      }
+    } else if (!isTerminal(query.state)) {
+      terminateQuery(query, 'FINISHED', { decrementGauge: false });
+      trinoQueryTotal.inc({ outcome: 'completed' });
+    }
+
+    if (query.state !== 'FINISHED') break;
+  }
 }
 
 /** Returns snapshots for all queries in a tab (completed + active). */
-export function getQuerySnapshots(userId: string, tabId: string): QuerySnapshot[] {
+export function getQuerySnapshots(
+  userId: string,
+  tabId: string,
+  lightweight = false
+): QuerySnapshot[] {
   const trinoServerUrl = resolveTrinoServerUrl(userId);
-  return getTabQueries(userId, tabId).map((q) => buildSnapshot(q, trinoServerUrl));
+  return getTabQueries(userId, tabId).map((q, i, arr) => {
+    // In lightweight mode, omit rows/columns for completed queries to keep polling payloads small.
+    const isLast = i === arr.length - 1;
+    return buildSnapshot(q, trinoServerUrl, lightweight && !isLast);
+  });
 }
 
 /** Lightweight summaries without rows/columns — used for SSR to keep the payload small. */

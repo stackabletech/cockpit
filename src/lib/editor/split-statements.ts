@@ -25,6 +25,8 @@ export function splitStatements(sql: string): SqlStatement[] {
 
   const statements: SqlStatement[] = [];
   let segmentStart = 0;
+  // Track BEGIN…END nesting so semicolons inside compound statements
+  // (e.g. BEGIN INSERT …; INSERT …; END) are not treated as separators.
   let depth = 0;
 
   let token = lexer.nextToken();
@@ -34,6 +36,8 @@ export function splitStatements(sql: string): SqlStatement[] {
     } else if (token.type === SqlBaseLexer.END && depth > 0) {
       depth--;
     } else if (token.type === SqlBaseLexer.SEMICOLON && depth === 0) {
+      // Extract the text between the previous split point and this semicolon,
+      // trimmed to get clean offsets without surrounding whitespace.
       const raw = sql.substring(segmentStart, token.start).trim();
       if (raw.length > 0) {
         const offset = sql.indexOf(raw, segmentStart);
@@ -69,20 +73,19 @@ export function getStatementAtOffset(sql: string, offset: number): SqlStatement 
   }
 
   // If cursor is between statements (on whitespace/semicolons), return the
-  // closest preceding statement, or the next one if at the very start.
-  let closest: SqlStatement | null = null;
+  // next upcoming statement so the user targets what they're about to type.
   for (const stmt of statements) {
-    if (stmt.endOffset <= offset) {
-      closest = stmt;
+    if (stmt.offset >= offset) {
+      return stmt;
     }
   }
 
-  return closest ?? statements[0] ?? null;
+  // Past all statements — fall back to the last one.
+  return statements[statements.length - 1] ?? null;
 }
 
 /**
  * Returns all statements that overlap the given selection range.
- * Statements are returned in full (not clamped to the selection).
  */
 export function getStatementsInRange(
   sql: string,

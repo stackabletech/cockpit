@@ -38,9 +38,8 @@ export const ConnectionSchema = z
 export type ConnectionMessage = { type: 'success' } | { type: 'error'; message: string };
 
 export const StatementRequestSchema = z.object({
-  sql: z.string().min(1),
+  statements: z.array(z.string().min(1)).min(1),
   tabId: TabIdSchema,
   catalog: z.string().optional(),
-  schema: z.string().optional(),
-  reset: z.boolean().optional()
+  schema: z.string().optional()
 });
