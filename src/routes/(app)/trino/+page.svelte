@@ -1,14 +1,19 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
+  import { SvelteMap } from 'svelte/reactivity';
   import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import Modal from '$lib/components/Modal.svelte';
-  import type { PageData } from './$types';
-  import { queryRunner } from './query-runner.svelte.js';
-  import { ALLOWED_PAGE_SIZES } from './validation';
+  import { superForm } from 'sveltekit-superforms';
+  import type { ConnectionMessage } from './validation.js';
+  import TabBar from '$lib/components/TabBar.svelte';
+  import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
+  import { getOrCreateQueryRunner, destroyQueryRunner } from './query-runner.svelte.js';
   import { isTerminal } from '$lib/types/query';
+  import type { PageData } from './$types';
+  import { ALLOWED_PAGE_SIZES, isPageSize, type PageSize } from './validation';
 
   let { data }: { data: PageData } = $props();
 
@@ -22,11 +27,18 @@
     }
   }
 
-  let sql = $state('SELECT 1');
-  let pageSize = $state<25 | 50 | 100>(25);
+  // Connection config - local state persisted to localStorage.
+  let connectionUrl = $state('');
+  let authType = $state<'none' | 'basic'>('none');
+  let authUsername = $state('');
+  let authPassword = $state('');
+  let connectionOpen = $state(false);
+
+  let sql = $state(tabStore.activeTab.sql);
+  let pageSize = $state<PageSize>(25);
   let defaultCatalog = $state('');
   let defaultSchema = $state('');
-  let currentPage = $state(0);
+  let currentPages = new SvelteMap<string, number>();
   let hydrated = $state(false);
 
   // Signal to trigger catalog browser load (1 = load on mount).
@@ -47,49 +59,169 @@
   let monacoEditor = $state<MonacoEditor | undefined>(undefined);
   let mobileCatalogOpen = $state(false);
 
+  const viewStates = new SvelteMap<
+    string,
+    import('monaco-editor').editor.ICodeEditorViewState | null
+  >();
+
+  // Non-reactive tracker for tab switching.
+  let lastTabId: string | null = null;
+
+  // Get current page for active tab.
+  const currentPage = $derived(currentPages.get(tabStore.activeTabId) ?? 0);
+
+  function setCurrentPage(page: number) {
+    currentPages.set(tabStore.activeTabId, page);
+  }
+
+  // Get the query runner for the active tab.
+  const runner = $derived(getOrCreateQueryRunner(tabStore.activeTabId));
+
+  // Tab bar items derived from tab store.
+  const tabItems = $derived(
+    tabStore.tabs.map((t) => ({
+      id: t.id,
+      label: tabStore.getTabLabel(t)
+    }))
+  );
+
   onMount(() => {
-    sql = getStoredValue('trino_sql', 'SELECT 1');
+    if (!data.trinoConfigured) {
+      connectionUrl = getStoredValue('trino_url', '');
+      authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
+      authUsername = getStoredValue('trino_username', '');
+    }
     defaultCatalog = getStoredValue('trino_default_catalog', '');
     defaultSchema = getStoredValue('trino_default_schema', '');
     const storedPageSize = parseInt(getStoredValue('trino_page_size', '25'), 10);
-    pageSize = ALLOWED_PAGE_SIZES.includes(storedPageSize as 25 | 50 | 100)
-      ? (storedPageSize as 25 | 50 | 100)
-      : 25;
+    pageSize = isPageSize(storedPageSize) ? storedPageSize : 25;
     hydrated = true;
+    lastTabId = tabStore.activeTabId;
 
-    if (data.trinoConfigured) {
+    if (data.trinoConfigured || data.userClientExists) {
+      // Server already has a connection (env-based or per-user); load catalogues.
       catalogVersion++;
+    } else if (connectionUrl && authType === 'none') {
+      // Re-establish server-side connection from localStorage on page reload.
+      // Only possible for unauthenticated connections since the password is not persisted.
+      const body = new FormData();
+      body.set('connectionUrl', connectionUrl);
+      body.set('authType', authType);
+      body.set('authUsername', '');
+      body.set('authPassword', '');
+      fetch('?/save', {
+        method: 'POST',
+        body,
+        headers: { 'x-sveltekit-action': 'true' }
+      })
+        .then(() => {
+          catalogVersion++;
+        })
+        .catch(() => {
+          // Server-side connection could not be re-established from localStorage.
+          // Clear stale state so the user is prompted to re-enter.
+          connectionUrl = '';
+          authType = 'none';
+          authUsername = '';
+        });
+    } else if (connectionUrl && authType === 'basic') {
+      // Password is not persisted; prompt the user to re-enter credentials.
+      connectionOpen = true;
     }
 
-    // Resume active query from server-side state (survives page reloads).
-    queryRunner.initialise(data.activeQuery);
+    // Initialise runners from lightweight summaries (rows fetched on demand).
+    for (const [tabId, snapshot] of Object.entries(data.activeQueries)) {
+      getOrCreateQueryRunner(tabId).initialise(snapshot);
+    }
+    getOrCreateQueryRunner(tabStore.activeTabId).fetchResults();
   });
 
-  const isActive = $derived(queryRunner.state !== 'IDLE' && !isTerminal(queryRunner.state));
+  // Connection form (SuperForms).
+  const {
+    enhance: connectionEnhance,
+    errors: connectionErrors,
+    message: connectionMessage
+  } = superForm(data.connectionForm, {
+    onUpdated({ form }) {
+      const msg = form.message as ConnectionMessage | undefined;
+      if (msg?.type === 'success') {
+        catalogVersion++;
+      } else if (msg?.type === 'error') {
+        connectionOpen = true;
+      }
+    }
+  });
 
-  // Persist SQL and other settings.
+  const isActive = $derived(runner.state !== 'IDLE' && !isTerminal(runner.state));
+
+  // Persist connection config to localStorage (only in per-user mode).
+  // Password is intentionally excluded -- credentials should not be stored client-side.
+  $effect(() => {
+    if (!hydrated || data.trinoConfigured) return;
+    localStorage.setItem('trino_url', connectionUrl);
+    localStorage.setItem('trino_auth_type', authType);
+    localStorage.setItem('trino_username', authUsername);
+  });
+
+  // Persist settings.
   $effect(() => {
     if (!hydrated) return;
-    localStorage.setItem('trino_sql', sql);
     localStorage.setItem('trino_page_size', String(pageSize));
     localStorage.setItem('trino_default_catalog', defaultCatalog);
     localStorage.setItem('trino_default_schema', defaultSchema);
     localStorage.setItem('trino_catalog_browser_open', String(catalogBrowserOpen));
   });
 
-  // Reset pagination when rows change.
+  // Handle tab switches: save/restore Monaco view state.
+  $effect(() => {
+    const currentTabId = tabStore.activeTabId;
+    // Only read activeTabId reactively; use untrack for the rest.
+    untrack(() => {
+      if (lastTabId && lastTabId !== currentTabId && monacoEditor) {
+        viewStates.set(lastTabId, monacoEditor.getViewState());
+      }
+
+      if (monacoEditor && currentTabId) {
+        const tab = tabStore.activeTab;
+        monacoEditor.setValue(tab.sql);
+        sql = tab.sql;
+        const savedState = viewStates.get(currentTabId) ?? null;
+        monacoEditor.restoreViewState(savedState);
+      }
+
+      lastTabId = currentTabId;
+      getOrCreateQueryRunner(currentTabId).fetchResults();
+    });
+  });
+
+  // Sync Monaco content changes back to the tab store.
+  $effect(() => {
+    if (!hydrated) return;
+    // Read sql reactively to trigger on changes; untrack the store call
+    // to avoid re-running when activeTabId changes.
+    const value = sql;
+    untrack(() => tabStore.updateSql(tabStore.activeTabId, value));
+  });
+
+  // Reset pagination when rows change for the active runner.
   let prevRowCount = $state(0);
   $effect(() => {
-    const count = queryRunner.rows.length;
+    const count = runner.rows.length;
     if (count !== prevRowCount && count > 0 && prevRowCount === 0) {
-      currentPage = 0;
+      setCurrentPage(0);
     }
     prevRowCount = count;
   });
 
-  const totalRows = $derived(queryRunner.rows.length);
+  const connectionSummary = $derived.by(() => {
+    const host = connectionUrl ? connectionUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : '-';
+    const auth = authType === 'basic' ? m.trino_auth_basic() : m.trino_auth_none();
+    return `${host} \u00b7 ${auth}`;
+  });
+
+  const totalRows = $derived(runner.rows.length);
   const displayedRows = $derived(
-    queryRunner.rows.slice(currentPage * pageSize, (currentPage + 1) * pageSize)
+    runner.rows.slice(currentPage * pageSize, (currentPage + 1) * pageSize)
   );
   const hasMore = $derived((currentPage + 1) * pageSize < totalRows);
   const rowStart = $derived(currentPage * pageSize + 1);
@@ -106,11 +238,11 @@
       FAILED: m.trino_state_failed,
       CANCELLED: m.trino_state_cancelled
     };
-    return stateMap[queryRunner.state]?.() ?? null;
+    return stateMap[runner.state]?.() ?? null;
   });
 
   const stateBadgeClass = $derived.by(() => {
-    switch (queryRunner.state) {
+    switch (runner.state) {
       case 'QUEUED':
       case 'PLANNING':
         return 'badge-warning';
@@ -129,23 +261,25 @@
     }
   });
 
+  const charLimitReached = $derived(sql.length >= MAX_SQL_LENGTH);
+
   const rowLimitError = $derived.by(() => {
-    if (queryRunner.error?.startsWith('ROW_LIMIT:')) {
-      const limit = queryRunner.error.split(':')[1];
+    if (runner.error?.startsWith('ROW_LIMIT:')) {
+      const limit = runner.error.split(':')[1];
       return m.trino_row_limit_reached({ limit });
     }
     return null;
   });
 
   const queryError = $derived.by(() => {
-    if (!queryRunner.error) return null;
-    if (queryRunner.error.startsWith('ROW_LIMIT:')) return null;
-    return queryRunner.error;
+    if (!runner.error) return null;
+    if (runner.error.startsWith('ROW_LIMIT:')) return null;
+    return runner.error;
   });
 
   function handleExecute() {
-    currentPage = 0;
-    queryRunner.execute(sql, {
+    setCurrentPage(0);
+    runner.execute(sql, {
       catalog: defaultCatalog || undefined,
       schema: defaultSchema || undefined
     });
@@ -158,16 +292,17 @@
   }
 
   function goToPrevPage() {
-    currentPage = Math.max(0, currentPage - 1);
+    setCurrentPage(Math.max(0, currentPage - 1));
   }
 
   function goToNextPage() {
-    if (hasMore) currentPage += 1;
+    if (hasMore) setCurrentPage(currentPage + 1);
   }
 
   function handlePageSizeChange(event: Event) {
-    pageSize = parseInt((event.target as HTMLSelectElement).value, 10) as 25 | 50 | 100;
-    currentPage = 0;
+    const n = parseInt((event.target as HTMLSelectElement).value, 10);
+    if (isPageSize(n)) pageSize = n;
+    setCurrentPage(0);
   }
 
   function toggleCatalogBrowser() {
@@ -176,6 +311,31 @@
     } else {
       catalogBrowserOpen = !catalogBrowserOpen;
     }
+  }
+
+  function handleTabSelect(id: string) {
+    tabStore.switchTab(id);
+  }
+
+  function handleTabClose(id: string) {
+    destroyQueryRunner(id);
+    viewStates.delete(id);
+    currentPages.delete(id);
+    tabStore.closeTab(id);
+    // Clean up server-side query state for this tab.
+    fetch(`/trino/query?tabId=${encodeURIComponent(id)}&cleanup=true`, { method: 'DELETE' });
+  }
+
+  function handleTabAdd() {
+    tabStore.createTab();
+  }
+
+  function handleTabRename(id: string, newLabel: string) {
+    tabStore.renameTab(id, newLabel);
+  }
+
+  function handleTabReorder(from: number, to: number) {
+    tabStore.reorderTabs(from, to);
   }
 </script>
 
@@ -243,9 +403,159 @@
   </Modal>
 
   <!-- Main editor + results column -->
-  <div class="flex min-w-0 flex-1 flex-col gap-4">
-    <!-- Editor section -->
-    <div class="bg-base-100 border-base-300 flex flex-col rounded-xl border">
+  <div class="flex min-w-0 flex-1 flex-col">
+    <!-- Connection config form (hidden when Trino is env-configured) -->
+    {#if !data.trinoConfigured}
+      <form method="POST" action="?/save" use:connectionEnhance class="px-2 pt-1">
+        <input type="hidden" name="connectionUrl" value={connectionUrl} />
+        <input type="hidden" name="authType" value={authType} />
+        <input type="hidden" name="authUsername" value={authUsername} />
+        <input type="hidden" name="authPassword" value={authPassword} />
+
+        <div class="bg-base-100 border-base-300 collapse rounded-xl border">
+          <input
+            type="checkbox"
+            class="peer"
+            aria-label={m.trino_connection_label()}
+            bind:checked={connectionOpen}
+          />
+          <div
+            class="collapse-title text-base-content flex items-center justify-between pr-4 text-sm font-medium"
+          >
+            <span>{m.trino_connection_label()}</span>
+            <span class="text-base-content/50 font-mono text-xs">{connectionSummary}</span>
+          </div>
+          <div class="collapse-content flex flex-col gap-4">
+            <!-- URL -->
+            <div class="flex flex-col gap-1">
+              <label for="{uid}-conn-url" class="label text-sm">
+                {m.trino_connection_url()}
+              </label>
+              <input
+                id="{uid}-conn-url"
+                type="url"
+                class="input input-sm w-full font-mono"
+                class:input-error={$connectionErrors.connectionUrl}
+                placeholder={m.trino_connection_url_placeholder()}
+                bind:value={connectionUrl}
+              />
+              {#if $connectionErrors.connectionUrl}
+                <p class="text-error text-xs">{$connectionErrors.connectionUrl}</p>
+              {/if}
+            </div>
+
+            <!-- Auth type toggle -->
+            <div class="flex flex-col gap-1">
+              <span class="label text-sm">{m.trino_connection_auth()}</span>
+              <div class="join" role="group" aria-label={m.trino_connection_auth()}>
+                <input
+                  id="{uid}-auth-none"
+                  class="join-item btn btn-sm"
+                  type="radio"
+                  name="{uid}-auth"
+                  aria-label={m.trino_auth_none()}
+                  value="none"
+                  bind:group={authType}
+                />
+                <input
+                  id="{uid}-auth-basic"
+                  class="join-item btn btn-sm"
+                  type="radio"
+                  name="{uid}-auth"
+                  aria-label={m.trino_auth_basic()}
+                  value="basic"
+                  bind:group={authType}
+                />
+              </div>
+            </div>
+
+            <!-- Basic auth credentials -->
+            {#if authType === 'basic'}
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div class="flex flex-col gap-1">
+                  <label for="{uid}-auth-username" class="label text-sm">
+                    {m.trino_auth_username()}
+                  </label>
+                  <input
+                    id="{uid}-auth-username"
+                    type="text"
+                    class="input input-sm font-mono"
+                    class:input-error={$connectionErrors.authUsername}
+                    autocomplete="username"
+                    bind:value={authUsername}
+                  />
+                  {#if $connectionErrors.authUsername}
+                    <p class="text-error text-xs">{$connectionErrors.authUsername}</p>
+                  {/if}
+                </div>
+                <div class="flex flex-col gap-1">
+                  <label for="{uid}-auth-password" class="label text-sm">
+                    {m.trino_auth_password()}
+                  </label>
+                  <input
+                    id="{uid}-auth-password"
+                    type="password"
+                    class="input input-sm font-mono"
+                    class:input-error={$connectionErrors.authPassword}
+                    autocomplete="current-password"
+                    bind:value={authPassword}
+                  />
+                  {#if $connectionErrors.authPassword}
+                    <p class="text-error text-xs">{$connectionErrors.authPassword}</p>
+                  {/if}
+                </div>
+              </div>
+            {/if}
+
+            <!-- Save button -->
+            <div class="flex justify-end">
+              <button type="submit" class="btn btn-primary btn-sm">
+                {m.trino_save_connection()}
+              </button>
+            </div>
+
+            {#if $connectionMessage}
+              {@const msg = $connectionMessage as ConnectionMessage}
+              {#if msg.type === 'success'}
+                <p class="text-success text-sm">{m.trino_connection_saved()}</p>
+              {:else}
+                <p class="text-error text-sm">{msg.message}</p>
+              {/if}
+            {/if}
+          </div>
+        </div>
+      </form>
+    {/if}
+
+    <!-- Tab bar -->
+    <div class="px-2 pt-1">
+      <TabBar
+        items={tabItems}
+        activeId={tabStore.activeTabId}
+        onSelect={handleTabSelect}
+        onClose={handleTabClose}
+        onAdd={handleTabAdd}
+        onRename={handleTabRename}
+        onReorder={handleTabReorder}
+        maxItems={tabStore.maxTabs}
+      />
+    </div>
+
+    <!-- Persistence warning -->
+    {#if tabStore.persistError}
+      <div class="px-2" role="alert">
+        <div class="alert alert-warning text-sm">
+          {m.trino_tabs_persist_error()}
+        </div>
+      </div>
+    {/if}
+
+    <!-- Content card (editor + status + results) -->
+    <div
+      class="bg-base-100 border-base-300 flex min-h-0 flex-1 flex-col rounded-t-none rounded-b-xl border"
+      role="tabpanel"
+      aria-labelledby="tab-{tabStore.activeTabId}"
+    >
       <div class="border-base-300 flex items-center justify-between border-b px-4 py-2">
         <div class="flex items-center gap-2">
           <div class="tooltip tooltip-right" data-tip={m.trino_catalog_browser_toggle()}>
@@ -297,13 +607,18 @@
             </button>
           </div>
           <span class="text-base-content/60 text-sm font-medium">{m.trino_editor_label()}</span>
+          {#if charLimitReached}
+            <span class="text-warning text-xs" role="status"
+              >{m.trino_editor_char_limit_reached({ limit: MAX_SQL_LENGTH.toLocaleString() })}</span
+            >
+          {/if}
         </div>
         <div class="flex gap-2">
           {#if isActive}
             <button
               type="button"
               class="btn btn-error btn-sm"
-              onclick={() => queryRunner.cancel()}
+              onclick={() => runner.cancel()}
               aria-label={m.trino_cancel_query()}
             >
               {m.trino_cancel_query()}
@@ -326,61 +641,59 @@
           </button>
         </div>
       </div>
-      <div class="h-64">
+      <div class="h-64 px-4 py-2">
         <MonacoEditor bind:this={monacoEditor} bind:value={sql} onExecute={handleExecute} />
       </div>
-    </div>
 
-    <!-- Status display -->
-    {#if queryRunner.state !== 'IDLE'}
-      <div
-        class="flex flex-wrap items-center gap-3 px-1"
-        aria-live="polite"
-        data-query-state={queryRunner.state}
-      >
-        {#if stateLabel}
-          <span class="badge {stateBadgeClass}">{stateLabel}</span>
-        {/if}
-        {#if queryRunner.state === 'RUNNING'}
-          <span class="text-base-content/60 text-xs tabular-nums"
-            >{Math.round(queryRunner.progress.progressPercentage)}%</span
-          >
-          <progress
-            class="progress progress-primary shrink-0"
-            style="width: 8rem"
-            value={queryRunner.progress.progressPercentage}
-            max="100"
-          ></progress>
-        {/if}
-        {#if queryRunner.progress.processedRows > 0 || queryRunner.progress.elapsedTimeMillis > 0}
-          <span class="text-base-content/60 text-xs">
-            {m.trino_progress_info({
-              rows: queryRunner.progress.processedRows.toLocaleString(),
-              elapsed: (queryRunner.progress.elapsedTimeMillis / 1000).toFixed(1)
-            })}
-          </span>
-        {/if}
-        {#if queryRunner.trinoQueryUrl}
-          <a
-            href={queryRunner.trinoQueryUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="link link-primary text-xs"
-          >
-            {m.trino_view_in_trino()}
-          </a>
-        {/if}
-        {#if rowLimitError}
-          <span class="text-warning text-xs">{rowLimitError}</span>
-        {/if}
-      </div>
-    {/if}
+      <!-- Status display -->
+      {#if runner.state !== 'IDLE'}
+        <div
+          class="border-base-300 flex flex-wrap items-center gap-3 border-t px-4 py-2"
+          aria-live="polite"
+          data-query-state={runner.state}
+        >
+          {#if stateLabel}
+            <span class="badge {stateBadgeClass}">{stateLabel}</span>
+          {/if}
+          {#if runner.state === 'RUNNING'}
+            <span class="text-base-content/60 text-xs tabular-nums"
+              >{Math.round(runner.progress.progressPercentage)}%</span
+            >
+            <progress
+              class="progress progress-primary shrink-0"
+              style="width: 8rem"
+              value={runner.progress.progressPercentage}
+              max="100"
+            ></progress>
+          {/if}
+          {#if runner.progress.processedRows > 0 || runner.progress.elapsedTimeMillis > 0}
+            <span class="text-base-content/60 text-xs">
+              {m.trino_progress_info({
+                rows: runner.progress.processedRows.toLocaleString(),
+                elapsed: (runner.progress.elapsedTimeMillis / 1000).toFixed(1)
+              })}
+            </span>
+          {/if}
+          {#if runner.trinoQueryUrl}
+            <a
+              href={runner.trinoQueryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="link link-primary text-xs"
+            >
+              {m.trino_view_in_trino()}
+            </a>
+          {/if}
+          {#if rowLimitError}
+            <span class="text-warning text-xs">{rowLimitError}</span>
+          {/if}
+        </div>
+      {/if}
 
-    <!-- Results section -->
-    <div class="bg-base-100 border-base-300 flex min-h-0 flex-1 flex-col rounded-xl border">
-      <div class="border-base-300 flex items-center border-b px-4 py-2">
+      <!-- Results section -->
+      <div class="border-base-300 flex items-center border-t px-4 py-2">
         <span class="text-base-content/60 text-sm font-medium">{m.trino_results_label()}</span>
-        {#if queryRunner.state === 'FINISHED' && displayedRows.length > 0 && totalRows > 0}
+        {#if runner.state === 'FINISHED' && displayedRows.length > 0 && totalRows > 0}
           <span class="text-base-content/40 ml-2 text-xs">
             {m.trino_rows_range({ start: rowStart, end: rowEnd, total: totalRows })}
           </span>
@@ -394,12 +707,12 @@
             <pre
               class="bg-base-200 text-base-content overflow-x-auto rounded-lg p-3 text-xs whitespace-pre-wrap">{queryError}</pre>
           </div>
-        {:else if queryRunner.state === 'FINISHED' && queryRunner.columns.length > 0}
+        {:else if runner.state === 'FINISHED' && runner.columns.length > 0}
           <div class="overflow-x-auto">
             <table class="table-sm table-zebra table" aria-label={m.trino_results_label()}>
               <thead>
                 <tr>
-                  {#each queryRunner.columns as col (col.name)}
+                  {#each runner.columns as col (col.name)}
                     <th scope="col" class="whitespace-nowrap">{col.name}</th>
                   {/each}
                 </tr>
@@ -426,7 +739,7 @@
         {/if}
       </div>
 
-      {#if queryRunner.state === 'FINISHED' && queryRunner.columns.length > 0}
+      {#if runner.state === 'FINISHED' && runner.columns.length > 0}
         <div class="border-base-300 flex items-center justify-between border-t px-4 py-3">
           <div class="join">
             <button

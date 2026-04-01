@@ -1,15 +1,23 @@
 import { json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { getUserId } from '$lib/server/auth-utils.js';
-import { startQuery, getQuerySnapshot, cancelQuery } from '$lib/server/trino/queries.js';
-import { trinoConfigured } from '$lib/server/trino/client.js';
-import { StatementRequestSchema } from '../validation.js';
+import {
+  startQuery,
+  getQuerySnapshot,
+  cancelQuery,
+  removeTabQuery
+} from '$lib/server/trino/queries.js';
+import { resolveTrinoClient } from '$lib/server/trino/client.js';
+import { StatementRequestSchema, TabIdSchema } from '../validation.js';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   const log = locals.logger;
 
-  if (!trinoConfigured) {
+  const userId = getUserId(locals);
+  const client = resolveTrinoClient(userId);
+
+  if (!client) {
     return json({ error: 'No Trino connection configured' }, { status: 400 });
   }
 
@@ -25,16 +33,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     return json({ error: z.prettifyError(parsed.error) }, { status: 400 });
   }
 
-  const userId = getUserId(locals);
   const user = locals.user?.username ?? 'anonymous';
 
   try {
-    await startQuery(userId, parsed.data.sql, {
+    await startQuery(client, userId, parsed.data.tabId, parsed.data.sql, {
       user,
       catalog: parsed.data.catalog,
       schema: parsed.data.schema
     });
-    log.info({ user_id: userId }, 'query submitted');
+    log.info({ user_id: userId, tab_id: parsed.data.tabId }, 'query submitted');
     return new Response(null, { status: 204 });
   } catch (err) {
     log.error({ err }, 'failed to submit query');
@@ -43,26 +50,38 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   }
 };
 
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
   const log = locals.logger;
   const userId = getUserId(locals);
-  const snapshot = getQuerySnapshot(userId);
+  const parsed = TabIdSchema.safeParse(url.searchParams.get('tabId'));
+  if (!parsed.success) {
+    return json({ error: 'Missing or invalid tabId parameter' }, { status: 400 });
+  }
 
-  log.trace({ user_id: userId, found: !!snapshot }, 'status poll');
+  const snapshot = getQuerySnapshot(userId, parsed.data);
+
+  log.trace({ user_id: userId, tab_id: parsed.data, found: !!snapshot }, 'status poll');
 
   if (!snapshot) return json(null);
   return json(snapshot);
 };
 
-export const DELETE: RequestHandler = async ({ locals }) => {
+export const DELETE: RequestHandler = async ({ url, locals }) => {
   const log = locals.logger;
   const userId = getUserId(locals);
+  const parsed = TabIdSchema.safeParse(url.searchParams.get('tabId'));
+  if (!parsed.success) {
+    return json({ error: 'Missing or invalid tabId parameter' }, { status: 400 });
+  }
 
-  log.info({ user_id: userId }, 'cancel request received');
+  const tabId = parsed.data;
+  const cleanup = url.searchParams.get('cleanup') === 'true';
 
-  const cancelled = await cancelQuery(userId);
-  if (!cancelled) {
-    return json({ error: 'No active query to cancel' }, { status: 404 });
+  log.info({ user_id: userId, tab_id: tabId, cleanup }, 'delete request received');
+
+  await cancelQuery(userId, tabId);
+  if (cleanup) {
+    removeTabQuery(userId, tabId);
   }
 
   return new Response(null, { status: 204 });
