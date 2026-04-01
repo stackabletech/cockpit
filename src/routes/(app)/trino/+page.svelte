@@ -266,11 +266,7 @@
   function runStatements(statements: SqlStatement[]) {
     if (statements.length === 0) return;
     setCurrentPage(0);
-    if (statements.length === 1) {
-      runner.execute(statements[0].sql, execOptions);
-    } else {
-      runner.executeScript(statements, execOptions);
-    }
+    runner.executeScript(statements, execOptions);
   }
 
   /** Ctrl+Enter: run the single statement at the cursor. */

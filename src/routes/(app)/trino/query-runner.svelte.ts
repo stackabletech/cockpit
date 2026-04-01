@@ -16,7 +16,6 @@ export interface QueryRunner {
   readonly progress: QueryProgress;
   readonly results: QuerySnapshot[];
   readonly scriptProgress: ScriptProgress | null;
-  execute: (sql: string, options?: { catalog?: string; schema?: string }) => Promise<void>;
   executeScript: (
     statements: SqlStatement[],
     options?: { catalog?: string; schema?: string }
@@ -204,10 +203,6 @@ function createQueryRunner(tabId: string): QueryRunner {
     }
   }
 
-  async function execute(sql: string, options?: { catalog?: string; schema?: string }) {
-    await submitStatements([sql], options);
-  }
-
   async function executeScript(
     statements: SqlStatement[],
     options?: { catalog?: string; schema?: string }
@@ -259,7 +254,6 @@ function createQueryRunner(tabId: string): QueryRunner {
     get scriptProgress() {
       return scriptProgress;
     },
-    execute,
     executeScript,
     cancel,
     reset,
