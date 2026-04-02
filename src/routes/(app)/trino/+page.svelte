@@ -7,7 +7,7 @@
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { superForm } from 'sveltekit-superforms';
-  import type { ConnectionMessage } from './validation.js';
+  import { ConnectionSchema, type ConnectionMessage } from './validation.js';
   import TabBar from '$lib/components/TabBar.svelte';
   import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
   import { getOrCreateQueryRunner, destroyQueryRunner } from './query-runner.svelte.js';
@@ -137,6 +137,28 @@
     errors: connectionErrors,
     message: connectionMessage
   } = superForm(data.connectionForm, {
+    onSubmit({ cancel }) {
+      const result = ConnectionSchema.safeParse({
+        connectionUrl,
+        authType,
+        authUsername,
+        authPassword
+      });
+      if (!result.success) {
+        const errors: Record<string, string[]> = {};
+        for (const issue of result.error.issues) {
+          const key = String(issue.path[0]);
+          (errors[key] ??= []).push(issue.message);
+        }
+        $connectionErrors = {
+          connectionUrl: errors.connectionUrl,
+          authType: errors.authType,
+          authUsername: errors.authUsername,
+          authPassword: errors.authPassword
+        };
+        cancel();
+      }
+    },
     onUpdated({ form }) {
       const msg = form.message as ConnectionMessage | undefined;
       if (msg?.type === 'success') {
