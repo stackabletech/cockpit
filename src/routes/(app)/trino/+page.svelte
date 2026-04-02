@@ -19,7 +19,6 @@
     type SqlStatement
   } from '$lib/editor/split-statements.js';
   import type { PageData } from './$types';
-  import { isPageSize, type PageSize } from './validation';
   import StatementResult from '$lib/components/trino/StatementResult.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -42,7 +41,6 @@
   let connectionOpen = $state(false);
 
   let sql = $state(tabStore.activeTab.sql);
-  let pageSize = $state<PageSize>(25);
   let defaultCatalog = $state('');
   let defaultSchema = $state('');
   let hydrated = $state(false);
@@ -92,8 +90,6 @@
     }
     defaultCatalog = getStoredValue('trino_default_catalog', '');
     defaultSchema = getStoredValue('trino_default_schema', '');
-    const storedPageSize = parseInt(getStoredValue('trino_page_size', '25'), 10);
-    pageSize = isPageSize(storedPageSize) ? storedPageSize : 25;
     hydrated = true;
     lastTabId = tabStore.activeTabId;
 
@@ -165,7 +161,6 @@
   // Persist settings.
   $effect(() => {
     if (!hydrated) return;
-    localStorage.setItem('trino_page_size', String(pageSize));
     localStorage.setItem('trino_default_catalog', defaultCatalog);
     localStorage.setItem('trino_default_schema', defaultSchema);
     localStorage.setItem('trino_catalog_browser_open', String(catalogBrowserOpen));
@@ -320,11 +315,6 @@
       event.preventDefault();
       handleRunAtCursor();
     }
-  }
-
-  function handlePageSizeChange(event: Event) {
-    const n = parseInt((event.target as HTMLSelectElement).value, 10);
-    if (isPageSize(n)) pageSize = n;
   }
 
   function toggleCatalogBrowser() {
@@ -793,13 +783,7 @@
       <div class="min-h-0 flex-1 overflow-auto">
         {#if runner.results.length > 0}
           {#each runner.results as result, idx (idx)}
-            <StatementResult
-              {result}
-              index={idx}
-              totalStatements={runner.results.length}
-              {pageSize}
-              onPageSizeChange={handlePageSizeChange}
-            />
+            <StatementResult {result} index={idx} totalStatements={runner.results.length} />
           {/each}
         {:else if !isActive}
           <p class="text-base-content/40 py-8 text-center text-sm">{m.trino_results_empty()}</p>

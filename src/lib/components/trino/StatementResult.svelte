@@ -1,35 +1,43 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
   import type { QuerySnapshot } from '$lib/types/query';
-  import { ALLOWED_PAGE_SIZES, type PageSize } from '$lib/types/pagination.js';
+  import { ALLOWED_PAGE_SIZES, isPageSize, type PageSize } from '$lib/types/pagination.js';
+
+  const STORAGE_KEY = 'trino_page_size';
 
   let {
     result,
     index,
-    totalStatements,
-    pageSize,
-    onPageSizeChange
+    totalStatements
   }: {
     result: QuerySnapshot;
     index: number;
     totalStatements: number;
-    pageSize: PageSize;
-    onPageSizeChange: (event: Event) => void;
   } = $props();
 
   const uid = $props.id();
 
   let collapsed = $state(false);
   let currentPage = $state(0);
+  let pageSize = $state<PageSize>(initPageSize());
 
-  // Reset page when pageSize changes to avoid stranded empty pages.
-  let prevPageSize = $state(pageSize);
-  $effect(() => {
-    if (pageSize !== prevPageSize) {
-      prevPageSize = pageSize;
+  function initPageSize(): PageSize {
+    if (!browser) return 25;
+    const stored = parseInt(localStorage.getItem(STORAGE_KEY) ?? '', 10);
+    return isPageSize(stored) ? stored : 25;
+  }
+
+  function handlePageSizeChange(event: Event) {
+    const n = parseInt((event.target as HTMLSelectElement).value, 10);
+    if (isPageSize(n)) {
+      pageSize = n;
       currentPage = 0;
+      if (browser && totalStatements === 1) {
+        localStorage.setItem(STORAGE_KEY, String(n));
+      }
     }
-  });
+  }
 
   const totalRows = $derived(result.rows.length);
   const displayedRows = $derived(
@@ -177,7 +185,7 @@
             id="{uid}-page-size"
             class="select select-xs"
             value={pageSize}
-            onchange={onPageSizeChange}
+            onchange={handlePageSizeChange}
           >
             {#each ALLOWED_PAGE_SIZES as size (size)}
               <option value={size}>{size}</option>
