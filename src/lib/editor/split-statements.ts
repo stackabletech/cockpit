@@ -1,4 +1,4 @@
-import { CharStream } from 'antlr4ng';
+import { CharStream, Token } from 'antlr4ng';
 import { SqlBaseLexer } from './generated/SqlBaseLexer.js';
 
 /** A single parsed statement with its position in the source text. */
@@ -14,7 +14,7 @@ export interface SqlStatement {
  * Splits SQL text into individual statements delimited by `;`.
  *
  * Uses the ANTLR lexer so that semicolons inside string literals, comments,
- * and `BEGIN … END` compound blocks are handled correctly.
+ * and compound blocks are handled correctly.
  */
 export function splitStatements(sql: string): SqlStatement[] {
   if (!sql.trim()) return [];
@@ -23,32 +23,67 @@ export function splitStatements(sql: string): SqlStatement[] {
   const lexer = new SqlBaseLexer(inputStream);
   lexer.removeErrorListeners();
 
+  const allTokens: Token[] = [];
+  let t = lexer.nextToken();
+  while (t.type !== SqlBaseLexer.EOF) {
+    allTokens.push(t);
+    t = lexer.nextToken();
+  }
+
+  // Filter out hidden tokens (whitespace, comments) for the depth-tracking logic.
+  // We still need the original tokens' offsets for splitting.
+  const tokens = allTokens.filter(
+    (token) =>
+      token.type !== SqlBaseLexer.WS &&
+      token.type !== SqlBaseLexer.SIMPLE_COMMENT &&
+      token.type !== SqlBaseLexer.BRACKETED_COMMENT
+  );
+
   const statements: SqlStatement[] = [];
   let segmentStart = 0;
-  // Track BEGIN…END nesting so semicolons inside compound statements
-  // (e.g. BEGIN INSERT …; INSERT …; END) are not treated as separators.
+  // Track nesting depth so semicolons inside compound statements
+  // (e.g. BEGIN ...; ...; END) are not treated as separators.
   let depth = 0;
 
-  let token = lexer.nextToken();
-  while (token.type !== SqlBaseLexer.EOF) {
-    if (token.type === SqlBaseLexer.BEGIN) {
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    const type = token.type;
+
+    if (
+      type === SqlBaseLexer.BEGIN ||
+      type === SqlBaseLexer.CASE ||
+      type === SqlBaseLexer.LOOP ||
+      type === SqlBaseLexer.WHILE ||
+      type === SqlBaseLexer.REPEAT
+    ) {
       depth++;
-    } else if (token.type === SqlBaseLexer.END && depth > 0) {
+    } else if (type === SqlBaseLexer.IF) {
+      // IF only starts a block in control statements (usually IF <expr> THEN).
+      // Statements like CREATE TABLE IF NOT EXISTS do not start a block.
+      // In control statements, IF is preceded by BEGIN, ELSE, THEN or is the first token.
+      const prev = tokens[i - 1];
+      if (
+        !prev ||
+        prev.type === SqlBaseLexer.BEGIN ||
+        prev.type === SqlBaseLexer.THEN ||
+        prev.type === SqlBaseLexer.ELSE ||
+        prev.type === SqlBaseLexer.SEMICOLON
+      ) {
+        depth++;
+      }
+    } else if (type === SqlBaseLexer.END && depth > 0) {
       depth--;
-    } else if (token.type === SqlBaseLexer.SEMICOLON && depth === 0) {
-      // Extract the text between the previous split point and this semicolon,
-      // trimmed to get clean offsets without surrounding whitespace.
+    } else if (type === SqlBaseLexer.SEMICOLON && depth === 0) {
       const raw = sql.substring(segmentStart, token.start).trim();
       if (raw.length > 0) {
+        // Use indexOf from segmentStart to find the actual start past leading whitespace/comments.
         const offset = sql.indexOf(raw, segmentStart);
         statements.push({ sql: raw, offset, endOffset: offset + raw.length });
       }
       segmentStart = token.start + 1;
     }
-    token = lexer.nextToken();
   }
 
-  // Trailing statement without a final semicolon.
   const trailing = sql.substring(segmentStart).trim();
   if (trailing.length > 0) {
     const offset = sql.indexOf(trailing, segmentStart);

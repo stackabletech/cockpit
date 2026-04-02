@@ -65,6 +65,66 @@ describe('splitStatements', () => {
     expect(result[0].sql).toBe(sql);
   });
 
+  it('keeps semicolons inside CASE...END together', () => {
+    const sql = 'SELECT CASE WHEN x > 0 THEN 1; ELSE 0; END; SELECT 2';
+    const result = splitStatements(sql);
+    expect(result).toHaveLength(2);
+    expect(result[0].sql).toBe('SELECT CASE WHEN x > 0 THEN 1; ELSE 0; END');
+    expect(result[1].sql).toBe('SELECT 2');
+  });
+
+  it('keeps semicolons inside nested BEGIN...END blocks together', () => {
+    const sql = 'BEGIN BEGIN INSERT INTO t VALUES (1); END; INSERT INTO t VALUES (2); END';
+    const result = splitStatements(sql);
+    expect(result).toHaveLength(1);
+    expect(result[0].sql).toBe(sql);
+  });
+
+  it('keeps semicolons inside IF...END blocks together', () => {
+    const sql = 'IF x > 0 THEN INSERT INTO t VALUES (1); END IF';
+    const result = splitStatements(sql);
+    expect(result).toHaveLength(1);
+    expect(result[0].sql).toBe(sql);
+  });
+
+  it('does not treat IF in CREATE TABLE IF NOT EXISTS as a block', () => {
+    const sql = 'CREATE TABLE IF NOT EXISTS t (id INT); SELECT 1';
+    const result = splitStatements(sql);
+    expect(result).toHaveLength(2);
+    expect(result[0].sql).toBe('CREATE TABLE IF NOT EXISTS t (id INT)');
+    expect(result[1].sql).toBe('SELECT 1');
+  });
+
+  it('keeps semicolons inside LOOP...END blocks together', () => {
+    const sql = 'LOOP INSERT INTO t VALUES (1); END LOOP';
+    const result = splitStatements(sql);
+    expect(result).toHaveLength(1);
+    expect(result[0].sql).toBe(sql);
+  });
+
+  it('keeps semicolons inside WHILE...END blocks together', () => {
+    const sql = 'WHILE x > 0 DO INSERT INTO t VALUES (1); END WHILE';
+    const result = splitStatements(sql);
+    expect(result).toHaveLength(1);
+    expect(result[0].sql).toBe(sql);
+  });
+
+  it('keeps semicolons inside REPEAT...END blocks together', () => {
+    const sql = 'REPEAT INSERT INTO t VALUES (1); UNTIL x > 0 END REPEAT';
+    const result = splitStatements(sql);
+    expect(result).toHaveLength(1);
+    expect(result[0].sql).toBe(sql);
+  });
+
+  it('splits correctly after a compound block', () => {
+    const sql = 'BEGIN INSERT INTO t VALUES (1); END; SELECT 2; SELECT 3';
+    const result = splitStatements(sql);
+    expect(result).toHaveLength(3);
+    expect(result[0].sql).toBe('BEGIN INSERT INTO t VALUES (1); END');
+    expect(result[1].sql).toBe('SELECT 2');
+    expect(result[2].sql).toBe('SELECT 3');
+  });
+
   it('trims whitespace from each statement', () => {
     const result = splitStatements('  SELECT 1 ;  SELECT 2  ');
     expect(result[0].sql).toBe('SELECT 1');
