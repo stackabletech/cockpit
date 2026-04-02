@@ -680,13 +680,12 @@
                   </span>
                 {/if}
               </button>
-              <div
-                role="button"
-                tabindex="0"
+              <button
+                type="button"
                 class="btn btn-primary join-item border-l-primary-content/20 self-stretch border-l px-2"
                 class:pointer-events-none={isActive}
                 aria-haspopup="true"
-                aria-label={m.trino_run_all()}
+                aria-label={m.trino_run_mode_select()}
               >
                 <svg class="h-3 w-3" aria-hidden="true" viewBox="0 0 20 20" fill="currentColor">
                   <path
@@ -695,7 +694,7 @@
                     clip-rule="evenodd"
                   />
                 </svg>
-              </div>
+              </button>
             </div>
             <div
               class="dropdown-content bg-primary text-primary-content rounded-box z-10 mt-1 flex w-full flex-col gap-1 p-1.5 shadow-lg"

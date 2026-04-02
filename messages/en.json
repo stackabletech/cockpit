@@ -97,6 +97,7 @@
   "trino_run_at_cursor": "Run",
   "trino_run_all": "Run all",
   "trino_run_selected": "Run selected",
+  "trino_run_mode_select": "Select run mode",
   "trino_script_progress": "Statement {current} of {total}",
   "trino_statement_header": "Statement {index}",
   "trino_statement_collapse": "Toggle statement {index} results"

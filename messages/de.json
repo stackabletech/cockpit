@@ -97,6 +97,7 @@
   "trino_run_at_cursor": "Ausführen",
   "trino_run_all": "Alle ausführen",
   "trino_run_selected": "Auswahl ausführen",
+  "trino_run_mode_select": "Ausführmodus wählen",
   "trino_script_progress": "Anweisung {current} von {total}",
   "trino_statement_header": "Anweisung {index}",
   "trino_statement_collapse": "Ergebnisse von Anweisung {index} ein-/ausblenden"

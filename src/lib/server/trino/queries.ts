@@ -20,8 +20,6 @@ const env = envModule?.env ?? (process.env as Record<string, string | undefined>
 
 /** Time (seconds) before completed, unaccessed tab queries are evicted. */
 const QUERY_TTL = Number(env.STACKABLE_UI_QUERY_TTL) || 1800; // 30 min
-/** Maximum completed queries retained per user (oldest evicted first). */
-const MAX_COMPLETED_PER_USER = 10;
 const SWEEP_INTERVAL_MS = 60_000;
 
 // --- TrinoQuery model ---
@@ -129,16 +127,11 @@ function buildSnapshot(
   };
 }
 
-/** Cancel the active query for a specific tab if it is still running. */
-async function cancelActiveTabQuery(userId: string, tabId: string): Promise<void> {
-  await cancelQuery(userId, tabId);
-}
-
 // --- Public API ---
 
 /** Clear all stored results for a tab and cancel any active query. */
 export async function resetTabQueries(userId: string, tabId: string): Promise<void> {
-  await cancelActiveTabQuery(userId, tabId);
+  await cancelQuery(userId, tabId);
   const tabMap = getUserTabMap(userId);
   tabMap.set(tabId, []);
 }
@@ -304,7 +297,7 @@ export async function cancelQuery(userId: string, tabId: string): Promise<boolea
 
 // --- Periodic eviction ---
 
-/** Remove completed, unaccessed tab queries past TTL and enforce per-user caps. */
+/** Evict all queries for tabs where all queries are terminal and the tab hasn't been touched within the TTL. */
 function sweepExpiredQueries(): void {
   const now = Date.now();
   const ttlMs = QUERY_TTL * 1000;
@@ -313,45 +306,15 @@ function sweepExpiredQueries(): void {
   for (const [userId, tabMap] of userQueries) {
     const accessMap = tabLastAccessed.get(userId);
 
-    // Phase 1: evict tabs where all queries are completed and TTL has elapsed.
     for (const [tabId, queries] of tabMap) {
-      const allCompleted = queries.every((q) => q.completedAt !== null);
-      if (!allCompleted) continue;
+      const allTerminal = queries.every((q) => isTerminal(q.state));
+      if (!allTerminal) continue;
 
       const lastAccess = accessMap?.get(tabId) ?? 0;
       if (now - lastAccess >= ttlMs) {
         swept += queries.length;
         tabMap.delete(tabId);
         accessMap?.delete(tabId);
-      }
-    }
-
-    // Phase 2: per-user cap on completed queries (across all tabs).
-    const completed: { tabId: string; index: number; completedAt: number }[] = [];
-    for (const [tabId, queries] of tabMap) {
-      for (let i = 0; i < queries.length; i++) {
-        if (queries[i].completedAt !== null) {
-          completed.push({ tabId, index: i, completedAt: queries[i].completedAt! });
-        }
-      }
-    }
-
-    if (completed.length > MAX_COMPLETED_PER_USER) {
-      completed.sort((a, b) => a.completedAt - b.completedAt);
-      const toEvict = new Set(
-        completed
-          .slice(0, completed.length - MAX_COMPLETED_PER_USER)
-          .map((e) => `${e.tabId}:${e.index}`)
-      );
-      for (const [tabId, queries] of tabMap) {
-        const filtered = queries.filter((_, i) => !toEvict.has(`${tabId}:${i}`));
-        if (filtered.length === 0) {
-          tabMap.delete(tabId);
-          accessMap?.delete(tabId);
-        } else {
-          tabMap.set(tabId, filtered);
-        }
-        swept += queries.length - filtered.length;
       }
     }
 
@@ -373,8 +336,7 @@ sweepTimer.unref();
 log.info(
   {
     ttl_s: QUERY_TTL,
-    sweep_interval_ms: SWEEP_INTERVAL_MS,
-    max_per_user: MAX_COMPLETED_PER_USER
+    sweep_interval_ms: SWEEP_INTERVAL_MS
   },
   'query eviction configured'
 );
