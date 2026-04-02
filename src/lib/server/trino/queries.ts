@@ -1,3 +1,4 @@
+import { env } from '$env/dynamic/private';
 import { logger } from '$lib/server/logging';
 import { trinoActiveQueries, trinoQueryTotal } from '$lib/server/metrics.js';
 import {
@@ -14,9 +15,6 @@ import { collectResults } from './result-collector.js';
 const log = logger.child({ module: 'trino-queries' });
 
 // --- TTL & eviction configuration ---
-
-const envModule = await import('$env/dynamic/private').catch(() => null);
-const env = envModule?.env ?? (process.env as Record<string, string | undefined>);
 
 /** Time (seconds) before completed, unaccessed tab queries are evicted. */
 const QUERY_TTL = Number(env.STACKABLE_UI_QUERY_TTL) || 1800; // 30 min
