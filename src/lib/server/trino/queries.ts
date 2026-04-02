@@ -13,6 +13,17 @@ import { collectResults } from './result-collector.js';
 
 const log = logger.child({ module: 'trino-queries' });
 
+// --- TTL & eviction configuration ---
+
+const envModule = await import('$env/dynamic/private').catch(() => null);
+const env = envModule?.env ?? (process.env as Record<string, string | undefined>);
+
+/** Time (seconds) before completed, unaccessed tab queries are evicted. */
+const QUERY_TTL = Number(env.STACKABLE_UI_QUERY_TTL) || 1800; // 30 min
+/** Maximum completed queries retained per user (oldest evicted first). */
+const MAX_COMPLETED_PER_USER = 10;
+const SWEEP_INTERVAL_MS = 60_000;
+
 // --- TrinoQuery model ---
 
 export interface TrinoQuery {
@@ -67,6 +78,18 @@ export function terminateQuery(
 
 /** All queries for a tab (ordered by execution). */
 const userQueries = new Map<string, Map<string, TrinoQuery[]>>();
+
+/** Tracks when each tab was last accessed (userId → tabId → timestamp). */
+const tabLastAccessed = new Map<string, Map<string, number>>();
+
+function touchTab(userId: string, tabId: string): void {
+  let userMap = tabLastAccessed.get(userId);
+  if (!userMap) {
+    userMap = new Map();
+    tabLastAccessed.set(userId, userMap);
+  }
+  userMap.set(tabId, Date.now());
+}
 
 function getUserTabMap(userId: string): Map<string, TrinoQuery[]> {
   let tabMap = userQueries.get(userId);
@@ -186,6 +209,7 @@ export async function startScript(
   options: { user: string; catalog?: string; schema?: string }
 ): Promise<void> {
   await resetTabQueries(userId, tabId);
+  touchTab(userId, tabId);
 
   log.info(
     { user_id: userId, tab_id: tabId, statement_count: statements.length },
@@ -228,6 +252,7 @@ export function getQuerySnapshots(
   tabId: string,
   lightweight = false
 ): QuerySnapshot[] {
+  touchTab(userId, tabId);
   const trinoServerUrl = resolveTrinoServerUrl(userId);
   return getTabQueries(userId, tabId).map((q) => buildSnapshot(q, trinoServerUrl, lightweight));
 }
@@ -249,8 +274,11 @@ export function removeTabQuery(userId: string, tabId: string): void {
   const tabMap = userQueries.get(userId);
   if (!tabMap) return;
   tabMap.delete(tabId);
+  const accessMap = tabLastAccessed.get(userId);
+  accessMap?.delete(tabId);
   if (tabMap.size === 0) {
     userQueries.delete(userId);
+    tabLastAccessed.delete(userId);
   }
 }
 
@@ -273,3 +301,80 @@ export async function cancelQuery(userId: string, tabId: string): Promise<boolea
   trinoQueryTotal.inc({ outcome: 'cancelled' });
   return true;
 }
+
+// --- Periodic eviction ---
+
+/** Remove completed, unaccessed tab queries past TTL and enforce per-user caps. */
+function sweepExpiredQueries(): void {
+  const now = Date.now();
+  const ttlMs = QUERY_TTL * 1000;
+  let swept = 0;
+
+  for (const [userId, tabMap] of userQueries) {
+    const accessMap = tabLastAccessed.get(userId);
+
+    // Phase 1: evict tabs where all queries are completed and TTL has elapsed.
+    for (const [tabId, queries] of tabMap) {
+      const allCompleted = queries.every((q) => q.completedAt !== null);
+      if (!allCompleted) continue;
+
+      const lastAccess = accessMap?.get(tabId) ?? 0;
+      if (now - lastAccess >= ttlMs) {
+        swept += queries.length;
+        tabMap.delete(tabId);
+        accessMap?.delete(tabId);
+      }
+    }
+
+    // Phase 2: per-user cap on completed queries (across all tabs).
+    const completed: { tabId: string; index: number; completedAt: number }[] = [];
+    for (const [tabId, queries] of tabMap) {
+      for (let i = 0; i < queries.length; i++) {
+        if (queries[i].completedAt !== null) {
+          completed.push({ tabId, index: i, completedAt: queries[i].completedAt! });
+        }
+      }
+    }
+
+    if (completed.length > MAX_COMPLETED_PER_USER) {
+      completed.sort((a, b) => a.completedAt - b.completedAt);
+      const toEvict = new Set(
+        completed
+          .slice(0, completed.length - MAX_COMPLETED_PER_USER)
+          .map((e) => `${e.tabId}:${e.index}`)
+      );
+      for (const [tabId, queries] of tabMap) {
+        const filtered = queries.filter((_, i) => !toEvict.has(`${tabId}:${i}`));
+        if (filtered.length === 0) {
+          tabMap.delete(tabId);
+          accessMap?.delete(tabId);
+        } else {
+          tabMap.set(tabId, filtered);
+        }
+        swept += queries.length - filtered.length;
+      }
+    }
+
+    // Clean up empty user entries.
+    if (tabMap.size === 0) {
+      userQueries.delete(userId);
+      tabLastAccessed.delete(userId);
+    }
+  }
+
+  if (swept > 0) {
+    log.info({ swept, remaining_users: userQueries.size }, 'swept expired queries');
+  }
+}
+
+const sweepTimer = setInterval(sweepExpiredQueries, SWEEP_INTERVAL_MS);
+sweepTimer.unref();
+
+log.info(
+  {
+    ttl_s: QUERY_TTL,
+    sweep_interval_ms: SWEEP_INTERVAL_MS,
+    max_per_user: MAX_COMPLETED_PER_USER
+  },
+  'query eviction configured'
+);

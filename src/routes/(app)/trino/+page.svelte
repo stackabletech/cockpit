@@ -19,7 +19,8 @@
     type SqlStatement
   } from '$lib/editor/split-statements.js';
   import type { PageData } from './$types';
-  import { ALLOWED_PAGE_SIZES, isPageSize, type PageSize } from './validation';
+  import { isPageSize, type PageSize } from './validation';
+  import StatementResult from '$lib/components/trino/StatementResult.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -44,8 +45,6 @@
   let pageSize = $state<PageSize>(25);
   let defaultCatalog = $state('');
   let defaultSchema = $state('');
-  let currentPages = new SvelteMap<string, number>();
-  let collapsedResults = new SvelteMap<string, boolean>();
   let hydrated = $state(false);
 
   // Signal to trigger catalog browser load (1 = load on mount).
@@ -73,10 +72,6 @@
 
   // Non-reactive tracker for tab switching.
   let lastTabId: string | null = null;
-
-  function setCurrentPage(page: number) {
-    currentPages.set(tabStore.activeTabId, page);
-  }
 
   // Get the query runner for the active tab.
   const runner = $derived(getOrCreateQueryRunner(tabStore.activeTabId));
@@ -207,15 +202,6 @@
     untrack(() => tabStore.updateSql(tabStore.activeTabId, value));
   });
 
-  let prevResultsLen = $state(0);
-  $effect(() => {
-    const len = runner.results.length;
-    if (len !== prevResultsLen && len > 0) {
-      setCurrentPage(0);
-    }
-    prevResultsLen = len;
-  });
-
   const connectionSummary = $derived.by(() => {
     const host = connectionUrl ? connectionUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : '-';
     const auth = authType === 'basic' ? m.trino_auth_basic() : m.trino_auth_none();
@@ -265,7 +251,6 @@
 
   function runStatements(statements: SqlStatement[]) {
     if (statements.length === 0) return;
-    setCurrentPage(0);
     runner.executeScript(statements, execOptions);
   }
 
@@ -357,7 +342,6 @@
   function handleTabClose(id: string) {
     destroyQueryRunner(id);
     viewStates.delete(id);
-    currentPages.delete(id);
     tabStore.closeTab(id);
     // Clean up server-side query state for this tab.
     fetch(`/trino/query?tabId=${encodeURIComponent(id)}&cleanup=true`, { method: 'DELETE' });
@@ -810,171 +794,13 @@
       <div class="min-h-0 flex-1 overflow-auto">
         {#if runner.results.length > 0}
           {#each runner.results as result, idx (idx)}
-            {@const stmtPageKey = `${tabStore.activeTabId}-${idx}`}
-            {@const stmtPage = currentPages.get(stmtPageKey) ?? 0}
-            {@const stmtTotalRows = result.rows.length}
-            {@const stmtDisplayedRows = result.rows.slice(
-              stmtPage * pageSize,
-              (stmtPage + 1) * pageSize
-            )}
-            {@const stmtHasMore = (stmtPage + 1) * pageSize < stmtTotalRows}
-            {@const stmtRowStart = stmtPage * pageSize + 1}
-            {@const stmtRowEnd = stmtPage * pageSize + stmtDisplayedRows.length}
-            {@const stmtError =
-              result.error && !result.error.startsWith('ROW_LIMIT:') ? result.error : null}
-            {@const stmtRowLimitError = result.error?.startsWith('ROW_LIMIT:')
-              ? m.trino_row_limit_reached({ limit: result.error.split(':')[1] })
-              : null}
-            {@const showHeader = runner.results.length > 1}
-            {@const collapseKey = `${tabStore.activeTabId}-${idx}`}
-            {@const isCollapsed = collapsedResults.get(collapseKey) ?? false}
-            <div class="border-base-300 border-b last:border-b-0">
-              {#if showHeader}
-                <button
-                  type="button"
-                  class="bg-base-200/50 hover:bg-base-200 flex w-full items-center gap-5 px-4 py-2 text-left transition-colors"
-                  onclick={() => collapsedResults.set(collapseKey, !isCollapsed)}
-                  aria-expanded={!isCollapsed}
-                  aria-controls="stmt-result-{tabStore.activeTabId}-{idx}"
-                  aria-label={m.trino_statement_collapse({ index: idx + 1 })}
-                >
-                  <span
-                    class="badge badge-sm {result.state === 'FINISHED'
-                      ? 'badge-success'
-                      : result.state === 'FAILED'
-                        ? 'badge-error'
-                        : result.state === 'CANCELLED'
-                          ? 'badge-neutral'
-                          : 'badge-info'}"
-                  >
-                    {m.trino_statement_header({ index: idx + 1 })}
-                  </span>
-                  {#if result.trinoQueryUrl}
-                    <a
-                      href={result.trinoQueryUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="link link-primary text-xs"
-                      onclick={(e) => e.stopPropagation()}
-                    >
-                      {m.trino_view_in_trino()}
-                    </a>
-                  {/if}
-                  <code class="text-base-content/60 max-w-md truncate text-xs">
-                    {result.sql.length > 80 ? result.sql.slice(0, 80) + '…' : result.sql}
-                  </code>
-                  {#if stmtTotalRows > 0}
-                    <span class="text-base-content/40 ml-auto text-xs">
-                      {m.trino_rows_range({
-                        start: stmtRowStart,
-                        end: stmtRowEnd,
-                        total: stmtTotalRows
-                      })}
-                    </span>
-                  {/if}
-                </button>
-              {/if}
-              <div
-                id="stmt-result-{tabStore.activeTabId}-{idx}"
-                class="{showHeader ? 'px-4 py-2' : 'p-4'} {isCollapsed ? 'hidden' : ''}"
-              >
-                {#if stmtError}
-                  <div class="flex flex-col gap-2" role="alert">
-                    <p class="text-error text-sm font-semibold">{m.trino_query_error()}</p>
-                    <pre
-                      class="bg-base-200 text-base-content overflow-x-auto rounded-lg p-3 text-xs whitespace-pre-wrap">{stmtError}</pre>
-                  </div>
-                {:else if result.state === 'FINISHED' && result.columns.length > 0}
-                  <div class="overflow-x-auto">
-                    <table
-                      class="table-sm table-zebra table"
-                      aria-label={showHeader
-                        ? `${m.trino_results_label()} — ${m.trino_statement_header({ index: idx + 1 })}`
-                        : m.trino_results_label()}
-                    >
-                      <thead>
-                        <tr>
-                          {#each result.columns as col (col.name)}
-                            <th scope="col" class="whitespace-nowrap">{col.name}</th>
-                          {/each}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {#each stmtDisplayedRows as row, rowIdx (rowIdx)}
-                          <tr>
-                            {#each row as cell, cellIdx (cellIdx)}
-                              <td class="font-mono text-xs whitespace-nowrap">
-                                {#if cell === null}
-                                  <span class="text-base-content/50 italic">null</span>
-                                {:else}
-                                  {String(cell)}
-                                {/if}
-                              </td>
-                            {/each}
-                          </tr>
-                        {/each}
-                      </tbody>
-                    </table>
-                  </div>
-                  {#if stmtRowLimitError}
-                    <span class="text-warning mt-1 block text-xs">{stmtRowLimitError}</span>
-                  {/if}
-                  <div class="flex items-center justify-between pt-2">
-                    {#if stmtTotalRows > pageSize}
-                      <div class="join">
-                        <button
-                          class="btn btn-xs join-item"
-                          onclick={() => currentPages.set(stmtPageKey, Math.max(0, stmtPage - 1))}
-                          disabled={stmtPage === 0}
-                          aria-label={m.trino_prev_page()}
-                        >
-                          ‹
-                        </button>
-                        <button
-                          class="btn btn-xs join-item"
-                          onclick={() => {
-                            if (stmtHasMore) currentPages.set(stmtPageKey, stmtPage + 1);
-                          }}
-                          disabled={!stmtHasMore}
-                          aria-label={m.trino_next_page()}
-                        >
-                          ›
-                        </button>
-                      </div>
-                    {:else}
-                      <div></div>
-                    {/if}
-                    <span class="text-base-content/40 text-xs">
-                      {m.trino_rows_range({
-                        start: stmtRowStart,
-                        end: stmtRowEnd,
-                        total: stmtTotalRows
-                      })}
-                    </span>
-                    <div class="flex items-center gap-2">
-                      <label
-                        for="{uid}-page-size-{idx}"
-                        class="text-base-content/60 text-xs whitespace-nowrap"
-                      >
-                        {m.trino_page_size()}
-                      </label>
-                      <select
-                        id="{uid}-page-size-{idx}"
-                        class="select select-xs"
-                        value={pageSize}
-                        onchange={handlePageSizeChange}
-                      >
-                        {#each ALLOWED_PAGE_SIZES as size (size)}
-                          <option value={size}>{size}</option>
-                        {/each}
-                      </select>
-                    </div>
-                  </div>
-                {:else if result.state === 'FINISHED' && result.columns.length === 0}
-                  <p class="text-base-content/40 py-2 text-sm">{m.trino_results_empty()}</p>
-                {/if}
-              </div>
-            </div>
+            <StatementResult
+              {result}
+              index={idx}
+              totalStatements={runner.results.length}
+              {pageSize}
+              onPageSizeChange={handlePageSizeChange}
+            />
           {/each}
         {:else if !isActive}
           <p class="text-base-content/40 py-8 text-center text-sm">{m.trino_results_empty()}</p>
