@@ -93,6 +93,45 @@ test.describe('Trino query editor', () => {
     await expect(page.getByText('Rows 1–25 of 30')).toBeVisible();
   });
 
+  test('multi-statement script shows results for each statement', async ({ page }) => {
+    await setTabSql(page, 'SELECT 1; SELECT 2');
+    await page.goto('/trino');
+    await waitForHydration(page);
+    await page.locator('.monaco-editor').first().click();
+
+    await page.keyboard.press('Control+Shift+Enter');
+    await waitForQueryComplete(page);
+
+    await expect(page.getByRole('button', { name: 'Toggle statement 1 results' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Toggle statement 2 results' })).toBeVisible();
+  });
+
+  test('failed statement shows skipped count', async ({ page }) => {
+    await setTabSql(page, 'SELECT 1; SHOULD_ERROR; SELECT 3');
+    await page.goto('/trino');
+    await waitForHydration(page);
+    await page.locator('.monaco-editor').first().click();
+
+    await page.keyboard.press('Control+Shift+Enter');
+    await waitForQueryComplete(page);
+
+    await expect(page.getByText('Statement 2 of 3')).toBeVisible();
+    await expect(page.getByText('1 statement was skipped due to a preceding error.')).toBeVisible();
+  });
+
+  test('statement highlighting appears during multi-statement execution', async ({ page }) => {
+    await setTabSql(page, 'SELECT 1; SELECT 2');
+    await page.goto('/trino');
+    await waitForHydration(page);
+    await page.locator('.monaco-editor').first().click();
+
+    await page.keyboard.press('Control+Shift+Enter');
+    await waitForQueryComplete(page);
+
+    // After completion, highlight should be cleared.
+    await expect(page.locator('.highlighted-statement')).toHaveCount(0);
+  });
+
   test('null cell values render as italic null placeholder', async ({ page }) => {
     await setTabSql(page, 'SELECT value FROM nullable_table');
     await page.goto('/trino');
