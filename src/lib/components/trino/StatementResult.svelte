@@ -43,7 +43,8 @@
   const displayedRows = $derived(
     result.rows.slice(currentPage * pageSize, (currentPage + 1) * pageSize)
   );
-  const hasMore = $derived((currentPage + 1) * pageSize < totalRows);
+  const totalPages = $derived(Math.ceil(totalRows / pageSize));
+  const lastPage = $derived(totalPages - 1);
   const rowStart = $derived(currentPage * pageSize + 1);
   const rowEnd = $derived(currentPage * pageSize + displayedRows.length);
   const stmtError = $derived(
@@ -162,37 +163,47 @@
         <span class="text-warning mt-1 block text-xs">{rowLimitWarning}</span>
       {/if}
       <div class="flex items-center justify-between pt-2">
-        {#if totalRows > pageSize}
-          <div class="join">
-            <button
-              class="btn btn-xs join-item"
-              onclick={() => (currentPage = Math.max(0, currentPage - 1))}
-              disabled={currentPage === 0}
-              aria-label={m.trino_prev_page()}
-            >
-              &#8249;
-            </button>
-            <button
-              class="btn btn-xs join-item"
-              onclick={() => {
-                if (hasMore) currentPage += 1;
-              }}
-              disabled={!hasMore}
-              aria-label={m.trino_next_page()}
-            >
-              &#8250;
-            </button>
-          </div>
-        {:else}
-          <div></div>
-        {/if}
-        <span class="text-base-content/40 text-xs">
-          {m.trino_rows_range({
-            start: rowStart,
-            end: rowEnd,
-            total: totalRows
-          })}
-        </span>
+        <div class="flex items-center gap-4">
+          {#if totalPages > 1}
+            <nav class="join" aria-label={m.trino_results_label()}>
+              <button
+                class="btn btn-xs join-item"
+                onclick={() => (currentPage = 0)}
+                aria-label={m.trino_first_page()}
+              >
+                &#171;
+              </button>
+              <button
+                class="btn btn-xs join-item"
+                onclick={() => (currentPage = Math.max(0, currentPage - 1))}
+                aria-label={m.trino_prev_page()}
+              >
+                &#8249;
+              </button>
+              <button
+                class="btn btn-xs join-item"
+                onclick={() => (currentPage = Math.min(lastPage, currentPage + 1))}
+                aria-label={m.trino_next_page()}
+              >
+                &#8250;
+              </button>
+              <button
+                class="btn btn-xs join-item"
+                onclick={() => (currentPage = lastPage)}
+                aria-label={m.trino_last_page()}
+              >
+                &#187;
+              </button>
+            </nav>
+          {/if}
+          <span class="text-base-content/60 text-xs">
+            {m.trino_rows_range({
+              start: rowStart,
+              end: rowEnd,
+              total: totalRows
+            })}
+          </span>
+        </div>
         <div class="flex items-center gap-2">
           <label for="{uid}-page-size" class="text-base-content/60 text-xs whitespace-nowrap">
             {m.trino_page_size()}
