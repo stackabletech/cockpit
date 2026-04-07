@@ -46,11 +46,11 @@ Trino error messages and Node.js exception messages are returned to the browser 
 
 ---
 
-### SQLite session store prevents horizontal scaling
+### In-memory session store loses state on restart and prevents horizontal scaling
 
-**File:** `src/lib/server/auth.ts`, `deploy/helm/stackable-ui/values.yaml`
+**File:** `src/lib/server/auth.ts`
 
-better-auth uses SQLite (via better-sqlite3) for session and user storage. SQLite only supports a single writer, so the deployment is limited to `replicaCount: 1`. A single pod failure means complete downtime with no failover. The long-term fix is to switch to PostgreSQL or a stateless session store (JWT/Redis) to allow horizontal scaling.
+better-auth uses its built-in memory adapter for session and user storage. All sessions and user records are lost on server restart, and because state is process-local, multiple replicas cannot share sessions. The long-term fix is to switch to PostgreSQL or Redis to allow horizontal scaling and session persistence.
 
 ---
 
@@ -66,7 +66,7 @@ When OIDC is disabled, all users are identified as `'anonymous'` and share a sin
 
 **File:** `src/lib/server/query-store.ts`
 
-All server-side query state (progress, rows, status) is held in a module-level `Map`. A server restart clears all state — running queries become orphaned in Trino and completed results are lost. Additionally, because the state is process-local, multiple server instances cannot share query state: a query started on instance A is invisible to instance B. Combined with the SQLite session store limitation (see above), the deployment is limited to a single replica. Acceptable during development; long-term this should be backed by Redis or a persistent store to enable horizontal scaling and resilience.
+All server-side query state (progress, rows, status) is held in a module-level `Map`. A server restart clears all state — running queries become orphaned in Trino and completed results are lost. Additionally, because the state is process-local, multiple server instances cannot share query state: a query started on instance A is invisible to instance B. Combined with the in-memory session store limitation (see above), the deployment is limited to a single replica. Acceptable during development; long-term this should be backed by Redis or a persistent store to enable horizontal scaling and resilience.
 
 ---
 
@@ -117,6 +117,14 @@ After saving a new connection, the previous query results remain visible until a
 **File:** `src/routes/(app)/trino/+page.server.ts`
 
 The query action sends whatever SQL the user provides to the configured connection URL without first verifying that the endpoint is actually a Trino instance. A user could point the URL at any HTTP server, and the app would blindly POST to it. We should validate new connections (e.g. by calling Trino's `/v1/info` endpoint) and reject URLs that do not respond as a Trino server.
+
+---
+
+## Testing
+
+### Mobile viewport E2E tests skipped in CI
+
+Mobile viewport tests (393×851, touch-enabled) are excluded from CI runs to reduce resource pressure on GitHub Actions runners (2 vCPU). They still run locally. The long-term fix is to either run mobile tests in a separate scheduled workflow or provision larger CI runners.
 
 ---
 

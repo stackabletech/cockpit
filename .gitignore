@@ -39,5 +39,3 @@ e2e/.auth
 # Paraglide
 src/lib/paraglide
 project.inlang/cache/
-.data/*
-!.data/.gitkeep

@@ -83,8 +83,6 @@ spec:
                 configMapKeyRef:
                   name: {{ include "stackable-ui.fullname" . }}
                   key: oidc-client-id
-            - name: STACKABLE_UI_SQLITE_PATH
-              value: {{ .Values.config.databasePath | quote }}
             {{- if .Values.auth.usernameClaim }}
             - name: STACKABLE_UI_OIDC_USERNAME_CLAIM
               value: {{ .Values.auth.usernameClaim | quote }}
@@ -131,8 +129,6 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-            - name: data
-              mountPath: /data
             {{- if .Values.trino.tlsSecretClass }}
             - name: trino-tls
               mountPath: /stackable/trino-tls
@@ -157,13 +153,6 @@ spec:
                   requests:
                     storage: 1
         {{- end }}
-        - name: data
-          {{- if .Values.persistence.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ if .Values.persistence.existingClaim }}{{ .Values.persistence.existingClaim }}{{ else }}{{ include "stackable-ui.fullname" . }}-data{{ end }}
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

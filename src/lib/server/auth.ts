@@ -1,11 +1,9 @@
 import { betterAuth } from 'better-auth';
 import { genericOAuth, openAPI } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
-import Database from 'better-sqlite3';
 import type { RequestEvent } from '@sveltejs/kit';
 
-// Dynamic imports with fallbacks for the better-auth CLI which imports this
-// file outside of SvelteKit via jiti.
+// Dynamic imports with fallbacks for non-SvelteKit contexts.
 const envModule = await import('$env/dynamic/private').catch(() => null);
 const appServer = await import('$app/server').catch(() => null);
 
@@ -24,7 +22,6 @@ export const oidcEnabled = !!(
 export const auth = betterAuth({
   secret: env.STACKABLE_UI_SESSION_SECRET,
   baseURL: env.STACKABLE_UI_BASE_URL,
-  database: new Database(env.STACKABLE_UI_SQLITE_PATH ?? '.data/auth.db'),
   session: {
     cookieCache: { enabled: true, maxAge: 5 * 60 }
   },
