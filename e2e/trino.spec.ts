@@ -71,17 +71,25 @@ test.describe('Trino query editor', () => {
 
     await expect(page.getByText('Rows 1–25 of 30')).toBeVisible();
 
-    const nextBtn = page.getByRole('button', { name: 'Next page' });
+    const firstBtn = page.getByRole('button', { name: 'First page' });
     const prevBtn = page.getByRole('button', { name: 'Previous page' });
-    await expect(prevBtn).toBeDisabled();
+    const nextBtn = page.getByRole('button', { name: 'Next page' });
+    const lastBtn = page.getByRole('button', { name: 'Last page' });
+    await expect(firstBtn).toBeEnabled();
+    await expect(prevBtn).toBeEnabled();
     await expect(nextBtn).toBeEnabled();
+    await expect(lastBtn).toBeEnabled();
 
     await nextBtn.click();
     await expect(page.getByText('Rows 26–30 of 30')).toBeVisible();
-    await expect(prevBtn).toBeEnabled();
-    await expect(nextBtn).toBeDisabled();
 
     await prevBtn.click();
+    await expect(page.getByText('Rows 1–25 of 30')).toBeVisible();
+
+    await lastBtn.click();
+    await expect(page.getByText('Rows 26–30 of 30')).toBeVisible();
+
+    await firstBtn.click();
     await expect(page.getByText('Rows 1–25 of 30')).toBeVisible();
   });
 
