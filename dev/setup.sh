@@ -150,7 +150,6 @@ fi
 TRINO_PORT=$(kubectl get svc trino-coordinator -o jsonpath='{.spec.ports[0].nodePort}')
 
 cat > "$ENV_FILE" <<EOF
-STACKABLE_UI_SQLITE_PATH=.data/auth.db
 STACKABLE_UI_OIDC_DISCOVERY_URL=http://${NODE_IP}:30080/realms/stackable/.well-known/openid-configuration
 STACKABLE_UI_OIDC_CLIENT_ID=stackable-ui
 STACKABLE_UI_OIDC_CLIENT_SECRET=${SECRET}
@@ -166,17 +165,7 @@ EOF
 echo "Wrote $ENV_FILE"
 
 # ------------------------------------------------------------------
-# 8. Run database migrations
-# ------------------------------------------------------------------
-echo ""
-echo "Resetting auth database..."
-rm -f "$PROJECT_DIR/.data/auth.db"
-echo "Running database migrations..."
-# shellcheck source=/dev/null
-(cd "$PROJECT_DIR" && set -a && source "$ENV_FILE" && set +a && npx @better-auth/cli migrate --yes)
-
-# ------------------------------------------------------------------
-# 9. Wait for Trino to be ready
+# 8. Wait for Trino to be ready
 # ------------------------------------------------------------------
 echo ""
 echo "Waiting for Trino to be ready..."

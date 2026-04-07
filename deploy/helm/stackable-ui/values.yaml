@@ -1,8 +1,6 @@
 ---
 # Default values for stackable-ui
 
-# NOTE: SQLite requires a single writer. Keep replicaCount at 1 when
-# persistence.enabled is true to avoid concurrent-write corruption.
 replicaCount: 1
 
 image:
@@ -115,8 +113,6 @@ affinity: {}
 config:
   # Node.js environment
   nodeEnv: production
-  # SQLite database path inside the container (should be on the persistence volume)
-  databasePath: "/data/auth.db"
 
 # Session secret for signing cookies (auto-generated if not provided)
 sessionSecret: ""
@@ -156,14 +152,3 @@ trino:
   # Stackable SecretClass name for provisioning the Trino CA certificate.
   # The Secret Operator mounts ca.crt into /stackable/trino-tls.
   tlsSecretClass: ""
-
-# SQLite persistence for the Better Auth database.
-# NOTE: Requires replicaCount: 1 — SQLite does not support concurrent writes from multiple pods.
-persistence:
-  enabled: true
-  size: 1Gi
-  # Storage class name. Leave empty to use the cluster default.
-  storageClassName: ""
-  accessMode: ReadWriteOnce
-  # Set to reuse an existing PVC instead of creating a new one.
-  existingClaim: ""

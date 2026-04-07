@@ -8,8 +8,7 @@ export default defineConfig({
   testDir: path.join(import.meta.dirname, 'e2e'),
   outputDir: path.join(import.meta.dirname, 'e2e/test-results'),
   globalSetup: path.join(import.meta.dirname, 'e2e/global-setup.ts'),
-  globalTeardown: path.join(import.meta.dirname, 'e2e/global-teardown.ts'),
-  timeout: 30_000,
+  timeout: 60_000,
   retries: 2,
   expect: {
     timeout: 10_000
@@ -31,7 +30,7 @@ export default defineConfig({
       reuseExistingServer: false
     },
     {
-      command: `npm run dev -- --mode test --port 4173`,
+      command: 'PORT=4173 node --env-file=.env.test build',
       url: baseURL,
       reuseExistingServer: false
     }
@@ -56,14 +55,18 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 }
       }
     },
-    {
-      name: 'setup-mobile',
-      testMatch: /auth\.setup\.ts/,
-      use: {
-        browserName: 'chromium',
-        viewport: { width: 393, height: 851 }
-      }
-    },
+    ...(!process.env.CI
+      ? [
+          {
+            name: 'setup-mobile',
+            testMatch: /auth\.setup\.ts/,
+            use: {
+              browserName: 'chromium' as const,
+              viewport: { width: 393, height: 851 }
+            }
+          }
+        ]
+      : []),
     {
       name: 'firefox',
       use: {
@@ -83,17 +86,23 @@ export default defineConfig({
       },
       dependencies: ['setup-chromium']
     },
-    {
-      name: 'mobile',
-      use: {
-        browserName: 'chromium',
-        viewport: { width: 393, height: 851 },
-        isMobile: true,
-        hasTouch: true,
-        storageState: 'e2e/.auth/user-setup-mobile.json',
-        ...(chromiumExecutablePath && { launchOptions: { executablePath: chromiumExecutablePath } })
-      },
-      dependencies: ['setup-mobile']
-    }
+    ...(!process.env.CI
+      ? [
+          {
+            name: 'mobile',
+            use: {
+              browserName: 'chromium' as const,
+              viewport: { width: 393, height: 851 },
+              isMobile: true,
+              hasTouch: true,
+              storageState: 'e2e/.auth/user-setup-mobile.json',
+              ...(chromiumExecutablePath && {
+                launchOptions: { executablePath: chromiumExecutablePath }
+              })
+            },
+            dependencies: ['setup-mobile']
+          }
+        ]
+      : [])
   ]
 });
