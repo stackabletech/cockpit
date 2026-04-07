@@ -7,11 +7,13 @@
   let {
     value = $bindable(),
     language = TRINO_SQL_LANGUAGE_ID,
+    highlightOffsets,
     onExecute,
     onExecuteAll
   }: {
     value?: string;
     language?: string;
+    highlightOffsets?: { offset: number; endOffset: number } | null;
     onExecute?: () => void;
     onExecuteAll?: () => void;
   } = $props();
@@ -68,6 +70,48 @@
     lastSelection = null;
   }
 
+  let decorationCollection: import('monaco-editor').editor.IEditorDecorationsCollection | undefined;
+  let contentChanged = $state(false);
+  let appliedStart = -1;
+  let appliedEnd = -1;
+
+  $effect(() => {
+    if (!ready || !editor || !monaco) return;
+    const offsets = highlightOffsets ?? null;
+
+    // When the parent provides a new range, reset the content-changed flag.
+    if (offsets && (offsets.offset !== appliedStart || offsets.endOffset !== appliedEnd)) {
+      contentChanged = false;
+      appliedStart = offsets.offset;
+      appliedEnd = offsets.endOffset;
+    }
+
+    if (contentChanged || !offsets) {
+      decorationCollection?.clear();
+      return;
+    }
+
+    const model = editor.getModel();
+    if (!model) return;
+    const startPos = model.getPositionAt(offsets.offset);
+    const endPos = model.getPositionAt(offsets.endOffset);
+    const range = new monaco.Range(
+      startPos.lineNumber,
+      startPos.column,
+      endPos.lineNumber,
+      endPos.column
+    );
+    const decoration = {
+      range,
+      options: { isWholeLine: false, className: 'highlighted-statement' }
+    };
+    if (decorationCollection) {
+      decorationCollection.set([decoration]);
+    } else {
+      decorationCollection = editor.createDecorationsCollection([decoration]);
+    }
+  });
+
   export function insertAtCursor(text: string) {
     if (!editor || !monaco) return;
     // Focus first so getSelection() returns a valid position (needed for Firefox).
@@ -116,6 +160,8 @@
     editor.onDidChangeModelContent(() => {
       value = editor!.getValue();
       lastSelection = null;
+      contentChanged = true;
+      decorationCollection?.clear();
     });
 
     editor.onDidBlurEditorWidget(() => {

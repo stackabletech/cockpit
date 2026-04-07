@@ -270,8 +270,11 @@
     schema: defaultSchema || undefined
   });
 
+  let submittedStatements = $state.raw<SqlStatement[]>([]);
+
   function runStatements(statements: SqlStatement[]) {
     if (statements.length === 0) return;
+    submittedStatements = statements;
     runner.executeScript(statements, execOptions);
   }
 
@@ -326,6 +329,13 @@
       return hasSelection ? m.trino_run_selected() : m.trino_run_all();
     }
     return m.trino_run_at_cursor();
+  });
+
+  // Clear submitted statements when the user edits, so highlighting stops.
+  const highlightOffsets = $derived.by(() => {
+    const progress = runner.scriptProgress;
+    if (!progress || progress.totalStatements <= 1 || isTerminal(runner.state)) return null;
+    return submittedStatements[progress.currentStatementIndex] ?? null;
   });
 
   const runShortcutLabel = $derived(runMode === 'cursor' ? 'Ctrl+↵' : 'Ctrl+Shift+↵');
@@ -746,6 +756,7 @@
         <MonacoEditor
           bind:this={monacoEditor}
           bind:value={sql}
+          {highlightOffsets}
           onExecute={handleRun}
           onExecuteAll={handleRunAll}
         />
