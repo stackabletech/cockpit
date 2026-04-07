@@ -154,11 +154,11 @@ describe('getStatementAtOffset', () => {
     expect(result!.sql).toBe('SELECT 1');
   });
 
-  it('returns the next statement when cursor is on whitespace between statements', () => {
+  it('returns the previous statement when cursor is on whitespace between statements', () => {
     // Offset 9 is the semicolon/space between SELECT 1 and SELECT 2
     const result = getStatementAtOffset(sql, 9);
     expect(result).not.toBeNull();
-    expect(result!.sql).toBe('SELECT 2');
+    expect(result!.sql).toBe('SELECT 1');
   });
 
   it('returns the last statement when cursor is past all statements', () => {

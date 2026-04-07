@@ -108,15 +108,15 @@ export function getStatementAtOffset(sql: string, offset: number): SqlStatement 
   }
 
   // If cursor is between statements (on whitespace/semicolons), return the
-  // next upcoming statement so the user targets what they're about to type.
-  for (const stmt of statements) {
-    if (stmt.offset >= offset) {
-      return stmt;
+  // previous statement so the user targets what they just finished typing.
+  for (let i = statements.length - 1; i >= 0; i--) {
+    if (statements[i].endOffset <= offset) {
+      return statements[i];
     }
   }
 
-  // Past all statements — fall back to the last one.
-  return statements[statements.length - 1] ?? null;
+  // Before all statements — fall back to the first one.
+  return statements[0] ?? null;
 }
 
 /**
