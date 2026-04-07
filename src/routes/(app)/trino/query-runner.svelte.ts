@@ -66,9 +66,7 @@ function createQueryRunner(tabId: string): QueryRunner {
     }
   }
 
-  function updateFromSnapshots(snapshots: QuerySnapshot[]) {
-    results = snapshots;
-
+  function updateProgress(snapshots: QuerySnapshot[]) {
     if (snapshots.length === 0) return;
 
     const last = snapshots[snapshots.length - 1];
@@ -85,6 +83,11 @@ function createQueryRunner(tabId: string): QueryRunner {
         )
       };
     }
+  }
+
+  function updateFromSnapshots(snapshots: QuerySnapshot[]) {
+    results = snapshots;
+    updateProgress(snapshots);
   }
 
   async function pollStatus() {
@@ -125,7 +128,9 @@ function createQueryRunner(tabId: string): QueryRunner {
             updateFromSnapshots(await fullRes.json());
           }
         } else {
-          updateFromSnapshots(snapshots);
+          // Lightweight responses omit rows/columns for completed statements.
+          // Only update state and progress — keep existing results intact.
+          updateProgress(snapshots);
         }
 
         const allTerminal = snapshots.length > 0 && snapshots.every((s) => isTerminal(s.state));
