@@ -79,7 +79,10 @@ function createQueryRunner(tabId: string): QueryRunner {
       scriptProgress = {
         totalStatements,
         completedStatements: completedCount,
-        currentStatementIndex: Math.min(completedCount, totalStatements - 1)
+        currentStatementIndex: Math.min(
+          completedCount,
+          completedCount === snapshots.length ? snapshots.length - 1 : totalStatements - 1
+        )
       };
     }
   }

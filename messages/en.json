@@ -102,5 +102,7 @@
   "trino_run_mode_select": "Select run mode",
   "trino_script_progress": "Statement {current} of {total}",
   "trino_statement_header": "Statement {index}",
+  "trino_statements_skipped_one": "1 statement was skipped due to a preceding error.",
+  "trino_statements_skipped_other": "{count} statements were skipped due to a preceding error.",
   "trino_statement_collapse": "Toggle statement {index} results"
 }

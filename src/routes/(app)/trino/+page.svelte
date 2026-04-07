@@ -170,6 +170,10 @@
   });
 
   const isActive = $derived(runner.state !== 'IDLE' && !isTerminal(runner.state));
+  const skippedStatements = $derived.by(() => {
+    if (isActive || !runner.scriptProgress) return 0;
+    return runner.scriptProgress.totalStatements - runner.results.length;
+  });
 
   // Persist connection config to localStorage (only in per-user mode).
   // Password is intentionally excluded -- credentials should not be stored client-side.
@@ -761,6 +765,13 @@
                 total: runner.scriptProgress.totalStatements
               })}
             </span>
+            {#if skippedStatements > 0}
+              <span class="text-error text-xs font-medium">
+                {skippedStatements === 1
+                  ? m.trino_statements_skipped_one()
+                  : m.trino_statements_skipped_other({ count: skippedStatements })}
+              </span>
+            {/if}
           {/if}
           {#if stateLabel}
             <span class="badge {stateBadgeClass}">{stateLabel}</span>
