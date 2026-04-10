@@ -69,28 +69,45 @@ test.describe('Trino query editor', () => {
     await page.getByRole('button', { name: 'Run', exact: true }).click();
     await waitForQueryComplete(page);
 
-    await expect(page.getByText('Rows 1–25 of 30')).toBeVisible();
+    await expect(page.getByText('Rows 1–25 of 60')).toBeVisible();
 
     const firstBtn = page.getByRole('button', { name: 'First page' });
     const prevBtn = page.getByRole('button', { name: 'Previous page' });
     const nextBtn = page.getByRole('button', { name: 'Next page' });
     const lastBtn = page.getByRole('button', { name: 'Last page' });
+
+    // First page: first/prev disabled, next/last enabled
+    await expect(firstBtn).toBeDisabled();
+    await expect(prevBtn).toBeDisabled();
+    await expect(nextBtn).toBeEnabled();
+    await expect(lastBtn).toBeEnabled();
+
+    // Navigate to middle page: all buttons enabled
+    await nextBtn.click();
+    await expect(page.getByText('Rows 26–50 of 60')).toBeVisible();
     await expect(firstBtn).toBeEnabled();
     await expect(prevBtn).toBeEnabled();
     await expect(nextBtn).toBeEnabled();
     await expect(lastBtn).toBeEnabled();
 
-    await nextBtn.click();
-    await expect(page.getByText('Rows 26–30 of 30')).toBeVisible();
-
-    await prevBtn.click();
-    await expect(page.getByText('Rows 1–25 of 30')).toBeVisible();
-
+    // Navigate to last page: next/last disabled, first/prev enabled
     await lastBtn.click();
-    await expect(page.getByText('Rows 26–30 of 30')).toBeVisible();
+    await expect(page.getByText('Rows 51–60 of 60')).toBeVisible();
+    await expect(firstBtn).toBeEnabled();
+    await expect(prevBtn).toBeEnabled();
+    await expect(nextBtn).toBeDisabled();
+    await expect(lastBtn).toBeDisabled();
 
+    // Navigate back to first page
     await firstBtn.click();
-    await expect(page.getByText('Rows 1–25 of 30')).toBeVisible();
+    await expect(page.getByText('Rows 1–25 of 60')).toBeVisible();
+    await expect(firstBtn).toBeDisabled();
+    await expect(prevBtn).toBeDisabled();
+
+    // prev from middle page
+    await nextBtn.click();
+    await prevBtn.click();
+    await expect(page.getByText('Rows 1–25 of 60')).toBeVisible();
   });
 
   test('multi-statement script shows results for each statement', async ({ page }) => {
