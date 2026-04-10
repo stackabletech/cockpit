@@ -70,7 +70,7 @@ const routes: [string, object][] = [
         { name: 'id', type: 'integer' },
         { name: 'name', type: 'varchar' }
       ],
-      data: Array.from({ length: 30 }, (_, i) => [i + 1, `Row ${i + 1}`]),
+      data: Array.from({ length: 60 }, (_, i) => [i + 1, `Row ${i + 1}`]),
       stats: { state: 'FINISHED' }
     }
   ],

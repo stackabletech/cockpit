@@ -261,6 +261,7 @@
             <nav class="join" aria-label={m.trino_results_label()}>
               <button
                 class="btn btn-xs join-item"
+                disabled={currentPage === 0}
                 onclick={() => (currentPage = 0)}
                 aria-label={m.trino_first_page()}
               >
@@ -268,6 +269,7 @@
               </button>
               <button
                 class="btn btn-xs join-item"
+                disabled={currentPage === 0}
                 onclick={() => (currentPage = Math.max(0, currentPage - 1))}
                 aria-label={m.trino_prev_page()}
               >
@@ -275,6 +277,7 @@
               </button>
               <button
                 class="btn btn-xs join-item"
+                disabled={currentPage === lastPage}
                 onclick={() => (currentPage = Math.min(lastPage, currentPage + 1))}
                 aria-label={m.trino_next_page()}
               >
@@ -282,6 +285,7 @@
               </button>
               <button
                 class="btn btn-xs join-item"
+                disabled={currentPage === lastPage}
                 onclick={() => (currentPage = lastPage)}
                 aria-label={m.trino_last_page()}
               >
