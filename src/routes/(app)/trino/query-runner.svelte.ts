@@ -16,6 +16,7 @@ export interface QueryRunner {
   readonly progress: QueryProgress;
   readonly results: QuerySnapshot[];
   readonly scriptProgress: ScriptProgress | null;
+  readonly currentTrinoQueryUrl: string | null;
   executeScript: (
     statements: SqlStatement[],
     options?: { catalog?: string; schema?: string }
@@ -39,6 +40,7 @@ function createQueryRunner(tabId: string): QueryRunner {
   // All query results. Uses $state.raw to avoid proxying large row arrays.
   let results = $state.raw<QuerySnapshot[]>([]);
   let scriptProgress = $state<ScriptProgress | null>(null);
+  let currentTrinoQueryUrl = $state<string | null>(null);
 
   let totalStatements = 0;
   let polling = false;
@@ -54,6 +56,7 @@ function createQueryRunner(tabId: string): QueryRunner {
     progress = INITIAL_PROGRESS;
     results = [];
     scriptProgress = null;
+    currentTrinoQueryUrl = null;
     totalStatements = 0;
     stopPolling();
   }
@@ -71,6 +74,7 @@ function createQueryRunner(tabId: string): QueryRunner {
 
     const last = snapshots[snapshots.length - 1];
     applySnapshot(last);
+    currentTrinoQueryUrl = last.trinoQueryUrl;
 
     if (totalStatements > 1) {
       const completedCount = snapshots.filter((s) => isTerminal(s.state)).length;
@@ -261,6 +265,9 @@ function createQueryRunner(tabId: string): QueryRunner {
     },
     get scriptProgress() {
       return scriptProgress;
+    },
+    get currentTrinoQueryUrl() {
+      return currentTrinoQueryUrl;
     },
     executeScript,
     cancel,

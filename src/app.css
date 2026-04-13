@@ -6,6 +6,16 @@
   background-color: oklch(from var(--color-primary) l c h / 0.08);
 }
 
+/* Disable DaisyUI checkbox animation */
+.checkbox {
+  --animation-input: 0s;
+  transition: none !important;
+
+  &::before {
+    transition: none !important;
+  }
+}
+
 /* Disable default browser transition on progress bar fill so value updates don't "fly" */
 progress.progress::-webkit-progress-value {
   transition: none;

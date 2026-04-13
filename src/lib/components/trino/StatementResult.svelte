@@ -56,6 +56,52 @@
       : null
   );
   const showHeader = $derived(totalStatements > 1);
+
+  const CSV_HEADERS_KEY = 'trino_csv_include_headers';
+  let includeHeaders = $state(browser ? localStorage.getItem(CSV_HEADERS_KEY) === 'true' : false);
+
+  function escapeCsvField(value: string): string {
+    if (/[",\n\r]/.test(value)) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  }
+
+  function downloadCsv() {
+    const lines: string[] = [];
+    if (includeHeaders) {
+      lines.push(result.columns.map((c) => escapeCsvField(c.name)).join(','));
+    }
+    for (const row of result.rows) {
+      lines.push(
+        row
+          .map((cell) => {
+            switch (typeof cell) {
+              case 'object':
+                return cell === null ? '' : escapeCsvField(JSON.stringify(cell));
+              default:
+                return escapeCsvField(String(cell));
+            }
+          })
+          .join(',')
+      );
+    }
+    // UTF-8 BOM so Excel correctly detects encoding for non-ASCII content
+    const blob = new Blob(['\uFEFF', lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const link = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob),
+      download: 'query-result.csv'
+    });
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  }
+
+  function handleIncludeHeadersChange(event: Event) {
+    includeHeaders = (event.target as HTMLInputElement).checked;
+    if (browser) {
+      localStorage.setItem(CSV_HEADERS_KEY, String(includeHeaders));
+    }
+  }
 </script>
 
 <div class="border-base-300 border-b last:border-b-0">
@@ -81,17 +127,6 @@
       >
         {m.trino_statement_header({ index: index + 1 })}
       </span>
-      {#if result.trinoQueryUrl}
-        <a
-          href={result.trinoQueryUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="link link-primary z-10 text-xs"
-          onclick={(e) => e.stopPropagation()}
-        >
-          {m.trino_view_in_trino()}
-        </a>
-      {/if}
       <code class="text-base-content/60 pointer-events-none max-w-md truncate text-xs">
         {result.sql.length > 80 ? result.sql.slice(0, 80) + '\u2026' : result.sql}
       </code>
@@ -121,6 +156,64 @@
     </div>
   {/if}
   <div id="{uid}-panel" class="{showHeader ? 'px-4 py-2' : 'p-4'} {collapsed ? 'hidden' : ''}">
+    {#if result.trinoQueryUrl || result.columns.length > 0}
+      <div class="flex items-center gap-2 pb-1">
+        {#if result.trinoQueryUrl}
+          <a
+            href={result.trinoQueryUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-xs btn-ghost"
+          >
+            {m.trino_view_in_trino()}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-3.5 w-3.5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"
+              />
+              <path
+                d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"
+              />
+            </svg>
+          </a>
+        {/if}
+        {#if result.columns.length > 0}
+          {#if result.trinoQueryUrl}
+            <div class="divider divider-horizontal mx-0"></div>
+          {/if}
+          <button class="btn btn-xs btn-ghost" onclick={downloadCsv}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            {m.trino_export_csv()}
+          </button>
+          <label class="flex cursor-pointer items-center gap-1 text-xs whitespace-nowrap">
+            <input
+              type="checkbox"
+              class="checkbox checkbox-xs checkbox-primary h-3.5 w-3.5"
+              checked={includeHeaders}
+              onchange={handleIncludeHeadersChange}
+            />
+            <span class="text-base-content/60">{m.trino_export_csv_column_names()}</span>
+          </label>
+        {/if}
+      </div>
+    {/if}
     {#if stmtError}
       <div class="flex flex-col gap-2" role="alert">
         <p class="text-error text-sm font-semibold">{m.trino_query_error()}</p>
@@ -150,7 +243,7 @@
                     {#if cell === null}
                       <span class="text-base-content/50 italic">null</span>
                     {:else}
-                      {String(cell)}
+                      {typeof cell === 'object' ? JSON.stringify(cell) : String(cell)}
                     {/if}
                   </td>
                 {/each}

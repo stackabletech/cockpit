@@ -104,5 +104,7 @@
   "trino_statement_header": "Anweisung {index}",
   "trino_statements_skipped_one": "1 Anweisung wurde aufgrund eines vorherigen Fehlers übersprungen.",
   "trino_statements_skipped_other": "{count} Anweisungen wurden aufgrund eines vorherigen Fehlers übersprungen.",
-  "trino_statement_collapse": "Ergebnisse von Anweisung {index} ein-/ausblenden"
+  "trino_statement_collapse": "Ergebnisse von Anweisung {index} ein-/ausblenden",
+  "trino_export_csv": "Exportieren",
+  "trino_export_csv_column_names": "Spaltennamen"
 }
