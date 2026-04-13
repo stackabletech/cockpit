@@ -2,8 +2,8 @@ import { json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { getUserId } from '$lib/server/auth-utils.js';
 import {
-  startQuery,
-  getQuerySnapshot,
+  startScript,
+  getQuerySnapshots,
   cancelQuery,
   removeTabQuery
 } from '$lib/server/trino/queries.js';
@@ -34,20 +34,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   }
 
   const user = locals.user?.username ?? 'anonymous';
+  const { statements, tabId, catalog, schema } = parsed.data;
 
-  try {
-    await startQuery(client, userId, parsed.data.tabId, parsed.data.sql, {
-      user,
-      catalog: parsed.data.catalog,
-      schema: parsed.data.schema
-    });
-    log.info({ user_id: userId, tab_id: parsed.data.tabId }, 'query submitted');
-    return new Response(null, { status: 204 });
-  } catch (err) {
-    log.error({ err }, 'failed to submit query');
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return json({ error: message }, { status: 502 });
-  }
+  // Fire-and-forget — the script orchestrator runs in the background.
+  startScript(client, userId, tabId, statements, { user, catalog, schema }).catch((err) => {
+    log.error({ err, user_id: userId, tab_id: tabId }, 'script orchestrator crashed');
+  });
+
+  log.info(
+    { user_id: userId, tab_id: tabId, statement_count: statements.length },
+    'script submitted'
+  );
+  return new Response(null, { status: 204 });
 };
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -58,12 +56,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     return json({ error: 'Missing or invalid tabId parameter' }, { status: 400 });
   }
 
-  const snapshot = getQuerySnapshot(userId, parsed.data);
+  // Lightweight mode omits rows/columns for completed queries to keep polling payloads small.
+  const lightweight = url.searchParams.get('lightweight') !== 'false';
+  const snapshots = getQuerySnapshots(userId, parsed.data, lightweight);
 
-  log.trace({ user_id: userId, tab_id: parsed.data, found: !!snapshot }, 'status poll');
-
-  if (!snapshot) return json(null);
-  return json(snapshot);
+  log.trace({ user_id: userId, tab_id: parsed.data, count: snapshots.length }, 'query poll');
+  return json(snapshots);
 };
 
 export const DELETE: RequestHandler = async ({ url, locals }) => {

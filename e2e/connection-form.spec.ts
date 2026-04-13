@@ -130,11 +130,7 @@ test.describe('Connection form (manual mode)', () => {
     await expect(page.getByLabel('Password')).not.toBeVisible();
   });
 
-  // These tests submit the form and verify server-side validation errors.
-  // They are skipped because route interception can only patch the load data,
-  // not the server-side trinoConfigured guard that rejects the save action.
-  // TODO: enable when running against a dedicated unconfigured server.
-  test.skip('submitting without a URL shows a validation error', async ({ page }) => {
+  test('submitting without a URL shows a validation error', async ({ page }) => {
     await page.goto('/trino');
     await waitForHydration(page);
 
@@ -147,7 +143,7 @@ test.describe('Connection form (manual mode)', () => {
     await expect(page.locator('.text-error')).toBeVisible();
   });
 
-  test.skip('basic auth requires username and password', async ({ page }) => {
+  test('basic auth requires username and password', async ({ page }) => {
     await page.goto('/trino');
     await waitForHydration(page);
 
@@ -160,8 +156,8 @@ test.describe('Connection form (manual mode)', () => {
     await page.getByRole('button', { name: 'Save' }).click();
 
     // Should show validation errors for missing credentials.
-    await expect(page.getByText('Username is required')).toBeVisible();
-    await expect(page.getByText('Password is required')).toBeVisible();
+    await expect(page.getByText('Username is required for basic authentication')).toBeVisible();
+    await expect(page.getByText('Password is required for basic authentication')).toBeVisible();
   });
 
   test('connection details persist to localStorage', async ({ page }) => {

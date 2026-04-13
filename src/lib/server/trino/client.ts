@@ -1,3 +1,4 @@
+import { env } from '$env/dynamic/private';
 import { readFileSync } from 'node:fs';
 import { Agent } from 'undici';
 import { logger } from '$lib/server/logging';
@@ -132,9 +133,6 @@ export function buildBasicAuthHeader(username: string, password: string): string
 }
 
 // --- Singleton & env config ---
-
-const envModule = await import('$env/dynamic/private').catch(() => null);
-const env = envModule?.env ?? (process.env as Record<string, string | undefined>);
 
 const trinoUrl = env.STACKABLE_UI_TRINO_URL;
 const authType = (env.STACKABLE_UI_TRINO_AUTH_TYPE ?? 'none') as 'none' | 'basic';

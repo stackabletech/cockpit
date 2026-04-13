@@ -1,6 +1,11 @@
 @import 'tailwindcss';
 @plugin 'daisyui';
 
+/* Subtle highlight for the currently executing statement in the Monaco editor */
+.highlighted-statement {
+  background-color: oklch(from var(--color-primary) l c h / 0.08);
+}
+
 /* Disable default browser transition on progress bar fill so value updates don't "fly" */
 progress.progress::-webkit-progress-value {
   transition: none;

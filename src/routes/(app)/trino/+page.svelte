@@ -7,13 +7,19 @@
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { superForm } from 'sveltekit-superforms';
-  import type { ConnectionMessage } from './validation.js';
+  import { ConnectionSchema, type ConnectionMessage } from './validation.js';
   import TabBar from '$lib/components/TabBar.svelte';
   import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
   import { getOrCreateQueryRunner, destroyQueryRunner } from './query-runner.svelte.js';
   import { isTerminal } from '$lib/types/query';
+  import {
+    splitStatements,
+    getStatementAtOffset,
+    getStatementsInRange,
+    type SqlStatement
+  } from '$lib/editor/split-statements.js';
   import type { PageData } from './$types';
-  import { ALLOWED_PAGE_SIZES, isPageSize, type PageSize } from './validation';
+  import StatementResult from '$lib/components/trino/StatementResult.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -35,10 +41,8 @@
   let connectionOpen = $state(false);
 
   let sql = $state(tabStore.activeTab.sql);
-  let pageSize = $state<PageSize>(25);
   let defaultCatalog = $state('');
   let defaultSchema = $state('');
-  let currentPages = new SvelteMap<string, number>();
   let hydrated = $state(false);
 
   // Signal to trigger catalog browser load (1 = load on mount).
@@ -67,13 +71,6 @@
   // Non-reactive tracker for tab switching.
   let lastTabId: string | null = null;
 
-  // Get current page for active tab.
-  const currentPage = $derived(currentPages.get(tabStore.activeTabId) ?? 0);
-
-  function setCurrentPage(page: number) {
-    currentPages.set(tabStore.activeTabId, page);
-  }
-
   // Get the query runner for the active tab.
   const runner = $derived(getOrCreateQueryRunner(tabStore.activeTabId));
 
@@ -93,8 +90,6 @@
     }
     defaultCatalog = getStoredValue('trino_default_catalog', '');
     defaultSchema = getStoredValue('trino_default_schema', '');
-    const storedPageSize = parseInt(getStoredValue('trino_page_size', '25'), 10);
-    pageSize = isPageSize(storedPageSize) ? storedPageSize : 25;
     hydrated = true;
     lastTabId = tabStore.activeTabId;
 
@@ -142,6 +137,28 @@
     errors: connectionErrors,
     message: connectionMessage
   } = superForm(data.connectionForm, {
+    onSubmit({ cancel }) {
+      const result = ConnectionSchema.safeParse({
+        connectionUrl,
+        authType,
+        authUsername,
+        authPassword
+      });
+      if (!result.success) {
+        const errors: Record<string, string[]> = {};
+        for (const issue of result.error.issues) {
+          const key = String(issue.path[0]);
+          (errors[key] ??= []).push(issue.message);
+        }
+        $connectionErrors = {
+          connectionUrl: errors.connectionUrl,
+          authType: errors.authType,
+          authUsername: errors.authUsername,
+          authPassword: errors.authPassword
+        };
+        cancel();
+      }
+    },
     onUpdated({ form }) {
       const msg = form.message as ConnectionMessage | undefined;
       if (msg?.type === 'success') {
@@ -153,6 +170,10 @@
   });
 
   const isActive = $derived(runner.state !== 'IDLE' && !isTerminal(runner.state));
+  const skippedStatements = $derived.by(() => {
+    if (isActive || !runner.scriptProgress) return 0;
+    return runner.scriptProgress.totalStatements - runner.results.length;
+  });
 
   // Persist connection config to localStorage (only in per-user mode).
   // Password is intentionally excluded -- credentials should not be stored client-side.
@@ -166,7 +187,6 @@
   // Persist settings.
   $effect(() => {
     if (!hydrated) return;
-    localStorage.setItem('trino_page_size', String(pageSize));
     localStorage.setItem('trino_default_catalog', defaultCatalog);
     localStorage.setItem('trino_default_schema', defaultSchema);
     localStorage.setItem('trino_catalog_browser_open', String(catalogBrowserOpen));
@@ -203,29 +223,11 @@
     untrack(() => tabStore.updateSql(tabStore.activeTabId, value));
   });
 
-  // Reset pagination when rows change for the active runner.
-  let prevRowCount = $state(0);
-  $effect(() => {
-    const count = runner.rows.length;
-    if (count !== prevRowCount && count > 0 && prevRowCount === 0) {
-      setCurrentPage(0);
-    }
-    prevRowCount = count;
-  });
-
   const connectionSummary = $derived.by(() => {
     const host = connectionUrl ? connectionUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : '-';
     const auth = authType === 'basic' ? m.trino_auth_basic() : m.trino_auth_none();
     return `${host} \u00b7 ${auth}`;
   });
-
-  const totalRows = $derived(runner.rows.length);
-  const displayedRows = $derived(
-    runner.rows.slice(currentPage * pageSize, (currentPage + 1) * pageSize)
-  );
-  const hasMore = $derived((currentPage + 1) * pageSize < totalRows);
-  const rowStart = $derived(currentPage * pageSize + 1);
-  const rowEnd = $derived(currentPage * pageSize + displayedRows.length);
 
   const stateLabel = $derived.by(() => {
     const stateMap: Record<string, () => string> = {
@@ -263,46 +265,92 @@
 
   const charLimitReached = $derived(sql.length >= MAX_SQL_LENGTH);
 
-  const rowLimitError = $derived.by(() => {
-    if (runner.error?.startsWith('ROW_LIMIT:')) {
-      const limit = runner.error.split(':')[1];
-      return m.trino_row_limit_reached({ limit });
-    }
-    return null;
+  const execOptions = $derived({
+    catalog: defaultCatalog || undefined,
+    schema: defaultSchema || undefined
   });
 
-  const queryError = $derived.by(() => {
-    if (!runner.error) return null;
-    if (runner.error.startsWith('ROW_LIMIT:')) return null;
-    return runner.error;
-  });
+  let submittedStatements = $state.raw<SqlStatement[]>([]);
 
-  function handleExecute() {
-    setCurrentPage(0);
-    runner.execute(sql, {
-      catalog: defaultCatalog || undefined,
-      schema: defaultSchema || undefined
-    });
+  function runStatements(statements: SqlStatement[]) {
+    if (statements.length === 0) return;
+    submittedStatements = statements;
+    runner.executeScript(statements, execOptions);
   }
+
+  /** Ctrl+Enter: run the single statement at the cursor. */
+  function handleRunAtCursor() {
+    const offset = monacoEditor?.getCursorOffset();
+    const stmt = offset != null ? getStatementAtOffset(sql, offset) : null;
+    if (stmt) runStatements([stmt]);
+  }
+
+  /** Run all statements in the editor, ignoring any selection. */
+  function handleRunAll() {
+    monacoEditor?.clearSelection();
+    runStatements(splitStatements(sql));
+  }
+
+  /** Run only the statements overlapping the current selection. */
+  function handleRunSelected() {
+    const selection = monacoEditor?.getSelection();
+    monacoEditor?.clearSelection();
+    if (!selection) return;
+    runStatements(getStatementsInRange(sql, selection.startOffset, selection.endOffset));
+  }
+
+  const hasSelection = $derived(monacoEditor?.getSelection() != null);
+
+  type RunMode = 'cursor' | 'all';
+  let runMode = $state<RunMode>('cursor');
+
+  function handleRun() {
+    // If text is selected, always run selected statements regardless of mode.
+    if (monacoEditor?.getSelection()) {
+      handleRunSelected();
+      return;
+    }
+    if (runMode === 'cursor') {
+      handleRunAtCursor();
+    } else {
+      handleRunAll();
+    }
+  }
+
+  function selectRunMode(mode: RunMode) {
+    runMode = mode;
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }
+
+  const runButtonLabel = $derived.by(() => {
+    if (runMode === 'all') {
+      return hasSelection ? m.trino_run_selected() : m.trino_run_all();
+    }
+    return m.trino_run_at_cursor();
+  });
+
+  // Clear submitted statements when the user edits, so highlighting stops.
+  const highlightOffsets = $derived.by(() => {
+    const progress = runner.scriptProgress;
+    if (!progress || progress.totalStatements <= 1 || isTerminal(runner.state)) return null;
+    return submittedStatements[progress.currentStatementIndex] ?? null;
+  });
+
+  const runShortcutLabel = $derived(runMode === 'cursor' ? 'Ctrl+↵' : 'Ctrl+Shift+↵');
 
   function handleKeydown(event: KeyboardEvent) {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-      handleExecute();
+    // Monaco handles its own keybindings — skip if the event originated from the editor.
+    if (event.target instanceof HTMLElement && event.target.closest('[data-ready]')) return;
+
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'Enter') {
+      event.preventDefault();
+      handleRunAll();
+    } else if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      handleRunAtCursor();
     }
-  }
-
-  function goToPrevPage() {
-    setCurrentPage(Math.max(0, currentPage - 1));
-  }
-
-  function goToNextPage() {
-    if (hasMore) setCurrentPage(currentPage + 1);
-  }
-
-  function handlePageSizeChange(event: Event) {
-    const n = parseInt((event.target as HTMLSelectElement).value, 10);
-    if (isPageSize(n)) pageSize = n;
-    setCurrentPage(0);
   }
 
   function toggleCatalogBrowser() {
@@ -320,7 +368,6 @@
   function handleTabClose(id: string) {
     destroyQueryRunner(id);
     viewStates.delete(id);
-    currentPages.delete(id);
     tabStore.closeTab(id);
     // Clean up server-side query state for this tab.
     fetch(`/trino/query?tabId=${encodeURIComponent(id)}&cleanup=true`, { method: 'DELETE' });
@@ -624,25 +671,95 @@
               {m.trino_cancel_query()}
             </button>
           {/if}
-          <button
-            type="button"
-            class="btn btn-primary btn-sm"
-            disabled={isActive}
-            aria-label={m.trino_run_query()}
-            onclick={handleExecute}
-          >
-            {#if isActive}
-              <span class="loading loading-spinner loading-xs"></span>
-              {m.trino_running()}
-            {:else}
-              {m.trino_run_query()}
-              <kbd class="kbd kbd-sm text-base-content opacity-60">Ctrl+↵</kbd>
-            {/if}
-          </button>
+          {#snippet runOption(label: string, shortcut: string)}
+            <span class="flex flex-col items-start text-xs font-semibold">
+              <span>{label}</span>
+              <kbd class="kbd kbd-xs text-base-content opacity-60">{shortcut}</kbd>
+            </span>
+          {/snippet}
+
+          <div class="dropdown dropdown-end">
+            <div class="join">
+              <button
+                type="button"
+                class="btn btn-primary join-item py-1.5"
+                disabled={isActive}
+                aria-label={runButtonLabel}
+                onclick={handleRun}
+              >
+                {#if isActive}
+                  <span class="loading loading-spinner loading-xs"></span>
+                  {m.trino_running()}
+                {:else}
+                  <span class="grid [&>*]:[grid-area:1/1]">
+                    <!-- Invisible sizers: longest option sets width -->
+                    <span class="invisible" aria-hidden="true">
+                      {@render runOption(m.trino_run_at_cursor(), 'Ctrl+Shift+↵')}
+                    </span>
+                    <span class="invisible" aria-hidden="true">
+                      {@render runOption(
+                        hasSelection ? m.trino_run_selected() : m.trino_run_all(),
+                        'Ctrl+Shift+↵'
+                      )}
+                    </span>
+                    {@render runOption(runButtonLabel, runShortcutLabel)}
+                  </span>
+                {/if}
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary join-item border-l-primary-content/20 self-stretch border-l px-2"
+                class:pointer-events-none={isActive}
+                aria-haspopup="true"
+                aria-label={m.trino_run_mode_select()}
+              >
+                <svg class="h-3 w-3" aria-hidden="true" viewBox="0 0 20 20" fill="currentColor">
+                  <path
+                    fill-rule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div
+              class="dropdown-content bg-primary text-primary-content rounded-box z-10 mt-1 flex w-full flex-col gap-1 p-1.5 shadow-lg"
+            >
+              <button
+                type="button"
+                class="rounded-btn hover:bg-primary-content/20 cursor-pointer px-3 py-1.5 text-left {runMode ===
+                'cursor'
+                  ? 'bg-primary-content/15'
+                  : ''}"
+                onclick={() => selectRunMode('cursor')}
+              >
+                {@render runOption(m.trino_run_at_cursor(), 'Ctrl+↵')}
+              </button>
+              <button
+                type="button"
+                class="rounded-btn hover:bg-primary-content/20 cursor-pointer px-3 py-1.5 text-left {runMode ===
+                'all'
+                  ? 'bg-primary-content/15'
+                  : ''}"
+                onclick={() => selectRunMode('all')}
+              >
+                {@render runOption(
+                  hasSelection ? m.trino_run_selected() : m.trino_run_all(),
+                  'Ctrl+Shift+↵'
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="h-64 px-4 py-2">
-        <MonacoEditor bind:this={monacoEditor} bind:value={sql} onExecute={handleExecute} />
+        <MonacoEditor
+          bind:this={monacoEditor}
+          bind:value={sql}
+          {highlightOffsets}
+          onExecute={handleRun}
+          onExecuteAll={handleRunAll}
+        />
       </div>
 
       <!-- Status display -->
@@ -652,6 +769,21 @@
           aria-live="polite"
           data-query-state={runner.state}
         >
+          {#if runner.scriptProgress}
+            <span class="text-base-content/60 text-xs font-medium">
+              {m.trino_script_progress({
+                current: runner.scriptProgress.currentStatementIndex + 1,
+                total: runner.scriptProgress.totalStatements
+              })}
+            </span>
+            {#if skippedStatements > 0}
+              <span class="text-error text-xs font-medium">
+                {skippedStatements === 1
+                  ? m.trino_statements_skipped_one()
+                  : m.trino_statements_skipped_other({ count: skippedStatements })}
+              </span>
+            {/if}
+          {/if}
           {#if stateLabel}
             <span class="badge {stateBadgeClass}">{stateLabel}</span>
           {/if}
@@ -674,9 +806,9 @@
               })}
             </span>
           {/if}
-          {#if runner.trinoQueryUrl}
+          {#if runner.results.length === 1 && runner.results[0].trinoQueryUrl}
             <a
-              href={runner.trinoQueryUrl}
+              href={runner.results[0].trinoQueryUrl}
               target="_blank"
               rel="noopener noreferrer"
               class="link link-primary text-xs"
@@ -684,99 +816,23 @@
               {m.trino_view_in_trino()}
             </a>
           {/if}
-          {#if rowLimitError}
-            <span class="text-warning text-xs">{rowLimitError}</span>
-          {/if}
         </div>
       {/if}
 
       <!-- Results section -->
       <div class="border-base-300 flex items-center border-t px-4 py-2">
         <span class="text-base-content/60 text-sm font-medium">{m.trino_results_label()}</span>
-        {#if runner.state === 'FINISHED' && displayedRows.length > 0 && totalRows > 0}
-          <span class="text-base-content/40 ml-2 text-xs">
-            {m.trino_rows_range({ start: rowStart, end: rowEnd, total: totalRows })}
-          </span>
-        {/if}
       </div>
 
-      <div class="min-h-0 flex-1 overflow-auto p-4">
-        {#if queryError}
-          <div class="flex flex-col gap-2" role="alert">
-            <p class="text-error text-sm font-semibold">{m.trino_query_error()}</p>
-            <pre
-              class="bg-base-200 text-base-content overflow-x-auto rounded-lg p-3 text-xs whitespace-pre-wrap">{queryError}</pre>
-          </div>
-        {:else if runner.state === 'FINISHED' && runner.columns.length > 0}
-          <div class="overflow-x-auto">
-            <table class="table-sm table-zebra table" aria-label={m.trino_results_label()}>
-              <thead>
-                <tr>
-                  {#each runner.columns as col (col.name)}
-                    <th scope="col" class="whitespace-nowrap">{col.name}</th>
-                  {/each}
-                </tr>
-              </thead>
-              <tbody>
-                {#each displayedRows as row, rowIdx (rowIdx)}
-                  <tr>
-                    {#each row as cell, cellIdx (cellIdx)}
-                      <td class="font-mono text-xs whitespace-nowrap">
-                        {#if cell === null}
-                          <span class="text-base-content/50 italic">null</span>
-                        {:else}
-                          {String(cell)}
-                        {/if}
-                      </td>
-                    {/each}
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        {:else if !isActive && !queryError}
+      <div class="min-h-0 flex-1 overflow-auto">
+        {#if runner.results.length > 0}
+          {#each runner.results as result, idx (idx)}
+            <StatementResult {result} index={idx} totalStatements={runner.results.length} />
+          {/each}
+        {:else if !isActive}
           <p class="text-base-content/40 py-8 text-center text-sm">{m.trino_results_empty()}</p>
         {/if}
       </div>
-
-      {#if runner.state === 'FINISHED' && runner.columns.length > 0}
-        <div class="border-base-300 flex items-center justify-between border-t px-4 py-3">
-          <div class="join">
-            <button
-              class="btn btn-sm join-item"
-              onclick={goToPrevPage}
-              disabled={currentPage === 0}
-              aria-label={m.trino_prev_page()}
-            >
-              ‹
-            </button>
-            <button
-              class="btn btn-sm join-item"
-              onclick={goToNextPage}
-              disabled={!hasMore}
-              aria-label={m.trino_next_page()}
-            >
-              ›
-            </button>
-          </div>
-
-          <div class="flex items-center gap-3">
-            <label for="{uid}-page-size" class="text-base-content/60 text-sm whitespace-nowrap">
-              {m.trino_page_size()}
-            </label>
-            <select
-              id="{uid}-page-size"
-              class="select select-sm"
-              value={pageSize}
-              onchange={handlePageSizeChange}
-            >
-              {#each ALLOWED_PAGE_SIZES as size (size)}
-                <option value={size}>{size}</option>
-              {/each}
-            </select>
-          </div>
-        </div>
-      {/if}
     </div>
   </div>
 </div>
