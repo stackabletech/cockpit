@@ -201,7 +201,7 @@
           >
             {node.name}
           </button>
-          <span class="badge badge-ghost badge-xs text-base-content/40">
+          <span class="badge badge-ghost badge-xs text-base-content/40 whitespace-nowrap">
             {#if node.type === 'materialized_view'}
               {m.trino_table_type_materialized_view()}
             {:else if node.type === 'view'}
