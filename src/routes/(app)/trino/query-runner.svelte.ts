@@ -7,6 +7,7 @@ import {
   type ScriptProgress
 } from '$lib/types/query.js';
 import type { SqlStatement } from '$lib/editor/split-statements.js';
+import { clearCompletionCache } from '$lib/editor/completion-provider.js';
 
 export { INITIAL_PROGRESS, type QueryState, type QueryProgress } from '$lib/types/query.js';
 export type { ScriptProgress } from '$lib/types/query.js';
@@ -139,6 +140,7 @@ function createQueryRunner(tabId: string): QueryRunner {
 
         const allTerminal = snapshots.length > 0 && snapshots.every((s) => isTerminal(s.state));
         if (allTerminal) {
+          clearCompletionCache();
           stopPolling();
           return;
         }

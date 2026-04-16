@@ -11,7 +11,6 @@ import {
 } from '$lib/types/query.js';
 import { type TrinoClient, type TrinoQueryStats, resolveTrinoServerUrl } from './client.js';
 import { collectResults } from './result-collector.js';
-import { invalidateForStatement } from './ddl-invalidation.js';
 
 const log = logger.child({ module: 'trino-queries' });
 
@@ -235,10 +234,6 @@ export async function startScript(
     }
 
     if (query.state !== 'FINISHED') break;
-
-    // DDL detection: drop affected metadata-cache entries so completion sees
-    // schema/table changes immediately.
-    invalidateForStatement(userId, sql, options.catalog, options.schema);
   }
 }
 

@@ -50,9 +50,14 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
-const CLIENT_CACHE_TTL_MS = 5_000;
+const CLIENT_CACHE_TTL_MS = 5 * 60_000;
 const CLIENT_CACHE_SWEEP_MS = 5 * 60_000;
 const clientCache = new Map<string, CacheEntry<unknown> | Promise<unknown>>();
+
+/** Drop all cached metadata so the next completion fetches fresh data. */
+export function clearCompletionCache(): void {
+  clientCache.clear();
+}
 
 // Periodic sweep of expired entries to prevent unbounded growth.
 if (typeof setInterval !== 'undefined') {
