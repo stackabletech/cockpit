@@ -87,6 +87,8 @@
   "trino_insert_table": "Insert table name",
   "trino_table_type_table": "Table",
   "trino_table_type_view": "View",
+  "trino_table_type_materialized_view": "Mat. view",
+  "trino_catalog_refresh": "Refresh catalogue",
   "trino_catalog_error": "Failed to load catalog",
   "trino_catalog_load_children_error": "Failed to load",
   "trino_view_in_trino": "View in Trino",
