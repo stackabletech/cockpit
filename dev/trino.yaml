@@ -54,6 +54,18 @@ spec:
   connector:
     tpch: {}
 ---
+apiVersion: trino.stackable.tech/v1alpha1
+kind: TrinoCatalog
+metadata:
+  name: memory
+  namespace: default
+  labels:
+    trino: trino
+spec:
+  connector:
+    generic:
+      connectorName: memory
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:

@@ -70,11 +70,14 @@
     });
     return rows.map((row) => {
       const arr = row as string[];
-      const tableType = arr[1]?.toUpperCase().includes('VIEW') ? 'view' : 'table';
-      return {
-        name: String(arr[0]),
-        type: tableType as 'table' | 'view'
-      };
+      const raw = (arr[1] ?? '').toUpperCase();
+      const type =
+        raw === 'MATERIALIZED VIEW'
+          ? ('materialized_view' as const)
+          : raw === 'VIEW'
+            ? ('view' as const)
+            : ('table' as const);
+      return { name: String(arr[0]), type };
     });
   }
 
@@ -132,7 +135,11 @@
         children = await loadSchemas(parts[0]);
       } else if (node.type === 'schema') {
         children = await loadTables(parts[0], parts[1]);
-      } else if (node.type === 'table' || node.type === 'view') {
+      } else if (
+        node.type === 'table' ||
+        node.type === 'view' ||
+        node.type === 'materialized_view'
+      ) {
         children = await loadColumns(parts[0], parts[1], parts[2]);
       } else {
         children = [];

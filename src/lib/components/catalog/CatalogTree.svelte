@@ -128,6 +128,24 @@
       />
       <circle cx="12" cy="12" r="3" />
     </svg>
+  {:else if type === 'materialized_view'}
+    <svg
+      class="text-base-content/50 h-4 w-4 shrink-0"
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path
+        d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"
+      />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v4" />
+      <path d="M12 18v4" />
+    </svg>
   {:else}
     <svg
       class="text-base-content/40 h-3 w-3 shrink-0"
@@ -171,7 +189,7 @@
 
         {@render nodeIcon(node.type)}
 
-        {#if node.type === 'table' || node.type === 'view'}
+        {#if node.type === 'table' || node.type === 'view' || node.type === 'materialized_view'}
           <button
             class="hover:text-primary truncate text-left hover:underline"
             onclick={(e) => {
@@ -184,7 +202,13 @@
             {node.name}
           </button>
           <span class="badge badge-ghost badge-xs text-base-content/40">
-            {node.type === 'view' ? m.trino_table_type_view() : m.trino_table_type_table()}
+            {#if node.type === 'materialized_view'}
+              {m.trino_table_type_materialized_view()}
+            {:else if node.type === 'view'}
+              {m.trino_table_type_view()}
+            {:else}
+              {m.trino_table_type_table()}
+            {/if}
           </span>
         {:else}
           <span class="truncate">{node.name}</span>

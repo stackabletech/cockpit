@@ -86,7 +86,8 @@
   "trino_loading": "Wird geladen…",
   "trino_insert_table": "Tabellenname einfügen",
   "trino_table_type_table": "Tabelle",
-  "trino_table_type_view": "Ansicht",
+  "trino_table_type_view": "View",
+  "trino_table_type_materialized_view": "Materialized View",
   "trino_catalog_error": "Katalog konnte nicht geladen werden",
   "trino_catalog_load_children_error": "Laden fehlgeschlagen",
   "trino_view_in_trino": "In Trino anzeigen",
@@ -106,5 +107,14 @@
   "trino_statements_skipped_other": "{count} Anweisungen wurden aufgrund eines vorherigen Fehlers übersprungen.",
   "trino_statement_collapse": "Ergebnisse von Anweisung {index} ein-/ausblenden",
   "trino_export_csv": "Exportieren",
-  "trino_export_csv_column_names": "Spaltennamen"
+  "trino_export_csv_column_names": "Spaltennamen",
+  "completion_detail_catalog": "Katalog",
+  "completion_detail_schema_in": "Schema in {catalog}",
+  "completion_detail_table_in": "Tabelle in {path}",
+  "completion_detail_view_in": "View in {path}",
+  "completion_detail_materialized_view_in": "Materialized View in {path}",
+  "completion_detail_column_in": "Spalte von {table}",
+  "completion_detail_column": "Spalte",
+  "completion_detail_keyword": "Schlüsselwort",
+  "completion_detail_function": "Funktion"
 }

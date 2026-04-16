@@ -128,6 +128,21 @@ Mobile viewport tests (393×851, touch-enabled) are excluded from CI runs to red
 
 ---
 
+## Build / Codegen
+
+### Post-generate patches applied to antlr-ng output
+
+**File:** `src/lib/editor/grammar/patch-generated.mjs`, invoked from `generate:antlr` in `package.json`
+
+`antlr-ng` (the TypeScript target) emits two issues in our generated files that we patch after every regeneration:
+
+1. `SqlBaseListener.ts` imports `ParseTreeListener` as a value, but it is a type-only `interface` in `antlr4ng`. Under strict ESM the value import fails at runtime. We rewrite it to `import type`.
+2. `SqlBaseParser.ts` contains three bare `ParserRuleContext` references that should be `antlr.ParserRuleContext`, and a `predicate()` signature plus `PredicateContext` field/ctor that type `value` as non-nullable despite the parser passing `undefined` at runtime.
+
+Long-term: file these upstream in `antlr-ng` and drop the patch script once a fixed version is pinned.
+
+---
+
 ## Infrastructure
 
 ### No Content Security Policy headers

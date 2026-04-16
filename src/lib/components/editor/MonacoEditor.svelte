@@ -2,18 +2,28 @@
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import { theme } from '$lib/theme.svelte';
-  import { registerTrinoSql, TRINO_SQL_LANGUAGE_ID } from '$lib/editor/trinosql';
+  import {
+    registerTrinoSql,
+    setCompletionDefaultsGetter,
+    TRINO_SQL_LANGUAGE_ID
+  } from '$lib/editor/trinosql';
 
   let {
     value = $bindable(),
     language = TRINO_SQL_LANGUAGE_ID,
     highlightOffsets,
+    defaultCatalog,
+    defaultSchema,
+    completionEnabled = true,
     onExecute,
     onExecuteAll
   }: {
     value?: string;
     language?: string;
     highlightOffsets?: { offset: number; endOffset: number } | null;
+    defaultCatalog?: string;
+    defaultSchema?: string;
+    completionEnabled?: boolean;
     onExecute?: () => void;
     onExecuteAll?: () => void;
   } = $props();
@@ -142,7 +152,11 @@
 
     monaco = await monacoImport!;
 
-    registerTrinoSql(monaco);
+    setCompletionDefaultsGetter(() => ({
+      catalog: defaultCatalog || undefined,
+      schema: defaultSchema || undefined
+    }));
+    registerTrinoSql(monaco, { completionEnabled });
 
     editor = monaco.editor.create(container, {
       value,
@@ -154,7 +168,9 @@
       scrollBeyondLastLine: false,
       automaticLayout: true,
       padding: { top: 12, bottom: 12 },
-      wordWrap: 'on'
+      wordWrap: 'on',
+      quickSuggestions: { other: true, comments: false, strings: false },
+      suggestOnTriggerCharacters: true
     });
 
     editor.onDidChangeModelContent(() => {
@@ -163,6 +179,21 @@
       contentChanged = true;
       decorationCollection?.clear();
     });
+
+    // Re-trigger completion after Backspace. Monaco's quickSuggestions only
+    // fires on character insertion; deleting back into a partial identifier
+    // would otherwise leave the user without suggestions until the next
+    // keystroke. Listen on keyUp so the deletion has already been applied.
+    if (completionEnabled) {
+      editor.onKeyUp((e) => {
+        if (e.keyCode === monaco!.KeyCode.Backspace) {
+          const pos = editor!.getPosition();
+          if (pos && editor!.getModel()?.getWordAtPosition(pos)) {
+            editor!.trigger('keyboard', 'editor.action.triggerSuggest', {});
+          }
+        }
+      });
+    }
 
     editor.onDidBlurEditorWidget(() => {
       const sel = editor!.getSelection();
