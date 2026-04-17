@@ -108,5 +108,14 @@
   "trino_statements_skipped_other": "{count} statements were skipped due to a preceding error.",
   "trino_statement_collapse": "Toggle statement {index} results",
   "trino_export_csv": "Export",
-  "trino_export_csv_column_names": "Column names"
+  "trino_export_csv_column_names": "Column names",
+  "completion_detail_catalog": "Catalogue",
+  "completion_detail_schema_in": "Schema in {catalog}",
+  "completion_detail_table_in": "Table in {path}",
+  "completion_detail_view_in": "View in {path}",
+  "completion_detail_materialized_view_in": "Materialized view in {path}",
+  "completion_detail_column_in": "Column of {table}",
+  "completion_detail_column": "Column",
+  "completion_detail_keyword": "Keyword",
+  "completion_detail_function": "Function"
 }

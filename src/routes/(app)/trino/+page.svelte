@@ -41,7 +41,7 @@
   let connectionOpen = $state(false);
 
   let sql = $state(tabStore.activeTab.sql);
-  let defaultCatalog = $state('');
+  let defaultCatalog = $state('system');
   let defaultSchema = $state('');
   let hydrated = $state(false);
 
@@ -88,7 +88,7 @@
       authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
       authUsername = getStoredValue('trino_username', '');
     }
-    defaultCatalog = getStoredValue('trino_default_catalog', '');
+    defaultCatalog = getStoredValue('trino_default_catalog', 'system');
     defaultSchema = getStoredValue('trino_default_schema', '');
     hydrated = true;
     lastTabId = tabStore.activeTabId;

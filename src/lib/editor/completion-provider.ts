@@ -112,9 +112,9 @@ async function fetchNames(params: {
   return fetchCached<string[]>(key, qs, []);
 }
 
-async function fetchTables(catalog: string, schema: string): Promise<TableEntry[]> {
-  const key = `tables:${catalog}:${schema}:`;
-  const qs = new URLSearchParams({ level: 'tables', catalog, schema });
+async function fetchTables(catalog: string, schema?: string): Promise<TableEntry[]> {
+  const key = `tables:${catalog}:${schema ?? ''}:`;
+  const qs = new URLSearchParams({ level: 'tables', catalog, ...(schema ? { schema } : {}) });
   return fetchCached<TableEntry[]>(key, qs, []);
 }
 
@@ -269,7 +269,7 @@ async function appendRelationItems(
   defaults: CompletionDefaults
 ): Promise<void> {
   if (prefixParts.length === 0) {
-    // Catalogs + (optionally) schemas of default catalog + tables of default schema.
+    // Catalogs + schemas of default catalog + tables of default catalog (optionally filtered by schema).
     const catalogs = await fetchNames({ level: 'catalogs' });
     for (const c of catalogs) {
       out.push(
@@ -297,10 +297,14 @@ async function appendRelationItems(
           )
         );
       }
-      if (defaults.schema) {
-        const tables = await fetchTables(defaults.catalog, defaults.schema);
-        pushRelationItems(monaco, out, range, tables, `${defaults.catalog}.${defaults.schema}`);
-      }
+      const tables = await fetchTables(defaults.catalog, defaults.schema);
+      pushRelationItems(
+        monaco,
+        out,
+        range,
+        tables,
+        `${defaults.catalog}.${defaults.schema ?? '*'}`
+      );
     }
     return;
   }
@@ -384,7 +388,7 @@ async function appendColumnItems(
 
   // Bare column position: suggest columns of every in-scope relation, plus
   // built-in Trino functions (callable anywhere a primary expression is).
-  const relations = [...new Map(Array.from(aliasMap.entries())).values()];
+  const relations = [...aliasMap.values()];
   const seen = new Set<string>();
   // De-duplicate by fully qualified name.
   const unique = relations.filter((r) => {
