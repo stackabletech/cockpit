@@ -23,20 +23,27 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
   switch (level) {
     case 'catalogs':
-      sql = 'SELECT catalog_name FROM system.metadata.catalogs ORDER BY catalog_name';
+      sql = 'SHOW CATALOGS';
       break;
     case 'schemas':
       if (!catalog) error(400, 'catalog is required for schemas');
-      sql = `SELECT schema_name FROM "${catalog}".information_schema.schemata ORDER BY schema_name`;
+      sql = `SHOW SCHEMAS FROM "${catalog}"`;
       break;
     case 'tables':
       if (!catalog || !schema) error(400, 'catalog and schema are required for tables');
-      sql = `SELECT table_name, table_type FROM "${catalog}".information_schema.tables WHERE table_schema = '${schema}' ORDER BY table_name`;
+      sql = `
+        SELECT t.table_name,
+               CASE WHEN mv.name IS NOT NULL THEN 'MATERIALIZED VIEW' ELSE t.table_type END AS table_type
+        FROM "${catalog}".information_schema.tables t
+        LEFT JOIN system.metadata.materialized_views mv
+          ON mv.catalog_name = '${catalog}' AND mv.schema_name = t.table_schema AND mv.name = t.table_name
+        WHERE t.table_schema = '${schema}'
+        ORDER BY t.table_name`;
       break;
     case 'columns':
       if (!catalog || !schema || !table)
         error(400, 'catalog, schema, and table are required for columns');
-      sql = `SELECT column_name, data_type FROM "${catalog}".information_schema.columns WHERE table_schema = '${schema}' AND table_name = '${table}' ORDER BY ordinal_position`;
+      sql = `DESCRIBE "${catalog}"."${schema}"."${table}"`;
       break;
     default:
       error(400, 'level must be one of: catalogs, schemas, tables, columns');
