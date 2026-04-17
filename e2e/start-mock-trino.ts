@@ -5,19 +5,19 @@ const PORT = 8080;
 /** SQL substring → fixture response. First match wins; fallback is a 3-row success. */
 const routes: [string, object][] = [
   [
-    'system.metadata.catalogs',
+    'SHOW CATALOGS',
     {
       id: 'q-catalogs',
-      columns: [{ name: 'catalog_name', type: 'varchar' }],
+      columns: [{ name: 'Catalog', type: 'varchar' }],
       data: [['tpch'], ['system']],
       stats: { state: 'FINISHED' }
     }
   ],
   [
-    'information_schema.schemata',
+    'SHOW SCHEMAS',
     {
       id: 'q-schemas',
-      columns: [{ name: 'schema_name', type: 'varchar' }],
+      columns: [{ name: 'Schema', type: 'varchar' }],
       data: [['information_schema'], ['sf1'], ['sf100']],
       stats: { state: 'FINISHED' }
     }
@@ -33,23 +33,26 @@ const routes: [string, object][] = [
       data: [
         ['customer', 'BASE TABLE'],
         ['orders', 'BASE TABLE'],
-        ['customer_view', 'VIEW']
+        ['customer_view', 'VIEW'],
+        ['customer_mv', 'MATERIALIZED VIEW']
       ],
       stats: { state: 'FINISHED' }
     }
   ],
   [
-    'information_schema.columns',
+    'DESCRIBE',
     {
       id: 'q-columns',
       columns: [
-        { name: 'column_name', type: 'varchar' },
-        { name: 'data_type', type: 'varchar' }
+        { name: 'Column', type: 'varchar' },
+        { name: 'Type', type: 'varchar' },
+        { name: 'Extra', type: 'varchar' },
+        { name: 'Comment', type: 'varchar' }
       ],
       data: [
-        ['custkey', 'bigint'],
-        ['name', 'varchar'],
-        ['address', 'varchar']
+        ['custkey', 'bigint', '', ''],
+        ['name', 'varchar', '', ''],
+        ['address', 'varchar', '', '']
       ],
       stats: { state: 'FINISHED' }
     }
