@@ -1,15 +1,36 @@
-// Post-process antlr-ng's TypeScript output to fix two generator bugs that
-// block runtime ESM import (under strict checkers) and svelte-check:
+// Post-process antlr-ng's TypeScript output to work around three codegen bugs
+// that break runtime ESM import (under strict checkers) and svelte-check.
+// No upstream issues track these at https://github.com/antlr-ng/antlr-ng/issues
+// as of antlr-ng 1.0.10; we should file them eventually and drop each
+// substitution as it's fixed upstream. All substitutions are idempotent.
 //
-// 1. SqlBaseListener.ts imports `ParseTreeListener` as a value, but in
-//    antlr4ng it is a type-only `interface` — the value import fails under
-//    strict ESM. Rewrite it as `import type { ParseTreeListener }`.
+// 1. ParseTreeListener imported as a value
+//    ----------------------------------------
+//    antlr4ng declares `ParseTreeListener` as `export interface` (see
+//    node_modules/antlr4ng/dist/tree/ParseTreeListener.d.ts). antlr-ng doesn't
+//    model which antlr4ng exports are types vs values, so it emits a plain
+//    value import. That fails under `verbatimModuleSyntax` / strict ESM.
+//    Fix: rewrite as `import type { ParseTreeListener }`.
 //
-// 2. SqlBaseParser.ts contains three bare `ParserRuleContext` references that
-//    should be qualified as `antlr.ParserRuleContext` (the file already does
-//    `import * as antlr from "antlr4ng"` and uses the prefix everywhere else).
+// 2. Unqualified `ParserRuleContext` in the `predicate` rule
+//    --------------------------------------------------------
+//    SqlBase.g4 declares `predicate[ParserRuleContext value]` (line ~569).
+//    ANTLR rule arguments embed target-language type syntax verbatim — the
+//    Trino grammar is Java-targeted, so the type name is bare. antlr-ng
+//    pastes the token through without namespace-qualifying it, even though
+//    the generated file does `import * as antlr from "antlr4ng"` and uses
+//    `antlr.ParserRuleContext` everywhere else. We can't fix this in the
+//    grammar without diverging from Trino upstream (which we sync from).
+//    Fix: rewrite the three affected references to `antlr.ParserRuleContext`.
 //
-// Both substitutions are idempotent.
+// 3. `predicate(value)` parameter should accept undefined
+//    -----------------------------------------------------
+//    Grammar: `predicate[$valueExpression.ctx]?` — the `?` makes the
+//    invocation optional, and at runtime the arg can be undefined. Java
+//    ignores this (everything is nullable); TS with strict null checks
+//    rejects it. antlr-ng doesn't reflect the optional-invocation nullability
+//    in the emitted parameter type. Fix: widen the signature, field, and
+//    constructor parameter to `antlr.ParserRuleContext | undefined`.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

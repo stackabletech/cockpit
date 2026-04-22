@@ -1,9 +1,13 @@
-// Shared helpers for working with SqlBaseLexer token streams. Used by both
-// the completion engine and DDL invalidation.
+// Shared helpers for working with SqlBaseLexer token streams. Consumed by the
+// completion engine.
 
-import { CharStream, type Token } from 'antlr4ng';
+import { CharStream, Token } from 'antlr4ng';
 import { SqlBaseLexer } from './generated/SqlBaseLexer.js';
 
+// ANTLR assigns `T__0`, `T__1`, … to grammar literals that have no explicit
+// token name. In Trino's SqlBase.g4 those are (in order of first appearance)
+// `.`, `(`, `)`, `,`. Verified against SqlBaseLexer.literalNames on
+// generation; update if the grammar's literal order changes.
 export const DOT = SqlBaseLexer.T__0;
 export const LPAREN = SqlBaseLexer.T__1;
 export const RPAREN = SqlBaseLexer.T__2;
@@ -16,54 +20,57 @@ export const IDENTIFIER_TOKENS = new Set<number>([
   SqlBaseLexer.DIGIT_IDENTIFIER
 ]);
 
-/** Strip matching double-quotes or backticks around a quoted identifier. */
+/** Strip matching double-quotes or backticks around a quoted identifier,
+ *  also collapsing the SQL-style doubled-quote escape (`""` → `"`, `` `` `` → `` ` ``). */
 export function unquoteIdentifier(text: string): string {
-  if (text.length >= 2) {
-    const first = text[0];
-    const last = text[text.length - 1];
-    if ((first === '"' && last === '"') || (first === '`' && last === '`')) {
-      return text.slice(1, -1).replaceAll(first + first, first);
-    }
-  }
-  return text;
+  if (text.length < 2) return text;
+  const first = text[0];
+  const last = text[text.length - 1];
+  const isQuoted = (first === '"' && last === '"') || (first === '`' && last === '`');
+  if (!isQuoted) return text;
+  return text.slice(1, -1).replaceAll(first + first, first);
 }
 
-/** Lex a string; returns all tokens on the default channel (no WS/comments). */
+/** Lex a string and return its default-channel tokens. The SqlBase grammar
+ *  routes whitespace and both comment forms to the HIDDEN channel, so
+ *  channel-filtering drops them without hard-coding token types. */
 export function lexNonHidden(sql: string): Token[] {
   const lexer = new SqlBaseLexer(CharStream.fromString(sql));
   lexer.removeErrorListeners();
   const tokens: Token[] = [];
-  while (true) {
-    const t = lexer.nextToken();
-    if (t.type === SqlBaseLexer.EOF) break;
-    if (
-      t.type === SqlBaseLexer.WS ||
-      t.type === SqlBaseLexer.SIMPLE_COMMENT ||
-      t.type === SqlBaseLexer.BRACKETED_COMMENT
-    ) {
-      continue;
-    }
-    tokens.push(t);
+  for (;;) {
+    const token = lexer.nextToken();
+    if (token.type === SqlBaseLexer.EOF) break;
+    if (token.channel !== Token.DEFAULT_CHANNEL) continue;
+    tokens.push(token);
   }
   return tokens;
 }
 
 /** Read a dotted qualified name (a.b.c) starting at `start`, returning the
- *  unquoted parts and the index of the token after the name. */
+ *  unquoted parts and the index of the token after the name. Stops at the
+ *  first non-identifier token, or at a trailing dot not followed by an
+ *  identifier (treated as "name ends here"). */
 export function readQualifiedName(
   tokens: Token[],
   start: number
 ): { parts: string[]; next: number } {
   const parts: string[] = [];
-  let i = start;
-  while (i < tokens.length && IDENTIFIER_TOKENS.has(tokens[i].type)) {
-    parts.push(unquoteIdentifier(tokens[i].text ?? ''));
-    if (tokens[i + 1]?.type === DOT && tokens[i + 2] && IDENTIFIER_TOKENS.has(tokens[i + 2].type)) {
-      i += 2;
-    } else {
-      i++;
-      break;
-    }
+  let pos = start;
+
+  while (pos < tokens.length && IDENTIFIER_TOKENS.has(tokens[pos].type)) {
+    parts.push(unquoteIdentifier(tokens[pos].text ?? ''));
+    pos++;
+
+    // Continue only when a `DOT IDENTIFIER` pair follows. Anything else
+    // (end of input, trailing dot, different token) ends the name.
+    const dotFollows = tokens[pos]?.type === DOT;
+    const identAfterDot =
+      tokens[pos + 1] !== undefined && IDENTIFIER_TOKENS.has(tokens[pos + 1].type);
+    if (!dotFollows || !identAfterDot) break;
+
+    pos++; // skip the dot; the loop body consumes the identifier after it
   }
-  return { parts, next: i };
+
+  return { parts, next: pos };
 }

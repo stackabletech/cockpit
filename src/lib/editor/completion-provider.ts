@@ -8,6 +8,12 @@
 import type * as Monaco from 'monaco-editor';
 import { analyseCompletion, type RelationAlias } from './completion.js';
 import {
+  fetchNames,
+  fetchTables,
+  type TableEntry,
+  type TableKind
+} from './completion-metadata.js';
+import {
   categoryForKind,
   rankOf,
   recordUse,
@@ -35,90 +41,6 @@ export interface CompletionDefaults {
 }
 
 type DefaultsGetter = () => CompletionDefaults;
-
-// --- client-side metadata cache ---------------------------------------------
-
-export type TableKind = 'table' | 'view' | 'materialized_view';
-
-export interface TableEntry {
-  name: string;
-  kind: TableKind;
-}
-
-interface CacheEntry<T> {
-  value: T;
-  expiresAt: number;
-}
-
-const CLIENT_CACHE_TTL_MS = 5 * 60_000;
-const CLIENT_CACHE_SWEEP_MS = 5 * 60_000;
-const clientCache = new Map<string, CacheEntry<unknown> | Promise<unknown>>();
-
-/** Drop all cached metadata so the next completion fetches fresh data. */
-export function clearCompletionCache(): void {
-  clientCache.clear();
-}
-
-// Periodic sweep of expired entries to prevent unbounded growth.
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of clientCache.entries()) {
-      if (!(entry instanceof Promise) && entry.expiresAt <= now) {
-        clientCache.delete(key);
-      }
-    }
-  }, CLIENT_CACHE_SWEEP_MS);
-}
-
-type NameLevel = 'catalogs' | 'schemas' | 'columns' | 'functions';
-
-async function fetchCached<T>(cacheKey: string, qs: URLSearchParams, empty: T): Promise<T> {
-  const now = Date.now();
-  const hit = clientCache.get(cacheKey);
-  if (hit) {
-    if (hit instanceof Promise) return hit as Promise<T>;
-    if (hit.expiresAt > now) return hit.value as T;
-  }
-
-  const promise = (async () => {
-    const res = await fetch(`/trino/completion/metadata?${qs.toString()}`);
-    if (!res.ok) return empty;
-    const value = (await res.json()) as T;
-    clientCache.set(cacheKey, { value, expiresAt: Date.now() + CLIENT_CACHE_TTL_MS });
-    return value;
-  })();
-
-  clientCache.set(cacheKey, promise);
-  try {
-    return await promise;
-  } catch {
-    clientCache.delete(cacheKey);
-    return empty;
-  }
-}
-
-async function fetchNames(params: {
-  level: NameLevel;
-  catalog?: string;
-  schema?: string;
-  table?: string;
-}): Promise<string[]> {
-  const key = `${params.level}:${params.catalog ?? ''}:${params.schema ?? ''}:${params.table ?? ''}`;
-  const qs = new URLSearchParams({ level: params.level });
-  if (params.catalog) qs.set('catalog', params.catalog);
-  if (params.schema) qs.set('schema', params.schema);
-  if (params.table) qs.set('table', params.table);
-  return fetchCached<string[]>(key, qs, []);
-}
-
-async function fetchTables(catalog: string, schema?: string): Promise<TableEntry[]> {
-  const key = `tables:${catalog}:${schema ?? ''}:`;
-  const qs = new URLSearchParams({ level: 'tables', catalog, ...(schema ? { schema } : {}) });
-  return fetchCached<TableEntry[]>(key, qs, []);
-}
-
-// --- item builders ----------------------------------------------------------
 
 function makeItem(
   monaco: typeof Monaco,
@@ -159,8 +81,6 @@ function decorateWithHistory(
   return item;
 }
 
-// --- provider ---------------------------------------------------------------
-
 export function createCompletionProvider(
   monaco: typeof Monaco,
   getDefaults: DefaultsGetter
@@ -185,7 +105,6 @@ export function createCompletionProvider(
       const suggestions: Monaco.languages.CompletionItem[] = [];
       const defaults = getDefaults();
 
-      // --- Identifier suggestions (catalog → schema → table → column) -------
       if (ctx.identifierKind === 'relation') {
         await appendRelationItems(monaco, suggestions, range, ctx.prefixParts, defaults);
       } else if (ctx.identifierKind === 'column') {
@@ -199,7 +118,6 @@ export function createCompletionProvider(
         );
       }
 
-      // --- Keyword suggestions ---------------------------------------------
       // Suppress keywords when the user is resolving a dotted path (`a.b.|`)
       // because keywords don't appear after a dot.
       if (ctx.prefixParts.length === 0) {
@@ -362,7 +280,7 @@ async function appendColumnItems(
 ): Promise<void> {
   // `alias.col` / `table.col` / `schema.table.col` / `cat.schema.table.col`
   if (prefixParts.length >= 1) {
-    const resolved = resolveRelation(prefixParts, aliasMap, defaults);
+    const resolved = resolvePrefix(prefixParts, aliasMap, defaults);
     if (resolved) {
       const cols = await fetchNames({
         level: 'columns',
@@ -400,7 +318,7 @@ async function appendColumnItems(
 
   await Promise.all([
     ...unique.map(async (r) => {
-      const resolved = resolveRelationRef(r, defaults);
+      const resolved = resolveAlias(r, defaults);
       if (!resolved) return;
       const cols = await fetchNames({
         level: 'columns',
@@ -445,22 +363,22 @@ async function appendColumnItems(
   ]);
 }
 
-interface Resolved {
+interface ResolvedRelation {
   catalog: string;
   schema: string;
   table: string;
 }
 
 /** Resolve prefix parts in column position to a concrete (cat, sch, tab). */
-function resolveRelation(
+function resolvePrefix(
   parts: string[],
   aliasMap: Map<string, RelationAlias>,
   defaults: CompletionDefaults
-): Resolved | null {
+): ResolvedRelation | null {
   // `alias.` or `table.`
   if (parts.length === 1) {
     const r = aliasMap.get(parts[0]);
-    if (r) return resolveRelationRef(r, defaults);
+    if (r) return resolveAlias(r, defaults);
     return null;
   }
   // `schema.table.` — under default catalog
@@ -474,7 +392,7 @@ function resolveRelation(
   return null;
 }
 
-function resolveRelationRef(r: RelationAlias, defaults: CompletionDefaults): Resolved | null {
+function resolveAlias(r: RelationAlias, defaults: CompletionDefaults): ResolvedRelation | null {
   const catalog = r.catalog ?? defaults.catalog;
   const schema = r.schema ?? defaults.schema;
   if (!catalog || !schema) return null;

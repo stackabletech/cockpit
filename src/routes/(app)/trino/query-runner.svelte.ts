@@ -7,7 +7,7 @@ import {
   type ScriptProgress
 } from '$lib/types/query.js';
 import type { SqlStatement } from '$lib/editor/split-statements.js';
-import { clearCompletionCache } from '$lib/editor/completion-provider.js';
+import { clearCompletionCache } from '$lib/editor/completion-metadata.js';
 
 export { INITIAL_PROGRESS, type QueryState, type QueryProgress } from '$lib/types/query.js';
 export type { ScriptProgress } from '$lib/types/query.js';
