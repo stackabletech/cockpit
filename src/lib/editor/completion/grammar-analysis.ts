@@ -1,10 +1,19 @@
 // Grammar-driven answers for "what is legal at the cursor?". Runs
 // antlr4-c3's CodeCompletionCore against the partial SQL up to the cursor
 // and classifies the slot as relation / column / keyword-only via
-// preferred rules. Repair for malformed mid-edit SQL arrives in a
-// follow-up PR.
+// preferred rules. When c3 reports nothing reachable because the mid-edit
+// SQL is malformed (e.g. `SELECT FROM ...`), a repair loop iterates:
+// ANTLR's error listener flags extraneous keyword tokens, we inject a
+// phantom identifier before each, and retry.
 
-import { CharStream, CommonTokenStream, Token } from 'antlr4ng';
+import {
+  ATNSimulator,
+  BaseErrorListener,
+  CharStream,
+  CommonTokenStream,
+  Recognizer,
+  Token
+} from 'antlr4ng';
 import { CodeCompletionCore } from 'antlr4-c3';
 import { SqlBaseLexer } from '../generated/SqlBaseLexer.js';
 import { SqlBaseParser } from '../generated/SqlBaseParser.js';
@@ -20,9 +29,9 @@ const PHANTOM = '__phantom__';
 export interface GrammarAnalysis {
   keywords: string[];
   identifierKind: IdentifierKind;
-  /** True when c3 found nothing reachable at the cursor — usually because the
-   *  partial input couldn't be parsed at all. A later PR adds a repair loop
-   *  that retries the analysis after patching extraneous keywords. */
+  /** True when c3 found nothing reachable at the cursor — usually because
+   *  the partial input couldn't be parsed at all. Drives the repair retry
+   *  in `analyseAtCursor`. */
   isUnparseable: boolean;
 }
 
@@ -179,9 +188,68 @@ export function computeTopLevelKeywords(): string[] {
   return cachedTopLevel ?? [];
 }
 
+// --- repair pass -------------------------------------------------------------
+
+/** Collects the `start` offset of every keyword token ANTLR flags as
+ *  extraneous during a parse. Example: in `SELECT FROM foo`, `SELECT`
+ *  expects a column name before `FROM`, but nothing was typed there —
+ *  so ANTLR flags `FROM` as an unexpected keyword. Each such flag marks
+ *  an empty identifier slot sitting just before the keyword. Extends
+ *  `BaseErrorListener` so the ambiguity / full-context / context-
+ *  sensitivity reporters fall back to no-op defaults. */
+class RepairErrorListener extends BaseErrorListener {
+  readonly insertBefore: number[] = [];
+  override syntaxError(_recognizer: Recognizer<ATNSimulator>, offendingSymbol: Token | null): void {
+    // We fill empty identifier slots by inserting a phantom before the
+    // flagged token. That only works for keywords: keywords in Trino's
+    // grammar are what comes *after* identifier slots (SELECT <col> FROM
+    // <tab>), so an extraneous keyword reliably signals a missing
+    // identifier just before it. Punctuation (`)`, `]`, `,`) and operators
+    // flagged as extraneous indicate different grammar problems and aren't
+    // fixable by a phantom. Also skip our own phantoms so a second repair
+    // pass doesn't chain onto them.
+    if (
+      offendingSymbol &&
+      KEYWORD_TOKEN_SET.has(offendingSymbol.type) &&
+      offendingSymbol.text !== PHANTOM
+    ) {
+      this.insertBefore.push(offendingSymbol.start);
+    }
+  }
+}
+
+/** Fill empty identifier slots in malformed input. When a user types
+ *  `SELECT FROM foo`, they've skipped the column name that SELECT expects
+ *  — ANTLR flags `FROM` as unexpected because it arrived where an
+ *  identifier was due. We insert a phantom identifier before each such
+ *  flag, giving the next parse something to consume in the gap. Returns
+ *  the patched string, or null if there were no actionable errors. */
+function repairWithParserErrors(sql: string): string | null {
+  const listener = new RepairErrorListener();
+  try {
+    const { parser } = buildParser(sql);
+    parser.addErrorListener(listener);
+    parser.singleStatement();
+  } catch {
+    /* listener already collected what it could */
+  }
+  if (listener.insertBefore.length === 0) return null;
+
+  // Apply insertions right-to-left so earlier offsets aren't shifted by
+  // later inserts.
+  const sorted = [...new Set(listener.insertBefore)].sort((a, b) => b - a);
+  let patched = sql;
+  for (const start of sorted) {
+    patched = patched.slice(0, start) + PHANTOM + ' ' + patched.slice(start);
+  }
+  return patched;
+}
+
 /** Append a phantom token if the cursor isn't already inside a partial word,
- *  then run the grammar analysis once. A follow-up PR wraps this in a repair
- *  loop that iterates when c3 reports nothing reachable. */
+ *  run the grammar analysis, and iterate the repair pass while c3 reports
+ *  nothing reachable. The loop terminates as soon as repair can't change the
+ *  string further — each successful pass strictly grows the input by
+ *  inserting a phantom, so this is guaranteed to halt. */
 export function analyseAtCursor(
   sqlUpToCursor: string,
   prefix: { prefixParts: string[]; wordAtCursor: string },
@@ -199,5 +267,13 @@ export function analyseAtCursor(
   // right after a dot; see `analyseGrammarAt` for what that unlocks.
   const extendingPrevious = midWord || afterDot;
 
-  return parseAndAnalyse(sqlUpToCursor + phantom, extendingPrevious);
+  let candidateSql = sqlUpToCursor + phantom;
+  let analysis = parseAndAnalyse(candidateSql, extendingPrevious);
+  while (analysis.isUnparseable) {
+    const repaired = repairWithParserErrors(candidateSql);
+    if (!repaired || repaired === candidateSql) break;
+    candidateSql = repaired;
+    analysis = parseAndAnalyse(candidateSql, extendingPrevious);
+  }
+  return analysis;
 }
