@@ -1,18 +1,27 @@
-// Trino SQL completion orchestrator — base layer.
+// Trino SQL completion orchestrator.
 //
-// This PR ships the infrastructure: locating the statement at the cursor,
-// reading the dotted prefix, and returning a static list of top-level
-// keywords. Later PRs will add grammar-driven keyword filtering, identifier
-// classification, alias resolution, and a repair loop.
+// Locates the statement at the cursor, reads the dotted prefix, and runs a
+// grammar analysis via antlr4-c3 to derive both the grammar-valid keyword
+// candidates and the identifier-kind classification (relation / column /
+// keyword-only). Later PRs add a repair loop for malformed mid-edit SQL,
+// alias resolution, and CTE awareness.
 
 import { getStatementAtOffset, type SqlStatement } from '../split-statements.js';
 import { lexSql } from '../lexer-utils.js';
 import { extractPrefixAtCursor } from './cursor-context.js';
+import {
+  analyseAtCursor,
+  computeTopLevelKeywords,
+  type IdentifierKind
+} from './grammar-analysis.js';
 
-export interface CompletionContext {
-  /** Static list of top-level SQL keywords. Not filtered by cursor position;
-   *  grammar-valid filtering arrives in a later PR. */
+export type { IdentifierKind } from './grammar-analysis.js';
+
+export interface CompletionAnalysis {
+  /** Grammar-valid keyword candidates at the cursor (uppercased). */
   keywords: string[];
+  /** Whether identifiers at the cursor should be relation-like or column-like. */
+  identifierKind: IdentifierKind;
   /** Dotted segments already typed before the word at cursor. */
   prefixParts: string[];
   /** Partial identifier currently being typed (never includes the trailing dot). */
@@ -26,57 +35,21 @@ export interface AnalyseArgs {
   cursorOffset: number;
 }
 
-export interface AnalyseResult extends CompletionContext {
+export interface AnalyseResult extends CompletionAnalysis {
   /** The statement that was analysed (null if the cursor is in empty input). */
   statement: SqlStatement | null;
 }
 
-/** Top-level SQL keywords offered when the cursor is not mid-dotted-path.
- *  Sourced from the Trino grammar's statement-start alternatives; kept
- *  hand-written so this PR does not depend on the parser. A later PR
- *  replaces this with grammar-valid keywords derived from antlr4-c3. */
-const TOP_LEVEL_KEYWORDS: string[] = [
-  'ALTER',
-  'ANALYZE',
-  'CALL',
-  'COMMENT',
-  'COMMIT',
-  'CREATE',
-  'DEALLOCATE',
-  'DELETE',
-  'DENY',
-  'DESC',
-  'DESCRIBE',
-  'DROP',
-  'EXECUTE',
-  'EXPLAIN',
-  'GRANT',
-  'INSERT',
-  'MERGE',
-  'PREPARE',
-  'REFRESH',
-  'RESET',
-  'REVOKE',
-  'ROLLBACK',
-  'SELECT',
-  'SET',
-  'SHOW',
-  'START',
-  'TABLE',
-  'TRUNCATE',
-  'UPDATE',
-  'USE',
-  'VALUES',
-  'WITH'
-];
-
 export function analyseCompletion({ sql, cursorOffset }: AnalyseArgs): AnalyseResult {
   const statement = getStatementAtOffset(sql, cursorOffset);
 
+  // Empty editor or whitespace-only — offer the memoised top-level keyword set
+  // so the user sees SELECT / WITH / CREATE / …
   if (!statement) {
     return {
       statement: null,
-      keywords: TOP_LEVEL_KEYWORDS,
+      keywords: computeTopLevelKeywords(),
+      identifierKind: null,
       prefixParts: [],
       wordAtCursor: ''
     };
@@ -87,9 +60,12 @@ export function analyseCompletion({ sql, cursorOffset }: AnalyseArgs): AnalyseRe
   const tokensUpToCursor = lexSql(sqlUpToCursor);
   const prefix = extractPrefixAtCursor(tokensUpToCursor, cursorInStatement);
 
+  const grammar = analyseAtCursor(sqlUpToCursor, prefix, tokensUpToCursor);
+
   return {
     statement,
-    keywords: TOP_LEVEL_KEYWORDS,
+    keywords: grammar.keywords,
+    identifierKind: grammar.identifierKind,
     prefixParts: prefix.prefixParts,
     wordAtCursor: prefix.wordAtCursor
   };
