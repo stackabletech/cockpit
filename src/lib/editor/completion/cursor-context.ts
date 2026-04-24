@@ -1,10 +1,33 @@
 // Lexer-only cursor context for Trino SQL completion: reads the dotted
-// identifier prefix immediately before the cursor. Future PRs will add an
-// alias map for FROM/JOIN resolution on top of this.
+// identifier prefix immediately before the cursor, and extracts an alias
+// map from the statement's FROM / JOIN clauses. CTE support (WITH) arrives
+// in a later PR.
 
 import type { Token } from 'antlr4ng';
-import { DOT, IDENTIFIER_TOKENS } from '../lexer-utils.js';
+import { SqlBaseLexer } from '../generated/SqlBaseLexer.js';
+import { DOT, IDENTIFIER_TOKENS, readQualifiedName } from '../lexer-utils.js';
 import { unquoteIdentifier } from '../identifiers.js';
+
+/** Resolved reference to a FROM / JOIN relation, used when completing columns
+ *  of an alias-qualified expression (e.g. resolving `t` in `t.col` to the
+ *  real `catalog.schema.table` triple). Catalog and schema are optional when
+ *  the reference was partially qualified — the column-completion code fills
+ *  them in from the default catalog / schema where necessary. */
+export interface RelationAlias {
+  catalog?: string;
+  schema?: string;
+  /** Bare table name (unqualified) or the alias target. */
+  table: string;
+}
+
+/** Build a `RelationAlias` from 1-3 dotted name parts. The trailing part is
+ *  always the table; anything before is catalog / schema. */
+function partsToAlias(parts: string[]): RelationAlias | null {
+  if (parts.length === 0) return null;
+  if (parts.length === 1) return { table: parts[0] };
+  if (parts.length === 2) return { schema: parts[0], table: parts[1] };
+  return { catalog: parts[0], schema: parts[1], table: parts[2] };
+}
 
 /** Split the string immediately before the cursor into dotted prefix parts
  *  plus the partial word at the cursor.
@@ -54,4 +77,43 @@ export function extractPrefixAtCursor(
   }
 
   return { prefixParts, wordAtCursor };
+}
+
+/** Scan the statement's token stream for every FROM / JOIN target and return
+ *  a name → relation map. Each target is registered under both its bare
+ *  table name and, if one follows, its alias — so `SELECT * FROM foo x`
+ *  can later resolve either `foo.col` or `x.col` to the same relation.
+ *
+ *  Linear token walk; no parse tree. Cheap and robust enough for typical
+ *  queries, and stays usable when the SQL is mid-edit / partial.
+ *
+ *  CTE names (WITH clause) are not yet walked; they arrive in a follow-up PR. */
+export function extractAliasMap(tokens: Token[]): Map<string, RelationAlias> {
+  const aliasMap = new Map<string, RelationAlias>();
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+
+    // FROM / JOIN <qualifiedName> [[AS] alias]
+    if (token.type === SqlBaseLexer.FROM || token.type === SqlBaseLexer.JOIN) {
+      const { parts, next: initialNext } = readQualifiedName(tokens, i + 1);
+      let next = initialNext;
+      const alias = partsToAlias(parts);
+      if (alias) {
+        // Register the bare table name first so `<table>.col` works.
+        // Lowercase for case-insensitive lookup.
+        aliasMap.set(alias.table.toLowerCase(), alias);
+        // Optional [AS] <identifier> follows the name.
+        if (tokens[next]?.type === SqlBaseLexer.AS) next++;
+        if (tokens[next] && IDENTIFIER_TOKENS.has(tokens[next].type)) {
+          const aliasName = unquoteIdentifier(tokens[next].text ?? '');
+          aliasMap.set(aliasName.toLowerCase(), alias);
+          next++;
+        }
+        i = next - 1;
+      }
+    }
+  }
+
+  return aliasMap;
 }

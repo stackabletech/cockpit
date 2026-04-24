@@ -1,14 +1,14 @@
 // Trino SQL completion orchestrator.
 //
-// Locates the statement at the cursor, reads the dotted prefix, and runs a
-// grammar analysis via antlr4-c3 to derive both the grammar-valid keyword
+// Locates the statement at the cursor, reads the dotted prefix, builds an
+// alias map from FROM / JOIN targets in the surrounding statement, and runs
+// a grammar analysis via antlr4-c3 to derive both the grammar-valid keyword
 // candidates and the identifier-kind classification (relation / column /
-// keyword-only). Later PRs add a repair loop for malformed mid-edit SQL,
-// alias resolution, and CTE awareness.
+// keyword-only). Later PRs add CTE awareness.
 
 import { getStatementAtOffset, type SqlStatement } from '../split-statements.js';
 import { lexSql } from '../lexer-utils.js';
-import { extractPrefixAtCursor } from './cursor-context.js';
+import { extractAliasMap, extractPrefixAtCursor, type RelationAlias } from './cursor-context.js';
 import {
   analyseAtCursor,
   computeTopLevelKeywords,
@@ -16,6 +16,7 @@ import {
 } from './grammar-analysis.js';
 
 export type { IdentifierKind } from './grammar-analysis.js';
+export type { RelationAlias } from './cursor-context.js';
 
 export interface CompletionAnalysis {
   /** Grammar-valid keyword candidates at the cursor (uppercased). */
@@ -26,6 +27,11 @@ export interface CompletionAnalysis {
   prefixParts: string[];
   /** Partial identifier currently being typed (never includes the trailing dot). */
   wordAtCursor: string;
+  /** Name → relation map for every FROM / JOIN target in the surrounding
+   *  statement (keyed by both the bare table name and any alias, all
+   *  lowercased for case-insensitive lookup). Used by the provider to
+   *  resolve `t.col` and the bare cursor position (e.g. `SELECT | FROM foo`). */
+  aliasMap: Map<string, RelationAlias>;
 }
 
 export interface AnalyseArgs {
@@ -51,7 +57,8 @@ export function analyseCompletion({ sql, cursorOffset }: AnalyseArgs): AnalyseRe
       keywords: computeTopLevelKeywords(),
       identifierKind: null,
       prefixParts: [],
-      wordAtCursor: ''
+      wordAtCursor: '',
+      aliasMap: new Map()
     };
   }
 
@@ -60,6 +67,10 @@ export function analyseCompletion({ sql, cursorOffset }: AnalyseArgs): AnalyseRe
   const tokensUpToCursor = lexSql(sqlUpToCursor);
   const prefix = extractPrefixAtCursor(tokensUpToCursor, cursorInStatement);
 
+  // Alias map is built from the FULL statement so aliases declared after the
+  // cursor (rare but possible while editing) are still seen.
+  const aliasMap = extractAliasMap(lexSql(statement.sql));
+
   const grammar = analyseAtCursor(sqlUpToCursor, prefix, tokensUpToCursor);
 
   return {
@@ -67,6 +78,7 @@ export function analyseCompletion({ sql, cursorOffset }: AnalyseArgs): AnalyseRe
     keywords: grammar.keywords,
     identifierKind: grammar.identifierKind,
     prefixParts: prefix.prefixParts,
-    wordAtCursor: prefix.wordAtCursor
+    wordAtCursor: prefix.wordAtCursor,
+    aliasMap
   };
 }

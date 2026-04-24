@@ -114,6 +114,7 @@
   "completion_detail_table_in": "Tabelle in {path}",
   "completion_detail_view_in": "View in {path}",
   "completion_detail_materialized_view_in": "Materialized View in {path}",
+  "completion_detail_column": "Spalte",
   "completion_detail_column_in": "Spalte von {table}",
   "completion_detail_keyword": "Schlüsselwort"
 }

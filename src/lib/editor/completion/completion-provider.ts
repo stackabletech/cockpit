@@ -1,14 +1,16 @@
 // Monaco CompletionItemProvider for the 'trinosql' language.
 //
-// Uses the grammar-analysis classification (identifierKind) to route between
-// relation-kind suggestions, column-kind suggestions, and keyword-only slots.
-// Metadata comes from /trino/completion/metadata with a 5-minute client cache.
-//
-// Later PRs layer on alias resolution, CTE awareness, a repair loop, and
-// LRU history.
+// Uses the grammar-analysis classification (identifierKind) to dispatch on
+// what the cursor position expects: a relation reference (offer catalog /
+// schema / table / view / MV names), a column reference (offer column
+// names from in-scope relations), or a keyword-only position. Column-name
+// resolution uses the alias map built by cursor-context to turn `t.col`
+// into the real relation behind `t`, and pools in-scope relations for the
+// bare column position (`SELECT | FROM foo`). Metadata comes from
+// /trino/completion/metadata with a 5-minute client cache.
 
 import type * as Monaco from 'monaco-editor';
-import { analyseCompletion } from './completion.js';
+import { analyseCompletion, type RelationAlias } from './completion.js';
 import { fetchNames, fetchTables, type TableEntry, type TableKind } from './completion-metadata.js';
 import * as m from '$lib/paraglide/messages.js';
 
@@ -54,7 +56,14 @@ export function createCompletionProvider(
       if (analysis.identifierKind === 'relation') {
         await appendRelationItems(monaco, suggestions, range, analysis.prefixParts, defaults);
       } else if (analysis.identifierKind === 'column') {
-        await appendColumnItems(monaco, suggestions, range, analysis.prefixParts, defaults);
+        await appendColumnItems(
+          monaco,
+          suggestions,
+          range,
+          analysis.prefixParts,
+          analysis.aliasMap,
+          defaults
+        );
       }
 
       // Suppress keywords when the user is resolving a dotted path (`a.b.|`)
@@ -203,51 +212,122 @@ async function appendRelationItems(
   // 3+ parts in relation position doesn't make sense — ignore.
 }
 
-/** Column-slot suggestions. This PR handles only fully-qualified column
- *  paths. Alias-qualified and bare-column completion arrive with alias map
- *  support in a follow-up PR. */
+interface ResolvedRelation {
+  catalog: string;
+  schema: string;
+  table: string;
+}
+
+/** Fill missing parts of a `RelationAlias` from the defaults. Returns null
+ *  when the reference can't be resolved (e.g. bare table name with no
+ *  default catalog / schema set). */
+function resolveAlias(alias: RelationAlias, defaults: CompletionDefaults): ResolvedRelation | null {
+  const catalog = alias.catalog ?? defaults.catalog;
+  const schema = alias.schema ?? defaults.schema;
+  if (!catalog || !schema) return null;
+  return { catalog, schema, table: alias.table };
+}
+
+/** Resolve the dotted prefix at a column cursor position to a concrete
+ *  (cat, sch, tab) triple. Order of attempts:
+ *   - 1 part: alias / bare-table lookup against the alias map, then defaults.
+ *   - 2 parts: (schema, table) under the default catalog.
+ *   - 3 parts: (catalog, schema, table) — fully qualified. */
+function resolvePrefix(
+  parts: string[],
+  aliasMap: Map<string, RelationAlias>,
+  defaults: CompletionDefaults
+): ResolvedRelation | null {
+  if (parts.length === 1) {
+    const alias = aliasMap.get(parts[0].toLowerCase());
+    return alias ? resolveAlias(alias, defaults) : null;
+  }
+  if (parts.length === 2 && defaults.catalog) {
+    return { catalog: defaults.catalog, schema: parts[0], table: parts[1] };
+  }
+  if (parts.length === 3) {
+    return { catalog: parts[0], schema: parts[1], table: parts[2] };
+  }
+  return null;
+}
+
+/** Offer column names at a column cursor position. Three cases:
+ *   - Alias-qualified (`t.col`) → resolve `t` through the alias map.
+ *   - Fully-qualified (`cat.sch.tab.col`, or `sch.tab.col` under a default
+ *     catalog).
+ *   - Bare (`SELECT | FROM foo`) → pool column names from every in-scope
+ *     FROM / JOIN relation. */
 async function appendColumnItems(
   monaco: typeof Monaco,
   out: Monaco.languages.CompletionItem[],
   range: Monaco.IRange,
   prefixParts: string[],
+  aliasMap: Map<string, RelationAlias>,
   defaults: CompletionDefaults
 ): Promise<void> {
-  if (prefixParts.length === 3) {
-    const [catalog, schema, table] = prefixParts;
-    const columns = await fetchNames({ level: 'columns', catalog, schema, table });
-    for (const column of columns) {
-      out.push(
-        makeItem(
-          column,
-          monaco.languages.CompletionItemKind.Field,
-          range,
-          m.completion_detail_column_in({ table })
-        )
-      );
+  if (prefixParts.length >= 1) {
+    const resolved = resolvePrefix(prefixParts, aliasMap, defaults);
+    if (resolved) {
+      const columns = await fetchNames({
+        level: 'columns',
+        catalog: resolved.catalog,
+        schema: resolved.schema,
+        table: resolved.table
+      });
+      for (const column of columns) {
+        out.push(
+          makeItem(
+            column,
+            monaco.languages.CompletionItemKind.Field,
+            range,
+            m.completion_detail_column_in({ table: resolved.table })
+          )
+        );
+      }
     }
     return;
   }
 
-  if (prefixParts.length === 2 && defaults.catalog) {
-    // schema.table → columns in the default catalog.
-    const [schema, table] = prefixParts;
-    const columns = await fetchNames({
-      level: 'columns',
-      catalog: defaults.catalog,
-      schema,
-      table
-    });
-    for (const column of columns) {
-      out.push(
-        makeItem(
-          column,
-          monaco.languages.CompletionItemKind.Field,
-          range,
-          m.completion_detail_column_in({ table })
-        )
-      );
-    }
-  }
-  // Other prefix shapes need alias resolution — arrives in a later PR.
+  // Bare cursor position — pool column names from every in-scope FROM /
+  // JOIN relation. Aliases are registered twice in the map (under the
+  // bare name and the alias), so de-duplicate by fully-qualified triple
+  // before fetching.
+  const relations = [...aliasMap.values()];
+  const seen = new Set<string>();
+  const unique = relations.filter((r) => {
+    const key = `${r.catalog ?? ''}.${r.schema ?? ''}.${r.table}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  await Promise.all(
+    unique.map(async (r) => {
+      try {
+        const resolved = resolveAlias(r, defaults);
+        if (!resolved) return;
+        const columns = await fetchNames({
+          level: 'columns',
+          catalog: resolved.catalog,
+          schema: resolved.schema,
+          table: resolved.table
+        });
+        for (const column of columns) {
+          out.push(
+            makeItem(
+              column,
+              monaco.languages.CompletionItemKind.Field,
+              range,
+              unique.length > 1
+                ? m.completion_detail_column_in({ table: resolved.table })
+                : m.completion_detail_column()
+            )
+          );
+        }
+      } catch {
+        // Ignore individual failures (e.g. mistyped table names) so we can still
+        // offer columns from the other valid relations in scope.
+      }
+    })
+  );
 }
