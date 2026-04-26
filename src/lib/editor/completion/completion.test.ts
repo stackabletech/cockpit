@@ -188,6 +188,20 @@ describe('analyseCompletion — CTE alias map', () => {
     expect(analysis.aliasMap.get('c')).toEqual({ table: 'c' });
     expect(analysis.aliasMap.has('inner_tab')).toBe(false);
   });
+
+  it('keeps CTE entries free of catalog/schema so the relation provider can surface them', () => {
+    // The bare-relation provider iterates aliasMap.values() and surfaces
+    // entries with no catalog/schema as in-scope relations. CTE entries
+    // must qualify, otherwise typing `SELECT FROM re|` against a
+    // `WITH recent AS …` wouldn't suggest `recent`.
+    const analysis = analyseCompletion(
+      at('WITH recent AS (SELECT clerk FROM tpch.sf1.orders) SELECT | FROM recent')
+    );
+    const recent = analysis.aliasMap.get('recent');
+    expect(recent).toEqual({ table: 'recent' });
+    expect(recent?.catalog).toBeUndefined();
+    expect(recent?.schema).toBeUndefined();
+  });
 });
 
 describe('analyseCompletion — scope-aware alias map', () => {
