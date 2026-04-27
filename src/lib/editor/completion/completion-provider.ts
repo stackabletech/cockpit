@@ -6,13 +6,38 @@
 // names from in-scope relations), or a keyword-only position. Column-name
 // resolution uses the alias map built by cursor-context to turn `t.col`
 // into the real relation behind `t`, and pools in-scope relations for the
-// bare column position (`SELECT | FROM foo`). Metadata comes from
-// /trino/completion/metadata with a 5-minute client cache.
+// bare column position (`SELECT | FROM foo`). Each suggestion item is
+// decorated with a Monaco command that records its acceptance into a
+// localStorage LRU, so recently-used items float to the top on subsequent
+// completions. Metadata comes from /trino/completion/metadata with a
+// 5-minute client cache.
 
 import type * as Monaco from 'monaco-editor';
 import { analyseCompletion, type RelationAlias } from './completion.js';
 import { fetchNames, fetchTables, type TableEntry, type TableKind } from './completion-metadata.js';
+import {
+  rankOf,
+  recordUse,
+  sortPrefixForRank,
+  type HistoryCategory
+} from './completion-history.js';
 import * as m from '$lib/paraglide/messages.js';
+
+const RECORD_USE_COMMAND = 'stackable.completion.recordUse';
+let recordUseCommandRegistered = false;
+
+/** Register a Monaco command that records each accepted completion item
+ *  into the LRU. Idempotent — Monaco rejects duplicate registrations, so
+ *  we gate behind a module-scope flag. */
+function ensureRecordUseCommandRegistered(monaco: typeof Monaco): void {
+  if (recordUseCommandRegistered) return;
+  recordUseCommandRegistered = true;
+  monaco.editor.registerCommand(RECORD_USE_COMMAND, (_accessor, category, name) => {
+    if (typeof category === 'string' && typeof name === 'string') {
+      recordUse(category as HistoryCategory, name);
+    }
+  });
+}
 
 export interface CompletionDefaults {
   catalog?: string;
@@ -24,10 +49,31 @@ type DefaultsGetter = () => CompletionDefaults;
 function makeItem(
   label: string,
   kind: Monaco.languages.CompletionItemKind,
+  category: HistoryCategory,
   range: Monaco.IRange,
   detail: string
 ): Monaco.languages.CompletionItem {
-  return { label, kind, insertText: label, range, detail };
+  return decorateWithHistory({ label, kind, insertText: label, range, detail }, category);
+}
+
+/** Bias `sortText` for items in the user's recently-used list of their
+ *  category (most-recent floats highest), and attach the LRU-record command
+ *  that fires when the user accepts the item. */
+function decorateWithHistory(
+  item: Monaco.languages.CompletionItem,
+  category: HistoryCategory
+): Monaco.languages.CompletionItem {
+  const name = typeof item.label === 'string' ? item.label : item.label.label;
+  const rank = rankOf(category, name);
+  return {
+    ...item,
+    sortText: rank !== null ? `${sortPrefixForRank(rank)}${name}` : item.sortText,
+    command: {
+      id: RECORD_USE_COMMAND,
+      title: '',
+      arguments: [category, name]
+    }
+  };
 }
 
 export function createCompletionProvider(
@@ -38,6 +84,7 @@ export function createCompletionProvider(
     triggerCharacters: ['.', ' ', ',', '('],
 
     async provideCompletionItems(model, position) {
+      ensureRecordUseCommandRegistered(monaco);
       const sql = model.getValue();
       const cursorOffset = model.getOffsetAt(position);
       const analysis = analyseCompletion({ sql, cursorOffset });
@@ -81,6 +128,7 @@ export function createCompletionProvider(
             makeItem(
               kw,
               monaco.languages.CompletionItemKind.Keyword,
+              'keywords',
               range,
               m.completion_detail_keyword()
             )
@@ -127,7 +175,7 @@ function pushRelationItems(
 ): void {
   for (const entry of entries) {
     const { completionKind, detail } = relationKindPresentation(monaco, entry.kind, path);
-    out.push(makeItem(entry.name, completionKind, range, detail));
+    out.push(makeItem(entry.name, completionKind, 'tables', range, detail));
   }
 }
 
@@ -154,6 +202,7 @@ async function appendRelationItems(
         makeItem(
           relation.table,
           monaco.languages.CompletionItemKind.Class,
+          'tables',
           range,
           m.completion_detail_in_scope_relation()
         )
@@ -167,6 +216,7 @@ async function appendRelationItems(
         makeItem(
           catalogName,
           monaco.languages.CompletionItemKind.Folder,
+          'catalogs',
           range,
           m.completion_detail_catalog()
         )
@@ -179,6 +229,7 @@ async function appendRelationItems(
           makeItem(
             schema,
             monaco.languages.CompletionItemKind.Module,
+            'schemas',
             range,
             m.completion_detail_schema_in({ catalog: defaults.catalog })
           )
@@ -207,6 +258,7 @@ async function appendRelationItems(
           makeItem(
             schema,
             monaco.languages.CompletionItemKind.Module,
+            'schemas',
             range,
             m.completion_detail_schema_in({ catalog: part })
           )
@@ -304,6 +356,7 @@ async function appendColumnItems(
           makeItem(
             column,
             monaco.languages.CompletionItemKind.Field,
+            'columns',
             range,
             m.completion_detail_column_in({ table: resolved.table })
           )
@@ -342,6 +395,7 @@ async function appendColumnItems(
             makeItem(
               column,
               monaco.languages.CompletionItemKind.Field,
+              'columns',
               range,
               unique.length > 1
                 ? m.completion_detail_column_in({ table: resolved.table })
