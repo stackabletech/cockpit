@@ -51,14 +51,20 @@ function makeItem(
   kind: Monaco.languages.CompletionItemKind,
   category: HistoryCategory,
   range: Monaco.IRange,
-  detail: string
+  detail: string,
+  sortPrefix: string
 ): Monaco.languages.CompletionItem {
-  return decorateWithHistory({ label, kind, insertText: label, range, detail }, category);
+  return decorateWithHistory(
+    { label, kind, insertText: label, range, detail, sortText: `${sortPrefix}${label}` },
+    category
+  );
 }
 
 /** Bias `sortText` for items in the user's recently-used list of their
  *  category (most-recent floats highest), and attach the LRU-record command
- *  that fires when the user accepts the item. */
+ *  that fires when the user accepts the item. The history-rank prefix
+ *  (`!_NNN_`) sorts before any tier prefix (`0_`–`3_`), so a recently-used
+ *  item beats an unused one regardless of its category tier. */
 function decorateWithHistory(
   item: Monaco.languages.CompletionItem,
   category: HistoryCategory
@@ -130,7 +136,8 @@ export function createCompletionProvider(
               monaco.languages.CompletionItemKind.Keyword,
               'keywords',
               range,
-              m.completion_detail_keyword()
+              m.completion_detail_keyword(),
+              '3_'
             )
           );
         }
@@ -175,7 +182,7 @@ function pushRelationItems(
 ): void {
   for (const entry of entries) {
     const { completionKind, detail } = relationKindPresentation(monaco, entry.kind, path);
-    out.push(makeItem(entry.name, completionKind, 'tables', range, detail));
+    out.push(makeItem(entry.name, completionKind, 'tables', range, detail, '0_'));
   }
 }
 
@@ -204,7 +211,8 @@ async function appendRelationItems(
           monaco.languages.CompletionItemKind.Class,
           'tables',
           range,
-          m.completion_detail_in_scope_relation()
+          m.completion_detail_in_scope_relation(),
+          '0_'
         )
       );
     }
@@ -218,7 +226,8 @@ async function appendRelationItems(
           monaco.languages.CompletionItemKind.Folder,
           'catalogs',
           range,
-          m.completion_detail_catalog()
+          m.completion_detail_catalog(),
+          '2_'
         )
       );
     }
@@ -231,7 +240,8 @@ async function appendRelationItems(
             monaco.languages.CompletionItemKind.Module,
             'schemas',
             range,
-            m.completion_detail_schema_in({ catalog: defaults.catalog })
+            m.completion_detail_schema_in({ catalog: defaults.catalog }),
+            '1_'
           )
         );
       }
@@ -260,7 +270,8 @@ async function appendRelationItems(
             monaco.languages.CompletionItemKind.Module,
             'schemas',
             range,
-            m.completion_detail_schema_in({ catalog: part })
+            m.completion_detail_schema_in({ catalog: part }),
+            '0_'
           )
         );
       }
@@ -358,7 +369,8 @@ async function appendColumnItems(
             monaco.languages.CompletionItemKind.Field,
             'columns',
             range,
-            m.completion_detail_column_in({ table: resolved.table })
+            m.completion_detail_column_in({ table: resolved.table }),
+            '0_'
           )
         );
       }
@@ -399,7 +411,8 @@ async function appendColumnItems(
               range,
               unique.length > 1
                 ? m.completion_detail_column_in({ table: resolved.table })
-                : m.completion_detail_column()
+                : m.completion_detail_column(),
+              '0_'
             )
           );
         }
