@@ -76,7 +76,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       opts.schema = schema;
       break;
     case 'functions':
-      sql = 'SELECT DISTINCT lower("Function") FROM (SHOW FUNCTIONS) ORDER BY 1';
+      sql = 'SHOW FUNCTIONS';
       break;
   }
 
@@ -101,7 +101,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       return json(entries);
     }
 
-    const names = rows.map((r) => String((r as string[])[0]));
+    let names = rows.map((r) => String((r as string[])[0]));
+    if (level === 'functions') {
+      // Dedupe: SHOW FUNCTIONS returns one row per overload, so a function
+      // with N argument signatures would otherwise appear N times.
+      names = [...new Set(names)].sort();
+    }
     log.debug(
       { level, catalog, schema, table, count: names.length },
       'completion metadata fetched'
