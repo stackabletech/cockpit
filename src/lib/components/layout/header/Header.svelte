@@ -4,9 +4,7 @@
   import LanguageSwitcher from './LanguageSwitcher.svelte';
   import ThemeToggle from './ThemeToggle.svelte';
   import UserMenu from './UserMenu.svelte';
-  import { authClient } from '$lib/auth-client';
-
-  type User = typeof authClient.$Infer.Session.user;
+  import type { User } from '$lib/types/auth.js';
 
   let {
     title = m.page_title_dashboard(),

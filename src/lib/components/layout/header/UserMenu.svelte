@@ -1,9 +1,7 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import Icon from '@iconify/svelte';
-  import { authClient } from '$lib/auth-client';
-
-  type User = typeof authClient.$Infer.Session.user;
+  import type { User } from '$lib/types/auth.js';
 
   let { user }: { user: User } = $props();
 

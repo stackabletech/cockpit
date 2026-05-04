@@ -2,7 +2,8 @@
   import { page } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
   import Icon from '@iconify/svelte';
-  import { type NavItem, getNavSections } from './nav-items.js';
+  import type { NavItem } from '$lib/types/navigation.js';
+  import { getNavSections } from './nav-items.js';
 
   let {
     collapsed = $bindable(false),
