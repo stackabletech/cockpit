@@ -7,6 +7,7 @@ import {
   type ScriptProgress
 } from '$lib/types/query.js';
 import type { SqlStatement } from '$lib/editor/split-statements.js';
+import { clearCompletionCache } from '$lib/editor/completion/completion-metadata.js';
 
 export { INITIAL_PROGRESS, type QueryState, type QueryProgress } from '$lib/types/query.js';
 export type { ScriptProgress } from '$lib/types/query.js';
@@ -139,6 +140,9 @@ function createQueryRunner(tabId: string): QueryRunner {
 
         const allTerminal = snapshots.length > 0 && snapshots.every((s) => isTerminal(s.state));
         if (allTerminal) {
+          // A DDL statement (CREATE/DROP/ALTER) may have changed the catalog;
+          // invalidate the completion cache so the next suggestion fetches fresh.
+          clearCompletionCache();
           stopPolling();
           return;
         }
