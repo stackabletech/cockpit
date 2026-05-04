@@ -1,8 +1,8 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import Icon from '@iconify/svelte';
-  import LanguageSwitcher from '../LanguageSwitcher.svelte';
-  import ThemeToggle from '../ThemeToggle.svelte';
+  import LanguageSwitcher from './LanguageSwitcher.svelte';
+  import ThemeToggle from './ThemeToggle.svelte';
   import UserMenu from './UserMenu.svelte';
   import { authClient } from '$lib/auth-client';
 
