@@ -1,0 +1,33 @@
+import * as m from '$lib/paraglide/messages.js';
+
+export type NavItem = {
+  label: string;
+  href: string;
+  icon: string;
+  disabled?: boolean;
+  badge?: string;
+};
+
+export type NavSection = {
+  title: string;
+  items: NavItem[];
+};
+
+export function getNavSections(): NavSection[] {
+  return [
+    {
+      title: m.nav_platform(),
+      items: [{ label: m.nav_dashboard(), href: '/', icon: 'dashboard' }]
+    },
+    {
+      title: m.nav_data_tools(),
+      items: [
+        {
+          label: m.nav_trino(),
+          href: '/trino',
+          icon: 'database'
+        }
+      ]
+    }
+  ];
+}

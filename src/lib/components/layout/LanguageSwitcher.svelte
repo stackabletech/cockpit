@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import { getLocale, setLocale, locales } from '$lib/paraglide/runtime.js';
+  import Icon from '@iconify/svelte';
 
   type LocaleMeta = {
     code: (typeof locales)[number];
@@ -32,22 +33,7 @@
     ? `${m.language_label()}: ${currentLocaleMeta.label()}`
     : m.language_label()}
 >
-  <svg
-    class="h-5 w-5"
-    aria-hidden="true"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  >
-    <circle cx="12" cy="12" r="10" />
-    <path d="M2 12h20" />
-    <path
-      d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
-    />
-  </svg>
+  <Icon icon="material-symbols:language" class="h-5 w-5" aria-hidden="true" />
   {#if showLabel}
     <span class="text-sm font-medium">{currentLocaleMeta.label()}</span>
   {/if}
@@ -68,18 +54,7 @@
       >
         <span>{locale.label()}</span>
         {#if isActive}
-          <svg
-            class="h-4 w-4"
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M20 6 9 17l-5-5" />
-          </svg>
+          <Icon icon="material-symbols:check" class="h-4 w-4" aria-hidden="true" />
         {/if}
       </button>
     </li>
