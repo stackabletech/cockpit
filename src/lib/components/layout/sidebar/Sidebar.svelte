@@ -127,7 +127,7 @@
     <button
       onclick={() => (collapsed = !collapsed)}
       class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3 py-2
-        text-sm font-medium transition-colors
+        text-sm font-medium transition-colors hover:cursor-pointer
         {collapsed ? 'justify-center' : ''}"
       aria-label={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
     >
