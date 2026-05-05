@@ -97,3 +97,27 @@ describe('analyseCompletion — grammar classification', () => {
     expect(afterFrom.keywords).toContain('JOIN');
   });
 });
+
+describe('analyseCompletion — repair of malformed SQL', () => {
+  it('classifies a relation slot even when the preceding SELECT is missing its column list', () => {
+    // `SELECT FROM foo` has an extraneous `FROM` that the plain parser can't
+    // reach past. The repair pass injects a phantom before FROM, letting c3
+    // see the FROM target as a relation slot.
+    const analysis = analyseCompletion(at('SELECT FROM |'));
+    expect(analysis.identifierKind).toBe('relation');
+  });
+
+  it('recovers keyword context after an extraneous keyword earlier in the statement', () => {
+    // After the repair, JOIN should be grammar-valid at the cursor.
+    const analysis = analyseCompletion(at('SELECT FROM foo |'));
+    expect(analysis.keywords).toContain('JOIN');
+  });
+
+  it('surfaces classification inside a nested malformed subquery', () => {
+    // `(SELECT FROM t)` is malformed; repair should still let the outer FROM
+    // slot resolve.
+    const analysis = analyseCompletion(at('SELECT * FROM (SELECT FROM t) WHERE |'));
+    // The WHERE position is a column slot.
+    expect(analysis.identifierKind).toBe('column');
+  });
+});
