@@ -803,6 +803,9 @@
           bind:this={monacoEditor}
           bind:value={sql}
           {highlightOffsets}
+          {defaultCatalog}
+          {defaultSchema}
+          completionEnabled={data.completionEnabled}
           onExecute={handleRun}
           onExecuteAll={handleRunAll}
         />

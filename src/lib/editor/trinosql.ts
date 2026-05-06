@@ -6,6 +6,10 @@ import type * as Monaco from 'monaco-editor';
 import { CharStream } from 'antlr4ng';
 import { SqlBaseLexer } from './generated/SqlBaseLexer.js';
 import { tokenMap } from './tokenMap';
+import {
+  createCompletionProvider,
+  type CompletionDefaults
+} from './completion/completion-provider.js';
 
 const LANGUAGE_ID = 'trinosql';
 
@@ -19,12 +23,34 @@ class TrinoSqlTokenizerState implements Monaco.languages.IState {
   }
 }
 
-export function registerTrinoSql(monaco: typeof Monaco): void {
+/** Live getter for completion defaults. Updated by the MonacoEditor component
+ *  whenever the user changes the default catalog/schema; the completion
+ *  provider reads through this on every invocation. */
+let defaultsGetter: () => CompletionDefaults = () => ({});
+
+export function setCompletionDefaultsGetter(getter: () => CompletionDefaults): void {
+  defaultsGetter = getter;
+}
+
+export interface RegisterOptions {
+  /** Skip registering the completion provider. Tokens / syntax highlighting
+   *  are unaffected — only the suggestion widget is gated. */
+  completionEnabled?: boolean;
+}
+
+export function registerTrinoSql(monaco: typeof Monaco, options: RegisterOptions = {}): void {
   if (monaco.languages.getLanguages().some((lang) => lang.id === LANGUAGE_ID)) {
     return;
   }
 
   monaco.languages.register({ id: LANGUAGE_ID });
+
+  if (options.completionEnabled !== false) {
+    monaco.languages.registerCompletionItemProvider(
+      LANGUAGE_ID,
+      createCompletionProvider(monaco, () => defaultsGetter())
+    );
+  }
 
   monaco.languages.setTokensProvider(LANGUAGE_ID, {
     getInitialState: () => new TrinoSqlTokenizerState(),
