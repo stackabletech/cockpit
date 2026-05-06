@@ -46,6 +46,14 @@ Trino error messages and Node.js exception messages are returned to the browser 
 
 ---
 
+### In-memory storage connection state
+
+**File:** `src/lib/server/storage/user-connections.ts`
+
+Per-user S3 connection configs (endpoint, region, credentials) are stored in a server-side `Map`. All connections are lost on server restart and cannot be shared across multiple replicas. Acceptable for the initial phase; mirrors the same pattern used by the Trino user-clients module. Long-term fix: persist encrypted connection configs server-side, tied to the authenticated session.
+
+---
+
 ### In-memory session store loses state on restart and prevents horizontal scaling
 
 **File:** `src/lib/server/auth.ts`

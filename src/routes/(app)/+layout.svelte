@@ -1,8 +1,8 @@
 <script lang="ts">
   import { page } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
-  import Sidebar from '$lib/components/layout/Sidebar.svelte';
-  import Header from '$lib/components/layout/Header.svelte';
+  import Sidebar from '$lib/components/layout/sidebar/Sidebar.svelte';
+  import Header from '$lib/components/layout/header/Header.svelte';
 
   let { children, data } = $props();
 
@@ -14,7 +14,12 @@
     '/trino': m.page_title_trino
   };
 
-  let title = $derived((pageTitles[page.url.pathname] ?? m.page_title_default)());
+  let title = $derived(
+    (
+      pageTitles[page.url.pathname] ??
+      (page.url.pathname.startsWith('/storage') ? m.page_title_storage : m.page_title_default)
+    )()
+  );
 </script>
 
 <svelte:head>

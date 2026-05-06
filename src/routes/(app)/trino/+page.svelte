@@ -390,7 +390,7 @@
 
 {#snippet closeIcon()}
   <svg
-    class="h-4 w-4"
+    class="size-4"
     aria-hidden="true"
     viewBox="0 0 24 24"
     fill="none"
@@ -404,11 +404,18 @@
 <div class="flex h-full gap-4">
   <!-- Catalog browser panel (desktop) — always in DOM, collapses via width transition -->
   <aside
-    class="bg-base-100 border-base-300 hidden shrink-0 flex-col overflow-hidden rounded-xl border transition-[width] duration-200 ease-out lg:flex {catalogBrowserOpen
-      ? 'w-72'
-      : 'invisible w-0 border-0'}"
+    class="
+      border-base-300 bg-base-100 hidden shrink-0 flex-col overflow-hidden rounded-xl
+      border transition-[width] duration-200 ease-out
+      lg:flex
+      {catalogBrowserOpen ? 'w-72' : 'invisible w-0 border-0'}"
   >
-    <div class="border-base-300 flex w-72 items-center justify-between border-b px-3 py-2">
+    <div
+      class="
+        border-base-300 flex w-72 items-center justify-between border-b px-3
+        py-2
+      "
+    >
       <span class="text-base-content/60 text-sm font-medium">{m.trino_catalog_browser()}</span>
     </div>
     <div class="w-72">
@@ -424,10 +431,17 @@
   <!-- Mobile catalog browser overlay -->
   <Modal
     bind:open={mobileCatalogOpen}
-    class="bg-base-100 fixed inset-0 z-40 h-full max-h-full w-full max-w-full p-0 lg:hidden"
+    class="
+      bg-base-100 fixed inset-0 z-40 size-full max-h-full max-w-full p-0
+      lg:hidden
+    "
   >
     <div class="flex h-full flex-col">
-      <div class="border-base-300 flex items-center justify-between border-b px-3 py-2">
+      <div
+        class="
+          border-base-300 flex items-center justify-between border-b px-3 py-2
+        "
+      >
         <span class="text-base-content/60 text-sm font-medium">{m.trino_catalog_browser()}</span>
         <button
           class="btn btn-ghost btn-xs"
@@ -459,7 +473,7 @@
         <input type="hidden" name="authUsername" value={authUsername} />
         <input type="hidden" name="authPassword" value={authPassword} />
 
-        <div class="bg-base-100 border-base-300 collapse rounded-xl border">
+        <div class="border-base-300 bg-base-100 collapse rounded-xl border">
           <input
             type="checkbox"
             class="peer"
@@ -467,7 +481,10 @@
             bind:checked={connectionOpen}
           />
           <div
-            class="collapse-title text-base-content flex items-center justify-between pr-4 text-sm font-medium"
+            class="
+              collapse-title text-base-content flex items-center justify-between pr-4
+              text-sm font-medium
+            "
           >
             <span>{m.trino_connection_label()}</span>
             <span class="text-base-content/50 font-mono text-xs">{connectionSummary}</span>
@@ -497,7 +514,7 @@
               <div class="join" role="group" aria-label={m.trino_connection_auth()}>
                 <input
                   id="{uid}-auth-none"
-                  class="join-item btn btn-sm"
+                  class="btn join-item btn-sm"
                   type="radio"
                   name="{uid}-auth"
                   aria-label={m.trino_auth_none()}
@@ -506,7 +523,7 @@
                 />
                 <input
                   id="{uid}-auth-basic"
-                  class="join-item btn btn-sm"
+                  class="btn join-item btn-sm"
                   type="radio"
                   name="{uid}-auth"
                   aria-label={m.trino_auth_basic()}
@@ -518,7 +535,12 @@
 
             <!-- Basic auth credentials -->
             {#if authType === 'basic'}
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div
+                class="
+                  grid grid-cols-1 gap-3
+                  sm:grid-cols-2
+                "
+              >
                 <div class="flex flex-col gap-1">
                   <label for="{uid}-auth-username" class="label text-sm">
                     {m.trino_auth_username()}
@@ -556,7 +578,7 @@
 
             <!-- Save button -->
             <div class="flex justify-end">
-              <button type="submit" class="btn btn-primary btn-sm">
+              <button type="submit" class="btn btn-sm btn-primary">
                 {m.trino_save_connection()}
               </button>
             </div>
@@ -599,11 +621,18 @@
 
     <!-- Content card (editor + status + results) -->
     <div
-      class="bg-base-100 border-base-300 flex min-h-0 flex-1 flex-col rounded-t-none rounded-b-xl border"
+      class="
+        border-base-300 bg-base-100 flex min-h-0 flex-1 flex-col rounded-t-none
+        rounded-b-xl border
+      "
       role="tabpanel"
       aria-labelledby="tab-{tabStore.activeTabId}"
     >
-      <div class="border-base-300 flex items-center justify-between border-b px-4 py-2">
+      <div
+        class="
+          border-base-300 flex items-center justify-between border-b px-4 py-2
+        "
+      >
         <div class="flex items-center gap-2">
           <div class="tooltip tooltip-right" data-tip={m.trino_catalog_browser_toggle()}>
             <button
@@ -614,7 +643,10 @@
             >
               {#if catalogBrowserOpen}
                 <svg
-                  class="hidden h-4 w-4 lg:block"
+                  class="
+                    hidden size-4
+                    lg:block
+                  "
                   aria-hidden="true"
                   viewBox="0 0 24 24"
                   fill="none"
@@ -627,7 +659,10 @@
                   /></svg
                 >
                 <svg
-                  class="h-4 w-4 lg:hidden"
+                  class="
+                    size-4
+                    lg:hidden
+                  "
                   aria-hidden="true"
                   viewBox="0 0 24 24"
                   fill="none"
@@ -638,7 +673,7 @@
                 >
               {:else}
                 <svg
-                  class="h-4 w-4"
+                  class="size-4"
                   aria-hidden="true"
                   viewBox="0 0 24 24"
                   fill="none"
@@ -664,7 +699,7 @@
           {#if isActive}
             <button
               type="button"
-              class="btn btn-error btn-sm"
+              class="btn btn-sm btn-error"
               onclick={() => runner.cancel()}
               aria-label={m.trino_cancel_query()}
             >
@@ -682,16 +717,21 @@
             <div class="join">
               <button
                 type="button"
-                class="btn btn-primary join-item py-1.5"
+                class="btn join-item btn-primary py-1.5"
                 disabled={isActive}
                 aria-label={runButtonLabel}
                 onclick={handleRun}
               >
                 {#if isActive}
-                  <span class="loading loading-spinner loading-xs"></span>
+                  <span class="loading loading-xs loading-spinner"></span>
                   {m.trino_running()}
                 {:else}
-                  <span class="grid [&>*]:[grid-area:1/1]">
+                  <span
+                    class="
+                      grid
+                      *:[grid-area:1/1]
+                    "
+                  >
                     <!-- Invisible sizers: longest option sets width -->
                     <span class="invisible" aria-hidden="true">
                       {@render runOption(m.trino_run_at_cursor(), 'Ctrl+Shift+↵')}
@@ -708,12 +748,15 @@
               </button>
               <button
                 type="button"
-                class="btn btn-primary join-item border-l-primary-content/20 self-stretch border-l px-2"
+                class="
+                  btn join-item border-l-primary-content/20 btn-primary
+                  self-stretch border-l px-2
+                "
                 class:pointer-events-none={isActive}
                 aria-haspopup="true"
                 aria-label={m.trino_run_mode_select()}
               >
-                <svg class="h-3 w-3" aria-hidden="true" viewBox="0 0 20 20" fill="currentColor">
+                <svg class="size-3" aria-hidden="true" viewBox="0 0 20 20" fill="currentColor">
                   <path
                     fill-rule="evenodd"
                     d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
@@ -723,24 +766,27 @@
               </button>
             </div>
             <div
-              class="dropdown-content bg-primary text-primary-content rounded-box z-10 mt-1 flex w-full flex-col gap-1 p-1.5 shadow-lg"
+              class="
+                dropdown-content rounded-box bg-primary text-primary-content z-10 mt-1 flex
+                w-full flex-col gap-1 p-1.5 shadow-lg
+              "
             >
               <button
                 type="button"
-                class="rounded-btn hover:bg-primary-content/20 cursor-pointer px-3 py-1.5 text-left {runMode ===
-                'cursor'
-                  ? 'bg-primary-content/15'
-                  : ''}"
+                class="
+                  rounded-btn hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
+                  text-left
+                  {runMode === 'cursor' ? 'bg-primary-content/15' : ''}"
                 onclick={() => selectRunMode('cursor')}
               >
                 {@render runOption(m.trino_run_at_cursor(), 'Ctrl+↵')}
               </button>
               <button
                 type="button"
-                class="rounded-btn hover:bg-primary-content/20 cursor-pointer px-3 py-1.5 text-left {runMode ===
-                'all'
-                  ? 'bg-primary-content/15'
-                  : ''}"
+                class="
+                  rounded-btn hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
+                  text-left
+                  {runMode === 'all' ? 'bg-primary-content/15' : ''}"
                 onclick={() => selectRunMode('all')}
               >
                 {@render runOption(
@@ -768,7 +814,9 @@
       <!-- Status display -->
       {#if runner.state !== 'IDLE'}
         <div
-          class="border-base-300 flex flex-wrap items-center gap-3 border-t px-4 py-2"
+          class="
+            border-base-300 flex flex-wrap items-center gap-3 border-t px-4 py-2
+          "
           aria-live="polite"
           data-query-state={runner.state}
         >
@@ -788,7 +836,11 @@
             {/if}
           {/if}
           {#if stateLabel}
-            <span class="badge {stateBadgeClass}">{stateLabel}</span>
+            <span
+              class="
+                badge
+                {stateBadgeClass}">{stateLabel}</span
+            >
           {/if}
           {#if runner.state === 'RUNNING'}
             <span class="text-base-content/60 text-xs tabular-nums"
@@ -814,12 +866,12 @@
               href={runner.currentTrinoQueryUrl}
               target="_blank"
               rel="noopener noreferrer"
-              class="btn btn-xs btn-ghost"
+              class="btn btn-ghost btn-xs"
             >
               {m.trino_view_in_trino()}
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                class="h-3.5 w-3.5"
+                class="size-3.5"
                 viewBox="0 0 20 20"
                 fill="currentColor"
                 aria-hidden="true"

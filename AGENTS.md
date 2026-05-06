@@ -11,6 +11,25 @@ The application is designed with a **plugin/module architecture** so future Stac
 - **SvelteKit** with **Svelte 5** - Always use Svelte 5 syntax with runes (`$props`, `$state`, `$derived`, etc.)
 - **Tailwind CSS v4** - No tailwind.config.js file (uses CSS-based configuration)
 - **DaisyUI** - Use DaisyUI components/classes where possible for consistent UI - This is DaisyUI v5! A lot of classes you know about DON'T EXIST anymore. Check <https://daisyui.com/docs/upgrade/?lang=enj> if needed
+- **Icon Library** - Use Material UI icons for all icons in the application. Import icons from the Material UI icon library for consistency.
+
+  Example (project uses Iconify Material symbols):
+
+  ```svelte
+  <script lang="ts">
+    import Icon from '@iconify/svelte';
+  </script>
+
+  <!-- decorative icon -->
+  <Icon icon="material-symbols:warning" class="text-error h-6 w-6" aria-hidden="true" />
+
+  <!-- accessible icon with label -->
+  <span class="flex items-center gap-2">
+    <Icon icon="material-symbols:storage" class="h-4 w-4" aria-hidden="true" />
+    <span>Storage</span>
+  </span>
+  ```
+
 - **Monaco Editor** - SQL editor component (dynamic import, SSR-safe)
 - **ANTLR4** (antlr4ng) - Trino SQL parsing for syntax highlighting and code completion
 - **zod & superforms** - All forms are to use zod & superforms

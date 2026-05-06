@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import { authClient } from '$lib/auth-client.js';
+  import Icon from '@iconify/svelte';
 
   let { data } = $props();
 
@@ -28,11 +29,15 @@
 </svelte:head>
 
 <div class="bg-base-200 flex min-h-dvh items-center justify-center p-4">
-  <div class="card bg-base-100 border-base-300 w-full max-w-sm border shadow-xl">
+  <div
+    class="
+    card border-base-300 bg-base-100 w-full max-w-sm border shadow-xl
+  "
+  >
     <div class="card-body items-center text-center">
       <div class="mb-2">
         <svg
-          class="text-primary mx-auto h-12 w-12"
+          class="text-primary mx-auto size-12"
           aria-hidden="true"
           viewBox="0 0 24 24"
           fill="none"
@@ -51,19 +56,7 @@
 
       {#if error}
         <div role="alert" class="alert alert-error mt-2 w-full text-sm">
-          <svg
-            class="h-4 w-4 shrink-0"
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v4m0 4h.01" />
-          </svg>
+          <Icon icon="line-md:alert" class="size-5" aria-hidden="true" />
           <span>{error}</span>
         </div>
       {/if}
@@ -76,7 +69,7 @@
           aria-busy={loading}
         >
           {#if loading}
-            <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+            <span class="loading loading-sm loading-spinner" aria-hidden="true"></span>
           {/if}
           {m.auth_login_button()}
         </button>
