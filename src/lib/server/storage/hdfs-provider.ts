@@ -2,6 +2,10 @@ import type { StorageProvider } from './provider.js';
 import type { HDFSConfig } from './types.js';
 import type { StoragePage, StorageMetadata } from '$lib/storage/types.js';
 
+/* TODO: Remove this file and related HDFS provider code until we have a concrete plan for HDFS support. 
+For now, this serves as a placeholder to prevent compile errors. */
+/* eslint-disable  @typescript-eslint/no-unused-vars */
+
 /** Stub implementation — HDFS support is not yet implemented. */
 export class HDFSStorageProvider implements StorageProvider {
   constructor(_config: HDFSConfig) {}

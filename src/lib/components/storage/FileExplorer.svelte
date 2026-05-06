@@ -4,6 +4,7 @@
   import ObjectTable from './ObjectTable.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import type { StoragePage } from '$lib/storage/types.js';
+    import { SvelteSet } from 'svelte/reactivity';
 
   interface Props {
     bucket: string;
@@ -19,36 +20,36 @@
   const files = $derived(objects.objects.filter((o) => !o.isDirectory));
 
   // ── Selection state ───────────────────────────────────────────────────────
-  let selectedKeys = $state<Set<string>>(new Set());
+  let selectedKeys = $state<Set<string>>(new Set<string>());
   let selectionMode = $state(false);
 
   // Clear selection on navigation
   $effect(() => {
-    prefix;
-    selectedKeys = new Set();
+    void prefix;
+    selectedKeys = new SvelteSet<string>();
   });
 
   function toggleSelectionMode() {
     selectionMode = !selectionMode;
-    if (!selectionMode) selectedKeys = new Set();
+    if (!selectionMode) selectedKeys = new SvelteSet<string>();
   }
 
   function toggleSelect(key: string, force = false) {
     if (force || selectionMode) {
-      const next = new Set(selectedKeys);
+      const next = new SvelteSet<string>(selectedKeys);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       selectedKeys = next;
     } else {
-      selectedKeys = new Set([key]);
+      selectedKeys = new SvelteSet<string>([key]);
     }
   }
 
   function selectAll(checked: boolean) {
     if (checked) {
-      selectedKeys = new Set([...folders.map((f) => f.key), ...files.map((f) => f.key)]);
+      selectedKeys = new SvelteSet<string>([...folders.map((f) => f.key), ...files.map((f) => f.key)]);
     } else {
-      selectedKeys = new Set();
+      selectedKeys = new SvelteSet<string>();
     }
   }
 
@@ -59,6 +60,8 @@
 
   const selectedFiles = $derived(files.filter((f) => selectedKeys.has(f.key)));
   const selectedFolders = $derived(folders.filter((f) => selectedKeys.has(f.key)));
+  // TODO: This resolves once a modal for confirming deletion is implemented.
+  /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
   const deleteCount = $derived(selectedFiles.length + selectedFolders.length);
 
   // ── Loading state ─────────────────────────────────────────────────────────
@@ -66,7 +69,7 @@
 
   // Clear loading when new objects arrive from the server
   $effect(() => {
-    objects;
+    void objects;
     loading = false;
   });
 
@@ -118,7 +121,7 @@
     if (showDeleteModal) return;
     if (e.key === 'Delete' && selectedKeys.size > 0) showDeleteModal = true;
     else if (e.key === 'F2' && selectedKeys.size === 1) handleAction('rename');
-    else if (e.key === 'Escape') selectedKeys = new Set();
+    else if (e.key === 'Escape') selectedKeys = new SvelteSet<string>();
   }
 </script>
 
@@ -129,7 +132,7 @@
 <div
   class="bg-base-100 flex flex-1 flex-col overflow-hidden"
   onclick={(e) => {
-    if (!(e.target as HTMLElement).closest('tr')) selectedKeys = new Set();
+    if (!(e.target as HTMLElement).closest('tr')) selectedKeys = new SvelteSet<string>();
   }}
 >
   <StorageBreadcrumb
