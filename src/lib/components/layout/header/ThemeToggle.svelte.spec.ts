@@ -7,13 +7,13 @@ describe('ThemeToggle', () => {
   it('should render a toggle button', async () => {
     render(ThemeToggle);
 
-    const control = page.getByRole('checkbox');
+    const control = page.getByRole('button');
     await expect.element(control).toBeInTheDocument();
   });
 
   it('should toggle the aria-label on click', async () => {
     render(ThemeToggle);
-    const control = page.getByRole('checkbox');
+    const control = page.getByRole('button');
 
     // Starts in light mode — label offers to switch to dark
     await expect.element(control).toHaveAttribute('aria-label', 'Switch to dark mode');
@@ -26,7 +26,7 @@ describe('ThemeToggle', () => {
 
   it('should toggle the data-theme attribute on the document', async () => {
     render(ThemeToggle);
-    const control = page.getByRole('checkbox');
+    const control = page.getByRole('button');
     const themeBefore = document.documentElement.getAttribute('data-theme');
 
     await control.click();
