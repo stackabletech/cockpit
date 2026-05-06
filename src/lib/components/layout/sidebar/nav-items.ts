@@ -16,6 +16,11 @@ export function getNavSections(): NavSection[] {
           label: m.nav_trino(),
           href: '/trino',
           icon: 'database'
+        },
+        {
+          label: m.nav_storage(),
+          href: '/storage',
+          icon: 'folder'
         }
       ]
     }

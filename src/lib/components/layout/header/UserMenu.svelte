@@ -18,12 +18,21 @@
 </script>
 
 <div class="dropdown dropdown-end">
-  <button tabindex="0" class="btn btn-ghost btn-circle" aria-label={m.header_user_menu()}>
+  <button tabindex="0" class="btn btn-circle btn-ghost" aria-label={m.header_user_menu()}>
     {#if user.image}
-      <img src={user.image} alt={user.name ?? ''} class="h-8 w-8 rounded-full object-cover" />
+      <img
+        src={user.image}
+        alt={user.name ?? ''}
+        class="
+        size-8 rounded-full object-cover
+      "
+      />
     {:else}
       <span
-        class="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold"
+        class="
+          bg-primary/10 text-primary flex size-8 items-center justify-center
+          rounded-full text-xs font-semibold
+        "
         aria-hidden="true"
       >
         {initials}
@@ -33,7 +42,10 @@
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <ul
     tabindex="0"
-    class="dropdown-content menu bg-base-100 border-base-300 z-10 w-56 rounded-lg border p-1 shadow-lg"
+    class="
+      dropdown-content menu border-base-300 bg-base-100 z-10 w-56 rounded-lg
+      border p-1 shadow-lg
+    "
   >
     <li class="px-3 py-2">
       <p class="text-base-content truncate text-sm font-semibold">{user.name}</p>
@@ -42,7 +54,7 @@
     <!-- <li><hr class="border-base-300 my-1" /></li> -->
     <li class="mt-4">
       <a href="/auth/logout" class="text-sm">
-        <Icon icon="material-symbols:logout" class="h-4 w-4" aria-hidden="true" />
+        <Icon icon="material-symbols:logout" class="size-4" aria-hidden="true" />
         {m.header_sign_out()}
       </a>
     </li>

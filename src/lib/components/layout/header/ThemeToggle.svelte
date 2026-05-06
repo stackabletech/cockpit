@@ -20,14 +20,18 @@
   });
 </script>
 
-<button
-  onclick={() => (dark = !dark)}
-  class="btn btn-ghost btn-sm btn-square"
-  aria-label={dark ? m.theme_switch_light() : m.theme_switch_dark()}
->
-  {#if dark}
-    <Icon icon="material-symbols:light-mode" class="h-5 w-5" aria-hidden="true" />
-  {:else}
-    <Icon icon="material-symbols:dark-mode" class="h-5 w-5" aria-hidden="true" />
-  {/if}
-</button>
+<label class="swap swap-rotate">
+  <!-- this hidden checkbox controls the state -->
+  <input
+    type="checkbox"
+    class="theme-controller"
+    bind:checked={dark}
+    aria-label={dark ? m.theme_switch_light() : m.theme_switch_dark()}
+  />
+
+  <!-- sun icon (visible when unchecked) -->
+  <Icon icon="material-symbols:light-mode" class="swap-off size-5" aria-hidden="true" />
+
+  <!-- moon icon (visible when checked) -->
+  <Icon icon="material-symbols:dark-mode" class="swap-on size-5" aria-hidden="true" />
+</label>

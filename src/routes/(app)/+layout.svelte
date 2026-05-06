@@ -14,7 +14,12 @@
     '/trino': m.page_title_trino
   };
 
-  let title = $derived((pageTitles[page.url.pathname] ?? m.page_title_default)());
+  let title = $derived(
+    (
+      pageTitles[page.url.pathname] ??
+      (page.url.pathname.startsWith('/storage') ? m.page_title_storage : m.page_title_default)
+    )()
+  );
 </script>
 
 <svelte:head>
