@@ -4,7 +4,7 @@
   import ObjectTable from './ObjectTable.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import type { StoragePage } from '$lib/storage/types.js';
-    import { SvelteSet } from 'svelte/reactivity';
+  import { SvelteSet } from 'svelte/reactivity';
 
   interface Props {
     bucket: string;
@@ -47,7 +47,10 @@
 
   function selectAll(checked: boolean) {
     if (checked) {
-      selectedKeys = new SvelteSet<string>([...folders.map((f) => f.key), ...files.map((f) => f.key)]);
+      selectedKeys = new SvelteSet<string>([
+        ...folders.map((f) => f.key),
+        ...files.map((f) => f.key)
+      ]);
     } else {
       selectedKeys = new SvelteSet<string>();
     }
