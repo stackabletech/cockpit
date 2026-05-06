@@ -31,7 +31,7 @@ test.describe('Smoke tests', () => {
     await page.goto('/');
 
     const html = page.locator('html');
-    const toggle = page.getByRole('button', {
+    const toggle = page.getByRole('checkbox', {
       name: /switch to (light|dark) mode|zum (hellen|dunklen) modus wechseln/i
     });
 
