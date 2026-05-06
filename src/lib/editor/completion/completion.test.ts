@@ -121,3 +121,42 @@ describe('analyseCompletion — repair of malformed SQL', () => {
     expect(analysis.identifierKind).toBe('column');
   });
 });
+
+describe('analyseCompletion — alias map', () => {
+  it('registers a bare table reference under its name', () => {
+    const analysis = analyseCompletion(at('SELECT * FROM foo WHERE |'));
+    expect(analysis.aliasMap.get('foo')).toEqual({ table: 'foo' });
+  });
+
+  it('registers an alias under both its alias and the underlying table', () => {
+    const analysis = analyseCompletion(at('SELECT * FROM mytab AS t WHERE |'));
+    expect(analysis.aliasMap.get('mytab')).toEqual({ table: 'mytab' });
+    expect(analysis.aliasMap.get('t')).toEqual({ table: 'mytab' });
+  });
+
+  it('accepts alias without AS keyword', () => {
+    const analysis = analyseCompletion(at('SELECT * FROM foo t WHERE |'));
+    expect(analysis.aliasMap.get('t')).toEqual({ table: 'foo' });
+  });
+
+  it('preserves qualified parts of FROM targets', () => {
+    const analysis = analyseCompletion(at('SELECT * FROM cat.sch.mytab t WHERE |'));
+    expect(analysis.aliasMap.get('t')).toEqual({
+      catalog: 'cat',
+      schema: 'sch',
+      table: 'mytab'
+    });
+  });
+
+  it('registers each relation in a JOIN', () => {
+    const analysis = analyseCompletion(at('SELECT * FROM foo f JOIN bar b ON f.id = b.id WHERE |'));
+    expect(analysis.aliasMap.get('f')).toEqual({ table: 'foo' });
+    expect(analysis.aliasMap.get('b')).toEqual({ table: 'bar' });
+  });
+
+  it('resolves alias-map lookups case-insensitively', () => {
+    const analysis = analyseCompletion(at('SELECT * FROM MyTab AS T WHERE |'));
+    expect(analysis.aliasMap.get('mytab')).toEqual({ table: 'MyTab' });
+    expect(analysis.aliasMap.get('t')).toEqual({ table: 'MyTab' });
+  });
+});
