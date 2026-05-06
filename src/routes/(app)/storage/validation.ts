@@ -1,1 +1,1 @@
-export { StorageConnectionSchema } from '$lib/schemas/storage.js';
+export { StorageConnectionSchema } from '$lib/storage/schemas.js';

@@ -2,8 +2,8 @@
   import * as m from '$lib/paraglide/messages.js';
   import Icon from '@iconify/svelte';
   import SelectionToolbar from './SelectionToolbar.svelte';
-  import { fileIconKind, iconColors, formatDate, keyToName } from './storage-utils.js';
-  import type { StorageObject } from '$lib/types/storage.js';
+  import { fileIconKind, iconColors, formatDate, keyToName } from '$lib/storage/utils.js';
+  import type { StorageObject } from '$lib/storage/types.js';
   import { flip } from 'svelte/animate';
   import prettyBytes from 'pretty-bytes';
 

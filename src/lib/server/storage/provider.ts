@@ -1,4 +1,4 @@
-import type { StoragePage, StorageMetadata } from '$lib/types/storage.js';
+import type { StoragePage, StorageMetadata } from '$lib/storage/types.js';
 
 /** Backend-agnostic interface for a bucket-scoped storage provider. */
 export interface StorageProvider {

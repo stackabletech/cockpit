@@ -2,20 +2,20 @@ import { fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import type { Actions, PageServerLoad } from './$types';
-import { StorageConnectionSchema } from './validation.js';
+import { StorageConnectionSchema } from '$lib/storage/schemas.js';
 import { getUserId } from '$lib/server/auth-utils.js';
 import {
-  setUserConnection,
-  clearUserConnection,
-  listBucketsForUser,
-  getUserConnection
-} from '$lib/server/storage/user-connections.js';
+  getConnection,
+  saveConnection,
+  clearConnection,
+  listBuckets
+} from '$lib/server/storage/service.js';
 import type { S3ConnectionConfig } from '$lib/server/storage/types.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const connectionForm = await superValidate(zod(StorageConnectionSchema));
   const userId = getUserId(locals);
-  const connected = getUserConnection(userId) !== null;
+  const connected = getConnection(userId) !== null;
   locals.logger.debug({ connected }, 'loading storage page');
   return { connectionForm, connected };
 };
@@ -46,11 +46,11 @@ export const actions: Actions = {
     };
 
     try {
-      setUserConnection(userId, config);
-      await listBucketsForUser(userId);
+      saveConnection(userId, config);
+      await listBuckets(userId);
       log.info({ storage_type: type }, 'user storage connection verified and saved');
     } catch (err) {
-      clearUserConnection(userId);
+      clearConnection(userId);
       log.warn({ err }, 'storage connection test failed');
       return message(form, 'Could not connect — check the endpoint and credentials.', {
         status: 400
@@ -62,7 +62,7 @@ export const actions: Actions = {
 
   disconnect: async ({ locals }) => {
     const userId = getUserId(locals);
-    clearUserConnection(userId);
+    clearConnection(userId);
     locals.logger.info({ user_id: userId }, 'user storage connection cleared');
     throw redirect(303, '/storage');
   }

@@ -1,6 +1,6 @@
 import type { StorageProvider } from './provider.js';
 import type { HDFSConfig } from './types.js';
-import type { StoragePage, StorageMetadata } from '$lib/types/storage.js';
+import type { StoragePage, StorageMetadata } from '$lib/storage/types.js';
 
 /** Stub implementation — HDFS support is not yet implemented. */
 export class HDFSStorageProvider implements StorageProvider {

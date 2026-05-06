@@ -3,7 +3,7 @@
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import ObjectTable from './ObjectTable.svelte';
   import ContextMenu from './ContextMenu.svelte';
-  import type { StoragePage } from '$lib/types/storage.js';
+  import type { StoragePage } from '$lib/storage/types.js';
 
   interface Props {
     bucket: string;

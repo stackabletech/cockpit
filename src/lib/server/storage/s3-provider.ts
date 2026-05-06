@@ -7,7 +7,7 @@ import {
 } from '@aws-sdk/client-s3';
 import type { StorageProvider } from './provider.js';
 import type { S3Config } from './types.js';
-import type { StoragePage, StorageObject, StorageMetadata } from '$lib/types/storage.js';
+import type { StoragePage, StorageObject, StorageMetadata } from '$lib/storage/types.js';
 import { logger } from '$lib/server/logging';
 
 const log = logger.child({ module: 's3-provider' });
