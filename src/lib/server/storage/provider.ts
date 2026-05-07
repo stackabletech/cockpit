@@ -7,7 +7,11 @@ export interface StorageProvider {
    * provider-specific opaque token returned from a previous call. When
    * omitted, the first page is returned.
    */
-  listObjects(prefix: string, pageSize: number, continuationToken?: string | null): Promise<StoragePage>;
+  listObjects(
+    prefix: string,
+    pageSize: number,
+    continuationToken?: string | null
+  ): Promise<StoragePage>;
   getObject(key: string): Promise<ReadableStream>;
   getMetadata(key: string): Promise<StorageMetadata>;
   exists(key: string): Promise<boolean>;

@@ -14,7 +14,11 @@
     bucket: string;
     objects: StoragePage;
     prefix: string;
-    onnavigate: (prefix: string, continuationToken?: string | null) => void;
+    onnavigate: (
+      prefix: string,
+      continuationToken?: string | null,
+      pageSize?: number | null
+    ) => void;
   }
 
   let { bucket, objects, prefix, onnavigate }: Props = $props();
@@ -28,7 +32,7 @@
   let selectionMode = $state(false);
 
   // Stack of previous continuation tokens for deterministic "Prev" navigation.
-  let prevTokens = $state<string[]>([]);
+  let prevTokens = $state<(string | null)[]>([]);
 
   const STORAGE_KEY = 'storage_page_size';
 
@@ -232,14 +236,23 @@
   </div>
 
   <!-- Fixed pagination bar at bottom -->
-  <div class="px-4 py-3 border-t border-base-200/40 bg-base-100 flex items-center justify-end gap-2 sticky bottom-0 z-10">
-    <label class="text-base-content/60 text-xs mr-2">{m.storage_page_size()}</label>
-    <select id="storage-page-size" class="select select-xs w-14 px-1 mr-4" value={pageSize} onchange={handlePageSizeChange}>
+  <div
+    class="border-base-200/40 bg-base-100 sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t px-4 py-3"
+  >
+    <label for="storage-page-size" class="text-base-content/60 mr-2 text-xs"
+      >{m.storage_page_size()}</label
+    >
+    <select
+      id="storage-page-size"
+      class="select select-xs mr-4 w-14 px-1"
+      value={pageSize}
+      onchange={handlePageSizeChange}
+    >
       {#each ALLOWED_PAGE_SIZES as size (size)}
         <option value={size}>{size}</option>
       {/each}
     </select>
-    <span class="text-base-content/60 text-xs mr-2">{`${m.storage_page()} ${currentPage}`}</span>
+    <span class="text-base-content/60 mr-2 text-xs">{`${m.storage_page()} ${currentPage}`}</span>
     <button
       class="btn btn-ghost btn-sm"
       onclick={goFirst}
@@ -247,7 +260,11 @@
       aria-label={m.storage_first_page()}
       title={m.storage_first_page()}
     >
-      <Icon icon="material-symbols:first-page" class={"size-4 " + (canGoFirst ? '' : 'opacity-40')} aria-hidden="true" />
+      <Icon
+        icon="material-symbols:first-page"
+        class={'size-4 ' + (canGoFirst ? '' : 'opacity-40')}
+        aria-hidden="true"
+      />
     </button>
 
     <button
@@ -257,7 +274,11 @@
       aria-label={m.storage_previous_page()}
       title={m.storage_previous_page()}
     >
-      <Icon icon="material-symbols:chevron-left" class={"size-4 " + (canGoPrev ? '' : 'opacity-40')} aria-hidden="true" />
+      <Icon
+        icon="material-symbols:chevron-left"
+        class={'size-4 ' + (canGoPrev ? '' : 'opacity-40')}
+        aria-hidden="true"
+      />
     </button>
 
     <button
@@ -267,7 +288,11 @@
       aria-label={m.storage_next_page()}
       title={m.storage_next_page()}
     >
-      <Icon icon="material-symbols:chevron-right" class={"size-4 " + (canGoNext ? '' : 'opacity-40')} aria-hidden="true" />
+      <Icon
+        icon="material-symbols:chevron-right"
+        class={'size-4 ' + (canGoNext ? '' : 'opacity-40')}
+        aria-hidden="true"
+      />
     </button>
   </div>
 </div>

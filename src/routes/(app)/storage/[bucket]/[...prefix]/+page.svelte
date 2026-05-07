@@ -5,7 +5,11 @@
 
   let { data } = $props();
 
-  function handleNavigate(prefix: string, continuationToken = null, pageSize = null) {
+  function handleNavigate(
+    prefix: string,
+    continuationToken: string | null = null,
+    pageSize: number | null = null
+  ) {
     const encodedPrefix = prefix
       ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
       : '';
