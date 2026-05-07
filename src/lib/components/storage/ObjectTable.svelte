@@ -16,7 +16,7 @@
     showCheckboxes: boolean;
     allSelected: boolean;
     someSelected: boolean;
-    onnavigate: (prefix: string) => void;
+    onnavigate: (prefix: string, continuationToken?: string | null, pageSize?: number) => void;
     onSelectAll: (checked: boolean) => void;
     onToggleSelect: (key: string, force?: boolean) => void;
     onContextMenu: (e: MouseEvent, key: string) => void;

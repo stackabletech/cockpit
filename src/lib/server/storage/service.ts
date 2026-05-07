@@ -42,7 +42,9 @@ export async function listBuckets(userId: string): Promise<string[]> {
 export async function listObjects(
   userId: string,
   bucket: string,
-  prefix: string
+  prefix: string,
+  pageSize: number,
+  continuationToken?: string | null
 ): Promise<StoragePage> {
   const connection = getUserConnection(userId);
 
@@ -57,7 +59,7 @@ export async function listObjects(
   const provider = StorageProviderFactory.create({ ...connection, bucket });
 
   try {
-    return await provider.listObjects(prefix, 50, 1);
+    return await provider.listObjects(prefix, pageSize, continuationToken ?? undefined);
   } catch (err) {
     if (err instanceof S3ServiceException) {
       const code = err.name;

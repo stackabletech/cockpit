@@ -5,17 +5,22 @@
 
   let { data } = $props();
 
-  function handleNavigate(prefix: string) {
+  function handleNavigate(prefix: string, continuationToken = null, pageSize = null) {
     const encodedPrefix = prefix
       ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
       : '';
-    goto(
-      resolve('/(app)/storage/[bucket]/[...prefix]', {
-        bucket: encodeURIComponent(data.bucket),
-        prefix: encodedPrefix
-      }),
-      { replaceState: false }
-    );
+
+    const target = resolve('/(app)/storage/[bucket]/[...prefix]', {
+      bucket: encodeURIComponent(data.bucket),
+      prefix: encodedPrefix
+    });
+
+    const params = new URLSearchParams();
+    if (continuationToken) params.set('continuationToken', String(continuationToken));
+    if (pageSize) params.set('pageSize', String(pageSize));
+
+    const url = params.toString() ? `${target}?${params.toString()}` : target;
+    goto(url, { replaceState: false });
   }
 </script>
 

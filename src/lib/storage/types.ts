@@ -22,4 +22,8 @@ export interface StoragePage {
   hasNextPage: boolean;
   currentPage: number;
   pageSize: number;
+  /** Continuation token for the current page (if provided). */
+  continuationToken?: string | null;
+  /** Token to request the next page from the provider (if any). */
+  nextContinuationToken?: string | null;
 }
