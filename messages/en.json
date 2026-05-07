@@ -169,5 +169,6 @@
   "storage_page_size": "Items per page",
   "storage_first_page": "First page",
   "storage_previous_page": "Previous page",
-  "storage_next_page": "Next page"
+  "storage_next_page": "Next page",
+  "storage_page": "Page"
 }

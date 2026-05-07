@@ -97,6 +97,7 @@
   const canGoPrev = $derived(prevTokens.length > 0);
   const canGoFirst = $derived(prevTokens.length > 0 || objects.continuationToken);
   const canGoNext = $derived(objects.hasNextPage);
+  const currentPage = $derived(prevTokens.length + 1);
 
   // ── Loading state ─────────────────────────────────────────────────────────
   let loading = $state(false);
@@ -238,6 +239,7 @@
         <option value={size}>{size}</option>
       {/each}
     </select>
+    <span class="text-base-content/60 text-xs mr-2">{`${m.storage_page()} ${currentPage}`}</span>
     <button
       class="btn btn-ghost btn-sm"
       onclick={goFirst}
