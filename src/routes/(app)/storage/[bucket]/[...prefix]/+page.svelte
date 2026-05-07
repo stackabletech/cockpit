@@ -14,17 +14,19 @@
       ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
       : '';
 
-    const target = resolve('/(app)/storage/[bucket]/[...prefix]', {
-      bucket: encodeURIComponent(data.bucket),
-      prefix: encodedPrefix
-    });
+    const parts: string[] = [];
+    if (continuationToken)
+      parts.push(`continuationToken=${encodeURIComponent(String(continuationToken))}`);
+    if (pageSize) parts.push(`pageSize=${encodeURIComponent(String(pageSize))}`);
 
-    const params = new URLSearchParams();
-    if (continuationToken) params.set('continuationToken', String(continuationToken));
-    if (pageSize) params.set('pageSize', String(pageSize));
-
-    const url = params.toString() ? `${target}?${params.toString()}` : target;
-    goto(url, { replaceState: false });
+    const query = parts.length ? `?${parts.join('&')}` : '';
+    goto(
+      resolve('/(app)/storage/[bucket]/[...prefix]', {
+        bucket: encodeURIComponent(data.bucket),
+        prefix: encodedPrefix
+      }) + query,
+      { replaceState: false }
+    );
   }
 </script>
 
