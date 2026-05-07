@@ -34,61 +34,51 @@ export class S3StorageProvider implements StorageProvider {
     });
   }
 
-  async listObjects(prefix: string, pageSize: number, page: number): Promise<StoragePage> {
-    log.debug({ bucket: this.bucket, prefix, page_size: pageSize, page }, 'listing objects');
+  async listObjects(
+    prefix: string,
+    pageSize: number,
+    continuationToken?: string | null
+  ): Promise<StoragePage> {
+    log.debug({ bucket: this.bucket, prefix, page_size: pageSize }, 'listing objects');
 
-    // S3 uses cursor-based pagination via continuation tokens, not offset-based.
-    // To reach page N we advance through N-1 pages sequentially.
-    let continuationToken: string | undefined;
-    let currentPage = 1;
+    const output: ListObjectsV2CommandOutput = await this.client.send(
+      new ListObjectsV2Command({
+        Bucket: this.bucket,
+        Prefix: prefix || undefined,
+        Delimiter: '/',
+        MaxKeys: pageSize,
+        ContinuationToken: continuationToken ?? undefined
+      })
+    );
 
-    while (true) {
-      const output: ListObjectsV2CommandOutput = await this.client.send(
-        new ListObjectsV2Command({
-          Bucket: this.bucket,
-          Prefix: prefix || undefined,
-          Delimiter: '/',
-          MaxKeys: pageSize,
-          ContinuationToken: continuationToken
-        })
-      );
+    const objects: StorageObject[] = [
+      ...(output.CommonPrefixes ?? []).map((cp) => ({
+        key: cp.Prefix ?? '',
+        size: 0,
+        lastModified: new Date(0),
+        isDirectory: true,
+        contentType: undefined
+      })),
+      ...(output.Contents ?? [])
+        // Filter out the prefix itself (S3 sometimes echoes it back)
+        .filter((obj) => obj.Key !== prefix)
+        .map((obj) => ({
+          key: obj.Key ?? '',
+          size: obj.Size ?? 0,
+          lastModified: obj.LastModified ?? new Date(0),
+          isDirectory: false,
+          contentType: undefined
+        }))
+    ];
 
-      if (currentPage === page) {
-        const objects: StorageObject[] = [
-          ...(output.CommonPrefixes ?? []).map((cp) => ({
-            key: cp.Prefix ?? '',
-            size: 0,
-            lastModified: new Date(0),
-            isDirectory: true,
-            contentType: undefined
-          })),
-          ...(output.Contents ?? [])
-            // Filter out the prefix itself (S3 sometimes echoes it back)
-            .filter((obj) => obj.Key !== prefix)
-            .map((obj) => ({
-              key: obj.Key ?? '',
-              size: obj.Size ?? 0,
-              lastModified: obj.LastModified ?? new Date(0),
-              isDirectory: false,
-              contentType: undefined
-            }))
-        ];
-
-        return {
-          objects,
-          hasNextPage: output.IsTruncated ?? false,
-          currentPage,
-          pageSize
-        };
-      }
-
-      if (!output.IsTruncated || !output.NextContinuationToken) {
-        return { objects: [], hasNextPage: false, currentPage: page, pageSize };
-      }
-
-      continuationToken = output.NextContinuationToken;
-      currentPage++;
-    }
+    return {
+      objects,
+      hasNextPage: output.IsTruncated ?? false,
+      currentPage: 1,
+      pageSize,
+      continuationToken: continuationToken ?? null,
+      nextContinuationToken: output.NextContinuationToken ?? null
+    };
   }
 
   async getObject(key: string): Promise<ReadableStream> {

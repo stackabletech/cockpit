@@ -5,15 +5,26 @@
 
   let { data } = $props();
 
-  function handleNavigate(prefix: string) {
+  function handleNavigate(
+    prefix: string,
+    continuationToken: string | null = null,
+    pageSize: number | null = null
+  ) {
     const encodedPrefix = prefix
       ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
       : '';
+
+    const parts: string[] = [];
+    if (continuationToken)
+      parts.push(`continuationToken=${encodeURIComponent(String(continuationToken))}`);
+    if (pageSize) parts.push(`pageSize=${encodeURIComponent(String(pageSize))}`);
+
+    const query = parts.length ? `?${parts.join('&')}` : '';
     goto(
       resolve('/(app)/storage/[bucket]/[...prefix]', {
         bucket: encodeURIComponent(data.bucket),
         prefix: encodedPrefix
-      }),
+      }) + query,
       { replaceState: false }
     );
   }

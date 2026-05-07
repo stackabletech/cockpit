@@ -165,5 +165,10 @@
   "storage_error_go_back": "Zurück",
   "storage_header_name": "Name",
   "storage_header_size": "Größe",
-  "storage_header_last_modified": "Zuletzt geändert"
+  "storage_header_last_modified": "Zuletzt geändert",
+  "storage_page_size": "Elemente pro Seite",
+  "storage_first_page": "Erste Seite",
+  "storage_previous_page": "Vorherige Seite",
+  "storage_next_page": "Nächste Seite",
+  "storage_page": "Seite"
 }
