@@ -3,7 +3,29 @@ import type { NavItem, NavSection } from '$lib/types/navigation.js';
 
 export type { NavItem, NavSection };
 
-export function getNavSections(): NavSection[] {
+export interface NavFlags {
+  storageBrowserEnabled?: boolean;
+}
+
+export function getNavSections(flags: NavFlags = {}): NavSection[] {
+  const { storageBrowserEnabled = true } = flags;
+
+  const dataToolsItems: NavItem[] = [
+    {
+      label: m.nav_trino(),
+      href: '/trino',
+      icon: 'database'
+    }
+  ];
+
+  if (storageBrowserEnabled) {
+    dataToolsItems.push({
+      label: m.nav_storage(),
+      href: '/storage',
+      icon: 'folder'
+    });
+  }
+
   return [
     {
       title: m.nav_platform(),
@@ -11,18 +33,7 @@ export function getNavSections(): NavSection[] {
     },
     {
       title: m.nav_data_tools(),
-      items: [
-        {
-          label: m.nav_trino(),
-          href: '/trino',
-          icon: 'database'
-        },
-        {
-          label: m.nav_storage(),
-          href: '/storage',
-          icon: 'folder'
-        }
-      ]
+      items: dataToolsItems
     }
   ];
 }
