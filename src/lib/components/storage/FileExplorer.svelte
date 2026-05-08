@@ -81,9 +81,6 @@
   /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
   const deleteCount = $derived(selectedFiles.length + selectedFolders.length);
 
-  const canGoPrev = $derived(prevTokens.length > 0);
-  const canGoFirst = $derived(prevTokens.length > 0 || !!objects.continuationToken);
-  const canGoNext = $derived(objects.hasNextPage);
   const currentPage = $derived(prevTokens.length + 1);
 
   // ── Loading state ─────────────────────────────────────────────────────────
@@ -225,9 +222,8 @@
       storageKey="storage_page_size"
       pageSizeLabel={m.storage_page_size()}
       infoLabel="{m.storage_page()} {currentPage}"
-      {canGoFirst}
-      {canGoPrev}
-      {canGoNext}
+      current={prevTokens.length}
+      hasNext={objects.hasNextPage}
       onfirst={goFirst}
       onprev={goPrev}
       onnext={() => handlePageNavigate(objects.nextContinuationToken ?? null)}

@@ -271,10 +271,8 @@
           storageKey={STORAGE_KEY}
           pageSizeLabel={m.trino_page_size()}
           infoLabel={m.trino_rows_range({ start: rowStart, end: rowEnd, total: totalRows })}
-          canGoFirst={currentPage > 0}
-          canGoPrev={currentPage > 0}
-          canGoNext={currentPage < lastPage}
-          canGoLast={currentPage < lastPage}
+          current={currentPage}
+          total={totalPages}
           onfirst={() => (currentPage = 0)}
           onprev={() => (currentPage = Math.max(0, currentPage - 1))}
           onnext={() => (currentPage = Math.min(lastPage, currentPage + 1))}

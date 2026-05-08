@@ -16,14 +16,22 @@
      * E.g. "Page 3" (storage) or "Rows 1–25 of 100" (trino).
      */
     infoLabel?: string;
-    canGoFirst: boolean;
-    canGoPrev: boolean;
-    canGoNext: boolean;
-    /** When provided a Last button is rendered. */
-    canGoLast?: boolean;
+    /** 0-based current page index. The component derives first/prev states from this. */
+    current: number;
+    /**
+     * Total number of pages, if known. Drives next/last button states and renders a Last button.
+     * When omitted (e.g. S3 cursor pagination where total pages are unknown), provide `hasNext`.
+     */
+    total?: number;
+    /**
+     * Whether the next page exists. Only used when `total` is not provided (cursor-based
+     * pagination where the total page count is unknown from the API).
+     */
+    hasNext?: boolean;
     onfirst: () => void;
     onprev: () => void;
     onnext: () => void;
+    /** Called when navigating to the last page. Only relevant when `total` is provided. */
     onlast?: () => void;
     /** Called after the page size changes so the parent can reset page state. */
     onpagesizechange?: () => void;
@@ -40,10 +48,9 @@
     storageKey,
     pageSizeLabel,
     infoLabel,
-    canGoFirst,
-    canGoPrev,
-    canGoNext,
-    canGoLast,
+    current,
+    total,
+    hasNext,
     onfirst,
     onprev,
     onnext,
@@ -54,7 +61,12 @@
 
   const uid = $props.id();
 
-  const showNavButtons = $derived(canGoFirst || canGoPrev || canGoNext || (canGoLast ?? false));
+  const canGoFirst = $derived(current > 0);
+  const canGoPrev = $derived(current > 0);
+  const canGoNext = $derived(total !== undefined ? current < total - 1 : (hasNext ?? false));
+  const canGoLast = $derived(total !== undefined && current < total - 1);
+  const showLast = $derived(total !== undefined && onlast !== undefined);
+  const showNavButtons = $derived(canGoFirst || canGoNext || showLast);
 
   function handlePageSizeChange(event: Event) {
     const n = parseInt((event.target as HTMLSelectElement).value, 10);
@@ -129,7 +141,7 @@
               aria-hidden="true"
             />
           </button>
-          {#if onlast}
+          {#if showLast}
             <button
               class="btn btn-ghost btn-xs"
               onclick={onlast}
@@ -201,7 +213,7 @@
           aria-hidden="true"
         />
       </button>
-      {#if onlast}
+      {#if showLast}
         <button
           class="btn btn-ghost btn-sm"
           onclick={onlast}
