@@ -167,8 +167,10 @@
   "storage_header_size": "Size",
   "storage_header_last_modified": "Last modified",
   "storage_page_size": "Items per page",
-  "storage_first_page": "First page",
-  "storage_previous_page": "Previous page",
-  "storage_next_page": "Next page",
-  "storage_page": "Page"
+  "storage_page": "Page",
+  "pagination_first_page": "First page",
+  "pagination_prev_page": "Previous page",
+  "pagination_next_page": "Next page",
+  "pagination_last_page": "Last page",
+  "pagination_nav": "Pagination"
 }

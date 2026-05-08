@@ -167,8 +167,10 @@
   "storage_header_size": "Größe",
   "storage_header_last_modified": "Zuletzt geändert",
   "storage_page_size": "Elemente pro Seite",
-  "storage_first_page": "Erste Seite",
-  "storage_previous_page": "Vorherige Seite",
-  "storage_next_page": "Nächste Seite",
-  "storage_page": "Seite"
+  "storage_page": "Seite",
+  "pagination_first_page": "Erste Seite",
+  "pagination_prev_page": "Vorherige Seite",
+  "pagination_next_page": "Nächste Seite",
+  "pagination_last_page": "Letzte Seite",
+  "pagination_nav": "Seitennavigation"
 }

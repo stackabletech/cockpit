@@ -3,12 +3,11 @@
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import ObjectTable from './ObjectTable.svelte';
   import ContextMenu from './ContextMenu.svelte';
+  import Pagination from '$lib/components/Pagination.svelte';
   import type { StoragePage } from '$lib/storage/types.js';
   import { SvelteSet } from 'svelte/reactivity';
 
-  import Icon from '@iconify/svelte';
-  import { browser } from '$app/environment';
-  import { ALLOWED_PAGE_SIZES, isPageSize, type PageSize } from '$lib/types/pagination.js';
+  import { initPageSize, type PageSize } from '$lib/types/pagination.js';
 
   interface Props {
     bucket: string;
@@ -36,23 +35,7 @@
 
   const STORAGE_KEY = 'storage_page_size';
 
-  function initPageSize(): PageSize {
-    if (!browser) return 25;
-    const stored = parseInt(localStorage.getItem(STORAGE_KEY) ?? '', 10);
-    return isPageSize(stored) ? stored : 25;
-  }
-
-  let pageSize = $state<PageSize>(initPageSize());
-
-  function handlePageSizeChange(event: Event) {
-    const n = parseInt((event.target as HTMLSelectElement).value, 10);
-    if (isPageSize(n)) {
-      pageSize = n;
-      prevTokens = [];
-      if (browser) localStorage.setItem(STORAGE_KEY, String(n));
-      goFirst();
-    }
-  }
+  let pageSize = $state<PageSize>(initPageSize(STORAGE_KEY));
 
   // Clear selection on navigation
   $effect(() => {
@@ -98,9 +81,6 @@
   /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
   const deleteCount = $derived(selectedFiles.length + selectedFolders.length);
 
-  const canGoPrev = $derived(prevTokens.length > 0);
-  const canGoFirst = $derived(prevTokens.length > 0 || objects.continuationToken);
-  const canGoNext = $derived(objects.hasNextPage);
   const currentPage = $derived(prevTokens.length + 1);
 
   // ── Loading state ─────────────────────────────────────────────────────────
@@ -236,64 +216,22 @@
   </div>
 
   <!-- Fixed pagination bar at bottom -->
-  <div
-    class="border-base-200/40 bg-base-100 sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t px-4 py-3"
-  >
-    <label for="storage-page-size" class="text-base-content/60 mr-2 text-xs"
-      >{m.storage_page_size()}</label
-    >
-    <select
-      id="storage-page-size"
-      class="select select-xs mr-4 w-14 px-1"
-      value={pageSize}
-      onchange={handlePageSizeChange}
-    >
-      {#each ALLOWED_PAGE_SIZES as size (size)}
-        <option value={size}>{size}</option>
-      {/each}
-    </select>
-    <span class="text-base-content/60 mr-2 text-xs">{`${m.storage_page()} ${currentPage}`}</span>
-    <button
-      class="btn btn-ghost btn-sm"
-      onclick={goFirst}
-      disabled={!canGoFirst}
-      aria-label={m.storage_first_page()}
-      title={m.storage_first_page()}
-    >
-      <Icon
-        icon="material-symbols:first-page"
-        class={'size-4 ' + (canGoFirst ? '' : 'opacity-40')}
-        aria-hidden="true"
-      />
-    </button>
-
-    <button
-      class="btn btn-ghost btn-sm"
-      onclick={goPrev}
-      disabled={!canGoPrev}
-      aria-label={m.storage_previous_page()}
-      title={m.storage_previous_page()}
-    >
-      <Icon
-        icon="material-symbols:chevron-left"
-        class={'size-4 ' + (canGoPrev ? '' : 'opacity-40')}
-        aria-hidden="true"
-      />
-    </button>
-
-    <button
-      class="btn btn-primary btn-sm"
-      onclick={() => handlePageNavigate(objects.nextContinuationToken ?? null)}
-      disabled={!canGoNext}
-      aria-label={m.storage_next_page()}
-      title={m.storage_next_page()}
-    >
-      <Icon
-        icon="material-symbols:chevron-right"
-        class={'size-4 ' + (canGoNext ? '' : 'opacity-40')}
-        aria-hidden="true"
-      />
-    </button>
+  <div class="border-base-200/40 bg-base-100 sticky bottom-0 z-10 border-t px-4 py-3">
+    <Pagination
+      bind:pageSize
+      storageKey="storage_page_size"
+      pageSizeLabel={m.storage_page_size()}
+      infoLabel="{m.storage_page()} {currentPage}"
+      current={prevTokens.length}
+      hasNext={objects.hasNextPage}
+      onfirst={goFirst}
+      onprev={goPrev}
+      onnext={() => handlePageNavigate(objects.nextContinuationToken ?? null)}
+      onpagesizechange={() => {
+        prevTokens = [];
+        goFirst();
+      }}
+    />
   </div>
 </div>
 
