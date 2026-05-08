@@ -43,7 +43,7 @@ async function connectToMockS3(page: Page) {
 
   // After successful connect, the page redirects back to /storage and shows the bucket grid
   await page.waitForURL('**/storage');
-  await expect(page.getByText(BUCKET)).toBeVisible();
+  await expect(page.getByText(BUCKET).first()).toBeVisible();
 }
 
 /** Navigate to the test-bucket listing and return when files are visible. */
@@ -91,7 +91,7 @@ test.describe('Document preview', () => {
     await expect(dialog.locator('pre')).toContainText('Hello, World!');
 
     // Close button works
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await dialog.getByRole('button', { name: 'Close' }).last().click();
     await expect(dialog).not.toBeVisible();
   });
 
@@ -182,8 +182,8 @@ test.describe('Document preview', () => {
   });
 
   test('preview modal shows error for access-denied object', async ({ page }) => {
-    // Mock the preview API to return 403 for no-access.txt
-    await page.route('**/storage/api/preview*no-access.txt*', async (route) => {
+    // Intercept the preview API to simulate a 403 response
+    await page.route('**/storage/api/preview**', async (route) => {
       await route.fulfill({
         status: 403,
         contentType: 'application/json',
@@ -191,20 +191,22 @@ test.describe('Document preview', () => {
       });
     });
 
-    // The file doesn't exist in the bucket listing, so trigger preview via route
-    // We'll mock the preview call directly by triggering it via route interception
-    // Navigate and trigger by evaluating the fetch directly on the page
-    const previewRow = page.getByRole('row', { name: /hello\.txt/i });
-    await previewRow.click();
-    await page.getByRole('button', { name: 'Preview' }).first().click();
+    await clickPreview(page, 'hello.txt');
 
     const dialog = page.locator('dialog[open]');
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect(dialog.getByRole('heading', { name: 'hello.txt' })).toBeVisible();
+    // Error state is shown
+    await expect(dialog.getByText('Preview failed')).toBeVisible();
+    await expect(
+      dialog.getByText('You do not have permission to preview this file.')
+    ).toBeVisible();
+    await dialog.getByRole('button', { name: 'Close' }).last().click();
+    await expect(dialog).not.toBeVisible();
   });
 
-  test('preview API returns 401 when not connected', async ({ page, request }) => {
-    // Disconnect first
+  test('preview API returns 401 when not connected', async ({ page }) => {
+    // Disconnect the S3 connection via the browser UI
     await page.goto('/storage');
     await waitForHydration(page);
     const disconnectBtn = page.getByRole('button', { name: 'Disconnect' });
@@ -213,23 +215,21 @@ test.describe('Document preview', () => {
       await page.waitForURL('**/storage');
     }
 
-    // The preview API should return 401 without a storage connection
-    const res = await request.get(`/storage/api/preview?bucket=${BUCKET}&key=hello.txt`);
-    expect(res.status()).toBe(401);
+    // Use the page's authenticated session (fetch runs in the browser context
+    // with the session cookie) — the storage layer should return 401 when there
+    // is no S3 connection configured for this user.
+    const status = await page.evaluate(async (url) => {
+      const res = await fetch(url);
+      return res.status;
+    }, `/storage/api/preview?bucket=${BUCKET}&key=hello.txt`);
+    expect(status).toBe(401);
   });
 
-  test('keyboard shortcut: preview action is accessible', async ({ page }) => {
-    // Select a file via click
+  test('preview button is enabled for a single selected file', async ({ page }) => {
+    // Select one file — the Preview button in the toolbar becomes enabled
     await page.getByRole('row', { name: /hello\.txt/i }).click();
-
-    // The Preview button in the toolbar should be enabled
     const previewBtn = page.getByRole('button', { name: 'Preview' }).first();
     await expect(previewBtn).toBeEnabled();
     await expect(previewBtn).toBeVisible();
-
-    // Preview button for folders should be disabled when only a folder is selected
-    await page.getByRole('row', { name: /\.\.\./i }).click();
-    // Deselect by clicking elsewhere
-    await page.keyboard.press('Escape');
   });
 });

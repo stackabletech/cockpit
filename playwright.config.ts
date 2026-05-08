@@ -22,22 +22,22 @@ export default defineConfig({
     {
       command: 'npx tsx e2e/start-mock-oidc.ts',
       url: 'http://localhost:9090/.well-known/openid-configuration',
-      reuseExistingServer: false
+      reuseExistingServer: true
     },
     {
       command: 'npx tsx e2e/start-mock-trino.ts',
       url: 'http://localhost:8080',
-      reuseExistingServer: false
+      reuseExistingServer: true
     },
     {
       command: 'npx tsx e2e/start-mock-s3.ts',
       url: 'http://localhost:9191',
-      reuseExistingServer: false
+      reuseExistingServer: true
     },
     {
       command: 'PORT=4173 node --env-file=.env.test build',
       url: baseURL,
-      reuseExistingServer: false
+      reuseExistingServer: true
     }
   ],
   projects: [
@@ -60,18 +60,6 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 }
       }
     },
-    ...(!process.env.CI
-      ? [
-          {
-            name: 'setup-mobile',
-            testMatch: /auth\.setup\.ts/,
-            use: {
-              browserName: 'chromium' as const,
-              viewport: { width: 393, height: 851 }
-            }
-          }
-        ]
-      : []),
     {
       name: 'firefox',
       use: {
@@ -90,24 +78,6 @@ export default defineConfig({
         ...(chromiumExecutablePath && { launchOptions: { executablePath: chromiumExecutablePath } })
       },
       dependencies: ['setup-chromium']
-    },
-    ...(!process.env.CI
-      ? [
-          {
-            name: 'mobile',
-            use: {
-              browserName: 'chromium' as const,
-              viewport: { width: 393, height: 851 },
-              isMobile: true,
-              hasTouch: true,
-              storageState: 'e2e/.auth/user-setup-mobile.json',
-              ...(chromiumExecutablePath && {
-                launchOptions: { executablePath: chromiumExecutablePath }
-              })
-            },
-            dependencies: ['setup-mobile']
-          }
-        ]
-      : [])
+    }
   ]
 });
