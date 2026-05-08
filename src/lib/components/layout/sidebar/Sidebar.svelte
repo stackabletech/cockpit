@@ -8,7 +8,7 @@
   let {
     collapsed = $bindable(false),
     mobileOpen = $bindable(false),
-    storageBrowserEnabled = true
+    storageBrowserEnabled = false
   }: {
     collapsed?: boolean;
     mobileOpen?: boolean;

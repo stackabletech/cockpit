@@ -8,7 +8,7 @@ export interface NavFlags {
 }
 
 export function getNavSections(flags: NavFlags = {}): NavSection[] {
-  const { storageBrowserEnabled = true } = flags;
+  const { storageBrowserEnabled = false } = flags;
 
   const dataToolsItems: NavItem[] = [
     {
