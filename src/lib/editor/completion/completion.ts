@@ -1,10 +1,10 @@
 // Trino SQL completion orchestrator.
 //
 // Locates the statement at the cursor, reads the dotted prefix, builds an
-// alias map from FROM / JOIN targets in the surrounding statement, and runs
-// a grammar analysis via antlr4-c3 to derive both the grammar-valid keyword
-// candidates and the identifier-kind classification (relation / column /
-// keyword-only). Later PRs add CTE awareness.
+// alias map from FROM / JOIN targets and WITH-declared CTEs in the
+// surrounding statement, and runs a grammar analysis via antlr4-c3 to
+// derive both the grammar-valid keyword candidates and the identifier-kind
+// classification (relation / column / keyword-only).
 
 import { getStatementAtOffset, type SqlStatement } from '../split-statements.js';
 import { lexSql } from '../lexer-utils.js';
@@ -68,8 +68,10 @@ export function analyseCompletion({ sql, cursorOffset }: AnalyseArgs): AnalyseRe
   const prefix = extractPrefixAtCursor(tokensUpToCursor, cursorInStatement);
 
   // Alias map is built from the FULL statement so aliases declared after the
-  // cursor (rare but possible while editing) are still seen.
-  const aliasMap = extractAliasMap(lexSql(statement.sql));
+  // cursor (rare but possible while editing) are still seen. The cursor
+  // position also lets extractAliasMap narrow to the innermost scope when
+  // the cursor sits inside a CTE body or subquery.
+  const aliasMap = extractAliasMap(lexSql(statement.sql), cursorInStatement);
 
   const grammar = analyseAtCursor(sqlUpToCursor, prefix, tokensUpToCursor);
 

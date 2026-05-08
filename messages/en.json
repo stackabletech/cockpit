@@ -110,6 +110,7 @@
   "trino_export_csv": "Export",
   "trino_export_csv_column_names": "Column names",
   "completion_detail_catalog": "Catalog",
+  "completion_detail_in_scope_relation": "In-scope relation",
   "completion_detail_schema_in": "Schema in {catalog}",
   "completion_detail_table_in": "Table in {path}",
   "completion_detail_view_in": "View in {path}",

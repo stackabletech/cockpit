@@ -54,7 +54,14 @@ export function createCompletionProvider(
       const defaults = getDefaults();
 
       if (analysis.identifierKind === 'relation') {
-        await appendRelationItems(monaco, suggestions, range, analysis.prefixParts, defaults);
+        await appendRelationItems(
+          monaco,
+          suggestions,
+          range,
+          analysis.prefixParts,
+          analysis.aliasMap,
+          defaults
+        );
       } else if (analysis.identifierKind === 'column') {
         await appendColumnItems(
           monaco,
@@ -125,17 +132,35 @@ function pushRelationItems(
 }
 
 /** Relation-slot suggestions: catalog / schema / table / view / materialised
- *  view names at the level implied by the prefix depth. */
+ *  view names at the prefix-implied level. The bare slot also surfaces
+ *  in-scope CTEs from the alias map. */
 async function appendRelationItems(
   monaco: typeof Monaco,
   out: Monaco.languages.CompletionItem[],
   range: Monaco.IRange,
   prefixParts: string[],
+  aliasMap: Map<string, RelationAlias>,
   defaults: CompletionDefaults
 ): Promise<void> {
   if (prefixParts.length === 0) {
-    // Bare relation slot — offer catalogs, plus the schemas and tables in
-    // the default catalog if one is set.
+    // In-scope relations (CTEs, bare-named FROM targets) — entries with
+    // no catalog/schema, deduped by table name.
+    const seen = new Set<string>();
+    for (const relation of aliasMap.values()) {
+      if (relation.catalog || relation.schema) continue;
+      if (seen.has(relation.table)) continue;
+      seen.add(relation.table);
+      out.push(
+        makeItem(
+          relation.table,
+          monaco.languages.CompletionItemKind.Class,
+          range,
+          m.completion_detail_in_scope_relation()
+        )
+      );
+    }
+
+    // Catalogs + default-catalog schemas / tables from the metadata server.
     const catalogs = await fetchNames({ level: 'catalogs' });
     for (const catalogName of catalogs) {
       out.push(

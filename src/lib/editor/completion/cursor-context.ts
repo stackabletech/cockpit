@@ -1,11 +1,17 @@
 // Lexer-only cursor context for Trino SQL completion: reads the dotted
 // identifier prefix immediately before the cursor, and extracts an alias
-// map from the statement's FROM / JOIN clauses. CTE support (WITH) arrives
-// in a later PR.
+// map from the statement's FROM / JOIN clauses and any WITH-declared CTEs.
 
 import type { Token } from 'antlr4ng';
 import { SqlBaseLexer } from '../generated/SqlBaseLexer.js';
-import { DOT, IDENTIFIER_TOKENS, readQualifiedName } from '../lexer-utils.js';
+import {
+  COMMA,
+  DOT,
+  IDENTIFIER_TOKENS,
+  LPAREN,
+  RPAREN,
+  readQualifiedName
+} from '../lexer-utils.js';
 import { unquoteIdentifier } from '../identifiers.js';
 
 /** Resolved reference to a FROM / JOIN relation, used when completing columns
@@ -27,6 +33,66 @@ function partsToAlias(parts: string[]): RelationAlias | null {
   if (parts.length === 1) return { table: parts[0] };
   if (parts.length === 2) return { schema: parts[0], table: parts[1] };
   return { catalog: parts[0], schema: parts[1], table: parts[2] };
+}
+
+/** Returns the position after the matching `)` of a balanced `(…)` group.
+ *  Returns whether the group was successfully closed. */
+function parenGroupEndPosition(tokens: Token[], start: number): { pos: number; closed: boolean } {
+  let depth = 1;
+  let pos = start + 1;
+  while (pos < tokens.length && depth > 0) {
+    if (tokens[pos].type === LPAREN) depth++;
+    else if (tokens[pos].type === RPAREN) depth--;
+    pos++;
+  }
+  return { pos, closed: depth === 0 };
+}
+
+/** If `pos` points at an `(`, skip past the matching `)` and return the
+ *  position after it. Otherwise return `pos` unchanged. */
+function skipOptionalParenGroup(tokens: Token[], pos: number): number {
+  if (tokens[pos]?.type !== LPAREN) return pos;
+  return parenGroupEndPosition(tokens, pos).pos;
+}
+
+/** Find the innermost `(SELECT …)` or `(WITH …)` body that contains the
+ *  cursor, and return its inner tokens. Returns null when the cursor isn't
+ *  inside any such body.
+ *
+ *  Only parens immediately followed by `SELECT` or `WITH` count as
+ *  scope-opening; plain expression groups like `(a + b)` are ignored. */
+function cursorScopeTokens(tokens: Token[], cursor: number): Token[] | null {
+  let pos = 0;
+  while (pos < tokens.length) {
+    if (tokens[pos].type !== LPAREN) {
+      pos++;
+      continue;
+    }
+    const firstTokenInside = tokens[pos + 1];
+    if (
+      firstTokenInside?.type !== SqlBaseLexer.SELECT &&
+      firstTokenInside?.type !== SqlBaseLexer.WITH
+    ) {
+      pos++;
+      continue;
+    }
+
+    const { pos: end, closed } = parenGroupEndPosition(tokens, pos);
+    const openChar = tokens[pos].start;
+
+    // Cursor is inside this body if it's past the opening `(` and either
+    // the body is unclosed (everything past the `(` is "inside") or it
+    // hasn't passed the matching `)` yet.
+    const cursorIsInside = cursor > openChar && (!closed || cursor <= tokens[end - 1].start);
+
+    if (cursorIsInside) {
+      // Slice the body's contents. When closed, exclude the `)`; when
+      // unclosed, take everything to the end of the available tokens.
+      return tokens.slice(pos + 1, closed ? end - 1 : end);
+    }
+    pos = end; // skip past this group; try the next sibling
+  }
+  return null;
 }
 
 /** Split the string immediately before the cursor into dotted prefix parts
@@ -79,24 +145,46 @@ export function extractPrefixAtCursor(
   return { prefixParts, wordAtCursor };
 }
 
-/** Scan the statement's token stream for every FROM / JOIN target and return
- *  a name → relation map. Each target is registered under both its bare
- *  table name and, if one follows, its alias — so `SELECT * FROM foo x`
- *  can later resolve either `foo.col` or `x.col` to the same relation.
+/** Scan the statement's token stream for every relation in scope at the
+ *  cursor, and return a name → relation map.
+ *
+ *  Two sources of relations:
+ *   - **FROM / JOIN targets** — registered under both their bare table
+ *     name and any alias, so `SELECT * FROM foo x` can later resolve
+ *     either `foo.col` or `x.col` to the same relation.
+ *   - **CTEs (Common Table Expressions)** declared by a WITH clause —
+ *     named temporary result sets only visible inside the same statement,
+ *     e.g. `WITH my_cte AS (SELECT …) SELECT … FROM my_cte`. We register
+ *     the CTE name as a self-referential relation (`{ table: cteName }`)
+ *     and skip its body so tokens inside it don't leak into the outer
+ *     scope (an inner `FROM inner_tab` must not register `inner_tab` up
+ *     here — it's only in scope within the CTE body).
+ *
+ *  Scope-aware: if the cursor is inside a nested `(SELECT …)` or
+ *  `(WITH …)` body (CTE body, subquery in WHERE/IN, derived table in
+ *  FROM), only that body's relations are extracted. Outer-scope relations
+ *  are NOT merged in — accessing an outer FROM from inside a subquery
+ *  (correlated subquery) is not supported yet.
  *
  *  Linear token walk; no parse tree. Cheap and robust enough for typical
- *  queries, and stays usable when the SQL is mid-edit / partial.
- *
- *  CTE names (WITH clause) are not yet walked; they arrive in a follow-up PR. */
-export function extractAliasMap(tokens: Token[]): Map<string, RelationAlias> {
+ *  queries, and stays usable when the SQL is mid-edit / partial. */
+export function extractAliasMap(
+  tokens: Token[],
+  cursorInStatement: number
+): Map<string, RelationAlias> {
+  // Scope narrowing: if the cursor is inside a nested body, recurse on
+  // just its tokens. Nested further? The recursion narrows again.
+  const inner = cursorScopeTokens(tokens, cursorInStatement);
+  if (inner) return extractAliasMap(inner, cursorInStatement);
+
   const aliasMap = new Map<string, RelationAlias>();
 
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
+  for (let pos = 0; pos < tokens.length; pos++) {
+    const token = tokens[pos];
 
     // FROM / JOIN <qualifiedName> [[AS] alias]
     if (token.type === SqlBaseLexer.FROM || token.type === SqlBaseLexer.JOIN) {
-      const { parts, next: initialNext } = readQualifiedName(tokens, i + 1);
+      const { parts, next: initialNext } = readQualifiedName(tokens, pos + 1);
       let next = initialNext;
       const alias = partsToAlias(parts);
       if (alias) {
@@ -110,8 +198,29 @@ export function extractAliasMap(tokens: Token[]): Map<string, RelationAlias> {
           aliasMap.set(aliasName.toLowerCase(), alias);
           next++;
         }
-        i = next - 1;
+        pos = next - 1;
       }
+    }
+
+    // WITH <cte> [(cols)] AS (body) [, <cte> …]
+    // Walk the CTE list, registering each name and skipping its body (see
+    // the JSDoc for why the body is skipped).
+    if (token.type === SqlBaseLexer.WITH) {
+      let next = pos + 1;
+      while (next < tokens.length && IDENTIFIER_TOKENS.has(tokens[next].type)) {
+        const cteName = unquoteIdentifier(tokens[next].text ?? '');
+        aliasMap.set(cteName.toLowerCase(), { table: cteName });
+        next++;
+
+        next = skipOptionalParenGroup(tokens, next); // optional column list
+        if (tokens[next]?.type === SqlBaseLexer.AS) next++;
+        next = skipOptionalParenGroup(tokens, next); // CTE body
+
+        // Comma means another CTE follows; anything else ends the WITH list.
+        if (tokens[next]?.type !== COMMA) break;
+        next++;
+      }
+      pos = next - 1;
     }
   }
 

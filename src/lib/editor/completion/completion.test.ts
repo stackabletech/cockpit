@@ -160,3 +160,92 @@ describe('analyseCompletion — alias map', () => {
     expect(analysis.aliasMap.get('t')).toEqual({ table: 'MyTab' });
   });
 });
+
+describe('analyseCompletion — CTE alias map', () => {
+  it('registers a CTE name from a WITH clause', () => {
+    const analysis = analyseCompletion(at('WITH my_cte AS (SELECT 1 AS x) SELECT | FROM my_cte'));
+    expect(analysis.aliasMap.get('my_cte')).toEqual({ table: 'my_cte' });
+  });
+
+  it('registers multiple CTEs in a chained WITH', () => {
+    const analysis = analyseCompletion(
+      at('WITH c1 AS (SELECT 1), c2 AS (SELECT 2) SELECT | FROM c1')
+    );
+    expect(analysis.aliasMap.get('c1')).toEqual({ table: 'c1' });
+    expect(analysis.aliasMap.get('c2')).toEqual({ table: 'c2' });
+  });
+
+  it('accepts an explicit column list on a CTE', () => {
+    const analysis = analyseCompletion(at('WITH c(x, y) AS (SELECT 1, 2) SELECT | FROM c'));
+    expect(analysis.aliasMap.get('c')).toEqual({ table: 'c' });
+  });
+
+  it('does not leak FROM targets from a CTE body into the outer scope', () => {
+    // Cursor is in the outer main SELECT's column position, so the CTE body
+    // is skipped entirely — `inner_tab` (inside the body) must NOT appear
+    // in the alias map of the outer scope.
+    const analysis = analyseCompletion(at('WITH c AS (SELECT col FROM inner_tab) SELECT | FROM c'));
+    expect(analysis.aliasMap.get('c')).toEqual({ table: 'c' });
+    expect(analysis.aliasMap.has('inner_tab')).toBe(false);
+  });
+
+  it('keeps CTE entries free of catalog/schema so the relation provider can surface them', () => {
+    // The bare-relation provider iterates aliasMap.values() and surfaces
+    // entries with no catalog/schema as in-scope relations. CTE entries
+    // must qualify, otherwise typing `SELECT FROM re|` against a
+    // `WITH recent AS …` wouldn't suggest `recent`.
+    const analysis = analyseCompletion(
+      at('WITH recent AS (SELECT clerk FROM tpch.sf1.orders) SELECT | FROM recent')
+    );
+    const recent = analysis.aliasMap.get('recent');
+    expect(recent).toEqual({ table: 'recent' });
+    expect(recent?.catalog).toBeUndefined();
+    expect(recent?.schema).toBeUndefined();
+  });
+});
+
+describe('analyseCompletion — scope-aware alias map', () => {
+  it("sees the CTE body's FROMs when cursor is inside the body", () => {
+    const analysis = analyseCompletion(
+      at('WITH c AS (SELECT | FROM inner_tab) SELECT * FROM outer_tab')
+    );
+    // Cursor is inside the CTE body — aliasMap should reflect that scope
+    // (inner_tab only), NOT the outer SELECT's `outer_tab`.
+    expect(analysis.aliasMap.get('inner_tab')).toEqual({ table: 'inner_tab' });
+    expect(analysis.aliasMap.has('outer_tab')).toBe(false);
+  });
+
+  it("sees the subquery's FROM when cursor is inside an IN (SELECT …)", () => {
+    const analysis = analyseCompletion(
+      at('SELECT * FROM outer_tab WHERE x IN (SELECT | FROM inner_tab)')
+    );
+    expect(analysis.aliasMap.get('inner_tab')).toEqual({ table: 'inner_tab' });
+    expect(analysis.aliasMap.has('outer_tab')).toBe(false);
+  });
+
+  it("sees the derived table's FROM when cursor is inside a FROM (SELECT …)", () => {
+    const analysis = analyseCompletion(at('SELECT * FROM (SELECT | FROM inner_tab) d WHERE true'));
+    expect(analysis.aliasMap.get('inner_tab')).toEqual({ table: 'inner_tab' });
+  });
+
+  it('narrows to the deepest scope when cursor is in nested subqueries', () => {
+    const analysis = analyseCompletion(
+      at('SELECT * FROM a WHERE x IN (SELECT id FROM b WHERE y IN (SELECT | FROM c))')
+    );
+    expect(analysis.aliasMap.get('c')).toEqual({ table: 'c' });
+    expect(analysis.aliasMap.has('b')).toBe(false);
+    expect(analysis.aliasMap.has('a')).toBe(false);
+  });
+
+  it('ignores plain expression parentheses (not a SELECT/WITH scope)', () => {
+    const analysis = analyseCompletion(at('SELECT (x + y) AS z FROM outer_tab WHERE |'));
+    expect(analysis.aliasMap.get('outer_tab')).toEqual({ table: 'outer_tab' });
+  });
+
+  it('narrows scope correctly when the body is unclosed (mid-edit)', () => {
+    // User is typing a CTE body and hasn't closed it yet — `inner_tab`
+    // should still resolve at the cursor.
+    const analysis = analyseCompletion(at('WITH c AS (SELECT | FROM inner_tab'));
+    expect(analysis.aliasMap.get('inner_tab')).toEqual({ table: 'inner_tab' });
+  });
+});
