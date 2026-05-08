@@ -2,8 +2,17 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import { theme } from '$lib/theme.svelte';
+  import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
 
   let { children } = $props();
+
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 30_000
+      }
+    }
+  });
 
   onMount(() => {
     document.body.classList.add('hydrated');
@@ -19,4 +28,6 @@
   });
 </script>
 
-{@render children()}
+<QueryClientProvider client={queryClient}>
+  {@render children()}
+</QueryClientProvider>
