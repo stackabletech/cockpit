@@ -3,6 +3,7 @@
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import ObjectTable from './ObjectTable.svelte';
   import ContextMenu from './ContextMenu.svelte';
+  import Pagination from '$lib/components/Pagination.svelte';
   import type { StoragePage } from '$lib/storage/types.js';
   import { SvelteSet } from 'svelte/reactivity';
   import { executeAction } from './actions/index.js';
@@ -10,11 +11,17 @@
   import { getActionErrorMessage } from './actions/errors.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
 
+  import { initPageSize, type PageSize } from '$lib/types/pagination.js';
+
   interface Props {
     bucket: string;
     objects: StoragePage;
     prefix: string;
-    onnavigate: (prefix: string) => void;
+    onnavigate: (
+      prefix: string,
+      continuationToken?: string | null,
+      pageSize?: number | null
+    ) => void;
   }
 
   let { bucket, objects, prefix, onnavigate }: Props = $props();
@@ -26,6 +33,13 @@
   // ── Selection state ───────────────────────────────────────────────────────
   let selectedKeys = $state<Set<string>>(new Set<string>());
   let selectionMode = $state(false);
+
+  // Stack of previous continuation tokens for deterministic "Prev" navigation.
+  let prevTokens = $state<(string | null)[]>([]);
+
+  const STORAGE_KEY = 'storage_page_size';
+
+  let pageSize = $state<PageSize>(initPageSize(STORAGE_KEY));
 
   // Clear selection on navigation
   $effect(() => {
@@ -71,6 +85,8 @@
   /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
   const deleteCount = $derived(selectedFiles.length + selectedFolders.length);
 
+  const currentPage = $derived(prevTokens.length + 1);
+
   // ── Loading state ─────────────────────────────────────────────────────────
   let loading = $state(false);
 
@@ -82,7 +98,29 @@
 
   function handleNavigate(prefix: string) {
     loading = true;
-    onnavigate(prefix);
+    prevTokens = [];
+    onnavigate(prefix, null, pageSize);
+  }
+
+  function handlePageNavigate(token: string | null) {
+    // push current page token so we can go back deterministically
+    prevTokens = [...prevTokens, objects.continuationToken ?? null];
+    loading = true;
+    onnavigate(prefix, token, pageSize);
+  }
+
+  function goFirst() {
+    prevTokens = [];
+    loading = true;
+    onnavigate(prefix, null, pageSize);
+  }
+
+  function goPrev() {
+    const copy = [...prevTokens];
+    const last = copy.pop() ?? null;
+    prevTokens = copy;
+    loading = true;
+    onnavigate(prefix, last, pageSize);
   }
 
   // ── Context menu ──────────────────────────────────────────────────────────
@@ -184,6 +222,25 @@
       onToggleSelect={toggleSelect}
       onContextMenu={openContextMenu}
       onaction={handleAction}
+    />
+  </div>
+
+  <!-- Fixed pagination bar at bottom -->
+  <div class="border-base-200/40 bg-base-100 sticky bottom-0 z-10 border-t px-4 py-3">
+    <Pagination
+      bind:pageSize
+      storageKey="storage_page_size"
+      pageSizeLabel={m.storage_page_size()}
+      infoLabel="{m.storage_page()} {currentPage}"
+      current={prevTokens.length}
+      hasNext={objects.hasNextPage}
+      onfirst={goFirst}
+      onprev={goPrev}
+      onnext={() => handlePageNavigate(objects.nextContinuationToken ?? null)}
+      onpagesizechange={() => {
+        prevTokens = [];
+        goFirst();
+      }}
     />
   </div>
 </div>

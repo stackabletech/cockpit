@@ -58,13 +58,13 @@
         type="url"
         class="
           input-bordered input w-full
-          {$errors.endpoint ? 'input-error' : ''}"
+          {$errors?.endpoint ? 'input-error' : ''}"
         placeholder={m.storage_connect_endpoint_placeholder()}
         bind:value={$form.endpoint}
       />
       <p class="text-base-content/50 mt-1 text-xs">{m.storage_connect_endpoint_hint()}</p>
-      {#if $errors.endpoint}
-        <p class="text-error mt-1 text-xs">{$errors.endpoint}</p>
+      {#if $errors?.endpoint}
+        <p class="text-error mt-1 text-xs">{$errors?.endpoint}</p>
       {/if}
     </div>
 
@@ -79,11 +79,11 @@
         type="text"
         class="
           input-bordered input w-full
-          {$errors.region ? 'input-error' : ''}"
+          {$errors?.region ? 'input-error' : ''}"
         bind:value={$form.region}
       />
-      {#if $errors.region}
-        <p class="text-error mt-1 text-xs">{$errors.region}</p>
+      {#if $errors?.region}
+        <p class="text-error mt-1 text-xs">{$errors?.region}</p>
       {/if}
     </div>
 
@@ -98,12 +98,12 @@
         type="text"
         class="
           input-bordered input w-full
-          {$errors.accessKeyId ? 'input-error' : ''}"
+          {$errors?.accessKeyId ? 'input-error' : ''}"
         autocomplete="username"
         bind:value={$form.accessKeyId}
       />
-      {#if $errors.accessKeyId}
-        <p class="text-error mt-1 text-xs">{$errors.accessKeyId}</p>
+      {#if $errors?.accessKeyId}
+        <p class="text-error mt-1 text-xs">{$errors?.accessKeyId}</p>
       {/if}
     </div>
 
@@ -118,12 +118,12 @@
         type="password"
         class="
           input-bordered input w-full
-          {$errors.secretAccessKey ? `input-error` : ''}"
+          {$errors?.secretAccessKey ? `input-error` : ''}"
         autocomplete="current-password"
         bind:value={$form.secretAccessKey}
       />
-      {#if $errors.secretAccessKey}
-        <p class="text-error mt-1 text-xs">{$errors.secretAccessKey}</p>
+      {#if $errors?.secretAccessKey}
+        <p class="text-error mt-1 text-xs">{$errors?.secretAccessKey}</p>
       {/if}
     </div>
 

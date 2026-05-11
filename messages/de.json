@@ -110,10 +110,12 @@
   "trino_export_csv": "Exportieren",
   "trino_export_csv_column_names": "Spaltennamen",
   "completion_detail_catalog": "Katalog",
+  "completion_detail_in_scope_relation": "Relation im Geltungsbereich",
   "completion_detail_schema_in": "Schema in {catalog}",
   "completion_detail_table_in": "Tabelle in {path}",
   "completion_detail_view_in": "View in {path}",
   "completion_detail_materialized_view_in": "Materialized View in {path}",
+  "completion_detail_column": "Spalte",
   "completion_detail_column_in": "Spalte von {table}",
   "completion_detail_keyword": "Schlüsselwort",
   "trino_export_csv_column_names": "Spaltennamen",
@@ -172,5 +174,12 @@
   "storage_download_dismiss": "Schließen",
   "storage_header_name": "Name",
   "storage_header_size": "Größe",
-  "storage_header_last_modified": "Zuletzt geändert"
+  "storage_header_last_modified": "Zuletzt geändert",
+  "storage_page_size": "Elemente pro Seite",
+  "storage_page": "Seite",
+  "pagination_first_page": "Erste Seite",
+  "pagination_prev_page": "Vorherige Seite",
+  "pagination_next_page": "Nächste Seite",
+  "pagination_last_page": "Letzte Seite",
+  "pagination_nav": "Seitennavigation"
 }

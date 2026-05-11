@@ -110,10 +110,12 @@
   "trino_export_csv": "Export",
   "trino_export_csv_column_names": "Column names",
   "completion_detail_catalog": "Catalog",
+  "completion_detail_in_scope_relation": "In-scope relation",
   "completion_detail_schema_in": "Schema in {catalog}",
   "completion_detail_table_in": "Table in {path}",
   "completion_detail_view_in": "View in {path}",
   "completion_detail_materialized_view_in": "Materialized view in {path}",
+  "completion_detail_column": "Column",
   "completion_detail_column_in": "Column of {table}",
   "completion_detail_keyword": "Keyword",
   "trino_export_csv_column_names": "Column names",
@@ -172,5 +174,12 @@
   "storage_download_dismiss": "Dismiss",
   "storage_header_name": "Name",
   "storage_header_size": "Size",
-  "storage_header_last_modified": "Last modified"
+  "storage_header_last_modified": "Last modified",
+  "storage_page_size": "Items per page",
+  "storage_page": "Page",
+  "pagination_first_page": "First page",
+  "pagination_prev_page": "Previous page",
+  "pagination_next_page": "Next page",
+  "pagination_last_page": "Last page",
+  "pagination_nav": "Pagination"
 }

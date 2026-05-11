@@ -31,12 +31,14 @@ export async function listBuckets(userId: string): Promise<string[]> {
 export async function listObjects(
   userId: string,
   bucket: string,
-  prefix: string
+  prefix: string,
+  pageSize: number,
+  continuationToken?: string | null
 ): Promise<StoragePage> {
   const provider = getProviderForUser(userId, bucket);
 
   try {
-    return await provider.listObjects(prefix, 50, 1);
+    return await provider.listObjects(prefix, pageSize, continuationToken ?? undefined);
   } catch (err) {
     if (err instanceof S3ServiceException) {
       mapS3ErrorToHttp(err, { bucket, operation: 'listObjects' });

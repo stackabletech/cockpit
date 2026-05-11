@@ -2,7 +2,8 @@
   import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
   import type { QuerySnapshot } from '$lib/types/query';
-  import { ALLOWED_PAGE_SIZES, isPageSize, type PageSize } from '$lib/types/pagination.js';
+  import { initPageSize, type PageSize } from '$lib/types/pagination.js';
+  import Pagination from '$lib/components/Pagination.svelte';
 
   const STORAGE_KEY = 'trino_page_size';
 
@@ -20,24 +21,7 @@
 
   let collapsed = $state(false);
   let currentPage = $state(0);
-  let pageSize = $state<PageSize>(initPageSize());
-
-  function initPageSize(): PageSize {
-    if (!browser) return 25;
-    const stored = parseInt(localStorage.getItem(STORAGE_KEY) ?? '', 10);
-    return isPageSize(stored) ? stored : 25;
-  }
-
-  function handlePageSizeChange(event: Event) {
-    const n = parseInt((event.target as HTMLSelectElement).value, 10);
-    if (isPageSize(n)) {
-      pageSize = n;
-      currentPage = 0;
-      if (browser && totalStatements === 1) {
-        localStorage.setItem(STORAGE_KEY, String(n));
-      }
-    }
-  }
+  let pageSize = $state<PageSize>(initPageSize(STORAGE_KEY));
 
   const totalRows = $derived(result.rows.length);
   const displayedRows = $derived(
@@ -281,72 +265,21 @@
       {#if rowLimitWarning}
         <span class="text-warning mt-1 block text-xs">{rowLimitWarning}</span>
       {/if}
-      <div class="flex items-center justify-between pt-2">
-        <div class="flex items-center gap-4">
-          {#if totalPages > 1}
-            <nav class="join" aria-label={m.trino_results_label()}>
-              <button
-                class="btn join-item btn-xs"
-                disabled={currentPage === 0}
-                onclick={() => (currentPage = 0)}
-                aria-label={m.trino_first_page()}
-              >
-                &#171;
-              </button>
-              <button
-                class="btn join-item btn-xs"
-                disabled={currentPage === 0}
-                onclick={() => (currentPage = Math.max(0, currentPage - 1))}
-                aria-label={m.trino_prev_page()}
-              >
-                &#8249;
-              </button>
-              <button
-                class="btn join-item btn-xs"
-                disabled={currentPage === lastPage}
-                onclick={() => (currentPage = Math.min(lastPage, currentPage + 1))}
-                aria-label={m.trino_next_page()}
-              >
-                &#8250;
-              </button>
-              <button
-                class="btn join-item btn-xs"
-                disabled={currentPage === lastPage}
-                onclick={() => (currentPage = lastPage)}
-                aria-label={m.trino_last_page()}
-              >
-                &#187;
-              </button>
-            </nav>
-          {/if}
-          <span class="text-base-content/60 text-xs">
-            {m.trino_rows_range({
-              start: rowStart,
-              end: rowEnd,
-              total: totalRows
-            })}
-          </span>
-        </div>
-        <div class="flex items-center gap-2">
-          <label
-            for="{uid}-page-size"
-            class="
-            text-base-content/60 text-xs whitespace-nowrap
-          "
-          >
-            {m.trino_page_size()}
-          </label>
-          <select
-            id="{uid}-page-size"
-            class="select select-xs"
-            value={pageSize}
-            onchange={handlePageSizeChange}
-          >
-            {#each ALLOWED_PAGE_SIZES as size (size)}
-              <option value={size}>{size}</option>
-            {/each}
-          </select>
-        </div>
+      <div class="pt-2">
+        <Pagination
+          bind:pageSize
+          storageKey={STORAGE_KEY}
+          pageSizeLabel={m.trino_page_size()}
+          infoLabel={m.trino_rows_range({ start: rowStart, end: rowEnd, total: totalRows })}
+          current={currentPage}
+          total={totalPages}
+          onfirst={() => (currentPage = 0)}
+          onprev={() => (currentPage = Math.max(0, currentPage - 1))}
+          onnext={() => (currentPage = Math.min(lastPage, currentPage + 1))}
+          onlast={() => (currentPage = lastPage)}
+          onpagesizechange={() => (currentPage = 0)}
+          pageSizeRight={true}
+        />
       </div>
     {:else if result.state === 'FINISHED' && result.columns.length === 0}
       <p class="text-base-content/40 py-2 text-sm">{m.trino_results_empty()}</p>
