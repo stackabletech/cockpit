@@ -9,7 +9,7 @@ import {
   DOT,
   IDENTIFIER_TOKENS,
   LPAREN,
-  RPAREN,
+  parenGroupEndPosition,
   readQualifiedName
 } from '../lexer-utils.js';
 import { unquoteIdentifier } from '../identifiers.js';
@@ -33,19 +33,6 @@ function partsToAlias(parts: string[]): RelationAlias | null {
   if (parts.length === 1) return { table: parts[0] };
   if (parts.length === 2) return { schema: parts[0], table: parts[1] };
   return { catalog: parts[0], schema: parts[1], table: parts[2] };
-}
-
-/** Returns the position after the matching `)` of a balanced `(…)` group.
- *  Returns whether the group was successfully closed. */
-function parenGroupEndPosition(tokens: Token[], start: number): { pos: number; closed: boolean } {
-  let depth = 1;
-  let pos = start + 1;
-  while (pos < tokens.length && depth > 0) {
-    if (tokens[pos].type === LPAREN) depth++;
-    else if (tokens[pos].type === RPAREN) depth--;
-    pos++;
-  }
-  return { pos, closed: depth === 0 };
 }
 
 /** If `pos` points at an `(`, skip past the matching `)` and return the
