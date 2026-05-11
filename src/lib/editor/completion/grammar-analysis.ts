@@ -1,10 +1,8 @@
-// Grammar-driven answers for "what is legal at the cursor?". Runs
-// antlr4-c3's CodeCompletionCore against the partial SQL up to the cursor
-// and classifies the slot as relation / column / keyword-only via
-// preferred rules. When c3 reports nothing reachable because the mid-edit
-// SQL is malformed (e.g. `SELECT FROM ...`), a repair loop iterates:
-// ANTLR's error listener flags extraneous keyword tokens, we inject a
-// phantom identifier before each, and retry.
+// Classifies the cursor slot (relation / column / keyword-only) via
+// antlr4-c3's CodeCompletionCore against the partial SQL. Two recovery
+// passes cope with mid-edit input: scope reduction recurses on the inner
+// SQL when the cursor is inside an unmatched `(`, and a repair loop
+// injects phantom identifiers before extraneous keywords flagged by ANTLR.
 
 import {
   ATNSimulator,
@@ -18,7 +16,7 @@ import { CodeCompletionCore } from 'antlr4-c3';
 import { SqlBaseLexer } from '../generated/SqlBaseLexer.js';
 import { SqlBaseParser } from '../generated/SqlBaseParser.js';
 import { tokenMap } from '../tokenMap.js';
-import { DOT } from '../lexer-utils.js';
+import { DOT, lexSql, unclosedParenOffset } from '../lexer-utils.js';
 
 export type IdentifierKind = 'relation' | 'column' | null;
 
@@ -147,7 +145,6 @@ function analyseGrammarAt(
   return { keywords: [...keywords].sort(), identifierKind, isUnparseable };
 }
 
-/** Lex+parse `sql` and run the c3 grammar analysis at its final token. */
 function parseAndAnalyse(sql: string, extendingPrevious: boolean): GrammarAnalysis {
   try {
     const { parser } = buildParser(sql);
@@ -158,8 +155,6 @@ function parseAndAnalyse(sql: string, extendingPrevious: boolean): GrammarAnalys
   }
 }
 
-/** Index of the last non-EOF token on the default channel. Falls back to 0
- *  for empty / whitespace-only input so c3 has a valid anchor. */
 function lastDefaultChannelTokenIndex(parser: SqlBaseParser): number {
   const tokens = (parser.inputStream as CommonTokenStream).getTokens();
   for (let i = tokens.length - 1; i >= 0; i--) {
@@ -245,16 +240,25 @@ function repairWithParserErrors(sql: string): string | null {
   return patched;
 }
 
-/** Append a phantom token if the cursor isn't already inside a partial word,
- *  run the grammar analysis, and iterate the repair pass while c3 reports
- *  nothing reachable. The loop terminates as soon as repair can't change the
- *  string further — each successful pass strictly grows the input by
- *  inserting a phantom, so this is guaranteed to halt. */
+/** Run the grammar analysis at the cursor, recovering from common mid-edit
+ *  shapes via scope reduction (cursor inside an unmatched `(`) and repair
+ *  (extraneous keyword inserted phantom). The repair loop halts because
+ *  each iteration strictly grows the input by at least one phantom. */
 export function analyseAtCursor(
   sqlUpToCursor: string,
   prefix: { prefixParts: string[]; wordAtCursor: string },
   tokensUpToCursor: Token[]
 ): GrammarAnalysis {
+  // If the cursor sits inside an unmatched `(` (scalar subquery, IN-subquery,
+  // CTE body, …), recurse on just the inner SQL. c3's preferred-rule walk
+  // would otherwise stop at the outer wrapping `primaryExpression` and never
+  // surface the inner FROM/SELECT slot.
+  const innerStart = unclosedParenOffset(tokensUpToCursor);
+  if (innerStart !== null) {
+    const innerSql = sqlUpToCursor.slice(innerStart + 1);
+    return analyseAtCursor(innerSql, prefix, lexSql(innerSql));
+  }
+
   const midWord = prefix.wordAtCursor !== '';
   const afterDot = tokensUpToCursor[tokensUpToCursor.length - 1]?.type === DOT;
 
