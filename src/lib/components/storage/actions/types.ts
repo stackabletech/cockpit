@@ -3,7 +3,10 @@ export type ActionResult = { success?: true; unimplemented?: true };
 export type ActionName = 'download' | 'upload' | 'preview' | 'delete';
 
 export class ActionError extends Error {
-  constructor(public readonly code: string, message: string) {
+  constructor(
+    public readonly code: string,
+    message: string
+  ) {
     super(message);
     this.name = 'ActionError';
   }
