@@ -84,6 +84,17 @@ export class S3StorageProvider implements StorageProvider {
     };
   }
 
+  async getObjectRange(key: string, start: number, end: number): Promise<ReadableStream> {
+    log.debug({ bucket: this.bucket, key, start, end }, 'getting object range');
+    const output = await this.client.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: `bytes=${start}-${end}` })
+    );
+    if (!output.Body) {
+      throw new Error(`Object ${key} has no body`);
+    }
+    return output.Body.transformToWebStream();
+  }
+
   async getMetadata(key: string): Promise<StorageMetadata> {
     log.debug({ bucket: this.bucket, key }, 'getting object metadata');
     const output = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));

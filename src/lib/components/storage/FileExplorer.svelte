@@ -3,6 +3,7 @@
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import ObjectTable from './ObjectTable.svelte';
   import ContextMenu from './ContextMenu.svelte';
+  import PreviewModal from './PreviewModal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
   import type { StoragePage } from '$lib/storage/types.js';
   import { SvelteSet } from 'svelte/reactivity';
@@ -137,9 +138,22 @@
 
   // ── Modal state ───────────────────────────────────────────────────────────
   let showDeleteModal = $state(false);
+  let showPreviewModal = $state(false);
+  let previewKey = $state<string | null>(null);
 
   // ── Action dispatch ───────────────────────────────────────────────────────
   async function handleAction(action: string) {
+    if (action === 'preview') {
+      // Preview is handled locally via the PreviewModal
+      const ctxFile = ctxKey && files.find((f) => f.key === ctxKey) ? ctxKey : null;
+      const key = selectedFiles[0]?.key ?? ctxFile;
+      if (key) {
+        previewKey = key;
+        showPreviewModal = true;
+      }
+      return;
+    }
+
     const key = ctxKey ?? selectedFiles[0]?.key;
     const ctx = {
       bucket,
@@ -150,7 +164,7 @@
 
     try {
       // Only call executeAction for explicitly allowed storage actions.
-      if (action === 'download' || action === 'upload' || action === 'preview') {
+      if (action === 'download' || action === 'upload') {
         const res = await executeAction(action, ctx);
         if (res?.unimplemented) {
           addToast('warning', `${action} — not implemented`);
@@ -251,8 +265,9 @@
     x={ctxMenu.x}
     y={ctxMenu.y}
     selectionCount={selectedKeys.size}
-    canPreview={selectedFiles.length === 1 && selectedFolders.length === 0}
-    canDownload={ctxKey !== null && files.some((f) => f.key === ctxKey)}
+    canPreview={(selectedFiles.length === 1 && selectedFolders.length === 0) ||
+      (ctxKey !== null && files.some((f) => f.key === ctxKey))}
+    canDownload={selectedFiles.length > 0}
     onaction={handleAction}
     onclose={() => {
       ctxMenu = null;
@@ -260,3 +275,6 @@
     }}
   />
 {/if}
+
+<!-- Preview modal -->
+<PreviewModal bind:open={showPreviewModal} {bucket} objectKey={previewKey} />

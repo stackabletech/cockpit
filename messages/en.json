@@ -181,5 +181,22 @@
   "pagination_prev_page": "Previous page",
   "pagination_next_page": "Next page",
   "pagination_last_page": "Last page",
-  "pagination_nav": "Pagination"
+  "pagination_nav": "Pagination",
+  "storage_preview_loading": "Loading preview…",
+  "storage_preview_truncated": "Content truncated — showing first {size}.",
+  "storage_preview_download_full": "Download full file",
+  "storage_preview_fetch_more": "Fetch more",
+  "storage_preview_close": "Close",
+  "storage_preview_unsupported_title": "Preview unavailable",
+  "storage_preview_unsupported_desc": "This file type cannot be previewed inline.",
+  "storage_preview_binary_title": "Binary content",
+  "storage_preview_binary_desc": "This file appears to contain binary data and cannot be displayed as text.",
+  "storage_preview_error_title": "Preview failed",
+  "storage_preview_error_desc": "An error occurred while loading the preview.",
+  "storage_preview_access_denied": "You do not have permission to preview this file.",
+  "storage_preview_not_found": "The file could not be found.",
+  "storage_preview_image_alt": "Preview of {name}",
+  "storage_preview_csv_rows": "Showing first {count} rows",
+  "storage_preview_parquet_rows": "Showing first {count} of {total} rows (parquet)",
+  "storage_preview_pdf_too_large": "PDF is too large to preview inline."
 }
