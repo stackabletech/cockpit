@@ -232,4 +232,29 @@ test.describe('Document preview', () => {
     await expect(previewBtn).toBeEnabled();
     await expect(previewBtn).toBeVisible();
   });
+
+  test('preview modal renders parquet file as a table', async ({ page }) => {
+    await clickPreview(page, 'data.parquet');
+
+    const dialog = page.locator('dialog[open]');
+    await expect(dialog).toBeVisible();
+
+    await expect(dialog.getByRole('heading', { name: 'data.parquet' })).toBeVisible();
+
+    // Parquet is rendered as a CSV-style table
+    const table = dialog.getByRole('table', { name: 'CSV preview' });
+    await expect(table).toBeVisible();
+
+    // Column headers from the parquet schema
+    await expect(table.getByRole('columnheader', { name: 'id' })).toBeVisible();
+    await expect(table.getByRole('columnheader', { name: 'name' })).toBeVisible();
+    await expect(table.getByRole('columnheader', { name: 'role' })).toBeVisible();
+
+    // Data rows
+    await expect(table.getByRole('cell', { name: 'Alice' })).toBeVisible();
+    await expect(table.getByRole('cell', { name: 'Bob' })).toBeVisible();
+
+    // File size is shown in the header subtitle
+    await expect(dialog.locator('p').filter({ hasText: /B/ })).toBeVisible();
+  });
 });

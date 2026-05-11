@@ -39,12 +39,43 @@ const PNG_CONTENT = Buffer.from(
 // Fake gzip header (non-UTF-8, binary)
 const BINARY_CONTENT = Buffer.from([0x1f, 0x8b, 0x08, 0x00, 0xde, 0xad, 0xbe, 0xef]);
 
+// Minimal GZIP-compressed parquet file: 5 rows × 3 columns (id, name, role).
+// Generated with pyarrow, write_page_index=True so OffsetIndex is present.
+// This is used to test the parquet preview flow end-to-end without a real S3.
+const PARQUET_CONTENT = Buffer.from(
+  'UEFSMRUEFSgVREwVChUAEgAAH4sIAAAAAAACA2NkYGBgAmJmIGYBYlYgBgCQqRgpFAAAABUAFRYVPiwV' +
+    'ChUQFQYVBgAAH4sIAAAAAAACA2NiYGDgYmRm7nBjAABD89dACwAAABUEFVAVakwVChUAEgAAH4sIAAAA' +
+    'AAACA2NlYGBwzMlMTmUGMpzyk1iBlHNiUX4OC5DhklgGFnctSwUASeUo8CgAAAAVABUWFT4sFQoVEBUG' +
+    'FQYAAB+LCAAAAAAAAgNjYmBg4GJkZu5wYwAAQ/PXQAsAAAAVBBVEFWJMFQYVABIAAB+LCAAAAAAAAgPj' +
+    'YGBgSM1Lz8xLTS1iB7IT8xJzKotLQMxcIDs9tQgA05P9siIAAAAVABUUFTwsFQoVEBUGFQYAAB+LCAAA' +
+    'AAAAAgNjYmBg4GJkYlZhBAB/FSRVCgAAABkRAhkYBAEAAAAZGAQFAAAAFQIZFgApJgAKABkRAhkYBUFs' +
+    'aWNlGRgDRXZlFQIZFgApJgAKABkRAhkYB2FuYWx5c3QZGAdtYW5hZ2VyFQIZFgApJgAKABkcFmgVYBYA' +
+    'AAAZHBbOAhVgFgAAGRYoABkcFqwEFV4WAAAZFkoAFQQZTDUAGAZzY2hlbWEVBgAVAiUCGAJpZAAVDCUC' +
+    'GARuYW1lJQBMHAAAABUMJQIYBHJvbGUlAEwcAAAAFgoZHBk8JgAcFQIZNQAGEBkYAmlkFQQWChZ8FsAB' +
+    'JmgmCBwYBAUAAAAYBAEAAAAWACgEBQAAABgEAQAAABERABksFQQVABUCABUAFRAVAgA8KQYZJgAKAAAW' +
+    'uAYVFBaKBRU2ACYAHBUMGTUABhAZGARuYW1lFQQWChakARbmASbOAibIARw2ACgDRXZlGAVBbGljZRER' +
+    'ABksFQQVABUCABUAFRAVAgA8FigZBhkmAAoAABbMBhUcFsAFFTYAJgAcFQwZNQAGEBkYBHJvbGUVBBYK' +
+    'FpYBFtwBJqwEJq4DHDYAKAdtYW5hZ2VyGAdhbmFseXN0EREAGSwVBBUAFQIAFQAVEBUCADwWShkGGSYA' +
+    'CgAAFugGFRwW9gUVQgAWtgMWCiYIFoIFABkcGAxBUlJPVzpzY2hlbWEYrAIvLy8vLzlnQUFBQVFBQUFB' +
+    'QUFBS0FBd0FCZ0FGQUFnQUNnQUFBQUFCQkFBTUFBQUFDQUFJQUFBQUJBQUlBQUFBQkFBQUFBTUFBQUJ3' +
+    'QUFBQU1BQUFBQVFBQUFDcy8vLy9BQUFCQlJBQUFBQVlBQUFBQkFBQUFBQUFBQUFFQUFBQWNtOXNaUUFB' +
+    'QUFEWS8vLy8xUC8vL3dBQUFRVVFBQUFBSEFBQUFBUUFBQUFBQUFBQUJBQUFBRzVoYldVQUFBQUFCQUFF' +
+    'QUFRQUFBQVFBQlFBQ0FBR0FBY0FEQUFBQUJBQUVBQUFBQUFBQVFJUUFBQUFIQUFBQUFRQUFBQUFBQUFB' +
+    'QWdBQUFHbGtBQUFJQUF3QUNBQUhBQWdBQUFBQUFBQUJJQUFBQUFBQUFBQT0AGCBwYXJxdWV0LWNwcC1h' +
+    'cnJvdyB2ZXJzaW9uIDI0LjAuMBk8HAAAHAAAHAAAANECAABQQVIx',
+  'base64'
+);
+
 const FIXTURES: Record<string, Fixture> = {
   'hello.txt': { contentType: 'text/plain', content: TEXT_CONTENT },
   'data.json': { contentType: 'application/json', content: JSON_CONTENT },
   'data.csv': { contentType: 'text/csv', content: CSV_CONTENT },
   'image.png': { contentType: 'image/png', content: PNG_CONTENT },
   'archive.bin': { contentType: 'application/octet-stream', content: BINARY_CONTENT },
+  'data.parquet': {
+    contentType: 'application/vnd.apache.parquet',
+    content: PARQUET_CONTENT
+  },
   // Large text file (> 256 KiB) — used to test truncation
   'large.txt': {
     contentType: 'text/plain',

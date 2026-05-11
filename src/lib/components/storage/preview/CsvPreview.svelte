@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
 
-  const MAX_ROWS = 500;
+  const MAX_ROWS = 250;
 
   interface Props {
     text: string;

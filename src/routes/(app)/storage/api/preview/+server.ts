@@ -15,7 +15,7 @@ const IMAGE_PREVIEW_BYTES = 5 * 1024 * 1024;
 /** Maximum bytes fetched for PDF previews (25 MiB). */
 const PDF_PREVIEW_BYTES = 25 * 1024 * 1024;
 /** Maximum rows to include in a parquet preview. */
-const PARQUET_PREVIEW_ROWS = 500;
+const PARQUET_PREVIEW_ROWS = 250;
 
 /**
  * Override the pure-JS GZIP decompressor from hyparquet-compressors with
@@ -125,14 +125,20 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         'parsing parquet preview'
       );
 
-      // Phase 1: read only the parquet footer (≤2 range requests: last 8 bytes
-      // for the magic + footer length, then the footer itself).
+      // ── Step 1: footer (serial, ≤ 2 range requests) ────────────────────────
+      // hyparquet fetches the last 512 KB first; if the footer is larger it
+      // makes a second request. Serial avoids ETIMEDOUT.
+      let footerQueue: Promise<void> = Promise.resolve();
       const footerBuffer = {
         byteLength: totalSize,
-        slice: async (start: number, end?: number): Promise<ArrayBuffer> => {
+        slice: (start: number, end?: number): Promise<ArrayBuffer> => {
           const rangeEnd = end !== undefined ? end - 1 : totalSize - 1;
-          const stream = await provider.getObjectRange(key, start, rangeEnd);
-          return streamToArrayBuffer(stream as ReadableStream);
+          const req = footerQueue.then(async () => {
+            const stream = await provider.getObjectRange(key, start, rangeEnd);
+            return streamToArrayBuffer(stream as ReadableStream);
+          });
+          footerQueue = req.then(() => {}, () => {});
+          return req;
         }
       };
 
@@ -140,61 +146,86 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       const totalRows = Number(parquetMeta.num_rows);
       const previewRows = Math.min(totalRows, PARQUET_PREVIEW_ROWS);
       const truncated = previewRows < totalRows;
-
-      // Phase 2: determine which row groups are needed for the preview rows and
-      // compute their combined byte span in the file.
-      let dataStart = totalSize;
-      let dataEnd = 0;
-      let rowsAccumulated = 0;
-
-      for (const rowGroup of parquetMeta.row_groups) {
-        if (rowsAccumulated >= previewRows) break;
-        rowsAccumulated += Number(rowGroup.num_rows);
-        for (const col of rowGroup.columns) {
-          const md = col.meta_data;
-          if (!md) continue;
-          // Dictionary page (if present) comes before data pages.
-          const pageStart = Number(md.dictionary_page_offset ?? md.data_page_offset);
-          const pageEnd = pageStart + Number(md.total_compressed_size);
-          if (pageStart > 0) dataStart = Math.min(dataStart, pageStart);
-          if (pageEnd > dataEnd) dataEnd = pageEnd;
-        }
-      }
-
-      // Phase 3: download exactly the needed bytes in a single range request.
-      const dataStream = await provider.getObjectRange(key, dataStart, dataEnd - 1);
-      const dataBuf = await streamToArrayBuffer(dataStream as ReadableStream);
-
-      log.info(
-        {
-          user_id: userId,
-          bucket,
-          key,
-          total_rows: totalRows,
-          preview_rows: previewRows,
-          data_start: dataStart,
-          data_bytes: dataEnd - dataStart,
-          truncated
-        },
-        'parquet data range downloaded'
-      );
-
-      // Phase 4: parse entirely in-memory — no additional network requests.
-      // parquetReadObjects only reads data pages; it will not re-read the footer
-      // because we supply metadata: parquetMeta.
-      const dataBuffer = {
-        byteLength: totalSize,
-        slice: (start: number, end?: number): ArrayBuffer => {
-          const s = start - dataStart;
-          const e = end !== undefined ? end - dataStart : dataBuf.byteLength;
-          return dataBuf.slice(Math.max(0, s), Math.max(0, e));
-        }
-      };
-
       const schema = parquetSchema(parquetMeta);
       const columnNames = schema.children.map((e) => e.element.name);
 
-      const rows = await parquetReadObjects({ file: dataBuffer, metadata: parquetMeta, rowEnd: previewRows, compressors: nodeCompressors });
+      // ── Step 2: pre-fetch OffsetIndex in ONE merged range request ───────────
+      // OffsetIndex entries for all columns are stored contiguously near the
+      // end of the file (written just before the file metadata). Fetching them
+      // together eliminates one S3 round-trip per column (~30 saved requests).
+      let oiMin = Infinity;
+      let oiMax = 0;
+      let rowsScanned = 0;
+      for (const rg of parquetMeta.row_groups) {
+        if (rowsScanned >= previewRows) break;
+        rowsScanned += Number(rg.num_rows);
+        for (const col of rg.columns) {
+          if (col.offset_index_offset && col.offset_index_length) {
+            const s = Number(col.offset_index_offset);
+            const e = s + col.offset_index_length;
+            if (s < oiMin) oiMin = s;
+            if (e > oiMax) oiMax = e;
+          }
+        }
+      }
+      let oiCache: { start: number; buf: ArrayBuffer } | null = null;
+      if (isFinite(oiMin)) {
+        const oiStream = await provider.getObjectRange(key, oiMin, oiMax - 1);
+        oiCache = { start: oiMin, buf: await streamToArrayBuffer(oiStream as ReadableStream) };
+        log.debug(
+          { user_id: userId, bucket, key, oi_bytes: oiMax - oiMin },
+          'parquet OffsetIndex pre-fetched'
+        );
+      }
+
+      // ── Step 3: concurrency-limited buffer for data page reads ──────────────
+      // prefetchAsyncBuffer inside hyparquet calls file.slice() for every fetch
+      // in one synchronous pass. Limit to 4 concurrent S3 connections to stay
+      // well below the threshold that triggers ETIMEDOUT on the S3 endpoint,
+      // while being 4× faster than serial (30 pages / 4 = 8 batches × ~1.5s).
+      const CONCURRENCY = 4;
+      let running = 0;
+      const waiters: Array<() => void> = [];
+      const acquire = (): Promise<void> =>
+        running < CONCURRENCY
+          ? (running++, Promise.resolve())
+          : new Promise((resolve) => waiters.push(resolve));
+      const release = () => {
+        const next = waiters.shift();
+        if (next) next();
+        else running--;
+      };
+
+      const asyncBuffer = {
+        byteLength: totalSize,
+        slice: (start: number, end?: number): Promise<ArrayBuffer> => {
+          const rangeEnd = end ?? totalSize;
+          // Serve OffsetIndex reads from the pre-fetched in-memory cache.
+          if (oiCache && start >= oiCache.start && rangeEnd <= oiCache.start + oiCache.buf.byteLength) {
+            return Promise.resolve(oiCache.buf.slice(start - oiCache.start, rangeEnd - oiCache.start));
+          }
+          // All other reads (data pages): rate-limited S3 range request.
+          return acquire().then(async () => {
+            try {
+              const stream = await provider.getObjectRange(key, start, rangeEnd - 1);
+              return await streamToArrayBuffer(stream as ReadableStream);
+            } finally {
+              release();
+            }
+          });
+        }
+      };
+
+      // useOffsetIndex: true — fetch only the specific pages covering the first
+      // previewRows rows (requires OffsetIndex in file; falls back to full column
+      // chunks if absent, which is unavoidable without page-level metadata).
+      const rows = await parquetReadObjects({
+        file: asyncBuffer,
+        metadata: parquetMeta,
+        rowEnd: previewRows,
+        useOffsetIndex: true,
+        compressors: nodeCompressors
+      });
 
       const csvLines = [
         columnNames.map(escapeCSVField).join(','),
