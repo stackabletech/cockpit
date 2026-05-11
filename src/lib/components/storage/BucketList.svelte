@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import Icon from '@iconify/svelte';
   import * as m from '$lib/paraglide/messages.js';
+  import { clearConnectionLocally } from '$lib/storage/connection-storage.js';
 
   interface Props {
     buckets: string[];
@@ -79,6 +80,7 @@
     <form method="POST" action="/storage?/disconnect">
       <button
         type="submit"
+        onclick={() => clearConnectionLocally()}
         class="
         btn text-base-content/60 btn-ghost btn-xs hover:text-error w-full
       "

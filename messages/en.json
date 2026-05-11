@@ -133,6 +133,7 @@
   "storage_connect_access_key": "Access key ID",
   "storage_connect_secret_key": "Secret access key",
   "storage_connect_submit": "Connect",
+  "storage_connect_reconnecting": "Reconnecting to storage…",
   "storage_connect_error": "Could not connect — check the endpoint and credentials.",
   "storage_disconnect": "Disconnect",
   "storage_buckets_label": "Buckets",

@@ -133,6 +133,7 @@
   "storage_connect_access_key": "Zugriffsschlüssel-ID",
   "storage_connect_secret_key": "Geheimer Zugriffsschlüssel",
   "storage_connect_submit": "Verbinden",
+  "storage_connect_reconnecting": "Verbindung zum Speicher wird wiederhergestellt…",
   "storage_connect_error": "Verbindung fehlgeschlagen — Endpunkt und Zugangsdaten prüfen.",
   "storage_disconnect": "Verbindung Trennen",
   "storage_buckets_label": "Buckets",

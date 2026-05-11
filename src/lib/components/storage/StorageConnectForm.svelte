@@ -2,8 +2,10 @@
   import type { SuperValidated } from 'sveltekit-superforms';
   import { superForm } from 'sveltekit-superforms';
   import { zod4 as zod } from 'sveltekit-superforms/adapters';
+  import { onMount, tick } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { StorageConnectionSchema } from '$lib/storage/schemas.js';
+  import { saveConnectionLocally, loadConnectionLocally } from '$lib/storage/connection-storage.js';
   import type { z } from 'zod';
 
   interface Props {
@@ -14,19 +16,53 @@
 
   const uid = $props.id();
 
+  let formRef: HTMLFormElement | null = $state(null);
+  let autoConnecting = $state(false);
+
   const { form, errors, enhance, submitting, message } = superForm(connectionForm, {
-    validators: zod(StorageConnectionSchema)
+    validators: zod(StorageConnectionSchema),
+    onResult: ({ result }) => {
+      if (result.type === 'redirect') {
+        saveConnectionLocally($form);
+      } else {
+        autoConnecting = false;
+      }
+    }
+  });
+
+  onMount(() => {
+    const saved = loadConnectionLocally();
+    if (saved) {
+      autoConnecting = true;
+      $form.type = saved.type;
+      $form.endpoint = saved.endpoint ?? '';
+      $form.region = saved.region;
+      $form.accessKeyId = saved.accessKeyId ?? '';
+      $form.secretAccessKey = saved.secretAccessKey ?? '';
+      tick().then(() => formRef?.requestSubmit());
+    }
   });
 </script>
 
 <div class="mx-auto max-w-md p-6">
-  <h1 class="mb-1 text-xl font-semibold">{m.storage_connect_title()}</h1>
-  <p class="text-base-content/60 mb-6 text-sm">{m.storage_connect_subtitle()}</p>
+  {#if autoConnecting}
+    <div class="flex flex-col items-center gap-3 py-8">
+      <span class="loading loading-spinner loading-md"></span>
+      <p class="text-base-content/60 text-sm">{m.storage_connect_reconnecting()}</p>
+    </div>
+  {/if}
+
+  <div class:hidden={autoConnecting}>
+    <h1 class="mb-1 text-xl font-semibold">{m.storage_connect_title()}</h1>
+    <p class="text-base-content/60 mb-6 text-sm">{m.storage_connect_subtitle()}</p>
+  </div>
 
   <form
+    bind:this={formRef}
     method="POST"
     action="?/connect"
     use:enhance
+    class:hidden={autoConnecting}
     class="
     flex flex-col gap-4
   "
