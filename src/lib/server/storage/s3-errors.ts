@@ -10,8 +10,8 @@ function isS3ServiceException(err: unknown): err is S3ServiceException {
   return err instanceof S3ServiceException;
 }
 
-function getHttpStatus(err: unknown): number | undefined {
-  return (err as any)?.$metadata?.httpStatusCode;
+function getHttpStatus(err: S3ServiceException): number | undefined {
+  return err.$metadata?.httpStatusCode;
 }
 
 function isAccessDenied(code: string, httpStatus?: number): boolean {
@@ -34,7 +34,7 @@ function accessDeniedMessage(context: Context): string {
 
 export function mapS3ErrorToHttp(err: unknown, context: Context): never {
   if (!isS3ServiceException(err)) {
-    throw err as any;
+    throw err;
   }
 
   const code = err.name;
