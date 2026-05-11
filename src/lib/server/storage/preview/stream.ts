@@ -41,10 +41,10 @@ export async function streamPreview(
 
   const stream =
     previewBytes === totalSize
-      ? await provider.getObject(key)
+      ? (await provider.getObject(key)).stream
       : await provider.getObjectRange(key, 0, previewBytes - 1);
 
-  return new Response(stream as ReadableStream, {
+  return new Response(stream, {
     headers: {
       'Content-Type': contentType,
       'X-Preview-Renderable': 'true',

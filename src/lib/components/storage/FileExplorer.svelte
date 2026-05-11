@@ -143,18 +143,8 @@
 
   // ── Action dispatch ───────────────────────────────────────────────────────
   async function handleAction(action: string) {
-    if (action === 'preview') {
-      // Preview is handled locally via the PreviewModal
-      const ctxFile = ctxKey && files.find((f) => f.key === ctxKey) ? ctxKey : null;
-      const key = selectedFiles[0]?.key ?? ctxFile;
-      if (key) {
-        previewKey = key;
-        showPreviewModal = true;
-      }
-      return;
-    }
-
-    const key = ctxKey ?? selectedFiles[0]?.key;
+    const ctxFile = ctxKey && files.find((f) => f.key === ctxKey) ? ctxKey : null;
+    const key = ctxFile ?? selectedFiles[0]?.key;
     const ctx = {
       bucket,
       key,
@@ -164,9 +154,12 @@
 
     try {
       // Only call executeAction for explicitly allowed storage actions.
-      if (action === 'download' || action === 'upload') {
+      if (action === 'download' || action === 'upload' || action === 'preview') {
         const res = await executeAction(action, ctx);
-        if (res?.unimplemented) {
+        if (res?.previewKey) {
+          previewKey = res.previewKey;
+          showPreviewModal = true;
+        } else if (res?.unimplemented) {
           addToast('warning', `${action} — not implemented`);
         }
       } else {
