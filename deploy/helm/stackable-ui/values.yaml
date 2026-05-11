@@ -105,7 +105,8 @@ terminationGracePeriodSeconds: 30
 
 features:
   trino:
-    completionDisabled: false
+    completion:
+      enabled: true
 
 logging:
   level: ""
