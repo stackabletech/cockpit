@@ -3,7 +3,7 @@ import { S3ServiceException } from '@aws-sdk/client-s3';
 import { getUserId } from '$lib/server/auth-utils.js';
 import { getConnection } from '$lib/server/storage/service.js';
 import { StorageProviderFactory } from '$lib/server/storage/factory.js';
-import { parquetPreview } from '$lib/server/storage/preview/parquet.js';
+// import { parquetPreview } from '$lib/server/storage/preview/parquet.js';
 import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
 import type { RequestHandler } from '@sveltejs/kit';
@@ -44,9 +44,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     if (isParquet) {
       log.info(
         { user_id: userId, bucket, key, content_type: rawContentType, total_size: totalSize },
-        'parsing parquet preview'
+        'parquet preview disabled'
       );
-      return await parquetPreview(provider, key, totalSize, userId, log);
+      // TODO: re-enable once we have a more robust parquet preview solution in place
+      // return await parquetPreview(provider, key, totalSize, userId, log);
     }
 
     // Skip body fetch for known-binary formats — client will show fallback immediately.

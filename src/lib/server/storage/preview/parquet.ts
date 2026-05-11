@@ -13,6 +13,7 @@ const PARQUET_PREVIEW_ROWS = 250;
  */
 const nodeCompressors = {
   ...compressors,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature must match hyparquet's expectation of (input, outputLength)
   GZIP: (input: Uint8Array, _outputLength: number): Uint8Array => new Uint8Array(gunzipSync(input))
 };
 
