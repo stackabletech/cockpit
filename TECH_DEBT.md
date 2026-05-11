@@ -86,14 +86,6 @@ The Download action is intentionally restricted to a single file at a time. Mult
 
 ---
 
-### Static `download` route segment shadows any bucket folder named "download"
-
-**File:** `src/routes/(app)/storage/[bucket]/download/+server.ts`
-
-SvelteKit resolves the static segment `/storage/[bucket]/download` before the catch-all `[...prefix]`. A bucket that contains a top-level folder literally named `download` cannot be browsed in the UI (the request hits the API endpoint instead). This is an extremely unlikely edge case; acceptable for now. Long-term fix: mount the download endpoint under a reserved path prefix such as `/_api/storage/` to avoid any naming collision with real object keys.
-
----
-
 ### Completed query results are ephemeral (30-minute TTL)
 
 **File:** `src/lib/server/query-store.ts`
