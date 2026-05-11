@@ -127,17 +127,13 @@
               `
               : 'hover'}"
           onclick={(e) => {
-            if (showCheckboxes || e.ctrlKey || e.metaKey) {
+            if (e.ctrlKey || e.metaKey) {
               onToggleSelect(folder.key, true);
             } else {
               onnavigate(folder.key);
             }
           }}
-          ondblclick={(e) => {
-            if (e.ctrlKey || e.metaKey) {
-              onnavigate(folder.key);
-            }
-          }}
+          ondblclick={() => onnavigate(folder.key)}
           oncontextmenu={(e) => onContextMenu(e, folder.key)}
         >
           <td class="pr-0">
