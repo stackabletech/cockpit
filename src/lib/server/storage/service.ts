@@ -1,9 +1,11 @@
-import { S3Client, ListBucketsCommand, S3ServiceException } from '@aws-sdk/client-s3';
-import { error } from '@sveltejs/kit';
+import { S3ServiceException, ListBucketsCommand } from '@aws-sdk/client-s3';
 import { getUserConnection, setUserConnection, clearUserConnection } from './user-connections.js';
-import { StorageProviderFactory } from './factory.js';
 import type { S3ConnectionConfig } from './types.js';
-import type { StoragePage } from '$lib/storage/types.js';
+import { createS3Client } from './s3-client.js';
+import { mapS3ErrorToHttp } from './s3-errors.js';
+import { getProviderForUser } from './utils.js';
+import type { StoragePage, StorageMetadata } from '$lib/storage/types.js';
+import type { ObjectDownload } from './provider.js';
 import { logger } from '$lib/server/logging';
 
 const log = logger.child({ module: 'storage-service' });
@@ -17,20 +19,7 @@ export async function listBuckets(userId: string): Promise<string[]> {
   const config = getUserConnection(userId);
   if (!config) return [];
 
-  const client = new S3Client({
-    region: config.region,
-    ...(config.endpoint && {
-      endpoint: config.endpoint,
-      forcePathStyle: true
-    }),
-    ...(config.accessKeyId &&
-      config.secretAccessKey && {
-        credentials: {
-          accessKeyId: config.accessKeyId,
-          secretAccessKey: config.secretAccessKey
-        }
-      })
-  });
+  const client = createS3Client(config);
 
   const output = await client.send(new ListBucketsCommand({}));
   const buckets = (output.Buckets ?? []).map((b) => b.Name ?? '').filter(Boolean);
@@ -44,32 +33,52 @@ export async function listObjects(
   bucket: string,
   prefix: string
 ): Promise<StoragePage> {
-  const connection = getUserConnection(userId);
-
-  if (!connection) {
-    throw error(401, 'No storage connection configured');
-  }
-
-  if (connection.type !== 's3') {
-    throw error(400, 'Storage backend not supported');
-  }
-
-  const provider = StorageProviderFactory.create({ ...connection, bucket });
+  const provider = getProviderForUser(userId, bucket);
 
   try {
     return await provider.listObjects(prefix, 50, 1);
   } catch (err) {
     if (err instanceof S3ServiceException) {
-      const code = err.name;
-      log.warn({ user_id: userId, bucket, prefix, error_code: code }, 'S3 error listing objects');
+      mapS3ErrorToHttp(err, { bucket, operation: 'listObjects' });
+    }
+    throw err;
+  }
+}
+/** Download a single object from the bucket, returning a stream and metadata for the HTTP response. */
+export async function downloadObject(
+  userId: string,
+  bucket: string,
+  key: string
+): Promise<ObjectDownload> {
+  const provider = getProviderForUser(userId, bucket);
 
-      if (code === 'AccessDenied' || err.$metadata?.httpStatusCode === 403) {
-        throw error(403, `Access denied to bucket "${bucket}"`);
-      }
-      if (code === 'NoSuchBucket' || err.$metadata?.httpStatusCode === 404) {
-        throw error(404, `Bucket "${bucket}" not found`);
-      }
-      throw error(502, `Storage error: ${err.message}`);
+  try {
+    log.debug({ user_id: userId, bucket, key }, 'downloading object');
+    const download = await provider.getObject(key);
+    log.info({ user_id: userId, bucket, key }, 'object download started');
+    return download;
+  } catch (err) {
+    if (err instanceof S3ServiceException) {
+      mapS3ErrorToHttp(err, { bucket, key, operation: 'getObject' });
+    }
+    throw err;
+  }
+}
+
+/** Fetch metadata for a single object — used for lightweight pre-flight checks. */
+export async function getObjectMetadata(
+  userId: string,
+  bucket: string,
+  key: string
+): Promise<StorageMetadata> {
+  const provider = getProviderForUser(userId, bucket);
+
+  try {
+    log.debug({ user_id: userId, bucket, key }, 'getting object metadata');
+    return await provider.getMetadata(key);
+  } catch (err) {
+    if (err instanceof S3ServiceException) {
+      mapS3ErrorToHttp(err, { bucket, key, operation: 'getMetadata' });
     }
     throw err;
   }

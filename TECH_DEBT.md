@@ -78,6 +78,22 @@ All server-side query state (progress, rows, status) is held in a module-level `
 
 ---
 
+### Single-file download limit
+
+**File:** `src/lib/storage/download.ts`, `src/lib/components/storage/FileExplorer.svelte`
+
+The Download action is intentionally restricted to a single file at a time. Multi-file or folder downloads (e.g. zipping selected items on the fly) are deferred to a future ticket. Until then, the Download button is disabled whenever more than one item is selected and is always disabled for directories.
+
+---
+
+### Static `download` route segment shadows any bucket folder named "download"
+
+**File:** `src/routes/(app)/storage/[bucket]/download/+server.ts`
+
+SvelteKit resolves the static segment `/storage/[bucket]/download` before the catch-all `[...prefix]`. A bucket that contains a top-level folder literally named `download` cannot be browsed in the UI (the request hits the API endpoint instead). This is an extremely unlikely edge case; acceptable for now. Long-term fix: mount the download endpoint under a reserved path prefix such as `/_api/storage/` to avoid any naming collision with real object keys.
+
+---
+
 ### Completed query results are ephemeral (30-minute TTL)
 
 **File:** `src/lib/server/query-store.ts`

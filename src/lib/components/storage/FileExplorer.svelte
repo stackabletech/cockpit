@@ -5,6 +5,10 @@
   import ContextMenu from './ContextMenu.svelte';
   import type { StoragePage } from '$lib/storage/types.js';
   import { SvelteSet } from 'svelte/reactivity';
+  import { executeAction } from './actions/index.js';
+  import { ActionError } from './actions/types.js';
+  import { getActionErrorMessage } from './actions/errors.js';
+  import { addToast } from '$lib/stores/toast.svelte.js';
 
   interface Props {
     bucket: string;
@@ -97,25 +101,31 @@
   let showDeleteModal = $state(false);
 
   // ── Action dispatch ───────────────────────────────────────────────────────
-  function handleAction(action: string) {
-    switch (action) {
-      case 'preview':
-        alert(m.storage_action_preview() + ' — not implemented');
-        break;
-      case 'rename':
-        alert(m.storage_action_rename() + ' — not implemented');
-        break;
-      case 'download':
-        alert(m.storage_action_download() + ' — not implemented');
-        break;
-      case 'move':
-        alert(m.storage_action_move() + ' — not implemented');
-        break;
-      case 'delete':
-        alert(m.storage_action_delete() + ' — not implemented');
-        break;
-      default:
-        alert(`${action} — not implemented`);
+  async function handleAction(action: string) {
+    const key = ctxKey ?? selectedFiles[0]?.key;
+    const ctx = {
+      bucket,
+      key,
+      selectedKeys: [...selectedKeys],
+      selectedFiles
+    };
+
+    try {
+      // Only call executeAction for explicitly allowed storage actions.
+      if (action === 'download' || action === 'upload' || action === 'preview') {
+        const res = await executeAction(action, ctx);
+        if (res?.unimplemented) {
+          addToast('warning', `${action} — not implemented`);
+        }
+      } else {
+        // Other actions are handled elsewhere; show unimplemented by default.
+        addToast('warning', `${action} — not implemented`);
+      }
+    } catch (err: unknown) {
+      addToast(
+        'error',
+        err instanceof ActionError ? getActionErrorMessage(err) : m.storage_download_error_unknown()
+      );
     }
   }
 
@@ -185,7 +195,7 @@
     y={ctxMenu.y}
     selectionCount={selectedKeys.size}
     canPreview={selectedFiles.length === 1 && selectedFolders.length === 0}
-    canDownload={selectedFiles.length > 0}
+    canDownload={ctxKey !== null && files.some((f) => f.key === ctxKey)}
     onaction={handleAction}
     onclose={() => {
       ctxMenu = null;
