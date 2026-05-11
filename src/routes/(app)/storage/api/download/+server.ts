@@ -9,14 +9,19 @@ function filenameFromKey(key: string): string {
 }
 
 /**
- * GET /storage/[bucket]/download?key=<object-key>
+ * GET /storage/api/download?bucket=<bucket>&key=<object-key>
  *
  * Proxies an S3 object directly to the client as a streaming download.
  * Authentication is enforced by the app-level auth guard in hooks.server.ts.
  * The S3 body stream is piped straight to the HTTP response — no server-side
  * buffering occurs.
  */
-export const GET: RequestHandler = async ({ locals, params, url }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
+  const bucket = url.searchParams.get('bucket');
+  if (!bucket || !bucket.trim()) {
+    throw error(400, 'Missing required query parameter: bucket');
+  }
+
   const key = url.searchParams.get('key');
   if (!key || !key.trim()) {
     throw error(400, 'Missing required query parameter: key');
@@ -24,9 +29,9 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 
   const userId = getUserId(locals);
 
-  locals.logger.debug({ bucket: params.bucket, key }, 'download request received');
+  locals.logger.debug({ bucket, key }, 'download request received');
 
-  const download = await downloadObject(userId, params.bucket, key);
+  const download = await downloadObject(userId, bucket, key);
 
   const filename = filenameFromKey(key);
   // RFC 5987 encoding for non-ASCII filenames in Content-Disposition
@@ -47,20 +52,25 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
     headers['ETag'] = download.etag;
   }
 
-  locals.logger.info({ bucket: params.bucket, key, filename }, 'streaming object download');
+  locals.logger.info({ bucket, key, filename }, 'streaming object download');
 
   return new Response(download.stream, { status: 200, headers });
 };
 
 /**
- * HEAD /storage/[bucket]/download?key=<object-key>
+ * HEAD /storage/api/download?bucket=<bucket>&key=<object-key>
  *
  * Lightweight pre-flight that validates credentials and access rights using
  * a HeadObject call (no object body transferred). The client uses this before
  * initiating a native browser download to surface auth/not-found errors as
  * inline UI messages rather than browser download failures.
  */
-export const HEAD: RequestHandler = async ({ locals, params, url }) => {
+export const HEAD: RequestHandler = async ({ locals, url }) => {
+  const bucket = url.searchParams.get('bucket');
+  if (!bucket || !bucket.trim()) {
+    throw error(400, 'Missing required query parameter: bucket');
+  }
+
   const key = url.searchParams.get('key');
   if (!key || !key.trim()) {
     throw error(400, 'Missing required query parameter: key');
@@ -68,9 +78,9 @@ export const HEAD: RequestHandler = async ({ locals, params, url }) => {
 
   const userId = getUserId(locals);
 
-  locals.logger.debug({ bucket: params.bucket, key }, 'download pre-flight check');
+  locals.logger.debug({ bucket, key }, 'download pre-flight check');
 
-  const meta = await getObjectMetadata(userId, params.bucket, key);
+  const meta = await getObjectMetadata(userId, bucket, key);
 
   return new Response(null, {
     status: 200,
