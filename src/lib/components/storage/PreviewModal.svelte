@@ -241,7 +241,10 @@
             {prettyBytes(preview.totalSize)}
             {#if preview.truncated}
               &mdash;
-              {m.storage_preview_parquet_rows({ count: preview.previewRows, total: preview.totalRows })}
+              {m.storage_preview_parquet_rows({
+                count: preview.previewRows,
+                total: preview.totalRows
+              })}
             {/if}
           </p>
         {:else if preview.kind === 'image' || preview.kind === 'pdf'}

@@ -23,8 +23,7 @@ const PARQUET_PREVIEW_ROWS = 250;
  */
 const nodeCompressors = {
   ...compressors,
-  GZIP: (input: Uint8Array, _outputLength: number): Uint8Array =>
-    new Uint8Array(gunzipSync(input))
+  GZIP: (input: Uint8Array, _outputLength: number): Uint8Array => new Uint8Array(gunzipSync(input))
 };
 
 /**
@@ -137,7 +136,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             const stream = await provider.getObjectRange(key, start, rangeEnd);
             return streamToArrayBuffer(stream as ReadableStream);
           });
-          footerQueue = req.then(() => {}, () => {});
+          footerQueue = req.then(
+            () => {},
+            () => {}
+          );
           return req;
         }
       };
@@ -201,8 +203,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         slice: (start: number, end?: number): Promise<ArrayBuffer> => {
           const rangeEnd = end ?? totalSize;
           // Serve OffsetIndex reads from the pre-fetched in-memory cache.
-          if (oiCache && start >= oiCache.start && rangeEnd <= oiCache.start + oiCache.buf.byteLength) {
-            return Promise.resolve(oiCache.buf.slice(start - oiCache.start, rangeEnd - oiCache.start));
+          if (
+            oiCache &&
+            start >= oiCache.start &&
+            rangeEnd <= oiCache.start + oiCache.buf.byteLength
+          ) {
+            return Promise.resolve(
+              oiCache.buf.slice(start - oiCache.start, rangeEnd - oiCache.start)
+            );
           }
           // All other reads (data pages): rate-limited S3 range request.
           return acquire().then(async () => {
@@ -236,7 +244,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       const csvText = csvLines.join('\n');
 
       log.info(
-        { user_id: userId, bucket, key, total_rows: totalRows, preview_rows: previewRows, truncated },
+        {
+          user_id: userId,
+          bucket,
+          key,
+          total_rows: totalRows,
+          preview_rows: previewRows,
+          truncated
+        },
         'parquet preview ready'
       );
 
