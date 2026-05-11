@@ -108,5 +108,14 @@
   "trino_statements_skipped_other": "{count} Anweisungen wurden aufgrund eines vorherigen Fehlers übersprungen.",
   "trino_statement_collapse": "Ergebnisse von Anweisung {index} ein-/ausblenden",
   "trino_export_csv": "Exportieren",
-  "trino_export_csv_column_names": "Spaltennamen"
+  "trino_export_csv_column_names": "Spaltennamen",
+  "completion_detail_catalog": "Katalog",
+  "completion_detail_in_scope_relation": "Relation im Geltungsbereich",
+  "completion_detail_schema_in": "Schema in {catalog}",
+  "completion_detail_table_in": "Tabelle in {path}",
+  "completion_detail_view_in": "View in {path}",
+  "completion_detail_materialized_view_in": "Materialized View in {path}",
+  "completion_detail_column": "Spalte",
+  "completion_detail_column_in": "Spalte von {table}",
+  "completion_detail_keyword": "Schlüsselwort"
 }

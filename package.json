@@ -17,7 +17,7 @@
     "test:unit": "vitest run",
     "test:e2e": "node --env-file=.env.test node_modules/.bin/vite build && playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "generate:antlr": "cd src/lib/editor/grammar && antlr-ng -v -l -Dlanguage=TypeScript -o ../generated SqlBase.g4"
+    "generate:antlr": "cd src/lib/editor/grammar && antlr-ng -v -l -Dlanguage=TypeScript -o ../generated SqlBase.g4 && node patch-generated.mjs"
   },
   "devDependencies": {
     "@cyclonedx/cyclonedx-npm": "^4.2.1",
@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "@internationalized/date": "^3.11.0",
+    "antlr4-c3": "^3.4.4",
     "antlr4ng": "^3.0.16",
     "better-auth": "^1.5.4",
     "monaco-editor": "^0.55.1",
