@@ -42,7 +42,7 @@ const handleParaglide: Handle = ({ event, resolve }) =>
 const handleAuth: Handle = ({ event, resolve }) =>
   svelteKitHandler({ event, resolve, auth, building });
 
-const PUBLIC_PATHS = ['/auth/login', '/auth/logout', '/api/auth', '/metrics'];
+const PUBLIC_PATHS = ['/auth/login', '/auth/logout', '/api/auth', '/metrics', '/healthz'];
 
 const handleAuthGuard: Handle = async ({ event, resolve }) => {
   const session = await auth.api.getSession({ headers: event.request.headers });

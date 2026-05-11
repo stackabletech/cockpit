@@ -3,8 +3,8 @@
 
 import { env } from '$env/dynamic/private';
 
-/** When `STACKABLE_UI_COMPLETION_DISABLED=true`, the SQL editor's
+/** When `STACKABLE_UI_COMPLETION_ENABLED=false`, the SQL editor's
  *  code-completion provider is not registered and the metadata endpoint
  *  refuses requests. Useful to fall back to plain syntax highlighting if
  *  completion misbehaves or generates undesirable load on Trino. */
-export const completionEnabled = env.STACKABLE_UI_COMPLETION_DISABLED !== 'true';
+export const completionEnabled = env.STACKABLE_UI_COMPLETION_ENABLED !== 'false';

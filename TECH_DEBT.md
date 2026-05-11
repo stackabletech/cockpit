@@ -6,43 +6,19 @@ Tracked issues that are acceptable at the current early stage but must be addres
 
 ## Security
 
-### No authentication or authorisation on the Trino API route
-
-**File:** `src/routes/api/trino/query/+server.ts`, `src/hooks.server.ts`
-
-The `/api/trino/query` endpoint is completely unauthenticated. Any request — from any origin — can execute arbitrary SQL against any Trino instance. OIDC authentication is planned (env vars are wired up, `hooks.server.ts` has the right structure) but not yet implemented. Until auth middleware is in place there is also no per-user rate limiting or query quota.
-
----
-
-### Trino credentials stored in localStorage
-
-**File:** `src/routes/(app)/trino/+page.svelte:41–44`
-
-Username and password are persisted in plaintext localStorage. This is convenient for development (survives page reloads) but violates credential storage best practices — localStorage is accessible to any script on the page and visible in DevTools. Long-term the connection config should be stored server-side (tied to the authenticated session), with credentials never leaving the server after initial setup.
-
----
-
-### Credentials sent in every request body
-
-**File:** `src/routes/(app)/trino/+page.svelte:82–84`
-
-Because there is no server-side session yet, connection credentials (including password) are included in the JSON body of every `/api/trino/query` POST. Once server-side sessions exist the client should send only a session token, not raw credentials.
-
----
-
 ### Connection config is in-memory only
 
-**File:** `src/lib/server/trino.ts`
+**File:** `src/lib/server/trino/user-clients.ts`
 
-The active connection configuration (URL + credentials) is stored in a module-level variable. It is not persisted across server restarts and is not shared across multiple processes/instances. Acceptable for single-instance deployments during development. Long-term: persist to a session store or database, keyed by authenticated user.
+Per-user Trino connection configuration (URL + credentials) is stored in a module-level `Map`. It is not persisted across server restarts and is not shared across multiple processes/instances. Acceptable for single-instance deployments during development. Long-term: persist to a database keyed by authenticated user.
 
 ---
 
 ### Raw upstream error messages returned to the client
 
-**File:** `src/routes/api/trino/query/+server.ts:165, 181, 209`
+**File:** `src/lib/server/trino/queries.ts:176`
 
-Trino error messages and Node.js exception messages are returned to the browser without any sanitisation. Trino errors may expose schema details, table names, or internal query plans. These should be classified (query error vs. infrastructure error) and sanitised before being surfaced to users.
+Trino error messages are stored verbatim in `query.error` and surfaced through `buildSnapshot.error` to the client. Trino errors may expose schema details, table names, or internal query plans. These should be classified (query error vs. infrastructure error) and sanitised before being surfaced to users.
 
 ---
 
@@ -54,47 +30,31 @@ better-auth uses its built-in memory adapter for session and user storage. All s
 
 ---
 
-### Anonymous users share a single query slot
+### Anonymous users share a single Trino client
 
-**File:** `src/lib/server/query-store.ts`
+**File:** `src/lib/server/auth-utils.ts`, `src/lib/server/trino/user-clients.ts`
 
-When OIDC is disabled, all users are identified as `'anonymous'` and share a single active query slot. Submitting a new query cancels the previous one. Once OIDC is required in production this is a non-issue, but for development with multiple anonymous users it can cause unexpected cancellations.
+When OIDC is disabled, every unauthenticated request resolves to `userId = 'anonymous'`, so all anonymous users share the same per-user Trino client and connection. Saving a connection in one browser replaces it for all other anonymous sessions. Per-tab UUIDs still separate query state, but the underlying connection is global. Acceptable for single-user dev; a non-issue once OIDC is required in production.
 
 ---
 
 ### In-memory query store lost on server restart and prevents horizontal scaling
 
-**File:** `src/lib/server/query-store.ts`
+**File:** `src/lib/server/trino/queries.ts`
 
 All server-side query state (progress, rows, status) is held in a module-level `Map`. A server restart clears all state — running queries become orphaned in Trino and completed results are lost. Additionally, because the state is process-local, multiple server instances cannot share query state: a query started on instance A is invisible to instance B. Combined with the in-memory session store limitation (see above), the deployment is limited to a single replica. Acceptable during development; long-term this should be backed by Redis or a persistent store to enable horizontal scaling and resilience.
 
 ---
 
-### Completed query results are ephemeral (30-minute TTL)
+### Completed query results are ephemeral (default 30-minute TTL)
 
-**File:** `src/lib/server/query-store.ts`
+**File:** `src/lib/server/trino/queries.ts:20`
 
-Completed query snapshots (including result rows) are cleaned up after 30 minutes. If a user leaves and returns later, the results will be gone. Consider persisting results to disk or a cache with configurable TTL.
-
----
-
-### Status endpoint returns full rows array on each poll
-
-**File:** `src/routes/(app)/trino/api/query/status/+server.ts`
-
-The status endpoint returns the entire accumulated `rows` array on every poll request. With the 10k row cap this is acceptable, but for very wide result sets it is wasteful. A future optimisation could accept a `?rowOffset=N` parameter and return only new rows.
+Completed query snapshots (including result rows) are cleaned up after `STACKABLE_UI_QUERY_TTL` seconds (default 1800). If a user leaves and returns later, the results will be gone. Consider persisting results to disk or a cache with configurable TTL.
 
 ---
 
 ## API & Validation
-
-### API route request body not validated with Zod
-
-**File:** `src/routes/api/trino/query/+server.ts:83–103`
-
-`parseConnection` uses manual `typeof` checks instead of a Zod schema. The AGENTS.md guidelines require Zod for all validation. Additionally, `request.json()` is called without a try/catch — a malformed JSON body will throw an unhandled error rather than returning a 400.
-
----
 
 ### Client-side row accumulation has no memory bound
 
@@ -108,7 +68,7 @@ The client accumulates all result rows in memory up to `MAX_CLIENT_ROWS` (10,000
 
 **File:** `src/routes/(app)/trino/+page.svelte`
 
-After saving a new connection, the previous query results remain visible until a new query is run. Consider calling `queryRunner.reset()` when the connection changes.
+After saving a new connection, the previous query results remain visible until a new query is run. Consider calling `runner.reset()` when the connection changes.
 
 ---
 
@@ -141,3 +101,11 @@ No CSP headers are set anywhere. This leaves the app exposed to XSS in ways that
 **File:** `vite.config.ts`
 
 The dev server accepts requests from any host. This enables DNS rebinding attacks against local development environments. Should be restricted to `localhost` / `127.0.0.1` unless remote dev access is explicitly needed.
+
+---
+
+### No `/readyz` endpoint — readiness uses the trivial liveness probe
+
+**File:** `src/routes/healthz/+server.ts`, `deploy/helm/stackable-ui/values.yaml`
+
+Both `livenessProbe` and `readinessProbe` point at `/healthz`, which always returns 200. There is currently nothing meaningful to gate readiness on (better-auth uses an in-memory session store, OIDC discovery is fetched lazily on first auth call), so a separate `/readyz` would just be a placeholder. Once one of these lands — a real session store / DB, eager OIDC discovery, or a startup-time cache warm — split into `/healthz` (liveness, trivial) and `/readyz` (readiness, checking the new dependency), and update the helm probes accordingly.
