@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
 
-  const MAX_ROWS = 100;
+  const MAX_ROWS = 500;
 
   interface Props {
     text: string;
@@ -51,13 +51,13 @@
   });
 </script>
 
-<div class="overflow-auto">
+<div>
   {#if headers.length === 0}
     <p class="text-base-content/50 p-4 text-sm italic">{m.storage_bucket_empty()}</p>
   {:else}
-    <table class="table-xs table w-full" aria-label="CSV preview">
+    <table class="table-xs table min-w-max" aria-label="CSV preview">
       <thead>
-        <tr class="bg-base-200/60 text-base-content/60 text-xs">
+        <tr class="bg-base-200 text-base-content/60 text-xs sticky top-0 z-10">
           {#each headers as header (header)}
             <th class="font-semibold whitespace-nowrap">{header}</th>
           {/each}

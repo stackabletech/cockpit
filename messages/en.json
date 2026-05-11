@@ -188,5 +188,6 @@
   "storage_preview_not_found": "The file could not be found.",
   "storage_preview_image_alt": "Preview of {name}",
   "storage_preview_csv_rows": "Showing first {count} rows",
+  "storage_preview_parquet_rows": "Showing first {count} of {total} rows (parquet)",
   "storage_preview_pdf_too_large": "PDF is too large to preview inline."
 }
