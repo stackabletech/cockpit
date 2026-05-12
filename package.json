@@ -62,6 +62,8 @@
     "antlr4-c3": "^3.4.4",
     "antlr4ng": "^3.0.16",
     "better-auth": "^1.5.4",
+    "hyparquet": "^1.25.8",
+    "hyparquet-compressors": "^1.1.1",
     "monaco-editor": "^0.55.1",
     "pino": "^10.3.1",
     "pretty-bytes": "^7.1.0",

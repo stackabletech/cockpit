@@ -22,6 +22,10 @@ export class HDFSStorageProvider implements StorageProvider {
     throw new Error('HDFS not implemented');
   }
 
+  getObjectRange(_key: string, _start: number, _end: number): Promise<ReadableStream> {
+    throw new Error('HDFS not implemented');
+  }
+
   getMetadata(_key: string): Promise<StorageMetadata> {
     throw new Error('HDFS not implemented');
   }

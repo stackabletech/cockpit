@@ -13,6 +13,11 @@ export interface StorageProvider {
     continuationToken?: string | null
   ): Promise<StoragePage>;
   getObject(key: string): Promise<ReadableStream>;
+  /**
+   * Fetch a byte range of an object. Both `start` and `end` are inclusive,
+   * following the HTTP `Range: bytes=start-end` convention.
+   */
+  getObjectRange(key: string, start: number, end: number): Promise<ReadableStream>;
   getMetadata(key: string): Promise<StorageMetadata>;
   exists(key: string): Promise<boolean>;
 }

@@ -3,6 +3,7 @@
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import ObjectTable from './ObjectTable.svelte';
   import ContextMenu from './ContextMenu.svelte';
+  import PreviewModal from './PreviewModal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
   import type { StoragePage } from '$lib/storage/types.js';
   import { SvelteSet } from 'svelte/reactivity';
@@ -133,13 +134,22 @@
 
   // ── Modal state ───────────────────────────────────────────────────────────
   let showDeleteModal = $state(false);
+  let showPreviewModal = $state(false);
+  let previewKey = $state<string | null>(null);
 
   // ── Action dispatch ───────────────────────────────────────────────────────
   function handleAction(action: string) {
     switch (action) {
-      case 'preview':
-        alert(m.storage_action_preview() + ' — not implemented');
+      case 'preview': {
+        // Prefer selection; fall back to the context menu target (if it's a file, not a folder)
+        const ctxFile = ctxKey && files.find((f) => f.key === ctxKey) ? ctxKey : null;
+        const key = selectedFiles[0]?.key ?? ctxFile;
+        if (key) {
+          previewKey = key;
+          showPreviewModal = true;
+        }
         break;
+      }
       case 'rename':
         alert(m.storage_action_rename() + ' — not implemented');
         break;
@@ -241,7 +251,8 @@
     x={ctxMenu.x}
     y={ctxMenu.y}
     selectionCount={selectedKeys.size}
-    canPreview={selectedFiles.length === 1 && selectedFolders.length === 0}
+    canPreview={(selectedFiles.length === 1 && selectedFolders.length === 0) ||
+      (ctxKey !== null && files.some((f) => f.key === ctxKey))}
     canDownload={selectedFiles.length > 0}
     onaction={handleAction}
     onclose={() => {
@@ -250,3 +261,6 @@
     }}
   />
 {/if}
+
+<!-- Preview modal -->
+<PreviewModal bind:open={showPreviewModal} {bucket} objectKey={previewKey} />
