@@ -13,8 +13,15 @@
     onContextMenu: (e: MouseEvent, key: string) => void;
   }
 
-  let { folder, selected, isCtx, showCheckboxes, onnavigate, onToggleSelect, onContextMenu }: Props =
-    $props();
+  let {
+    folder,
+    selected,
+    isCtx,
+    showCheckboxes,
+    onnavigate,
+    onToggleSelect,
+    onContextMenu
+  }: Props = $props();
 </script>
 
 <tr

@@ -47,23 +47,11 @@
   <td>
     <div class="flex items-center gap-2.5">
       {#if kind === 'image'}
-        <Icon
-          icon="material-symbols:image"
-          class="size-5 shrink-0 {color}"
-          aria-hidden="true"
-        />
+        <Icon icon="material-symbols:image" class="size-5 shrink-0 {color}" aria-hidden="true" />
       {:else if kind === 'code'}
-        <Icon
-          icon="material-symbols:code"
-          class="size-5 shrink-0 {color}"
-          aria-hidden="true"
-        />
+        <Icon icon="material-symbols:code" class="size-5 shrink-0 {color}" aria-hidden="true" />
       {:else if kind === 'archive'}
-        <Icon
-          icon="material-symbols:archive"
-          class="size-5 shrink-0 {color}"
-          aria-hidden="true"
-        />
+        <Icon icon="material-symbols:archive" class="size-5 shrink-0 {color}" aria-hidden="true" />
       {:else if kind === 'pdf'}
         <Icon
           icon="material-symbols:picture-as-pdf"
