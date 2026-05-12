@@ -51,6 +51,7 @@
 
   function toggleSelect(key: string, force = false) {
     if (force || selectionMode) {
+      if (force && !selectionMode) selectionMode = true;
       const next = new SvelteSet<string>(selectedKeys);
       if (next.has(key)) next.delete(key);
       else next.add(key);
