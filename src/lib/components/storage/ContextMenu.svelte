@@ -97,7 +97,7 @@
   style="left: {adjustedPos.left}px; top: {adjustedPos.top}px;"
 >
   <li class="menu-title p-0" role="none">
-    <div class="flex items-center justify-between gap-2 py-1 pl-2">
+    <div class="menu-title flex items-center justify-between py-1 pl-2 pr-0">
       <span class="text-base-content/70 text-xs font-medium">
         {m.storage_context_menu_actions()}
       </span>
@@ -109,7 +109,6 @@
         aria-label="Close"
         onclick={onclose}
       >
-        <!-- Use whatever close icon you already have available -->
         <Icon icon="mdi:close" class="size-4" aria-hidden="true" />
       </button>
     </div>
