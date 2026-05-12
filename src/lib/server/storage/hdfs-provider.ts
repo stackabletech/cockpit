@@ -1,4 +1,4 @@
-import type { StorageProvider } from './provider.js';
+import type { StorageProvider, ObjectDownload } from './provider.js';
 import type { HDFSConfig } from './types.js';
 import type { StoragePage, StorageMetadata } from '$lib/storage/types.js';
 
@@ -18,7 +18,7 @@ export class HDFSStorageProvider implements StorageProvider {
     throw new Error('HDFS not implemented');
   }
 
-  getObject(_key: string): Promise<ReadableStream> {
+  getObject(_key: string): Promise<ObjectDownload> {
     throw new Error('HDFS not implemented');
   }
 

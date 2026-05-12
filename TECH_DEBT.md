@@ -78,6 +78,14 @@ All server-side query state (progress, rows, status) is held in a module-level `
 
 ---
 
+### Single-file download limit
+
+**File:** `src/lib/storage/download.ts`, `src/lib/components/storage/FileExplorer.svelte`
+
+The Download action is intentionally restricted to a single file at a time. Multi-file or folder downloads (e.g. zipping selected items on the fly) are deferred to a future ticket. Until then, the Download button is disabled whenever more than one item is selected and is always disabled for directories.
+
+---
+
 ### Completed query results are ephemeral (30-minute TTL)
 
 **File:** `src/lib/server/query-store.ts`

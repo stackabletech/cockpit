@@ -7,6 +7,10 @@
   import Pagination from '$lib/components/Pagination.svelte';
   import type { StoragePage } from '$lib/storage/types.js';
   import { SvelteSet } from 'svelte/reactivity';
+  import { executeAction } from './actions/index.js';
+  import { ActionError } from './actions/types.js';
+  import { getActionErrorMessage } from './actions/errors.js';
+  import { addToast } from '$lib/stores/toast.svelte.js';
 
   import { initPageSize, type PageSize } from '$lib/types/pagination.js';
 
@@ -125,9 +129,17 @@
 
   let ctxKey = $state<string | null>(null);
 
+  const ctxFileObj = $derived(ctxKey ? (files.find((f) => f.key === ctxKey) ?? null) : null);
+  const ctxIsFile = $derived(ctxFileObj !== null);
+
   function openContextMenu(e: MouseEvent, key: string) {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!selectedKeys.has(key)) {
+      selectedKeys = selectedKeys.size === 0 ? new SvelteSet<string>([key]) : selectedKeys.add(key);
+    }
+
     ctxKey = key;
     ctxMenu = { x: e.clientX, y: e.clientY };
   }
@@ -138,32 +150,42 @@
   let previewKey = $state<string | null>(null);
 
   // ── Action dispatch ───────────────────────────────────────────────────────
-  function handleAction(action: string) {
-    switch (action) {
-      case 'preview': {
-        // Prefer selection; fall back to the context menu target (if it's a file, not a folder)
-        const ctxFile = ctxKey && files.find((f) => f.key === ctxKey) ? ctxKey : null;
-        const key = selectedFiles[0]?.key ?? ctxFile;
-        if (key) {
-          previewKey = key;
+
+  async function handleAction(action: string) {
+    const ctxFile = ctxKey && files.find((f) => f.key === ctxKey) ? ctxKey : null;
+    const key = ctxFile ?? selectedFiles[0]?.key;
+
+    // Effective selection for context actions:
+    const effectiveSelectedFiles = ctxFile
+      ? [files.find((f) => f.key === ctxFile)!]
+      : selectedFiles;
+
+    const effectiveSelectedKeys = ctxFile ? [ctxFile] : [...selectedKeys];
+
+    const ctx = {
+      bucket,
+      key,
+      selectedKeys: effectiveSelectedKeys,
+      selectedFiles: effectiveSelectedFiles
+    };
+
+    try {
+      if (action === 'download' || action === 'upload' || action === 'preview') {
+        const res = await executeAction(action, ctx);
+        if (res?.previewKey) {
+          previewKey = res.previewKey;
           showPreviewModal = true;
+        } else if (res?.unimplemented) {
+          addToast('warning', `${action} — not implemented`);
         }
-        break;
+      } else {
+        addToast('warning', `${action} — not implemented`);
       }
-      case 'rename':
-        alert(m.storage_action_rename() + ' — not implemented');
-        break;
-      case 'download':
-        alert(m.storage_action_download() + ' — not implemented');
-        break;
-      case 'move':
-        alert(m.storage_action_move() + ' — not implemented');
-        break;
-      case 'delete':
-        alert(m.storage_action_delete() + ' — not implemented');
-        break;
-      default:
-        alert(`${action} — not implemented`);
+    } catch (err: unknown) {
+      addToast(
+        'error',
+        err instanceof ActionError ? getActionErrorMessage(err) : m.storage_download_error_unknown()
+      );
     }
   }
 
@@ -172,7 +194,15 @@
     if (showDeleteModal) return;
     if (e.key === 'Delete' && selectedKeys.size > 0) showDeleteModal = true;
     else if (e.key === 'F2' && selectedKeys.size === 1) handleAction('rename');
-    else if (e.key === 'Escape') selectedKeys = new SvelteSet<string>();
+    else if (e.key === 'Escape') {
+      if (ctxMenu) {
+        selectedKeys.delete(ctxKey!);
+        ctxMenu = null;
+        ctxKey = null;
+      }
+      selectionMode = false;
+      selectedKeys = new SvelteSet<string>();
+    }
   }
 </script>
 
@@ -253,7 +283,7 @@
     selectionCount={selectedKeys.size}
     canPreview={(selectedFiles.length === 1 && selectedFolders.length === 0) ||
       (ctxKey !== null && files.some((f) => f.key === ctxKey))}
-    canDownload={selectedFiles.length > 0}
+    canDownload={selectedFiles.length > 0 || ctxIsFile}
     onAction={handleAction}
     onClose={() => {
       ctxMenu = null;

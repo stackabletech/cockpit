@@ -1,14 +1,16 @@
 import {
   S3Client,
+  S3ServiceException,
   ListObjectsV2Command,
   GetObjectCommand,
   HeadObjectCommand,
   type ListObjectsV2CommandOutput
 } from '@aws-sdk/client-s3';
-import type { StorageProvider } from './provider.js';
+import type { StorageProvider, ObjectDownload } from './provider.js';
 import type { S3Config } from './types.js';
 import type { StoragePage, StorageObject, StorageMetadata } from '$lib/storage/types.js';
 import { logger } from '$lib/server/logging';
+import { createS3Client } from './s3-client.js';
 
 const log = logger.child({ module: 's3-provider' });
 
@@ -16,22 +18,9 @@ export class S3StorageProvider implements StorageProvider {
   private readonly client: S3Client;
   private readonly bucket: string;
 
-  constructor(config: S3Config) {
+  constructor(config: S3Config, client?: S3Client) {
     this.bucket = config.bucket;
-    this.client = new S3Client({
-      region: config.region,
-      ...(config.endpoint && {
-        endpoint: config.endpoint,
-        forcePathStyle: true
-      }),
-      ...(config.accessKeyId &&
-        config.secretAccessKey && {
-          credentials: {
-            accessKeyId: config.accessKeyId,
-            secretAccessKey: config.secretAccessKey
-          }
-        })
-    });
+    this.client = client ?? createS3Client(config);
   }
 
   async listObjects(
@@ -81,13 +70,18 @@ export class S3StorageProvider implements StorageProvider {
     };
   }
 
-  async getObject(key: string): Promise<ReadableStream> {
+  async getObject(key: string): Promise<ObjectDownload> {
     log.debug({ bucket: this.bucket, key }, 'getting object');
     const output = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
     if (!output.Body) {
       throw new Error(`Object ${key} has no body`);
     }
-    return output.Body.transformToWebStream();
+    return {
+      stream: output.Body.transformToWebStream(),
+      contentType: output.ContentType,
+      contentLength: output.ContentLength,
+      etag: output.ETag
+    };
   }
 
   async getObjectRange(key: string, start: number, end: number): Promise<ReadableStream> {
@@ -117,8 +111,14 @@ export class S3StorageProvider implements StorageProvider {
     try {
       await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
       return true;
-    } catch {
-      return false;
+    } catch (err) {
+      if (err instanceof S3ServiceException) {
+        const code = err.name;
+        if (code === 'NoSuchKey' || code === 'NotFound' || err.$metadata?.httpStatusCode === 404) {
+          return false;
+        }
+      }
+      throw err;
     }
   }
 }

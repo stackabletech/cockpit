@@ -3,6 +3,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import Sidebar from '$lib/components/layout/sidebar/Sidebar.svelte';
   import Header from '$lib/components/layout/header/Header.svelte';
+  import ToastHost from '$lib/components/ToastHost.svelte';
 
   let { children, data } = $props();
 
@@ -46,3 +47,5 @@
     </main>
   </div>
 </div>
+
+<ToastHost />

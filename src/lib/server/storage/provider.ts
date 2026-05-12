@@ -1,5 +1,13 @@
 import type { StoragePage, StorageMetadata } from '$lib/storage/types.js';
 
+/** Metadata and body stream returned when fetching a storage object. */
+export interface ObjectDownload {
+  stream: ReadableStream;
+  contentType?: string;
+  contentLength?: number;
+  etag?: string;
+}
+
 /** Backend-agnostic interface for a bucket-scoped storage provider. */
 export interface StorageProvider {
   /**
@@ -12,7 +20,7 @@ export interface StorageProvider {
     pageSize: number,
     continuationToken?: string | null
   ): Promise<StoragePage>;
-  getObject(key: string): Promise<ReadableStream>;
+  getObject(key: string): Promise<ObjectDownload>;
   /**
    * Fetch a byte range of an object. Both `start` and `end` are inclusive,
    * following the HTTP `Range: bytes=start-end` convention.
