@@ -271,7 +271,6 @@
 </div>
 
 {#if contextMenu}
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <ul
     role="menu"
     style="position: fixed; left: {contextMenu.x}px; top: {contextMenu.y}px; z-index: 50;"
