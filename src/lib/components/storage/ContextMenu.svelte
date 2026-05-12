@@ -10,10 +10,10 @@
     canPreview: boolean;
     canDownload: boolean;
     onaction: (action: string) => void;
-    onclose: () => void;
+    onClose: () => void;
   }
 
-  let { x, y, selectionCount, canPreview, canDownload, onaction, onclose }: Props = $props();
+  let { x, y, selectionCount, canPreview, canDownload, onaction, onClose }: Props = $props();
 
   let menuEl = $state<HTMLUListElement | null>(null);
 
@@ -29,15 +29,15 @@
 
   function emit(action: string) {
     onaction(action);
-    onclose();
+    onClose();
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onclose();
+    if (e.key === 'Escape') onClose();
   }
 
   function handleOutsideClick(e: MouseEvent) {
-    if (menuEl && !menuEl.contains(e.target as Node)) onclose();
+    if (menuEl && !menuEl.contains(e.target as Node)) onClose();
   }
 
   onMount(() => {

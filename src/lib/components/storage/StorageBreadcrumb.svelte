@@ -8,7 +8,7 @@
     folderCount: number;
     fileCount: number;
     selectionMode: boolean;
-    onnavigate: (prefix: string) => void;
+    onNavigate: (prefix: string) => void;
     onToggleSelectionMode: () => void;
   }
 
@@ -18,7 +18,7 @@
     folderCount,
     fileCount,
     selectionMode,
-    onnavigate,
+    onNavigate,
     onToggleSelectionMode
   }: Props = $props();
 
@@ -71,7 +71,7 @@
           py-0.5 transition-colors hover:cursor-pointer
         "
         title={bucket}
-        onclick={() => onnavigate('')}
+        onclick={() => onNavigate('')}
       >
         <Icon icon="material-symbols:storage" class="size-4" aria-hidden="true" />
         {bucket}
@@ -112,7 +112,7 @@
                   text-sm
                   hover:cursor-pointer
                 "
-                onclick={() => onnavigate(part.prefix)}
+                onclick={() => onNavigate(part.prefix)}
               >
                 {part.label}
               </button>
@@ -146,7 +146,7 @@
             py-0.5 transition-colors hover:cursor-pointer
           "
           title={part.label}
-          onclick={() => onnavigate(part.prefix)}
+          onclick={() => onNavigate(part.prefix)}
         >
           {part.label}
         </button>

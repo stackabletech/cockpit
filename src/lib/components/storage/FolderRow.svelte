@@ -8,7 +8,7 @@
     selected: boolean;
     isCtx: boolean;
     showCheckboxes: boolean;
-    onnavigate: (prefix: string) => void;
+    onNavigate: (prefix: string) => void;
     onToggleSelect: (key: string, force?: boolean) => void;
     onContextMenu: (e: MouseEvent, key: string) => void;
   }
@@ -18,7 +18,7 @@
     selected,
     isCtx,
     showCheckboxes,
-    onnavigate,
+    onNavigate,
     onToggleSelect,
     onContextMenu
   }: Props = $props();
@@ -36,12 +36,12 @@
     if (showCheckboxes || e.ctrlKey || e.metaKey) {
       onToggleSelect(folder.key, true);
     } else {
-      onnavigate(folder.key);
+      onNavigate(folder.key);
     }
   }}
   ondblclick={(e) => {
     if (e.ctrlKey || e.metaKey) {
-      onnavigate(folder.key);
+      onNavigate(folder.key);
     }
   }}
   oncontextmenu={(e) => onContextMenu(e, folder.key)}

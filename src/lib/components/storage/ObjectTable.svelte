@@ -15,7 +15,7 @@
     showCheckboxes: boolean;
     allSelected: boolean;
     someSelected: boolean;
-    onnavigate: (prefix: string, continuationToken?: string | null, pageSize?: number) => void;
+    onNavigate: (prefix: string, continuationToken?: string | null, pageSize?: number) => void;
     onSelectAll: (checked: boolean) => void;
     onToggleSelect: (key: string, force?: boolean) => void;
     onContextMenu: (e: MouseEvent, key: string) => void;
@@ -31,7 +31,7 @@
     showCheckboxes,
     allSelected,
     someSelected,
-    onnavigate,
+    onNavigate,
     onSelectAll,
     onToggleSelect,
     onContextMenu,
@@ -59,7 +59,7 @@
     if (!prefix) return;
     const withoutTrailing = prefix.slice(0, -1);
     const lastSlash = withoutTrailing.lastIndexOf('/');
-    onnavigate(lastSlash === -1 ? '' : withoutTrailing.slice(0, lastSlash + 1));
+    onNavigate(lastSlash === -1 ? '' : withoutTrailing.slice(0, lastSlash + 1));
   }
 </script>
 
@@ -118,7 +118,7 @@
           selected={selectedKeys.has(folder.key)}
           isCtx={ctxKey === folder.key}
           {showCheckboxes}
-          {onnavigate}
+          {onNavigate}
           {onToggleSelect}
           {onContextMenu}
         />

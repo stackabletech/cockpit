@@ -14,14 +14,14 @@
     bucket: string;
     objects: StoragePage;
     prefix: string;
-    onnavigate: (
+    onNavigate: (
       prefix: string,
       continuationToken?: string | null,
       pageSize?: number | null
     ) => void;
   }
 
-  let { bucket, objects, prefix, onnavigate }: Props = $props();
+  let { bucket, objects, prefix, onNavigate }: Props = $props();
 
   // ── Derived folder/file lists ─────────────────────────────────────────────
   const folders = $derived(objects.objects.filter((o) => o.isDirectory));
@@ -96,20 +96,20 @@
   function handleNavigate(prefix: string) {
     loading = true;
     prevTokens = [];
-    onnavigate(prefix, null, pageSize);
+    onNavigate(prefix, null, pageSize);
   }
 
   function handlePageNavigate(token: string | null) {
     // push current page token so we can go back deterministically
     prevTokens = [...prevTokens, objects.continuationToken ?? null];
     loading = true;
-    onnavigate(prefix, token, pageSize);
+    onNavigate(prefix, token, pageSize);
   }
 
   function goFirst() {
     prevTokens = [];
     loading = true;
-    onnavigate(prefix, null, pageSize);
+    onNavigate(prefix, null, pageSize);
   }
 
   function goPrev() {
@@ -117,7 +117,7 @@
     const last = copy.pop() ?? null;
     prevTokens = copy;
     loading = true;
-    onnavigate(prefix, last, pageSize);
+    onNavigate(prefix, last, pageSize);
   }
 
   // ── Context menu ──────────────────────────────────────────────────────────
@@ -192,7 +192,7 @@
     folderCount={folders.length}
     fileCount={files.length}
     {selectionMode}
-    onnavigate={handleNavigate}
+    onNavigate={handleNavigate}
     onToggleSelectionMode={toggleSelectionMode}
   />
 
@@ -217,7 +217,7 @@
       {showCheckboxes}
       {allSelected}
       {someSelected}
-      onnavigate={handleNavigate}
+      onNavigate={handleNavigate}
       onSelectAll={selectAll}
       onToggleSelect={toggleSelect}
       onContextMenu={openContextMenu}
@@ -255,7 +255,7 @@
       (ctxKey !== null && files.some((f) => f.key === ctxKey))}
     canDownload={selectedFiles.length > 0}
     onaction={handleAction}
-    onclose={() => {
+    onClose={() => {
       ctxMenu = null;
       ctxKey = null;
     }}

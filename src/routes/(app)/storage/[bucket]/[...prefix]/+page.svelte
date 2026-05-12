@@ -34,5 +34,5 @@
   bucket={data.bucket}
   objects={data.objects}
   prefix={data.prefix}
-  onnavigate={handleNavigate}
+  onNavigate={handleNavigate}
 />
