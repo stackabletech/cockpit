@@ -97,7 +97,7 @@
   style="left: {adjustedPos.left}px; top: {adjustedPos.top}px;"
 >
   <li class="menu-title p-0" role="none">
-    <div class="menu-title flex items-center justify-between py-1 pl-2 pr-0">
+    <div class="menu-title flex items-center justify-between py-1 pr-0 pl-2">
       <span class="text-base-content/70 text-xs font-medium">
         {m.storage_context_menu_actions()}
       </span>
