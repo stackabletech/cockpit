@@ -13,6 +13,7 @@
   import { addToast } from '$lib/stores/toast.svelte.js';
 
   import { initPageSize, type PageSize } from '$lib/types/pagination.js';
+  import { pinLocation } from '$lib/stores/pinned-locations.svelte.js';
 
   interface Props {
     bucket: string;
@@ -132,6 +133,7 @@
 
   const ctxFileObj = $derived(ctxKey ? (files.find((f) => f.key === ctxKey) ?? null) : null);
   const ctxIsFile = $derived(ctxFileObj !== null);
+  const canPin = $derived(ctxKey !== null && !ctxIsFile);
 
   function openContextMenu(e: MouseEvent, key: string) {
     e.preventDefault();
@@ -171,7 +173,9 @@
     };
 
     try {
-      if (action === 'download' || action === 'upload' || action === 'preview') {
+      if (action === 'pin') {
+        pinLocation(bucket, ctxKey ?? prefix);
+      } else if (action === 'download' || action === 'upload' || action === 'preview') {
         const res = await executeAction(action, ctx);
         if (res?.previewKey) {
           previewKey = res.previewKey;
@@ -285,6 +289,7 @@
     canPreview={(selectedFiles.length === 1 && selectedFolders.length === 0) ||
       (ctxKey !== null && files.some((f) => f.key === ctxKey))}
     canDownload={selectedFiles.length > 0 || ctxIsFile}
+    {canPin}
     onAction={handleAction}
     onClose={() => {
       ctxMenu = null;

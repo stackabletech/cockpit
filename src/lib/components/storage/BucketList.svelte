@@ -2,6 +2,13 @@
   import { page } from '$app/state';
   import Icon from '@iconify/svelte';
   import * as m from '$lib/paraglide/messages.js';
+  import {
+    pinnedLocations,
+    unpinLocation,
+    pinnedLabel,
+    pinnedHref,
+    type PinnedLocation
+  } from '$lib/stores/pinned-locations.svelte.js';
 
   interface Props {
     buckets: string[];
@@ -10,7 +17,61 @@
   let { buckets }: Props = $props();
 
   const activeBucket = $derived(page.params.bucket ?? null);
+  const activePrefix = $derived(page.params.prefix ? page.params.prefix + '/' : '');
+
+  function isPinnedActive(pin: PinnedLocation): boolean {
+    return page.params.bucket === pin.bucket && activePrefix === pin.prefix;
+  }
+
+  // ── Unpin context menu ────────────────────────────────────────────────────
+  let unpinCtx = $state<{
+    x: number;
+    y: number;
+    bucket: string;
+    prefix: string;
+  } | null>(null);
+
+  function openUnpinMenu(e: MouseEvent, pin: PinnedLocation) {
+    e.preventDefault();
+    e.stopPropagation();
+    unpinCtx = { x: e.clientX, y: e.clientY, bucket: pin.bucket, prefix: pin.prefix };
+  }
+
+  function closeUnpinMenu() {
+    unpinCtx = null;
+  }
+
+  function handleUnpin() {
+    if (unpinCtx) {
+      unpinLocation(unpinCtx.bucket, unpinCtx.prefix);
+      closeUnpinMenu();
+    }
+  }
 </script>
+
+{#if unpinCtx}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="fixed inset-0 z-40"
+    onmousedown={closeUnpinMenu}
+    onkeydown={(e) => e.key === 'Escape' && closeUnpinMenu()}
+  ></div>
+  <ul
+    class="
+      menu menu-sm border-base-300 bg-base-100 fixed z-50 w-40 rounded-lg
+      border p-1 shadow-lg
+    "
+    role="menu"
+    style="left: {unpinCtx.x}px; top: {unpinCtx.y}px;"
+  >
+    <li role="none">
+      <button role="menuitem" class="text-error justify-start" onclick={handleUnpin}>
+        <Icon icon="material-symbols:push-pin-outline" class="size-4 shrink-0" aria-hidden="true" />
+        {m.storage_action_unpin()}
+      </button>
+    </li>
+  </ul>
+{/if}
 
 <nav
   class="
@@ -19,6 +80,50 @@
   "
   aria-label={m.storage_buckets_label()}
 >
+  <!-- Pinned Access section -->
+  {#if pinnedLocations.length > 0}
+    <div class="border-base-300 border-b">
+      <div class="flex items-center px-3 py-2">
+        <span class="text-base-content/50 text-xs font-semibold tracking-wide uppercase">
+          {m.storage_pinned_label()}
+        </span>
+      </div>
+      <ul class="py-1" role="list">
+        {#each pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
+          {@const active = isPinnedActive(pin)}
+          <li role="none">
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <a
+              href={pinnedHref(pin)}
+              data-sveltekit-preload-data="off"
+              class="
+                hover:bg-base-200 flex items-center gap-2 px-3 py-1.5
+                text-sm
+                {active ? 'bg-primary/10 text-primary font-medium' : 'text-base-content'}"
+              aria-current={active ? 'page' : undefined}
+              oncontextmenu={(e) => openUnpinMenu(e, pin)}
+            >
+              {#if pin.prefix === ''}
+                <Icon
+                  icon="mdi:bucket-outline"
+                  class="size-3.5 shrink-0 opacity-60"
+                  aria-hidden="true"
+                />
+              {:else}
+                <Icon
+                  icon="material-symbols:folder-outline"
+                  class="size-3.5 shrink-0 opacity-60"
+                  aria-hidden="true"
+                />
+              {/if}
+              <span class="truncate">{pinnedLabel(pin)}</span>
+            </a>
+          </li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
+
   <div
     class="
       border-base-300 flex items-center justify-between border-b px-3 py-2

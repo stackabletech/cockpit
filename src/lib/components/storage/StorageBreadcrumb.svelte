@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from '@iconify/svelte';
   import * as m from '$lib/paraglide/messages.js';
+  import { pinLocation, unpinLocation, isPinned } from '$lib/stores/pinned-locations.svelte.js';
 
   interface Props {
     bucket: string;
@@ -41,7 +42,75 @@
   const visibleParts = $derived(
     breadcrumbParts.length > MAX_TAIL ? breadcrumbParts.slice(-MAX_TAIL) : breadcrumbParts
   );
+
+  const currentIsPinned = $derived(isPinned(bucket, prefix));
+
+  // ── Breadcrumb label context menu (right-click to pin) ────────────────────
+  let breadcrumbCtx = $state<{
+    x: number;
+    y: number;
+    pinnedBucket: string;
+    pinnedPrefix: string;
+  } | null>(null);
+
+  function openBreadcrumbCtx(e: MouseEvent, b: string, p: string) {
+    e.preventDefault();
+    breadcrumbCtx = { x: e.clientX, y: e.clientY, pinnedBucket: b, pinnedPrefix: p };
+  }
+
+  function closeBreadcrumbCtx() {
+    breadcrumbCtx = null;
+  }
+
+  function handleBreadcrumbPin() {
+    if (breadcrumbCtx) {
+      const alreadyPinned = isPinned(breadcrumbCtx.pinnedBucket, breadcrumbCtx.pinnedPrefix);
+      if (alreadyPinned) {
+        unpinLocation(breadcrumbCtx.pinnedBucket, breadcrumbCtx.pinnedPrefix);
+      } else {
+        pinLocation(breadcrumbCtx.pinnedBucket, breadcrumbCtx.pinnedPrefix);
+      }
+      closeBreadcrumbCtx();
+    }
+  }
 </script>
+
+{#if breadcrumbCtx}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="fixed inset-0 z-40"
+    onmousedown={closeBreadcrumbCtx}
+    onkeydown={(e) => e.key === 'Escape' && closeBreadcrumbCtx()}
+  ></div>
+  <ul
+    class="
+      menu menu-sm border-base-300 bg-base-100 fixed z-50 w-48 rounded-lg
+      border p-1 shadow-lg
+    "
+    role="menu"
+    style="left: {breadcrumbCtx.x}px; top: {breadcrumbCtx.y}px;"
+  >
+    {#if isPinned(breadcrumbCtx.pinnedBucket, breadcrumbCtx.pinnedPrefix)}
+      <li role="none">
+        <button role="menuitem" class="justify-start" onclick={handleBreadcrumbPin}>
+          <Icon icon="material-symbols:push-pin" class="size-4 shrink-0" aria-hidden="true" />
+          {m.storage_action_unpin()}
+        </button>
+      </li>
+    {:else}
+      <li role="none">
+        <button role="menuitem" class="justify-start" onclick={handleBreadcrumbPin}>
+          <Icon
+            icon="material-symbols:push-pin-outline"
+            class="size-4 shrink-0"
+            aria-hidden="true"
+          />
+          {m.storage_action_pin()}
+        </button>
+      </li>
+    {/if}
+  </ul>
+{/if}
 
 <div class="border-base-300 flex items-center gap-3 border-b px-6 py-3">
   <!-- Breadcrumbs -->
@@ -52,6 +121,7 @@
   "
   >
     {#if breadcrumbParts.length === 0}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <span
         class="
           text-base-content flex shrink-0 items-center gap-1.5 rounded-sm px-1.5
@@ -59,6 +129,7 @@
         "
         title={bucket}
         aria-current="page"
+        oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, '')}
       >
         <Icon icon="material-symbols:storage" class="size-4" aria-hidden="true" />
         {bucket}
@@ -72,6 +143,7 @@
         "
         title={bucket}
         onclick={() => onNavigate('')}
+        oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, '')}
       >
         <Icon icon="material-symbols:storage" class="size-4" aria-hidden="true" />
         {bucket}
@@ -113,6 +185,7 @@
                   hover:cursor-pointer
                 "
                 onclick={() => onNavigate(part.prefix)}
+                oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, part.prefix)}
               >
                 {part.label}
               </button>
@@ -129,6 +202,7 @@
         aria-hidden="true"
       />
       {#if isCurrent}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <span
           class="
             text-base-content min-w-0 truncate rounded-sm px-1.5 py-0.5
@@ -136,6 +210,7 @@
           "
           title={part.label}
           aria-current="page"
+          oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, part.prefix)}
         >
           {part.label}
         </span>
@@ -147,6 +222,7 @@
           "
           title={part.label}
           onclick={() => onNavigate(part.prefix)}
+          oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, part.prefix)}
         >
           {part.label}
         </button>
@@ -175,4 +251,49 @@
     </span>
     {m.storage_select_toggle()}
   </button>
+
+  <!-- More options (pin current location) -->
+  <div class="dropdown dropdown-end">
+    <button
+      tabindex="0"
+      class="btn btn-ghost btn-xs"
+      title={m.storage_more_options()}
+      aria-label={m.storage_more_options()}
+      aria-haspopup="menu"
+    >
+      <Icon icon="material-symbols:more-vert" class="size-3.5" aria-hidden="true" />
+    </button>
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <ul
+      tabindex="0"
+      role="menu"
+      class="
+        dropdown-content menu rounded-box border-base-300 bg-base-100 z-50 w-52
+        border p-1 shadow-lg
+      "
+    >
+      <li role="none">
+        <button
+          role="menuitem"
+          class="justify-start text-sm"
+          onclick={() => {
+            if (currentIsPinned) {
+              unpinLocation(bucket, prefix);
+            } else {
+              pinLocation(bucket, prefix);
+            }
+          }}
+        >
+          <Icon
+            icon={currentIsPinned
+              ? 'material-symbols:push-pin'
+              : 'material-symbols:push-pin-outline'}
+            class="size-4 shrink-0"
+            aria-hidden="true"
+          />
+          {currentIsPinned ? m.storage_action_unpin() : m.storage_action_pin()}
+        </button>
+      </li>
+    </ul>
+  </div>
 </div>
