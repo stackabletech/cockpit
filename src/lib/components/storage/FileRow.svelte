@@ -11,10 +11,10 @@
     showCheckboxes: boolean;
     onToggleSelect: (key: string, force?: boolean) => void;
     onContextMenu: (e: MouseEvent, key: string) => void;
-    onaction: (action: string) => void;
+    onAction: (action: string) => void;
   }
 
-  let { file, selected, isCtx, showCheckboxes, onToggleSelect, onContextMenu, onaction }: Props =
+  let { file, selected, isCtx, showCheckboxes, onToggleSelect, onContextMenu, onAction }: Props =
     $props();
 
   const kind = $derived(fileIconKind(file.contentType));
@@ -30,7 +30,7 @@
       ? 'bg-primary/10 hover:bg-primary/15'
       : 'hover'}"
   onclick={(e) => onToggleSelect(file.key, e.ctrlKey || e.metaKey)}
-  ondblclick={() => onaction('preview')}
+  ondblclick={() => onAction('preview')}
   oncontextmenu={(e) => onContextMenu(e, file.key)}
 >
   <td class="pr-0">

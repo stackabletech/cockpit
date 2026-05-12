@@ -9,11 +9,11 @@
     selectionCount: number;
     canPreview: boolean;
     canDownload: boolean;
-    onaction: (action: string) => void;
+    onAction: (action: string) => void;
     onClose: () => void;
   }
 
-  let { x, y, selectionCount, canPreview, canDownload, onaction, onClose }: Props = $props();
+  let { x, y, selectionCount, canPreview, canDownload, onAction, onClose }: Props = $props();
 
   let menuEl = $state<HTMLUListElement | null>(null);
 
@@ -28,7 +28,7 @@
   });
 
   function emit(action: string) {
-    onaction(action);
+    onAction(action);
     onClose();
   }
 

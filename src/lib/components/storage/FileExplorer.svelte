@@ -221,7 +221,7 @@
       onSelectAll={selectAll}
       onToggleSelect={toggleSelect}
       onContextMenu={openContextMenu}
-      onaction={handleAction}
+      onAction={handleAction}
     />
   </div>
 
@@ -254,7 +254,7 @@
     canPreview={(selectedFiles.length === 1 && selectedFolders.length === 0) ||
       (ctxKey !== null && files.some((f) => f.key === ctxKey))}
     canDownload={selectedFiles.length > 0}
-    onaction={handleAction}
+    onAction={handleAction}
     onClose={() => {
       ctxMenu = null;
       ctxKey = null;

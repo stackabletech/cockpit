@@ -19,7 +19,7 @@
     onSelectAll: (checked: boolean) => void;
     onToggleSelect: (key: string, force?: boolean) => void;
     onContextMenu: (e: MouseEvent, key: string) => void;
-    onaction: (action: string) => void;
+    onAction: (action: string) => void;
   }
 
   let {
@@ -35,7 +35,7 @@
     onSelectAll,
     onToggleSelect,
     onContextMenu,
-    onaction
+    onAction
   }: Props = $props();
 
   const selectedCount = $derived(selectedKeys.size);
@@ -93,7 +93,7 @@
       </tr>
 
       <!-- Selection action toolbar -->
-      <SelectionToolbar {selectedCount} {canPreview} {canRename} {canDownload} {onaction} />
+      <SelectionToolbar {selectedCount} {canPreview} {canRename} {canDownload} {onAction} />
     </thead>
 
     <tbody>
@@ -133,7 +133,7 @@
           {showCheckboxes}
           {onToggleSelect}
           {onContextMenu}
-          {onaction}
+          {onAction}
         />
       {/each}
 
