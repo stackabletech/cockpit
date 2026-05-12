@@ -8,10 +8,10 @@
     canPreview: boolean;
     canRename: boolean;
     canDownload: boolean;
-    onaction: (action: string) => void;
+    onAction: (action: string) => void;
   }
 
-  let { selectedCount, canPreview, canRename, canDownload, onaction }: Props = $props();
+  let { selectedCount, canPreview, canRename, canDownload, onAction }: Props = $props();
 </script>
 
 <tr class="border-primary/20 bg-primary/5 border-t">
@@ -24,7 +24,7 @@
       <button
         class="btn btn-ghost btn-xs gap-1"
         title={m.storage_action_preview()}
-        onclick={() => onaction('preview')}
+        onclick={() => onAction('preview')}
         disabled={!canPreview}
       >
         <Icon icon="material-symbols:visibility" class="size-3.5" aria-hidden="true" />
@@ -34,7 +34,7 @@
       <button
         class="btn btn-ghost btn-xs gap-1"
         title="{m.storage_action_rename()} (F2)"
-        onclick={() => onaction('rename')}
+        onclick={() => onAction('rename')}
         disabled={!canRename}
       >
         <Icon icon="material-symbols:edit" class="size-3.5" aria-hidden="true" />
@@ -44,7 +44,7 @@
       <button
         class="btn btn-ghost btn-xs gap-1"
         title={m.storage_action_download()}
-        onclick={() => onaction('download')}
+        onclick={() => onAction('download')}
         disabled={!canDownload}
       >
         <Icon icon="material-symbols:download" class="size-3.5" aria-hidden="true" />
@@ -54,7 +54,7 @@
       <button
         class="btn btn-ghost btn-xs gap-1"
         title={m.storage_action_move()}
-        onclick={() => onaction('move')}
+        onclick={() => onAction('move')}
         disabled={selectedCount === 0}
       >
         <Icon icon="material-symbols:drive-file-move" class="size-3.5" aria-hidden="true" />
@@ -67,7 +67,7 @@
           gap-1
         "
         title="{m.storage_action_delete()} (Del)"
-        onclick={() => onaction('delete')}
+        onclick={() => onAction('delete')}
         disabled={selectedCount === 0}
       >
         <Icon icon="material-symbols:delete" class="size-3.5" aria-hidden="true" />
