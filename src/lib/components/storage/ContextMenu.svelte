@@ -106,7 +106,7 @@
         type="button"
         role="menuitem"
         class="btn btn-ghost btn-xs"
-        aria-label={'Close'}
+        aria-label="Close"
         onclick={onclose}
       >
         <!-- Use whatever close icon you already have available -->
