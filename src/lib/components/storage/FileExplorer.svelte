@@ -196,9 +196,12 @@
     else if (e.key === 'F2' && selectedKeys.size === 1) handleAction('rename');
     else if (e.key === 'Escape') {
       if (ctxMenu) {
+        selectedKeys.delete(ctxKey!);
         ctxMenu = null;
         ctxKey = null;
       }
+      selectionMode = false;
+      selectedKeys = new SvelteSet<string>();
     }
   }
 </script>

@@ -49,7 +49,8 @@
     (selectedFileCount === 1 && folders.filter((f) => selectedKeys.has(f.key)).length === 0) ||
       (folders.filter((f) => selectedKeys.has(f.key)).length === 1 && selectedFileCount === 0)
   );
-  const canDownload = $derived(selectedFileCount === 1);
+  const canDownload = $derived(selectedFileCount === 1 && 
+    folders.filter((f) => selectedKeys.has(f.key)).length === 0);
 
   let selectAllEl = $state<HTMLInputElement | null>(null);
   $effect(() => {
