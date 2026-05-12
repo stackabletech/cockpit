@@ -13,6 +13,7 @@
     loadAllConnectionsLocally,
     removeConnectionLocally
   } from '$lib/storage/connection-storage.js';
+  import { storageAutoConnectEnabled } from '$lib/client/feature-flags.js';
   import type { z } from 'zod';
 
   type StoredConnection = z.infer<typeof StorageConnectionSchema>;
@@ -80,7 +81,7 @@
 
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.has('disconnected')) return;
+    if (!storageAutoConnectEnabled || params.has('disconnected')) return;
     const saved = loadConnectionLocally();
     if (saved) {
       autoConnecting = true;
