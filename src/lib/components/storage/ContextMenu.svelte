@@ -96,21 +96,40 @@
   tabindex="-1"
   style="left: {adjustedPos.left}px; top: {adjustedPos.top}px;"
 >
+  <li class="menu-title p-0" role="none">
+    <div class="flex items-center justify-between gap-2 py-1 pl-2">
+      <span class="text-base-content/70 text-xs font-medium">
+        {m.storage_context_menu_actions()}
+      </span>
+
+      <button
+        type="button"
+        role="menuitem"
+        class="btn btn-ghost btn-xs"
+        aria-label={'Close'}
+        onclick={onclose}
+      >
+        <!-- Use whatever close icon you already have available -->
+        <Icon icon="mdi:close" class="size-4" aria-hidden="true" />
+      </button>
+    </div>
+  </li>
+
   {#each actions as act (act.key)}
-    <li role="none">
+    {@const disabled = act.disabled()}
+    <li role="none" class:menu-disabled={disabled}>
       <button
         role="menuitem"
         class="justify-start"
         onclick={() => emit(act.key)}
-        disabled={act.disabled()}
+        {disabled}
+        aria-disabled={disabled}
       >
         <Icon icon={act.icon} class="mr-2 size-4 shrink-0" aria-hidden="true" />
         {act.label()}
       </button>
     </li>
   {/each}
-
-  <li class="menu-title" role="none"><span>{m.storage_danger_zone()}</span></li>
 
   {#each dangerActions as act (act.key)}
     <li role="none">

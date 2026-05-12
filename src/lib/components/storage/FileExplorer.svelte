@@ -129,9 +129,17 @@
 
   let ctxKey = $state<string | null>(null);
 
+  const ctxFileObj = $derived(ctxKey ? (files.find((f) => f.key === ctxKey) ?? null) : null);
+  const ctxIsFile = $derived(ctxFileObj !== null);
+
   function openContextMenu(e: MouseEvent, key: string) {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!selectedKeys.has(key)) {
+      selectedKeys = selectedKeys.size === 0 ? new SvelteSet<string>([key]) : selectedKeys.add(key);
+    }
+
     ctxKey = key;
     ctxMenu = { x: e.clientX, y: e.clientY };
   }
@@ -142,18 +150,26 @@
   let previewKey = $state<string | null>(null);
 
   // ── Action dispatch ───────────────────────────────────────────────────────
+
   async function handleAction(action: string) {
     const ctxFile = ctxKey && files.find((f) => f.key === ctxKey) ? ctxKey : null;
     const key = ctxFile ?? selectedFiles[0]?.key;
+
+    // Effective selection for context actions:
+    const effectiveSelectedFiles = ctxFile
+      ? [files.find((f) => f.key === ctxFile)!]
+      : selectedFiles;
+
+    const effectiveSelectedKeys = ctxFile ? [ctxFile] : [...selectedKeys];
+
     const ctx = {
       bucket,
       key,
-      selectedKeys: [...selectedKeys],
-      selectedFiles
+      selectedKeys: effectiveSelectedKeys,
+      selectedFiles: effectiveSelectedFiles
     };
 
     try {
-      // Only call executeAction for explicitly allowed storage actions.
       if (action === 'download' || action === 'upload' || action === 'preview') {
         const res = await executeAction(action, ctx);
         if (res?.previewKey) {
@@ -163,7 +179,6 @@
           addToast('warning', `${action} — not implemented`);
         }
       } else {
-        // Other actions are handled elsewhere; show unimplemented by default.
         addToast('warning', `${action} — not implemented`);
       }
     } catch (err: unknown) {
@@ -179,7 +194,12 @@
     if (showDeleteModal) return;
     if (e.key === 'Delete' && selectedKeys.size > 0) showDeleteModal = true;
     else if (e.key === 'F2' && selectedKeys.size === 1) handleAction('rename');
-    else if (e.key === 'Escape') selectedKeys = new SvelteSet<string>();
+    else if (e.key === 'Escape') {
+      if (ctxMenu) {
+        ctxMenu = null;
+        ctxKey = null;
+      }
+    }
   }
 </script>
 
@@ -260,7 +280,7 @@
     selectionCount={selectedKeys.size}
     canPreview={(selectedFiles.length === 1 && selectedFolders.length === 0) ||
       (ctxKey !== null && files.some((f) => f.key === ctxKey))}
-    canDownload={selectedFiles.length > 0}
+    canDownload={selectedFiles.length > 0 || ctxIsFile}
     onaction={handleAction}
     onclose={() => {
       ctxMenu = null;
