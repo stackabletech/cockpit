@@ -66,12 +66,6 @@
     tick().then(() => formRef?.requestSubmit());
   }
 
-  /** Open the right-click context menu for a connection. */
-  function openContextMenu(event: MouseEvent, conn: StoredConnection) {
-    event.preventDefault();
-    forgetCandidate = conn;
-  }
-
   /** Forget a connection from local storage and refresh the list. */
   function forgetConnection(conn: StoredConnection) {
     removeConnectionLocally(conn);
@@ -132,7 +126,6 @@
               <button
                 type="button"
                 onclick={() => selectConnection(conn)}
-                oncontextmenu={(e) => openContextMenu(e, conn)}
                 class="
                   border-base-300 bg-base-100 hover:border-primary hover:bg-primary/5
                   focus-visible:outline-primary flex flex-col items-center gap-1.5 rounded-xl border
