@@ -13,6 +13,7 @@
     locationHref
   } from '$lib/stores/recent-items.svelte.js';
   import PreviewModal from '$lib/components/storage/PreviewModal.svelte';
+  import TimestampDisplay from '$lib/components/storage/TimestampDisplay.svelte';
 
   type Tab = 'files' | 'locations';
   let activeTab = $state<Tab>('files');
@@ -25,27 +26,6 @@
     previewBucket = bucket;
     previewKey = key;
     showPreviewModal = true;
-  }
-
-  function relativeTime(isoString: string): string {
-    const diff = Date.now() - new Date(isoString).getTime();
-    const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    const days = Math.floor(hrs / 24);
-    return `${days}d ago`;
-  }
-
-  function formatTimestamp(isoString: string): string {
-    return new Date(isoString).toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   }
 </script>
 
@@ -110,9 +90,7 @@
                     {prettyBytes(file.size)}
                   </td>
                   <td class="text-base-content/50 text-xs whitespace-nowrap">
-                    <span class="tooltip tooltip-left" data-tip={formatTimestamp(file.visitedAt)}>
-                      {relativeTime(file.visitedAt)}
-                    </span>
+                    <TimestampDisplay date={file.visitedAt} relative tooltipClass="tooltip-left" />
                   </td>
                   <td>
                     <div class="flex items-center gap-1">
@@ -197,9 +175,7 @@
                   </span>
                 </td>
                 <td class="text-base-content/50 text-xs whitespace-nowrap">
-                  <span class="tooltip tooltip-left" data-tip={formatTimestamp(loc.visitedAt)}>
-                    {relativeTime(loc.visitedAt)}
-                  </span>
+                  <TimestampDisplay date={loc.visitedAt} relative tooltipClass="tooltip-left" />
                 </td>
                 <td>
                   <div class="tooltip tooltip-left" data-tip={m.storage_recent_go_to_location()}>
