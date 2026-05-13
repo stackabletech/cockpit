@@ -13,6 +13,7 @@
   import { addToast } from '$lib/stores/toast.svelte.js';
 
   import { untrack } from 'svelte';
+  import { navigating } from '$app/state';
   import { initPageSize, type PageSize } from '$lib/types/pagination.js';
   import { pinLocation } from '$lib/stores/pinned-locations.svelte.js';
   import { recordLocationVisit, recordFileVisit } from '$lib/stores/recent-items.svelte.js';
@@ -103,6 +104,11 @@
 
   // ── Loading state ─────────────────────────────────────────────────────────
   let loading = $state(false);
+
+  // Show loading overlay for any navigation (including sidebar/grid links).
+  $effect(() => {
+    if (navigating) loading = true;
+  });
 
   // Clear loading when new objects arrive from the server
   $effect(() => {

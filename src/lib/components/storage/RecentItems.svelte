@@ -92,19 +92,20 @@
                     {relativeTime(file.visitedAt)}
                   </td>
                   <td>
-                    <a
-                      href={fileHref(file)}
-                      data-sveltekit-preload-data="off"
-                      class="btn btn-ghost btn-xs"
-                      title="Open folder"
-                      aria-label="Open folder containing {fileName(file.key)}"
-                    >
-                      <Icon
-                        icon="material-symbols:folder-open-outline"
-                        class="size-3.5"
-                        aria-hidden="true"
-                      />
-                    </a>
+                    <div class="tooltip tooltip-left" data-tip={m.storage_recent_open_folder()}>
+                      <a
+                        href={fileHref(file)}
+                        data-sveltekit-preload-data="off"
+                        class="btn btn-ghost btn-xs"
+                        aria-label="{m.storage_recent_open_folder()} — {fileName(file.key)}"
+                      >
+                        <Icon
+                          icon="material-symbols:folder-open-outline"
+                          class="size-3.5"
+                          aria-hidden="true"
+                        />
+                      </a>
+                    </div>
                   </td>
                 </tr>
               {/each}
@@ -157,19 +158,20 @@
                   {relativeTime(loc.visitedAt)}
                 </td>
                 <td>
-                  <a
-                    href={locationHref(loc)}
-                    data-sveltekit-preload-data="off"
-                    class="btn btn-ghost btn-xs"
-                    title="Go to location"
-                    aria-label="Go to {locationName(loc)}"
-                  >
-                    <Icon
-                      icon="material-symbols:arrow-forward"
-                      class="size-3.5"
-                      aria-hidden="true"
-                    />
-                  </a>
+                  <div class="tooltip tooltip-left" data-tip={m.storage_recent_go_to_location()}>
+                    <a
+                      href={locationHref(loc)}
+                      data-sveltekit-preload-data="off"
+                      class="btn btn-ghost btn-xs"
+                      aria-label="{m.storage_recent_go_to_location()} — {locationName(loc)}"
+                    >
+                      <Icon
+                        icon="material-symbols:arrow-forward"
+                        class="size-3.5"
+                        aria-hidden="true"
+                      />
+                    </a>
+                  </div>
                 </td>
               </tr>
             {/each}

@@ -1,6 +1,6 @@
 import { SvelteDate } from 'svelte/reactivity';
 
-const MAX_RECENT = 20;
+const MAX_RECENT = 15;
 const LS_FILES = 'recent_storage_files';
 const LS_LOCATIONS = 'recent_storage_locations';
 
