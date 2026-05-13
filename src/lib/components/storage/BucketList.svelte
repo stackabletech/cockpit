@@ -92,7 +92,6 @@
         {#each pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
           {@const active = isPinnedActive(pin)}
           <li role="none">
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <a
               href={pinnedHref(pin)}
               data-sveltekit-preload-data="off"

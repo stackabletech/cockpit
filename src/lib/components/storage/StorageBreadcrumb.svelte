@@ -263,7 +263,6 @@
     >
       <Icon icon="material-symbols:more-vert" class="size-3.5" aria-hidden="true" />
     </button>
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <ul
       tabindex="0"
       role="menu"
