@@ -12,9 +12,20 @@
     fileHref,
     locationHref
   } from '$lib/stores/recent-items.svelte.js';
+  import PreviewModal from '$lib/components/storage/PreviewModal.svelte';
 
   type Tab = 'files' | 'locations';
   let activeTab = $state<Tab>('files');
+
+  let showPreviewModal = $state(false);
+  let previewBucket = $state('');
+  let previewKey = $state<string | null>(null);
+
+  function openPreview(bucket: string, key: string) {
+    previewBucket = bucket;
+    previewKey = key;
+    showPreviewModal = true;
+  }
 
   function relativeTime(isoString: string): string {
     const diff = Date.now() - new Date(isoString).getTime();
@@ -25,6 +36,16 @@
     if (hrs < 24) return `${hrs}h ago`;
     const days = Math.floor(hrs / 24);
     return `${days}d ago`;
+  }
+
+  function formatTimestamp(isoString: string): string {
+    return new Date(isoString).toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 </script>
 
@@ -89,22 +110,39 @@
                     {prettyBytes(file.size)}
                   </td>
                   <td class="text-base-content/50 text-xs whitespace-nowrap">
-                    {relativeTime(file.visitedAt)}
+                    <span class="tooltip tooltip-left" data-tip={formatTimestamp(file.visitedAt)}>
+                      {relativeTime(file.visitedAt)}
+                    </span>
                   </td>
                   <td>
-                    <div class="tooltip tooltip-left" data-tip={m.storage_recent_open_folder()}>
-                      <a
-                        href={fileHref(file)}
-                        data-sveltekit-preload-data="off"
-                        class="btn btn-ghost btn-xs"
-                        aria-label="{m.storage_recent_open_folder()} — {fileName(file.key)}"
-                      >
-                        <Icon
-                          icon="material-symbols:folder-open-outline"
-                          class="size-3.5"
-                          aria-hidden="true"
-                        />
-                      </a>
+                    <div class="flex items-center gap-1">
+                      <div class="tooltip tooltip-left" data-tip={m.storage_recent_preview_file()}>
+                        <button
+                          class="btn btn-ghost btn-xs"
+                          aria-label="{m.storage_recent_preview_file()} — {fileName(file.key)}"
+                          onclick={() => openPreview(file.bucket, file.key)}
+                        >
+                          <Icon
+                            icon="material-symbols:preview-outline"
+                            class="size-3.5"
+                            aria-hidden="true"
+                          />
+                        </button>
+                      </div>
+                      <div class="tooltip tooltip-left" data-tip={m.storage_recent_open_folder()}>
+                        <a
+                          href={fileHref(file)}
+                          data-sveltekit-preload-data="off"
+                          class="btn btn-ghost btn-xs"
+                          aria-label="{m.storage_recent_open_folder()} — {fileName(file.key)}"
+                        >
+                          <Icon
+                            icon="material-symbols:folder-open-outline"
+                            class="size-3.5"
+                            aria-hidden="true"
+                          />
+                        </a>
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -146,7 +184,11 @@
                         aria-hidden="true"
                       />
                     {/if}
-                    <span class="font-medium">{locationName(loc)}</span>
+                    <a
+                      href={locationHref(loc)}
+                      data-sveltekit-preload-data="off"
+                      class="hover:text-primary font-medium">{locationName(loc)}</a
+                    >
                   </div>
                 </td>
                 <td>
@@ -155,7 +197,9 @@
                   </span>
                 </td>
                 <td class="text-base-content/50 text-xs whitespace-nowrap">
-                  {relativeTime(loc.visitedAt)}
+                  <span class="tooltip tooltip-left" data-tip={formatTimestamp(loc.visitedAt)}>
+                    {relativeTime(loc.visitedAt)}
+                  </span>
                 </td>
                 <td>
                   <div class="tooltip tooltip-left" data-tip={m.storage_recent_go_to_location()}>
@@ -181,3 +225,5 @@
     {/if}
   </div>
 </section>
+
+<PreviewModal bind:open={showPreviewModal} bucket={previewBucket} objectKey={previewKey} />
