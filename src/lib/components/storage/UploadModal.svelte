@@ -22,20 +22,15 @@
     | { kind: 'idle' }
     | { kind: 'file_selected'; file: File }
     | { kind: 'checking'; file: File }
-    | {
-        kind: 'confirming_overwrite';
-        file: File;
-        targetKey: string;
-        renaming: boolean;
-        newName: string;
-      }
+    | { kind: 'confirming_overwrite'; file: File; targetKey: string; renaming: boolean }
     | { kind: 'uploading'; file: File; targetKey: string; progress: number }
     | { kind: 'success' }
     | { kind: 'error'; file: File; targetKey: string; message: string };
 
-  let phase: UploadState = $state({ kind: 'idle' });
+  let phase: UploadState = $state.raw({ kind: 'idle' });
   let dragOver = $state(false);
   let fileInputEl: HTMLInputElement | null = $state(null);
+  let newName = $state('');
 
   // Reset when modal closes
   $effect(() => {
@@ -91,13 +86,8 @@
     try {
       const exists = await checkObjectExists(bucket, key);
       if (exists) {
-        phase = {
-          kind: 'confirming_overwrite',
-          file,
-          targetKey: key,
-          renaming: false,
-          newName: file.name
-        };
+        newName = file.name;
+        phase = { kind: 'confirming_overwrite', file, targetKey: key, renaming: false };
       } else {
         await doUpload(file, key);
       }
@@ -142,9 +132,8 @@
 
   function handleRenameConfirm() {
     if (phase.kind !== 'confirming_overwrite') return;
-    const { file, newName } = phase;
     const key = prefix ? `${prefix}${newName}` : newName;
-    void doUpload(file, key);
+    void doUpload(phase.file, key);
   }
 
   function handleSuccess() {
@@ -299,7 +288,7 @@
             id="{uid}-newname"
             type="text"
             class="input input-sm w-full"
-            bind:value={phase.newName}
+            bind:value={newName}
             onkeydown={(e) => (e.key === 'Enter' ? handleRenameConfirm() : null)}
           />
         </div>
@@ -310,7 +299,7 @@
           <button
             class="btn btn-primary btn-sm gap-1"
             onclick={handleRenameConfirm}
-            disabled={!phase.newName.trim()}
+            disabled={!newName.trim()}
           >
             <Icon icon="material-symbols:upload" class="size-4" aria-hidden="true" />
             {m.storage_upload_rename_confirm()}
@@ -339,7 +328,7 @@
         aria-label={m.storage_upload_uploading({ pct: phase.progress })}
       >
         <div class="mb-2 flex items-center justify-between text-sm">
-          <span class="text-base-content/60 truncate">{phase.file.name}</span>
+          <span class="text-base-content/60 truncate">{phase.targetKey.split('/').at(-1)}</span>
           <span class="text-base-content/60 ml-2 shrink-0">{phase.progress}%</span>
         </div>
         <progress
@@ -359,7 +348,7 @@
     {:else if phase.kind === 'success'}
       <div class="flex flex-col items-center gap-3 py-6 text-center" role="status">
         <Icon
-          icon="material-symbols:check-circle"
+          icon="line-md:circle-filled-to-confirm-circle-filled-transition"
           class="text-success size-12"
           aria-hidden="true"
         />
@@ -375,7 +364,7 @@
     {:else if phase.kind === 'error'}
       <div class="mb-4 flex items-start gap-3" role="alert">
         <Icon
-          icon="material-symbols:error-outline"
+          icon="line-md:alert"
           class="text-error mt-0.5 size-6 shrink-0"
           aria-hidden="true"
         />
