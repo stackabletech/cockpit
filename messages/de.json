@@ -223,8 +223,8 @@
       "declarations": ["input count", "local n = count: plural"],
       "selectors": ["n"],
       "match": {
-        "n=one": "vor {count}m",
-        "n=other": "vor {count}m"
+        "n=one": "vor {count} Min.",
+        "n=other": "vor {count} Min."
       }
     }
   ],
@@ -233,8 +233,8 @@
       "declarations": ["input count", "local n = count: plural"],
       "selectors": ["n"],
       "match": {
-        "n=one": "vor {count}h",
-        "n=other": "vor {count}h"
+        "n=one": "vor {count} Std.",
+        "n=other": "vor {count} Std."
       }
     }
   ],
@@ -243,8 +243,8 @@
       "declarations": ["input count", "local n = count: plural"],
       "selectors": ["n"],
       "match": {
-        "n=one": "vor {count}d",
-        "n=other": "vor {count}d"
+        "n=one": "vor {count} T.",
+        "n=other": "vor {count} T."
       }
     }
   ]

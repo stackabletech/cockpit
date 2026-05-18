@@ -75,7 +75,9 @@
     </div>
   </td>
   <td class="text-right font-mono text-sm">{prettyBytes(file.size)}</td>
-  <td class="text-base-content/60 text-sm"><TimestampDisplay date={file.lastModified} /></td>
+  <td class="text-base-content/60 text-sm"
+    ><TimestampDisplay date={file.lastModified} relative /></td
+  >
   <td class="w-10 py-0 pr-2 text-right">
     <button
       class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100"
