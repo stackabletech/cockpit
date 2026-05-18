@@ -14,6 +14,12 @@ export class DeleteError extends Error {
   }
 }
 
+/** Keys that could not be deleted, with an optional reason. */
+export type FailedKey = { key: string; code?: string; message?: string };
+
+/** Outcome of a delete request: lists any keys that the server could not remove. */
+export type DeleteOutcome = { failedKeys: FailedKey[] };
+
 function mapStatusToCode(status: number): DeleteErrorCode {
   if (status === 401) return 'not_connected';
   if (status === 403) return 'access_denied';
@@ -24,9 +30,10 @@ function mapStatusToCode(status: number): DeleteErrorCode {
 /**
  * Delete one or more S3 objects.
  *
- * @throws {DeleteError} when the server returns a non-2xx response.
+ * Resolves with `failedKeys` listing any objects the server could not delete
+ * (partial S3 failures). Throws a `DeleteError` only on transport/auth errors.
  */
-export async function deleteObjects(bucket: string, keys: string[]): Promise<void> {
+export async function deleteObjects(bucket: string, keys: string[]): Promise<DeleteOutcome> {
   const params = new URLSearchParams({ bucket });
   for (const key of keys) params.append('keys', key);
 
@@ -34,4 +41,7 @@ export async function deleteObjects(bucket: string, keys: string[]): Promise<voi
   if (!res.ok) {
     throw new DeleteError(mapStatusToCode(res.status), `Delete failed with status ${res.status}`);
   }
+
+  const data = (await res.json()) as { failed: FailedKey[] };
+  return { failedKeys: data.failed };
 }

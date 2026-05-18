@@ -181,6 +181,8 @@
   "storage_delete_error_access_denied": "Zugriff verweigert. Sie haben keine Berechtigung, dieses Element zu löschen.",
   "storage_delete_error_server_error": "Beim Löschen ist ein Serverfehler aufgetreten. Bitte versuchen Sie es erneut.",
   "storage_delete_error_unknown": "Beim Löschen ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+  "storage_delete_partial_failure_one": "1 Element konnte nicht gelöscht werden.",
+  "storage_delete_partial_failure_many": "{count} Elemente konnten nicht gelöscht werden.",
   "storage_header_name": "Name",
   "storage_header_size": "Größe",
   "storage_header_last_modified": "Zuletzt geändert",

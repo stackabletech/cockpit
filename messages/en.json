@@ -181,6 +181,8 @@
   "storage_delete_error_access_denied": "Access denied. You do not have permission to delete this item.",
   "storage_delete_error_server_error": "A server error occurred while deleting. Please try again.",
   "storage_delete_error_unknown": "An unexpected error occurred while deleting. Please try again.",
+  "storage_delete_partial_failure_one": "1 item could not be deleted.",
+  "storage_delete_partial_failure_many": "{count} items could not be deleted.",
   "storage_header_name": "Name",
   "storage_header_size": "Size",
   "storage_header_last_modified": "Last modified",

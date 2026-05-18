@@ -24,9 +24,12 @@ export const DELETE: RequestHandler = async ({ locals, url }) => {
 
   locals.logger.debug({ bucket, key_count: keys.length }, 'delete request received');
 
-  await deleteObjects(userId, bucket, keys);
+  const result = await deleteObjects(userId, bucket, keys);
 
-  locals.logger.info({ bucket, key_count: keys.length }, 'objects deleted');
+  locals.logger.info(
+    { bucket, key_count: keys.length, failed_count: result.failed.length },
+    'objects delete completed'
+  );
 
-  return new Response(null, { status: 204 });
+  return Response.json(result);
 };

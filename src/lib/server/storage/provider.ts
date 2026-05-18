@@ -8,6 +8,11 @@ export interface ObjectDownload {
   etag?: string;
 }
 
+/** Result of a bulk-delete operation. `failed` lists keys that could not be deleted. */
+export interface DeleteObjectsResult {
+  failed: Array<{ key: string; code?: string; message?: string }>;
+}
+
 /** Backend-agnostic interface for a bucket-scoped storage provider. */
 export interface StorageProvider {
   /**
@@ -28,5 +33,5 @@ export interface StorageProvider {
   getObjectRange(key: string, start: number, end: number): Promise<ReadableStream>;
   getMetadata(key: string): Promise<StorageMetadata>;
   exists(key: string): Promise<boolean>;
-  deleteObjects(keys: string[]): Promise<void>;
+  deleteObjects(keys: string[]): Promise<DeleteObjectsResult>;
 }
