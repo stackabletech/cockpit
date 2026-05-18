@@ -37,6 +37,13 @@
     unpinCtx = { x: e.clientX, y: e.clientY, bucket: pin.bucket, prefix: pin.prefix };
   }
 
+  function openUnpinMenuFromButton(e: MouseEvent, pin: PinnedLocation) {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    unpinCtx = { x: rect.right, y: rect.bottom, bucket: pin.bucket, prefix: pin.prefix };
+  }
+
   function closeUnpinMenu() {
     unpinCtx = null;
   }
@@ -91,12 +98,12 @@
       <ul class="py-1" role="list">
         {#each pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
           {@const active = isPinnedActive(pin)}
-          <li role="none">
+          <li role="none" class="group flex items-center">
             <a
               href={pinnedHref(pin)}
               data-sveltekit-preload-data="off"
               class="
-                hover:bg-base-200 flex items-center gap-2 px-3 py-1.5
+                hover:bg-base-200 flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5
                 text-sm
                 {active ? 'bg-primary/10 text-primary font-medium' : 'text-base-content'}"
               aria-current={active ? 'page' : undefined}
@@ -117,6 +124,18 @@
               {/if}
               <span class="truncate">{pinnedLabel(pin)}</span>
             </a>
+            <button
+              class="
+                btn btn-ghost btn-xs mr-1 shrink-0 p-0
+                opacity-0 transition-opacity
+                group-hover:opacity-100 focus:opacity-100
+              "
+              onclick={(e) => openUnpinMenuFromButton(e, pin)}
+              aria-label={m.storage_more_options()}
+              title={m.storage_more_options()}
+            >
+              <Icon icon="material-symbols:more-vert" class="size-3.5" aria-hidden="true" />
+            </button>
           </li>
         {/each}
       </ul>
