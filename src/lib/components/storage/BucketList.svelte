@@ -7,7 +7,8 @@
     unpinLocation,
     pinnedLabel,
     pinnedHref,
-    type PinnedLocation
+    type PinnedLocation,
+    type StorageLocation
   } from '$lib/stores/pinned-locations.svelte.js';
 
   interface Props {
@@ -16,7 +17,12 @@
 
   let { buckets }: Props = $props();
 
-  const activeBucket = $derived(page.params.bucket ?? null);
+  // Detect the active bucket from the URL so the highlight stays on when
+  // navigating into any sub-prefix within the bucket.
+  const activeBucket = $derived.by(() => {
+    const match = page.url.pathname.match(/^\/storage\/([^/]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  });
   const activePrefix = $derived(page.params.prefix ? page.params.prefix + '/' : '');
 
   function isPinnedActive(pin: PinnedLocation): boolean {
@@ -24,12 +30,7 @@
   }
 
   // ── Unpin context menu ────────────────────────────────────────────────────
-  let unpinCtx = $state<{
-    x: number;
-    y: number;
-    bucket: string;
-    prefix: string;
-  } | null>(null);
+  let unpinCtx = $state<({ x: number; y: number } & StorageLocation) | null>(null);
 
   function openUnpinMenu(e: MouseEvent, pin: PinnedLocation) {
     e.preventDefault();
@@ -182,7 +183,7 @@
               {activeBucket === bucket
               ? 'bg-primary/10 text-primary font-medium'
               : 'text-base-content'}"
-            aria-current={activeBucket === bucket ? 'page' : undefined}
+            aria-current={activeBucket === bucket && !page.params.prefix ? 'page' : undefined}
           >
             <Icon
               icon="mdi:bucket-outline"

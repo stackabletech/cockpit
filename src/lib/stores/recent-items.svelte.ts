@@ -1,4 +1,4 @@
-import { SvelteDate } from 'svelte/reactivity';
+import { storageHref } from './pinned-locations.svelte.js';
 
 const MAX_RECENT = 15;
 const LS_FILES = 'recent_storage_files';
@@ -50,7 +50,8 @@ export const recentLocations = $state<RecentLocation[]>(load<RecentLocation>(LS_
 
 export function recordFileVisit(bucket: string, key: string, size: number): void {
   const idx = recentFiles.findIndex((f) => f.bucket === bucket && f.key === key);
-  const entry: RecentFile = { key, bucket, size, visitedAt: new SvelteDate().toISOString() };
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
+  const entry: RecentFile = { key, bucket, size, visitedAt: new Date().toISOString() };
   if (idx !== -1) {
     recentFiles.splice(idx, 1);
   }
@@ -61,7 +62,8 @@ export function recordFileVisit(bucket: string, key: string, size: number): void
 
 export function recordLocationVisit(bucket: string, prefix: string): void {
   const idx = recentLocations.findIndex((l) => l.bucket === bucket && l.prefix === prefix);
-  const entry: RecentLocation = { bucket, prefix, visitedAt: new SvelteDate().toISOString() };
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
+  const entry: RecentLocation = { bucket, prefix, visitedAt: new Date().toISOString() };
   if (idx !== -1) {
     recentLocations.splice(idx, 1);
   }
@@ -111,7 +113,5 @@ export function fileHref(file: RecentFile): string {
 
 /** Navigation href for a recent location. */
 export function locationHref(loc: RecentLocation): string {
-  if (!loc.prefix) return `/storage/${encodeURIComponent(loc.bucket)}`;
-  const encoded = loc.prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/');
-  return `/storage/${encodeURIComponent(loc.bucket)}/${encoded}`;
+  return storageHref(loc.bucket, loc.prefix);
 }

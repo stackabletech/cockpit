@@ -1,4 +1,9 @@
 <script lang="ts">
+  import { getLocale } from '$lib/paraglide/runtime.js';
+  import * as m from '$lib/paraglide/messages.js';
+
+  type TooltipPosition = 'tooltip-top' | 'tooltip-bottom' | 'tooltip-left' | 'tooltip-right';
+
   interface Props {
     /** The date to display. Accepts a `Date` object or an ISO string. */
     date: Date | string;
@@ -7,16 +12,16 @@
      * When false (default), the label shows a short formatted date ("13 May 2026").
      */
     relative?: boolean;
-    /** DaisyUI tooltip direction class, e.g. "tooltip-top", "tooltip-left". */
-    tooltipClass?: string;
+    /** DaisyUI tooltip direction. */
+    tooltip?: TooltipPosition;
   }
 
-  let { date, relative = false, tooltipClass = 'tooltip-top' }: Props = $props();
+  let { date, relative = false, tooltip = 'tooltip-top' }: Props = $props();
 
   const d = $derived(typeof date === 'string' ? new Date(date) : date);
 
   const fullTimestamp = $derived(
-    d.toLocaleString(undefined, {
+    d.toLocaleString(getLocale(), {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -29,14 +34,14 @@
     if (relative) {
       const diff = Date.now() - d.getTime();
       const mins = Math.floor(diff / 60_000);
-      if (mins < 1) return 'just now';
-      if (mins < 60) return `${mins}m ago`;
+      if (mins < 1) return m.timestamp_just_now();
+      if (mins < 60) return m.timestamp_minutes_ago({ count: mins });
       const hrs = Math.floor(mins / 60);
-      if (hrs < 24) return `${hrs}h ago`;
+      if (hrs < 24) return m.timestamp_hours_ago({ count: hrs });
       const days = Math.floor(hrs / 24);
-      return `${days}d ago`;
+      return m.timestamp_days_ago({ count: days });
     }
-    return new Intl.DateTimeFormat('en-GB', {
+    return new Intl.DateTimeFormat(getLocale(), {
       year: 'numeric',
       month: 'short',
       day: '2-digit'
@@ -44,4 +49,4 @@
   });
 </script>
 
-<span class="tooltip {tooltipClass}" data-tip={fullTimestamp}>{label}</span>
+<span class="tooltip {tooltip}" data-tip={fullTimestamp}>{label}</span>

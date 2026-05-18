@@ -1,8 +1,11 @@
-export interface PinnedLocation {
+/** A storage location: a bucket plus an optional path prefix. */
+export interface StorageLocation {
   bucket: string;
-  /** Empty string = bucket root; otherwise a key prefix ending in '/', e.g. 'folder/sub/' */
+  /** Empty string = bucket root; otherwise a slash-terminated path, e.g. 'folder/sub/'. */
   prefix: string;
 }
+
+export type PinnedLocation = StorageLocation;
 
 const STORAGE_KEY = 'pinned_storage_locations';
 
@@ -42,6 +45,13 @@ export function isPinned(bucket: string, prefix: string): boolean {
   return pinnedLocations.some((p) => p.bucket === bucket && p.prefix === prefix);
 }
 
+/** Returns the navigation href for a storage location (bucket + optional prefix). */
+export function storageHref(bucket: string, prefix: string): string {
+  if (!prefix) return `/storage/${encodeURIComponent(bucket)}`;
+  const encoded = prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/');
+  return `/storage/${encodeURIComponent(bucket)}/${encoded}`;
+}
+
 /** Returns the display label for a pinned location. */
 export function pinnedLabel(pin: PinnedLocation): string {
   if (!pin.prefix) return pin.bucket;
@@ -51,7 +61,5 @@ export function pinnedLabel(pin: PinnedLocation): string {
 
 /** Returns the navigation href for a pinned location. */
 export function pinnedHref(pin: PinnedLocation): string {
-  if (!pin.prefix) return `/storage/${encodeURIComponent(pin.bucket)}`;
-  const encodedPrefix = pin.prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/');
-  return `/storage/${encodeURIComponent(pin.bucket)}/${encodedPrefix}`;
+  return storageHref(pin.bucket, pin.prefix);
 }

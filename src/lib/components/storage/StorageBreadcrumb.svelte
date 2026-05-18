@@ -1,7 +1,12 @@
 <script lang="ts">
   import Icon from '@iconify/svelte';
   import * as m from '$lib/paraglide/messages.js';
-  import { pinLocation, unpinLocation, isPinned } from '$lib/stores/pinned-locations.svelte.js';
+  import {
+    pinLocation,
+    unpinLocation,
+    isPinned,
+    type StorageLocation
+  } from '$lib/stores/pinned-locations.svelte.js';
 
   interface Props {
     bucket: string;
@@ -45,33 +50,16 @@
 
   const currentIsPinned = $derived(isPinned(bucket, prefix));
 
-  // ── Breadcrumb label context menu (right-click to pin) ────────────────────
-  let breadcrumbCtx = $state<{
-    x: number;
-    y: number;
-    pinnedBucket: string;
-    pinnedPrefix: string;
-  } | null>(null);
+  // ── Breadcrumb label context menu (right-click to pin / unpin) ───────────
+  let breadcrumbCtx = $state<({ x: number; y: number } & StorageLocation) | null>(null);
 
   function openBreadcrumbCtx(e: MouseEvent, b: string, p: string) {
     e.preventDefault();
-    breadcrumbCtx = { x: e.clientX, y: e.clientY, pinnedBucket: b, pinnedPrefix: p };
+    breadcrumbCtx = { x: e.clientX, y: e.clientY, bucket: b, prefix: p };
   }
 
   function closeBreadcrumbCtx() {
     breadcrumbCtx = null;
-  }
-
-  function handleBreadcrumbPin() {
-    if (breadcrumbCtx) {
-      const alreadyPinned = isPinned(breadcrumbCtx.pinnedBucket, breadcrumbCtx.pinnedPrefix);
-      if (alreadyPinned) {
-        unpinLocation(breadcrumbCtx.pinnedBucket, breadcrumbCtx.pinnedPrefix);
-      } else {
-        pinLocation(breadcrumbCtx.pinnedBucket, breadcrumbCtx.pinnedPrefix);
-      }
-      closeBreadcrumbCtx();
-    }
   }
 </script>
 
@@ -84,31 +72,37 @@
   ></div>
   <ul
     class="
-      menu menu-sm border-base-300 bg-base-100 fixed z-50 w-48 rounded-lg
+      menu menu-sm border-base-300 bg-base-100 fixed z-[60] w-48 rounded-lg
       border p-1 shadow-lg
     "
     role="menu"
-    style="left: {breadcrumbCtx.x}px; top: {breadcrumbCtx.y}px;"
+    style="left: {breadcrumbCtx.x}px; bottom: calc(100vh - {breadcrumbCtx.y}px);"
   >
-    {#if isPinned(breadcrumbCtx.pinnedBucket, breadcrumbCtx.pinnedPrefix)}
-      <li role="none">
-        <button role="menuitem" class="justify-start" onclick={handleBreadcrumbPin}>
-          <Icon icon="material-symbols:push-pin" class="size-4 shrink-0" aria-hidden="true" />
-          {m.storage_action_unpin()}
-        </button>
-      </li>
-    {:else}
-      <li role="none">
-        <button role="menuitem" class="justify-start" onclick={handleBreadcrumbPin}>
-          <Icon
-            icon="material-symbols:push-pin-outline"
-            class="size-4 shrink-0"
-            aria-hidden="true"
-          />
-          {m.storage_action_pin()}
-        </button>
-      </li>
-    {/if}
+    <li role="none">
+      <button
+        role="menuitem"
+        class="justify-start"
+        onclick={() => {
+          if (isPinned(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix)) {
+            unpinLocation(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix);
+          } else {
+            pinLocation(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix);
+          }
+          closeBreadcrumbCtx();
+        }}
+      >
+        <Icon
+          icon={isPinned(breadcrumbCtx.bucket, breadcrumbCtx.prefix)
+            ? 'material-symbols:push-pin'
+            : 'material-symbols:push-pin-outline'}
+          class="size-4 shrink-0"
+          aria-hidden="true"
+        />
+        {isPinned(breadcrumbCtx.bucket, breadcrumbCtx.prefix)
+          ? m.storage_action_unpin()
+          : m.storage_action_pin()}
+      </button>
+    </li>
   </ul>
 {/if}
 

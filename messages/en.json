@@ -216,5 +216,36 @@
   "storage_preview_csv_rows": "Showing first {count} rows",
   "storage_preview_parquet_rows": "Showing first {count} of {total} rows (parquet)",
   "storage_preview_pdf_too_large": "PDF is too large to preview inline.",
-  "storage_context_menu_actions": "Actions"
+  "storage_context_menu_actions": "Actions",
+  "timestamp_just_now": "just now",
+  "timestamp_minutes_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "{count}m ago",
+        "n=other": "{count}m ago"
+      }
+    }
+  ],
+  "timestamp_hours_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "{count}h ago",
+        "n=other": "{count}h ago"
+      }
+    }
+  ],
+  "timestamp_days_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "{count}d ago",
+        "n=other": "{count}d ago"
+      }
+    }
+  ]
 }
