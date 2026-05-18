@@ -83,6 +83,10 @@ const FIXTURES: Record<string, Fixture> = {
   }
 };
 
+// Mutable store for objects uploaded during tests.
+// Keys are object keys; values mirror the Fixture shape.
+const UPLOADS: Record<string, Fixture> = {};
+
 // ── XML helpers ────────────────────────────────────────────────────────────
 
 function listBucketsXml(): string {
@@ -99,7 +103,8 @@ function listBucketsXml(): string {
 }
 
 function listObjectsXml(prefix: string): string {
-  const entries = Object.entries(FIXTURES)
+  const allObjects = { ...FIXTURES, ...UPLOADS };
+  const entries = Object.entries(allObjects)
     .filter(([key]) => key.startsWith(prefix))
     .map(
       ([key, f]) => `
@@ -165,7 +170,7 @@ http
         return;
       }
 
-      const fixture = FIXTURES[key];
+      const fixture = FIXTURES[key] ?? UPLOADS[key];
       if (!fixture) {
         res.writeHead(404, { 'Content-Type': 'application/xml' });
         res.end(errorXml('NoSuchKey', 'The specified key does not exist.'));
@@ -210,6 +215,25 @@ http
         ETag: `"test-etag-${key}"`
       });
       res.end(fixture.content);
+      return;
+    }
+
+    // PutObject: PUT /<bucket>/<key>
+    if (req.method === 'PUT' && bucket === BUCKET && key) {
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        const content = Buffer.concat(chunks);
+        const contentType = (req.headers['content-type'] ?? 'application/octet-stream')
+          .split(';')[0]
+          .trim();
+        UPLOADS[key] = { contentType, content };
+        res.writeHead(200, {
+          ETag: `"uploaded-etag-${key}"`,
+          'Content-Length': '0'
+        });
+        res.end();
+      });
       return;
     }
 

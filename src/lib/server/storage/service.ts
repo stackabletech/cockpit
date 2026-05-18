@@ -86,4 +86,30 @@ export async function getObjectMetadata(
   }
 }
 
+/** Upload an object to the bucket, using multipart upload for large files. */
+export async function uploadObject(
+  userId: string,
+  bucket: string,
+  key: string,
+  body: ReadableStream | Buffer,
+  contentType: string,
+  contentLength?: number
+): Promise<void> {
+  const provider = getProviderForUser(userId, bucket);
+
+  try {
+    log.debug({ user_id: userId, bucket, key, content_type: contentType }, 'uploading object');
+    await provider.putObject(key, body, contentType, contentLength);
+    log.info(
+      { user_id: userId, bucket, key, content_type: contentType, content_length: contentLength },
+      'object uploaded'
+    );
+  } catch (err) {
+    if (err instanceof S3ServiceException) {
+      mapS3ErrorToHttp(err, { bucket, key, operation: 'putObject' });
+    }
+    throw err;
+  }
+}
+
 export type { S3ConnectionConfig };

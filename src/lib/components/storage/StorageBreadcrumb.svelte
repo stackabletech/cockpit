@@ -10,6 +10,7 @@
     selectionMode: boolean;
     onNavigate: (prefix: string) => void;
     onToggleSelectionMode: () => void;
+    onUpload: () => void;
   }
 
   let {
@@ -19,7 +20,8 @@
     fileCount,
     selectionMode,
     onNavigate,
-    onToggleSelectionMode
+    onToggleSelectionMode,
+    onUpload
   }: Props = $props();
 
   const breadcrumbParts = $derived(
@@ -174,5 +176,11 @@
       <Icon icon="material-symbols:check-box-outline-blank" class="swap-off size-3.5" />
     </span>
     {m.storage_select_toggle()}
+  </button>
+
+  <!-- Upload button -->
+  <button class="btn btn-primary btn-xs gap-1" onclick={onUpload}>
+    <Icon icon="material-symbols:upload" class="size-3.5" aria-hidden="true" />
+    {m.storage_action_upload()}
   </button>
 </div>

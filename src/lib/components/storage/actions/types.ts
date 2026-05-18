@@ -1,4 +1,9 @@
-export type ActionResult = { success?: true; unimplemented?: true; previewKey?: string };
+export type ActionResult = {
+  success?: true;
+  unimplemented?: true;
+  previewKey?: string;
+  openUpload?: true;
+};
 
 export type ActionName = 'download' | 'upload' | 'preview' | 'delete';
 

@@ -28,4 +28,11 @@ export interface StorageProvider {
   getObjectRange(key: string, start: number, end: number): Promise<ReadableStream>;
   getMetadata(key: string): Promise<StorageMetadata>;
   exists(key: string): Promise<boolean>;
+  /** Upload an object, using multipart upload for large files. */
+  putObject(
+    key: string,
+    body: ReadableStream | Buffer,
+    contentType: string,
+    contentLength?: number
+  ): Promise<void>;
 }

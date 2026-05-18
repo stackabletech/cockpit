@@ -6,6 +6,7 @@ import {
   HeadObjectCommand,
   type ListObjectsV2CommandOutput
 } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import type { StorageProvider, ObjectDownload } from './provider.js';
 import type { S3Config } from './types.js';
 import type { StoragePage, StorageObject, StorageMetadata } from '$lib/storage/types.js';
@@ -120,5 +121,34 @@ export class S3StorageProvider implements StorageProvider {
       }
       throw err;
     }
+  }
+
+  async putObject(
+    key: string,
+    body: ReadableStream | Buffer,
+    contentType: string,
+    contentLength?: number
+  ): Promise<void> {
+    log.debug(
+      { bucket: this.bucket, key, content_type: contentType, content_length: contentLength },
+      'uploading object'
+    );
+    const upload = new Upload({
+      client: this.client,
+      queueSize: 4,
+      partSize: 5 * 1024 * 1024,
+      params: {
+        Bucket: this.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+        ...(contentLength !== undefined ? { ContentLength: contentLength } : {})
+      }
+    });
+    await upload.done();
+    log.info(
+      { bucket: this.bucket, key, content_type: contentType, content_length: contentLength },
+      'object uploaded'
+    );
   }
 }

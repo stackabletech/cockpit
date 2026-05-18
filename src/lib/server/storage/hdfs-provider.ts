@@ -33,4 +33,13 @@ export class HDFSStorageProvider implements StorageProvider {
   exists(_key: string): Promise<boolean> {
     throw new Error('HDFS not implemented');
   }
+
+  putObject(
+    _key: string,
+    _body: ReadableStream | Buffer,
+    _contentType: string,
+    _contentLength?: number
+  ): Promise<void> {
+    throw new Error('HDFS not implemented');
+  }
 }

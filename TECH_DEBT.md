@@ -157,3 +157,19 @@ No CSP headers are set anywhere. This leaves the app exposed to XSS in ways that
 **File:** `vite.config.ts`
 
 The dev server accepts requests from any host. This enables DNS rebinding attacks against local development environments. Should be restricted to `localhost` / `127.0.0.1` unless remote dev access is explicitly needed.
+
+---
+
+### Upload endpoint uses in-memory S3 credentials
+
+**File:** `src/routes/(app)/storage/api/upload/+server.ts`, `src/lib/server/storage/user-connections.ts`
+
+The upload endpoint reads S3 credentials from the same per-user in-memory connection map used by download and preview. This introduces no additional security risk beyond what is already documented in the "In-memory storage connection state" entry above. Long-term fix: same as that entry — persist encrypted credentials server-side.
+
+---
+
+### No server-side file size limit on uploads (v0)
+
+**File:** `src/routes/(app)/storage/api/upload/+server.ts`
+
+The upload endpoint imposes no maximum file size. S3's 5 TB single-object limit applies as a natural backstop. For v0 this is acceptable; large uploads will consume server-side streaming resources proportionally but do not buffer the body in memory (the stream is piped directly to the `@aws-sdk/lib-storage` Upload). Add a configurable `MAX_UPLOAD_BYTES` guard in a future iteration once typical object sizes are known.
