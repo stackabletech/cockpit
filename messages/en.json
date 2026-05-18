@@ -247,5 +247,25 @@
         "n=other": "{count}d ago"
       }
     }
+  ],
+  "timestamp_months_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "{count}mo ago",
+        "n=other": "{count}mo ago"
+      }
+    }
+  ],
+  "timestamp_years_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "{count}y ago",
+        "n=other": "{count}y ago"
+      }
+    }
   ]
 }

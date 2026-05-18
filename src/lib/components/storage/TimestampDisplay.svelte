@@ -39,7 +39,11 @@
       const hrs = Math.floor(mins / 60);
       if (hrs < 24) return m.timestamp_hours_ago({ count: hrs });
       const days = Math.floor(hrs / 24);
-      return m.timestamp_days_ago({ count: days });
+      if (days < 30) return m.timestamp_days_ago({ count: days });
+      const months = Math.floor(days / 30);
+      if (months < 12) return m.timestamp_months_ago({ count: months });
+      const years = Math.floor(days / 365);
+      return m.timestamp_years_ago({ count: years });
     }
     return new Intl.DateTimeFormat(getLocale(), {
       year: 'numeric',

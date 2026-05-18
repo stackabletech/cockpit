@@ -247,5 +247,25 @@
         "n=other": "vor {count} T."
       }
     }
+  ],
+  "timestamp_months_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "vor {count} Mon.",
+        "n=other": "vor {count} Mon."
+      }
+    }
+  ],
+  "timestamp_years_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "vor {count} J.",
+        "n=other": "vor {count} J."
+      }
+    }
   ]
 }
