@@ -205,13 +205,7 @@
     try {
       const result = await executeAction('delete', { bucket, selectedKeys: keys });
       if (result.failedKeys && result.failedKeys.length > 0) {
-        const count = result.failedKeys.length;
-        addToast(
-          'warning',
-          count === 1
-            ? m.storage_delete_partial_failure_one()
-            : m.storage_delete_partial_failure_many({ count })
-        );
+        addToast('warning', m.storage_delete_partial_failure({ count: result.failedKeys.length }));
       }
       selectedKeys = new SvelteSet<string>();
       selectionMode = false;

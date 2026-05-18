@@ -1,4 +1,6 @@
-import type { StoragePage, StorageMetadata } from '$lib/storage/types.js';
+import type { StoragePage, StorageMetadata, DeleteObjectsResult } from '$lib/storage/types.js';
+
+export type { DeleteObjectsResult };
 
 /** Metadata and body stream returned when fetching a storage object. */
 export interface ObjectDownload {
@@ -6,11 +8,6 @@ export interface ObjectDownload {
   contentType?: string;
   contentLength?: number;
   etag?: string;
-}
-
-/** Result of a bulk-delete operation. `failed` lists keys that could not be deleted. */
-export interface DeleteObjectsResult {
-  failed: Array<{ key: string; code?: string; message?: string }>;
 }
 
 /** Backend-agnostic interface for a bucket-scoped storage provider. */

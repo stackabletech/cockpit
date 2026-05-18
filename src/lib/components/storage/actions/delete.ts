@@ -7,10 +7,10 @@ export default async function (ctx: ActionContext): Promise<ActionResult> {
   if (!keys.length) throw new ActionError('no_key', 'No keys specified for deletion');
 
   try {
-    const { failedKeys } = await clientDelete(ctx.bucket, keys);
+    const result = await clientDelete(ctx.bucket, keys);
     return {
       success: true,
-      failedKeys: failedKeys.map((f) => ({ key: f.key, message: f.message }))
+      failedKeys: result.failed.map((f) => ({ key: f.key, message: f.message }))
     };
   } catch (err: unknown) {
     if (err instanceof DeleteError) {

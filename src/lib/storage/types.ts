@@ -27,3 +27,8 @@ export interface StoragePage {
   /** Token to request the next page from the provider (if any). */
   nextContinuationToken?: string | null;
 }
+
+/** Result of a bulk-delete operation. `failed` lists keys that could not be deleted. */
+export interface DeleteObjectsResult {
+  failed: Array<{ key: string; code?: string; message?: string }>;
+}
