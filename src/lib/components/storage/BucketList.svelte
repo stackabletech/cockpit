@@ -99,13 +99,13 @@
       <ul class="py-1" role="list">
         {#each pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
           {@const active = isPinnedActive(pin)}
-          <li role="none" class="group flex items-center">
+          <li role="none" class="group relative">
             <a
               href={pinnedHref(pin)}
               data-sveltekit-preload-data="off"
               class="
-                hover:bg-base-200 flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5
-                text-sm
+                hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
+                pr-7 text-sm
                 {active ? 'bg-primary/10 text-primary font-medium' : 'text-base-content'}"
               aria-current={active ? 'page' : undefined}
               oncontextmenu={(e) => openUnpinMenu(e, pin)}
@@ -127,7 +127,7 @@
             </a>
             <button
               class="
-                btn btn-ghost btn-xs mr-1 shrink-0 p-0
+                btn btn-ghost btn-xs absolute top-1/2 right-1 -translate-y-1/2 p-0
                 opacity-0 transition-opacity
                 group-hover:opacity-100 focus:opacity-100
               "
