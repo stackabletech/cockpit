@@ -4,7 +4,6 @@ import type { StorageConnectionSchema } from './schemas.js';
 type StoredConnection = z.infer<typeof StorageConnectionSchema>;
 
 const STORAGE_KEY = 'stackable_storage_connections';
-const LEGACY_KEY = 'stackable_storage_connection';
 
 /** Unique key for deduplicating connections by type, endpoint, and access key. */
 function connectionKey(c: StoredConnection): string {
@@ -17,14 +16,6 @@ function connectionKey(c: StoredConnection): string {
  */
 function getConnections(): StoredConnection[] {
   try {
-    const legacy = localStorage.getItem(LEGACY_KEY);
-    if (legacy) {
-      const parsed = JSON.parse(legacy) as StoredConnection;
-      localStorage.removeItem(LEGACY_KEY);
-      const connections = [parsed];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(connections));
-      return connections;
-    }
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     return JSON.parse(raw) as StoredConnection[];
