@@ -86,4 +86,20 @@ export async function getObjectMetadata(
   }
 }
 
+/** Delete one or more objects from the bucket. */
+export async function deleteObjects(userId: string, bucket: string, keys: string[]): Promise<void> {
+  const provider = getProviderForUser(userId, bucket);
+
+  try {
+    log.debug({ user_id: userId, bucket, key_count: keys.length }, 'deleting objects');
+    await provider.deleteObjects(keys);
+    log.info({ user_id: userId, bucket, key_count: keys.length }, 'objects deleted');
+  } catch (err) {
+    if (err instanceof S3ServiceException) {
+      mapS3ErrorToHttp(err, { bucket, operation: 'deleteObjects' });
+    }
+    throw err;
+  }
+}
+
 export type { S3ConnectionConfig };

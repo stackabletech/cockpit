@@ -28,4 +28,5 @@ export interface StorageProvider {
   getObjectRange(key: string, start: number, end: number): Promise<ReadableStream>;
   getMetadata(key: string): Promise<StorageMetadata>;
   exists(key: string): Promise<boolean>;
+  deleteObjects(keys: string[]): Promise<void>;
 }

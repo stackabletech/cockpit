@@ -4,6 +4,7 @@ import {
   ListObjectsV2Command,
   GetObjectCommand,
   HeadObjectCommand,
+  DeleteObjectsCommand,
   type ListObjectsV2CommandOutput
 } from '@aws-sdk/client-s3';
 import type { StorageProvider, ObjectDownload } from './provider.js';
@@ -120,5 +121,18 @@ export class S3StorageProvider implements StorageProvider {
       }
       throw err;
     }
+  }
+
+  async deleteObjects(keys: string[]): Promise<void> {
+    log.debug({ bucket: this.bucket, key_count: keys.length }, 'deleting objects');
+    await this.client.send(
+      new DeleteObjectsCommand({
+        Bucket: this.bucket,
+        Delete: {
+          Objects: keys.map((key) => ({ Key: key })),
+          Quiet: true
+        }
+      })
+    );
   }
 }
