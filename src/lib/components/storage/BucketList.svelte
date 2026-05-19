@@ -14,7 +14,7 @@
 
 <nav
   class="
-    border-base-300 bg-base-100 flex w-48 shrink-0 flex-col overflow-hidden
+    border-base-300 bg-base-100 flex w-48 shrink-0 flex-col
     rounded-lg border
   "
   aria-label={m.storage_buckets_label()}
@@ -42,7 +42,7 @@
     </a>
   </div>
 
-  <ul class="flex-1 overflow-y-auto py-1" role="list">
+  <ul class="flex-1 py-1" role="list">
     {#if buckets.length === 0}
       <li class="text-base-content/40 px-3 py-4 text-center text-xs">
         {m.storage_buckets_empty()}
@@ -54,11 +54,12 @@
             href="/storage/{encodeURIComponent(bucket)}"
             data-sveltekit-preload-data="off"
             class="
-              hover:bg-base-200 flex items-center gap-2 px-3 py-1.5
-              text-sm
+              hover:bg-base-200 tooltip tooltip-right flex items-center gap-2
+              px-3 py-1.5 text-sm
               {activeBucket === bucket
               ? 'bg-primary/10 text-primary font-medium'
               : 'text-base-content'}"
+            data-tip={bucket}
             aria-current={activeBucket === bucket ? 'page' : undefined}
           >
             <Icon
