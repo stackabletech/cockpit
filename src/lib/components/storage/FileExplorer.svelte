@@ -14,7 +14,11 @@
   import DeleteConfirmModal from './DeleteConfirmModal.svelte';
   import { invalidateAll } from '$app/navigation';
 
+  import { untrack } from 'svelte';
+  import { navigating } from '$app/state';
   import { initPageSize, type PageSize } from '$lib/types/pagination.js';
+  import { pinLocation } from '$lib/stores/pinned-locations.svelte.js';
+  import { recordLocationVisit, recordFileVisit } from '$lib/stores/recent-items.svelte.js';
 
   interface Props {
     bucket: string;
@@ -48,6 +52,15 @@
   $effect(() => {
     void prefix;
     selectedKeys = new SvelteSet<string>();
+  });
+
+  // Record location visit whenever the current bucket/prefix changes.
+  // untrack() prevents the store reads inside recordLocationVisit from
+  // creating a dependency that would cause this effect to re-run on every write.
+  $effect(() => {
+    const b = bucket;
+    const p = prefix;
+    untrack(() => recordLocationVisit(b, p));
   });
 
   function toggleSelectionMode() {
@@ -92,6 +105,11 @@
   let loading = $state(false);
   let deleting = $state(false); // true while the delete API call is in flight
 
+  // Show loading overlay for any navigation (including sidebar/grid links).
+  $effect(() => {
+    if (navigating) loading = true;
+  });
+
   // Clear loading when new objects arrive from the server
   $effect(() => {
     void objects;
@@ -132,6 +150,7 @@
 
   const ctxFileObj = $derived(ctxKey ? (files.find((f) => f.key === ctxKey) ?? null) : null);
   const ctxIsFile = $derived(ctxFileObj !== null);
+  const canPin = $derived(ctxKey !== null && !ctxIsFile);
 
   function openContextMenu(e: MouseEvent, key: string) {
     e.preventDefault();
@@ -178,7 +197,13 @@
     }
 
     try {
-      if (action === 'download' || action === 'upload' || action === 'preview') {
+      if (action === 'pin') {
+        pinLocation(bucket, ctxKey ?? prefix);
+      } else if (action === 'download' || action === 'upload' || action === 'preview') {
+        // Record file visit for the acted-on file(s)
+        for (const f of effectiveSelectedFiles) {
+          recordFileVisit(bucket, f.key, f.size);
+        }
         const res = await executeAction(action, ctx);
         if (res?.previewKey) {
           previewKey = res.previewKey;
@@ -327,6 +352,7 @@
     canPreview={(selectedFiles.length === 1 && selectedFolders.length === 0) ||
       (ctxKey !== null && files.some((f) => f.key === ctxKey))}
     canDownload={selectedFiles.length > 0 || ctxIsFile}
+    {canPin}
     onAction={handleAction}
     onClose={() => {
       ctxMenu = null;

@@ -204,7 +204,7 @@
   const filename = $derived(objectKey ? keyToName(objectKey) : '');
 
   function buildDownloadUrl(key: string, bkt: string): string {
-    return `/storage/api/preview?${new URLSearchParams({ bucket: bkt, key })}`;
+    return `/storage/api/download?${new URLSearchParams({ bucket: bkt, key })}`;
   }
 
   function close() {

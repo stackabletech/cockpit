@@ -9,11 +9,13 @@
     selectionCount: number;
     canPreview: boolean;
     canDownload: boolean;
+    canPin: boolean;
     onAction: (action: string) => void;
     onClose: () => void;
   }
 
-  let { x, y, selectionCount, canPreview, canDownload, onAction, onClose }: Props = $props();
+  let { x, y, selectionCount, canPreview, canDownload, canPin, onAction, onClose }: Props =
+    $props();
 
   let menuEl = $state<HTMLUListElement | null>(null);
 
@@ -70,6 +72,13 @@
       icon: 'material-symbols:drive-file-move',
       label: () => m.storage_action_move(),
       disabled: () => selectionCount === 0
+    },
+    {
+      key: 'pin',
+      icon: 'material-symbols:push-pin-outline',
+      label: () => m.storage_action_pin(),
+      disabled: () => !canPin,
+      hidden: () => !canPin
     }
   ];
 
@@ -115,19 +124,21 @@
   </li>
 
   {#each actions as act (act.key)}
-    {@const disabled = act.disabled()}
-    <li role="none" class:menu-disabled={disabled}>
-      <button
-        role="menuitem"
-        class="justify-start"
-        onclick={() => emit(act.key)}
-        {disabled}
-        aria-disabled={disabled}
-      >
-        <Icon icon={act.icon} class="mr-2 size-4 shrink-0" aria-hidden="true" />
-        {act.label()}
-      </button>
-    </li>
+    {#if !act.hidden?.()}
+      {@const disabled = act.disabled()}
+      <li role="none" class:menu-disabled={disabled}>
+        <button
+          role="menuitem"
+          class="justify-start"
+          onclick={() => emit(act.key)}
+          {disabled}
+          aria-disabled={disabled}
+        >
+          <Icon icon={act.icon} class="mr-2 size-4 shrink-0" aria-hidden="true" />
+          {act.label()}
+        </button>
+      </li>
+    {/if}
   {/each}
 
   {#each dangerActions as act (act.key)}

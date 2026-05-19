@@ -155,6 +155,23 @@
   "storage_action_move": "Move",
   "storage_action_delete": "Delete",
   "storage_action_paste": "Paste",
+  "storage_action_pin": "Pin this location",
+  "storage_action_unpin": "Unpin",
+  "storage_pinned_label": "Pinned Access",
+  "storage_more_options": "More options",
+  "storage_recent_files": "Recent Files",
+  "storage_recent_locations": "Recent Locations",
+  "storage_recent_empty_files": "No recently accessed files.",
+  "storage_recent_empty_locations": "No recently visited locations.",
+  "storage_recent_col_name": "Name",
+  "storage_recent_col_location": "Location",
+  "storage_recent_col_path": "Path",
+  "storage_recent_col_size": "Size",
+  "storage_recent_col_visited": "Visited",
+  "storage_recent_col_actions": "Actions",
+  "storage_recent_open_folder": "Open folder",
+  "storage_recent_go_to_location": "Go to location",
+  "storage_recent_preview_file": "Preview file",
   "storage_danger_zone": "Danger zone",
   "storage_parent_dir": "Parent directory",
   "storage_loading": "Loading…",
@@ -218,5 +235,56 @@
   "storage_preview_csv_rows": "Showing first {count} rows",
   "storage_preview_parquet_rows": "Showing first {count} of {total} rows (parquet)",
   "storage_preview_pdf_too_large": "PDF is too large to preview inline.",
-  "storage_context_menu_actions": "Actions"
+  "storage_context_menu_actions": "Actions",
+  "timestamp_just_now": "just now",
+  "timestamp_minutes_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "{count}m ago",
+        "n=other": "{count}m ago"
+      }
+    }
+  ],
+  "timestamp_hours_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "{count}h ago",
+        "n=other": "{count}h ago"
+      }
+    }
+  ],
+  "timestamp_days_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "{count}d ago",
+        "n=other": "{count}d ago"
+      }
+    }
+  ],
+  "timestamp_months_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "{count}mo ago",
+        "n=other": "{count}mo ago"
+      }
+    }
+  ],
+  "timestamp_years_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "{count}y ago",
+        "n=other": "{count}y ago"
+      }
+    }
+  ]
 }
