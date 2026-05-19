@@ -18,12 +18,7 @@
   import { navigating } from '$app/state';
   import { initPageSize, type PageSize } from '$lib/types/pagination.js';
   import { pinLocation } from '$lib/stores/pinned-locations.svelte.js';
-  import {
-    recordLocationVisit,
-    recordFileVisit,
-    removeItemsUnderDirectories
-  } from '$lib/stores/recent-items.svelte.js';
-  import { unpinUnderDirectories } from '$lib/stores/pinned-locations.svelte.js';
+  import { recordLocationVisit, recordFileVisit } from '$lib/stores/recent-items.svelte.js';
 
   interface Props {
     bucket: string;
@@ -236,12 +231,6 @@
       const result = await executeAction('delete', { bucket, selectedKeys: keys });
       if (result.failedKeys && result.failedKeys.length > 0) {
         addToast('warning', m.storage_delete_partial_failure({ count: result.failedKeys.length }));
-      }
-      // Clean up pinned locations and recent items for any deleted directories.
-      const deletedDirPrefixes = keys.filter((k) => k.endsWith('/'));
-      if (deletedDirPrefixes.length > 0) {
-        unpinUnderDirectories(bucket, deletedDirPrefixes);
-        removeItemsUnderDirectories(bucket, deletedDirPrefixes);
       }
       selectedKeys = new SvelteSet<string>();
       selectionMode = false;
