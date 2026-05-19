@@ -1,4 +1,6 @@
-import type { StoragePage, StorageMetadata } from '$lib/storage/types.js';
+import type { StoragePage, StorageMetadata, DeleteObjectsResult } from '$lib/storage/types.js';
+
+export type { DeleteObjectsResult };
 
 /** Metadata and body stream returned when fetching a storage object. */
 export interface ObjectDownload {
@@ -28,4 +30,5 @@ export interface StorageProvider {
   getObjectRange(key: string, start: number, end: number): Promise<ReadableStream>;
   getMetadata(key: string): Promise<StorageMetadata>;
   exists(key: string): Promise<boolean>;
+  deleteObjects(keys: string[]): Promise<DeleteObjectsResult>;
 }
