@@ -65,7 +65,7 @@
   class="
     border-base-300 bg-base-100 fixed inset-y-0 left-0 z-50 flex flex-col
     border-r transition-[transform,width] duration-200 ease-out
-    lg:relative lg:inset-auto lg:z-auto lg:translate-x-0
+    lg:relative lg:inset-auto lg:translate-x-0
     {mobileOpen ? 'translate-x-0' : '-translate-x-full'}
     {collapsed ? 'w-16' : 'w-60'}"
 >
@@ -113,8 +113,8 @@
               data-tip={collapsed ? item.label : undefined}
               class="
                 flex min-h-11 items-center gap-3 rounded-lg px-3 py-2
-                text-sm font-medium transition-colors
-                {collapsed ? 'tooltip tooltip-right' : ''}
+                text-sm font-medium
+                {collapsed ? 'tooltip tooltip-right before:z-100' : ''}
                 {active
                 ? 'bg-primary/10 text-primary'
                 : `
