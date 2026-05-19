@@ -206,7 +206,6 @@
       />
 
       <!-- Drop zone -->
-      <!-- svelte-ignore a11y_interactive_supports_focus a11y_noninteractive_tabindex -->
       <div
         role="button"
         class="
