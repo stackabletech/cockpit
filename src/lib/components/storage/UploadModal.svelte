@@ -363,11 +363,7 @@
       <!-- ── error ─────────────────────────────────────────────────────────── -->
     {:else if phase.kind === 'error'}
       <div class="mb-4 flex items-start gap-3" role="alert">
-        <Icon
-          icon="line-md:alert"
-          class="text-error mt-0.5 size-6 shrink-0"
-          aria-hidden="true"
-        />
+        <Icon icon="line-md:alert" class="text-error mt-0.5 size-6 shrink-0" aria-hidden="true" />
         <p class="text-base-content/80 text-sm">{phase.message}</p>
       </div>
       <div class="flex justify-end gap-2">

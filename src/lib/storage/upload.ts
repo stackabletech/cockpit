@@ -37,10 +37,10 @@ function buildDownloadUrl(bucket: string, key: string): string {
   return `/storage/api/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
 }
 
-function mapStatusToUploadCode(status: number, serverCode?: string): UploadErrorCode {
-  if (serverCode === 'access_denied' || status === 403) return 'access_denied';
-  if (serverCode === 'no_such_bucket' || status === 404) return 'no_such_bucket';
-  if (serverCode === 'invalid_part' || status === 400) return 'invalid_part';
+function mapStatusToUploadCode(status: number): UploadErrorCode {
+  if (status === 403) return 'access_denied';
+  if (status === 404) return 'no_such_bucket';
+  if (status === 400) return 'invalid_part';
   if (status === 401) return 'not_connected';
   if (status >= 500) return 'server_error';
   return 'unknown';
@@ -95,14 +95,7 @@ export function uploadFile(
         resolve();
         return;
       }
-      let serverCode: string | undefined;
-      try {
-        const body = JSON.parse(xhr.responseText) as { code?: string; error?: string };
-        serverCode = body.code;
-      } catch {
-        // ignore JSON parse failure
-      }
-      const code = mapStatusToUploadCode(xhr.status, serverCode);
+      const code = mapStatusToUploadCode(xhr.status);
       reject(new UploadError(code, `Upload failed with status ${xhr.status}`));
     });
 
