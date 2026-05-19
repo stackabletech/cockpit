@@ -11,8 +11,14 @@
   import { ActionError } from './actions/types.js';
   import { getActionErrorMessage } from './actions/errors.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
+  import DeleteConfirmModal from './DeleteConfirmModal.svelte';
+  import { invalidateAll } from '$app/navigation';
 
+  import { untrack } from 'svelte';
+  import { navigating } from '$app/state';
   import { initPageSize, type PageSize } from '$lib/types/pagination.js';
+  import { pinLocation } from '$lib/stores/pinned-locations.svelte.js';
+  import { recordLocationVisit, recordFileVisit } from '$lib/stores/recent-items.svelte.js';
 
   interface Props {
     bucket: string;
@@ -46,6 +52,15 @@
   $effect(() => {
     void prefix;
     selectedKeys = new SvelteSet<string>();
+  });
+
+  // Record location visit whenever the current bucket/prefix changes.
+  // untrack() prevents the store reads inside recordLocationVisit from
+  // creating a dependency that would cause this effect to re-run on every write.
+  $effect(() => {
+    const b = bucket;
+    const p = prefix;
+    untrack(() => recordLocationVisit(b, p));
   });
 
   function toggleSelectionMode() {
@@ -83,14 +98,17 @@
 
   const selectedFiles = $derived(files.filter((f) => selectedKeys.has(f.key)));
   const selectedFolders = $derived(folders.filter((f) => selectedKeys.has(f.key)));
-  // TODO: This resolves once a modal for confirming deletion is implemented.
-  /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-  const deleteCount = $derived(selectedFiles.length + selectedFolders.length);
 
   const currentPage = $derived(prevTokens.length + 1);
 
   // ── Loading state ─────────────────────────────────────────────────────────
   let loading = $state(false);
+  let deleting = $state(false); // true while the delete API call is in flight
+
+  // Show loading overlay for any navigation (including sidebar/grid links).
+  $effect(() => {
+    if (navigating) loading = true;
+  });
 
   // Clear loading when new objects arrive from the server
   $effect(() => {
@@ -132,6 +150,7 @@
 
   const ctxFileObj = $derived(ctxKey ? (files.find((f) => f.key === ctxKey) ?? null) : null);
   const ctxIsFile = $derived(ctxFileObj !== null);
+  const canPin = $derived(ctxKey !== null && !ctxIsFile);
 
   function openContextMenu(e: MouseEvent, key: string) {
     e.preventDefault();
@@ -147,6 +166,7 @@
 
   // ── Modal state ───────────────────────────────────────────────────────────
   let showDeleteModal = $state(false);
+  let pendingDeleteKeys = $state<string[]>([]);
   let showPreviewModal = $state(false);
   let previewKey = $state<string | null>(null);
 
@@ -170,8 +190,20 @@
       selectedFiles: effectiveSelectedFiles
     };
 
+    if (action === 'delete') {
+      pendingDeleteKeys = effectiveSelectedKeys;
+      showDeleteModal = true;
+      return;
+    }
+
     try {
-      if (action === 'download' || action === 'upload' || action === 'preview') {
+      if (action === 'pin') {
+        pinLocation(bucket, ctxKey ?? prefix);
+      } else if (action === 'download' || action === 'upload' || action === 'preview') {
+        // Record file visit for the acted-on file(s)
+        for (const f of effectiveSelectedFiles) {
+          recordFileVisit(bucket, f.key, f.size);
+        }
         const res = await executeAction(action, ctx);
         if (res?.previewKey) {
           previewKey = res.previewKey;
@@ -190,11 +222,46 @@
     }
   }
 
+  async function confirmDelete() {
+    showDeleteModal = false;
+    const keys = pendingDeleteKeys;
+    pendingDeleteKeys = [];
+    deleting = true;
+    try {
+      const result = await executeAction('delete', { bucket, selectedKeys: keys });
+      if (result.failedKeys && result.failedKeys.length > 0) {
+        addToast('warning', m.storage_delete_partial_failure({ count: result.failedKeys.length }));
+      }
+      selectedKeys = new SvelteSet<string>();
+      selectionMode = false;
+      loading = true;
+      await invalidateAll();
+    } catch (err: unknown) {
+      loading = false;
+      let msg = m.storage_delete_error_unknown();
+      if (err instanceof ActionError) {
+        if (err.code === 'not_connected') msg = m.storage_delete_error_not_connected();
+        else if (err.code === 'access_denied') msg = m.storage_delete_error_access_denied();
+        else if (err.code === 'server_error') msg = m.storage_delete_error_server_error();
+      }
+      addToast('error', msg);
+    } finally {
+      deleting = false;
+    }
+  }
+
+  function cancelDelete() {
+    showDeleteModal = false;
+    pendingDeleteKeys = [];
+  }
+
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   function handleGlobalKeydown(e: KeyboardEvent) {
     if (showDeleteModal) return;
-    if (e.key === 'Delete' && selectedKeys.size > 0) showDeleteModal = true;
-    else if (e.key === 'F2' && selectedKeys.size === 1) handleAction('rename');
+    if (e.key === 'Delete' && selectedKeys.size > 0) {
+      pendingDeleteKeys = [...selectedKeys];
+      showDeleteModal = true;
+    } else if (e.key === 'F2' && selectedKeys.size === 1) handleAction('rename');
     else if (e.key === 'Escape') {
       if (ctxMenu) {
         selectedKeys.delete(ctxKey!);
@@ -228,7 +295,7 @@
   />
 
   <div class="relative flex-1 overflow-y-auto">
-    {#if loading}
+    {#if loading || deleting}
       <div
         class="
           bg-base-100/70 absolute inset-0 z-10 flex items-center justify-center
@@ -285,6 +352,7 @@
     canPreview={(selectedFiles.length === 1 && selectedFolders.length === 0) ||
       (ctxKey !== null && files.some((f) => f.key === ctxKey))}
     canDownload={selectedFiles.length > 0 || ctxIsFile}
+    {canPin}
     onAction={handleAction}
     onClose={() => {
       ctxMenu = null;
@@ -292,6 +360,14 @@
     }}
   />
 {/if}
+
+<!-- Delete confirmation modal -->
+<DeleteConfirmModal
+  bind:open={showDeleteModal}
+  keys={pendingDeleteKeys}
+  onConfirm={confirmDelete}
+  onCancel={cancelDelete}
+/>
 
 <!-- Preview modal -->
 <PreviewModal bind:open={showPreviewModal} {bucket} objectKey={previewKey} />

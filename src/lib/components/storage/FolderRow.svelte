@@ -64,7 +64,7 @@
         class="text-warning size-5 shrink-0"
         aria-hidden="true"
       />
-      <span class="font-medium">{keyToName(folder.key)}/</span>
+      <span class="font-medium">{keyToName(folder.key)}</span>
     </div>
   </td>
   <td class="text-base-content/30 text-right">—</td>

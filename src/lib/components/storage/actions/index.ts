@@ -1,12 +1,13 @@
 import type { ActionContext, ActionResult, ActionName } from './types';
 import download from './download';
 import preview from './preview';
+import deleteAction from './delete';
 
 const actions: Record<ActionName, (ctx: ActionContext) => Promise<ActionResult>> = {
   download,
   upload: async () => ({ unimplemented: true }),
   preview,
-  delete: async () => ({ unimplemented: true })
+  delete: deleteAction
 };
 
 export async function executeAction(name: ActionName, ctx: ActionContext): Promise<ActionResult> {
