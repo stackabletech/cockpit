@@ -64,6 +64,6 @@ export const actions: Actions = {
     const userId = getUserId(locals);
     clearConnection(userId);
     locals.logger.info({ user_id: userId }, 'user storage connection cleared');
-    throw redirect(303, '/storage');
+    throw redirect(303, '/storage?disconnected=1');
   }
 };

@@ -2,9 +2,20 @@
   import type { SuperValidated } from 'sveltekit-superforms';
   import { superForm } from 'sveltekit-superforms';
   import { zod4 as zod } from 'sveltekit-superforms/adapters';
+  import { onMount, tick } from 'svelte';
+  import Icon from '@iconify/svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { StorageConnectionSchema } from '$lib/storage/schemas.js';
+  import {
+    saveConnectionLocally,
+    loadConnectionLocally,
+    loadAllConnectionsLocally,
+    removeConnectionLocally
+  } from '$lib/storage/connection-storage.js';
+  import { storageAutoConnectEnabled } from '$lib/client/feature-flags.js';
   import type { z } from 'zod';
+
+  type StoredConnection = z.infer<typeof StorageConnectionSchema>;
 
   interface Props {
     connectionForm: SuperValidated<z.infer<typeof StorageConnectionSchema>, string>;
@@ -14,19 +25,151 @@
 
   const uid = $props.id();
 
+  let formRef: HTMLFormElement | null = $state(null);
+  let autoConnecting = $state(false);
+  let allConnections: StoredConnection[] = $state([]);
+  let connectionsLoaded = $state(false);
+
+  /** Connection pending the "Forget" confirmation. */
+  let forgetCandidate: StoredConnection | null = $state(null);
+
   const { form, errors, enhance, submitting, message } = superForm(connectionForm, {
-    validators: zod(StorageConnectionSchema)
+    validators: zod(StorageConnectionSchema),
+    onResult: ({ result }) => {
+      if (result.type === 'redirect') {
+        saveConnectionLocally($form);
+      } else {
+        autoConnecting = false;
+      }
+    }
+  });
+
+  /** Display label for a saved connection (hostname or "AWS S3"). */
+  function connectionLabel(conn: StoredConnection): string {
+    if (conn.endpoint) {
+      try {
+        return new URL(conn.endpoint).hostname;
+      } catch {
+        return conn.endpoint;
+      }
+    }
+    return 'AWS S3';
+  }
+
+  /** Fill the form with a saved connection and immediately submit. */
+  function selectConnection(conn: StoredConnection) {
+    $form.type = conn.type;
+    $form.endpoint = conn.endpoint ?? '';
+    $form.region = conn.region;
+    $form.accessKeyId = conn.accessKeyId ?? '';
+    $form.secretAccessKey = conn.secretAccessKey ?? '';
+    tick().then(() => formRef?.requestSubmit());
+  }
+
+  /** Forget a connection from local storage and refresh the list. */
+  function forgetConnection(conn: StoredConnection) {
+    removeConnectionLocally(conn);
+    allConnections = loadAllConnectionsLocally();
+    forgetCandidate = null;
+  }
+
+  onMount(() => {
+    allConnections = loadAllConnectionsLocally();
+    connectionsLoaded = true;
+    const params = new URLSearchParams(window.location.search);
+    if (!storageAutoConnectEnabled || params.has('disconnected')) return;
+    const saved = loadConnectionLocally();
+    if (saved) {
+      autoConnecting = true;
+      $form.type = saved.type;
+      $form.endpoint = saved.endpoint ?? '';
+      $form.region = saved.region;
+      $form.accessKeyId = saved.accessKeyId ?? '';
+      $form.secretAccessKey = saved.secretAccessKey ?? '';
+      tick().then(() => formRef?.requestSubmit());
+    }
   });
 </script>
 
 <div class="mx-auto max-w-md p-6">
-  <h1 class="mb-1 text-xl font-semibold">{m.storage_connect_title()}</h1>
-  <p class="text-base-content/60 mb-6 text-sm">{m.storage_connect_subtitle()}</p>
+  {#if autoConnecting}
+    <div class="flex flex-col items-center gap-3 py-8">
+      <span class="loading loading-spinner loading-md"></span>
+      <p class="text-base-content/60 text-sm">{m.storage_connect_reconnecting()}</p>
+    </div>
+  {/if}
+
+  <div class:hidden={autoConnecting}>
+    <h1 class="mb-1 text-xl font-semibold">{m.storage_connect_title()}</h1>
+    <p class="text-base-content/60 mb-6 text-sm">{m.storage_connect_subtitle()}</p>
+
+    <div
+      class="mb-6 h-24 {connectionsLoaded && allConnections.length === 0
+        ? 'bg-base-200 flex items-center justify-center rounded-xl'
+        : ''}"
+    >
+      {#if !connectionsLoaded}
+        <div class="flex h-full items-center justify-center">
+          <span class="loading loading-spinner loading-sm text-base-content/40"></span>
+        </div>
+      {:else if allConnections.length > 0}
+        <p class="text-base-content/50 mb-2 text-xs font-semibold tracking-wide uppercase">
+          {m.storage_connect_saved()}
+        </p>
+        <div
+          class="flex flex-nowrap gap-2 overflow-x-auto overflow-y-visible pt-2 pb-1"
+          role="list"
+          aria-label={m.storage_connect_saved()}
+        >
+          {#each allConnections as conn (conn.type + '|' + (conn.endpoint ?? '') + '|' + (conn.accessKeyId ?? ''))}
+            <div class="relative shrink-0" role="listitem">
+              <button
+                type="button"
+                onclick={() => selectConnection(conn)}
+                class="
+                  border-base-300 bg-base-100 hover:border-primary hover:bg-primary/5
+                  focus-visible:outline-primary flex flex-col items-center gap-1.5 rounded-xl border
+                  p-3 text-center transition-colors
+                "
+                title={connectionLabel(conn)}
+              >
+                <Icon
+                  icon="material-symbols:storage"
+                  class="text-primary size-8"
+                  aria-hidden="true"
+                />
+                <span class="w-20 truncate text-xs font-medium">{connectionLabel(conn)}</span>
+              </button>
+              <button
+                type="button"
+                aria-label={m.storage_connect_forget_label({ endpoint: connectionLabel(conn) })}
+                onclick={(e) => {
+                  e.stopPropagation();
+                  forgetCandidate = conn;
+                }}
+                class="
+                  border-base-300 bg-base-100 text-error hover:bg-error hover:text-error-content
+                  absolute -top-2 -right-2 flex size-5 items-center justify-center
+                  rounded-full border shadow-sm transition-colors
+                "
+              >
+                <Icon icon="material-symbols:close" class="size-3" aria-hidden="true" />
+              </button>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <p class="text-base-content/50 text-sm">{m.storage_connect_no_saved()}</p>
+      {/if}
+    </div>
+  </div>
 
   <form
+    bind:this={formRef}
     method="POST"
     action="?/connect"
     use:enhance
+    class:hidden={autoConnecting}
     class="
     flex flex-col gap-4
   "
@@ -139,3 +282,28 @@
     </button>
   </form>
 </div>
+
+{#if forgetCandidate}
+  <dialog open class="modal modal-open">
+    <div class="modal-box">
+      <p class="text-base-content font-medium">
+        {m.storage_connect_forget_confirm({ endpoint: connectionLabel(forgetCandidate) })}
+      </p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" onclick={() => (forgetCandidate = null)}>
+          {m.storage_connect_forget_cancel()}
+        </button>
+        <button
+          type="button"
+          class="btn btn-error btn-sm"
+          onclick={() => forgetConnection(forgetCandidate!)}
+        >
+          {m.storage_connect_forget()}
+        </button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button onclick={() => (forgetCandidate = null)}>close</button>
+    </form>
+  </dialog>
+{/if}

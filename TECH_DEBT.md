@@ -46,6 +46,14 @@ Trino error messages and Node.js exception messages are returned to the browser 
 
 ---
 
+### S3 connection credentials stored in localStorage
+
+**File:** `src/lib/storage/connection-storage.ts`, `src/lib/components/storage/StorageConnectForm.svelte`
+
+S3 connection credentials (access key ID and secret access key) are persisted in plaintext `localStorage` so the browser can auto-reconnect after a page reload or server restart. `localStorage` is accessible to any JavaScript running on the page and is visible in browser DevTools, making it vulnerable to XSS. Acceptable for the current early stage where the alternative is users having to re-enter credentials after every server restart. Long-term fix: persist encrypted credentials server-side, tied to the authenticated session; send only a session token to the client.
+
+---
+
 ### In-memory storage connection state
 
 **File:** `src/lib/server/storage/user-connections.ts`
