@@ -158,9 +158,9 @@
     <a
       href="/storage"
       data-sveltekit-preload-data="off"
-      class="btn btn-ghost btn-xs"
+      class="btn btn-ghost btn-xs tooltip tooltip-left"
       title={m.storage_view_all_buckets()}
-      aria-label={m.storage_view_all_buckets()}
+      data-tip={m.storage_view_all_buckets()}
     >
       <Icon icon="material-symbols:grid-view" class="size-3.5" aria-hidden="true" />
     </a>
