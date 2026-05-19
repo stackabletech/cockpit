@@ -14,7 +14,6 @@
   import { getActionErrorMessage } from './actions/errors.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
   import DeleteConfirmModal from './DeleteConfirmModal.svelte';
-  import { invalidateAll } from '$app/navigation';
 
   import { untrack } from 'svelte';
   import { navigating } from '$app/state';
