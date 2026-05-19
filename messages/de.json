@@ -155,6 +155,23 @@
   "storage_action_move": "Verschieben",
   "storage_action_delete": "Löschen",
   "storage_action_paste": "Einfügen",
+  "storage_action_pin": "Ort anheften",
+  "storage_action_unpin": "Loslösen",
+  "storage_pinned_label": "Angeheftete Orte",
+  "storage_more_options": "Weitere Optionen",
+  "storage_recent_files": "Zuletzt geöffnete Dateien",
+  "storage_recent_locations": "Zuletzt besuchte Orte",
+  "storage_recent_empty_files": "Keine zuletzt geöffneten Dateien.",
+  "storage_recent_empty_locations": "Keine zuletzt besuchten Orte.",
+  "storage_recent_col_name": "Name",
+  "storage_recent_col_location": "Ort",
+  "storage_recent_col_path": "Pfad",
+  "storage_recent_col_size": "Größe",
+  "storage_recent_col_visited": "Besucht",
+  "storage_recent_col_actions": "Aktionen",
+  "storage_recent_open_folder": "Ordner öffnen",
+  "storage_recent_go_to_location": "Zum Ort navigieren",
+  "storage_recent_preview_file": "Datei vorschau",
   "storage_danger_zone": "Gefahrenbereich",
   "storage_parent_dir": "Übergeordnetes Verzeichnis",
   "storage_loading": "Wird geladen…",
@@ -260,5 +277,107 @@
   "storage_upload_overwrite_rename": "Umbenennen",
   "storage_upload_rename_confirm": "Mit diesem Namen hochladen",
   "storage_upload_retry": "Erneut versuchen",
-  "storage_upload_close": "Schlie\u00dfen"
+  "storage_upload_close": "Schlie\u00dfen",
+  "timestamp_just_now": "gerade eben",
+  "timestamp_minutes_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "vor {count} Min.",
+        "n=other": "vor {count} Min."
+      }
+    }
+  ],
+  "timestamp_hours_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "vor {count} Std.",
+        "n=other": "vor {count} Std."
+      }
+    }
+  ],
+  "timestamp_days_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "vor {count} T.",
+        "n=other": "vor {count} T."
+      }
+    }
+  ],
+  "timestamp_months_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "vor {count} Mon.",
+        "n=other": "vor {count} Mon."
+      }
+    }
+  ],
+  "timestamp_years_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "vor {count} J.",
+        "n=other": "vor {count} J."
+      }
+    }
+  ]
+}
+  "timestamp_minutes_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "vor {count} Min.",
+        "n=other": "vor {count} Min."
+      }
+    }
+  ],
+  "timestamp_hours_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "vor {count} Std.",
+        "n=other": "vor {count} Std."
+      }
+    }
+  ],
+  "timestamp_days_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "vor {count} T.",
+        "n=other": "vor {count} T."
+      }
+    }
+  ],
+  "timestamp_months_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "vor {count} Mon.",
+        "n=other": "vor {count} Mon."
+      }
+    }
+  ],
+  "timestamp_years_ago": [
+    {
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
+      "match": {
+        "n=one": "vor {count} J.",
+        "n=other": "vor {count} J."
+      }
+    }
+  ]
 }
