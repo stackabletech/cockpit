@@ -3,6 +3,7 @@ export type ActionResult = {
   unimplemented?: true;
   previewKey?: string;
   openUpload?: true;
+  failedKeys?: Array<{ key: string; message?: string }>;
 };
 
 export type ActionName = 'download' | 'upload' | 'preview' | 'delete';

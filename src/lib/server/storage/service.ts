@@ -5,7 +5,7 @@ import { createS3Client } from './s3-client.js';
 import { mapS3ErrorToHttp } from './s3-errors.js';
 import { getProviderForUser } from './utils.js';
 import type { StoragePage, StorageMetadata } from '$lib/storage/types.js';
-import type { ObjectDownload } from './provider.js';
+import type { ObjectDownload, DeleteObjectsResult } from './provider.js';
 import { logger } from '$lib/server/logging';
 
 const log = logger.child({ module: 'storage-service' });
@@ -107,6 +107,30 @@ export async function uploadObject(
   } catch (err) {
     if (err instanceof S3ServiceException) {
       mapS3ErrorToHttp(err, { bucket, key, operation: 'putObject' });
+    }
+    throw err;
+  }
+}
+
+/** Delete one or more objects from the bucket. Returns a result listing any keys that failed. */
+export async function deleteObjects(
+  userId: string,
+  bucket: string,
+  keys: string[]
+): Promise<DeleteObjectsResult> {
+  const provider = getProviderForUser(userId, bucket);
+
+  try {
+    log.debug({ user_id: userId, bucket, key_count: keys.length }, 'deleting objects');
+    const result = await provider.deleteObjects(keys);
+    log.info(
+      { user_id: userId, bucket, key_count: keys.length, failed_count: result.failed.length },
+      'objects delete completed'
+    );
+    return result;
+  } catch (err) {
+    if (err instanceof S3ServiceException) {
+      mapS3ErrorToHttp(err, { bucket, operation: 'deleteObjects' });
     }
     throw err;
   }

@@ -1,4 +1,4 @@
-import type { StorageProvider, ObjectDownload } from './provider.js';
+import type { StorageProvider, ObjectDownload, DeleteObjectsResult } from './provider.js';
 import type { HDFSConfig } from './types.js';
 import type { StoragePage, StorageMetadata } from '$lib/storage/types.js';
 
@@ -40,6 +40,10 @@ export class HDFSStorageProvider implements StorageProvider {
     _contentType: string,
     _contentLength?: number
   ): Promise<void> {
+    throw new Error('HDFS not implemented');
+  }
+
+  deleteObjects(_keys: string[]): Promise<DeleteObjectsResult> {
     throw new Error('HDFS not implemented');
   }
 }

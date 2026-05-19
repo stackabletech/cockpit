@@ -4,10 +4,11 @@ import {
   ListObjectsV2Command,
   GetObjectCommand,
   HeadObjectCommand,
+  DeleteObjectsCommand,
   type ListObjectsV2CommandOutput
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
-import type { StorageProvider, ObjectDownload } from './provider.js';
+import type { StorageProvider, ObjectDownload, DeleteObjectsResult } from './provider.js';
 import type { S3Config } from './types.js';
 import type { StoragePage, StorageObject, StorageMetadata } from '$lib/storage/types.js';
 import { logger } from '$lib/server/logging';
@@ -150,5 +151,30 @@ export class S3StorageProvider implements StorageProvider {
       { bucket: this.bucket, key, content_type: contentType, content_length: contentLength },
       'object uploaded'
     );
+  }
+
+  async deleteObjects(keys: string[]): Promise<DeleteObjectsResult> {
+    log.debug({ bucket: this.bucket, key_count: keys.length }, 'deleting objects');
+    const output = await this.client.send(
+      new DeleteObjectsCommand({
+        Bucket: this.bucket,
+        Delete: {
+          Objects: keys.map((key) => ({ Key: key })),
+          Quiet: true
+        }
+      })
+    );
+    const failed = (output.Errors ?? []).map((e) => ({
+      key: e.Key ?? '',
+      code: e.Code,
+      message: e.Message
+    }));
+    if (failed.length > 0) {
+      log.warn(
+        { bucket: this.bucket, failed_count: failed.length },
+        'some objects failed to delete'
+      );
+    }
+    return { failed };
   }
 }
