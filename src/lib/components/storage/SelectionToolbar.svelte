@@ -6,12 +6,11 @@
     /** Total number of selected items. */
     selectedCount: number;
     canPreview: boolean;
-    canRename: boolean;
     canDownload: boolean;
     onAction: (action: string) => void;
   }
 
-  let { selectedCount, canPreview, canRename, canDownload, onAction }: Props = $props();
+  let { selectedCount, canPreview, canDownload, onAction }: Props = $props();
 </script>
 
 <tr class="border-primary/20 bg-primary/5 border-t">
@@ -29,16 +28,6 @@
       >
         <Icon icon="material-symbols:visibility" class="size-3.5" aria-hidden="true" />
         {m.storage_action_preview()}
-      </button>
-
-      <button
-        class="btn btn-ghost btn-xs gap-1"
-        title="{m.storage_action_rename()} (F2)"
-        onclick={() => onAction('rename')}
-        disabled={!canRename}
-      >
-        <Icon icon="material-symbols:edit" class="size-3.5" aria-hidden="true" />
-        {m.storage_action_rename()}
       </button>
 
       <button

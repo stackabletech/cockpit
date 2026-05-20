@@ -201,7 +201,7 @@
         />
       </button>
       <button
-        class="btn btn-primary btn-sm"
+        class="btn btn-ghost btn-sm"
         onclick={onnext}
         disabled={!canGoNext}
         aria-label={m.pagination_next_page()}

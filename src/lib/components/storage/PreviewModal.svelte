@@ -229,26 +229,36 @@
           {filename}
         </h2>
         {#if preview.kind === 'text' || preview.kind === 'csv'}
-          <p class="text-base-content/50 mt-0.5 text-xs">
-            {prettyBytes(preview.totalSize)}
+          <div class="mt-1 flex flex-wrap items-center gap-1">
+            <span class="badge badge-ghost badge-sm font-mono"
+              >{prettyBytes(preview.totalSize)}</span
+            >
             {#if preview.truncated}
-              &mdash;
-              {m.storage_preview_truncated({ size: prettyBytes(preview.previewBytes) })}
+              <span class="badge badge-warning badge-sm">
+                {m.storage_preview_truncated({ size: prettyBytes(preview.previewBytes) })}
+              </span>
             {/if}
-          </p>
+          </div>
         {:else if preview.kind === 'parquet'}
-          <p class="text-base-content/50 mt-0.5 text-xs">
-            {prettyBytes(preview.totalSize)}
+          <div class="mt-1 flex flex-wrap items-center gap-1">
+            <span class="badge badge-ghost badge-sm font-mono"
+              >{prettyBytes(preview.totalSize)}</span
+            >
             {#if preview.truncated}
-              &mdash;
-              {m.storage_preview_parquet_rows({
-                count: preview.previewRows,
-                total: preview.totalRows
-              })}
+              <span class="badge badge-warning badge-sm">
+                {m.storage_preview_parquet_rows({
+                  count: preview.previewRows,
+                  total: preview.totalRows
+                })}
+              </span>
             {/if}
-          </p>
+          </div>
         {:else if preview.kind === 'image' || preview.kind === 'pdf'}
-          <p class="text-base-content/50 mt-0.5 text-xs">{prettyBytes(preview.totalSize)}</p>
+          <div class="mt-1">
+            <span class="badge badge-ghost badge-sm font-mono"
+              >{prettyBytes(preview.totalSize)}</span
+            >
+          </div>
         {/if}
       </div>
       <button

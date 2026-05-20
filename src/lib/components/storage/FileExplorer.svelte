@@ -261,8 +261,7 @@
     if (e.key === 'Delete' && selectedKeys.size > 0) {
       pendingDeleteKeys = [...selectedKeys];
       showDeleteModal = true;
-    } else if (e.key === 'F2' && selectedKeys.size === 1) handleAction('rename');
-    else if (e.key === 'Escape') {
+    } else if (e.key === 'Escape') {
       if (ctxMenu) {
         selectedKeys.delete(ctxKey!);
         ctxMenu = null;
@@ -294,11 +293,11 @@
     onToggleSelectionMode={toggleSelectionMode}
   />
 
-  <div class="relative flex-1 overflow-y-auto">
+  <div class="relative min-h-0 flex-1 overflow-hidden">
     {#if loading || deleting}
       <div
         class="
-          bg-base-100/70 absolute inset-0 z-10 flex items-center justify-center
+          bg-base-100/70 absolute inset-0 z-20 flex items-center justify-center
         "
         aria-live="polite"
         aria-label={m.storage_loading()}
@@ -313,6 +312,7 @@
       {selectedKeys}
       {ctxKey}
       {showCheckboxes}
+      {selectionMode}
       {allSelected}
       {someSelected}
       onNavigate={handleNavigate}
