@@ -30,11 +30,6 @@ export default defineConfig({
       reuseExistingServer: true
     },
     {
-      command: 'npx tsx e2e/start-mock-s3.ts',
-      url: 'http://localhost:9191',
-      reuseExistingServer: true
-    },
-    {
       command: 'PORT=4173 node --env-file=.env.test build',
       url: baseURL,
       reuseExistingServer: true
