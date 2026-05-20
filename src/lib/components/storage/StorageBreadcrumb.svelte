@@ -224,13 +224,17 @@
     {/each}
   </nav>
 
-  <!-- Item count badge -->
-  <span class="text-base-content/40 shrink-0 text-xs">
-    {folderCount}
-    {folderCount === 1 ? m.storage_folder() : m.storage_folders()},
-    {fileCount}
-    {fileCount === 1 ? m.storage_file() : m.storage_files()}
-  </span>
+  <!-- Item count badges -->
+  <div class="flex shrink-0 items-center gap-1.5">
+    <span class="badge badge-soft badge-secondary badge-sm gap-1">
+      <Icon icon="material-symbols:folder-outline" class="size-3" aria-hidden="true" />
+      <span class="font-semibold">{folderCount}</span>
+    </span>
+    <span class="badge badge-soft badge-secondary badge-sm gap-1">
+      <Icon icon="material-symbols:description-outline" class="size-3" aria-hidden="true" />
+      <span class="font-semibold">{fileCount}</span>
+    </span>
+  </div>
 
   <!-- Multi-select toggle -->
   <button
