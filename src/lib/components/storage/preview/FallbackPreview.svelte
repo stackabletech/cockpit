@@ -13,7 +13,7 @@
   let { contentType, downloadUrl, name, isBinary = false }: Props = $props();
 </script>
 
-<div class="flex flex-col items-center gap-4 p-8 text-center">
+<div class="flex min-h-full flex-col items-center justify-center gap-4 p-8 text-center">
   <Icon
     icon="material-symbols:file-present"
     class="text-base-content/30 size-16"

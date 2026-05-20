@@ -52,8 +52,8 @@
 
       <button
         class="
-          btn text-error btn-ghost btn-xs hover:bg-error/10
-          gap-1
+          btn btn-ghost btn-xs gap-1
+          {selectedCount > 0 ? 'text-error hover:bg-error/10' : ''}
         "
         title="{m.storage_action_delete()} (Del)"
         onclick={() => onAction('delete')}

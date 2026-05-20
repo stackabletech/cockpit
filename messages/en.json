@@ -143,6 +143,7 @@
   "storage_connect_forget_label": "Forget connection to {endpoint}",
   "storage_disconnect": "Disconnect",
   "storage_buckets_label": "Buckets",
+  "storage_buckets_subtitle": "Browse and manage your stored objects.",
   "storage_view_all_buckets": "View all buckets",
   "storage_buckets_empty": "No buckets found",
   "storage_bucket_empty": "This bucket is empty",

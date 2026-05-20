@@ -29,7 +29,7 @@
     ? 'bg-base-300 outline-base-content/30 outline -outline-offset-2'
     : selected
       ? 'bg-primary/10 hover:bg-primary/15'
-      : 'hover'}"
+      : 'hover:bg-base-200/60'}"
   onclick={(e) => onToggleSelect(file.key, e.ctrlKey || e.metaKey)}
   ondblclick={() => onAction('preview')}
   oncontextmenu={(e) => onContextMenu(e, file.key)}
