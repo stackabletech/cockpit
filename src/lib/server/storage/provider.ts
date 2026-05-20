@@ -38,4 +38,9 @@ export interface StorageProvider {
     contentLength?: number
   ): Promise<void>;
   deleteObjects(keys: string[]): Promise<DeleteObjectsResult>;
+  /**
+   * List all object keys under a prefix, recursively (no delimiter).
+   * Used to expand directory prefixes before deletion.
+   */
+  listAllKeys(prefix: string): Promise<string[]>;
 }

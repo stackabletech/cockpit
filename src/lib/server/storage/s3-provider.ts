@@ -177,4 +177,27 @@ export class S3StorageProvider implements StorageProvider {
     }
     return { failed };
   }
+
+  async listAllKeys(prefix: string): Promise<string[]> {
+    log.debug({ bucket: this.bucket, prefix }, 'listing all keys under prefix');
+    const keys: string[] = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const output: ListObjectsV2CommandOutput = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          ContinuationToken: continuationToken
+        })
+      );
+      for (const obj of output.Contents ?? []) {
+        if (obj.Key) keys.push(obj.Key);
+      }
+      continuationToken = output.IsTruncated ? output.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    log.debug({ bucket: this.bucket, prefix, key_count: keys.length }, 'listed all keys');
+    return keys;
+  }
 }

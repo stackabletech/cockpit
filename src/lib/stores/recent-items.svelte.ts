@@ -115,3 +115,30 @@ export function fileHref(file: RecentFile): string {
 export function locationHref(loc: RecentLocation): string {
   return storageHref(loc.bucket, loc.prefix);
 }
+
+/**
+ * Remove all recent files and locations that reside inside any of the given
+ * directory prefixes (keys ending with '/') within the given bucket.
+ * Called after a directory is deleted so stale entries are cleaned up.
+ */
+export function removeItemsUnderDirectories(bucket: string, dirPrefixes: string[]): void {
+  if (dirPrefixes.length === 0) return;
+
+  const underAny = (path: string) => dirPrefixes.some((p) => path === p || path.startsWith(p));
+
+  const removedFiles = recentFiles.filter((f) => f.bucket === bucket && underAny(f.key)).length;
+  if (removedFiles > 0) {
+    const keep = recentFiles.filter((f) => !(f.bucket === bucket && underAny(f.key)));
+    recentFiles.splice(0, recentFiles.length, ...keep);
+    persist(LS_FILES, [...recentFiles]);
+  }
+
+  const removedLocs = recentLocations.filter(
+    (l) => l.bucket === bucket && underAny(l.prefix)
+  ).length;
+  if (removedLocs > 0) {
+    const keep = recentLocations.filter((l) => !(l.bucket === bucket && underAny(l.prefix)));
+    recentLocations.splice(0, recentLocations.length, ...keep);
+    persist(LS_LOCATIONS, [...recentLocations]);
+  }
+}

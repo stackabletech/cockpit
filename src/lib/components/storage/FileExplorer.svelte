@@ -193,7 +193,7 @@
     };
 
     if (action === 'delete') {
-      pendingDeleteKeys = effectiveSelectedKeys;
+      pendingDeleteKeys = [...selectedKeys];
       showDeleteModal = true;
       return;
     }
