@@ -60,6 +60,7 @@
   function selectConnection(conn: StoredConnection) {
     $form.type = conn.type;
     $form.endpoint = conn.endpoint ?? '';
+    $form.pathStyle = conn.pathStyle ?? true;
     $form.region = conn.region;
     $form.accessKeyId = conn.accessKeyId ?? '';
     $form.secretAccessKey = conn.secretAccessKey ?? '';
@@ -83,6 +84,7 @@
       autoConnecting = true;
       $form.type = saved.type;
       $form.endpoint = saved.endpoint ?? '';
+      $form.pathStyle = saved.pathStyle ?? true;
       $form.region = saved.region;
       $form.accessKeyId = saved.accessKeyId ?? '';
       $form.secretAccessKey = saved.secretAccessKey ?? '';
@@ -209,6 +211,23 @@
       {#if $errors?.endpoint}
         <p class="text-error mt-1 text-xs">{$errors?.endpoint}</p>
       {/if}
+    </div>
+
+    <!-- Path-style addressing -->
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <label for="{uid}-path-style" class="label text-sm font-medium">
+          {m.storage_connect_path_style()}
+        </label>
+        <p class="text-base-content/50 mt-0.5 text-xs">{m.storage_connect_path_style_hint()}</p>
+      </div>
+      <input
+        id="{uid}-path-style"
+        name="pathStyle"
+        type="checkbox"
+        class="toggle toggle-primary mt-1 shrink-0"
+        bind:checked={$form.pathStyle}
+      />
     </div>
 
     <!-- Region -->

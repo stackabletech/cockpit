@@ -129,6 +129,8 @@
   "storage_connect_endpoint": "Endpoint URL",
   "storage_connect_endpoint_placeholder": "https://minio.example.com:9000",
   "storage_connect_endpoint_hint": "Leave blank to use AWS S3",
+  "storage_connect_path_style": "Use path-style addressing",
+  "storage_connect_path_style_hint": "Enable for MinIO and most self-hosted S3 providers. Disable for virtual-hosted-style access.",
   "storage_connect_region": "Region",
   "storage_connect_access_key": "Access key ID",
   "storage_connect_secret_key": "Secret access key",
