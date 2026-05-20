@@ -12,6 +12,10 @@ export function getActionErrorMessage(err: ActionError): string {
       return m.storage_download_error_not_found();
     case 'server_error':
       return m.storage_download_error_server_error();
+    case 'no_such_bucket':
+      return m.storage_upload_error_no_such_bucket();
+    case 'invalid_part':
+      return m.storage_upload_error_invalid_part();
     default:
       return m.storage_download_error_unknown();
   }

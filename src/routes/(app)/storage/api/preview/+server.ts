@@ -1,23 +1,18 @@
-import { error, json } from '@sveltejs/kit';
-import { S3ServiceException } from '@aws-sdk/client-s3';
+import { json } from '@sveltejs/kit';
 import { getUserId } from '$lib/server/auth-utils.js';
 import { getConnection } from '$lib/server/storage/service.js';
 import { StorageProviderFactory } from '$lib/server/storage/factory.js';
+import { mapS3ErrorToHttp } from '$lib/server/storage/s3-errors.js';
 // import { parquetPreview } from '$lib/server/storage/preview/parquet.js';
 import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
+import { requireBucketKey } from '../params.js';
 import type { RequestHandler } from '@sveltejs/kit';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
   const log = locals.logger;
   const userId = getUserId(locals);
-
-  const bucket = url.searchParams.get('bucket');
-  const key = url.searchParams.get('key');
-
-  if (!bucket || !key) {
-    return json({ error: 'Missing bucket or key parameter' }, { status: 400 });
-  }
+  const { bucket, key } = requireBucketKey(url);
 
   const connection = getConnection(userId);
   if (!connection) {
@@ -68,21 +63,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
     return await streamPreview(provider, key, contentType, totalSize, userId, log);
   } catch (err) {
-    if (err instanceof S3ServiceException) {
-      const code = err.name;
-      const status = err.$metadata?.httpStatusCode;
-      log.warn(
-        { user_id: userId, bucket, key, error_code: code, http_status: status },
-        'S3 error fetching preview'
-      );
-      if (code === 'AccessDenied' || status === 403) {
-        throw error(403, 'Access denied');
-      }
-      if (code === 'NoSuchKey' || status === 404) {
-        throw error(404, 'Object not found');
-      }
-      throw error(502, `Storage error: ${err.message}`);
-    }
-    throw err;
+    mapS3ErrorToHttp(err, { bucket, key, operation: 'preview' });
   }
 };
