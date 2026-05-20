@@ -49,6 +49,8 @@
   // Keeping it non-reactive prevents a read/write cycle inside the $effect below.
   let blobUrls: string[] = [];
   let maximized = $state(false);
+  let imageNaturalWidth = $state(0);
+  let imageNaturalHeight = $state(0);
 
   // Revoke blob URLs when the component is destroyed
   onDestroy(() => {
@@ -72,6 +74,8 @@
     if (!open) {
       revokeBlobUrls();
       preview = { kind: 'idle' };
+      imageNaturalWidth = 0;
+      imageNaturalHeight = 0;
     }
   });
 
@@ -254,10 +258,15 @@
             {/if}
           </div>
         {:else if preview.kind === 'image' || preview.kind === 'pdf'}
-          <div class="mt-1">
+          <div class="mt-1 flex flex-wrap items-center gap-1">
             <span class="badge badge-neutral badge-sm font-mono"
               >{prettyBytes(preview.totalSize)}</span
             >
+            {#if preview.kind === 'image' && imageNaturalWidth > 0}
+              <span class="badge badge-neutral badge-sm font-mono"
+                >{imageNaturalWidth} &times; {imageNaturalHeight} px</span
+              >
+            {/if}
           </div>
         {/if}
       </div>
@@ -309,7 +318,12 @@
       {:else if preview.kind === 'parquet'}
         <CsvPreview text={preview.text} />
       {:else if preview.kind === 'image'}
-        <ImagePreview src={preview.blobUrl} name={filename} />
+        <ImagePreview
+          src={preview.blobUrl}
+          name={filename}
+          bind:naturalWidth={imageNaturalWidth}
+          bind:naturalHeight={imageNaturalHeight}
+        />
       {:else if preview.kind === 'pdf'}
         <PdfPreview src={preview.blobUrl} name={filename} />
       {:else if preview.kind === 'fallback'}

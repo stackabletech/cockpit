@@ -18,7 +18,7 @@
   import { untrack } from 'svelte';
   import { navigating } from '$app/state';
   import { initPageSize, type PageSize } from '$lib/types/pagination.js';
-  import { pinLocation } from '$lib/stores/pinned-locations.svelte.js';
+  import { pinLocation, unpinLocation, isPinned } from '$lib/stores/pinned-locations.svelte.js';
   import { recordLocationVisit, recordFileVisit } from '$lib/stores/recent-items.svelte.js';
 
   interface Props {
@@ -152,6 +152,7 @@
   const ctxFileObj = $derived(ctxKey ? (files.find((f) => f.key === ctxKey) ?? null) : null);
   const ctxIsFile = $derived(ctxFileObj !== null);
   const canPin = $derived(ctxKey !== null && !ctxIsFile);
+  const ctxIsPinned = $derived(ctxKey !== null && !ctxIsFile && isPinned(bucket, ctxKey));
 
   function openContextMenu(e: MouseEvent, key: string) {
     e.preventDefault();
@@ -201,6 +202,8 @@
     try {
       if (action === 'pin') {
         pinLocation(bucket, ctxKey ?? prefix);
+      } else if (action === 'unpin') {
+        unpinLocation(bucket, ctxKey ?? prefix);
       } else if (action === 'download' || action === 'upload' || action === 'preview') {
         // Record file visit for the acted-on file(s)
         for (const f of effectiveSelectedFiles) {
@@ -363,6 +366,7 @@
       (ctxKey !== null && files.some((f) => f.key === ctxKey))}
     canDownload={selectedFiles.length > 0 || ctxIsFile}
     {canPin}
+    isAlreadyPinned={ctxIsPinned}
     onAction={handleAction}
     onClose={() => {
       ctxMenu = null;

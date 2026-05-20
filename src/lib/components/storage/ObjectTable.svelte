@@ -63,7 +63,7 @@
   }
 </script>
 
-<div class="h-full overflow-x-auto overflow-y-auto">
+<div class="preview-scroll h-full overflow-x-auto overflow-y-auto">
   <table class="table-sm table">
     <thead class="bg-base-100 sticky top-0 z-10">
       <!-- Column headers -->

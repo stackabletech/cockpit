@@ -66,14 +66,14 @@
   ></div>
   <ul
     class="
-      menu menu-sm border-base-300 bg-base-100 fixed z-50 w-40 rounded-lg
+      menu menu-sm border-base-300 bg-base-100 fixed z-[60] w-40 rounded-lg
       border p-1 shadow-lg
     "
     role="menu"
     style="left: {unpinCtx.x}px; top: {unpinCtx.y}px;"
   >
     <li role="none">
-      <button role="menuitem" class="text-error justify-start" onclick={handleUnpin}>
+      <button role="menuitem" class="justify-start" onclick={handleUnpin}>
         <Icon icon="material-symbols:push-pin-outline" class="size-4 shrink-0" aria-hidden="true" />
         {m.storage_action_unpin()}
       </button>

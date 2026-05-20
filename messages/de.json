@@ -153,6 +153,26 @@
   "storage_folders": "Ordner",
   "storage_file": "Datei",
   "storage_files": "Dateien",
+  "storage_folder_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 Ordner",
+        "countPlural=other": "{count} Ordner"
+      }
+    }
+  ],
+  "storage_file_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 Datei",
+        "countPlural=other": "{count} Dateien"
+      }
+    }
+  ],
   "storage_select_toggle": "Auswahlmodus umschalten",
   "storage_paste": "{count} Element einfügen",
   "storage_paste_plural": "{count} Elemente einfügen",
