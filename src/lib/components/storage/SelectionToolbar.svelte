@@ -41,16 +41,6 @@
       </button>
 
       <button
-        class="btn btn-ghost btn-xs gap-1"
-        title={m.storage_action_move()}
-        onclick={() => onAction('move')}
-        disabled={selectedCount === 0}
-      >
-        <Icon icon="material-symbols:drive-file-move" class="size-3.5" aria-hidden="true" />
-        {m.storage_action_move()}
-      </button>
-
-      <button
         class="
           btn btn-ghost btn-xs gap-1
           {selectedCount > 0 ? 'text-error hover:bg-error/10' : ''}

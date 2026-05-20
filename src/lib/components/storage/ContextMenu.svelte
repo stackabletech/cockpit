@@ -66,22 +66,10 @@
       disabled: () => !canPreview
     },
     {
-      key: 'rename',
-      icon: 'material-symbols:edit',
-      label: () => m.storage_action_rename(),
-      disabled: () => selectionCount !== 1
-    },
-    {
       key: 'download',
       icon: 'material-symbols:download',
       label: () => m.storage_action_download(),
       disabled: () => !canDownload
-    },
-    {
-      key: 'move',
-      icon: 'material-symbols:drive-file-move',
-      label: () => m.storage_action_move(),
-      disabled: () => selectionCount === 0
     },
     {
       key: 'pin',
