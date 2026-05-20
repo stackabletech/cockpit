@@ -6,7 +6,7 @@ export function createS3Client(config: S3ConnectionConfig): S3Client {
     region: config.region,
     ...(config.endpoint && {
       endpoint: config.endpoint,
-      forcePathStyle: true
+      forcePathStyle: config.pathStyle ?? true
     }),
     ...(config.accessKeyId &&
       config.secretAccessKey && {

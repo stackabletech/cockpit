@@ -4,6 +4,7 @@ export const StorageConnectionSchema = z
   .object({
     type: z.enum(['s3', 'hdfs']).default('s3'),
     endpoint: z.url({ message: 'Must be a valid URL' }).or(z.literal('')).optional(),
+    pathStyle: z.boolean().default(true),
     region: z.string().min(1).default('eu-central-1'),
     accessKeyId: z.string().optional(),
     secretAccessKey: z.string().optional()

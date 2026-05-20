@@ -2,6 +2,8 @@
 export interface S3ConnectionConfig {
   type: 's3';
   endpoint?: string;
+  /** Use path-style addressing (true) or virtual-hosted style (false). Defaults to true. */
+  pathStyle?: boolean;
   region: string;
   accessKeyId?: string;
   secretAccessKey?: string;
