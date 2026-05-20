@@ -12,27 +12,27 @@ This Helm chart deploys the Stackable Unified Data Platform UI on Kubernetes.
 ### Basic Installation
 
 ```bash
-helm install stackable-ui ./deploy/helm/stackable-ui
+helm install stackable-cockpit ./deploy/helm/stackable-cockpit
 ```
 
 ### Installation with Custom Values
 
 ```bash
-helm install stackable-ui ./deploy/helm/stackable-ui \
+helm install stackable-cockpit ./deploy/helm/stackable-cockpit \
   --set image.tag=0.0.0-dev
 ```
 
 ### Installation with Values File
 
 ```bash
-helm install stackable-ui ./deploy/helm/stackable-ui \
+helm install stackable-cockpit ./deploy/helm/stackable-cockpit \
   -f my-values.yaml
 ```
 
 ## Uninstalling the Chart
 
 ```bash
-helm uninstall stackable-ui
+helm uninstall stackable-cockpit
 ```
 
 ## Configuration
@@ -45,7 +45,7 @@ The following table lists the configurable parameters of the Stackable UI chart 
 | --- | --- | --- |
 | `replicaCount` | Number of replicas | `1` |
 | `image.registry` | Container image registry | `oci.stackable.tech` |
-| `image.repository` | Container image repository | `sdp/stackable-ui` |
+| `image.repository` | Container image repository | `sdp/stackable-cockpit` |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `image.tag` | Image tag (overrides appVersion) | `""` |
 | `nameOverride` | String to partially override fullname | `""` |
@@ -106,6 +106,6 @@ The following table lists the configurable parameters of the Stackable UI chart 
 
 For issues and questions:
 
-- GitHub: <https://github.com/stackabletech/stackable-ui/issues>
+- GitHub: <https://github.com/stackabletech/stackable-cockpit/issues>
 - Documentation: <https://docs.stackable.tech/>
 - Email: <info@stackable.tech>

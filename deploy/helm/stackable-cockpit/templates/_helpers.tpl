@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "stackable-ui.name" -}}
+{{- define "stackable-cockpit.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
@@ -10,7 +10,7 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "stackable-ui.fullname" -}}
+{{- define "stackable-cockpit.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -26,16 +26,16 @@ If release name contains chart name it will be used as a full name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "stackable-ui.chart" -}}
+{{- define "stackable-cockpit.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "stackable-ui.labels" -}}
-helm.sh/chart: {{ include "stackable-ui.chart" . }}
-{{ include "stackable-ui.selectorLabels" . }}
+{{- define "stackable-cockpit.labels" -}}
+helm.sh/chart: {{ include "stackable-cockpit.chart" . }}
+{{ include "stackable-cockpit.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -46,8 +46,8 @@ stackable.tech/vendor: stackable
 {{/*
 Selector labels
 */}}
-{{- define "stackable-ui.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "stackable-ui.name" . }}
+{{- define "stackable-cockpit.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "stackable-cockpit.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/component: ui
 {{- end }}
@@ -55,19 +55,19 @@ app.kubernetes.io/component: ui
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "stackable-ui.serviceAccountName" -}}
+{{- define "stackable-cockpit.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "stackable-ui.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "stackable-cockpit.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
 
-{{- define "stackable-ui.sessionSecret" -}}
+{{- define "stackable-cockpit.sessionSecret" -}}
 {{- if .Values.sessionSecret }}
 {{- .Values.sessionSecret }}
 {{- else }}
-{{- $existing := lookup "v1" "Secret" .Release.Namespace (include "stackable-ui.fullname" .) }}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace (include "stackable-cockpit.fullname" .) }}
 {{- if and $existing $existing.data (index $existing.data "session-secret") }}
 {{- index $existing.data "session-secret" | b64dec }}
 {{- else }}
@@ -79,7 +79,7 @@ Create the name of the service account to use
 {{/*
 Image name
 */}}
-{{- define "stackable-ui.image" -}}
+{{- define "stackable-cockpit.image" -}}
 {{- if .Values.image.registry }}
 {{- printf "%s/%s:%s" .Values.image.registry .Values.image.repository (.Values.image.tag | default .Chart.AppVersion) }}
 {{- else }}

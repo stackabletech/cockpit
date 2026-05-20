@@ -6,7 +6,7 @@ metadata:
   namespace: default
 stringData:
   # Service account used by Stackable UI to connect to Trino.
-  stackable-ui: stackable-ui-dev
+  stackable-cockpit: stackable-cockpit-dev
 ---
 apiVersion: authentication.stackable.tech/v1alpha1
 kind: AuthenticationClass
@@ -64,7 +64,7 @@ data:
     {
       "impersonation": [
         {
-          "original_user": "stackable-ui",
+          "original_user": "stackable-cockpit",
           "new_user": ".*",
           "allow": true
         }

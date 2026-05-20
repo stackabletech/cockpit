@@ -55,7 +55,7 @@ export class TrinoClient {
     this.dispatcher = options.dispatcher;
 
     this.commonHeaders = {
-      'X-Trino-Source': options.source ?? 'stackable-ui'
+      'X-Trino-Source': options.source ?? 'stackable-cockpit'
     };
     if (options.authorization) {
       this.commonHeaders['Authorization'] = options.authorization;

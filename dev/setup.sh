@@ -70,7 +70,7 @@ if kcadm get realms/stackable --fields realm 2>/dev/null | grep -q '"stackable"'
   echo "Realm 'stackable' already exists, skipping Keycloak configuration."
   # Still need to fetch the client secret
   CLIENT_UUID=$(kcadm get clients -r stackable --fields id,clientId \
-    | grep -B1 '"stackable-ui"' | grep '"id"' | sed 's/.*: *"\(.*\)".*/\1/')
+    | grep -B1 '"stackable-cockpit"' | grep '"id"' | sed 's/.*: *"\(.*\)".*/\1/')
   SECRET=$(kcadm get clients/"$CLIENT_UUID"/client-secret -r stackable --fields value \
     | grep '"value"' | sed 's/.*: *"\(.*\)".*/\1/')
 else
@@ -86,10 +86,10 @@ else
     -s realm=stackable \
     -s enabled=true
 
-  echo "Creating client 'stackable-ui'..."
+  echo "Creating client 'stackable-cockpit'..."
   CLIENT_UUID=$(kcadm create clients \
     -r stackable \
-    -s clientId=stackable-ui \
+    -s clientId=stackable-cockpit \
     -s enabled=true \
     -s protocol=openid-connect \
     -s publicClient=false \
@@ -151,14 +151,14 @@ TRINO_PORT=$(kubectl get svc trino-coordinator -o jsonpath='{.spec.ports[0].node
 
 cat > "$ENV_FILE" <<EOF
 STACKABLE_UI_OIDC_DISCOVERY_URL=http://${NODE_IP}:30080/realms/stackable/.well-known/openid-configuration
-STACKABLE_UI_OIDC_CLIENT_ID=stackable-ui
+STACKABLE_UI_OIDC_CLIENT_ID=stackable-cockpit
 STACKABLE_UI_OIDC_CLIENT_SECRET=${SECRET}
 STACKABLE_UI_SESSION_SECRET=${SESSION_SECRET}
 STACKABLE_UI_BASE_URL=http://localhost:5173
 STACKABLE_UI_TRINO_URL=https://${NODE_IP}:${TRINO_PORT}
 STACKABLE_UI_TRINO_AUTH_TYPE=basic
-STACKABLE_UI_TRINO_AUTH_USERNAME=stackable-ui
-STACKABLE_UI_TRINO_AUTH_PASSWORD=stackable-ui-dev
+STACKABLE_UI_TRINO_AUTH_USERNAME=stackable-cockpit
+STACKABLE_UI_TRINO_AUTH_PASSWORD=stackable-cockpit-dev
 STACKABLE_UI_TRINO_TLS_INSECURE=true
 EOF
 

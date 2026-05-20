@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "stackable-ui.fullname" . }}
+  name: {{ include "stackable-cockpit.fullname" . }}
   labels:
-    {{- include "stackable-ui.labels" . | nindent 4 }}
+    {{- include "stackable-cockpit.labels" . | nindent 4 }}
 data:
   oidc-discovery-url: {{ .Values.auth.discoveryUrl | quote }}
   oidc-client-id: {{ .Values.auth.clientId | quote }}

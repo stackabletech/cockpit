@@ -64,7 +64,7 @@ COPY svelte.config.js tsconfig.json vite.config.ts ./
 RUN STACKABLE_UI_SESSION_SECRET="build-time-placeholder" \
     STACKABLE_UI_BASE_URL="http://localhost:3000" \
     npm run build && \
-    npx @cyclonedx/cyclonedx-npm --omit dev --output-file /build/stackable-ui.cdx.json
+    npx @cyclonedx/cyclonedx-npm --omit dev --output-file /build/stackable-cockpit.cdx.json
 
 # Install only production dependencies; --ignore-scripts skips the prepare script
 # (which would fail because antlr-ng is a devDependency and not available here)
@@ -102,7 +102,7 @@ WORKDIR /stackable/app
 COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/build ./build
 COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node_modules
 COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
-COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/stackable-ui.cdx.json ./stackable-ui.cdx.json
+COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/stackable-cockpit.cdx.json ./stackable-cockpit.cdx.json
 COPY --chown=${STACKABLE_USER_UID}:0 LICENSE /licenses/LICENSE
 RUN chmod -R g=u /stackable/app
 
@@ -130,7 +130,7 @@ LABEL io.openshift.expose-services=""
 # https://github.com/opencontainers/image-spec/blob/036563a4a268d7c08b51a08f05a02a0fe74c7268/annotations.md#annotations
 LABEL org.opencontainers.image.authors="info@stackable.tech"
 LABEL org.opencontainers.image.url="https://stackable.tech"
-LABEL org.opencontainers.image.source="https://github.com/stackabletech/stackable-ui/"
+LABEL org.opencontainers.image.source="https://github.com/stackabletech/stackable-cockpit/"
 LABEL org.opencontainers.image.vendor="Stackable GmbH"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 

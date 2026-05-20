@@ -1,11 +1,11 @@
 ---
-# Default values for stackable-ui
+# Default values for stackable-cockpit
 
 replicaCount: 1
 
 image:
   registry: oci.stackable.tech
-  repository: sdp/stackable-ui
+  repository: sdp/stackable-cockpit
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -58,14 +58,14 @@ ingress:
     # cert-manager.io/cluster-issuer: letsencrypt-prod
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: stackable-ui.local
+    - host: stackable-cockpit.local
       paths:
         - path: /
           pathType: Prefix
   tls: []
-  #  - secretName: stackable-ui-tls
+  #  - secretName: stackable-cockpit-tls
   #    hosts:
-  #      - stackable-ui.local
+  #      - stackable-cockpit.local
 
 resources:
   limits:
@@ -128,7 +128,7 @@ sessionSecret: ""
 # OIDC authentication configuration
 auth:
   # The publicly accessible base URL of this application (used for OIDC callback URLs)
-  # Required. Example: https://stackable-ui.example.com
+  # Required. Example: https://stackable-cockpit.example.com
   baseUrl: ""
   # OIDC discovery URL (the full .well-known/openid-configuration URL)
   # Required. Example: https://your-idp.example.com/realms/your-realm/.well-known/openid-configuration
