@@ -1,9 +1,11 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
+  import { invalidateAll } from '$app/navigation';
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import ObjectTable from './ObjectTable.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import PreviewModal from './PreviewModal.svelte';
+  import UploadModal from './UploadModal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
   import type { StoragePage } from '$lib/storage/types.js';
   import { SvelteSet } from 'svelte/reactivity';
@@ -12,7 +14,6 @@
   import { getActionErrorMessage } from './actions/errors.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
   import DeleteConfirmModal from './DeleteConfirmModal.svelte';
-  import { invalidateAll } from '$app/navigation';
 
   import { untrack } from 'svelte';
   import { navigating } from '$app/state';
@@ -169,6 +170,7 @@
   let pendingDeleteKeys = $state<string[]>([]);
   let showPreviewModal = $state(false);
   let previewKey = $state<string | null>(null);
+  let showUploadModal = $state(false);
 
   // ── Action dispatch ───────────────────────────────────────────────────────
 
@@ -208,6 +210,8 @@
         if (res?.previewKey) {
           previewKey = res.previewKey;
           showPreviewModal = true;
+        } else if (res?.openUpload) {
+          showUploadModal = true;
         } else if (res?.unimplemented) {
           addToast('warning', `${action} — not implemented`);
         }
@@ -220,6 +224,11 @@
         err instanceof ActionError ? getActionErrorMessage(err) : m.storage_download_error_unknown()
       );
     }
+  }
+
+  function handleUploadSuccess() {
+    loading = true;
+    void invalidateAll();
   }
 
   async function confirmDelete() {
@@ -291,6 +300,7 @@
     {selectionMode}
     onNavigate={handleNavigate}
     onToggleSelectionMode={toggleSelectionMode}
+    onUpload={() => (showUploadModal = true)}
   />
 
   <div class="relative min-h-0 flex-1 overflow-hidden">
@@ -371,3 +381,6 @@
 
 <!-- Preview modal -->
 <PreviewModal bind:open={showPreviewModal} {bucket} objectKey={previewKey} />
+
+<!-- Upload modal -->
+<UploadModal bind:open={showUploadModal} {bucket} {prefix} onSuccess={handleUploadSuccess} />

@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
-import { error } from '@sveltejs/kit';
 import { downloadObject, getObjectMetadata } from '$lib/server/storage/service.js';
 import { getUserId } from '$lib/server/auth-utils.js';
+import { requireBucketKey } from '../params.js';
 
 /** Derive the bare filename from a (possibly path-prefixed) object key. */
 function filenameFromKey(key: string): string {
@@ -17,16 +17,7 @@ function filenameFromKey(key: string): string {
  * buffering occurs.
  */
 export const GET: RequestHandler = async ({ locals, url }) => {
-  const bucket = url.searchParams.get('bucket');
-  if (!bucket || !bucket.trim()) {
-    throw error(400, 'Missing required query parameter: bucket');
-  }
-
-  const key = url.searchParams.get('key');
-  if (!key || !key.trim()) {
-    throw error(400, 'Missing required query parameter: key');
-  }
-
+  const { bucket, key } = requireBucketKey(url);
   const userId = getUserId(locals);
 
   locals.logger.debug({ bucket, key }, 'download request received');
@@ -66,16 +57,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
  * inline UI messages rather than browser download failures.
  */
 export const HEAD: RequestHandler = async ({ locals, url }) => {
-  const bucket = url.searchParams.get('bucket');
-  if (!bucket || !bucket.trim()) {
-    throw error(400, 'Missing required query parameter: bucket');
-  }
-
-  const key = url.searchParams.get('key');
-  if (!key || !key.trim()) {
-    throw error(400, 'Missing required query parameter: key');
-  }
-
+  const { bucket, key } = requireBucketKey(url);
   const userId = getUserId(locals);
 
   locals.logger.debug({ bucket, key }, 'download pre-flight check');

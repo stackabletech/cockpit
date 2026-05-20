@@ -32,6 +32,13 @@ function accessDeniedMessage(context: Context): string {
   return context.key ? `Access denied to "${context.key}"` : 'Access denied';
 }
 
+/**
+ * Maps an S3 error to the appropriate SvelteKit HTTP error and throws it.
+ * If `err` is not an S3ServiceException it is re-thrown as-is so that
+ * unexpected errors are never swallowed.
+ *
+ * Always throws — callers do not need to throw the return value.
+ */
 export function mapS3ErrorToHttp(err: unknown, context: Context): never {
   if (!isS3ServiceException(err)) {
     throw err;

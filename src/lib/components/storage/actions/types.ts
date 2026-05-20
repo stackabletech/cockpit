@@ -2,6 +2,7 @@ export type ActionResult = {
   success?: true;
   unimplemented?: true;
   previewKey?: string;
+  openUpload?: true;
   failedKeys?: Array<{ key: string; message?: string }>;
 };
 
