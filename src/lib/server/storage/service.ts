@@ -86,7 +86,8 @@ export async function getObjectMetadata(
   }
 }
 
-/** Delete one or more objects from the bucket. Returns a result listing any keys that failed. */
+/** Delete one or more objects from the bucket. Returns a result listing any keys that failed.
+ *  Directory keys (ending with '/') are expanded to all contained objects before deletion. */
 export async function deleteObjects(
   userId: string,
   bucket: string,
@@ -95,10 +96,25 @@ export async function deleteObjects(
   const provider = getProviderForUser(userId, bucket);
 
   try {
-    log.debug({ user_id: userId, bucket, key_count: keys.length }, 'deleting objects');
-    const result = await provider.deleteObjects(keys);
+    // Expand any directory prefixes (keys ending with '/') to their contents.
+    const dirPrefixes = keys.filter((k) => k.endsWith('/'));
+    const fileKeys = keys.filter((k) => !k.endsWith('/'));
+
+    let allKeys = [...fileKeys];
+    for (const prefix of dirPrefixes) {
+      log.debug({ user_id: userId, bucket, prefix }, 'expanding directory prefix for deletion');
+      const children = await provider.listAllKeys(prefix);
+      allKeys = allKeys.concat(children.length > 0 ? children : [prefix]);
+    }
+
+    if (allKeys.length === 0) {
+      return { failed: [] };
+    }
+
+    log.debug({ user_id: userId, bucket, key_count: allKeys.length }, 'deleting objects');
+    const result = await provider.deleteObjects(allKeys);
     log.info(
-      { user_id: userId, bucket, key_count: keys.length, failed_count: result.failed.length },
+      { user_id: userId, bucket, key_count: allKeys.length, failed_count: result.failed.length },
       'objects delete completed'
     );
     return result;

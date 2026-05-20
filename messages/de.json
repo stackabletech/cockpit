@@ -199,6 +199,8 @@
   "storage_delete_confirm_title_one": "\u201e{name}\u201c löschen?",
   "storage_delete_confirm_title_many": "{count} Elemente löschen?",
   "storage_delete_confirm_message": "Diese Aktion kann nicht rückgängig gemacht werden.",
+  "storage_delete_dir_warning_heading": "Alle Inhalte werden dauerhaft gelöscht",
+  "storage_delete_dir_warning_body": "Beim Löschen eines Ordners werden alle darin enthaltenen Dateien und Unterordner entfernt. Dies kann nicht rückgängig gemacht werden.",
   "storage_delete_confirm_button": "Endgültig löschen",
   "storage_delete_cancel": "Abbrechen",
   "storage_delete_error_not_connected": "Keine Speicherverbindung konfiguriert. Bitte verbinden Sie sich zuerst.",

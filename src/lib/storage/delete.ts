@@ -3,6 +3,8 @@
  */
 
 import type { DeleteObjectsResult } from '$lib/storage/types.js';
+import { unpinUnderDirectories } from '$lib/stores/pinned-locations.svelte.js';
+import { removeItemsUnderDirectories } from '$lib/stores/recent-items.svelte.js';
 
 export type DeleteErrorCode = 'not_connected' | 'access_denied' | 'server_error' | 'unknown';
 
@@ -38,5 +40,14 @@ export async function deleteObjects(bucket: string, keys: string[]): Promise<Del
     throw new DeleteError(mapStatusToCode(res.status), `Delete failed with status ${res.status}`);
   }
 
-  return (await res.json()) as DeleteObjectsResult;
+  const result = (await res.json()) as DeleteObjectsResult;
+
+  // Clean up pinned locations and recent items for any deleted directories.
+  const dirPrefixes = keys.filter((k) => k.endsWith('/'));
+  if (dirPrefixes.length > 0) {
+    unpinUnderDirectories(bucket, dirPrefixes);
+    removeItemsUnderDirectories(bucket, dirPrefixes);
+  }
+
+  return result;
 }

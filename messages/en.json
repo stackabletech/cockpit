@@ -199,6 +199,8 @@
   "storage_delete_confirm_title_one": "Delete \"{name}\"?",
   "storage_delete_confirm_title_many": "Delete {count} items?",
   "storage_delete_confirm_message": "This action cannot be undone.",
+  "storage_delete_dir_warning_heading": "All contents will be permanently deleted",
+  "storage_delete_dir_warning_body": "Deleting a folder removes every file and subfolder inside it. This cannot be undone.",
   "storage_delete_confirm_button": "Delete permanently",
   "storage_delete_cancel": "Cancel",
   "storage_delete_error_not_connected": "No storage connection configured. Please connect first.",

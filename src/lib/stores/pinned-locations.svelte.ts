@@ -45,6 +45,23 @@ export function isPinned(bucket: string, prefix: string): boolean {
   return pinnedLocations.some((p) => p.bucket === bucket && p.prefix === prefix);
 }
 
+/**
+ * Remove all pinned locations that reside inside any of the given directory
+ * prefixes (keys ending with '/') within the given bucket.
+ * Called after a directory is deleted so stale pins are cleaned up.
+ */
+export function unpinUnderDirectories(bucket: string, dirPrefixes: string[]): void {
+  if (dirPrefixes.length === 0) return;
+  const underAny = (prefix: string) =>
+    dirPrefixes.some((p) => prefix === p || prefix.startsWith(p));
+  const before = pinnedLocations.length;
+  const keep = pinnedLocations.filter((pin) => !(pin.bucket === bucket && underAny(pin.prefix)));
+  if (keep.length !== before) {
+    pinnedLocations.splice(0, pinnedLocations.length, ...keep);
+    persist();
+  }
+}
+
 /** Returns the navigation href for a storage location (bucket + optional prefix). */
 export function storageHref(bucket: string, prefix: string): string {
   if (!prefix) return `/storage/${encodeURIComponent(bucket)}`;
