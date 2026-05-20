@@ -31,7 +31,7 @@ export const actions: Actions = {
     }
 
     const userId = getUserId(locals);
-    const { type, endpoint, region, accessKeyId, secretAccessKey } = form.data;
+    const { type, endpoint, pathStyle, region, accessKeyId, secretAccessKey } = form.data;
 
     if (type !== 's3') {
       return message(form, 'HDFS connections are not yet supported', { status: 400 });
@@ -40,6 +40,7 @@ export const actions: Actions = {
     const config: S3ConnectionConfig = {
       type: 's3',
       endpoint: endpoint || undefined,
+      pathStyle,
       region,
       accessKeyId: accessKeyId || undefined,
       secretAccessKey: secretAccessKey || undefined
