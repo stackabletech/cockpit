@@ -183,20 +183,14 @@ if [ -f "$ENV_FILE" ]; then
   cp "$ENV_FILE" "$ENV_FILE.bak"
 fi
 
-if [[ "$SKIP_TRINO" == false ]]; then
-  TRINO_PORT=$(kubectl get svc trino-coordinator -o jsonpath='{.spec.ports[0].nodePort}')
-
-  # Probe Trino reachability the same way we did for Keycloak.
-  TRINO_BASE_URL=""
-  for base in "https://${NODE_IP}:${TRINO_PORT}" "https://127.0.0.1:${TRINO_PORT}" "https://localhost:${TRINO_PORT}"; do
-    if curl -sfk --max-time 2 "${base}/v1/info" >/dev/null 2>&1; then
-      TRINO_BASE_URL="$base"
-      break
-    fi
-  done
-  # Fall back to NODE_IP if none respond yet (Trino may still be starting).
-  TRINO_BASE_URL="${TRINO_BASE_URL:-https://${NODE_IP}:${TRINO_PORT}}"
-fi
+TRINO_PORT=$(kubectl get svc trino-coordinator -o jsonpath='{.spec.ports[0].nodePort}')
+TRINO_BASE_URL="${TRINO_BASE_URL:-https://${NODE_IP}:${TRINO_PORT}}"
+for base in "https://${NODE_IP}:${TRINO_PORT}" "https://127.0.0.1:${TRINO_PORT}" "https://localhost:${TRINO_PORT}"; do
+  if [[ "$SKIP_TRINO" == false ]] && curl -sfk --max-time 2 "${base}/v1/info" >/dev/null 2>&1; then
+    TRINO_BASE_URL="$base"
+    break
+  fi
+done
 
 if [[ "$SKIP_TRINO" == false ]]; then
   cat > "$ENV_FILE" <<EOF
