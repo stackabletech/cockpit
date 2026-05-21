@@ -57,7 +57,7 @@
   bind:this={sidebarEl}
   id="sidebar"
   aria-label={m.sidebar_label()}
-  class="border-base-300 bg-base-100 fixed inset-y-0 left-0 z-50 flex flex-col border-r
+  class="border-base-300 bg-base-200 fixed inset-y-0 left-0 z-50 flex flex-col border-r
     transition-[transform,width] duration-200 ease-out
     lg:relative lg:inset-auto lg:z-auto lg:translate-x-0
     {mobileOpen ? 'translate-x-0' : '-translate-x-full'}
