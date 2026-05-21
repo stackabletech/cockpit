@@ -4,62 +4,20 @@
   import SelectionToolbar from './SelectionToolbar.svelte';
   import FolderRow from './FolderRow.svelte';
   import FileRow from './FileRow.svelte';
-  import type { StorageObject } from '$lib/storage/types.js';
+  import { getStorageState } from '$lib/storage/context.js';
 
-  interface Props {
-    prefix: string;
-    folders: StorageObject[];
-    files: StorageObject[];
-    selectedKeys: Set<string>;
-    ctxKey: string | null;
-    showCheckboxes: boolean;
-    selectionMode: boolean;
-    allSelected: boolean;
-    someSelected: boolean;
-    onNavigate: (prefix: string, continuationToken?: string | null, pageSize?: number) => void;
-    onSelectAll: (checked: boolean) => void;
-    onToggleSelect: (key: string, force?: boolean) => void;
-    onContextMenu: (e: MouseEvent, key: string) => void;
-    onAction: (action: string) => void;
-  }
-
-  let {
-    prefix,
-    folders,
-    files,
-    selectedKeys,
-    ctxKey,
-    showCheckboxes,
-    selectionMode,
-    allSelected,
-    someSelected,
-    onNavigate,
-    onSelectAll,
-    onToggleSelect,
-    onContextMenu,
-    onAction
-  }: Props = $props();
-
-  const selectedCount = $derived(selectedKeys.size);
-  const canPreview = $derived(
-    files.filter((f) => selectedKeys.has(f.key)).length === 1 &&
-      folders.filter((f) => selectedKeys.has(f.key)).length === 0
-  );
-  const selectedFileCount = $derived(files.filter((f) => selectedKeys.has(f.key)).length);
-  const canDownload = $derived(
-    selectedFileCount === 1 && folders.filter((f) => selectedKeys.has(f.key)).length === 0
-  );
+  const storage = getStorageState();
 
   let selectAllEl = $state<HTMLInputElement | null>(null);
   $effect(() => {
-    if (selectAllEl) selectAllEl.indeterminate = someSelected;
+    if (selectAllEl) selectAllEl.indeterminate = storage.someSelected;
   });
 
   function navigateUp() {
-    if (!prefix) return;
-    const withoutTrailing = prefix.slice(0, -1);
+    if (!storage.prefix) return;
+    const withoutTrailing = storage.prefix.slice(0, -1);
     const lastSlash = withoutTrailing.lastIndexOf('/');
-    onNavigate(lastSlash === -1 ? '' : withoutTrailing.slice(0, lastSlash + 1));
+    storage.navigate(lastSlash === -1 ? '' : withoutTrailing.slice(0, lastSlash + 1));
   }
 </script>
 
@@ -77,12 +35,12 @@
             type="checkbox"
             class="
               checkbox checkbox-xs
-              {!showCheckboxes ? `pointer-events-none invisible` : ''}"
+              {!storage.showCheckboxes ? `pointer-events-none invisible` : ''}"
             bind:this={selectAllEl}
-            checked={allSelected}
-            onchange={(e) => onSelectAll(e.currentTarget.checked)}
+            checked={storage.allSelected}
+            onchange={(e) => storage.selectAll(e.currentTarget.checked)}
             onclick={(e) => e.stopPropagation()}
-            disabled={!showCheckboxes}
+            disabled={!storage.showCheckboxes}
             aria-label="Select all"
           />
         </th>
@@ -93,12 +51,12 @@
       </tr>
 
       <!-- Selection action toolbar -->
-      <SelectionToolbar {selectedCount} {canPreview} {canDownload} {onAction} />
+      <SelectionToolbar />
     </thead>
 
     <tbody>
       <!-- Parent directory row -->
-      {#if prefix}
+      {#if storage.prefix}
         <tr class="hover cursor-pointer" onclick={navigateUp}>
           <td class="pr-0"></td>
           <td colspan={3}>
@@ -112,34 +70,17 @@
       {/if}
 
       <!-- Folders -->
-      {#each folders as folder (folder.key)}
-        <FolderRow
-          {folder}
-          selected={selectedKeys.has(folder.key)}
-          isCtx={ctxKey === folder.key}
-          {showCheckboxes}
-          {selectionMode}
-          {onNavigate}
-          {onToggleSelect}
-          {onContextMenu}
-        />
+      {#each storage.folders as folder (folder.key)}
+        <FolderRow {folder} />
       {/each}
 
       <!-- Files -->
-      {#each files as file (file.key)}
-        <FileRow
-          {file}
-          selected={selectedKeys.has(file.key)}
-          isCtx={ctxKey === file.key}
-          {showCheckboxes}
-          {onToggleSelect}
-          {onContextMenu}
-          {onAction}
-        />
+      {#each storage.files as file (file.key)}
+        <FileRow {file} />
       {/each}
 
       <!-- Empty folder -->
-      {#if folders.length === 0 && files.length === 0}
+      {#if storage.folders.length === 0 && storage.files.length === 0}
         <tr>
           <td colspan={5} class="text-base-content/40 py-16 text-center">
             <Icon

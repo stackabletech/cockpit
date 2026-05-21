@@ -2,30 +2,20 @@
   import { onMount } from 'svelte';
   import Icon from '@iconify/svelte';
   import * as m from '$lib/paraglide/messages.js';
+  import { getStorageState } from '$lib/storage/context.js';
+  import type { ActionName } from '$lib/storage/types.js';
 
-  interface Props {
-    x: number;
-    y: number;
-    selectionCount: number;
-    canPreview: boolean;
-    canDownload: boolean;
-    canPin: boolean;
-    isAlreadyPinned?: boolean;
-    onAction: (action: string) => void;
-    onClose: () => void;
-  }
+  const storage = getStorageState();
 
-  let {
-    x,
-    y,
-    selectionCount,
-    canPreview,
-    canDownload,
-    canPin,
-    isAlreadyPinned = false,
-    onAction,
-    onClose
-  }: Props = $props();
+  // Position and derived state from context
+  const x = $derived(storage.contextMenu?.x ?? 0);
+  const y = $derived(storage.contextMenu?.y ?? 0);
+  const selectionCount = $derived(storage.selectedKeys.size);
+  const canPreview = $derived(
+    (storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0) ||
+      (storage.contextMenu !== null && storage.ctxIsFile)
+  );
+  const canDownload = $derived(storage.selectedFiles.length > 0 || storage.ctxIsFile);
 
   let menuEl = $state<HTMLUListElement | null>(null);
 
@@ -40,16 +30,16 @@
   });
 
   function emit(action: string) {
-    onAction(action);
-    onClose();
+    storage.executeAction(action as ActionName);
+    storage.contextMenu = null;
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onClose();
+    if (e.key === 'Escape') storage.closeContextMenu();
   }
 
   function handleOutsideClick(e: MouseEvent) {
-    if (menuEl && !menuEl.contains(e.target as Node)) onClose();
+    if (menuEl && !menuEl.contains(e.target as Node)) storage.closeContextMenu();
   }
 
   onMount(() => {
@@ -58,44 +48,46 @@
     return () => document.removeEventListener('click', handleOutsideClick, true);
   });
 
-  const actions = [
+  const actions = $derived([
     {
-      key: 'preview',
+      key: 'preview' as ActionName,
       icon: 'material-symbols:visibility',
-      label: () => m.storage_action_preview(),
-      disabled: () => !canPreview
+      label: m.storage_action_preview(),
+      disabled: !canPreview,
+      hidden: false
     },
     {
-      key: 'download',
+      key: 'download' as ActionName,
       icon: 'material-symbols:download',
-      label: () => m.storage_action_download(),
-      disabled: () => !canDownload
+      label: m.storage_action_download(),
+      disabled: !canDownload,
+      hidden: false
     },
     {
-      key: 'pin',
+      key: 'pin' as ActionName,
       icon: 'material-symbols:push-pin-outline',
-      label: () => m.storage_action_pin(),
-      disabled: () => !canPin,
-      hidden: () => !canPin || isAlreadyPinned
+      label: m.storage_action_pin(),
+      disabled: !storage.canPin,
+      hidden: !storage.canPin || storage.ctxIsPinned
     },
     {
-      key: 'unpin',
+      key: 'unpin' as ActionName,
       icon: 'material-symbols:push-pin',
-      label: () => m.storage_action_unpin(),
-      disabled: () => !isAlreadyPinned,
-      hidden: () => !isAlreadyPinned
+      label: m.storage_action_unpin(),
+      disabled: !storage.ctxIsPinned,
+      hidden: !storage.ctxIsPinned
     }
-  ];
+  ]);
 
-  const dangerActions = [
+  const dangerActions = $derived([
     {
-      key: 'delete',
+      key: 'delete' as ActionName,
       icon: 'material-symbols:delete',
-      label: () => m.storage_action_delete(),
-      disabled: () => selectionCount === 0,
+      label: m.storage_action_delete(),
+      disabled: selectionCount === 0,
       class: 'text-error'
     }
-  ];
+  ]);
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -121,7 +113,7 @@
         role="menuitem"
         class="btn btn-ghost btn-xs"
         aria-label="Close"
-        onclick={onclose}
+        onclick={() => storage.closeContextMenu()}
       >
         <Icon icon="mdi:close" class="size-4" aria-hidden="true" />
       </button>
@@ -129,18 +121,17 @@
   </li>
 
   {#each actions as act (act.key)}
-    {#if !act.hidden?.()}
-      {@const disabled = act.disabled()}
-      <li role="none" class:menu-disabled={disabled}>
+    {#if !act.hidden}
+      <li role="none" class:menu-disabled={act.disabled}>
         <button
           role="menuitem"
           class="justify-start"
           onclick={() => emit(act.key)}
-          {disabled}
-          aria-disabled={disabled}
+          disabled={act.disabled}
+          aria-disabled={act.disabled}
         >
           <Icon icon={act.icon} class="mr-2 size-4 shrink-0" aria-hidden="true" />
-          {act.label()}
+          {act.label}
         </button>
       </li>
     {/if}
@@ -152,14 +143,14 @@
         role="menuitem"
         class={'justify-start ' + (act.class ?? '')}
         onclick={() => emit(act.key)}
-        disabled={act.disabled()}
+        disabled={act.disabled}
       >
         <Icon
           icon={act.icon}
           class={'mr-2 h-4 w-4 shrink-0 ' + (act.class ?? '')}
           aria-hidden="true"
         />
-        {act.label()}
+        {act.label}
       </button>
     </li>
   {/each}

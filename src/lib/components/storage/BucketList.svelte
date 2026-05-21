@@ -1,21 +1,13 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { resolve } from '$app/paths';
   import Icon from '@iconify/svelte';
   import * as m from '$lib/paraglide/messages.js';
-  import {
-    pinnedLocations,
-    unpinLocation,
-    pinnedLabel,
-    pinnedHref,
-    type PinnedLocation,
-    type StorageLocation
-  } from '$lib/stores/pinned-locations.svelte.js';
+  import { getStorageState } from '$lib/storage/context.js';
+  import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
+  import { pinnedLabel, pinnedHref } from '$lib/storage/display-helpers.js';
 
-  interface Props {
-    buckets: string[];
-  }
-
-  let { buckets }: Props = $props();
+  const storage = getStorageState();
 
   // Detect the active bucket from the URL so the highlight stays on when
   // navigating into any sub-prefix within the bucket.
@@ -51,7 +43,7 @@
 
   function handleUnpin() {
     if (unpinCtx) {
-      unpinLocation(unpinCtx.bucket, unpinCtx.prefix);
+      storage.bookmarks.unpin(unpinCtx.bucket, unpinCtx.prefix);
       closeUnpinMenu();
     }
   }
@@ -89,7 +81,7 @@
   aria-label={m.storage_buckets_label()}
 >
   <!-- Pinned Access section -->
-  {#if pinnedLocations.length > 0}
+  {#if storage.bookmarks.pinnedLocations.length > 0}
     <div class="border-base-300 border-b">
       <div class="flex items-center px-3 py-2">
         <span class="text-base-content/50 text-xs font-semibold tracking-wide uppercase">
@@ -97,10 +89,11 @@
         </span>
       </div>
       <ul class="py-1" role="list">
-        {#each pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
+        {#each storage.bookmarks.pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
           {@const active = isPinnedActive(pin)}
           <li role="none" class="group relative">
             <div class="tooltip tooltip-right relative z-50 w-full" data-tip={pinnedLabel(pin)}>
+              <!-- eslint-disable svelte/no-navigation-without-resolve -->
               <a
                 href={pinnedHref(pin)}
                 data-sveltekit-preload-data="off"
@@ -111,6 +104,7 @@
                 aria-current={active ? 'page' : undefined}
                 oncontextmenu={(e) => openUnpinMenu(e, pin)}
               >
+                <!-- eslint-enable svelte/no-navigation-without-resolve -->
                 {#if pin.prefix === ''}
                   <Icon
                     icon="mdi:bucket-outline"
@@ -158,7 +152,7 @@
       {m.storage_buckets_label()}
     </span>
     <a
-      href="/storage"
+      href={resolve('/storage')}
       data-sveltekit-preload-data="off"
       class="btn btn-ghost btn-xs group tooltip tooltip-right"
       title={m.storage_view_all_buckets()}
@@ -173,15 +167,18 @@
   </div>
 
   <ul class="flex-1 py-1" role="list">
-    {#if buckets.length === 0}
+    {#if storage.buckets.length === 0}
       <li class="text-base-content/40 px-3 py-4 text-center text-xs">
         {m.storage_buckets_empty()}
       </li>
     {:else}
-      {#each buckets as bucket (bucket)}
+      {#each storage.buckets as bucket (bucket)}
         <li role="none">
           <a
-            href="/storage/{encodeURIComponent(bucket)}"
+            href={resolve('/(app)/storage/[bucket]/[...prefix]', {
+              bucket: encodeURIComponent(bucket),
+              prefix: ''
+            })}
             data-sveltekit-preload-data="off"
             class="
               hover:bg-base-200 tooltip tooltip-right flex items-center gap-2

@@ -1,38 +1,14 @@
 <script lang="ts">
   import Icon from '@iconify/svelte';
   import * as m from '$lib/paraglide/messages.js';
-  import {
-    pinLocation,
-    unpinLocation,
-    isPinned,
-    type StorageLocation
-  } from '$lib/stores/pinned-locations.svelte.js';
+  import { getStorageState } from '$lib/storage/context.js';
+  import type { StorageLocation } from '$lib/storage/types.js';
 
-  interface Props {
-    bucket: string;
-    prefix: string;
-    folderCount: number;
-    fileCount: number;
-    selectionMode: boolean;
-    onNavigate: (prefix: string) => void;
-    onToggleSelectionMode: () => void;
-    onUpload: () => void;
-  }
-
-  let {
-    bucket,
-    prefix,
-    folderCount,
-    fileCount,
-    selectionMode,
-    onNavigate,
-    onToggleSelectionMode,
-    onUpload
-  }: Props = $props();
+  const storage = getStorageState();
 
   const breadcrumbParts = $derived(
-    prefix
-      ? prefix
+    storage.prefix
+      ? storage.prefix
           .slice(0, -1)
           .split('/')
           .map((label, i, parts) => ({
@@ -50,7 +26,7 @@
     breadcrumbParts.length > MAX_TAIL ? breadcrumbParts.slice(-MAX_TAIL) : breadcrumbParts
   );
 
-  const currentIsPinned = $derived(isPinned(bucket, prefix));
+  const currentIsPinned = $derived(storage.bookmarks.isPinned(storage.bucket, storage.prefix));
 
   // ── Breadcrumb label context menu (right-click to pin / unpin) ───────────
   let breadcrumbCtx = $state<({ x: number; y: number } & StorageLocation) | null>(null);
@@ -83,26 +59,26 @@
     <li role="none">
       <button
         role="menuitem"
-        class="justify-start {isPinned(breadcrumbCtx.bucket, breadcrumbCtx.prefix)
+        class="justify-start {storage.bookmarks.isPinned(breadcrumbCtx.bucket, breadcrumbCtx.prefix)
           ? 'text-error'
           : ''}"
         onclick={() => {
-          if (isPinned(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix)) {
-            unpinLocation(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix);
+          if (storage.bookmarks.isPinned(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix)) {
+            storage.bookmarks.unpin(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix);
           } else {
-            pinLocation(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix);
+            storage.bookmarks.pin(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix);
           }
           closeBreadcrumbCtx();
         }}
       >
         <Icon
-          icon={isPinned(breadcrumbCtx.bucket, breadcrumbCtx.prefix)
+          icon={storage.bookmarks.isPinned(breadcrumbCtx.bucket, breadcrumbCtx.prefix)
             ? 'material-symbols:push-pin'
             : 'material-symbols:push-pin-outline'}
           class="size-4 shrink-0"
           aria-hidden="true"
         />
-        {isPinned(breadcrumbCtx.bucket, breadcrumbCtx.prefix)
+        {storage.bookmarks.isPinned(breadcrumbCtx.bucket, breadcrumbCtx.prefix)
           ? m.storage_action_unpin()
           : m.storage_action_pin()}
       </button>
@@ -111,7 +87,7 @@
 {/if}
 
 {#snippet pinButton(bucket: string, prefix: string)}
-  {@const pinned = isPinned(bucket, prefix)}
+  {@const pinned = storage.bookmarks.isPinned(bucket, prefix)}
   <span
     class="
       pointer-events-none w-0 shrink-0 overflow-hidden
@@ -128,9 +104,9 @@
       aria-label={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
       onclick={() => {
         if (pinned) {
-          unpinLocation(bucket, prefix);
+          storage.bookmarks.unpin(bucket, prefix);
         } else {
-          pinLocation(bucket, prefix);
+          storage.bookmarks.pin(bucket, prefix);
         }
       }}
     >
@@ -174,14 +150,14 @@
             text-base-content flex shrink-0 items-center gap-1.5 rounded-sm px-1.5
             py-0.5 font-medium
           "
-          title={bucket}
+          title={storage.bucket}
           aria-current="page"
-          oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, '')}
+          oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
         >
           <Icon icon="material-symbols:storage" class="size-4" aria-hidden="true" />
-          {bucket}
+          {storage.bucket}
         </span>
-        {@render pinButton(bucket, '')}
+        {@render pinButton(storage.bucket, '')}
       </span>
     {:else}
       <span class="group flex shrink-0 items-center gap-1">
@@ -191,14 +167,14 @@
             rounded-sm px-1.5
             py-0.5 transition-colors hover:cursor-pointer
           "
-          title={bucket}
-          onclick={() => onNavigate('')}
-          oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, '')}
+          title={storage.bucket}
+          onclick={() => storage.navigate('')}
+          oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
         >
           <Icon icon="material-symbols:storage" class="size-4" aria-hidden="true" />
-          {bucket}
+          {storage.bucket}
         </button>
-        {@render pinButton(bucket, '')}
+        {@render pinButton(storage.bucket, '')}
       </span>
     {/if}
     {#if collapsedParts.length > 0}
@@ -234,12 +210,12 @@
               <div class="group flex items-center justify-between gap-2">
                 <button
                   class="flex-1 text-left text-sm hover:cursor-pointer"
-                  onclick={() => onNavigate(part.prefix)}
-                  oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, part.prefix)}
+                  onclick={() => storage.navigate(part.prefix)}
+                  oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, part.prefix)}
                 >
                   {part.label}
                 </button>
-                {@render pinButton(bucket, part.prefix)}
+                {@render pinButton(storage.bucket, part.prefix)}
               </div>
             </li>
           {/each}
@@ -263,7 +239,7 @@
             "
             title={part.label}
             aria-current="page"
-            oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, part.prefix)}
+            oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, part.prefix)}
           >
             {part.label}
           </span>
@@ -274,13 +250,13 @@
               py-0.5 transition-colors hover:cursor-pointer
             "
             title={part.label}
-            onclick={() => onNavigate(part.prefix)}
-            oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, part.prefix)}
+            onclick={() => storage.navigate(part.prefix)}
+            oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, part.prefix)}
           >
             {part.label}
           </button>
         {/if}
-        {@render pinButton(bucket, part.prefix)}
+        {@render pinButton(storage.bucket, part.prefix)}
       </span>
     {/each}
   </nav>
@@ -289,28 +265,32 @@
   <div class="flex shrink-0 items-center gap-1.5">
     <span
       class="tooltip tooltip-bottom badge badge-soft badge-primary badge-sm z-60 gap-1"
-      data-tip={m.storage_folder_count({ count: folderCount })}
+      data-tip={m.storage_folder_count({ count: storage.folders.length })}
     >
       <Icon icon="material-symbols:folder-outline" class="size-4" aria-hidden="true" />
-      <span class="font-bold">{folderCount}</span>
+      <span class="font-bold">{storage.folders.length}</span>
     </span>
     <span
       class="tooltip tooltip-bottom badge badge-soft badge-primary badge-sm z-60 gap-1"
-      data-tip={m.storage_file_count({ count: fileCount })}
+      data-tip={m.storage_file_count({ count: storage.files.length })}
     >
       <Icon icon="material-symbols:description-outline" class="size-4" aria-hidden="true" />
-      <span class="font-bold">{fileCount}</span>
+      <span class="font-bold">{storage.files.length}</span>
     </span>
   </div>
 
   <!-- Multi-select toggle -->
   <button
-    class={'btn btn-ghost btn-xs gap-1 ' + (selectionMode ? 'bg-success/20 text-success' : '')}
+    class={'btn btn-ghost btn-xs gap-1 ' +
+      (storage.selectionMode ? 'bg-success/20 text-success' : '')}
     title={m.storage_select_toggle()}
-    aria-pressed={selectionMode}
-    onclick={onToggleSelectionMode}
+    aria-pressed={storage.selectionMode}
+    onclick={() => storage.toggleSelectionMode()}
   >
-    <span class={'swap swap-rotate ' + (selectionMode ? 'swap-active' : '')} aria-hidden="true">
+    <span
+      class={'swap swap-rotate ' + (storage.selectionMode ? 'swap-active' : '')}
+      aria-hidden="true"
+    >
       <Icon icon="material-symbols:check-box" class="swap-on size-3.5" />
       <Icon icon="material-symbols:check-box-outline-blank" class="swap-off size-3.5" />
     </span>
@@ -318,7 +298,10 @@
   </button>
 
   <!-- Upload button -->
-  <button class="btn btn-primary btn-xs gap-1" onclick={onUpload}>
+  <button
+    class="btn btn-primary btn-xs gap-1"
+    onclick={() => storage.openModal('upload', { bucket: storage.bucket, prefix: storage.prefix })}
+  >
     <Icon icon="material-symbols:upload" class="size-3.5" aria-hidden="true" />
     {m.storage_action_upload()}
   </button>
@@ -348,9 +331,9 @@
           class="justify-start text-sm"
           onclick={() => {
             if (currentIsPinned) {
-              unpinLocation(bucket, prefix);
+              storage.bookmarks.unpin(storage.bucket, storage.prefix);
             } else {
-              pinLocation(bucket, prefix);
+              storage.bookmarks.pin(storage.bucket, storage.prefix);
             }
           }}
         >

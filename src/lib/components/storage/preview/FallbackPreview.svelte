@@ -30,7 +30,7 @@
       <p class="text-base-content/40 mt-1 font-mono text-xs">{contentType}</p>
     {/if}
   </div>
-  <a href={downloadUrl} download={name} class="btn btn-primary btn-sm gap-2">
+  <a href={downloadUrl} download={name} rel="external" class="btn btn-primary btn-sm gap-2">
     <Icon icon="material-symbols:download" class="size-4" aria-hidden="true" />
     {m.storage_preview_download_full()}
   </a>

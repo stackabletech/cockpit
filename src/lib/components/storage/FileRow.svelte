@@ -3,20 +3,18 @@
   import { fileIconKind, iconColors, keyToName, formatFileSize } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
   import TimestampDisplay from '$lib/components/storage/TimestampDisplay.svelte';
+  import { getStorageState } from '$lib/storage/context.js';
 
   interface Props {
     file: StorageObject;
-    selected: boolean;
-    isCtx: boolean;
-    showCheckboxes: boolean;
-    onToggleSelect: (key: string, force?: boolean) => void;
-    onContextMenu: (e: MouseEvent, key: string) => void;
-    onAction: (action: string) => void;
   }
 
-  let { file, selected, isCtx, showCheckboxes, onToggleSelect, onContextMenu, onAction }: Props =
-    $props();
+  let { file }: Props = $props();
 
+  const storage = getStorageState();
+
+  const selected = $derived(storage.selectedKeys.has(file.key));
+  const isCtx = $derived(storage.contextMenu?.key === file.key);
   const kind = $derived(fileIconKind(file.contentType));
   const color = $derived(iconColors[kind]);
 </script>
@@ -29,18 +27,18 @@
     : selected
       ? 'bg-primary/10 hover:bg-primary/15'
       : 'hover:bg-base-200/60'}"
-  onclick={(e) => onToggleSelect(file.key, e.ctrlKey || e.metaKey)}
-  ondblclick={() => onAction('preview')}
-  oncontextmenu={(e) => onContextMenu(e, file.key)}
+  onclick={(e) => storage.toggleSelect(file.key, e.ctrlKey || e.metaKey)}
+  ondblclick={() => storage.executeAction('preview')}
+  oncontextmenu={(e) => storage.openContextMenu(e, file.key)}
 >
   <td class="pr-0">
     <input
       type="checkbox"
-      class="checkbox checkbox-xs {!showCheckboxes ? 'pointer-events-none invisible' : ''}"
+      class="checkbox checkbox-xs {!storage.showCheckboxes ? 'pointer-events-none invisible' : ''}"
       checked={selected}
-      onchange={() => onToggleSelect(file.key, true)}
+      onchange={() => storage.toggleSelect(file.key, true)}
       onclick={(e) => e.stopPropagation()}
-      disabled={!showCheckboxes}
+      disabled={!storage.showCheckboxes}
       aria-label="Select {keyToName(file.key)}"
     />
   </td>
@@ -82,7 +80,7 @@
       class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100"
       title="Actions"
       aria-label="Actions for {keyToName(file.key)}"
-      onclick={(e) => onContextMenu(e, file.key)}
+      onclick={(e) => storage.openContextMenu(e, file.key)}
     >
       <Icon icon="material-symbols:more-horiz" class="size-4" aria-hidden="true" />
     </button>

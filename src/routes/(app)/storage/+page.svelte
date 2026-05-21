@@ -1,11 +1,13 @@
 <script lang="ts">
   import { navigating } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
+  import { getStorageState } from '$lib/storage/context.js';
   import BucketGrid from '$lib/components/storage/BucketGrid.svelte';
   import StorageConnectForm from '$lib/components/storage/StorageConnectForm.svelte';
   import RecentItems from '$lib/components/storage/RecentItems.svelte';
 
   let { data } = $props();
+  const storage = getStorageState();
 </script>
 
 {#if data.connected}
@@ -21,7 +23,7 @@
     {/if}
     <h1 class="mb-1 text-xl font-semibold">{m.storage_buckets_label()}</h1>
     <p class="text-base-content/60 mb-6 text-sm">{m.storage_buckets_subtitle()}</p>
-    <BucketGrid buckets={data.buckets} />
+    <BucketGrid buckets={storage.buckets} />
     <RecentItems />
   </div>
 {:else}

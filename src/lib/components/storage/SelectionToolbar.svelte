@@ -1,16 +1,17 @@
 <script lang="ts">
   import Icon from '@iconify/svelte';
   import * as m from '$lib/paraglide/messages.js';
+  import { getStorageState } from '$lib/storage/context.js';
 
-  interface Props {
-    /** Total number of selected items. */
-    selectedCount: number;
-    canPreview: boolean;
-    canDownload: boolean;
-    onAction: (action: string) => void;
-  }
+  const storage = getStorageState();
 
-  let { selectedCount, canPreview, canDownload, onAction }: Props = $props();
+  const selectedCount = $derived(storage.selectedKeys.size);
+  const canPreview = $derived(
+    storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0
+  );
+  const canDownload = $derived(
+    storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0
+  );
 </script>
 
 <tr class="border-primary/20 bg-primary/5 border-t">
@@ -23,7 +24,7 @@
       <button
         class="btn btn-ghost btn-xs gap-1"
         title={m.storage_action_preview()}
-        onclick={() => onAction('preview')}
+        onclick={() => storage.executeAction('preview')}
         disabled={!canPreview}
       >
         <Icon icon="material-symbols:visibility" class="size-3.5" aria-hidden="true" />
@@ -33,7 +34,7 @@
       <button
         class="btn btn-ghost btn-xs gap-1"
         title={m.storage_action_download()}
-        onclick={() => onAction('download')}
+        onclick={() => storage.executeAction('download')}
         disabled={!canDownload}
       >
         <Icon icon="material-symbols:download" class="size-3.5" aria-hidden="true" />
@@ -46,7 +47,7 @@
           {selectedCount > 0 ? 'text-error hover:bg-error/10' : ''}
         "
         title="{m.storage_action_delete()} (Del)"
-        onclick={() => onAction('delete')}
+        onclick={() => storage.executeAction('delete')}
         disabled={selectedCount === 0}
       >
         <Icon icon="material-symbols:delete" class="size-3.5" aria-hidden="true" />

@@ -1,7 +1,19 @@
 import * as m from '$lib/paraglide/messages.js';
-import type { ActionError } from './types.js';
 
-/** Map an ActionError to a localised user-facing string. */
+// ── ActionError ──────────────────────────────────────────────────────────────
+
+export class ActionError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string
+  ) {
+    super(message);
+    this.name = 'ActionError';
+  }
+}
+
+// ── Error message mapping ────────────────────────────────────────────────────
+
 export function getActionErrorMessage(err: ActionError): string {
   switch (err.code) {
     case 'not_connected':

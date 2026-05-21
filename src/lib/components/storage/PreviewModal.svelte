@@ -9,6 +9,7 @@
   import PdfPreview from './preview/PdfPreview.svelte';
   import FallbackPreview from './preview/FallbackPreview.svelte';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
+  import { resolve } from '$app/paths';
 
   interface Props {
     open: boolean;
@@ -207,7 +208,8 @@
   const filename = $derived(objectKey ? keyToName(objectKey) : '');
 
   function buildDownloadUrl(key: string, bkt: string): string {
-    return `/storage/api/download?${new URLSearchParams({ bucket: bkt, key })}`;
+    const params = new URLSearchParams({ bucket: bkt, key });
+    return `${resolve('/storage/api/download')}?${params}`;
   }
 
   function close() {
@@ -344,6 +346,7 @@
           <a
             href={objectKey ? buildDownloadUrl(objectKey, bucket) : '#'}
             download={filename}
+            rel="external"
             class="btn btn-ghost btn-sm gap-1.5"
           >
             <Icon icon="material-symbols:download" class="size-4" aria-hidden="true" />
@@ -353,6 +356,7 @@
           <a
             href={objectKey ? buildDownloadUrl(objectKey, bucket) : '#'}
             download={filename}
+            rel="external"
             class="btn btn-ghost btn-sm gap-1.5"
           >
             <Icon icon="material-symbols:download" class="size-4" aria-hidden="true" />

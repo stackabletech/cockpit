@@ -2,28 +2,18 @@
   import Icon from '@iconify/svelte';
   import { keyToName } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
+  import { getStorageState } from '$lib/storage/context.js';
 
   interface Props {
     folder: StorageObject;
-    selected: boolean;
-    isCtx: boolean;
-    showCheckboxes: boolean;
-    selectionMode: boolean;
-    onNavigate: (prefix: string) => void;
-    onToggleSelect: (key: string, force?: boolean) => void;
-    onContextMenu: (e: MouseEvent, key: string) => void;
   }
 
-  let {
-    folder,
-    selected,
-    isCtx,
-    showCheckboxes,
-    selectionMode,
-    onNavigate,
-    onToggleSelect,
-    onContextMenu
-  }: Props = $props();
+  let { folder }: Props = $props();
+
+  const storage = getStorageState();
+
+  const selected = $derived(storage.selectedKeys.has(folder.key));
+  const isCtx = $derived(storage.contextMenu?.key === folder.key);
 </script>
 
 <tr
@@ -35,27 +25,27 @@
       ? 'bg-primary/10 hover:bg-primary/15'
       : 'hover:bg-base-200/60'}"
   onclick={(e) => {
-    if (selectionMode || e.ctrlKey || e.metaKey) {
-      onToggleSelect(folder.key, true);
+    if (storage.selectionMode || e.ctrlKey || e.metaKey) {
+      storage.toggleSelect(folder.key, true);
     } else {
-      onNavigate(folder.key);
+      storage.navigate(folder.key);
     }
   }}
   ondblclick={(e) => {
     if (e.ctrlKey || e.metaKey) {
-      onNavigate(folder.key);
+      storage.navigate(folder.key);
     }
   }}
-  oncontextmenu={(e) => onContextMenu(e, folder.key)}
+  oncontextmenu={(e) => storage.openContextMenu(e, folder.key)}
 >
   <td class="pr-0">
     <input
       type="checkbox"
-      class="checkbox checkbox-xs {!showCheckboxes ? 'pointer-events-none invisible' : ''}"
+      class="checkbox checkbox-xs {!storage.showCheckboxes ? 'pointer-events-none invisible' : ''}"
       checked={selected}
-      onchange={() => onToggleSelect(folder.key, true)}
+      onchange={() => storage.toggleSelect(folder.key, true)}
       onclick={(e) => e.stopPropagation()}
-      disabled={!showCheckboxes}
+      disabled={!storage.showCheckboxes}
       aria-label="Select {keyToName(folder.key)}"
     />
   </td>
@@ -76,7 +66,7 @@
       class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100"
       title="Actions"
       aria-label="Actions for {keyToName(folder.key)}"
-      onclick={(e) => onContextMenu(e, folder.key)}
+      onclick={(e) => storage.openContextMenu(e, folder.key)}
     >
       <Icon icon="material-symbols:more-horiz" class="size-4" aria-hidden="true" />
     </button>

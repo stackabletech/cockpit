@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from '@iconify/svelte';
   import * as m from '$lib/paraglide/messages.js';
+  import { resolve } from '$app/paths';
 
   interface Props {
     buckets?: string[];
@@ -21,7 +22,10 @@
     {#each buckets as bucket (bucket)}
       <div class="tooltip tooltip-bottom" data-tip={bucket}>
         <a
-          href="/storage/{encodeURIComponent(bucket)}"
+          href={resolve('/(app)/storage/[bucket]/[...prefix]', {
+            bucket: encodeURIComponent(bucket),
+            prefix: ''
+          })}
           data-sveltekit-preload-data="off"
           class="
               border-base-300 bg-base-100 hover:border-primary hover:bg-primary/5 flex flex-col items-center
