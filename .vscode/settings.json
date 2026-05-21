@@ -2,8 +2,8 @@
   // ── TypeScript ────────────────────────────────────────────────────────────
   // Use the workspace-local TypeScript so svelte-check, the editor, and the
   // build all use the same version. The prompt only shows once per workspace.
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
+  "js/ts.tsdk.promptToUseWorkspaceVersion": true,
 
   // ── Formatter (Prettier) ─────────────────────────────────────────────────
   // Project .prettierrc is the single source of truth and includes
