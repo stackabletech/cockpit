@@ -1,0 +1,96 @@
+{
+  // ── TypeScript ────────────────────────────────────────────────────────────
+  // Use the workspace-local TypeScript so svelte-check, the editor, and the
+  // build all use the same version. The prompt only shows once per workspace.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  // ── Formatter (Prettier) ─────────────────────────────────────────────────
+  // Project .prettierrc is the single source of truth and includes
+  // prettier-plugin-svelte and prettier-plugin-tailwindcss. Format on every
+  // explicit save so files are clean before the pre-commit lint check runs –
+  // equivalent to the `prettier --write` half of `npm run lint:fix`.
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+
+  // Route .svelte formatting through the Svelte extension so it applies the
+  // Svelte-aware Prettier plugin (configured in .prettierrc).
+  "[svelte]": {
+    "editor.defaultFormatter": "svelte.svelte-vscode",
+    // Trigger Tailwind class suggestions inside template attribute strings.
+    "editor.quickSuggestions": { "strings": true }
+  },
+
+  // ── ESLint ────────────────────────────────────────────────────────────────
+  // Project uses ESLint flat config (eslint.config.js).
+  "eslint.useFlatConfig": true,
+  "eslint.validate": ["javascript", "typescript", "svelte"],
+
+  // Run ESLint --fix on every explicit save. Together with formatOnSave above
+  // this is the per-save equivalent of `npm run lint:fix`, keeping the
+  // workspace clean before the pre-commit hook validates it.
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    // Disable VS Code's built-in organise-imports so it doesn't conflict with
+    // ESLint/Prettier import ordering.
+    "source.organizeImports": "never"
+  },
+
+  // ── Svelte language server ────────────────────────────────────────────────
+  // Enable the TypeScript language-server plugin for richer Svelte 5 / rune
+  // type-checking in the editor (mirrors what svelte-check does in CI).
+  "svelte.enable-ts-plugin": true,
+  // Default new <script> blocks to TypeScript (matches the whole codebase).
+  "svelte.plugin.svelte.defaultScriptLanguage": "ts",
+
+  // ── Tailwind CSS v4 ───────────────────────────────────────────────────────
+  // Tailwind v4 uses a CSS entry point instead of tailwind.config.js.
+  "tailwindCSS.experimental.configFile": "src/app.css",
+  // Enable class IntelliSense (suggestions + hover docs) inside Svelte files.
+  "tailwindCSS.includeLanguages": { "svelte": "html" },
+
+  // ── Editor ────────────────────────────────────────────────────────────────
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  // Visual ruler at the project's printWidth (see .prettierrc).
+  "editor.rulers": [100],
+  // Auto-rename matching HTML/Svelte tags on edit.
+  "editor.linkedEditing": true,
+  // Highlight only the active bracket-pair level to aid navigation in deeply
+  // nested Svelte templates.
+  "editor.guides.bracketPairs": "active",
+
+  // ── Files ─────────────────────────────────────────────────────────────────
+  // These mirror the pre-commit trailing-whitespace and end-of-file-fixer
+  // hooks so the editor enforces the same invariants before files are staged.
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.eol": "\n",
+
+  // ── Emmet ─────────────────────────────────────────────────────────────────
+  // Enable HTML abbreviation expansion inside Svelte templates.
+  "emmet.includeLanguages": { "svelte": "html" },
+
+  // ── i18n Ally (Paraglide) ─────────────────────────────────────────────────
+  // Point at the messages/ directory used by @inlang/paraglide-js. i18n Ally
+  // will surface missing/untranslated keys inline while editing.
+  "i18n-ally.localesPaths": ["messages"],
+  "i18n-ally.sourceLanguage": "en",
+  "i18n-ally.enabledFrameworks": ["svelte"],
+  "i18n-ally.keystyle": "flat",
+
+  // ── File & search exclusions ──────────────────────────────────────────────
+  // Hide generated/build artefacts from the Explorer and search results to
+  // reduce noise. The ANTLR-generated parser is large and never hand-edited.
+  "files.exclude": {
+    ".svelte-kit": true,
+    "build": true,
+    "src/lib/editor/generated": true
+  },
+  "search.exclude": {
+    ".svelte-kit/**": true,
+    "build/**": true,
+    "src/lib/editor/generated/**": true,
+    "package-lock.json": true
+  }
+}
