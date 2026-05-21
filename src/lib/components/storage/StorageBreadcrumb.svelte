@@ -112,42 +112,50 @@
 
 {#snippet pinButton(bucket: string, prefix: string)}
   {@const pinned = isPinned(bucket, prefix)}
-  <button
+  <span
     class="
-        tooltip tooltip-bottom btn btn-ghost btn-xs group/pin pointer-events-none z-60 size-5 p-0 opacity-0 transition-opacity delay-0 duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:delay-700
-        {pinned ? 'hover:text-error' : 'hover:text-white'}
-      "
-    data-tip={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
-    aria-label={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
-    onclick={() => {
-      if (pinned) {
-        unpinLocation(bucket, prefix);
-      } else {
-        pinLocation(bucket, prefix);
-      }
-    }}
+      pointer-events-none w-0 shrink-0 overflow-hidden
+      group-hover:pointer-events-auto group-hover:w-5
+      motion-safe:transition-[width] motion-safe:duration-150 motion-safe:group-hover:delay-700
+    "
   >
-    <span class="relative inline-flex size-3.5">
-      <span
-        class="absolute inset-0 flex items-center justify-center transition-opacity duration-150 group-hover/pin:opacity-0"
-      >
-        <Icon
-          icon={pinned ? 'material-symbols:push-pin' : 'material-symbols:push-pin-outline'}
-          class="size-3.5"
-          aria-hidden="true"
-        />
+    <button
+      class="
+          tooltip tooltip-bottom btn btn-ghost btn-xs group/pin z-60 size-5 p-0
+          {pinned ? 'hover:text-error' : 'hover:text-white'}
+        "
+      data-tip={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
+      aria-label={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
+      onclick={() => {
+        if (pinned) {
+          unpinLocation(bucket, prefix);
+        } else {
+          pinLocation(bucket, prefix);
+        }
+      }}
+    >
+      <span class="relative inline-flex size-3.5">
+        <span
+          class="absolute inset-0 flex items-center justify-center transition-opacity duration-150 group-hover/pin:opacity-0"
+        >
+          <Icon
+            icon={pinned ? 'material-symbols:push-pin' : 'material-symbols:push-pin-outline'}
+            class="size-3.5"
+            aria-hidden="true"
+          />
+        </span>
+        <span
+          class="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover/pin:opacity-100"
+        >
+          <Icon
+            icon={pinned ? 'material-symbols:push-pin-outline' : 'material-symbols:push-pin'}
+            class="size-3.5"
+            aria-hidden="true"
+          />
+        </span>
       </span>
-      <span
-        class="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover/pin:opacity-100"
-      >
-        <Icon
-          icon={pinned ? 'material-symbols:push-pin-outline' : 'material-symbols:push-pin'}
-          class="size-3.5"
-          aria-hidden="true"
-        />
-      </span>
-    </span>
-  </button>
+    </button>
+  </span>
 {/snippet}
 
 <div class="border-base-300 flex items-center gap-3 border-b px-6 py-3">
