@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import Icon from '@iconify/svelte';
-  import prettyBytes from 'pretty-bytes';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
   import TextPreview from './preview/TextPreview.svelte';
@@ -9,8 +8,7 @@
   import ImagePreview from './preview/ImagePreview.svelte';
   import PdfPreview from './preview/PdfPreview.svelte';
   import FallbackPreview from './preview/FallbackPreview.svelte';
-  import { keyToName } from '$lib/storage/utils.js';
-  import { getLocale } from '$lib/paraglide/runtime.js';
+  import { keyToName, formatFileSize } from '$lib/storage/utils.js';
 
   interface Props {
     open: boolean;
@@ -236,12 +234,12 @@
         {#if preview.kind === 'text' || preview.kind === 'csv'}
           <div class="mt-1 flex flex-wrap items-center gap-1">
             <span class="badge badge-neutral badge-sm font-mono"
-              >{prettyBytes(preview.totalSize, { locale: getLocale(), fixedWidth: 9 })}</span
+              >{formatFileSize(preview.totalSize)}</span
             >
             {#if preview.truncated}
               <span class="badge badge-soft badge-warning badge-sm">
                 {m.storage_preview_truncated({
-                  size: prettyBytes(preview.previewBytes, { locale: getLocale(), fixedWidth: 9 })
+                  size: formatFileSize(preview.previewBytes)
                 })}
               </span>
             {/if}
@@ -249,7 +247,7 @@
         {:else if preview.kind === 'parquet'}
           <div class="mt-1 flex flex-wrap items-center gap-1">
             <span class="badge badge-neutral badge-sm font-mono"
-              >{prettyBytes(preview.totalSize, { locale: getLocale(), fixedWidth: 9 })}</span
+              >{formatFileSize(preview.totalSize)}</span
             >
             {#if preview.truncated}
               <span class="badge badge-soft badge-warning badge-sm">
@@ -263,7 +261,7 @@
         {:else if preview.kind === 'image' || preview.kind === 'pdf'}
           <div class="mt-1 flex flex-wrap items-center gap-1">
             <span class="badge badge-neutral badge-sm font-mono"
-              >{prettyBytes(preview.totalSize, { locale: getLocale(), fixedWidth: 9 })}</span
+              >{formatFileSize(preview.totalSize)}</span
             >
             {#if preview.kind === 'image' && imageNaturalWidth > 0}
               <span class="badge badge-neutral badge-sm font-mono"

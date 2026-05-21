@@ -1,9 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import Icon from '@iconify/svelte';
-  import prettyBytes from 'pretty-bytes';
-  import { getLocale } from '$lib/paraglide/runtime.js';
   import * as m from '$lib/paraglide/messages.js';
+  import { formatFileSize } from '$lib/storage/utils.js';
   import {
     recentFiles,
     recentLocations,
@@ -75,7 +74,7 @@
             </a>
           </td>
           <td class="text-base-content/60 text-xs whitespace-nowrap">
-            {prettyBytes(file.size, { locale: getLocale(), fixedWidth: 9 })}
+            {formatFileSize(file.size)}
           </td>
           <td class="text-base-content/50 text-xs whitespace-nowrap">
             <TimestampDisplay date={file.visitedAt} relative tooltip="tooltip-left" />

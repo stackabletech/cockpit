@@ -1,10 +1,8 @@
 <script lang="ts">
   import Icon from '@iconify/svelte';
-  import { fileIconKind, iconColors, keyToName } from '$lib/storage/utils.js';
+  import { fileIconKind, iconColors, keyToName, formatFileSize } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
-  import prettyBytes from 'pretty-bytes';
   import TimestampDisplay from '$lib/components/storage/TimestampDisplay.svelte';
-  import { getLocale } from '$lib/paraglide/runtime.js';
 
   interface Props {
     file: StorageObject;
@@ -75,9 +73,7 @@
       {/if}
     </div>
   </td>
-  <td class="text-right font-mono text-sm"
-    >{prettyBytes(file.size, { locale: getLocale(), fixedWidth: 9 })}</td
-  >
+  <td class="text-right font-mono text-sm">{formatFileSize(file.size)}</td>
   <td class="text-base-content/60 text-sm"
     ><TimestampDisplay date={file.lastModified} relative /></td
   >

@@ -1,3 +1,6 @@
+import prettyBytes from 'pretty-bytes';
+import { getLocale } from '$lib/paraglide/runtime.js';
+
 export type FileIconKind = 'image' | 'pdf' | 'code' | 'archive' | 'text' | 'document';
 
 const CODE_TYPES = new Set([
@@ -42,4 +45,9 @@ export function formatDate(date: Date): string {
 export function keyToName(key: string): string {
   const stripped = key.endsWith('/') ? key.slice(0, -1) : key;
   return stripped.split('/').at(-1) ?? key;
+}
+
+/** Format a byte count using the active UI locale. */
+export function formatFileSize(bytes: number): string {
+  return prettyBytes(bytes, { locale: getLocale(), fixedWidth: 9 });
 }
