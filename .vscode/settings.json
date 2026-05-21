@@ -52,8 +52,6 @@
   // ── Editor ────────────────────────────────────────────────────────────────
   "editor.tabSize": 2,
   "editor.insertSpaces": true,
-  // Visual ruler at the project's printWidth (see .prettierrc).
-  "editor.rulers": [100],
   // Auto-rename matching HTML/Svelte tags on edit.
   "editor.linkedEditing": true,
   // Highlight only the active bracket-pair level to aid navigation in deeply
