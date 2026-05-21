@@ -20,7 +20,7 @@
       </div>
     {/if}
     <h1 class="mb-1 text-xl font-semibold">{m.storage_buckets_label()}</h1>
-    <p class="text-base-content/60 mb-6 text-sm">{m.storage_connect_subtitle()}</p>
+    <p class="text-base-content/60 mb-6 text-sm">{m.storage_buckets_subtitle()}</p>
     <BucketGrid buckets={data.buckets} />
     <RecentItems />
   </div>

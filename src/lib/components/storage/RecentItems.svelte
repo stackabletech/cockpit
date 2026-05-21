@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import Icon from '@iconify/svelte';
-  import prettyBytes from 'pretty-bytes';
   import * as m from '$lib/paraglide/messages.js';
+  import { formatFileSize } from '$lib/storage/utils.js';
   import {
     recentFiles,
     recentLocations,
@@ -65,12 +65,16 @@
             </div>
           </td>
           <td>
-            <span class="text-base-content/60 truncate text-xs">
+            <a
+              href={fileHref(file)}
+              data-sveltekit-preload-data="off"
+              class="text-base-content/60 hover:text-primary truncate text-xs"
+            >
               {fileLocation(file)}
-            </span>
+            </a>
           </td>
           <td class="text-base-content/60 text-xs whitespace-nowrap">
-            {prettyBytes(file.size)}
+            {formatFileSize(file.size)}
           </td>
           <td class="text-base-content/50 text-xs whitespace-nowrap">
             <TimestampDisplay date={file.visitedAt} relative tooltip="tooltip-left" />
@@ -148,9 +152,13 @@
             </div>
           </td>
           <td>
-            <span class="text-base-content/60 truncate text-xs">
+            <a
+              href={locationHref(loc)}
+              data-sveltekit-preload-data="off"
+              class="text-base-content/60 hover:text-primary truncate text-xs"
+            >
               {locationPath(loc)}
-            </span>
+            </a>
           </td>
           <td class="text-base-content/50 text-xs whitespace-nowrap">
             <TimestampDisplay date={loc.visitedAt} relative tooltip="tooltip-left" />
@@ -173,7 +181,7 @@
   </table>
 {/snippet}
 
-<section class="mt-8 flex min-h-0 flex-1 flex-col">
+<section class="card bg-base-100 border-base-300 mt-8 flex min-h-0 flex-1 flex-col border">
   <!-- Tab header -->
   <div role="tablist" class="tabs tabs-border mb-0">
     <button
@@ -194,7 +202,7 @@
     </button>
   </div>
 
-  <div class="border-base-300 min-h-0 flex-1 overflow-y-auto rounded-tr-lg rounded-b-lg border">
+  <div class="min-h-0 flex-1 overflow-y-auto">
     {#if activeTab === 'files'}
       {@render tabPanel(recentFiles.length === 0, m.storage_recent_empty_files(), filesTable)}
     {:else}

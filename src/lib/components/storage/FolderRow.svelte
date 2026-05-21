@@ -8,6 +8,7 @@
     selected: boolean;
     isCtx: boolean;
     showCheckboxes: boolean;
+    selectionMode: boolean;
     onNavigate: (prefix: string) => void;
     onToggleSelect: (key: string, force?: boolean) => void;
     onContextMenu: (e: MouseEvent, key: string) => void;
@@ -18,6 +19,7 @@
     selected,
     isCtx,
     showCheckboxes,
+    selectionMode,
     onNavigate,
     onToggleSelect,
     onContextMenu
@@ -31,9 +33,9 @@
     ? 'bg-base-300 outline-base-content/30 outline -outline-offset-2'
     : selected
       ? 'bg-primary/10 hover:bg-primary/15'
-      : 'hover'}"
+      : 'hover:bg-base-200/60'}"
   onclick={(e) => {
-    if (showCheckboxes || e.ctrlKey || e.metaKey) {
+    if (selectionMode || e.ctrlKey || e.metaKey) {
       onToggleSelect(folder.key, true);
     } else {
       onNavigate(folder.key);

@@ -10,12 +10,22 @@
     canPreview: boolean;
     canDownload: boolean;
     canPin: boolean;
+    isAlreadyPinned?: boolean;
     onAction: (action: string) => void;
     onClose: () => void;
   }
 
-  let { x, y, selectionCount, canPreview, canDownload, canPin, onAction, onClose }: Props =
-    $props();
+  let {
+    x,
+    y,
+    selectionCount,
+    canPreview,
+    canDownload,
+    canPin,
+    isAlreadyPinned = false,
+    onAction,
+    onClose
+  }: Props = $props();
 
   let menuEl = $state<HTMLUListElement | null>(null);
 
@@ -56,29 +66,24 @@
       disabled: () => !canPreview
     },
     {
-      key: 'rename',
-      icon: 'material-symbols:edit',
-      label: () => m.storage_action_rename(),
-      disabled: () => selectionCount !== 1
-    },
-    {
       key: 'download',
       icon: 'material-symbols:download',
       label: () => m.storage_action_download(),
       disabled: () => !canDownload
     },
     {
-      key: 'move',
-      icon: 'material-symbols:drive-file-move',
-      label: () => m.storage_action_move(),
-      disabled: () => selectionCount === 0
-    },
-    {
       key: 'pin',
       icon: 'material-symbols:push-pin-outline',
       label: () => m.storage_action_pin(),
       disabled: () => !canPin,
-      hidden: () => !canPin
+      hidden: () => !canPin || isAlreadyPinned
+    },
+    {
+      key: 'unpin',
+      icon: 'material-symbols:push-pin',
+      label: () => m.storage_action_unpin(),
+      disabled: () => !isAlreadyPinned,
+      hidden: () => !isAlreadyPinned
     }
   ];
 

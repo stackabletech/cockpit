@@ -65,7 +65,7 @@
       </thead>
       <tbody>
         {#each rows as row, i (i)}
-          <tr class="hover">
+          <tr class="hover:bg-base-200 transition-colors">
             <!--eslint-disable-next-line @typescript-eslint/no-unused-vars-->
             {#each headers as _h, j (j)}
               <td class="text-base-content/80 max-w-xs truncate text-xs">{row[j] ?? ''}</td>

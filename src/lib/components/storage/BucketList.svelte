@@ -66,14 +66,14 @@
   ></div>
   <ul
     class="
-      menu menu-sm border-base-300 bg-base-100 fixed z-50 w-40 rounded-lg
+      menu menu-sm border-base-300 bg-base-100 fixed z-[60] w-40 rounded-lg
       border p-1 shadow-lg
     "
     role="menu"
     style="left: {unpinCtx.x}px; top: {unpinCtx.y}px;"
   >
     <li role="none">
-      <button role="menuitem" class="text-error justify-start" onclick={handleUnpin}>
+      <button role="menuitem" class="justify-start" onclick={handleUnpin}>
         <Icon icon="material-symbols:push-pin-outline" class="size-4 shrink-0" aria-hidden="true" />
         {m.storage_action_unpin()}
       </button>
@@ -100,42 +100,44 @@
         {#each pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
           {@const active = isPinnedActive(pin)}
           <li role="none" class="group relative">
-            <a
-              href={pinnedHref(pin)}
-              data-sveltekit-preload-data="off"
-              class="
+            <div class="tooltip tooltip-right relative z-50 w-full" data-tip={pinnedLabel(pin)}>
+              <a
+                href={pinnedHref(pin)}
+                data-sveltekit-preload-data="off"
+                class="
                 hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
                 pr-7 text-sm
                 {active ? 'bg-primary/10 text-primary font-medium' : 'text-base-content'}"
-              aria-current={active ? 'page' : undefined}
-              oncontextmenu={(e) => openUnpinMenu(e, pin)}
-            >
-              {#if pin.prefix === ''}
-                <Icon
-                  icon="mdi:bucket-outline"
-                  class="size-3.5 shrink-0 opacity-60"
-                  aria-hidden="true"
-                />
-              {:else}
-                <Icon
-                  icon="material-symbols:folder-outline"
-                  class="size-3.5 shrink-0 opacity-60"
-                  aria-hidden="true"
-                />
-              {/if}
-              <span class="truncate">{pinnedLabel(pin)}</span>
-            </a>
+                aria-current={active ? 'page' : undefined}
+                oncontextmenu={(e) => openUnpinMenu(e, pin)}
+              >
+                {#if pin.prefix === ''}
+                  <Icon
+                    icon="mdi:bucket-outline"
+                    class="size-3.5 shrink-0 opacity-60"
+                    aria-hidden="true"
+                  />
+                {:else}
+                  <Icon
+                    icon="material-symbols:folder-outline"
+                    class="size-3.5 shrink-0 opacity-60"
+                    aria-hidden="true"
+                  />
+                {/if}
+                <span class="truncate">{pinnedLabel(pin)}</span>
+              </a>
+            </div>
             <button
               class="
-                btn btn-ghost btn-xs absolute top-1/2 right-1 -translate-y-1/2 p-0
-                opacity-0 transition-opacity
+                btn btn-ghost btn-xs absolute top-1/2 right-1 z-[51] -translate-y-1/2
+                p-0 opacity-0 transition-opacity
                 group-hover:opacity-100 focus:opacity-100
               "
               onclick={(e) => openUnpinMenuFromButton(e, pin)}
               aria-label={m.storage_more_options()}
               title={m.storage_more_options()}
             >
-              <Icon icon="material-symbols:more-vert" class="size-3.5" aria-hidden="true" />
+              <Icon icon="material-symbols:more-horiz" class="size-3.5" aria-hidden="true" />
             </button>
           </li>
         {/each}
@@ -158,11 +160,15 @@
     <a
       href="/storage"
       data-sveltekit-preload-data="off"
-      class="btn btn-ghost btn-xs tooltip tooltip-left"
+      class="btn btn-ghost btn-xs group tooltip tooltip-right"
       title={m.storage_view_all_buckets()}
       data-tip={m.storage_view_all_buckets()}
     >
-      <Icon icon="material-symbols:grid-view" class="size-3.5" aria-hidden="true" />
+      <Icon
+        icon="material-symbols:grid-view"
+        class="group-hover:text-primary size-3.5 transition-colors"
+        aria-hidden="true"
+      />
     </a>
   </div>
 

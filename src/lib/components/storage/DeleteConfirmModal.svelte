@@ -50,7 +50,7 @@
       <button class="btn btn-ghost" onclick={onCancel}>
         {m.storage_delete_cancel()}
       </button>
-      <button class="btn btn-error" onclick={onConfirm}>
+      <button class="btn btn-outline btn-error" onclick={onConfirm}>
         <Icon icon="material-symbols:delete-forever" class="size-4" aria-hidden="true" />
         {m.storage_delete_confirm_button()}
       </button>

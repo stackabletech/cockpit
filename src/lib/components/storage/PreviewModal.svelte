@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import Icon from '@iconify/svelte';
-  import prettyBytes from 'pretty-bytes';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
   import TextPreview from './preview/TextPreview.svelte';
@@ -9,7 +8,7 @@
   import ImagePreview from './preview/ImagePreview.svelte';
   import PdfPreview from './preview/PdfPreview.svelte';
   import FallbackPreview from './preview/FallbackPreview.svelte';
-  import { keyToName } from '$lib/storage/utils.js';
+  import { keyToName, formatFileSize } from '$lib/storage/utils.js';
 
   interface Props {
     open: boolean;
@@ -49,6 +48,8 @@
   // Keeping it non-reactive prevents a read/write cycle inside the $effect below.
   let blobUrls: string[] = [];
   let maximized = $state(false);
+  let imageNaturalWidth = $state(0);
+  let imageNaturalHeight = $state(0);
 
   // Revoke blob URLs when the component is destroyed
   onDestroy(() => {
@@ -72,6 +73,8 @@
     if (!open) {
       revokeBlobUrls();
       preview = { kind: 'idle' };
+      imageNaturalWidth = 0;
+      imageNaturalHeight = 0;
     }
   });
 
@@ -229,26 +232,43 @@
           {filename}
         </h2>
         {#if preview.kind === 'text' || preview.kind === 'csv'}
-          <p class="text-base-content/50 mt-0.5 text-xs">
-            {prettyBytes(preview.totalSize)}
+          <div class="mt-1 flex flex-wrap items-center gap-1">
+            <span class="badge badge-neutral badge-sm font-mono"
+              >{formatFileSize(preview.totalSize)}</span
+            >
             {#if preview.truncated}
-              &mdash;
-              {m.storage_preview_truncated({ size: prettyBytes(preview.previewBytes) })}
+              <span class="badge badge-soft badge-warning badge-sm">
+                {m.storage_preview_truncated({
+                  size: formatFileSize(preview.previewBytes)
+                })}
+              </span>
             {/if}
-          </p>
+          </div>
         {:else if preview.kind === 'parquet'}
-          <p class="text-base-content/50 mt-0.5 text-xs">
-            {prettyBytes(preview.totalSize)}
+          <div class="mt-1 flex flex-wrap items-center gap-1">
+            <span class="badge badge-neutral badge-sm font-mono"
+              >{formatFileSize(preview.totalSize)}</span
+            >
             {#if preview.truncated}
-              &mdash;
-              {m.storage_preview_parquet_rows({
-                count: preview.previewRows,
-                total: preview.totalRows
-              })}
+              <span class="badge badge-soft badge-warning badge-sm">
+                {m.storage_preview_parquet_rows({
+                  count: preview.previewRows,
+                  total: preview.totalRows
+                })}
+              </span>
             {/if}
-          </p>
+          </div>
         {:else if preview.kind === 'image' || preview.kind === 'pdf'}
-          <p class="text-base-content/50 mt-0.5 text-xs">{prettyBytes(preview.totalSize)}</p>
+          <div class="mt-1 flex flex-wrap items-center gap-1">
+            <span class="badge badge-neutral badge-sm font-mono"
+              >{formatFileSize(preview.totalSize)}</span
+            >
+            {#if preview.kind === 'image' && imageNaturalWidth > 0}
+              <span class="badge badge-neutral badge-sm font-mono"
+                >{imageNaturalWidth} &times; {imageNaturalHeight} px</span
+              >
+            {/if}
+          </div>
         {/if}
       </div>
       <button
@@ -299,7 +319,12 @@
       {:else if preview.kind === 'parquet'}
         <CsvPreview text={preview.text} />
       {:else if preview.kind === 'image'}
-        <ImagePreview src={preview.blobUrl} name={filename} />
+        <ImagePreview
+          src={preview.blobUrl}
+          name={filename}
+          bind:naturalWidth={imageNaturalWidth}
+          bind:naturalHeight={imageNaturalHeight}
+        />
       {:else if preview.kind === 'pdf'}
         <PdfPreview src={preview.blobUrl} name={filename} />
       {:else if preview.kind === 'fallback'}

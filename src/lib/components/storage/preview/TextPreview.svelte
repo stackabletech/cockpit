@@ -35,6 +35,6 @@
 </script>
 
 <pre
-  class="text-base-content/90 bg-base-200/50 min-h-0 rounded p-4 font-mono text-xs leading-relaxed whitespace-pre"
+  class="text-base-content/90 bg-base-200/50 min-h-full p-4 font-mono text-xs leading-relaxed whitespace-pre"
   data-language={language}
   aria-label="File content preview">{formatted}</pre>

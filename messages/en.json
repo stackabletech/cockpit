@@ -145,6 +145,7 @@
   "storage_connect_forget_label": "Forget connection to {endpoint}",
   "storage_disconnect": "Disconnect",
   "storage_buckets_label": "Buckets",
+  "storage_buckets_subtitle": "Browse and manage your stored objects.",
   "storage_view_all_buckets": "View all buckets",
   "storage_buckets_empty": "No buckets found",
   "storage_bucket_empty": "This bucket is empty",
@@ -152,6 +153,26 @@
   "storage_folders": "folders",
   "storage_file": "file",
   "storage_files": "files",
+  "storage_folder_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 folder",
+        "countPlural=other": "{count} folders"
+      }
+    }
+  ],
+  "storage_file_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 file",
+        "countPlural=other": "{count} files"
+      }
+    }
+  ],
   "storage_select_toggle": "Toggle selection mode",
   "storage_paste": "Paste {count} item",
   "storage_paste_plural": "Paste {count} items",

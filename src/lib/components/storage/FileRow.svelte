@@ -1,8 +1,7 @@
 <script lang="ts">
   import Icon from '@iconify/svelte';
-  import { fileIconKind, iconColors, keyToName } from '$lib/storage/utils.js';
+  import { fileIconKind, iconColors, keyToName, formatFileSize } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
-  import prettyBytes from 'pretty-bytes';
   import TimestampDisplay from '$lib/components/storage/TimestampDisplay.svelte';
 
   interface Props {
@@ -29,7 +28,7 @@
     ? 'bg-base-300 outline-base-content/30 outline -outline-offset-2'
     : selected
       ? 'bg-primary/10 hover:bg-primary/15'
-      : 'hover'}"
+      : 'hover:bg-base-200/60'}"
   onclick={(e) => onToggleSelect(file.key, e.ctrlKey || e.metaKey)}
   ondblclick={() => onAction('preview')}
   oncontextmenu={(e) => onContextMenu(e, file.key)}
@@ -74,7 +73,7 @@
       {/if}
     </div>
   </td>
-  <td class="text-right font-mono text-sm">{prettyBytes(file.size)}</td>
+  <td class="text-right font-mono text-sm">{formatFileSize(file.size)}</td>
   <td class="text-base-content/60 text-sm"
     ><TimestampDisplay date={file.lastModified} relative /></td
   >

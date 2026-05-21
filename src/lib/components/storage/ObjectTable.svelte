@@ -13,6 +13,7 @@
     selectedKeys: Set<string>;
     ctxKey: string | null;
     showCheckboxes: boolean;
+    selectionMode: boolean;
     allSelected: boolean;
     someSelected: boolean;
     onNavigate: (prefix: string, continuationToken?: string | null, pageSize?: number) => void;
@@ -29,6 +30,7 @@
     selectedKeys,
     ctxKey,
     showCheckboxes,
+    selectionMode,
     allSelected,
     someSelected,
     onNavigate,
@@ -44,10 +46,6 @@
       folders.filter((f) => selectedKeys.has(f.key)).length === 0
   );
   const selectedFileCount = $derived(files.filter((f) => selectedKeys.has(f.key)).length);
-  const canRename = $derived(
-    (selectedFileCount === 1 && folders.filter((f) => selectedKeys.has(f.key)).length === 0) ||
-      (folders.filter((f) => selectedKeys.has(f.key)).length === 1 && selectedFileCount === 0)
-  );
   const canDownload = $derived(
     selectedFileCount === 1 && folders.filter((f) => selectedKeys.has(f.key)).length === 0
   );
@@ -65,13 +63,13 @@
   }
 </script>
 
-<div class="overflow-x-auto">
+<div class="preview-scroll h-full overflow-x-auto overflow-y-auto">
   <table class="table-sm table">
-    <thead>
+    <thead class="bg-base-100 sticky top-0 z-10">
       <!-- Column headers -->
       <tr
         class="
-          bg-base-200/60 text-base-content/50 text-xs tracking-wide uppercase
+          bg-base-200 text-base-content/50 text-xs tracking-wide uppercase
         "
       >
         <th class="w-8 pr-0">
@@ -95,7 +93,7 @@
       </tr>
 
       <!-- Selection action toolbar -->
-      <SelectionToolbar {selectedCount} {canPreview} {canRename} {canDownload} {onAction} />
+      <SelectionToolbar {selectedCount} {canPreview} {canDownload} {onAction} />
     </thead>
 
     <tbody>
@@ -120,6 +118,7 @@
           selected={selectedKeys.has(folder.key)}
           isCtx={ctxKey === folder.key}
           {showCheckboxes}
+          {selectionMode}
           {onNavigate}
           {onToggleSelect}
           {onContextMenu}
