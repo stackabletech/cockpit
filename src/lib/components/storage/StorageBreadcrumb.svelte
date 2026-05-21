@@ -110,8 +110,8 @@
   </ul>
 {/if}
 
-{#snippet pinButton(b: string, p: string)}
-  {@const pinned = isPinned(b, p)}
+{#snippet pinButton(bucket: string, prefix: string)}
+  {@const pinned = isPinned(bucket, prefix)}
   <button
     class="
         tooltip tooltip-bottom btn btn-ghost btn-xs group/pin pointer-events-none z-60 size-5 p-0 opacity-0 transition-opacity delay-0 duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:delay-700
@@ -121,9 +121,9 @@
     aria-label={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
     onclick={() => {
       if (pinned) {
-        unpinLocation(b, p);
+        unpinLocation(bucket, prefix);
       } else {
-        pinLocation(b, p);
+        pinLocation(bucket, prefix);
       }
     }}
   >
