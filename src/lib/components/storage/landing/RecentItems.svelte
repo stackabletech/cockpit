@@ -12,8 +12,8 @@
     locationName,
     locationPath
   } from '$lib/storage/display-helpers.js';
-  import PreviewModal from '$lib/components/storage/PreviewModal.svelte';
-  import TimestampDisplay from '$lib/components/storage/TimestampDisplay.svelte';
+  import PreviewModal from '$lib/components/storage/modals/PreviewModal.svelte';
+  import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
 
   const storage = getStorageState();
 

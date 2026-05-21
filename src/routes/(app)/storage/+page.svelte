@@ -2,9 +2,9 @@
   import { navigating } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import BucketGrid from '$lib/components/storage/BucketGrid.svelte';
-  import StorageConnectForm from '$lib/components/storage/StorageConnectForm.svelte';
-  import RecentItems from '$lib/components/storage/RecentItems.svelte';
+  import BucketGrid from '$lib/components/storage/landing/BucketGrid.svelte';
+  import StorageConnectForm from '$lib/components/storage/landing/StorageConnectForm.svelte';
+  import RecentItems from '$lib/components/storage/landing/RecentItems.svelte';
 
   let { data } = $props();
   const storage = getStorageState();

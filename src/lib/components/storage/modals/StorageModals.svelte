@@ -2,7 +2,7 @@
   import { getStorageState } from '$lib/storage/context.js';
   import DeleteConfirmModal from './DeleteConfirmModal.svelte';
   import PreviewModal from './PreviewModal.svelte';
-  import UploadModal from './UploadModal.svelte';
+  import UploadModal from './upload/UploadModal.svelte';
 
   const storage = getStorageState();
 

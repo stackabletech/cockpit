@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { getStorageState } from '$lib/storage/context.js';
-  import FileExplorer from '$lib/components/storage/FileExplorer.svelte';
+  import FileExplorer from '$lib/components/storage/explorer/FileExplorer.svelte';
 
   let { data } = $props();
   const storage = getStorageState();

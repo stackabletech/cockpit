@@ -1,5 +1,5 @@
 <script lang="ts">
-  import BucketList from '$lib/components/storage/BucketList.svelte';
+  import BucketList from '$lib/components/storage/sidebar/BucketList.svelte';
   import { StorageState } from '$lib/storage/state.svelte.js';
   import { setStorageState } from '$lib/storage/context.js';
 

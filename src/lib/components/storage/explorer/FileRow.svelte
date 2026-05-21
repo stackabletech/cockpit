@@ -2,7 +2,7 @@
   import Icon from '@iconify/svelte';
   import { fileIconKind, iconColors, keyToName, formatFileSize } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
-  import TimestampDisplay from '$lib/components/storage/TimestampDisplay.svelte';
+  import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
   import { getStorageState } from '$lib/storage/context.js';
 
   interface Props {

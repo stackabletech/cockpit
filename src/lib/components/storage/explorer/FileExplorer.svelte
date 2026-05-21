@@ -6,7 +6,7 @@
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import ObjectTable from './ObjectTable.svelte';
   import ContextMenu from './ContextMenu.svelte';
-  import StorageModals from './StorageModals.svelte';
+  import StorageModals from '../modals/StorageModals.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
 
   const storage = getStorageState();

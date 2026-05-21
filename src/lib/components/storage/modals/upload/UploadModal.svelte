@@ -4,6 +4,10 @@
   import Modal from '$lib/components/Modal.svelte';
   import { checkObjectExists, uploadFile, UploadError } from '$lib/storage/upload.js';
   import { formatFileSize } from '$lib/storage/utils.js';
+  import UploadDropzone from './UploadDropzone.svelte';
+  import UploadConflictEntry from './UploadConflictEntry.svelte';
+  import UploadEntryStatus from './UploadEntryStatus.svelte';
+  import type { FileEntry, Phase, Resolution, RenameState } from './types.js';
 
   interface Props {
     open: boolean;
@@ -14,60 +18,16 @@
 
   let { open = $bindable(false), bucket, prefix, onSuccess }: Props = $props();
 
-  const uid = $props.id();
-
-  // ── Types ──────────────────────────────────────────────────────────────────
-
-  type Resolution = 'replace' | 'skip' | 'rename';
-
-  /**
-   * Tracks the two-stage rename confirmation flow.
-   * idle      – rename not selected for this entry
-   * editing   – rename selected, text field is editable
-   * checking  – async conflict check in progress
-   * ok        – new name confirmed available
-   * conflict  – new name already exists in the bucket
-   */
-  type RenameState = 'idle' | 'editing' | 'checking' | 'ok' | 'conflict';
-
-  type FileEntry = {
-    id: string;
-    file: File;
-    /** Relative display path (without bucket prefix). */
-    displayPath: string;
-    /** Full object key in the bucket. */
-    targetKey: string;
-    conflict: boolean;
-    resolution: Resolution | null;
-    /** Editable filename when the user chooses to rename. */
-    customName: string;
-    renameState: RenameState;
-    status: 'pending' | 'uploading' | 'done' | 'error' | 'skipped';
-    progress: number;
-    errorMessage?: string;
-  };
-
-  type Phase = 'idle' | 'selected' | 'checking' | 'review' | 'uploading' | 'complete';
-
   // ── State ──────────────────────────────────────────────────────────────────
 
   let phase = $state<Phase>('idle');
   let entries = $state<FileEntry[]>([]);
-  let dragOver = $state(false);
-  let fileInputEl: HTMLInputElement | null = $state(null);
-  let dirInputEl: HTMLInputElement | null = $state(null);
-
-  // Set webkitdirectory on the folder input (non-standard, but widely supported in Firefox/Chromium).
-  $effect(() => {
-    dirInputEl?.setAttribute('webkitdirectory', '');
-  });
 
   // Reset when modal closes.
   $effect(() => {
     if (!open) {
       phase = 'idle';
       entries = [];
-      dragOver = false;
     }
   });
 
@@ -121,101 +81,11 @@
     }));
   }
 
-  // ── File selection ─────────────────────────────────────────────────────────
+  // ── File selection (from UploadDropzone) ───────────────────────────────────
 
-  function handleInputChange(e: Event) {
-    const list = (e.target as HTMLInputElement).files;
-    if (!list || list.length === 0) return;
-    const pairs = Array.from(list).map((f) => ({
-      file: f,
-      relativePath: f.webkitRelativePath || f.name
-    }));
+  function handleFilesSelected(pairs: { file: File; relativePath: string }[]) {
     entries = makeEntries(pairs);
     phase = 'selected';
-    // Reset the input so the same selection can be re-triggered.
-    (e.target as HTMLInputElement).value = '';
-  }
-
-  function handleDragOver(e: DragEvent) {
-    e.preventDefault();
-    dragOver = true;
-  }
-
-  function handleDragLeave() {
-    dragOver = false;
-  }
-
-  async function handleDrop(e: DragEvent) {
-    e.preventDefault();
-    dragOver = false;
-    const dt = e.dataTransfer;
-    if (!dt) return;
-
-    let pairs: { file: File; relativePath: string }[];
-    try {
-      pairs = await collectDroppedFiles(dt);
-    } catch {
-      // Fallback if the FileSystem API is unavailable.
-      pairs = Array.from(dt.files).map((f) => ({ file: f, relativePath: f.name }));
-    }
-
-    if (pairs.length === 0) return;
-    entries = makeEntries(pairs);
-    phase = 'selected';
-  }
-
-  // ── Directory traversal ────────────────────────────────────────────────────
-
-  async function collectDroppedFiles(
-    dt: DataTransfer
-  ): Promise<{ file: File; relativePath: string }[]> {
-    // Collect FileSystemEntry for each dropped item once (single-use in some browsers).
-    const fsEntries = Array.from(dt.items).map((i) => i.webkitGetAsEntry?.() ?? null);
-
-    // If no directories are present, skip async traversal.
-    if (!fsEntries.some((e) => e?.isDirectory)) {
-      return Array.from(dt.files).map((f) => ({ file: f, relativePath: f.name }));
-    }
-
-    const results: { file: File; relativePath: string }[] = [];
-    for (const entry of fsEntries) {
-      if (entry) {
-        results.push(...(await traverseEntry(entry, '')));
-      }
-    }
-    return results;
-  }
-
-  async function traverseEntry(
-    entry: FileSystemEntry,
-    base: string
-  ): Promise<{ file: File; relativePath: string }[]> {
-    if (entry.isFile) {
-      return new Promise((resolve, reject) => {
-        (entry as FileSystemFileEntry).file(
-          (f) => resolve([{ file: f, relativePath: base + entry.name }]),
-          reject
-        );
-      });
-    }
-    if (entry.isDirectory) {
-      const reader = (entry as FileSystemDirectoryEntry).createReader();
-      const children = await drainReader(reader);
-      const newBase = base + entry.name + '/';
-      const nested = await Promise.all(children.map((c) => traverseEntry(c, newBase)));
-      return nested.flat();
-    }
-    return [];
-  }
-
-  async function drainReader(reader: FileSystemDirectoryReader): Promise<FileSystemEntry[]> {
-    const all: FileSystemEntry[] = [];
-    let batch: FileSystemEntry[];
-    do {
-      batch = await new Promise<FileSystemEntry[]>((res, rej) => reader.readEntries(res, rej));
-      all.push(...batch);
-    } while (batch.length > 0);
-    return all;
   }
 
   // ── Upload flow ────────────────────────────────────────────────────────────
@@ -412,63 +282,7 @@
 
     <!-- ── idle: drag-and-drop zone ────────────────────────────────────── -->
     {#if phase === 'idle'}
-      <!-- Hidden inputs: one for multiple files, one for a directory -->
-      <input
-        bind:this={fileInputEl}
-        id="{uid}-files"
-        type="file"
-        class="sr-only"
-        multiple
-        onchange={handleInputChange}
-        aria-label={m.storage_upload_select_files()}
-      />
-      <input
-        bind:this={dirInputEl}
-        id="{uid}-dir"
-        type="file"
-        class="sr-only"
-        onchange={handleInputChange}
-        aria-label={m.storage_upload_select_folder()}
-      />
-
-      <!-- Drop zone -->
-      <div
-        role="button"
-        tabindex="0"
-        class="
-          border-base-300 hover:border-primary/60 hover:bg-primary/5 mb-4 flex cursor-pointer
-          flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-12
-          transition-colors
-          {dragOver ? 'border-primary bg-primary/5' : ''}
-        "
-        aria-label={m.storage_upload_drop_prompt()}
-        onclick={() => fileInputEl?.click()}
-        onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInputEl?.click()}
-        ondragover={handleDragOver}
-        ondragleave={handleDragLeave}
-        ondrop={handleDrop}
-      >
-        <Icon
-          icon="material-symbols:upload-file"
-          class="text-base-content/30 size-12"
-          aria-hidden="true"
-        />
-        <p class="text-base-content/60 text-center text-sm">
-          {m.storage_upload_drop_prompt()}
-        </p>
-      </div>
-
-      <!-- Picker buttons -->
-      <div class="flex justify-center gap-3">
-        <button class="btn btn-ghost btn-sm gap-1.5" onclick={() => fileInputEl?.click()}>
-          <Icon icon="material-symbols:file-copy-outline" class="size-4" aria-hidden="true" />
-          {m.storage_upload_select_files()}
-        </button>
-        <button class="btn btn-ghost btn-sm gap-1.5" onclick={() => dirInputEl?.click()}>
-          <Icon icon="material-symbols:folder-open" class="size-4" aria-hidden="true" />
-          {m.storage_upload_select_folder()}
-        </button>
-      </div>
+      <UploadDropzone onFilesSelected={handleFilesSelected} />
 
       <!-- ── selected: file list preview ──────────────────────────────────── -->
     {:else if phase === 'selected'}
@@ -534,103 +348,13 @@
         aria-label={m.storage_upload_conflicts_title()}
       >
         {#each conflictEntries as entry (entry.id)}
-          {@const nameOnly = entry.targetKey.split('/').at(-1) ?? entry.file.name}
-          {@const badRename =
-            entry.resolution === 'rename' &&
-            (entry.customName.trim() === '' || entry.customName.trim() === entry.file.name)}
-          <li class="px-4 py-3">
-            <p class="text-base-content mb-2 truncate text-sm font-medium">
-              &ldquo;{nameOnly}&rdquo;
-            </p>
-            <!-- Resolution toggle buttons -->
-            <div
-              class="flex flex-wrap gap-1.5"
-              role="group"
-              aria-label="{m.storage_upload_conflicts_title()} — {nameOnly}"
-            >
-              <button
-                class="btn btn-xs {entry.resolution === 'replace' ? 'btn-warning' : 'btn-ghost'}"
-                onclick={() => setResolution(entry.id, 'replace')}
-                aria-pressed={entry.resolution === 'replace'}
-              >
-                {m.storage_upload_resolution_replace()}
-              </button>
-              <button
-                class="btn btn-xs {entry.resolution === 'skip' ? 'btn-neutral' : 'btn-ghost'}"
-                onclick={() => setResolution(entry.id, 'skip')}
-                aria-pressed={entry.resolution === 'skip'}
-              >
-                {m.storage_upload_resolution_skip()}
-              </button>
-              <button
-                class="btn btn-xs gap-1 {entry.resolution !== 'rename'
-                  ? 'btn-ghost'
-                  : entry.renameState === 'ok'
-                    ? 'btn-success'
-                    : entry.renameState === 'conflict'
-                      ? 'btn-error'
-                      : 'btn-primary'}"
-                onclick={() => handleRenameButtonClick(entry.id)}
-                aria-pressed={entry.resolution === 'rename'}
-                disabled={entry.renameState === 'checking'}
-              >
-                {#if entry.resolution === 'rename' && entry.renameState === 'checking'}
-                  <span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
-                {:else if entry.resolution === 'rename' && entry.renameState === 'ok'}
-                  <Icon icon="material-symbols:check" class="size-3" aria-hidden="true" />
-                {/if}
-                {#if entry.resolution === 'rename' && (entry.renameState === 'editing' || entry.renameState === 'conflict')}
-                  {m.storage_upload_rename_confirm_action()}
-                {:else}
-                  {m.storage_upload_resolution_rename()}
-                {/if}
-              </button>
-            </div>
-
-            <!-- Name field: real <input> only while editing; static display otherwise -->
-            <div class="mt-2">
-              {#if entry.resolution === 'rename' && (entry.renameState === 'editing' || entry.renameState === 'conflict')}
-                <label for="{uid}-rename-{entry.id}" class="label sr-only">
-                  {m.storage_upload_rename_label()}
-                </label>
-                <input
-                  id="{uid}-rename-{entry.id}"
-                  type="text"
-                  class="input input-sm w-full {badRename || entry.renameState === 'conflict'
-                    ? 'input-error'
-                    : ''}"
-                  value={entry.customName}
-                  oninput={(e) => setCustomName(entry.id, (e.target as HTMLInputElement).value)}
-                  onkeydown={(e) => e.key === 'Enter' && void checkRename(entry.id)}
-                  placeholder={m.storage_upload_rename_label()}
-                  aria-describedby={badRename || entry.renameState === 'conflict'
-                    ? `${uid}-rename-err-${entry.id}`
-                    : undefined}
-                />
-                {#if badRename}
-                  <p id="{uid}-rename-err-{entry.id}" class="text-error mt-1 text-xs" role="alert">
-                    {m.storage_upload_rename_same_name_error()}
-                  </p>
-                {:else if entry.renameState === 'conflict'}
-                  <p id="{uid}-rename-err-{entry.id}" class="text-error mt-1 text-xs" role="alert">
-                    {m.storage_upload_rename_taken()}
-                  </p>
-                {/if}
-              {:else}
-                <!-- Static display: not in rename mode, or confirmed/checking -->
-                <div class="text-base-content/50 mt-1 flex items-center gap-1 px-1 text-sm">
-                  <span class="min-w-0 flex-1 truncate">{entry.customName}</span>
-                  {#if entry.resolution === 'rename' && entry.renameState === 'ok'}
-                    <Icon
-                      icon="material-symbols:check-circle"
-                      class="text-success size-3.5 shrink-0"
-                      aria-hidden="true"
-                    />
-                  {/if}
-                </div>
-              {/if}
-            </div>
-          </li>
+          <UploadConflictEntry
+            {entry}
+            onSetResolution={(res) => setResolution(entry.id, res)}
+            onSetCustomName={(name) => setCustomName(entry.id, name)}
+            onRenameButtonClick={() => handleRenameButtonClick(entry.id)}
+            onCheckRename={() => checkRename(entry.id)}
+          />
         {/each}
       </ul>
 
@@ -657,71 +381,7 @@
         aria-live="polite"
       >
         {#each entries as entry (entry.id)}
-          {@const nameOnly =
-            entry.resolution === 'rename' && entry.customName.trim()
-              ? entry.customName.trim()
-              : (entry.targetKey.split('/').at(-1) ?? entry.file.name)}
-          <li class="px-4 py-2.5">
-            <div class="flex items-center gap-2 text-sm">
-              {#if entry.status === 'done'}
-                <Icon
-                  icon="material-symbols:check-circle"
-                  class="text-success size-4 shrink-0"
-                  aria-hidden="true"
-                />
-              {:else if entry.status === 'error'}
-                <Icon
-                  icon="material-symbols:error"
-                  class="text-error size-4 shrink-0"
-                  aria-hidden="true"
-                />
-              {:else if entry.status === 'skipped'}
-                <Icon
-                  icon="material-symbols:block"
-                  class="text-base-content/30 size-4 shrink-0"
-                  aria-hidden="true"
-                />
-              {:else if entry.status === 'uploading'}
-                <span
-                  class="loading loading-spinner loading-xs text-primary shrink-0"
-                  aria-hidden="true"
-                ></span>
-              {:else}
-                <Icon
-                  icon="material-symbols:schedule"
-                  class="text-base-content/30 size-4 shrink-0"
-                  aria-hidden="true"
-                />
-              {/if}
-              <span class="min-w-0 flex-1 truncate">{nameOnly}</span>
-              <span class="text-base-content/50 shrink-0 text-xs">
-                {#if entry.status === 'uploading'}
-                  {entry.progress}%
-                {:else if entry.status === 'done'}
-                  {m.storage_upload_status_done()}
-                {:else if entry.status === 'skipped'}
-                  {m.storage_upload_status_skipped()}
-                {:else if entry.status === 'error'}
-                  {m.storage_upload_status_failed()}
-                {:else}
-                  {m.storage_upload_status_queued()}
-                {/if}
-              </span>
-            </div>
-            {#if entry.status === 'uploading'}
-              <progress
-                class="progress progress-primary mt-1.5 w-full"
-                value={entry.progress}
-                max="100"
-                aria-valuenow={entry.progress}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              ></progress>
-            {/if}
-            {#if entry.status === 'error' && entry.errorMessage}
-              <p class="text-error mt-1 text-xs">{entry.errorMessage}</p>
-            {/if}
-          </li>
+          <UploadEntryStatus {entry} />
         {/each}
       </ul>
 
