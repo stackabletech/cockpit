@@ -1,7 +1,6 @@
 import * as m from '$lib/paraglide/messages.js';
 import type { NavItem, NavSection } from '$lib/types/navigation.js';
 
-export type { NavItem, NavSection };
 
 export function getNavSections(): NavSection[] {
   return [
