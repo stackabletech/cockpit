@@ -231,18 +231,18 @@
   <!-- Item count badges -->
   <div class="flex shrink-0 items-center gap-1.5">
     <span
-      class="tooltip tooltip-bottom badge badge-soft badge-primary badge-sm z-[60] gap-1"
+      class="tooltip tooltip-bottom badge badge-soft badge-primary badge-sm z-60 gap-1"
       data-tip={m.storage_folder_count({ count: folderCount })}
     >
-      <Icon icon="material-symbols:folder-outline" class="size-3" aria-hidden="true" />
-      <span class="font-semibold">{folderCount}</span>
+      <Icon icon="material-symbols:folder-outline" class="size-4" aria-hidden="true" />
+      <span class="font-bold">{folderCount}</span>
     </span>
     <span
-      class="tooltip tooltip-bottom badge badge-soft badge-primary badge-sm z-[60] gap-1"
+      class="tooltip tooltip-bottom badge badge-soft badge-primary badge-sm z-60 gap-1"
       data-tip={m.storage_file_count({ count: fileCount })}
     >
-      <Icon icon="material-symbols:description-outline" class="size-3" aria-hidden="true" />
-      <span class="font-semibold">{fileCount}</span>
+      <Icon icon="material-symbols:description-outline" class="size-4" aria-hidden="true" />
+      <span class="font-bold">{fileCount}</span>
     </span>
   </div>
 
