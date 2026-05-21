@@ -74,7 +74,7 @@
   ></div>
   <ul
     class="
-      menu menu-sm border-base-300 bg-base-100 fixed z-[60] w-48 rounded-lg
+      menu menu-sm border-base-300 bg-base-100 fixed z-60 w-48 rounded-lg
       border p-1 shadow-lg
     "
     role="menu"
@@ -110,6 +110,54 @@
   </ul>
 {/if}
 
+{#snippet pinButton(bucket: string, prefix: string)}
+  {@const pinned = isPinned(bucket, prefix)}
+  <span
+    class="
+      pointer-events-none w-0 shrink-0 overflow-hidden
+      group-hover:pointer-events-auto group-hover:w-5
+      motion-safe:transition-[width] motion-safe:duration-150 motion-safe:group-hover:delay-700
+    "
+  >
+    <button
+      class="
+          tooltip tooltip-bottom btn btn-ghost btn-xs group/pin z-60 size-5 p-0
+          {pinned ? 'hover:text-error' : 'hover:text-white'}
+        "
+      data-tip={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
+      aria-label={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
+      onclick={() => {
+        if (pinned) {
+          unpinLocation(bucket, prefix);
+        } else {
+          pinLocation(bucket, prefix);
+        }
+      }}
+    >
+      <span class="relative inline-flex size-3.5">
+        <span
+          class="absolute inset-0 flex items-center justify-center transition-opacity duration-150 group-hover/pin:opacity-0"
+        >
+          <Icon
+            icon={pinned ? 'material-symbols:push-pin' : 'material-symbols:push-pin-outline'}
+            class="size-3.5"
+            aria-hidden="true"
+          />
+        </span>
+        <span
+          class="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover/pin:opacity-100"
+        >
+          <Icon
+            icon={pinned ? 'material-symbols:push-pin-outline' : 'material-symbols:push-pin'}
+            class="size-3.5"
+            aria-hidden="true"
+          />
+        </span>
+      </span>
+    </button>
+  </span>
+{/snippet}
+
 <div class="border-base-300 flex items-center gap-3 border-b px-6 py-3">
   <!-- Breadcrumbs -->
   <nav
@@ -119,33 +167,39 @@
   "
   >
     {#if breadcrumbParts.length === 0}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <span
-        class="
-          text-base-content flex shrink-0 items-center gap-1.5 rounded-sm px-1.5
-          py-0.5 font-medium
-        "
-        title={bucket}
-        aria-current="page"
-        oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, '')}
-      >
-        <Icon icon="material-symbols:storage" class="size-4" aria-hidden="true" />
-        {bucket}
+      <span class="group flex shrink-0 items-center gap-1">
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <span
+          class="
+            text-base-content flex shrink-0 items-center gap-1.5 rounded-sm px-1.5
+            py-0.5 font-medium
+          "
+          title={bucket}
+          aria-current="page"
+          oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, '')}
+        >
+          <Icon icon="material-symbols:storage" class="size-4" aria-hidden="true" />
+          {bucket}
+        </span>
+        {@render pinButton(bucket, '')}
       </span>
     {:else}
-      <button
-        class="
-          text-base-content/70 hover:bg-base-200 hover:text-base-content flex shrink-0 items-center gap-1.5
-          rounded-sm px-1.5
-          py-0.5 transition-colors hover:cursor-pointer
-        "
-        title={bucket}
-        onclick={() => onNavigate('')}
-        oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, '')}
-      >
-        <Icon icon="material-symbols:storage" class="size-4" aria-hidden="true" />
-        {bucket}
-      </button>
+      <span class="group flex shrink-0 items-center gap-1">
+        <button
+          class="
+            text-base-content/70 hover:bg-base-200 hover:text-base-content flex shrink-0 items-center gap-1.5
+            rounded-sm px-1.5
+            py-0.5 transition-colors hover:cursor-pointer
+          "
+          title={bucket}
+          onclick={() => onNavigate('')}
+          oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, '')}
+        >
+          <Icon icon="material-symbols:storage" class="size-4" aria-hidden="true" />
+          {bucket}
+        </button>
+        {@render pinButton(bucket, '')}
+      </span>
     {/if}
     {#if collapsedParts.length > 0}
       <Icon
@@ -177,16 +231,16 @@
         >
           {#each collapsedParts as part (part.prefix)}
             <li>
-              <button
-                class="
-                  text-sm
-                  hover:cursor-pointer
-                "
-                onclick={() => onNavigate(part.prefix)}
-                oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, part.prefix)}
-              >
-                {part.label}
-              </button>
+              <div class="group flex items-center justify-between gap-2">
+                <button
+                  class="flex-1 text-left text-sm hover:cursor-pointer"
+                  onclick={() => onNavigate(part.prefix)}
+                  oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, part.prefix)}
+                >
+                  {part.label}
+                </button>
+                {@render pinButton(bucket, part.prefix)}
+              </div>
             </li>
           {/each}
         </ul>
@@ -199,32 +253,35 @@
         class="text-base-content/30 size-4 shrink-0"
         aria-hidden="true"
       />
-      {#if isCurrent}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <span
-          class="
-            text-base-content min-w-0 truncate rounded-sm px-1.5 py-0.5
-            font-medium
-          "
-          title={part.label}
-          aria-current="page"
-          oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, part.prefix)}
-        >
-          {part.label}
-        </span>
-      {:else}
-        <button
-          class="
-            hover:bg-base-200 hover:text-base-content min-w-0 truncate rounded-sm px-1.5
-            py-0.5 transition-colors hover:cursor-pointer
-          "
-          title={part.label}
-          onclick={() => onNavigate(part.prefix)}
-          oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, part.prefix)}
-        >
-          {part.label}
-        </button>
-      {/if}
+      <span class="group flex min-w-0 items-center gap-1">
+        {#if isCurrent}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <span
+            class="
+              text-base-content min-w-0 truncate rounded-sm px-1.5 py-0.5
+              font-medium
+            "
+            title={part.label}
+            aria-current="page"
+            oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, part.prefix)}
+          >
+            {part.label}
+          </span>
+        {:else}
+          <button
+            class="
+              hover:bg-base-200 hover:text-base-content min-w-0 truncate rounded-sm px-1.5
+              py-0.5 transition-colors hover:cursor-pointer
+            "
+            title={part.label}
+            onclick={() => onNavigate(part.prefix)}
+            oncontextmenu={(e) => openBreadcrumbCtx(e, bucket, part.prefix)}
+          >
+            {part.label}
+          </button>
+        {/if}
+        {@render pinButton(bucket, part.prefix)}
+      </span>
     {/each}
   </nav>
 
