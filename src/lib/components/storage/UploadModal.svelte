@@ -4,6 +4,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
   import { checkObjectExists, uploadFile, UploadError } from '$lib/storage/upload.js';
+  import { getLocale } from '$lib/paraglide/runtime.js';
 
   interface Props {
     open: boolean;
@@ -486,14 +487,17 @@
               aria-hidden="true"
             />
             <span class="min-w-0 flex-1 truncate text-sm">{entry.displayPath}</span>
-            <span class="text-base-content/50 shrink-0 text-xs">{prettyBytes(entry.file.size)}</span
+            <span class="text-base-content/50 shrink-0 text-xs"
+              >{prettyBytes(entry.file.size, { locale: getLocale(), fixedWidth: 9 })}</span
             >
           </li>
         {/each}
       </ul>
       <p class="text-base-content/50 mb-4 text-xs">
         {entries.length === 1 ? `1 ${m.storage_file()}` : `${entries.length} ${m.storage_files()}`}
-        &nbsp;&middot;&nbsp;{m.storage_upload_total_size({ size: prettyBytes(totalSize) })}
+        &nbsp;&middot;&nbsp;{m.storage_upload_total_size({
+          size: prettyBytes(totalSize, { locale: getLocale(), fixedWidth: 9 })
+        })}
       </p>
       <div class="flex justify-end gap-2">
         <button class="btn btn-ghost btn-sm" onclick={handleCancel}>
