@@ -47,9 +47,22 @@ jobs:
       - name: Run pre-commit
         uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
 
-  tests:
-    name: E2E Tests
+  e2e-tests-with-garage:
+    name: E2E Tests with Garage S3
     runs-on: ubuntu-latest
+    services:
+      garage:
+        image: dxflrs/garage:v2.3.0
+        ports:
+          - 3900:3900   # S3 API
+        env:
+          GARAGE_CONFIG_FILE: /etc/garage.toml
+        options: >-
+          --entrypoint ""
+          --command "/garage server --single-node"
+        volumes:
+          - garage-data:/var/lib/garage
+
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -68,5 +81,49 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox
 
-      - name: Run E2E tests
-        run: npm run test:e2e
+      - name: Prepare Garage config file
+        id: garage-config
+        run: |
+          # Create a Garage config TOML
+          cat > tests/garage.toml <<'EOF'
+          metadata_dir = "/var/lib/garage/meta"
+          data_dir = "/var/lib/garage/data"
+          replication_factor = 1
+
+          rpc_bind_addr = "[::]:3901"
+          rpc_public_addr = "garage:3901"
+          rpc_secret = "2eef98a70ab343ba9dadf3809f38d63a2333a9f38909a3f3d3f3d3f3d3f3d3f3"
+
+          [s3_api]
+          s3_region = "garage"
+          api_bind_addr = "[::]:3900"
+          root_domain = ".s3.garage.localhost"
+          EOF
+
+      - name: Initialize Garage buckets and keys
+        run: |
+          docker exec ${{ job.services.garage.id }} /garage bucket create test-bucket
+          KEY_JSON=$(docker exec ${{ job.services.garage.id }} /garage key create e2e-test-app --format=json)
+          export APP_KEY_ID=$(echo "$KEY_JSON" | jq -r '.key_id')
+          export APP_SECRET=$(echo "$KEY_JSON" | jq -r '.secret')
+
+          docker exec ${{ job.services.garage.id }} /garage \
+            bucket allow --read --write test-bucket --key e2e-test-app
+
+          # Write config file for Playwright to read (Playwright should read 's3-config.json' from the root of the project)
+          cat > s3-config.json <<EOF
+          {
+            "awsEndpoint": "http://localhost:3900",
+            "awsRegion": "garage",
+            "awsAccessKeyId": "$APP_KEY_ID",
+            "awsSecretAccessKey": "$APP_SECRET",
+            "bucket": "test-bucket"
+          }
+          EOF
+
+      - name: Run E2E tests with Garage
+        run: npm run test:e2e:garage
+
+      - name: Debug: print config
+        run: cat s3-config.json
+        if: failure()
