@@ -124,6 +124,6 @@ jobs:
       - name: Run E2E tests with Garage
         run: npm run test:e2e:garage
 
-      - name: Debug: print config
+      - name: Debug - print config
         run: cat s3-config.json
         if: failure()
