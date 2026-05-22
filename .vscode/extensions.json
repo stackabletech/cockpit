@@ -1,0 +1,30 @@
+{
+  "recommendations": [
+    // Core language support
+    "svelte.svelte-vscode",
+
+    // Formatting – reads the project's .prettierrc
+    "esbenp.prettier-vscode",
+
+    // Linting – uses the project's eslint.config.js (flat config)
+    "dbaeumer.vscode-eslint",
+
+    // Tailwind CSS IntelliSense: class suggestions, hover docs, v4 support
+    "bradlc.vscode-tailwindcss",
+
+    // E2E test runner UI (Playwright)
+    "ms-playwright.playwright",
+
+    // Unit test runner UI (Vitest)
+    "vitest.explorer",
+
+    // .env file syntax highlighting and IntelliSense
+    "mikestead.dotenv",
+
+    // YAML support for .pre-commit-config.yaml, Helm charts, dev/ files
+    "redhat.vscode-yaml",
+
+    // i18n management: surfaces missing/untranslated Paraglide message keys
+    "lokalise.i18n-ally"
+  ]
+}
