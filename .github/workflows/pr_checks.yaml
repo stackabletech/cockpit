@@ -52,14 +52,14 @@ jobs:
     runs-on: ubuntu-latest
     services:
       garage:
-        image: dxflrs/garage:v2.3.0
+        image: docker.io/dxflrs/garage:v2.3.0
         ports:
           - 3900:3900   # S3 API
         env:
           GARAGE_CONFIG_FILE: /etc/garage.toml
         options: >-
           --entrypoint /garage
-          -- /garage server --single-node
+          -- server --single-node
         volumes:
           - garage-data:/var/lib/garage
 
