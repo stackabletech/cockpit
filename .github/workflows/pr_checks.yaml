@@ -59,7 +59,7 @@ jobs:
           GARAGE_CONFIG_FILE: /etc/garage.toml
         options: >-
           --entrypoint /garage
-          -- server --single-node
+          --server --single-node
         volumes:
           - garage-data:/var/lib/garage
 
