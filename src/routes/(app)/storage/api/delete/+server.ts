@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { deleteObjects } from '$lib/server/storage/service.js';
 import { getUserId } from '$lib/server/auth-utils.js';
-import { requireBucketKey } from '../params';
+import { requireBucket } from '../params.js';
 
 /**
  * DELETE /storage/api/delete?bucket=<bucket>&keys=<key1>&keys=<key2>&...
@@ -11,7 +11,7 @@ import { requireBucketKey } from '../params';
  * Authentication is enforced by the app-level auth guard in hooks.server.ts.
  */
 export const DELETE: RequestHandler = async ({ locals, url }) => {
-  const { bucket } = requireBucketKey(url);
+  const bucket = requireBucket(url);
 
   const keys = url.searchParams.getAll('keys');
   if (!keys.length) {
