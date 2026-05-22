@@ -47,7 +47,7 @@ jobs:
       - name: Run pre-commit
         uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
 
-  e2e-tests-with-garage:
+  e2e-with-garage:
     name: E2E Tests with Garage S3
     runs-on: ubuntu-latest
     services:
@@ -58,8 +58,8 @@ jobs:
         env:
           GARAGE_CONFIG_FILE: /etc/garage.toml
         options: >-
-          --entrypoint ""
-          --command "/garage server --single-node"
+          --entrypoint /garage
+          -- /garage server --single-node
         volumes:
           - garage-data:/var/lib/garage
 
@@ -81,10 +81,9 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox
 
-      - name: Prepare Garage config file
-        id: garage-config
+      - name: Create Garage config and initialize bucket
         run: |
-          # Create a Garage config TOML
+          # Create a Garage config
           cat > tests/garage.toml <<'EOF'
           metadata_dir = "/var/lib/garage/meta"
           data_dir = "/var/lib/garage/data"
@@ -100,13 +99,14 @@ jobs:
           root_domain = ".s3.garage.localhost"
           EOF
 
-      - name: Initialize Garage buckets and keys
-        run: |
+          # Copy config into the Garage container
+          docker cp tests/garage.toml ${{ job.services.garage.id }}:/etc/garage.toml
+
+          # Create bucket and key
           docker exec ${{ job.services.garage.id }} /garage bucket create test-bucket
           KEY_JSON=$(docker exec ${{ job.services.garage.id }} /garage key create e2e-test-app --format=json)
           export APP_KEY_ID=$(echo "$KEY_JSON" | jq -r '.key_id')
           export APP_SECRET=$(echo "$KEY_JSON" | jq -r '.secret')
-
           docker exec ${{ job.services.garage.id }} /garage \
             bucket allow --read --write test-bucket --key e2e-test-app
 
