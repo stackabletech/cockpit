@@ -71,22 +71,19 @@ jobs:
 
       - name: Start Garage S3 and initialize bucket
         run: |
-          APP_KEY_ID="GK$(openssl rand -hex 16)"
-          APP_SECRET=$(openssl rand -hex 32)
-
-          # Start Garage — server and --single-node are entrypoint args, not docker flags,
-          # so they must be passed after the image name via docker run rather than via
-          # service container options.
+          # GitHub Actions services now support entrypoint + command, but we still
+          # start Garage manually here because service containers are created before
+          # actions/checkout runs. The upstream Garage image contains only the
+          # /garage binary (no /bin/sh), so the service cannot wait for the checked-
+          # out e2e/garage.toml to appear before it starts.
           docker run -d --name garage \
             -p 3900:3900 \
+            -p 3902:3902 \
             -e GARAGE_CONFIG_FILE=/workspace/e2e/garage.toml \
-            -e GARAGE_DEFAULT_ACCESS_KEY="$APP_KEY_ID" \
-            -e GARAGE_DEFAULT_SECRET_KEY="$APP_SECRET" \
-            -e GARAGE_DEFAULT_BUCKET=test-bucket \
             -v "$PWD:/workspace" \
             --entrypoint /garage \
-            docker.io/dxflrs/garage:v2.3.0 \
-            server --single-node --default-bucket
+            oci.stackable.tech/stackable/dxflrs/garage:v2.3.0 \
+            server --single-node
 
           # Wait for the S3 API to become available
           for _ in $(seq 1 30); do
@@ -96,16 +93,10 @@ jobs:
             sleep 1
           done
 
-          # Write config file for Playwright to read (Playwright should read 's3-config.json' from the root of the project)
-          cat > s3-config.json <<EOF
-          {
-            "awsEndpoint": "http://localhost:3900",
-            "awsRegion": "garage",
-            "awsAccessKeyId": "$APP_KEY_ID",
-            "awsSecretAccessKey": "$APP_SECRET",
-            "bucket": "test-bucket"
-          }
-          EOF
+          GARAGE_ADMIN_TOKEN='stackable-ui-e2e-admin-token' \
+            S3_ENDPOINT='http://localhost:3900' \
+            S3_CONFIG_PATH="$PWD/s3-config.json" \
+            ./e2e/init-garage-s3.sh
 
       - name: Run E2E tests with Garage
         run: npm run test:e2e:garage

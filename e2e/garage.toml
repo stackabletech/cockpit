@@ -8,6 +8,10 @@ rpc_bind_addr = "127.0.0.1:3901"
 rpc_public_addr = "127.0.0.1:3901"
 rpc_secret = "2eef98a70ab343ba9dadf3809f38d63a2333a9f38909a3f3d3f3d3f3d3f3d3f3"
 
+[admin]
+api_bind_addr = "[::]:3902"
+admin_token = "stackable-ui-e2e-admin-token"
+
 [s3_api]
 s3_region = "garage"
 api_bind_addr = "[::]:3900"

@@ -5,7 +5,9 @@ set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 S3_CONFIG_PATH="$ROOT_DIR/s3-config.json"
 GARAGE_CONFIG_PATH="$ROOT_DIR/e2e/garage.toml"
+GARAGE_INIT_SCRIPT="$ROOT_DIR/e2e/init-garage-s3.sh"
 GARAGE_STATE_DIR='/tmp/stackable-ui-garage'
+GARAGE_ADMIN_TOKEN='stackable-ui-e2e-admin-token'
 
 garage_pid=''
 created_s3_config='0'
@@ -37,14 +39,8 @@ if [[ ! -f "$S3_CONFIG_PATH" ]]; then
   rm -rf "$GARAGE_STATE_DIR"
   mkdir -p "$GARAGE_STATE_DIR/meta" "$GARAGE_STATE_DIR/data"
 
-  app_key_id="GK$(openssl rand -hex 16)"
-  app_secret=$(openssl rand -hex 32)
-
   GARAGE_CONFIG_FILE="$GARAGE_CONFIG_PATH" \
-    GARAGE_DEFAULT_ACCESS_KEY="$app_key_id" \
-    GARAGE_DEFAULT_SECRET_KEY="$app_secret" \
-    GARAGE_DEFAULT_BUCKET='test-bucket' \
-    garage server --single-node --default-bucket >"$log_path" 2>&1 &
+    garage server --single-node >"$log_path" 2>&1 &
   garage_pid=$!
 
   garage_ready='0'
@@ -69,15 +65,11 @@ if [[ ! -f "$S3_CONFIG_PATH" ]]; then
     exit 1
   fi
 
-  cat > "$S3_CONFIG_PATH" <<EOF
-{
-  "awsEndpoint": "http://127.0.0.1:3900",
-  "awsRegion": "garage",
-  "awsAccessKeyId": "$app_key_id",
-  "awsSecretAccessKey": "$app_secret",
-  "bucket": "test-bucket"
-}
-EOF
+  GARAGE_ADMIN_TOKEN="$GARAGE_ADMIN_TOKEN" \
+    S3_ENDPOINT='http://127.0.0.1:3900' \
+    S3_CONFIG_PATH="$S3_CONFIG_PATH" \
+    "$GARAGE_INIT_SCRIPT"
+
   created_s3_config='1'
 fi
 
