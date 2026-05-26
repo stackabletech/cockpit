@@ -36,20 +36,8 @@
     };
   });
 
-  $effect(() => {
-    if (!menuEl) return;
-    menuEl.focus();
-    function handleOutsideClick(e: MouseEvent) {
-      if (menuEl && !menuEl.contains(e.target as Node)) closeUnpinMenu();
-    }
-    document.addEventListener('click', handleOutsideClick, true);
-    return () => document.removeEventListener('click', handleOutsideClick, true);
-  });
-
-  function openUnpinMenu(e: MouseEvent, pin: PinnedLocation) {
-    e.preventDefault();
-    e.stopPropagation();
-    unpinCtx = { x: e.clientX, y: e.clientY, bucket: pin.bucket, prefix: pin.prefix };
+  function handleOutsideClick(e: MouseEvent) {
+    if (unpinCtx && menuEl && !menuEl.contains(e.target as Node)) closeUnpinMenu();
   }
 
   function openUnpinMenuFromButton(e: MouseEvent, pin: PinnedLocation) {
@@ -77,12 +65,14 @@
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
+<svelte:document onclick={handleOutsideClick} />
 
 {#if unpinCtx}
   <ul
     bind:this={menuEl}
+    {@attach (node) => node.focus()}
     class="
-      menu menu-sm border-base-300 bg-base-100 fixed z-50 w-48 rounded-lg
+      menu menu-sm border-base-300 bg-base-100 fixed z-150 w-48 rounded-lg
       border p-1 shadow-lg
     "
     role="menu"
@@ -147,7 +137,6 @@
                 pr-7 text-sm
                 {active ? 'bg-primary/10 text-primary font-medium' : 'text-base-content'}"
                 aria-current={active ? 'page' : undefined}
-                oncontextmenu={(e) => openUnpinMenu(e, pin)}
               >
                 <!-- eslint-enable svelte/no-navigation-without-resolve -->
                 {#if pin.prefix === ''}
