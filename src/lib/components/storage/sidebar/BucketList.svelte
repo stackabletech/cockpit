@@ -24,6 +24,27 @@
 
   // ── Unpin context menu ────────────────────────────────────────────────────
   let unpinCtx = $state<({ x: number; y: number } & StorageLocation) | null>(null);
+  let menuEl = $state<HTMLUListElement | null>(null);
+
+  const adjustedPos = $derived.by(() => {
+    if (!unpinCtx) return { left: 0, top: 0 };
+    if (!menuEl) return { left: unpinCtx.x, top: unpinCtx.y };
+    const rect = menuEl.getBoundingClientRect();
+    return {
+      left: unpinCtx.x + rect.width > window.innerWidth ? unpinCtx.x - rect.width : unpinCtx.x,
+      top: unpinCtx.y + rect.height > window.innerHeight ? unpinCtx.y - rect.height : unpinCtx.y
+    };
+  });
+
+  $effect(() => {
+    if (!menuEl) return;
+    menuEl.focus();
+    function handleOutsideClick(e: MouseEvent) {
+      if (menuEl && !menuEl.contains(e.target as Node)) closeUnpinMenu();
+    }
+    document.addEventListener('click', handleOutsideClick, true);
+    return () => document.removeEventListener('click', handleOutsideClick, true);
+  });
 
   function openUnpinMenu(e: MouseEvent, pin: PinnedLocation) {
     e.preventDefault();
@@ -43,6 +64,10 @@
   }
   beforeNavigate(closeUnpinMenu);
 
+  function handleKeydown(e: KeyboardEvent) {
+    if (unpinCtx && e.key === 'Escape') closeUnpinMenu();
+  }
+
   function handleUnpin() {
     if (unpinCtx) {
       storage.bookmarks.unpin(unpinCtx.bucket, unpinCtx.prefix);
@@ -51,32 +76,43 @@
   }
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
+
 {#if unpinCtx}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="fixed inset-0 z-40"
-    onmousedown={closeUnpinMenu}
-    onkeydown={(e) => e.key === 'Escape' && closeUnpinMenu()}
-  ></div>
   <ul
+    bind:this={menuEl}
     class="
-      menu menu-sm border-base-300 bg-base-100 fixed z-60 w-40 rounded-lg
+      menu menu-sm border-base-300 bg-base-100 fixed z-50 w-48 rounded-lg
       border p-1 shadow-lg
     "
     role="menu"
-    style="left: {unpinCtx.x}px; top: {unpinCtx.y}px;"
+    tabindex="-1"
+    style="left: {adjustedPos.left}px; top: {adjustedPos.top}px;"
   >
+    <li class="menu-title p-0" role="none">
+      <div class="menu-title flex items-center justify-between py-1 pr-0 pl-2">
+        <span class="text-base-content/70 text-xs font-medium">
+          {m.storage_context_menu_actions()}
+        </span>
+        <button
+          type="button"
+          role="menuitem"
+          class="btn btn-ghost btn-xs"
+          aria-label={m.storage_preview_close()}
+          onclick={closeUnpinMenu}
+        >
+          <Icon icon="material-symbols:close" class="size-4" aria-hidden="true" />
+        </button>
+      </div>
+    </li>
     <li role="none">
       <button role="menuitem" class="justify-start" onclick={handleUnpin}>
-        <Icon icon="material-symbols:push-pin-outline" class="size-4 shrink-0" aria-hidden="true" />
+        <Icon
+          icon="material-symbols:push-pin-outline"
+          class="mr-2 size-4 shrink-0"
+          aria-hidden="true"
+        />
         {m.storage_action_unpin()}
-      </button>
-    </li>
-    <hr class="border-base-300 my-0.5" />
-    <li role="none">
-      <button role="menuitem" class="justify-start" onclick={closeUnpinMenu}>
-        <Icon icon="material-symbols:close" class="size-4 shrink-0" aria-hidden="true" />
-        {m.storage_preview_close()}
       </button>
     </li>
   </ul>
