@@ -4,9 +4,10 @@ set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 S3_CONFIG_PATH="$ROOT_DIR/s3-config.json"
+GARAGE_CONFIG_PATH="$ROOT_DIR/e2e/garage.toml"
+GARAGE_STATE_DIR='/tmp/stackable-ui-garage'
 
 garage_pid=''
-garage_dir=''
 created_s3_config='0'
 
 cleanup() {
@@ -19,9 +20,7 @@ cleanup() {
     rm -f "$S3_CONFIG_PATH"
   fi
 
-  if [[ -n "$garage_dir" ]]; then
-    rm -rf "$garage_dir"
-  fi
+  rm -rf "$GARAGE_STATE_DIR"
 }
 
 trap cleanup EXIT
@@ -33,36 +32,15 @@ if [[ ! -f "$S3_CONFIG_PATH" ]]; then
     exit 1
   fi
 
-  garage_dir=$(mktemp -d)
-  metadata_dir="$garage_dir/meta"
-  data_dir="$garage_dir/data"
-  config_path="$garage_dir/garage.toml"
-  log_path="$garage_dir/garage.log"
+  log_path="$ROOT_DIR/.garage.log"
 
-  mkdir -p "$metadata_dir" "$data_dir"
+  rm -rf "$GARAGE_STATE_DIR"
+  mkdir -p "$GARAGE_STATE_DIR/meta" "$GARAGE_STATE_DIR/data"
 
   app_key_id="GK$(openssl rand -hex 16)"
   app_secret=$(openssl rand -hex 32)
-  rpc_secret=$(openssl rand -hex 32)
 
-  cat > "$config_path" <<EOF
-metadata_dir = "$metadata_dir"
-data_dir = "$data_dir"
-db_engine = "sqlite"
-
-replication_factor = 1
-
-rpc_bind_addr = "127.0.0.1:3901"
-rpc_public_addr = "127.0.0.1:3901"
-rpc_secret = "$rpc_secret"
-
-[s3_api]
-s3_region = "garage"
-api_bind_addr = "127.0.0.1:3900"
-root_domain = ".s3.garage.localhost"
-EOF
-
-  GARAGE_CONFIG_FILE="$config_path" \
+  GARAGE_CONFIG_FILE="$GARAGE_CONFIG_PATH" \
     GARAGE_DEFAULT_ACCESS_KEY="$app_key_id" \
     GARAGE_DEFAULT_SECRET_KEY="$app_secret" \
     GARAGE_DEFAULT_BUCKET='test-bucket' \

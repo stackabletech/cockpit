@@ -71,32 +71,22 @@ jobs:
 
       - name: Start Garage S3 and initialize bucket
         run: |
-          # Create a Garage config
-          cat > garage.toml <<'EOF'
-          metadata_dir = "/var/lib/garage/meta"
-          data_dir = "/var/lib/garage/data"
-          replication_factor = 1
-
-          rpc_bind_addr = "[::]:3901"
-          rpc_public_addr = "127.0.0.1:3901"
-          rpc_secret = "2eef98a70ab343ba9dadf3809f38d63a2333a9f38909a3f3d3f3d3f3d3f3d3f3"
-
-          [s3_api]
-          s3_region = "garage"
-          api_bind_addr = "[::]:3900"
-          root_domain = ".s3.garage.localhost"
-          EOF
+          APP_KEY_ID="GK$(openssl rand -hex 16)"
+          APP_SECRET=$(openssl rand -hex 32)
 
           # Start Garage — server and --single-node are entrypoint args, not docker flags,
           # so they must be passed after the image name via docker run rather than via
           # service container options.
           docker run -d --name garage \
             -p 3900:3900 \
-            -e GARAGE_CONFIG_FILE=/etc/garage.toml \
-            -v "$PWD/garage.toml:/etc/garage.toml" \
+            -e GARAGE_CONFIG_FILE=/workspace/e2e/garage.toml \
+            -e GARAGE_DEFAULT_ACCESS_KEY="$APP_KEY_ID" \
+            -e GARAGE_DEFAULT_SECRET_KEY="$APP_SECRET" \
+            -e GARAGE_DEFAULT_BUCKET=test-bucket \
+            -v "$PWD:/workspace" \
             --entrypoint /garage \
             docker.io/dxflrs/garage:v2.3.0 \
-            server --single-node
+            server --single-node --default-bucket
 
           # Wait for the S3 API to become available
           for _ in $(seq 1 30); do
@@ -105,14 +95,6 @@ jobs:
             fi
             sleep 1
           done
-
-          # Create bucket and key
-          docker exec garage /garage bucket create test-bucket
-          KEY_OUTPUT=$(docker exec garage /garage key create e2e-test-app)
-          APP_KEY_ID=$(echo "$KEY_OUTPUT" | awk '/^Key ID:/ {print $3}')
-          APP_SECRET=$(echo "$KEY_OUTPUT" | awk '/^Secret key:/ {print $3}')
-          docker exec garage /garage \
-            bucket allow --read --write test-bucket --key e2e-test-app
 
           # Write config file for Playwright to read (Playwright should read 's3-config.json' from the root of the project)
           cat > s3-config.json <<EOF
