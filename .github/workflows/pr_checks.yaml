@@ -94,6 +94,7 @@ jobs:
             -p 3900:3900 \
             -e GARAGE_CONFIG_FILE=/etc/garage.toml \
             -v "$PWD/garage.toml:/etc/garage.toml" \
+            --entrypoint /garage \
             docker.io/dxflrs/garage:v2.3.0 \
             server --single-node
 
