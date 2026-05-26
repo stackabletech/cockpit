@@ -122,8 +122,11 @@ config:
   # Node.js environment
   nodeEnv: production
 
-# Session secret for signing cookies (auto-generated if not provided)
-sessionSecret: ""
+# Session secret for signing cookies. Chart auto-generates one if secretKeyRef.name is empty.
+sessionSecret:
+  secretKeyRef:
+    name: ""
+    key: session-secret
 
 # SvelteKit CSRF origin
 origin: "http://localhost:3000"
@@ -133,21 +136,25 @@ proxy: {}
   # protocolHeader: x-forwarded-proto
   # hostHeader: x-forwarded-host
 
-# OIDC authentication configuration
+# Authentication configuration
 auth:
   # Publicly accessible base URL (used for OIDC callback URLs)
   baseUrl: "http://localhost:3000"
-  # OIDC discovery URL (the full .well-known/openid-configuration URL)
-  # Required. Example: https://your-idp.example.com/realms/your-realm/.well-known/openid-configuration
-  discoveryUrl: ""
-  # Client ID registered in the OIDC provider
-  # Required.
-  clientId: ""
-  # Client secret registered in the OIDC provider
-  # Required.
-  clientSecret: ""
-  # OIDC claim used as the username for Trino impersonation (default: preferred_username)
-  usernameClaim: ""
+  oidc:
+    # Disable to deploy without authentication (e.g. local testing).
+    enabled: true
+    # OIDC discovery URL (the full .well-known/openid-configuration URL)
+    # Required when enabled. Example: https://your-idp.example.com/realms/your-realm/.well-known/openid-configuration
+    discoveryUrl: ""
+    # Client ID registered in the OIDC provider. Required when enabled.
+    clientId: ""
+    # Required when enabled.
+    clientSecret:
+      secretKeyRef:
+        name: ""
+        key: oidc-client-secret
+    # OIDC claim used as the username for Trino impersonation.
+    usernameClaim: preferred_username
 
 # Optional: Pre-configure the Trino connection for all users.
 # When trino.url is set, the connection form is hidden and the specified
@@ -155,15 +162,20 @@ auth:
 trino:
   # Trino coordinator URL (e.g. https://trino.example.com:8443)
   url: ""
-  # Authentication type: "none" or "basic"
-  authType: ""
-  # Credentials for basic auth
-  authUsername: ""
-  authPassword: ""
-  # TLS certificate verification
-  tlsInsecure: false
-  # Path to a custom CA certificate file (mounted via extraVolumes)
-  tlsCaCert: ""
-  # Stackable SecretClass name for provisioning the Trino CA certificate.
-  # The Secret Operator mounts ca.crt into /stackable/trino-tls.
-  tlsSecretClass: ""
+  auth:
+    # Authentication type: "none" or "basic"
+    type: ""
+    username: ""
+    # Required when type is "basic".
+    password:
+      secretKeyRef:
+        name: ""
+        key: trino-auth-password
+  tls:
+    # Skip TLS certificate verification
+    insecure: false
+    # Path to a custom CA certificate file (mounted via extraVolumes)
+    caCert: ""
+    # Stackable SecretClass name for provisioning the Trino CA certificate.
+    # The Secret Operator mounts ca.crt into /stackable/trino-tls.
+    secretClass: ""

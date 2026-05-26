@@ -67,13 +67,20 @@ spec:
             - name: STACKABLE_UI_SESSION_SECRET
               valueFrom:
                 secretKeyRef:
+                  {{- if .Values.sessionSecret.secretKeyRef.name }}
+                  name: {{ .Values.sessionSecret.secretKeyRef.name | quote }}
+                  key: {{ .Values.sessionSecret.secretKeyRef.key | quote }}
+                  {{- else }}
                   name: {{ include "stackable-ui.fullname" . }}
                   key: session-secret
+                  {{- end }}
+            {{- if .Values.auth.oidc.enabled }}
             - name: STACKABLE_UI_OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "stackable-ui.fullname" . }}
-                  key: oidc-client-secret
+                  name: {{ required "auth.oidc.clientSecret.secretKeyRef.name is required when OIDC is enabled" .Values.auth.oidc.clientSecret.secretKeyRef.name | quote }}
+                  key: {{ .Values.auth.oidc.clientSecret.secretKeyRef.key | quote }}
+            {{- end }}
             - name: STACKABLE_UI_BASE_URL
               valueFrom:
                 configMapKeyRef:
@@ -94,6 +101,7 @@ spec:
             - name: HOST_HEADER
               value: {{ . | quote }}
             {{- end }}
+            {{- if .Values.auth.oidc.enabled }}
             - name: STACKABLE_UI_OIDC_DISCOVERY_URL
               valueFrom:
                 configMapKeyRef:
@@ -104,9 +112,8 @@ spec:
                 configMapKeyRef:
                   name: {{ include "stackable-ui.fullname" . }}
                   key: oidc-client-id
-            {{- if .Values.auth.usernameClaim }}
             - name: STACKABLE_UI_OIDC_USERNAME_CLAIM
-              value: {{ .Values.auth.usernameClaim | quote }}
+              value: {{ .Values.auth.oidc.usernameClaim | quote }}
             {{- end }}
             {{- if .Values.trino.url }}
             - name: STACKABLE_UI_TRINO_URL
@@ -115,42 +122,42 @@ spec:
                   name: {{ include "stackable-ui.fullname" . }}
                   key: trino-url
             {{- end }}
-            {{- if .Values.trino.authType }}
+            {{- if .Values.trino.auth.type }}
             - name: STACKABLE_UI_TRINO_AUTH_TYPE
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "stackable-ui.fullname" . }}
                   key: trino-auth-type
             {{- end }}
-            {{- if .Values.trino.authUsername }}
+            {{- if .Values.trino.auth.username }}
             - name: STACKABLE_UI_TRINO_AUTH_USERNAME
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "stackable-ui.fullname" . }}
                   key: trino-auth-username
             {{- end }}
-            {{- if .Values.trino.authPassword }}
+            {{- if eq .Values.trino.auth.type "basic" }}
             - name: STACKABLE_UI_TRINO_AUTH_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "stackable-ui.fullname" . }}
-                  key: trino-auth-password
+                  name: {{ required "trino.auth.password.secretKeyRef.name is required for basic auth" .Values.trino.auth.password.secretKeyRef.name | quote }}
+                  key: {{ .Values.trino.auth.password.secretKeyRef.key | quote }}
             {{- end }}
-            {{- if .Values.trino.tlsInsecure }}
+            {{- if .Values.trino.tls.insecure }}
             - name: STACKABLE_UI_TRINO_TLS_INSECURE
               value: "true"
             {{- end }}
-            {{- if .Values.trino.tlsCaCert }}
+            {{- if .Values.trino.tls.caCert }}
             - name: STACKABLE_UI_TRINO_TLS_CA_CERT
-              value: {{ .Values.trino.tlsCaCert | quote }}
-            {{- else if .Values.trino.tlsSecretClass }}
+              value: {{ .Values.trino.tls.caCert | quote }}
+            {{- else if .Values.trino.tls.secretClass }}
             - name: STACKABLE_UI_TRINO_TLS_CA_CERT
               value: /stackable/trino-tls/ca.crt
             {{- end }}
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-            {{- if .Values.trino.tlsSecretClass }}
+            {{- if .Values.trino.tls.secretClass }}
             - name: trino-tls
               mountPath: /stackable/trino-tls
               readOnly: true
@@ -158,13 +165,13 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
-        {{- if .Values.trino.tlsSecretClass }}
+        {{- if .Values.trino.tls.secretClass }}
         - name: trino-tls
           ephemeral:
             volumeClaimTemplate:
               metadata:
                 annotations:
-                  secrets.stackable.tech/class: {{ .Values.trino.tlsSecretClass | quote }}
+                  secrets.stackable.tech/class: {{ .Values.trino.tls.secretClass | quote }}
                   secrets.stackable.tech/scope: pod
               spec:
                 storageClassName: secrets.stackable.tech

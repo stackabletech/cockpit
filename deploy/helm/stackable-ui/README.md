@@ -84,11 +84,41 @@ The following table lists the configurable parameters of the Stackable UI chart 
 | --- | --- | --- |
 | `config.nodeEnv` | Node.js environment | `production` |
 
+### Authentication Parameters
+
+OIDC is the only supported auth mechanism. Disable for local testing.
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `auth.baseUrl` | Publicly accessible base URL of the app (used for OIDC callbacks). | `http://localhost:3000` |
+| `auth.oidc.enabled` | Enable OIDC authentication. Disable to deploy without auth. | `true` |
+| `auth.oidc.discoveryUrl` | OIDC `.well-known/openid-configuration` URL. Required when enabled. | `""` |
+| `auth.oidc.clientId` | OIDC client ID. Required when enabled. | `""` |
+| `auth.oidc.clientSecret.secretKeyRef.name` | Name of the Secret holding the OIDC client secret. Required when enabled. | `""` |
+| `auth.oidc.clientSecret.secretKeyRef.key` | Key inside the Secret. | `oidc-client-secret` |
+| `auth.oidc.usernameClaim` | OIDC claim used as the username for Trino impersonation. | `preferred_username` |
+
+### Trino Connection Parameters
+
+Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app connection form is hidden.
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `trino.url` | Trino coordinator URL. | `""` |
+| `trino.auth.type` | `"none"` or `"basic"`. | `""` |
+| `trino.auth.username` | Username for basic auth. | `""` |
+| `trino.auth.password.secretKeyRef.name` | Name of the Secret holding the Trino password. Required when `type=basic`. | `""` |
+| `trino.auth.password.secretKeyRef.key` | Key inside the Secret. | `trino-auth-password` |
+| `trino.tls.insecure` | Skip TLS certificate verification. | `false` |
+| `trino.tls.caCert` | Path to a custom CA certificate file. | `""` |
+| `trino.tls.secretClass` | Stackable SecretClass that provides the Trino CA certificate. | `""` |
+
 ### Security Parameters
 
 | Parameter | Description | Default |
 | --- | --- | --- |
-| `sessionSecret` | Session secret for signing cookies | `""` (auto-generated) |
+| `sessionSecret.secretKeyRef.name` | Name of a Secret holding a stable session secret. Auto-generated if empty. | `""` |
+| `sessionSecret.secretKeyRef.key` | Key inside the Secret. | `session-secret` |
 | `podSecurityContext` | Pod security context | See values.yaml |
 | `securityContext` | Container security context | See values.yaml |
 

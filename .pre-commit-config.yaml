@@ -70,7 +70,12 @@ repos:
       - id: helm-template
         name: helm template
         language: system
-        entry: bash -c 'helm template test deploy/helm/stackable-ui > /dev/null'
+        entry: >-
+          bash -c '
+          helm template test deploy/helm/stackable-ui
+          --set auth.oidc.discoveryUrl=https://stub
+          --set auth.oidc.clientId=stub
+          --set auth.oidc.clientSecret.secretKeyRef.name=stub > /dev/null'
         stages: [pre-commit, pre-merge-commit]
         pass_filenames: false
         files: ^deploy/helm/
