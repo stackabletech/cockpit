@@ -108,9 +108,9 @@ jobs:
 
           # Create bucket and key
           docker exec garage /garage bucket create test-bucket
-          KEY_JSON=$(docker exec garage /garage key create e2e-test-app --format=json)
-          APP_KEY_ID=$(echo "$KEY_JSON" | jq -r '.key_id')
-          APP_SECRET=$(echo "$KEY_JSON" | jq -r '.secret')
+          KEY_OUTPUT=$(docker exec garage /garage key create e2e-test-app)
+          APP_KEY_ID=$(echo "$KEY_OUTPUT" | awk '/^Key ID:/ {print $3}')
+          APP_SECRET=$(echo "$KEY_OUTPUT" | awk '/^Secret key:/ {print $3}')
           docker exec garage /garage \
             bucket allow --read --write test-bucket --key e2e-test-app
 
