@@ -117,5 +117,6 @@
   "completion_detail_materialized_view_in": "Materialized view in {path}",
   "completion_detail_column": "Column",
   "completion_detail_column_in": "Column of {table}",
-  "completion_detail_keyword": "Keyword"
+  "completion_detail_keyword": "Keyword",
+  "completion_detail_function": "Function"
 }

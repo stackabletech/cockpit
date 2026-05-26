@@ -120,6 +120,16 @@ describe('analyseCompletion — repair of malformed SQL', () => {
     // The WHERE position is a column slot.
     expect(analysis.identifierKind).toBe('column');
   });
+
+  it('classifies a relation slot inside a subquery with no closing paren', () => {
+    const analysis = analyseCompletion(at('SELECT (SELECT * FROM |'));
+    expect(analysis.identifierKind).toBe('relation');
+  });
+
+  it('classifies a column slot inside a subquery with no closing paren', () => {
+    const analysis = analyseCompletion(at('SELECT (SELECT |'));
+    expect(analysis.identifierKind).toBe('column');
+  });
 });
 
 describe('analyseCompletion — alias map', () => {
