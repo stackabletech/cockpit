@@ -1,6 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Icon from '@iconify/svelte';
+  import type { Component } from 'svelte';
+  import IconClose from 'virtual:icons/material-symbols/close';
+  import IconVisibility from 'virtual:icons/material-symbols/visibility';
+  import IconDownload from 'virtual:icons/material-symbols/download';
+  import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
+  import IconPushPin from 'virtual:icons/material-symbols/push-pin';
+  import IconDelete from 'virtual:icons/material-symbols/delete';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import type { ActionName } from '$lib/storage/types.js';
@@ -51,28 +57,28 @@
   const actions = $derived([
     {
       key: 'preview' as ActionName,
-      icon: 'material-symbols:visibility',
+      icon: IconVisibility as Component,
       label: m.storage_action_preview(),
       disabled: !canPreview,
       hidden: false
     },
     {
       key: 'download' as ActionName,
-      icon: 'material-symbols:download',
+      icon: IconDownload as Component,
       label: m.storage_action_download(),
       disabled: !canDownload,
       hidden: false
     },
     {
       key: 'pin' as ActionName,
-      icon: 'material-symbols:push-pin-outline',
+      icon: IconPushPinOutline as Component,
       label: m.storage_action_pin(),
       disabled: !storage.canPin,
       hidden: !storage.canPin || storage.ctxIsPinned
     },
     {
       key: 'unpin' as ActionName,
-      icon: 'material-symbols:push-pin',
+      icon: IconPushPin as Component,
       label: m.storage_action_unpin(),
       disabled: !storage.ctxIsPinned,
       hidden: !storage.ctxIsPinned
@@ -82,7 +88,7 @@
   const dangerActions = $derived([
     {
       key: 'delete' as ActionName,
-      icon: 'material-symbols:delete',
+      icon: IconDelete as Component,
       label: m.storage_action_delete(),
       disabled: selectionCount === 0,
       class: 'text-error'
@@ -115,13 +121,14 @@
         aria-label="Close"
         onclick={() => storage.closeContextMenu()}
       >
-        <Icon icon="mdi:close" class="size-4" aria-hidden="true" />
+        <IconClose class="size-4" aria-hidden="true" />
       </button>
     </div>
   </li>
 
   {#each actions as act (act.key)}
     {#if !act.hidden}
+      {@const ActIcon = act.icon}
       <li role="none" class:menu-disabled={act.disabled}>
         <button
           role="menuitem"
@@ -130,7 +137,7 @@
           disabled={act.disabled}
           aria-disabled={act.disabled}
         >
-          <Icon icon={act.icon} class="mr-2 size-4 shrink-0" aria-hidden="true" />
+          <ActIcon class="mr-2 size-4 shrink-0" aria-hidden="true" />
           {act.label}
         </button>
       </li>
@@ -138,6 +145,7 @@
   {/each}
 
   {#each dangerActions as act (act.key)}
+    {@const ActIcon = act.icon}
     <li role="none">
       <button
         role="menuitem"
@@ -145,11 +153,7 @@
         onclick={() => emit(act.key)}
         disabled={act.disabled}
       >
-        <Icon
-          icon={act.icon}
-          class={'mr-2 h-4 w-4 shrink-0 ' + (act.class ?? '')}
-          aria-hidden="true"
-        />
+        <ActIcon class={'mr-2 h-4 w-4 shrink-0 ' + (act.class ?? '')} aria-hidden="true" />
         {act.label}
       </button>
     </li>

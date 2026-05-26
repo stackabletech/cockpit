@@ -1,5 +1,7 @@
 <script lang="ts">
-  import Icon from '@iconify/svelte';
+  import IconVisibility from 'virtual:icons/material-symbols/visibility';
+  import IconDownload from 'virtual:icons/material-symbols/download';
+  import IconDelete from 'virtual:icons/material-symbols/delete';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
 
@@ -27,7 +29,7 @@
         onclick={() => storage.executeAction('preview')}
         disabled={!canPreview}
       >
-        <Icon icon="material-symbols:visibility" class="size-3.5" aria-hidden="true" />
+        <IconVisibility class="size-3.5" aria-hidden="true" />
         {m.storage_action_preview()}
       </button>
 
@@ -37,7 +39,7 @@
         onclick={() => storage.executeAction('download')}
         disabled={!canDownload}
       >
-        <Icon icon="material-symbols:download" class="size-3.5" aria-hidden="true" />
+        <IconDownload class="size-3.5" aria-hidden="true" />
         {m.storage_action_download()}
       </button>
 
@@ -50,7 +52,7 @@
         onclick={() => storage.executeAction('delete')}
         disabled={selectedCount === 0}
       >
-        <Icon icon="material-symbols:delete" class="size-3.5" aria-hidden="true" />
+        <IconDelete class="size-3.5" aria-hidden="true" />
         {m.storage_action_delete()}
       </button>
     </div>

@@ -2,7 +2,12 @@
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { beforeNavigate } from '$app/navigation';
-  import Icon from '@iconify/svelte';
+  import IconClose from 'virtual:icons/material-symbols/close';
+  import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
+  import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
+  import IconStorage from 'virtual:icons/material-symbols/storage';
+  import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
+  import IconGridView from 'virtual:icons/material-symbols/grid-view';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
@@ -91,17 +96,13 @@
           aria-label={m.storage_preview_close()}
           onclick={closeUnpinMenu}
         >
-          <Icon icon="material-symbols:close" class="size-4" aria-hidden="true" />
+          <IconClose class="size-4" aria-hidden="true" />
         </button>
       </div>
     </li>
     <li role="none">
       <button role="menuitem" class="justify-start" onclick={handleUnpin}>
-        <Icon
-          icon="material-symbols:push-pin-outline"
-          class="mr-2 size-4 shrink-0"
-          aria-hidden="true"
-        />
+        <IconPushPinOutline class="mr-2 size-4 shrink-0" aria-hidden="true" />
         {m.storage_action_unpin()}
       </button>
     </li>
@@ -140,17 +141,9 @@
               >
                 <!-- eslint-enable svelte/no-navigation-without-resolve -->
                 {#if pin.prefix === ''}
-                  <Icon
-                    icon="mdi:bucket-outline"
-                    class="size-3.5 shrink-0 opacity-60"
-                    aria-hidden="true"
-                  />
+                  <IconStorage class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
                 {:else}
-                  <Icon
-                    icon="material-symbols:folder-outline"
-                    class="size-3.5 shrink-0 opacity-60"
-                    aria-hidden="true"
-                  />
+                  <IconFolderOutline class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
                 {/if}
                 <span class="truncate">{pinnedLabel(pin)}</span>
               </a>
@@ -165,7 +158,7 @@
               aria-label={m.storage_more_options()}
               title={m.storage_more_options()}
             >
-              <Icon icon="material-symbols:more-horiz" class="size-3.5" aria-hidden="true" />
+              <IconMoreHoriz class="size-3.5" aria-hidden="true" />
             </button>
           </li>
         {/each}
@@ -192,8 +185,7 @@
       title={m.storage_view_all_buckets()}
       data-tip={m.storage_view_all_buckets()}
     >
-      <Icon
-        icon="material-symbols:grid-view"
+      <IconGridView
         class="group-hover:text-primary size-3.5 transition-colors"
         aria-hidden="true"
       />
@@ -223,11 +215,7 @@
             data-tip={bucket}
             aria-current={activeBucket === bucket && !page.params.prefix ? 'page' : undefined}
           >
-            <Icon
-              icon="mdi:bucket-outline"
-              class="size-3.5 shrink-0 opacity-60"
-              aria-hidden="true"
-            />
+            <IconStorage class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
             <span class="truncate">{bucket}</span>
           </a>
         </li>

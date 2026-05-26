@@ -1,5 +1,10 @@
 <script lang="ts">
-  import Icon from '@iconify/svelte';
+  import IconImage from 'virtual:icons/material-symbols/image';
+  import IconCode from 'virtual:icons/material-symbols/code';
+  import IconArchive from 'virtual:icons/material-symbols/archive';
+  import IconPictureAsPdf from 'virtual:icons/material-symbols/picture-as-pdf';
+  import IconDescription from 'virtual:icons/material-symbols/description';
+  import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
   import { fileIconKind, iconColors, keyToName, formatFileSize } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
   import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
@@ -45,23 +50,15 @@
   <td>
     <div class="flex items-center gap-2.5">
       {#if kind === 'image'}
-        <Icon icon="material-symbols:image" class="size-5 shrink-0 {color}" aria-hidden="true" />
+        <IconImage class="size-5 shrink-0 {color}" aria-hidden="true" />
       {:else if kind === 'code'}
-        <Icon icon="material-symbols:code" class="size-5 shrink-0 {color}" aria-hidden="true" />
+        <IconCode class="size-5 shrink-0 {color}" aria-hidden="true" />
       {:else if kind === 'archive'}
-        <Icon icon="material-symbols:archive" class="size-5 shrink-0 {color}" aria-hidden="true" />
+        <IconArchive class="size-5 shrink-0 {color}" aria-hidden="true" />
       {:else if kind === 'pdf'}
-        <Icon
-          icon="material-symbols:picture-as-pdf"
-          class="size-5 shrink-0 {color}"
-          aria-hidden="true"
-        />
+        <IconPictureAsPdf class="size-5 shrink-0 {color}" aria-hidden="true" />
       {:else}
-        <Icon
-          icon="material-symbols:description"
-          class="size-5 shrink-0 {color}"
-          aria-hidden="true"
-        />
+        <IconDescription class="size-5 shrink-0 {color}" aria-hidden="true" />
       {/if}
       <span class="truncate">{keyToName(file.key)}</span>
       {#if file.contentType}
@@ -82,7 +79,7 @@
       aria-label="Actions for {keyToName(file.key)}"
       onclick={(e) => storage.openContextMenu(e, file.key)}
     >
-      <Icon icon="material-symbols:more-horiz" class="size-4" aria-hidden="true" />
+      <IconMoreHoriz class="size-4" aria-hidden="true" />
     </button>
   </td>
 </tr>

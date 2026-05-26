@@ -1,5 +1,7 @@
 <script lang="ts">
-  import Icon from '@iconify/svelte';
+  import IconUploadFile from 'virtual:icons/material-symbols/upload-file';
+  import IconFileCopyOutline from 'virtual:icons/material-symbols/file-copy-outline';
+  import IconFolderOpen from 'virtual:icons/material-symbols/folder-open';
   import * as m from '$lib/paraglide/messages.js';
   import { collectDroppedFiles } from '$lib/storage/file-collection.js';
 
@@ -88,21 +90,17 @@
   }}
   aria-label={m.storage_upload_drop_prompt()}
 >
-  <Icon
-    icon="material-symbols:upload-file"
-    class="text-base-content/30 size-12"
-    aria-hidden="true"
-  />
+  <IconUploadFile class="text-base-content/30 size-12" aria-hidden="true" />
   <p class="text-base-content/60 text-center text-sm">{m.storage_upload_drop_prompt()}</p>
 </div>
 
 <div class="flex justify-center gap-3">
   <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={() => fileInputEl?.click()}>
-    <Icon icon="material-symbols:file-copy-outline" class="size-4" aria-hidden="true" />
+    <IconFileCopyOutline class="size-4" aria-hidden="true" />
     {m.storage_upload_select_files()}
   </button>
   <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={() => dirInputEl?.click()}>
-    <Icon icon="material-symbols:folder-open" class="size-4" aria-hidden="true" />
+    <IconFolderOpen class="size-4" aria-hidden="true" />
     {m.storage_upload_select_folder()}
   </button>
 </div>

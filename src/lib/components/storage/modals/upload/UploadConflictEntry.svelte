@@ -1,5 +1,6 @@
 <script lang="ts">
-  import Icon from '@iconify/svelte';
+  import IconCheck from 'virtual:icons/material-symbols/check';
+  import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
   import type { FileEntry, Resolution } from './types.js';
 
@@ -65,7 +66,7 @@
       {#if entry.resolution === 'rename' && entry.renameState === 'checking'}
         <span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
       {:else if entry.resolution === 'rename' && entry.renameState === 'ok'}
-        <Icon icon="material-symbols:check" class="size-3" aria-hidden="true" />
+        <IconCheck class="size-3" aria-hidden="true" />
       {/if}
       {#if entry.resolution === 'rename' && (entry.renameState === 'editing' || entry.renameState === 'conflict')}
         {m.storage_upload_rename_confirm_action()}
@@ -109,11 +110,7 @@
       <div class="text-base-content/50 mt-1 flex items-center gap-1 px-1 text-sm">
         <span class="min-w-0 flex-1 truncate">{entry.customName}</span>
         {#if entry.resolution === 'rename' && entry.renameState === 'ok'}
-          <Icon
-            icon="material-symbols:check-circle"
-            class="text-success size-3.5 shrink-0"
-            aria-hidden="true"
-          />
+          <IconCheckCircle class="text-success size-3.5 shrink-0" aria-hidden="true" />
         {/if}
       </div>
     {/if}

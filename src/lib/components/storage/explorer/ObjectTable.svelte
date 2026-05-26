@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
-  import Icon from '@iconify/svelte';
+  import IconArrowBack from 'virtual:icons/material-symbols/arrow-back';
+  import IconFolderOpen from 'virtual:icons/material-symbols/folder-open';
   import SelectionToolbar from './SelectionToolbar.svelte';
   import FolderRow from './FolderRow.svelte';
   import FileRow from './FileRow.svelte';
@@ -61,7 +62,7 @@
           <td class="pr-0"></td>
           <td colspan={3}>
             <div class="text-base-content/50 flex items-center gap-2">
-              <Icon icon="material-symbols:arrow-back" class="size-4 shrink-0" aria-hidden="true" />
+              <IconArrowBack class="size-4 shrink-0" aria-hidden="true" />
               <span class="tracking-widest italic" aria-label={m.storage_parent_dir()}>...</span>
             </div>
           </td>
@@ -83,11 +84,7 @@
       {#if storage.folders.length === 0 && storage.files.length === 0}
         <tr>
           <td colspan={5} class="text-base-content/40 py-16 text-center">
-            <Icon
-              icon="material-symbols:folder-open"
-              class="mx-auto mb-3 size-10 opacity-30"
-              aria-hidden="true"
-            />
+            <IconFolderOpen class="mx-auto mb-3 size-10 opacity-30" aria-hidden="true" />
             {m.storage_bucket_empty()}
           </td>
         </tr>

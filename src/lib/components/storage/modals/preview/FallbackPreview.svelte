@@ -1,5 +1,6 @@
 <script lang="ts">
-  import Icon from '@iconify/svelte';
+  import IconDownload from 'virtual:icons/material-symbols/download';
+  import IconFilePresent from 'virtual:icons/material-symbols/file-present';
   import * as m from '$lib/paraglide/messages.js';
 
   interface Props {
@@ -14,11 +15,7 @@
 </script>
 
 <div class="flex min-h-full flex-col items-center justify-center gap-4 p-8 text-center">
-  <Icon
-    icon="material-symbols:file-present"
-    class="text-base-content/30 size-16"
-    aria-hidden="true"
-  />
+  <IconFilePresent class="text-base-content/30 size-16" aria-hidden="true" />
   <div>
     <p class="text-base-content font-semibold">
       {isBinary ? m.storage_preview_binary_title() : m.storage_preview_unsupported_title()}
@@ -31,7 +28,7 @@
     {/if}
   </div>
   <a href={downloadUrl} download={name} rel="external" class="btn btn-primary btn-sm gap-2">
-    <Icon icon="material-symbols:download" class="size-4" aria-hidden="true" />
+    <IconDownload class="size-4" aria-hidden="true" />
     {m.storage_preview_download_full()}
   </a>
 </div>

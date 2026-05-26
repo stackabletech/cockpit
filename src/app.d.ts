@@ -1,6 +1,8 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
 
+/// <reference types="unplugin-icons/types/svelte" />
+
 import type { auth } from '$lib/server/auth';
 
 declare global {

@@ -1,5 +1,9 @@
 <script lang="ts">
-  import Icon from '@iconify/svelte';
+  import IconClose from 'virtual:icons/material-symbols/close';
+  import IconDraft from 'virtual:icons/material-symbols/draft';
+  import IconUpload from 'virtual:icons/material-symbols/upload';
+  import IconWarning from 'virtual:icons/material-symbols/warning';
+  import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
   import { checkObjectExists, uploadFile, UploadError } from '$lib/storage/upload.js';
@@ -269,7 +273,7 @@
         disabled={phase === 'uploading'}
         aria-label={m.storage_upload_close()}
       >
-        <Icon icon="material-symbols:close" class="size-5" aria-hidden="true" />
+        <IconClose class="size-5" aria-hidden="true" />
       </button>
     </div>
 
@@ -294,11 +298,7 @@
       >
         {#each entries as entry (entry.id)}
           <li class="flex items-center gap-3 px-4 py-2.5">
-            <Icon
-              icon="material-symbols:draft"
-              class="text-primary size-5 shrink-0"
-              aria-hidden="true"
-            />
+            <IconDraft class="text-primary size-5 shrink-0" aria-hidden="true" />
             <span class="min-w-0 flex-1 truncate text-sm">{entry.displayPath}</span>
             <span class="text-base-content/50 shrink-0 text-xs"
               >{formatFileSize(entry.file.size)}</span
@@ -317,7 +317,7 @@
           {m.storage_upload_overwrite_cancel()}
         </button>
         <button class="btn btn-primary btn-sm gap-1" onclick={startUploadFlow}>
-          <Icon icon="material-symbols:upload" class="size-4" aria-hidden="true" />
+          <IconUpload class="size-4" aria-hidden="true" />
           {m.storage_upload_start()}
         </button>
       </div>
@@ -332,11 +332,7 @@
       <!-- ── review: conflict resolution ──────────────────────────────────── -->
     {:else if phase === 'review'}
       <div class="mb-3 flex items-start gap-2">
-        <Icon
-          icon="material-symbols:warning"
-          class="text-warning mt-0.5 size-5 shrink-0"
-          aria-hidden="true"
-        />
+        <IconWarning class="text-warning mt-0.5 size-5 shrink-0" aria-hidden="true" />
         <div>
           <p class="text-base-content font-semibold">{m.storage_upload_conflicts_title()}</p>
           <p class="text-base-content/60 mt-0.5 text-sm">{m.storage_upload_conflicts_desc()}</p>
@@ -368,7 +364,7 @@
           disabled={!canProceed}
           aria-disabled={!canProceed}
         >
-          <Icon icon="material-symbols:upload" class="size-4" aria-hidden="true" />
+          <IconUpload class="size-4" aria-hidden="true" />
           {m.storage_upload_start()}
         </button>
       </div>
@@ -388,11 +384,7 @@
       <!-- ── complete ───────────────────────────────────────────────────────── -->
     {:else if phase === 'complete'}
       <div class="mb-4 flex items-center gap-3 py-2" role="status">
-        <Icon
-          icon="line-md:circle-filled-to-confirm-circle-filled-transition"
-          class="text-success size-10 shrink-0"
-          aria-hidden="true"
-        />
+        <IconCheckCircle class="text-success size-10 shrink-0" aria-hidden="true" />
         <div>
           <p class="text-base-content font-semibold">{m.storage_upload_complete_title()}</p>
           <p class="text-base-content/60 mt-0.5 text-sm">

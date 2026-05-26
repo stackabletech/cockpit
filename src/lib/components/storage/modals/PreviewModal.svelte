@@ -1,6 +1,10 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import Icon from '@iconify/svelte';
+  import IconCloseFullscreen from 'virtual:icons/material-symbols/close-fullscreen';
+  import IconOpenInFull from 'virtual:icons/material-symbols/open-in-full';
+  import IconClose from 'virtual:icons/material-symbols/close';
+  import IconErrorOutline from 'virtual:icons/material-symbols/error-outline';
+  import IconDownload from 'virtual:icons/material-symbols/download';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
   import TextPreview from './preview/TextPreview.svelte';
@@ -273,23 +277,31 @@
           </div>
         {/if}
       </div>
-      <button
-        class="btn btn-ghost btn-sm btn-square"
-        onclick={toggleMaximized}
-        aria-label={maximized ? 'Restore' : 'Maximise'}
-      >
-        <Icon
-          icon={maximized ? 'material-symbols:close-fullscreen' : 'material-symbols:open-in-full'}
-          class="size-4"
-          aria-hidden="true"
-        />
-      </button>
+      {#if maximized}
+        {@const MaximizeIcon = IconCloseFullscreen}
+        <button
+          class="btn btn-ghost btn-sm btn-square"
+          onclick={toggleMaximized}
+          aria-label="Restore"
+        >
+          <MaximizeIcon class="size-4" aria-hidden="true" />
+        </button>
+      {:else}
+        {@const MaximizeIcon = IconOpenInFull}
+        <button
+          class="btn btn-ghost btn-sm btn-square"
+          onclick={toggleMaximized}
+          aria-label="Maximise"
+        >
+          <MaximizeIcon class="size-4" aria-hidden="true" />
+        </button>
+      {/if}
       <button
         class="btn btn-ghost btn-sm btn-square"
         onclick={close}
         aria-label={m.storage_preview_close()}
       >
-        <Icon icon="material-symbols:close" class="size-5" aria-hidden="true" />
+        <IconClose class="size-5" aria-hidden="true" />
       </button>
     </div>
 
@@ -306,11 +318,7 @@
         </div>
       {:else if preview.kind === 'error'}
         <div class="flex flex-col items-center gap-3 p-8 text-center" role="alert">
-          <Icon
-            icon="material-symbols:error-outline"
-            class="text-error size-12"
-            aria-hidden="true"
-          />
+          <IconErrorOutline class="text-error size-12" aria-hidden="true" />
           <p class="text-base-content font-semibold">{m.storage_preview_error_title()}</p>
           <p class="text-base-content/60 text-sm">{preview.message}</p>
         </div>
@@ -349,7 +357,7 @@
             rel="external"
             class="btn btn-ghost btn-sm gap-1.5"
           >
-            <Icon icon="material-symbols:download" class="size-4" aria-hidden="true" />
+            <IconDownload class="size-4" aria-hidden="true" />
             {m.storage_preview_download_full()}
           </a>
         {:else if preview.kind === 'image' || preview.kind === 'pdf'}
@@ -359,7 +367,7 @@
             rel="external"
             class="btn btn-ghost btn-sm gap-1.5"
           >
-            <Icon icon="material-symbols:download" class="size-4" aria-hidden="true" />
+            <IconDownload class="size-4" aria-hidden="true" />
             {m.storage_preview_download_full()}
           </a>
         {/if}

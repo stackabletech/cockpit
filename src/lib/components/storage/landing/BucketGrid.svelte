@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Icon from '@iconify/svelte';
+  import IconStorage from 'virtual:icons/material-symbols/storage';
   import * as m from '$lib/paraglide/messages.js';
   import { resolve } from '$app/paths';
 
@@ -33,7 +33,7 @@
               text-center transition-colors
             "
         >
-          <Icon icon="mdi:bucket-outline" class="text-warning size-10" aria-hidden="true" />
+          <IconStorage class="text-warning size-10" aria-hidden="true" />
           <span class="w-full truncate text-sm font-medium">{bucket}</span>
         </a>
       </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import { page } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
   import Sidebar from '$lib/components/layout/sidebar/Sidebar.svelte';
@@ -7,8 +8,22 @@
 
   let { children, data } = $props();
 
-  let sidebarCollapsed = $state(false);
+  function getInitialCollapsed(): boolean {
+    if (!browser) return false;
+    try {
+      return localStorage.getItem('sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  let sidebarCollapsed = $state(getInitialCollapsed());
   let mobileOpen = $state(false);
+
+  $effect(() => {
+    if (!browser) return;
+    localStorage.setItem('sidebar_collapsed', String(sidebarCollapsed));
+  });
 
   const pageTitles: Record<string, () => string> = {
     '/': m.page_title_dashboard,

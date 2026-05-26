@@ -1,5 +1,6 @@
 <script lang="ts">
-  import Icon from '@iconify/svelte';
+  import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
+  import IconFolder from 'virtual:icons/material-symbols/folder';
   import { keyToName } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
   import { getStorageState } from '$lib/storage/context.js';
@@ -51,11 +52,7 @@
   </td>
   <td>
     <div class="flex items-center gap-2.5">
-      <Icon
-        icon="material-symbols:folder"
-        class="text-warning size-5 shrink-0"
-        aria-hidden="true"
-      />
+      <IconFolder class="text-warning size-5 shrink-0" aria-hidden="true" />
       <span class="font-medium">{keyToName(folder.key)}</span>
     </div>
   </td>
@@ -68,7 +65,7 @@
       aria-label="Actions for {keyToName(folder.key)}"
       onclick={(e) => storage.openContextMenu(e, folder.key)}
     >
-      <Icon icon="material-symbols:more-horiz" class="size-4" aria-hidden="true" />
+      <IconMoreHoriz class="size-4" aria-hidden="true" />
     </button>
   </td>
 </tr>

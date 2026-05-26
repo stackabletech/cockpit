@@ -1,5 +1,8 @@
 <script lang="ts">
-  import Icon from '@iconify/svelte';
+  import IconError from 'virtual:icons/material-symbols/error';
+  import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
+  import IconBlock from 'virtual:icons/material-symbols/block';
+  import IconSchedule from 'virtual:icons/material-symbols/schedule';
   import * as m from '$lib/paraglide/messages.js';
   import type { FileEntry } from './types.js';
 
@@ -19,28 +22,16 @@
 <li class="px-4 py-2.5">
   <div class="flex items-center gap-2 text-sm">
     {#if entry.status === 'done'}
-      <Icon
-        icon="material-symbols:check-circle"
-        class="text-success size-4 shrink-0"
-        aria-hidden="true"
-      />
+      <IconCheckCircle class="text-success size-4 shrink-0" aria-hidden="true" />
     {:else if entry.status === 'error'}
-      <Icon icon="material-symbols:error" class="text-error size-4 shrink-0" aria-hidden="true" />
+      <IconError class="text-error size-4 shrink-0" aria-hidden="true" />
     {:else if entry.status === 'skipped'}
-      <Icon
-        icon="material-symbols:block"
-        class="text-base-content/30 size-4 shrink-0"
-        aria-hidden="true"
-      />
+      <IconBlock class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
     {:else if entry.status === 'uploading'}
       <span class="loading loading-spinner loading-xs text-primary shrink-0" aria-hidden="true"
       ></span>
     {:else}
-      <Icon
-        icon="material-symbols:schedule"
-        class="text-base-content/30 size-4 shrink-0"
-        aria-hidden="true"
-      />
+      <IconSchedule class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
     {/if}
     <span class="min-w-0 flex-1 truncate">{nameOnly}</span>
     <span class="text-base-content/50 shrink-0 text-xs">

@@ -1,6 +1,7 @@
 <script lang="ts">
   import Modal from '$lib/components/Modal.svelte';
-  import Icon from '@iconify/svelte';
+  import IconDeleteForever from 'virtual:icons/material-symbols/delete-forever';
+  import IconWarningRounded from 'virtual:icons/material-symbols/warning-rounded';
   import * as m from '$lib/paraglide/messages.js';
 
   interface Props {
@@ -20,7 +21,7 @@
 <Modal bind:open class="modal">
   <div class="modal-box {hasDirectories ? 'max-w-md' : 'max-w-sm'}">
     <h3 class="text-error mb-3 flex items-center gap-2 text-lg font-bold">
-      <Icon icon="material-symbols:delete-forever" class="size-5 shrink-0" aria-hidden="true" />
+      <IconDeleteForever class="size-5 shrink-0" aria-hidden="true" />
       {count === 1
         ? m.storage_delete_confirm_title_one({ name: firstName })
         : m.storage_delete_confirm_title_many({ count })}
@@ -29,11 +30,7 @@
     {#if hasDirectories}
       <div class="border-error/40 bg-error/10 mb-4 rounded-lg border p-4" role="alert">
         <p class="text-error mb-1 flex items-center gap-2 font-semibold">
-          <Icon
-            icon="material-symbols:warning-rounded"
-            class="size-5 shrink-0"
-            aria-hidden="true"
-          />
+          <IconWarningRounded class="size-5 shrink-0" aria-hidden="true" />
           {m.storage_delete_dir_warning_heading()}
         </p>
         <p class="text-base-content/80 text-sm">
@@ -51,7 +48,7 @@
         {m.storage_delete_cancel()}
       </button>
       <button class="btn btn-outline btn-error" onclick={onConfirm}>
-        <Icon icon="material-symbols:delete-forever" class="size-4" aria-hidden="true" />
+        <IconDeleteForever class="size-4" aria-hidden="true" />
         {m.storage_delete_confirm_button()}
       </button>
     </div>

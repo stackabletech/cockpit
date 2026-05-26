@@ -3,7 +3,8 @@
   import { superForm } from 'sveltekit-superforms';
   import { zod4 as zod } from 'sveltekit-superforms/adapters';
   import { onMount, tick } from 'svelte';
-  import Icon from '@iconify/svelte';
+  import IconClose from 'virtual:icons/material-symbols/close';
+  import IconStorage from 'virtual:icons/material-symbols/storage';
   import * as m from '$lib/paraglide/messages.js';
   import { StorageConnectionSchema } from '$lib/storage/schemas.js';
   import {
@@ -135,11 +136,7 @@
                 "
                 title={connectionLabel(conn)}
               >
-                <Icon
-                  icon="material-symbols:storage"
-                  class="text-primary size-8"
-                  aria-hidden="true"
-                />
+                <IconStorage class="text-primary size-8" aria-hidden="true" />
                 <span class="w-20 truncate text-xs font-medium">{connectionLabel(conn)}</span>
               </button>
               <button
@@ -155,7 +152,7 @@
                   rounded-full border shadow-sm transition-colors
                 "
               >
-                <Icon icon="material-symbols:close" class="size-3" aria-hidden="true" />
+                <IconClose class="size-3" aria-hidden="true" />
               </button>
             </div>
           {/each}

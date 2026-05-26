@@ -1,6 +1,11 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import Icon from '@iconify/svelte';
+  import IconArrowForward from 'virtual:icons/material-symbols/arrow-forward';
+  import IconDescriptionOutline from 'virtual:icons/material-symbols/description-outline';
+  import IconPreviewOutline from 'virtual:icons/material-symbols/preview-outline';
+  import IconFolderOpenOutline from 'virtual:icons/material-symbols/folder-open-outline';
+  import IconStorage from 'virtual:icons/material-symbols/storage';
+  import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import * as m from '$lib/paraglide/messages.js';
   import { formatFileSize } from '$lib/storage/utils.js';
   import { getStorageState } from '$lib/storage/context.js';
@@ -57,11 +62,7 @@
         <tr class="hover">
           <td>
             <div class="flex items-center gap-2">
-              <Icon
-                icon="material-symbols:description-outline"
-                class="text-primary size-4 shrink-0"
-                aria-hidden="true"
-              />
+              <IconDescriptionOutline class="text-primary size-4 shrink-0" aria-hidden="true" />
               <span class="font-medium">{fileName(file.key)}</span>
             </div>
           </td>
@@ -90,11 +91,7 @@
                   aria-label="{m.storage_recent_preview_file()} — {fileName(file.key)}"
                   onclick={() => openPreview(file.bucket, file.key)}
                 >
-                  <Icon
-                    icon="material-symbols:preview-outline"
-                    class="size-3.5"
-                    aria-hidden="true"
-                  />
+                  <IconPreviewOutline class="size-3.5" aria-hidden="true" />
                 </button>
               </div>
               <div class="tooltip tooltip-left" data-tip={m.storage_recent_open_folder()}>
@@ -106,11 +103,7 @@
                   aria-label="{m.storage_recent_open_folder()} — {fileName(file.key)}"
                 >
                   <!-- eslint-enable svelte/no-navigation-without-resolve -->
-                  <Icon
-                    icon="material-symbols:folder-open-outline"
-                    class="size-3.5"
-                    aria-hidden="true"
-                  />
+                  <IconFolderOpenOutline class="size-3.5" aria-hidden="true" />
                 </a>
               </div>
             </div>
@@ -137,17 +130,9 @@
           <td>
             <div class="flex items-center gap-2">
               {#if loc.prefix === ''}
-                <Icon
-                  icon="mdi:bucket-outline"
-                  class="text-warning size-4 shrink-0"
-                  aria-hidden="true"
-                />
+                <IconStorage class="text-warning size-4 shrink-0" aria-hidden="true" />
               {:else}
-                <Icon
-                  icon="material-symbols:folder-outline"
-                  class="text-warning size-4 shrink-0"
-                  aria-hidden="true"
-                />
+                <IconFolderOutline class="text-warning size-4 shrink-0" aria-hidden="true" />
               {/if}
               <!-- eslint-disable svelte/no-navigation-without-resolve -->
               <a
@@ -182,7 +167,7 @@
                 aria-label="{m.storage_recent_go_to_location()} — {locationName(loc)}"
               >
                 <!-- eslint-enable svelte/no-navigation-without-resolve -->
-                <Icon icon="material-symbols:arrow-forward" class="size-3.5" aria-hidden="true" />
+                <IconArrowForward class="size-3.5" aria-hidden="true" />
               </a>
             </div>
           </td>
