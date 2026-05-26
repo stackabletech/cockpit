@@ -3,11 +3,22 @@
 # Assumes: kind cluster is running, kubectl context points to it.
 set -euo pipefail
 
+SKIP_TRINO=false
+for arg in "$@"; do
+  case "$arg" in
+    --skip-trino) SKIP_TRINO=true ;;
+    *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino]"; exit 1 ;;
+  esac
+done
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$PROJECT_DIR/.env.development"
 
 echo "=== Stackable UI dev environment setup ==="
+if [[ "$SKIP_TRINO" == true ]]; then
+  echo "(Trino deployment skipped via --skip-trino)"
+fi
 echo ""
 
 # ------------------------------------------------------------------
@@ -24,8 +35,13 @@ fi
 # 2. Install Stackable operators
 # ------------------------------------------------------------------
 echo ""
-echo "Installing Stackable operators (commons, listener, secret, trino)..."
-stackablectl operator install commons listener secret trino
+if [[ "$SKIP_TRINO" == true ]]; then
+  echo "Installing Stackable operators (commons, listener, secret)..."
+  stackablectl operator install commons listener secret
+else
+  echo "Installing Stackable operators (commons, listener, secret, trino)..."
+  stackablectl operator install commons listener secret trino
+fi
 
 # ------------------------------------------------------------------
 # 3. Deploy Keycloak
@@ -52,12 +68,36 @@ echo "Node IP: $NODE_IP"
 # ------------------------------------------------------------------
 # 5. Deploy Trino (after node IP is known, trino.yaml is a template)
 # ------------------------------------------------------------------
-echo ""
-echo "Deploying Trino..."
-sed "s/\${NODE_IP}/$NODE_IP/g" "$SCRIPT_DIR/trino.yaml" | kubectl apply -f -
+if [[ "$SKIP_TRINO" == false ]]; then
+  echo ""
+  echo "Deploying Trino..."
+  sed "s/\${NODE_IP}/$NODE_IP/g" "$SCRIPT_DIR/trino.yaml" | kubectl apply -f -
+fi
+
+# On some local Kubernetes distributions (e.g. Rancher Desktop k3s), the node's
+# InternalIP is not reachable from the host network, but NodePorts are exposed
+# on localhost. Probe both and use the first reachable URL.
+KEYCLOAK_BASE_URL=""
+deadline=$(( $(date +%s) + 120 ))
+while [ -z "$KEYCLOAK_BASE_URL" ] && [ "$(date +%s)" -lt "$deadline" ]; do
+  for base in "http://${NODE_IP}:30080" "http://127.0.0.1:30080" "http://localhost:30080"; do
+    if curl -sf --max-time 2 "${base}/realms/master" >/dev/null 2>&1; then
+      KEYCLOAK_BASE_URL="$base"
+      break
+    fi
+  done
+  [ -z "$KEYCLOAK_BASE_URL" ] && sleep 2
+done
+
+if [ -z "$KEYCLOAK_BASE_URL" ]; then
+  echo "ERROR: Could not reach Keycloak via NodePort 30080 within 120s."
+  echo "Tried: http://${NODE_IP}:30080, http://127.0.0.1:30080, http://localhost:30080"
+  exit 1
+fi
+echo "Keycloak URL: ${KEYCLOAK_BASE_URL}"
 
 echo "Waiting for Keycloak to accept connections"
-until curl -sf "http://${NODE_IP}:30080/realms/master" >/dev/null 2>&1; do
+until curl -sf "${KEYCLOAK_BASE_URL}/realms/master" >/dev/null 2>&1; do
   sleep 2
 done
 
@@ -148,30 +188,49 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 TRINO_PORT=$(kubectl get svc trino-coordinator -o jsonpath='{.spec.ports[0].nodePort}')
+TRINO_BASE_URL="${TRINO_BASE_URL:-https://${NODE_IP}:${TRINO_PORT}}"
+for base in "https://${NODE_IP}:${TRINO_PORT}" "https://127.0.0.1:${TRINO_PORT}" "https://localhost:${TRINO_PORT}"; do
+  if [[ "$SKIP_TRINO" == false ]] && curl -sfk --max-time 2 "${base}/v1/info" >/dev/null 2>&1; then
+    TRINO_BASE_URL="$base"
+    break
+  fi
+done
 
-cat > "$ENV_FILE" <<EOF
-STACKABLE_UI_OIDC_DISCOVERY_URL=http://${NODE_IP}:30080/realms/stackable/.well-known/openid-configuration
+if [[ "$SKIP_TRINO" == false ]]; then
+  cat > "$ENV_FILE" <<EOF
+STACKABLE_UI_OIDC_DISCOVERY_URL=${KEYCLOAK_BASE_URL}/realms/stackable/.well-known/openid-configuration
 STACKABLE_UI_OIDC_CLIENT_ID=stackable-ui
 STACKABLE_UI_OIDC_CLIENT_SECRET=${SECRET}
 STACKABLE_UI_SESSION_SECRET=${SESSION_SECRET}
 STACKABLE_UI_BASE_URL=http://localhost:5173
-STACKABLE_UI_TRINO_URL=https://${NODE_IP}:${TRINO_PORT}
+STACKABLE_UI_TRINO_URL=${TRINO_BASE_URL}
 STACKABLE_UI_TRINO_AUTH_TYPE=basic
 STACKABLE_UI_TRINO_AUTH_USERNAME=stackable-ui
 STACKABLE_UI_TRINO_AUTH_PASSWORD=stackable-ui-dev
 STACKABLE_UI_TRINO_TLS_INSECURE=true
 EOF
+else
+  cat > "$ENV_FILE" <<EOF
+STACKABLE_UI_OIDC_DISCOVERY_URL=${KEYCLOAK_BASE_URL}/realms/stackable/.well-known/openid-configuration
+STACKABLE_UI_OIDC_CLIENT_ID=stackable-ui
+STACKABLE_UI_OIDC_CLIENT_SECRET=${SECRET}
+STACKABLE_UI_SESSION_SECRET=${SESSION_SECRET}
+STACKABLE_UI_BASE_URL=http://localhost:5173
+EOF
+fi
 
 echo "Wrote $ENV_FILE"
 
 # ------------------------------------------------------------------
 # 8. Wait for Trino to be ready
 # ------------------------------------------------------------------
-echo ""
-echo "Waiting for Trino to be ready..."
-kubectl rollout status statefulset/trino-coordinator-default --timeout=300s
+if [[ "$SKIP_TRINO" == false ]]; then
+  echo ""
+  echo "Waiting for Trino to be ready..."
+  kubectl rollout status statefulset/trino-coordinator-default --timeout=300s
 
-echo "Trino endpoint: https://${NODE_IP}:${TRINO_PORT}"
+  echo "Trino endpoint: https://${NODE_IP}:${TRINO_PORT}"
+fi
 
 # ------------------------------------------------------------------
 # Done
@@ -184,10 +243,15 @@ echo ""
 echo "Keycloak:       http://${NODE_IP}:30080"
 echo "  Admin:        admin / admin"
 echo ""
-echo "Trino endpoint: https://${NODE_IP}:${TRINO_PORT}"
-echo ""
-echo "Trino connection is pre-configured via STACKABLE_UI_TRINO_* env vars."
-echo ""
+if [[ "$SKIP_TRINO" == false ]]; then
+  echo "Trino endpoint: https://${NODE_IP}:${TRINO_PORT}"
+  echo ""
+  echo "Trino connection is pre-configured via STACKABLE_UI_TRINO_* env vars."
+  echo ""
+else
+  echo "Trino was skipped. Add STACKABLE_UI_TRINO_* vars to $ENV_FILE manually when ready."
+  echo ""
+fi
 echo "Test users (OIDC):"
 echo "  alice / alicealice"
 echo "  bob   / bobbob"
