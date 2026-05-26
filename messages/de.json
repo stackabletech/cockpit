@@ -118,7 +118,7 @@
   "completion_detail_column": "Spalte",
   "completion_detail_column_in": "Spalte von {table}",
   "completion_detail_keyword": "Schlüsselwort",
-  "trino_export_csv_column_names": "Spaltennamen",
+  "completion_detail_function": "Funktion",
   "nav_storage": "Speicher",
   "page_title_storage": "Speicher",
   "storage_connect_title": "Mit Speicher verbinden",

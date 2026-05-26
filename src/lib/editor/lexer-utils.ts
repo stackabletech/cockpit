@@ -37,6 +37,32 @@ export function lexSql(sql: string): Token[] {
   return tokens;
 }
 
+/** Returns the position after the matching `)` of a balanced `(…)` group.
+ *  Returns whether the group was successfully closed. */
+export function parenGroupEndPosition(
+  tokens: Token[],
+  start: number
+): { pos: number; closed: boolean } {
+  let depth = 1;
+  let pos = start + 1;
+  while (pos < tokens.length && depth > 0) {
+    if (tokens[pos].type === LPAREN) depth++;
+    else if (tokens[pos].type === RPAREN) depth--;
+    pos++;
+  }
+  return { pos, closed: depth === 0 };
+}
+
+/** Char position of the innermost unmatched `(`, or null if every `(` closes. */
+export function unclosedParenOffset(tokens: Token[]): number | null {
+  const stack: number[] = [];
+  for (const t of tokens) {
+    if (t.type === LPAREN) stack.push(t.start);
+    else if (t.type === RPAREN && stack.length > 0) stack.pop();
+  }
+  return stack.length > 0 ? stack[stack.length - 1] : null;
+}
+
 /** Read a dotted qualified name (a.b.c) starting at `start`, returning the
  *  unquoted parts and the index of the token after the name. Stops at the
  *  first non-identifier token, or at a trailing dot not followed by an
