@@ -125,11 +125,18 @@ config:
 # Session secret for signing cookies (auto-generated if not provided)
 sessionSecret: ""
 
+# SvelteKit CSRF origin
+origin: "http://localhost:3000"
+
+# Forwarded-header trust (set when behind a proxy/ingress/gateway/mesh)
+proxy: {}
+  # protocolHeader: x-forwarded-proto
+  # hostHeader: x-forwarded-host
+
 # OIDC authentication configuration
 auth:
-  # The publicly accessible base URL of this application (used for OIDC callback URLs)
-  # Required. Example: https://stackable-ui.example.com
-  baseUrl: ""
+  # Publicly accessible base URL (used for OIDC callback URLs)
+  baseUrl: "http://localhost:3000"
   # OIDC discovery URL (the full .well-known/openid-configuration URL)
   # Required. Example: https://your-idp.example.com/realms/your-realm/.well-known/openid-configuration
   discoveryUrl: ""

@@ -8,6 +8,9 @@ data:
   oidc-discovery-url: {{ .Values.auth.discoveryUrl | quote }}
   oidc-client-id: {{ .Values.auth.clientId | quote }}
   base-url: {{ .Values.auth.baseUrl | quote }}
+  {{- with .Values.origin }}
+  origin: {{ . | quote }}
+  {{- end }}
   {{- if .Values.trino.url }}
   trino-url: {{ .Values.trino.url | quote }}
   {{- end }}

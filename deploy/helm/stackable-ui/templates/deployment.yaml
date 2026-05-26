@@ -79,16 +79,20 @@ spec:
                 configMapKeyRef:
                   name: {{ include "stackable-ui.fullname" . }}
                   key: base-url
+            {{- if .Values.origin }}
             - name: ORIGIN
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "stackable-ui.fullname" . }}
-                  key: base-url
-            {{- if .Values.ingress.enabled }}
+                  key: origin
+            {{- end }}
+            {{- with .Values.proxy.protocolHeader }}
             - name: PROTOCOL_HEADER
-              value: x-forwarded-proto
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.proxy.hostHeader }}
             - name: HOST_HEADER
-              value: x-forwarded-host
+              value: {{ . | quote }}
             {{- end }}
             - name: STACKABLE_UI_OIDC_DISCOVERY_URL
               valueFrom:

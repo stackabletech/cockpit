@@ -70,6 +70,14 @@ The following table lists the configurable parameters of the Stackable UI chart 
 | `ingress.hosts` | Ingress hosts configuration | See values.yaml |
 | `ingress.tls` | Ingress TLS configuration | `[]` |
 
+### Reverse Proxy Parameters
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `origin` | Public origin for SvelteKit CSRF check. Leave empty when relying on forwarded headers. | `http://localhost:3000` |
+| `proxy.protocolHeader` | Trusted forwarded protocol header (e.g. `x-forwarded-proto`). | `""` |
+| `proxy.hostHeader` | Trusted forwarded host header (e.g. `x-forwarded-host`). | `""` |
+
 ### Application Configuration
 
 | Parameter | Description | Default |
