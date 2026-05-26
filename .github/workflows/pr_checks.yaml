@@ -50,18 +50,6 @@ jobs:
   e2e-with-garage:
     name: E2E Tests with Garage S3
     runs-on: ubuntu-latest
-    services:
-      garage:
-        image: docker.io/dxflrs/garage:v2.3.0
-        ports:
-          - 3900:3900   # S3 API
-        env:
-          GARAGE_CONFIG_FILE: /etc/garage.toml
-        options: >-
-          --entrypoint /garage
-          --server --single-node
-        volumes:
-          - garage-data:/var/lib/garage
 
     steps:
       - name: Checkout
@@ -81,16 +69,16 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox
 
-      - name: Create Garage config and initialize bucket
+      - name: Start Garage S3 and initialize bucket
         run: |
           # Create a Garage config
-          cat > tests/garage.toml <<'EOF'
+          cat > garage.toml <<'EOF'
           metadata_dir = "/var/lib/garage/meta"
           data_dir = "/var/lib/garage/data"
           replication_factor = 1
 
           rpc_bind_addr = "[::]:3901"
-          rpc_public_addr = "garage:3901"
+          rpc_public_addr = "127.0.0.1:3901"
           rpc_secret = "2eef98a70ab343ba9dadf3809f38d63a2333a9f38909a3f3d3f3d3f3d3f3d3f3"
 
           [s3_api]
@@ -99,15 +87,30 @@ jobs:
           root_domain = ".s3.garage.localhost"
           EOF
 
-          # Copy config into the Garage container
-          docker cp tests/garage.toml ${{ job.services.garage.id }}:/etc/garage.toml
+          # Start Garage — server and --single-node are entrypoint args, not docker flags,
+          # so they must be passed after the image name via docker run rather than via
+          # service container options.
+          docker run -d --name garage \
+            -p 3900:3900 \
+            -e GARAGE_CONFIG_FILE=/etc/garage.toml \
+            -v "$PWD/garage.toml:/etc/garage.toml" \
+            docker.io/dxflrs/garage:v2.3.0 \
+            server --single-node
+
+          # Wait for the S3 API to become available
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3900 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
 
           # Create bucket and key
-          docker exec ${{ job.services.garage.id }} /garage bucket create test-bucket
-          KEY_JSON=$(docker exec ${{ job.services.garage.id }} /garage key create e2e-test-app --format=json)
-          export APP_KEY_ID=$(echo "$KEY_JSON" | jq -r '.key_id')
-          export APP_SECRET=$(echo "$KEY_JSON" | jq -r '.secret')
-          docker exec ${{ job.services.garage.id }} /garage \
+          docker exec garage /garage bucket create test-bucket
+          KEY_JSON=$(docker exec garage /garage key create e2e-test-app --format=json)
+          APP_KEY_ID=$(echo "$KEY_JSON" | jq -r '.key_id')
+          APP_SECRET=$(echo "$KEY_JSON" | jq -r '.secret')
+          docker exec garage /garage \
             bucket allow --read --write test-bucket --key e2e-test-app
 
           # Write config file for Playwright to read (Playwright should read 's3-config.json' from the root of the project)
