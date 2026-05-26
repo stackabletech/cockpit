@@ -12,7 +12,9 @@ import { SvelteDate } from 'svelte/reactivity';
 export class BookmarksState {
   pinnedLocations = $state<PinnedLocation[]>(loadFromStorage<PinnedLocation>(LS_PINS));
   recentFiles = $state<RecentFile[]>(loadFromStorage<RecentFile>(LS_RECENT_FILES));
-  recentLocations = $state<RecentLocation[]>(loadFromStorage<RecentLocation>(LS_RECENT_LOCATIONS));
+  recentLocations = $state<RecentLocation[]>(
+    loadFromStorage<RecentLocation>(LS_RECENT_LOCATIONS).filter((l) => Boolean(l.bucket))
+  );
 
   pin(bucket: string, prefix: string): void {
     if (this.pinnedLocations.some((p) => p.bucket === bucket && p.prefix === prefix)) return;
@@ -60,6 +62,7 @@ export class BookmarksState {
   }
 
   recordLocationVisit(bucket: string, prefix: string): void {
+    if (!bucket) return;
     const idx = this.recentLocations.findIndex((l) => l.bucket === bucket && l.prefix === prefix);
     const entry: RecentLocation = { bucket, prefix, visitedAt: new SvelteDate().toISOString() };
     if (idx !== -1) this.recentLocations.splice(idx, 1);

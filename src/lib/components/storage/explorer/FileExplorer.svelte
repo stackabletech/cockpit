@@ -11,16 +11,11 @@
 
   const storage = getStorageState();
 
-  // Show loading overlay for any navigation (including sidebar/grid links).
-  $effect(() => {
-    if (navigating.to) storage.loading = true;
-  });
-
   // Record location visit whenever the current bucket/prefix changes.
   $effect(() => {
     const b = storage.bucket;
     const p = storage.prefix;
-    untrack(() => storage.bookmarks.recordLocationVisit(b, p));
+    if (b) untrack(() => storage.bookmarks.recordLocationVisit(b, p));
   });
 </script>
 
@@ -37,7 +32,7 @@
       if (!(e.target as HTMLElement).closest('tr')) storage.clearSelection();
     }}
   >
-    {#if storage.loading || storage.deleting}
+    {#if storage.loading || storage.deleting || navigating.to}
       <div
         class="bg-base-100/70 absolute inset-0 z-20 flex items-center justify-center"
         aria-live="polite"

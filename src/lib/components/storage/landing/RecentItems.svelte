@@ -196,6 +196,7 @@
   <!-- Tab header -->
   <div role="tablist" class="tabs tabs-border mb-0">
     <button
+      type="button"
       role="tab"
       class="tab {activeTab === 'files' ? 'tab-active' : ''}"
       aria-selected={activeTab === 'files'}
@@ -204,6 +205,7 @@
       {m.storage_recent_files()}
     </button>
     <button
+      type="button"
       role="tab"
       class="tab {activeTab === 'locations' ? 'tab-active' : ''}"
       aria-selected={activeTab === 'locations'}
