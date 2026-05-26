@@ -99,8 +99,8 @@ jobs:
             server --single-node
 
           # Wait for the S3 API to become available
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:3900 2>/dev/null; then
+          for _ in $(seq 1 30); do
+            if curl -s http://localhost:3900 >/dev/null 2>&1; then
               break
             fi
             sleep 1

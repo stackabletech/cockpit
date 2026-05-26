@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { waitForHydration } from './helpers.js';
 
+declare const process: {
+  env: Record<string, string | undefined>;
+};
+
 /**
  * Live S3 integration tests against a real Garage instance.
  *
@@ -14,6 +18,18 @@ import { waitForHydration } from './helpers.js';
 test.describe('Storage S3 (Garage)', () => {
   test.use({ locale: 'en-US' });
 
+  async function openConnectForm(page: import('@playwright/test').Page) {
+    await page.goto('/storage?disconnected=1');
+    await waitForHydration(page);
+
+    const disconnectButton = page.getByRole('button', { name: 'Disconnect' });
+    if (await disconnectButton.isVisible().catch(() => false)) {
+      await disconnectButton.click();
+    }
+
+    await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
+  }
+
   test('connects to Garage S3 bucket and lists buckets', async ({ page }) => {
     test.skip(
       !process.env.S3_TEST_ENDPOINT,
@@ -26,11 +42,7 @@ test.describe('Storage S3 (Garage)', () => {
     const secretAccessKey = process.env.S3_TEST_SECRET_ACCESS_KEY!;
     const bucket = process.env.S3_TEST_BUCKET!;
 
-    await page.goto('/storage?disconnected=1');
-    await waitForHydration(page);
-
-    // The connect form should be visible
-    await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
+    await openConnectForm(page);
 
     // Fill in the connection form
     await page.getByLabel('Endpoint URL').fill(endpoint);
@@ -45,10 +57,11 @@ test.describe('Storage S3 (Garage)', () => {
 
     // After a successful connection the app redirects to /storage and shows the bucket list
     await expect(page).toHaveURL('/storage');
-    await expect(page.getByRole('heading', { name: 'Buckets' })).toBeVisible();
+    const main = page.locator('main');
+    await expect(main.getByRole('heading', { name: 'Buckets' })).toBeVisible();
 
     // The bucket created during Garage setup must appear in the list
-    await expect(page.getByText(bucket)).toBeVisible();
+    await expect(main.getByRole('link', { name: bucket, exact: true })).toBeVisible();
   });
 
   test('disconnects from Garage S3', async ({ page }) => {
@@ -63,14 +76,13 @@ test.describe('Storage S3 (Garage)', () => {
     const secretAccessKey = process.env.S3_TEST_SECRET_ACCESS_KEY!;
 
     // First connect
-    await page.goto('/storage?disconnected=1');
-    await waitForHydration(page);
+    await openConnectForm(page);
     await page.getByLabel('Endpoint URL').fill(endpoint);
     await page.getByLabel('Region').fill(region);
     await page.getByLabel('Access key ID').fill(accessKeyId);
     await page.getByLabel('Secret access key').fill(secretAccessKey);
     await page.getByRole('button', { name: 'Connect' }).click();
-    await expect(page.getByRole('heading', { name: 'Buckets' })).toBeVisible();
+    await expect(page.locator('main').getByRole('heading', { name: 'Buckets' })).toBeVisible();
 
     // Then disconnect
     await page.getByRole('button', { name: 'Disconnect' }).click();
