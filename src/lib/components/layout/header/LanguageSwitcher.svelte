@@ -1,7 +1,8 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import { getLocale, setLocale, locales } from '$lib/paraglide/runtime.js';
-  import Icon from '@iconify/svelte';
+  import IconLanguage from 'virtual:icons/material-symbols/language';
+  import IconCheck from 'virtual:icons/material-symbols/check';
 
   type LocaleMeta = {
     code: (typeof locales)[number];
@@ -33,7 +34,7 @@
     ? `${m.language_label()}: ${currentLocaleMeta.label()}`
     : m.language_label()}
 >
-  <Icon icon="material-symbols:language" class="h-5 w-5" aria-hidden="true" />
+  <IconLanguage class="h-5 w-5" aria-hidden="true" />
   {#if showLabel}
     <span class="text-sm font-medium">{currentLocaleMeta.label()}</span>
   {/if}
@@ -54,7 +55,7 @@
       >
         <span>{locale.label()}</span>
         {#if isActive}
-          <Icon icon="material-symbols:check" class="h-4 w-4" aria-hidden="true" />
+          <IconCheck class="h-4 w-4" aria-hidden="true" />
         {/if}
       </button>
     </li>

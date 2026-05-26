@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
-  import Icon from '@iconify/svelte';
+  import IconMenu from 'virtual:icons/material-symbols/menu';
   import LanguageSwitcher from './LanguageSwitcher.svelte';
   import ThemeToggle from './ThemeToggle.svelte';
   import UserMenu from './UserMenu.svelte';
@@ -30,7 +30,7 @@
     aria-expanded={mobileOpen}
     aria-controls="sidebar"
   >
-    <Icon icon="material-symbols:menu" class="h-5 w-5" aria-hidden="true" />
+    <IconMenu class="h-5 w-5" aria-hidden="true" />
   </button>
 
   <h1 class="text-base-content text-lg font-semibold">{title}</h1>

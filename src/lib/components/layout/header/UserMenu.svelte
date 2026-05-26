@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
-  import Icon from '@iconify/svelte';
+  import IconLogout from 'virtual:icons/material-symbols/logout';
   import type { User } from '$lib/types/auth.js';
 
   let { user }: { user: User } = $props();
@@ -42,7 +42,7 @@
     <li><hr class="border-base-300 my-1" /></li>
     <li class="mt-4">
       <a href="/auth/logout" class="text-sm">
-        <Icon icon="material-symbols:logout" class="h-4 w-4" aria-hidden="true" />
+        <IconLogout class="h-4 w-4" aria-hidden="true" />
         {m.header_sign_out()}
       </a>
     </li>

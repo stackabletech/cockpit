@@ -1,7 +1,9 @@
 <script lang="ts">
   import { page } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
-  import Icon from '@iconify/svelte';
+  import type { Component } from 'svelte';
+  import IconChevronLeft from 'virtual:icons/material-symbols/chevron-left';
+  import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
   import type { NavItem } from '$lib/types/navigation.js';
   import { getNavSections } from './nav-items.js';
 
@@ -37,9 +39,8 @@
   let sidebarEl: HTMLElement | undefined = $state();
 </script>
 
-{#snippet navIcon(name: string)}
-  {@const iconName = `material-symbols:${name}`}
-  <Icon icon={iconName} class="h-5 w-5 shrink-0" aria-hidden="true" />
+{#snippet navIcon(IconComponent: Component)}
+  <IconComponent class="h-5 w-5 shrink-0" aria-hidden="true" />
 {/snippet}
 
 <!-- Mobile backdrop -->
@@ -133,9 +134,9 @@
       aria-label={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
     >
       {#if collapsed}
-        <Icon icon="material-symbols:chevron-right" class="h-4 w-4 shrink-0" aria-hidden="true" />
+        <IconChevronRight class="h-4 w-4 shrink-0" aria-hidden="true" />
       {:else}
-        <Icon icon="material-symbols:chevron-left" class="h-4 w-4 shrink-0" aria-hidden="true" />
+        <IconChevronLeft class="h-4 w-4 shrink-0" aria-hidden="true" />
         <span>{m.sidebar_collapse_label()}</span>
       {/if}
     </button>
