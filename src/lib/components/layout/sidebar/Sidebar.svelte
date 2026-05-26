@@ -1,6 +1,11 @@
 <script lang="ts">
   import { page } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
+  import type { Component } from 'svelte';
+  import IconChevronLeft from 'virtual:icons/material-symbols/chevron-left';
+  import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
+  import type { NavItem } from '$lib/types/navigation.js';
+  import { getNavSections } from './nav-items.js';
 
   let {
     collapsed = $bindable(false),
@@ -10,35 +15,7 @@
     mobileOpen?: boolean;
   } = $props();
 
-  type NavItem = {
-    label: string;
-    href: string;
-    icon: string;
-    disabled?: boolean;
-    badge?: string;
-  };
-
-  type NavSection = {
-    title: string;
-    items: NavItem[];
-  };
-
-  const sections: NavSection[] = $derived([
-    {
-      title: m.nav_platform(),
-      items: [{ label: m.nav_dashboard(), href: '/', icon: 'dashboard' }]
-    },
-    {
-      title: m.nav_data_tools(),
-      items: [
-        {
-          label: m.nav_trino(),
-          href: '/trino',
-          icon: 'database'
-        }
-      ]
-    }
-  ]);
+  const sections = $derived(getNavSections());
 
   function isActive(href: string): boolean {
     if (href === '/') return page.url.pathname === '/';
@@ -62,39 +39,8 @@
   let sidebarEl: HTMLElement | undefined = $state();
 </script>
 
-{#snippet navIcon(name: string)}
-  {#if name === 'dashboard'}
-    <svg
-      class="h-5 w-5 shrink-0"
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
-    </svg>
-  {:else if name === 'database'}
-    <svg
-      class="h-5 w-5 shrink-0"
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <ellipse cx="12" cy="5" rx="9" ry="3" />
-      <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
-      <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" />
-    </svg>
-  {/if}
+{#snippet navIcon(IconComponent: Component)}
+  <IconComponent class="h-5 w-5 shrink-0" aria-hidden="true" />
 {/snippet}
 
 <!-- Mobile backdrop -->
@@ -183,36 +129,14 @@
     <button
       onclick={() => (collapsed = !collapsed)}
       class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3 py-2
-        text-sm font-medium transition-colors
+        text-sm font-medium transition-colors hover:cursor-pointer
         {collapsed ? 'justify-center' : ''}"
       aria-label={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
     >
       {#if collapsed}
-        <svg
-          class="h-4 w-4 shrink-0"
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="m9 5 7 7-7 7" />
-        </svg>
+        <IconChevronRight class="h-4 w-4 shrink-0" aria-hidden="true" />
       {:else}
-        <svg
-          class="h-4 w-4 shrink-0"
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="m15 5-7 7 7 7" />
-        </svg>
+        <IconChevronLeft class="h-4 w-4 shrink-0" aria-hidden="true" />
         <span>{m.sidebar_collapse_label()}</span>
       {/if}
     </button>
