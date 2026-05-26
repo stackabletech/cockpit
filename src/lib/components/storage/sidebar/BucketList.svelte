@@ -58,7 +58,7 @@
   ></div>
   <ul
     class="
-      menu menu-sm border-base-300 bg-base-100 fixed z-[60] w-40 rounded-lg
+      menu menu-sm border-base-300 bg-base-100 fixed z-60 w-40 rounded-lg
       border p-1 shadow-lg
     "
     role="menu"
@@ -123,7 +123,7 @@
             </div>
             <button
               class="
-                btn btn-ghost btn-xs absolute top-1/2 right-1 z-[51] -translate-y-1/2
+                btn btn-ghost btn-xs absolute top-1/2 right-1 z-60 -translate-y-1/2
                 p-0 opacity-0 transition-opacity
                 group-hover:opacity-100 focus:opacity-100
               "
@@ -154,7 +154,7 @@
     <a
       href={resolve('/storage')}
       data-sveltekit-preload-data="off"
-      class="btn btn-ghost btn-xs group tooltip tooltip-right"
+      class="btn btn-ghost btn-xs group tooltip tooltip-right z-60"
       title={m.storage_view_all_buckets()}
       data-tip={m.storage_view_all_buckets()}
     >
