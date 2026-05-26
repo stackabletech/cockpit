@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
+  import { beforeNavigate } from '$app/navigation';
   import Icon from '@iconify/svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
@@ -40,6 +41,7 @@
   function closeUnpinMenu() {
     unpinCtx = null;
   }
+  beforeNavigate(closeUnpinMenu);
 
   function handleUnpin() {
     if (unpinCtx) {
@@ -68,6 +70,13 @@
       <button role="menuitem" class="justify-start" onclick={handleUnpin}>
         <Icon icon="material-symbols:push-pin-outline" class="size-4 shrink-0" aria-hidden="true" />
         {m.storage_action_unpin()}
+      </button>
+    </li>
+    <hr class="border-base-300 my-0.5" />
+    <li role="none">
+      <button role="menuitem" class="justify-start" onclick={closeUnpinMenu}>
+        <Icon icon="material-symbols:close" class="size-4 shrink-0" aria-hidden="true" />
+        {m.storage_preview_close()}
       </button>
     </li>
   </ul>
