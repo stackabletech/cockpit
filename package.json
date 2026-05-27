@@ -23,6 +23,7 @@
     "@cyclonedx/cyclonedx-npm": "^4.2.1",
     "@eslint/compat": "^2.0.2",
     "@eslint/js": "^9.39.2",
+    "@iconify-json/gravity-ui": "^1.2.12",
     "@iconify-json/material-symbols": "^1.2.74",
     "@inlang/paraglide-js": "^2.12.0",
     "@playwright/test": "^1.58.2",
@@ -60,7 +61,6 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1041.0",
     "@aws-sdk/lib-storage": "^3.1045.0",
-    "@iconify-json/gravity-ui": "^1.2.12",
     "@internationalized/date": "^3.11.0",
     "antlr4-c3": "^3.4.4",
     "antlr4ng": "^3.0.16",
