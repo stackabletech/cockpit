@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import Icon from '@iconify/svelte';
+  import IconWarning from 'virtual:icons/material-symbols/warning';
   import * as m from '$lib/paraglide/messages.js';
 
   const bucket = $derived(page.params.bucket ?? '');
@@ -29,7 +29,7 @@
     "
     aria-hidden="true"
   >
-    <Icon icon="line-md:alert" class="size-10" aria-hidden="true" />
+    <IconWarning class="size-10" aria-hidden="true" />
   </div>
 
   <div>

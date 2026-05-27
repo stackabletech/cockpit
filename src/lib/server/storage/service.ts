@@ -1,6 +1,5 @@
 import { S3ServiceException, ListBucketsCommand } from '@aws-sdk/client-s3';
 import { getUserConnection, setUserConnection, clearUserConnection } from './user-connections.js';
-import type { S3ConnectionConfig } from './types.js';
 import { createS3Client } from './s3-client.js';
 import { mapS3ErrorToHttp } from './s3-errors.js';
 import { getProviderForUser } from './utils.js';
@@ -151,5 +150,3 @@ export async function deleteObjects(
     throw err;
   }
 }
-
-export type { S3ConnectionConfig };

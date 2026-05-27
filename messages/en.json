@@ -118,7 +118,7 @@
   "completion_detail_column": "Column",
   "completion_detail_column_in": "Column of {table}",
   "completion_detail_keyword": "Keyword",
-  "trino_export_csv_column_names": "Column names",
+  "completion_detail_function": "Function",
   "nav_storage": "Storage",
   "page_title_storage": "Storage",
   "storage_connect_title": "Connect to storage",

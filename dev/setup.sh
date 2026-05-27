@@ -78,15 +78,19 @@ fi
 # InternalIP is not reachable from the host network, but NodePorts are exposed
 # on localhost. Probe both and use the first reachable URL.
 KEYCLOAK_BASE_URL=""
-for base in "http://${NODE_IP}:30080" "http://127.0.0.1:30080" "http://localhost:30080"; do
-  if curl -sf --max-time 2 "${base}/realms/master" >/dev/null 2>&1; then
-    KEYCLOAK_BASE_URL="$base"
-    break
-  fi
+deadline=$(( $(date +%s) + 120 ))
+while [ -z "$KEYCLOAK_BASE_URL" ] && [ "$(date +%s)" -lt "$deadline" ]; do
+  for base in "http://${NODE_IP}:30080" "http://127.0.0.1:30080" "http://localhost:30080"; do
+    if curl -sf --max-time 2 "${base}/realms/master" >/dev/null 2>&1; then
+      KEYCLOAK_BASE_URL="$base"
+      break
+    fi
+  done
+  [ -z "$KEYCLOAK_BASE_URL" ] && sleep 2
 done
 
 if [ -z "$KEYCLOAK_BASE_URL" ]; then
-  echo "ERROR: Could not reach Keycloak via NodePort 30080."
+  echo "ERROR: Could not reach Keycloak via NodePort 30080 within 120s."
   echo "Tried: http://${NODE_IP}:30080, http://127.0.0.1:30080, http://localhost:30080"
   exit 1
 fi
@@ -222,6 +226,7 @@ STACKABLE_UI_SESSION_SECRET=${SESSION_SECRET}
 STACKABLE_UI_BASE_URL=http://localhost:5173
 STACKABLE_UI_STORAGE_BROWSER_ENABLED=true
 PUBLIC_STACKABLE_UI_STORAGE_AUTO_CONNECT=true
+
 EOF
 fi
 

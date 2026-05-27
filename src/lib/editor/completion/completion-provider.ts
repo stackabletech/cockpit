@@ -391,8 +391,8 @@ async function appendColumnItems(
     return true;
   });
 
-  await Promise.all(
-    unique.map(async (r) => {
+  await Promise.all([
+    ...unique.map(async (r) => {
       try {
         const resolved = resolveAlias(r, defaults);
         if (!resolved) return;
@@ -420,6 +420,33 @@ async function appendColumnItems(
         // Ignore individual failures (e.g. mistyped table names) so we can still
         // offer columns from the other valid relations in scope.
       }
-    })
-  );
+    }),
+    appendFunctionItems(monaco, out, range)
+  ]);
+}
+
+/** Built-in Trino functions. Callable anywhere a primary expression is, so
+ *  surfaced alongside the bare-column slot. The snippet inserts `name($0)`
+ *  and parks the cursor between the parens for immediate argument typing.
+ *  Builds via `makeItem` and then overrides `insertText` / `insertTextRules`. */
+async function appendFunctionItems(
+  monaco: typeof Monaco,
+  out: Monaco.languages.CompletionItem[],
+  range: Monaco.IRange
+): Promise<void> {
+  const fns = await fetchNames({ level: 'functions' });
+  for (const fn of fns) {
+    out.push({
+      ...makeItem(
+        fn,
+        monaco.languages.CompletionItemKind.Function,
+        'functions',
+        range,
+        m.completion_detail_function(),
+        '2_'
+      ),
+      insertText: `${fn}($0)`,
+      insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+    });
+  }
 }

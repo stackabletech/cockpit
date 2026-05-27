@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import { authClient } from '$lib/auth-client.js';
-  import Icon from '@iconify/svelte';
+  import IconWarning from 'virtual:icons/material-symbols/warning';
 
   let { data } = $props();
 
@@ -56,7 +56,7 @@
 
       {#if error}
         <div role="alert" class="alert alert-error mt-2 w-full text-sm">
-          <Icon icon="line-md:alert" class="size-5" aria-hidden="true" />
+          <IconWarning class="size-5" aria-hidden="true" />
           <span>{error}</span>
         </div>
       {/if}
