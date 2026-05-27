@@ -7,6 +7,7 @@ S3_CONFIG_PATH="$ROOT_DIR/s3-config.json"
 GARAGE_CONFIG_PATH="$ROOT_DIR/e2e/garage.toml"
 GARAGE_INIT_SCRIPT="$ROOT_DIR/e2e/init-garage-s3.sh"
 GARAGE_STATE_DIR='/tmp/stackable-ui-garage'
+GARAGE_ADMIN_URL='http://127.0.0.1:3902'
 GARAGE_ADMIN_TOKEN='stackable-ui-e2e-admin-token'
 
 garage_pid=''
@@ -71,6 +72,9 @@ if [[ ! -f "$S3_CONFIG_PATH" ]]; then
     "$GARAGE_INIT_SCRIPT"
 
   created_s3_config='1'
+
+  export GARAGE_ADMIN_URL
+  export GARAGE_ADMIN_TOKEN
 fi
 
 node --env-file=.env.test node_modules/.bin/vite build
