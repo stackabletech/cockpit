@@ -30,7 +30,7 @@ export class S3StorageProvider implements StorageProvider {
     pageSize: number,
     continuationToken?: string | null
   ): Promise<StoragePage> {
-    log.debug({ bucket: this.bucket, prefix, page_size: pageSize }, 'listing objects');
+    log.trace({ bucket: this.bucket, prefix, page_size: pageSize }, 'S3 ListObjectsV2');
 
     const output: ListObjectsV2CommandOutput = await this.client.send(
       new ListObjectsV2Command({
@@ -73,7 +73,7 @@ export class S3StorageProvider implements StorageProvider {
   }
 
   async getObject(key: string): Promise<ObjectDownload> {
-    log.debug({ bucket: this.bucket, key }, 'getting object');
+    log.trace({ bucket: this.bucket, key }, 'S3 GetObject');
     const output = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
     if (!output.Body) {
       throw new Error(`Object ${key} has no body`);
@@ -87,7 +87,7 @@ export class S3StorageProvider implements StorageProvider {
   }
 
   async getObjectRange(key: string, start: number, end: number): Promise<ReadableStream> {
-    log.debug({ bucket: this.bucket, key, start, end }, 'getting object range');
+    log.trace({ bucket: this.bucket, key, start, end }, 'S3 GetObject (range)');
     const output = await this.client.send(
       new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: `bytes=${start}-${end}` })
     );
@@ -98,7 +98,7 @@ export class S3StorageProvider implements StorageProvider {
   }
 
   async getMetadata(key: string): Promise<StorageMetadata> {
-    log.debug({ bucket: this.bucket, key }, 'getting object metadata');
+    log.trace({ bucket: this.bucket, key }, 'S3 HeadObject');
     const output = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
     return {
       size: output.ContentLength ?? 0,
@@ -130,9 +130,9 @@ export class S3StorageProvider implements StorageProvider {
     contentType: string,
     contentLength?: number
   ): Promise<void> {
-    log.debug(
+    log.trace(
       { bucket: this.bucket, key, content_type: contentType, content_length: contentLength },
-      'uploading object'
+      'S3 Upload'
     );
     const upload = new Upload({
       client: this.client,
@@ -147,14 +147,10 @@ export class S3StorageProvider implements StorageProvider {
       }
     });
     await upload.done();
-    log.info(
-      { bucket: this.bucket, key, content_type: contentType, content_length: contentLength },
-      'object uploaded'
-    );
   }
 
   async deleteObjects(keys: string[]): Promise<DeleteObjectsResult> {
-    log.debug({ bucket: this.bucket, key_count: keys.length }, 'deleting objects');
+    log.trace({ bucket: this.bucket, key_count: keys.length }, 'S3 DeleteObjects');
     const output = await this.client.send(
       new DeleteObjectsCommand({
         Bucket: this.bucket,
@@ -179,7 +175,7 @@ export class S3StorageProvider implements StorageProvider {
   }
 
   async listAllKeys(prefix: string): Promise<string[]> {
-    log.debug({ bucket: this.bucket, prefix }, 'listing all keys under prefix');
+    log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (recursive)');
     const keys: string[] = [];
     let continuationToken: string | undefined;
 
@@ -197,7 +193,10 @@ export class S3StorageProvider implements StorageProvider {
       continuationToken = output.IsTruncated ? output.NextContinuationToken : undefined;
     } while (continuationToken);
 
-    log.debug({ bucket: this.bucket, prefix, key_count: keys.length }, 'listed all keys');
+    log.trace(
+      { bucket: this.bucket, prefix, key_count: keys.length },
+      'recursive listing complete'
+    );
     return keys;
   }
 }

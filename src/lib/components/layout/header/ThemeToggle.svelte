@@ -1,7 +1,8 @@
 <script lang="ts">
   import { browser } from '$app/environment';
-  import Icon from '@iconify/svelte';
   import * as m from '$lib/paraglide/messages.js';
+  import IconLightMode from 'virtual:icons/material-symbols/light-mode';
+  import IconDarkMode from 'virtual:icons/material-symbols/dark-mode';
 
   function prefersDark(): boolean {
     if (!browser) return false;
@@ -26,8 +27,8 @@
   aria-label={dark ? m.theme_switch_light() : m.theme_switch_dark()}
 >
   {#if dark}
-    <Icon icon="material-symbols:dark-mode" class="size-5" aria-hidden="true" />
+    <IconLightMode class="h-5 w-5" aria-hidden="true" />
   {:else}
-    <Icon icon="material-symbols:light-mode" class="size-5" aria-hidden="true" />
+    <IconDarkMode class="h-5 w-5" aria-hidden="true" />
   {/if}
 </button>
