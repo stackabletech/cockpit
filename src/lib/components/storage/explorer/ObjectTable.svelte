@@ -1,0 +1,94 @@
+<script lang="ts">
+  import * as m from '$lib/paraglide/messages.js';
+  import IconArrowBack from 'virtual:icons/material-symbols/arrow-back';
+  import IconFolderOpen from 'virtual:icons/material-symbols/folder-open';
+  import SelectionToolbar from './SelectionToolbar.svelte';
+  import FolderRow from './FolderRow.svelte';
+  import FileRow from './FileRow.svelte';
+  import { getStorageState } from '$lib/storage/context.js';
+
+  const storage = getStorageState();
+
+  let selectAllEl = $state<HTMLInputElement | null>(null);
+  $effect(() => {
+    if (selectAllEl) selectAllEl.indeterminate = storage.someSelected;
+  });
+
+  function navigateUp() {
+    if (!storage.prefix) return;
+    const withoutTrailing = storage.prefix.slice(0, -1);
+    const lastSlash = withoutTrailing.lastIndexOf('/');
+    storage.navigate(lastSlash === -1 ? '' : withoutTrailing.slice(0, lastSlash + 1));
+  }
+</script>
+
+<div class="preview-scroll h-full overflow-x-auto overflow-y-auto">
+  <table class="table-sm table">
+    <thead class="bg-base-100 sticky top-0 z-10">
+      <!-- Column headers -->
+      <tr
+        class="
+          bg-base-200 text-base-content/50 text-xs tracking-wide uppercase
+        "
+      >
+        <th class="w-8 pr-0">
+          <input
+            type="checkbox"
+            class="
+              checkbox checkbox-xs
+              {!storage.showCheckboxes ? `pointer-events-none invisible` : ''}"
+            bind:this={selectAllEl}
+            checked={storage.allSelected}
+            onchange={(e) => storage.selectAll(e.currentTarget.checked)}
+            onclick={(e) => e.stopPropagation()}
+            disabled={!storage.showCheckboxes}
+            aria-label="Select all"
+          />
+        </th>
+        <th class="w-7/12 font-semibold">{m.storage_header_name()}</th>
+        <th class="w-2/12 text-right font-semibold">{m.storage_header_size()}</th>
+        <th class="w-3/12 font-semibold">{m.storage_header_last_modified()}</th>
+        <th class="w-10"></th>
+      </tr>
+
+      <!-- Selection action toolbar -->
+      <SelectionToolbar />
+    </thead>
+
+    <tbody>
+      <!-- Parent directory row -->
+      {#if storage.prefix}
+        <tr class="hover cursor-pointer" onclick={navigateUp}>
+          <td class="pr-0"></td>
+          <td colspan={3}>
+            <div class="text-base-content/50 flex items-center gap-2">
+              <IconArrowBack class="size-4 shrink-0" aria-hidden="true" />
+              <span class="tracking-widest italic" aria-label={m.storage_parent_dir()}>...</span>
+            </div>
+          </td>
+          <td></td>
+        </tr>
+      {/if}
+
+      <!-- Folders -->
+      {#each storage.folders as folder (folder.key)}
+        <FolderRow {folder} />
+      {/each}
+
+      <!-- Files -->
+      {#each storage.files as file (file.key)}
+        <FileRow {file} />
+      {/each}
+
+      <!-- Empty folder -->
+      {#if storage.folders.length === 0 && storage.files.length === 0}
+        <tr>
+          <td colspan={5} class="text-base-content/40 py-16 text-center">
+            <IconFolderOpen class="mx-auto mb-3 size-10 opacity-30" aria-hidden="true" />
+            {m.storage_bucket_empty()}
+          </td>
+        </tr>
+      {/if}
+    </tbody>
+  </table>
+</div>

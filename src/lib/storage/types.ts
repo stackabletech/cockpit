@@ -1,3 +1,63 @@
+// ── Modal types ─────────────────────────────────────────────────────────────
+
+export type ModalType = 'delete' | 'preview' | 'upload';
+
+export interface ModalPayloads {
+  delete: { keys: string[] };
+  preview: { key: string };
+  upload: { bucket: string; prefix: string };
+}
+
+export type ActiveModal = {
+  [K in ModalType]: { type: K; payload: ModalPayloads[K] };
+}[ModalType];
+
+// ── Context menu ─────────────────────────────────────────────────────────────
+
+export interface ContextMenuState {
+  x: number;
+  y: number;
+  key: string;
+}
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+
+export type NavigateFn = (
+  prefix: string,
+  continuationToken?: string | null,
+  pageSize?: number | null
+) => void;
+
+// ── Action names ─────────────────────────────────────────────────────────────
+
+export type ActionName = 'download' | 'upload' | 'preview' | 'delete' | 'pin' | 'unpin';
+
+// ── Storage locations ────────────────────────────────────────────────────────
+
+export interface StorageLocation {
+  bucket: string;
+  prefix: string;
+}
+
+export type PinnedLocation = StorageLocation;
+
+// ── Recent items ─────────────────────────────────────────────────────────────
+
+export interface RecentFile {
+  key: string;
+  bucket: string;
+  size: number;
+  visitedAt: string;
+}
+
+export interface RecentLocation {
+  bucket: string;
+  prefix: string;
+  visitedAt: string;
+}
+
+// ── Storage objects ──────────────────────────────────────────────────────────
+
 /** A single object (file or directory) returned from a storage listing. */
 export interface StorageObject {
   key: string;

@@ -1,7 +1,9 @@
 <script lang="ts">
   import { page } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
-  import Icon from '@iconify/svelte';
+  import type { Component } from 'svelte';
+  import IconChevronLeft from 'virtual:icons/material-symbols/chevron-left';
+  import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
   import type { NavItem } from '$lib/types/navigation.js';
   import { getNavSections } from './nav-items.js';
 
@@ -39,18 +41,14 @@
   let sidebarEl: HTMLElement | undefined = $state();
 </script>
 
-{#snippet navIcon(name: string)}
-  {@const iconName = `material-symbols:${name}`}
-  <Icon icon={iconName} class="size-5 shrink-0" aria-hidden="true" />
+{#snippet navIcon(IconComponent: Component)}
+  <IconComponent class="h-5 w-5 shrink-0" aria-hidden="true" />
 {/snippet}
 
 <!-- Mobile backdrop -->
 {#if mobileOpen}
   <button
-    class="
-      fixed inset-0 z-40 bg-black/30 backdrop-blur-sm
-      lg:hidden
-    "
+    class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
     onclick={() => (mobileOpen = false)}
     aria-label={m.sidebar_close_nav()}
     tabindex="-1"
@@ -62,20 +60,15 @@
   bind:this={sidebarEl}
   id="sidebar"
   aria-label={m.sidebar_label()}
-  class="
-    border-base-300 bg-base-100 fixed inset-y-0 left-0 z-50 flex flex-col
-    border-r transition-[transform,width] duration-200 ease-out
-    lg:relative lg:inset-auto lg:translate-x-0
+  class="border-base-300 bg-base-200 fixed inset-y-0 left-0 z-50 flex flex-col border-r
+    transition-[transform,width] duration-200 ease-out
+    lg:relative lg:inset-auto lg:z-auto lg:translate-x-0
     {mobileOpen ? 'translate-x-0' : '-translate-x-full'}
     {collapsed ? 'w-16' : 'w-60'}"
 >
   <!-- Brand -->
-  <div
-    class="
-    border-base-300 flex h-16 shrink-0 items-center gap-3 border-b px-4
-  "
-  >
-    <img src="/stackable-logo-bimi-v2.svg" alt="" class="size-7 shrink-0" />
+  <div class="border-base-300 flex h-16 shrink-0 items-center gap-3 border-b px-4">
+    <img src="/stackable-logo-bimi-v2.svg" alt="" class="h-7 w-7 shrink-0" />
     {#if !collapsed}
       <span class="text-base-content text-lg font-bold tracking-tight">Stackable</span>
     {/if}
@@ -83,7 +76,7 @@
 
   <!-- Navigation -->
   <nav
-    class="flex-1 px-3 py-4 {collapsed ? 'overflow-visible' : 'overflow-x-hidden overflow-y-auto'}"
+    class="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4"
     aria-label={m.sidebar_nav_label()}
   >
     {#each sections as section, sectionIdx (section.title)}
@@ -92,12 +85,7 @@
       {/if}
 
       {#if !collapsed}
-        <div
-          class="
-            text-base-content/60 mb-2 px-3 text-xs font-semibold tracking-wider
-            uppercase
-          "
-        >
+        <div class="text-base-content/60 mb-2 px-3 text-xs font-semibold tracking-wider uppercase">
           {section.title}
         </div>
       {/if}
@@ -110,17 +98,11 @@
               href={item.href}
               onclick={(e) => handleNavClick(e, item)}
               onkeydown={(e) => handleNavKeydown(e, item)}
-              data-tip={collapsed ? item.label : undefined}
-              class="
-                flex min-h-11 items-center gap-3 rounded-lg px-3 py-2
-                text-sm font-medium
-                {collapsed ? 'tooltip tooltip-right before:z-100' : ''}
+              title={collapsed ? item.label : undefined}
+              class="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
                 {active
                 ? 'bg-primary/10 text-primary'
-                : `
-                  text-base-content/70
-                  hover:bg-base-content/5 hover:text-base-content
-                `}
+                : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
                 {item.disabled ? 'opacity-40' : ''}
                 {collapsed ? 'justify-center' : ''}"
               aria-current={active ? 'page' : undefined}
@@ -131,11 +113,7 @@
                 <span class="truncate">{item.label}</span>
                 {#if item.badge}
                   <span
-                    class="
-                      bg-base-300 text-base-content/60 ml-auto rounded-md px-1.5 py-0.5
-                      text-xs font-semibold tracking-wider
-                      uppercase
-                    "
+                    class="bg-base-300 text-base-content/60 ml-auto rounded-md px-1.5 py-0.5 text-xs font-semibold tracking-wider uppercase"
                   >
                     {item.badge}
                   </span>
@@ -149,26 +127,18 @@
   </nav>
 
   <!-- Footer: collapse toggle (desktop only) -->
-  <div
-    class="
-      border-base-300 hidden shrink-0 border-t p-3
-      lg:block
-    "
-  >
+  <div class="border-base-300 hidden shrink-0 border-t p-3 lg:block">
     <button
       onclick={() => (collapsed = !collapsed)}
-      data-tip={collapsed ? m.sidebar_expand() : undefined}
-      class="
-        text-base-content/60 hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3
-        py-2 text-sm
-        font-medium transition-colors hover:cursor-pointer
-        {collapsed ? 'tooltip tooltip-right justify-center' : ''}"
+      class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3 py-2
+        text-sm font-medium transition-colors hover:cursor-pointer
+        {collapsed ? 'justify-center' : ''}"
       aria-label={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
     >
       {#if collapsed}
-        <Icon icon="material-symbols:chevron-right" class="size-4 shrink-0" aria-hidden="true" />
+        <IconChevronRight class="h-4 w-4 shrink-0" aria-hidden="true" />
       {:else}
-        <Icon icon="material-symbols:chevron-left" class="size-4 shrink-0" aria-hidden="true" />
+        <IconChevronLeft class="h-4 w-4 shrink-0" aria-hidden="true" />
         <span>{m.sidebar_collapse_label()}</span>
       {/if}
     </button>

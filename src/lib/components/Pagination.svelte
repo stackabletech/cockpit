@@ -1,5 +1,8 @@
 <script lang="ts">
-  import Icon from '@iconify/svelte';
+  import IconFirstPage from 'virtual:icons/material-symbols/first-page';
+  import IconChevronLeft from 'virtual:icons/material-symbols/chevron-left';
+  import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
+  import IconLastPage from 'virtual:icons/material-symbols/last-page';
   import * as m from '$lib/paraglide/messages.js';
   import { browser } from '$app/environment';
   import { ALLOWED_PAGE_SIZES, isPageSize, type PageSize } from '$lib/types/pagination.js';
@@ -109,11 +112,7 @@
             aria-label={m.pagination_first_page()}
             title={m.pagination_first_page()}
           >
-            <Icon
-              icon="material-symbols:first-page"
-              class="size-4 {canGoFirst ? '' : 'opacity-40'}"
-              aria-hidden="true"
-            />
+            <IconFirstPage class="size-4 {canGoFirst ? '' : 'opacity-40'}" aria-hidden="true" />
           </button>
           <button
             class="btn btn-ghost btn-xs"
@@ -122,11 +121,7 @@
             aria-label={m.pagination_prev_page()}
             title={m.pagination_prev_page()}
           >
-            <Icon
-              icon="material-symbols:chevron-left"
-              class="size-4 {canGoPrev ? '' : 'opacity-40'}"
-              aria-hidden="true"
-            />
+            <IconChevronLeft class="size-4 {canGoPrev ? '' : 'opacity-40'}" aria-hidden="true" />
           </button>
           <button
             class="btn btn-ghost btn-xs"
@@ -135,11 +130,7 @@
             aria-label={m.pagination_next_page()}
             title={m.pagination_next_page()}
           >
-            <Icon
-              icon="material-symbols:chevron-right"
-              class="size-4 {canGoNext ? '' : 'opacity-40'}"
-              aria-hidden="true"
-            />
+            <IconChevronRight class="size-4 {canGoNext ? '' : 'opacity-40'}" aria-hidden="true" />
           </button>
           {#if showLast}
             <button
@@ -149,11 +140,7 @@
               aria-label={m.pagination_last_page()}
               title={m.pagination_last_page()}
             >
-              <Icon
-                icon="material-symbols:last-page"
-                class="size-4 {canGoLast ? '' : 'opacity-40'}"
-                aria-hidden="true"
-              />
+              <IconLastPage class="size-4 {canGoLast ? '' : 'opacity-40'}" aria-hidden="true" />
             </button>
           {/if}
         </nav>
@@ -181,11 +168,7 @@
         aria-label={m.pagination_first_page()}
         title={m.pagination_first_page()}
       >
-        <Icon
-          icon="material-symbols:first-page"
-          class="size-4 {canGoFirst ? '' : 'opacity-40'}"
-          aria-hidden="true"
-        />
+        <IconFirstPage class="size-4 {canGoFirst ? '' : 'opacity-40'}" aria-hidden="true" />
       </button>
       <button
         class="btn btn-ghost btn-sm"
@@ -194,11 +177,7 @@
         aria-label={m.pagination_prev_page()}
         title={m.pagination_prev_page()}
       >
-        <Icon
-          icon="material-symbols:chevron-left"
-          class="size-4 {canGoPrev ? '' : 'opacity-40'}"
-          aria-hidden="true"
-        />
+        <IconChevronLeft class="size-4 {canGoPrev ? '' : 'opacity-40'}" aria-hidden="true" />
       </button>
       <button
         class="btn btn-ghost btn-sm"
@@ -207,11 +186,7 @@
         aria-label={m.pagination_next_page()}
         title={m.pagination_next_page()}
       >
-        <Icon
-          icon="material-symbols:chevron-right"
-          class="size-4 {canGoNext ? '' : 'opacity-40'}"
-          aria-hidden="true"
-        />
+        <IconChevronRight class="size-4 {canGoNext ? '' : 'opacity-40'}" aria-hidden="true" />
       </button>
       {#if showLast}
         <button
@@ -221,11 +196,7 @@
           aria-label={m.pagination_last_page()}
           title={m.pagination_last_page()}
         >
-          <Icon
-            icon="material-symbols:last-page"
-            class="size-4 {canGoLast ? '' : 'opacity-40'}"
-            aria-hidden="true"
-          />
+          <IconLastPage class="size-4 {canGoLast ? '' : 'opacity-40'}" aria-hidden="true" />
         </button>
       {/if}
     </nav>

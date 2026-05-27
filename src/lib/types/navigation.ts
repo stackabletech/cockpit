@@ -1,7 +1,9 @@
+import type { Component } from 'svelte';
+
 export type NavItem = {
   label: string;
   href: string;
-  icon: string;
+  icon: Component;
   disabled?: boolean;
   badge?: string;
 };
