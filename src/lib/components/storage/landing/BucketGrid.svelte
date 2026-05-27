@@ -1,5 +1,5 @@
 <script lang="ts">
-  import IconStorage from 'virtual:icons/material-symbols/storage';
+  import IconBucket from 'virtual:icons/gravity-ui/bucket';
   import * as m from '$lib/paraglide/messages.js';
   import { resolve } from '$app/paths';
 
@@ -33,7 +33,7 @@
               text-center transition-colors
             "
         >
-          <IconStorage class="text-warning size-10" aria-hidden="true" />
+          <IconBucket class="text-warning size-10" aria-hidden="true" />
           <span class="w-full truncate text-sm font-medium">{bucket}</span>
         </a>
       </div>

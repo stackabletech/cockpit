@@ -5,7 +5,7 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
-  import IconStorage from 'virtual:icons/material-symbols/storage';
+  import IconBucket from 'virtual:icons/gravity-ui/bucket';
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import IconGridView from 'virtual:icons/material-symbols/grid-view';
   import * as m from '$lib/paraglide/messages.js';
@@ -141,7 +141,7 @@
               >
                 <!-- eslint-enable svelte/no-navigation-without-resolve -->
                 {#if pin.prefix === ''}
-                  <IconStorage class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
+                  <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
                 {:else}
                   <IconFolderOutline class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
                 {/if}
@@ -215,7 +215,7 @@
             data-tip={bucket}
             aria-current={activeBucket === bucket && !page.params.prefix ? 'page' : undefined}
           >
-            <IconStorage class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
+            <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
             <span class="truncate">{bucket}</span>
           </a>
         </li>
