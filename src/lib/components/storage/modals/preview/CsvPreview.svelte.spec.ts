@@ -53,7 +53,7 @@ describe('CsvPreview', () => {
     const header = 'Name,Email';
     const rows = Array.from(
       { length: 300 },
-      (_, i) => `${faker.person.firstName()},${faker.internet.email()}`
+      () => `${faker.person.firstName()},${faker.internet.email()}`
     );
     const text = [header, ...rows].join('\n');
     render(CsvPreview, { text });
@@ -74,6 +74,21 @@ describe('CsvPreview', () => {
 
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
+  });
+
+  it('should render empty string for missing columns (row shorter than headers)', async () => {
+    const text = 'A,B,C\n1';
+    render(CsvPreview, { text });
+
+    // Row has only 1 field but 3 headers, so columns B and C should render as empty via ?? ''
+    await expect.element(page.getByRole('cell', { name: '1', exact: true })).toBeInTheDocument();
+    // There should be 3 cells in the body row
+    const rows = page.getByRole('row');
+    // row 0 is header, row 1 is data
+    const dataCells = rows.nth(1).getByRole('cell');
+    await expect.element(dataCells.nth(0)).toHaveTextContent('1');
+    await expect.element(dataCells.nth(1)).toHaveTextContent('');
+    await expect.element(dataCells.nth(2)).toHaveTextContent('');
   });
 
   it('should handle header-only CSV', async () => {

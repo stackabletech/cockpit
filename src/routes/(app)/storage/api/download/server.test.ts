@@ -17,7 +17,7 @@ function mockEvent(params: string) {
   return {
     url,
     locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
-  } as any;
+  } as unknown as Parameters<typeof GET>[0];
 }
 
 describe('GET /storage/api/download', () => {
@@ -30,7 +30,7 @@ describe('GET /storage/api/download', () => {
       contentType: 'text/csv',
       contentLength: 1234,
       etag: '"abc"'
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof downloadObject>>);
 
     const res = await GET(mockEvent('bucket=b1&key=path/data.csv'));
 
@@ -47,7 +47,7 @@ describe('GET /storage/api/download', () => {
       contentType: undefined,
       contentLength: undefined,
       etag: undefined
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof downloadObject>>);
 
     const res = await GET(mockEvent('bucket=b1&key=file.bin'));
     expect(res.headers.get('Content-Type')).toBe('application/octet-stream');
@@ -62,7 +62,7 @@ describe('HEAD /storage/api/download', () => {
     vi.mocked(getObjectMetadata).mockResolvedValue({
       contentType: 'application/json',
       size: 999
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof getObjectMetadata>>);
 
     const res = await HEAD(mockEvent('bucket=b1&key=data.json'));
 

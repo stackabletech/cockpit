@@ -101,6 +101,23 @@ describe('SelectionToolbar', () => {
     await expect.element(btn).toBeDisabled();
   });
 
+  it('should not apply error styling to delete button when nothing selected', async () => {
+    const state = createState([makeFile('a.txt')], []);
+    render(SelectionToolbarWrapper, { state });
+
+    const btn = page.getByRole('button', { name: /Delete/ });
+    await expect.element(btn).not.toHaveClass('text-error');
+  });
+
+  it('should apply error styling to delete button when items are selected', async () => {
+    const files = [makeFile('a.txt')];
+    const state = createState(files, ['a.txt']);
+    render(SelectionToolbarWrapper, { state });
+
+    const btn = page.getByRole('button', { name: /Delete/ });
+    await expect.element(btn).toHaveClass('text-error');
+  });
+
   it('should call executeAction preview on preview click', async () => {
     const files = [makeFile('a.txt')];
     const state = createState(files, ['a.txt']);

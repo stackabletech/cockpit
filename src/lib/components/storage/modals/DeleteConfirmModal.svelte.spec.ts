@@ -122,6 +122,15 @@ describe('DeleteConfirmModal', () => {
     });
   });
 
+  describe('edge cases with empty keys', () => {
+    it('should fallback to empty name when key is an empty string', async () => {
+      render(DeleteConfirmModal, { ...defaultProps, keys: [''] });
+
+      // firstName falls back to '' via the ?? '' branch
+      await expect.element(page.getByRole('heading', { name: /Delete ""/ })).toBeInTheDocument();
+    });
+  });
+
   describe('edge cases with faker', () => {
     it('should handle keys with special characters', async () => {
       const keys = ['file (1).txt', 'data [backup].csv', "name's file.doc"];

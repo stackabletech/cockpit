@@ -175,6 +175,68 @@ describe('FileRow', () => {
     });
   });
 
+  it('should highlight row when context menu is open for this file', async () => {
+    const file = makeFile({ key: 'ctx-active.txt', contentType: 'text/plain' });
+    const state = createState([file]);
+    state.contextMenu = { x: 100, y: 100, key: 'ctx-active.txt' };
+    render(FileRowWrapper, { state, file });
+
+    const row = page.getByRole('row');
+    await expect.element(row).toHaveClass(/bg-base-300/);
+  });
+
+  it('should call toggleSelect with multi=true on ctrl+click', async () => {
+    const file = makeFile({ key: 'ctrl.txt', contentType: 'text/plain' });
+    const state = createState([file]);
+    const spy = vi.spyOn(state, 'toggleSelect');
+    render(FileRowWrapper, { state, file });
+
+    await page.getByRole('row').click({ modifiers: ['ControlOrMeta'] });
+    expect(spy).toHaveBeenCalledWith('ctrl.txt', true);
+  });
+
+  it('should call toggleSelect on checkbox change', async () => {
+    const file = makeFile({ key: 'check.txt', contentType: 'text/plain' });
+    const state = createState([file], { selectionMode: true });
+    const spy = vi.spyOn(state, 'toggleSelect');
+    render(FileRowWrapper, { state, file });
+
+    const checkbox = page.getByRole('checkbox', { name: 'Select check.txt' });
+    await checkbox.click();
+    expect(spy).toHaveBeenCalledWith('check.txt', true);
+  });
+
+  it('should call openContextMenu on actions button click', async () => {
+    const file = makeFile({ key: 'actions.txt', contentType: 'text/plain' });
+    const state = createState([file]);
+    const spy = vi.spyOn(state, 'openContextMenu');
+    render(FileRowWrapper, { state, file });
+
+    const btn = page.getByRole('button', { name: 'Actions for actions.txt' });
+    await btn.click();
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should not highlight as selected when context menu is active', async () => {
+    const file = makeFile({ key: 'both.txt', contentType: 'text/plain' });
+    const state = createState([file], { selectedKeys: ['both.txt'] });
+    state.contextMenu = { x: 0, y: 0, key: 'both.txt' };
+    render(FileRowWrapper, { state, file });
+
+    const row = page.getByRole('row');
+    await expect.element(row).toHaveClass(/bg-base-300/);
+  });
+
+  it('should apply default hover style when neither selected nor context menu', async () => {
+    const file = makeFile({ key: 'plain.txt', contentType: 'text/plain' });
+    const state = createState([file]);
+    render(FileRowWrapper, { state, file });
+
+    const row = page.getByRole('row');
+    await expect.element(row).not.toHaveClass(/bg-primary/);
+    await expect.element(row).not.toHaveClass(/bg-base-300/);
+  });
+
   describe('edge cases', () => {
     it('should handle zero-byte files', async () => {
       const file = makeFile({ key: 'empty.txt', size: 0, contentType: 'text/plain' });
@@ -203,6 +265,13 @@ describe('FileRow', () => {
       const state = createState([file]);
       render(FileRowWrapper, { state, file });
       await expect.element(page.getByText('deep.csv')).toBeInTheDocument();
+    });
+
+    it('should handle contentType with trailing slash gracefully', async () => {
+      const file = makeFile({ key: 'weird.bin', contentType: 'application/' });
+      const state = createState([file]);
+      render(FileRowWrapper, { state, file });
+      await expect.element(page.getByText('weird.bin')).toBeInTheDocument();
     });
 
     it('should handle unicode file names', async () => {

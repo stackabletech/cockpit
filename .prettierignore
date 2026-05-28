@@ -24,6 +24,9 @@ project.inlang/
 .parcel-cache/
 node_modules/
 
+# Vitest Coverage reports
+coverage/
+
 # Database migrations
 /drizzle/
 

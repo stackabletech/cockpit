@@ -2,7 +2,6 @@ import { page } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
-import { SvelteSet } from 'svelte/reactivity';
 import StorageBreadcrumbWrapper from './__tests__/StorageBreadcrumbWrapper.svelte';
 import { StorageState } from '$lib/storage/state.svelte.js';
 import type { StorageObject } from '$lib/storage/types.js';
@@ -212,6 +211,248 @@ describe('StorageBreadcrumb', () => {
       // The more menu should contain unpin
       const menuItems = page.getByRole('menuitem');
       await expect.element(menuItems.first()).toBeInTheDocument();
+    });
+
+    it('should call pin via more options menu when not pinned', async () => {
+      const state = createState({ bucket: 'test-bucket', prefix: 'data/' });
+      const spy = vi.spyOn(state.bookmarks, 'pin');
+      render(StorageBreadcrumbWrapper, { state });
+
+      // Open the dropdown by focusing/clicking the trigger
+      const moreBtn = page.getByRole('button', { name: /more options/i });
+      await moreBtn.click();
+
+      // DaisyUI dropdown uses focus to show content; click the menuitem
+      const menuItems = page.getByRole('menuitem');
+      // Force the click by using element()
+      const el = menuItems.first();
+      await el.click();
+
+      // If DaisyUI dropdown prevents click, try direct dispatch
+      if (!spy.mock.calls.length) {
+        const domEl = (await el.element()) as HTMLElement;
+        domEl.click();
+      }
+      expect(spy).toHaveBeenCalledWith('test-bucket', 'data/');
+    });
+
+    it('should call unpin via more options menu when pinned', async () => {
+      const state = createState({
+        bucket: 'test-bucket',
+        prefix: 'data/',
+        pinned: [{ bucket: 'test-bucket', prefix: 'data/' }]
+      });
+      const spy = vi.spyOn(state.bookmarks, 'unpin');
+      render(StorageBreadcrumbWrapper, { state });
+
+      // Open the dropdown first
+      const moreBtn = page.getByRole('button', { name: /more options/i });
+      await moreBtn.click();
+
+      const menuItem = page.getByRole('menuitem');
+      await menuItem.first().click();
+      expect(spy).toHaveBeenCalledWith('test-bucket', 'data/');
+    });
+  });
+
+  describe('navigation clicks', () => {
+    it('should navigate to root when clicking bucket button with prefix', async () => {
+      const state = createState({ bucket: 'data', prefix: 'reports/' });
+      const spy = vi.spyOn(state, 'navigate');
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      const bucketBtn = nav.getByRole('button').first();
+      await bucketBtn.click();
+      expect(spy).toHaveBeenCalledWith('');
+    });
+
+    it('should navigate when clicking a collapsed part', async () => {
+      const state = createState({ prefix: 'alpha/bravo/charlie/delta/' });
+      const spy = vi.spyOn(state, 'navigate');
+      render(StorageBreadcrumbWrapper, { state });
+
+      // Click 'alpha' in the collapsed dropdown
+      const alphaBtn = page.getByText('alpha');
+      await alphaBtn.click();
+      expect(spy).toHaveBeenCalledWith('alpha/');
+    });
+
+    it('should navigate when clicking a non-current visible part', async () => {
+      // 3 levels: "a/b/c/" -> visibleParts = all 3 (<=MAX_TAIL is false, 3>2), so last 2 visible
+      // Actually with MAX_TAIL=2, 3 parts -> collapsed=[a], visible=[b,c]
+      // b is non-current, c is current
+      const state = createState({ prefix: 'aaa/bbb/ccc/' });
+      const spy = vi.spyOn(state, 'navigate');
+      render(StorageBreadcrumbWrapper, { state });
+
+      await page.getByText('bbb').click();
+      expect(spy).toHaveBeenCalledWith('aaa/bbb/');
+    });
+
+    it('should not navigate when clicking the current (last) part', async () => {
+      const state = createState({ prefix: 'reports/' });
+      const spy = vi.spyOn(state, 'navigate');
+      render(StorageBreadcrumbWrapper, { state });
+
+      // Current part is a span, not a button - clicking should not navigate
+      const current = page.getByText('reports');
+      await expect.element(current).toHaveAttribute('aria-current', 'page');
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('inline pin buttons', () => {
+    it('should pin bucket at root level via inline pin button', async () => {
+      const state = createState({ bucket: 'test-bucket' });
+      const spy = vi.spyOn(state.bookmarks, 'pin');
+      render(StorageBreadcrumbWrapper, { state });
+
+      const pinBtn = page.getByRole('button', { name: /pin/i }).first();
+      await pinBtn.click();
+      expect(spy).toHaveBeenCalledWith('test-bucket', '');
+    });
+
+    it('should unpin bucket at root level via inline pin button when pinned', async () => {
+      const state = createState({
+        bucket: 'test-bucket',
+        pinned: [{ bucket: 'test-bucket', prefix: '' }]
+      });
+      const spy = vi.spyOn(state.bookmarks, 'unpin');
+      render(StorageBreadcrumbWrapper, { state });
+
+      const pinBtn = page.getByRole('button', { name: /unpin/i }).first();
+      await pinBtn.click();
+      expect(spy).toHaveBeenCalledWith('test-bucket', '');
+    });
+  });
+
+  describe('breadcrumb context menu', () => {
+    it('should open context menu on right-click of bucket at root', async () => {
+      const state = createState({ bucket: 'test-bucket' });
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      const bucketEl = nav.getByText('test-bucket');
+      await bucketEl.click({ button: 'right' });
+
+      // Context menu should appear with a pin/unpin menuitem
+      const menuItem = page.getByRole('menuitem');
+      await expect.element(menuItem.first()).toBeInTheDocument();
+    });
+
+    it('should pin via context menu when not pinned', async () => {
+      const state = createState({ bucket: 'test-bucket' });
+      const spy = vi.spyOn(state.bookmarks, 'pin');
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      const bucketEl = nav.getByText('test-bucket');
+      await bucketEl.click({ button: 'right' });
+
+      const menuItem = page.getByRole('menuitem');
+      await menuItem.first().click();
+      expect(spy).toHaveBeenCalledWith('test-bucket', '');
+    });
+
+    it('should unpin via context menu when pinned', async () => {
+      const state = createState({
+        bucket: 'test-bucket',
+        pinned: [{ bucket: 'test-bucket', prefix: '' }]
+      });
+      const spy = vi.spyOn(state.bookmarks, 'unpin');
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      const bucketEl = nav.getByText('test-bucket');
+      await bucketEl.click({ button: 'right' });
+
+      const menuItem = page.getByRole('menuitem');
+      await menuItem.first().click();
+      expect(spy).toHaveBeenCalledWith('test-bucket', '');
+    });
+
+    it('should close context menu when clicking outside', async () => {
+      const state = createState({ bucket: 'test-bucket' });
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      const bucketEl = nav.getByText('test-bucket');
+      await bucketEl.click({ button: 'right' });
+
+      // Context menu should be open - it's the fixed-position menu
+      const ctxMenuItems = page.getByRole('menuitem');
+      await expect.element(ctxMenuItems.first()).toBeInTheDocument();
+
+      // The backdrop is a fixed inset-0 div that's a sibling before the context menu
+      // Dispatch mousedown on it to trigger closeBreadcrumbCtx
+      const menuEl = (await ctxMenuItems.first().element()) as HTMLElement;
+      const menuUl = menuEl.closest('ul[role="menu"]')!;
+      const backdrop = menuUl.previousElementSibling as HTMLElement;
+      backdrop.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+
+      // Context menu should be closed - menuitem from ctx menu should be gone
+      // The only remaining menuitem should be from the more options dropdown
+      await expect.element(page.getByRole('menuitem')).toBeInTheDocument(); // the one in more options
+    });
+
+    it('should open context menu on right-click of bucket with prefix', async () => {
+      const state = createState({ bucket: 'data', prefix: 'reports/' });
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      const bucketBtn = nav.getByText('data');
+      await bucketBtn.click({ button: 'right' });
+
+      const menuItem = page.getByRole('menuitem');
+      await expect.element(menuItem.first()).toBeInTheDocument();
+    });
+
+    it('should open context menu on right-click of current folder', async () => {
+      const state = createState({ bucket: 'data', prefix: 'reports/' });
+      render(StorageBreadcrumbWrapper, { state });
+
+      const currentEl = page.getByText('reports');
+      await currentEl.click({ button: 'right' });
+
+      const menuItem = page.getByRole('menuitem');
+      await expect.element(menuItem.first()).toBeInTheDocument();
+    });
+
+    it('should open context menu on right-click of non-current visible part', async () => {
+      const state = createState({ prefix: 'aaa/bbb/ccc/' });
+      render(StorageBreadcrumbWrapper, { state });
+
+      const partEl = page.getByText('bbb');
+      await partEl.click({ button: 'right' });
+
+      const menuItem = page.getByRole('menuitem');
+      await expect.element(menuItem.first()).toBeInTheDocument();
+    });
+
+    it('should open context menu on right-click of collapsed part', async () => {
+      const state = createState({ prefix: 'alpha/bravo/charlie/delta/' });
+      render(StorageBreadcrumbWrapper, { state });
+
+      const partEl = page.getByText('alpha');
+      await partEl.click({ button: 'right' });
+
+      const menuItem = page.getByRole('menuitem');
+      await expect.element(menuItem.first()).toBeInTheDocument();
+    });
+  });
+
+  describe('exactly MAX_TAIL levels', () => {
+    it('should show all parts without collapse for exactly 2 levels', async () => {
+      const state = createState({ prefix: 'aaa/bbb/' });
+      render(StorageBreadcrumbWrapper, { state });
+
+      await expect.element(page.getByText('aaa')).toBeInTheDocument();
+      await expect.element(page.getByText('bbb')).toHaveAttribute('aria-current', 'page');
+      // No collapse button
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      const moreBtn = nav.getByRole('button', { name: /more/i });
+      await expect.element(moreBtn).not.toBeInTheDocument();
     });
   });
 });

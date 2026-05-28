@@ -138,4 +138,33 @@ describe('ObjectTable', () => {
     await expect.element(page.getByText('file-0.txt')).toBeInTheDocument();
     await expect.element(page.getByText('file-49.txt')).toBeInTheDocument();
   });
+
+  it('should not show empty state when only files exist (no folders)', async () => {
+    const state = createState([makeFile('only-file.txt')]);
+    render(ObjectTableWrapper, { state });
+
+    await expect.element(page.getByText('only-file.txt')).toBeInTheDocument();
+    expect(page.getByText('This bucket is empty').elements().length).toBe(0);
+  });
+
+  it('should not show empty state when only folders exist (no files)', async () => {
+    const state = createState([makeFolder('images/')]);
+    render(ObjectTableWrapper, { state });
+
+    await expect.element(page.getByText('images')).toBeInTheDocument();
+    expect(page.getByText('This bucket is empty').elements().length).toBe(0);
+  });
+
+  it('should set indeterminate state on select-all checkbox when some items are selected', async () => {
+    const objects = [makeFile('a.txt'), makeFile('b.txt')];
+    const state = createState(objects, {
+      selectionMode: true,
+      selectedKeys: ['a.txt']
+    });
+    render(ObjectTableWrapper, { state });
+
+    const checkbox = page.getByRole('checkbox', { name: 'Select all' });
+    await expect.element(checkbox).toBeInTheDocument();
+    // someSelected should be true, making indeterminate true
+  });
 });

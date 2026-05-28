@@ -188,4 +188,40 @@ describe('RecentItems', () => {
         .toBeInTheDocument();
     });
   });
+
+  describe('preview modal', () => {
+    it('should open preview modal when preview button is clicked', async () => {
+      const state = createState({
+        recentFiles: [makeRecentFile({ key: 'docs/report.pdf', bucket: 'my-bucket' })]
+      });
+      render(RecentItemsWrapper, { state });
+
+      const previewBtn = page.getByRole('button', { name: /preview.*report\.pdf/i });
+      await previewBtn.click();
+
+      // The PreviewModal should now be open (rendered as a dialog)
+      await expect.element(page.getByRole('dialog')).toBeInTheDocument();
+    });
+  });
+
+  describe('tab switching', () => {
+    it('should switch back to files tab after viewing locations', async () => {
+      const state = createState({
+        recentFiles: [makeRecentFile({ key: 'file.txt' })],
+        recentLocations: [makeRecentLocation({ prefix: 'data/' })]
+      });
+      render(RecentItemsWrapper, { state });
+
+      // Switch to locations
+      const locationsTab = page.getByRole('tab').nth(1);
+      await locationsTab.click();
+      await expect.element(locationsTab).toHaveAttribute('aria-selected', 'true');
+
+      // Switch back to files
+      const filesTab = page.getByRole('tab').first();
+      await filesTab.click();
+      await expect.element(filesTab).toHaveAttribute('aria-selected', 'true');
+      await expect.element(page.getByText('file.txt')).toBeInTheDocument();
+    });
+  });
 });

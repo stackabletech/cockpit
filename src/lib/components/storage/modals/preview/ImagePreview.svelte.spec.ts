@@ -29,6 +29,25 @@ describe('ImagePreview', () => {
     await expect.element(img).toHaveAttribute('src', src);
   });
 
+  it('should update naturalWidth and naturalHeight on load', async () => {
+    // 1x1 red pixel PNG as a data URL so the image actually loads
+    const src =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+    render(ImagePreview, { src, name: 'pixel.png' });
+
+    const img = page.getByRole('img');
+    // Wait for the image to load and the onload handler to fire
+    await expect.element(img).toHaveAttribute('src', src);
+
+    // Wait for naturalWidth to be set (image loaded)
+    await expect
+      .poll(() => {
+        const el = document.querySelector('img') as HTMLImageElement;
+        return el?.naturalWidth;
+      })
+      .toBeGreaterThan(0);
+  });
+
   it('should handle various file names', async () => {
     const name = `${faker.string.alphanumeric(20)}.${faker.helpers.arrayElement(['png', 'jpg', 'gif', 'webp'])}`;
     render(ImagePreview, { src: 'blob:http://localhost/id', name });

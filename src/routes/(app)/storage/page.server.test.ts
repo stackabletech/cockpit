@@ -25,12 +25,7 @@ vi.mock('sveltekit-superforms/adapters', () => ({
 }));
 
 import { load, actions } from './+page.server.js';
-import {
-  getConnection,
-  saveConnection,
-  clearConnection,
-  listBuckets
-} from '$lib/server/storage/service.js';
+import { getConnection, clearConnection, listBuckets } from '$lib/server/storage/service.js';
 import { superValidate } from 'sveltekit-superforms';
 
 function mockLocals() {
@@ -41,10 +36,14 @@ describe('storage page load', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns connectionForm and connected status', async () => {
-    vi.mocked(superValidate).mockResolvedValue({ data: {} } as any);
-    vi.mocked(getConnection).mockReturnValue({ type: 's3' } as any);
+    vi.mocked(superValidate).mockResolvedValue({ data: {} } as unknown as Awaited<
+      ReturnType<typeof superValidate>
+    >);
+    vi.mocked(getConnection).mockReturnValue({ type: 's3' } as unknown as ReturnType<
+      typeof getConnection
+    >);
 
-    const result = await load({ locals: mockLocals() } as any);
+    const result = await load({ locals: mockLocals() } as unknown as Parameters<typeof load>[0]);
     expect(result.connected).toBe(true);
     expect(result.connectionForm).toBeDefined();
   });
@@ -54,12 +53,14 @@ describe('storage page actions', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('connect: returns fail(400) on invalid form', async () => {
-    vi.mocked(superValidate).mockResolvedValue({ valid: false, errors: {} } as any);
+    vi.mocked(superValidate).mockResolvedValue({ valid: false, errors: {} } as unknown as Awaited<
+      ReturnType<typeof superValidate>
+    >);
 
     const result = await actions.connect({
       request: new Request('http://localhost', { method: 'POST' }),
       locals: mockLocals()
-    } as any);
+    } as unknown as Parameters<typeof actions.connect>[0]);
     expect(result?.status).toBe(400);
   });
 
@@ -74,12 +75,12 @@ describe('storage page actions', () => {
         accessKeyId: '',
         secretAccessKey: ''
       }
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
 
     const result = await actions.connect({
       request: new Request('http://localhost', { method: 'POST' }),
       locals: mockLocals()
-    } as any);
+    } as unknown as Parameters<typeof actions.connect>[0]);
     expect(result).toHaveProperty('message', 'HDFS connections are not yet supported');
   });
 
@@ -94,13 +95,13 @@ describe('storage page actions', () => {
         accessKeyId: 'ak',
         secretAccessKey: 'sk'
       }
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
     vi.mocked(listBuckets).mockRejectedValue(new Error('connection refused'));
 
     const result = await actions.connect({
       request: new Request('http://localhost', { method: 'POST' }),
       locals: mockLocals()
-    } as any);
+    } as unknown as Parameters<typeof actions.connect>[0]);
     expect(clearConnection).toHaveBeenCalledWith('test-user');
     expect(result).toHaveProperty(
       'message',
@@ -119,19 +120,23 @@ describe('storage page actions', () => {
         accessKeyId: 'ak',
         secretAccessKey: 'sk'
       }
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
     vi.mocked(listBuckets).mockResolvedValue(['b1']);
 
     await expect(
       actions.connect({
         request: new Request('http://localhost', { method: 'POST' }),
         locals: mockLocals()
-      } as any)
+      } as unknown as Parameters<typeof actions.connect>[0])
     ).rejects.toThrow(expect.objectContaining({ status: 303, location: '/storage' }));
   });
 
   it('disconnect: clears connection and redirects', async () => {
-    await expect(actions.disconnect({ locals: mockLocals() } as any)).rejects.toThrow(
+    await expect(
+      actions.disconnect({ locals: mockLocals() } as unknown as Parameters<
+        typeof actions.disconnect
+      >[0])
+    ).rejects.toThrow(
       expect.objectContaining({ status: 303, location: '/storage?disconnected=1' })
     );
     expect(clearConnection).toHaveBeenCalledWith('test-user');

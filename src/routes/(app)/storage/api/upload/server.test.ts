@@ -27,7 +27,7 @@ function mockEvent(opts: {
     url,
     request: { body, headers },
     locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
-  } as any;
+  } as unknown as Parameters<typeof POST>[0];
 }
 
 describe('POST /storage/api/upload', () => {
@@ -46,7 +46,7 @@ describe('POST /storage/api/upload', () => {
   });
 
   it('uploads and returns 201', async () => {
-    vi.mocked(uploadObject).mockResolvedValue(undefined as any);
+    vi.mocked(uploadObject).mockResolvedValue(undefined);
     const body = new ReadableStream();
 
     const res = await POST(
@@ -68,7 +68,7 @@ describe('POST /storage/api/upload', () => {
   });
 
   it('defaults content type to application/octet-stream', async () => {
-    vi.mocked(uploadObject).mockResolvedValue(undefined as any);
+    vi.mocked(uploadObject).mockResolvedValue(undefined);
 
     const res = await POST(mockEvent({ headers: {} }));
 

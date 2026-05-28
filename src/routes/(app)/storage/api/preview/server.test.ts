@@ -12,9 +12,7 @@ vi.mock('$lib/server/auth-utils.js', () => ({
 
 vi.mock('$lib/server/storage/preview/binary.js', () => ({
   KNOWN_BINARY_TYPES: new Set(['application/zip']),
-  binaryPreview: vi.fn(
-    (ct, size) => new Response(null, { headers: { 'X-Preview-Renderable': 'false' } })
-  )
+  binaryPreview: vi.fn(() => new Response(null, { headers: { 'X-Preview-Renderable': 'false' } }))
 }));
 
 vi.mock('$lib/server/storage/preview/stream.js', () => ({
@@ -37,7 +35,7 @@ function mockEvent(params: string) {
   return {
     url,
     locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
-  } as any;
+  } as unknown as Parameters<typeof GET>[0];
 }
 
 describe('GET /storage/api/preview', () => {

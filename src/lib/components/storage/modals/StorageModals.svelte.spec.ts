@@ -1,6 +1,7 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import type { StorageState } from '$lib/storage/state.svelte.js';
 import StorageModals from './StorageModals.svelte';
 
 // Mock $app/paths for PreviewModal
@@ -21,7 +22,7 @@ vi.mock('$lib/storage/upload.js', () => ({
   }
 }));
 
-function createMockStorageState(activeModal: unknown = null) {
+function createMockStorageState(activeModal: unknown = null): StorageState {
   return {
     bucket: 'test-bucket',
     prefix: '',
@@ -30,7 +31,7 @@ function createMockStorageState(activeModal: unknown = null) {
     confirmDelete: vi.fn(),
     cancelDelete: vi.fn(),
     handleUploadSuccess: vi.fn()
-  };
+  } as unknown as StorageState;
 }
 
 // Mock the storage context
@@ -43,7 +44,7 @@ import { getStorageState } from '$lib/storage/context.js';
 describe('StorageModals', () => {
   describe('no active modal', () => {
     it('should not render any modal when activeModal is null', async () => {
-      vi.mocked(getStorageState).mockReturnValue(createMockStorageState(null) as any);
+      vi.mocked(getStorageState).mockReturnValue(createMockStorageState(null));
       render(StorageModals);
 
       const dialog = page.getByRole('dialog');
@@ -57,12 +58,25 @@ describe('StorageModals', () => {
         createMockStorageState({
           type: 'delete',
           payload: { keys: ['file.txt'] }
-        }) as any
+        })
       );
       render(StorageModals);
 
       await expect.element(page.getByRole('dialog')).toBeInTheDocument();
       await expect.element(page.getByRole('heading', { name: /delete/i })).toBeInTheDocument();
+    });
+
+    it('should call closeModal when delete dialog is closed via Escape', async () => {
+      const mockState = createMockStorageState({
+        type: 'delete',
+        payload: { keys: ['file.txt'] }
+      });
+      vi.mocked(getStorageState).mockReturnValue(mockState);
+      render(StorageModals);
+
+      await expect.element(page.getByRole('dialog')).toBeInTheDocument();
+      await userEvent.keyboard('{Escape}');
+      await expect.poll(() => mockState.closeModal).toHaveBeenCalled();
     });
   });
 
@@ -73,12 +87,26 @@ describe('StorageModals', () => {
         createMockStorageState({
           type: 'preview',
           payload: { key: 'path/to/file.txt' }
-        }) as any
+        })
       );
       render(StorageModals);
 
       await expect.element(page.getByRole('dialog')).toBeInTheDocument();
       await expect.element(page.getByText('file.txt')).toBeInTheDocument();
+    });
+
+    it('should call closeModal when preview dialog is closed via Escape', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(() => {})));
+      const mockState = createMockStorageState({
+        type: 'preview',
+        payload: { key: 'path/to/file.txt' }
+      });
+      vi.mocked(getStorageState).mockReturnValue(mockState);
+      render(StorageModals);
+
+      await expect.element(page.getByRole('dialog')).toBeInTheDocument();
+      await userEvent.keyboard('{Escape}');
+      await expect.poll(() => mockState.closeModal).toHaveBeenCalled();
     });
   });
 
@@ -88,11 +116,24 @@ describe('StorageModals', () => {
         createMockStorageState({
           type: 'upload',
           payload: { bucket: 'my-bucket', prefix: 'data/' }
-        }) as any
+        })
       );
       render(StorageModals);
 
       await expect.element(page.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('should call closeModal when upload dialog is closed via Escape', async () => {
+      const mockState = createMockStorageState({
+        type: 'upload',
+        payload: { bucket: 'my-bucket', prefix: 'data/' }
+      });
+      vi.mocked(getStorageState).mockReturnValue(mockState);
+      render(StorageModals);
+
+      await expect.element(page.getByRole('dialog')).toBeInTheDocument();
+      await userEvent.keyboard('{Escape}');
+      await expect.poll(() => mockState.closeModal).toHaveBeenCalled();
     });
   });
 });

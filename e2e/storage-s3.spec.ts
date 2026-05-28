@@ -21,10 +21,6 @@ import {
   createTextUploadFixture
 } from './storage-upload-fixtures.js';
 
-declare const process: {
-  env: Record<string, string | undefined>;
-};
-
 function uniquePrefix(testInfo: TestInfo, scope: string): string {
   const slug = scope
     .replace(/[^a-z0-9]+/gi, '-')

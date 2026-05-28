@@ -8,7 +8,6 @@ describe('TextPreview', () => {
   it('should render a pre element with aria-label', async () => {
     render(TextPreview, { text: 'hello world', contentType: 'text/plain' });
 
-    const pre = page.getByRole('generic', { name: 'File content preview' });
     await expect.element(page.getByLabelText('File content preview')).toBeInTheDocument();
   });
 
@@ -71,6 +70,27 @@ describe('TextPreview', () => {
 
     const pre = page.getByLabelText('File content preview');
     await expect.element(pre).toHaveAttribute('data-language', 'javascript');
+  });
+
+  it('should detect JavaScript for application/javascript', async () => {
+    render(TextPreview, { text: 'const x = 1;', contentType: 'application/javascript' });
+
+    const pre = page.getByLabelText('File content preview');
+    await expect.element(pre).toHaveAttribute('data-language', 'javascript');
+  });
+
+  it('should detect CSV as text language', async () => {
+    render(TextPreview, { text: 'a,b,c', contentType: 'text/csv' });
+
+    const pre = page.getByLabelText('File content preview');
+    await expect.element(pre).toHaveAttribute('data-language', 'text');
+  });
+
+  it('should detect application/csv as text language', async () => {
+    render(TextPreview, { text: 'a,b,c', contentType: 'application/csv' });
+
+    const pre = page.getByLabelText('File content preview');
+    await expect.element(pre).toHaveAttribute('data-language', 'text');
   });
 
   it('should detect markdown language', async () => {

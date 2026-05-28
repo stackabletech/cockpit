@@ -22,14 +22,16 @@ function mockEvent(
     locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } },
     params: { bucket: opts.bucket ?? 'my-bucket', prefix: opts.prefix ?? '' },
     url
-  } as any;
+  } as unknown as Parameters<typeof load>[0];
 }
 
 describe('bucket page load', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('lists objects with default page size', async () => {
-    vi.mocked(listObjects).mockResolvedValue({ items: [], prefixes: [] } as any);
+    vi.mocked(listObjects).mockResolvedValue({ items: [], prefixes: [] } as unknown as Awaited<
+      ReturnType<typeof listObjects>
+    >);
 
     const result = await load(mockEvent());
 
@@ -39,7 +41,9 @@ describe('bucket page load', () => {
   });
 
   it('adds trailing slash to prefix', async () => {
-    vi.mocked(listObjects).mockResolvedValue({ items: [] } as any);
+    vi.mocked(listObjects).mockResolvedValue({ items: [] } as unknown as Awaited<
+      ReturnType<typeof listObjects>
+    >);
 
     await load(mockEvent({ prefix: 'data/2024' }));
 
@@ -47,7 +51,9 @@ describe('bucket page load', () => {
   });
 
   it('passes continuationToken and pageSize', async () => {
-    vi.mocked(listObjects).mockResolvedValue({ items: [] } as any);
+    vi.mocked(listObjects).mockResolvedValue({ items: [] } as unknown as Awaited<
+      ReturnType<typeof listObjects>
+    >);
 
     await load(mockEvent({ searchParams: { continuationToken: 'abc', pageSize: '50' } }));
 

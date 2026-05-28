@@ -120,6 +120,70 @@ describe('FolderRow', () => {
     await expect.element(btn).toBeInTheDocument();
   });
 
+  it('should toggle selection on ctrl+click when not in selection mode', async () => {
+    const folder = makeFolder('photos/');
+    const state = createState([folder]);
+    const spy = vi.spyOn(state, 'toggleSelect');
+    render(FolderRowWrapper, { state, folder });
+
+    await page.getByRole('row').click({ modifiers: ['ControlOrMeta'] });
+    expect(spy).toHaveBeenCalledWith('photos/', true);
+  });
+
+  it('should navigate on double-click with ctrl/meta key', async () => {
+    const folder = makeFolder('photos/');
+    const state = createState([folder], { selectionMode: true });
+    const spy = vi.spyOn(state, 'navigate');
+    render(FolderRowWrapper, { state, folder });
+
+    const row = page.getByRole('row').element();
+    row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, ctrlKey: true }));
+    expect(spy).toHaveBeenCalledWith('photos/');
+  });
+
+  it('should not navigate on double-click without ctrl/meta key', async () => {
+    const folder = makeFolder('photos/');
+    const state = createState([folder]);
+    const spy = vi.spyOn(state, 'navigate');
+    render(FolderRowWrapper, { state, folder });
+
+    spy.mockClear();
+    const row = page.getByRole('row').element();
+    row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    // ondblclick without modifier does nothing, so navigate should not be called from dblclick
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('should highlight row when context menu is open for this folder', async () => {
+    const folder = makeFolder('ctx-folder/');
+    const state = createState([folder]);
+    state.contextMenu = { key: 'ctx-folder/', x: 0, y: 0 };
+    render(FolderRowWrapper, { state, folder });
+
+    const row = page.getByRole('row');
+    await expect.element(row).toHaveClass(/bg-base-300/);
+  });
+
+  it('should open context menu when actions button is clicked', async () => {
+    const folder = makeFolder('my-folder/');
+    const state = createState([folder]);
+    const spy = vi.spyOn(state, 'openContextMenu');
+    render(FolderRowWrapper, { state, folder });
+
+    await page.getByRole('button', { name: 'Actions for my-folder' }).click();
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should toggle selection when checkbox is changed', async () => {
+    const folder = makeFolder('check-folder/');
+    const state = createState([folder], { selectionMode: true });
+    const spy = vi.spyOn(state, 'toggleSelect');
+    render(FolderRowWrapper, { state, folder });
+
+    await page.getByRole('checkbox', { name: 'Select check-folder' }).click();
+    expect(spy).toHaveBeenCalledWith('check-folder/', true);
+  });
+
   describe('edge cases', () => {
     it('should handle folder names with special characters', async () => {
       const folder = makeFolder('path/my folder (2)/');

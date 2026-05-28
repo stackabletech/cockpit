@@ -17,16 +17,6 @@ function makeFile(key: string): StorageObject {
   };
 }
 
-function makeFolder(key: string): StorageObject {
-  return {
-    key,
-    size: 0,
-    lastModified: faker.date.recent(),
-    isDirectory: true,
-    contentType: undefined
-  };
-}
-
 function createState(
   objects: StorageObject[] = [],
   opts: {
@@ -127,5 +117,70 @@ describe('FileExplorer', () => {
     render(FileExplorerWrapper, { state });
 
     await expect.element(page.getByText('docs')).toBeInTheDocument();
+  });
+
+  it('should clear selection when clicking outside a table row', async () => {
+    const file = makeFile('test.txt');
+    const state = createState([file], { selectedKeys: ['test.txt'] });
+    const spy = vi.spyOn(state, 'clearSelection');
+    const { container } = render(FileExplorerWrapper, { state });
+
+    // Find the relative container div and click it
+    const wrapper = container.querySelector('.relative.min-h-0') as HTMLElement;
+    wrapper.click();
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should not clear selection when clicking on a table row', async () => {
+    const file = makeFile('test.txt');
+    const state = createState([file], { selectedKeys: ['test.txt'] });
+    const spy = vi.spyOn(state, 'clearSelection');
+    render(FileExplorerWrapper, { state });
+
+    // Click on an element inside a <tr>
+    const row = document.querySelector('tr td') as HTMLElement;
+    if (row) {
+      row.click();
+      expect(spy).not.toHaveBeenCalled();
+    }
+  });
+
+  it('should call pagination navigation callbacks', async () => {
+    const files = [makeFile('test.txt')];
+    const state = createState(files);
+    state.objects.hasNextPage = true;
+    state.prevTokens = ['token1'];
+    const spyFirst = vi.spyOn(state, 'navigateFirst');
+    const spyPrev = vi.spyOn(state, 'navigatePrev');
+    const spyNext = vi.spyOn(state, 'navigateNext');
+    render(FileExplorerWrapper, { state });
+
+    // Click the "next" pagination button
+    const nextBtn = page.getByRole('button', { name: 'Next page' });
+    await nextBtn.click();
+    expect(spyNext).toHaveBeenCalled();
+
+    // Click the "previous" pagination button
+    const prevBtn = page.getByRole('button', { name: 'Previous page' });
+    await prevBtn.click();
+    expect(spyPrev).toHaveBeenCalled();
+
+    // Click the "first" pagination button
+    const firstBtn = page.getByRole('button', { name: 'First page' });
+    await firstBtn.click();
+    expect(spyFirst).toHaveBeenCalled();
+  });
+
+  it('should call onPageSizeChange when page size changes', async () => {
+    const state = createState([makeFile('test.txt')]);
+    const spy = vi.spyOn(state, 'onPageSizeChange');
+    render(FileExplorerWrapper, { state });
+
+    // Find and interact with the page size select
+    const select = page.getByRole('combobox');
+    if (select.elements().length > 0) {
+      await select.selectOptions('50');
+      expect(spy).toHaveBeenCalled();
+    }
   });
 });

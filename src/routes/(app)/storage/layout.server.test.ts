@@ -22,7 +22,7 @@ import { getConnection, listBuckets } from '$lib/server/storage/service.js';
 function mockEvent() {
   return {
     locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
-  } as any;
+  } as unknown as Parameters<typeof load>[0];
 }
 
 describe('storage layout load', () => {
@@ -43,7 +43,9 @@ describe('storage layout load', () => {
 
   it('returns buckets when connected', async () => {
     mockStorageBrowserEnabled.mockReturnValue(true);
-    vi.mocked(getConnection).mockReturnValue({ type: 's3' } as any);
+    vi.mocked(getConnection).mockReturnValue({ type: 's3' } as unknown as ReturnType<
+      typeof getConnection
+    >);
     vi.mocked(listBuckets).mockResolvedValue(['bucket-a', 'bucket-b']);
 
     const result = await load(mockEvent());
@@ -56,7 +58,9 @@ describe('storage layout load', () => {
 
   it('returns empty buckets when listBuckets fails', async () => {
     mockStorageBrowserEnabled.mockReturnValue(true);
-    vi.mocked(getConnection).mockReturnValue({ type: 's3' } as any);
+    vi.mocked(getConnection).mockReturnValue({ type: 's3' } as unknown as ReturnType<
+      typeof getConnection
+    >);
     vi.mocked(listBuckets).mockRejectedValue(new Error('network'));
 
     const result = await load(mockEvent());

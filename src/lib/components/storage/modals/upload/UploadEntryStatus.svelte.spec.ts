@@ -90,6 +90,15 @@ describe('UploadEntryStatus', () => {
       await expect.element(page.getByText(errorMessage)).toBeInTheDocument();
     });
 
+    it('should not show error paragraph when status is error but errorMessage is absent', async () => {
+      render(UploadEntryStatus, { entry: makeEntry({ status: 'error' }) });
+
+      await expect.element(page.getByText('failed')).toBeInTheDocument();
+      // Only the "failed" label should exist, no error paragraph
+      const errorParagraphs = page.getByRole('listitem').element().querySelectorAll('p.text-error');
+      expect(errorParagraphs.length).toBe(0);
+    });
+
     it('should handle long error messages', async () => {
       const errorMessage = faker.lorem.paragraphs(3);
       render(UploadEntryStatus, { entry: makeEntry({ status: 'error', errorMessage }) });
@@ -115,6 +124,17 @@ describe('UploadEntryStatus', () => {
       render(UploadEntryStatus, { entry });
 
       await expect.element(page.getByText('renamed-file.txt')).toBeInTheDocument();
+    });
+
+    it('should fall back to targetKey filename when resolution is rename but customName is empty', async () => {
+      const entry = makeEntry({
+        resolution: 'rename',
+        customName: '   ',
+        targetKey: 'folder/fallback.txt'
+      });
+      render(UploadEntryStatus, { entry });
+
+      await expect.element(page.getByText('fallback.txt')).toBeInTheDocument();
     });
 
     it('should handle special characters in names', async () => {

@@ -24,7 +24,7 @@ function mockEvent(searchParams: Record<string, string | string[]>) {
   return {
     url,
     locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
-  } as any;
+  } as unknown as Parameters<typeof DELETE>[0];
 }
 
 describe('DELETE /storage/api/delete', () => {
@@ -45,7 +45,9 @@ describe('DELETE /storage/api/delete', () => {
   it('deletes objects and returns JSON result', async () => {
     const keys = [faker.system.fileName(), faker.system.fileName()];
     const result = { deleted: keys, failed: [] };
-    vi.mocked(deleteObjects).mockResolvedValue(result as any);
+    vi.mocked(deleteObjects).mockResolvedValue(
+      result as unknown as Awaited<ReturnType<typeof deleteObjects>>
+    );
 
     const response = await DELETE(mockEvent({ bucket: 'b1', keys }));
     expect(deleteObjects).toHaveBeenCalledWith('test-user', 'b1', keys);

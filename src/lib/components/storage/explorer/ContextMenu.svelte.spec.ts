@@ -156,4 +156,84 @@ describe('ContextMenu', () => {
     const menu = page.getByRole('menu');
     await expect.element(menu).toBeInTheDocument();
   });
+
+  it('should adjust position when menu overflows viewport bottom', async () => {
+    const file = makeFile('test.txt');
+    const state = createState([file], {
+      contextMenu: { x: 100, y: window.innerHeight - 10, key: 'test.txt' },
+      selectedKeys: ['test.txt']
+    });
+    render(ContextMenuWrapper, { state });
+
+    const menu = page.getByRole('menu');
+    await expect.element(menu).toBeInTheDocument();
+    const el = menu.element() as HTMLElement;
+    const top = parseInt(el.style.top);
+    expect(top).toBeLessThan(window.innerHeight - 10);
+  });
+
+  it('should not close menu when clicking inside it', async () => {
+    const file = makeFile('test.txt');
+    const state = createState([file], {
+      contextMenu: { x: 100, y: 100, key: 'test.txt' },
+      selectedKeys: ['test.txt']
+    });
+    const spy = vi.spyOn(state, 'closeContextMenu');
+    render(ContextMenuWrapper, { state });
+
+    const menu = page.getByRole('menu');
+    await menu.click();
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('should execute action when clicking an enabled action button (preview)', async () => {
+    const file = makeFile('photo.png');
+    const state = createState([file], {
+      contextMenu: { x: 100, y: 100, key: 'photo.png' },
+      selectedKeys: ['photo.png']
+    });
+    const spy = vi.spyOn(state, 'executeAction');
+    render(ContextMenuWrapper, { state });
+
+    await page.getByRole('menuitem', { name: 'Preview' }).click();
+    expect(spy).toHaveBeenCalledWith('preview');
+  });
+
+  it('should execute download action', async () => {
+    const file = makeFile('data.csv');
+    const state = createState([file], {
+      contextMenu: { x: 100, y: 100, key: 'data.csv' },
+      selectedKeys: ['data.csv']
+    });
+    const spy = vi.spyOn(state, 'executeAction');
+    render(ContextMenuWrapper, { state });
+
+    await page.getByRole('menuitem', { name: 'Download' }).click();
+    expect(spy).toHaveBeenCalledWith('download');
+  });
+
+  it('should not close menu on non-Escape key', async () => {
+    const file = makeFile('test.txt');
+    const state = createState([file], {
+      contextMenu: { x: 100, y: 100, key: 'test.txt' },
+      selectedKeys: ['test.txt']
+    });
+    const spy = vi.spyOn(state, 'closeContextMenu');
+    render(ContextMenuWrapper, { state });
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('should disable delete when no items are selected', async () => {
+    const file = makeFile('test.txt');
+    const state = createState([file], {
+      contextMenu: { x: 100, y: 100, key: 'test.txt' },
+      selectedKeys: []
+    });
+    render(ContextMenuWrapper, { state });
+
+    const deleteBtn = page.getByRole('menuitem', { name: 'Delete' });
+    await expect.element(deleteBtn).toHaveAttribute('disabled');
+  });
 });
