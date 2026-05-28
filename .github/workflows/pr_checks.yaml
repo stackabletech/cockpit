@@ -79,7 +79,7 @@ jobs:
           docker run -d --name garage \
             -p 3900:3900 \
             -p 3902:3902 \
-            -e GARAGE_CONFIG_FILE=/workspace/e2e/garage.toml \
+            -e GARAGE_CONFIG_FILE=/workspace/dev/garage/garage.toml \
             -v "$PWD:/workspace" \
             --entrypoint /garage \
             oci.stackable.tech/stackable/dxflrs/garage:v2.3.0 \

@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: garage
+description: Minimal Garage S3-compatible object store for local dev and E2E testing
+type: application
+version: 0.1.0
+appVersion: '2.3.0'

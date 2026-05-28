@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garage-config
+  namespace: default
+data:
+  garage.toml: |-
+    {{- .Files.Get "garage.toml" | nindent 4 }}
