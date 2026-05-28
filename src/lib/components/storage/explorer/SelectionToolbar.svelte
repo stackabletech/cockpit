@@ -2,6 +2,7 @@
   import IconVisibility from 'virtual:icons/material-symbols/visibility';
   import IconDownload from 'virtual:icons/material-symbols/download';
   import IconDelete from 'virtual:icons/material-symbols/delete';
+  import IconRefresh from 'virtual:icons/material-symbols/refresh';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
 
@@ -55,6 +56,18 @@
         <IconDelete class="size-3.5" aria-hidden="true" />
         {m.storage_action_delete()}
       </button>
+
+      <div class="ml-auto">
+        <button
+          class="btn btn-ghost btn-xs gap-1"
+          title={m.storage_action_refresh()}
+          onclick={() => storage.refresh()}
+          disabled={storage.loading}
+        >
+          <IconRefresh class="size-3.5" aria-hidden="true" />
+          {m.storage_action_refresh()}
+        </button>
+      </div>
     </div>
   </th>
 </tr>

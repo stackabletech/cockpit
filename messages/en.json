@@ -178,6 +178,7 @@
   "storage_paste_plural": "Paste {count} items",
   "storage_selected": "{count} selected",
   "storage_action_preview": "Preview",
+  "storage_action_refresh": "Refresh",
   "storage_action_rename": "Rename",
   "storage_action_download": "Download",
   "storage_action_cut": "Cut",

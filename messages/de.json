@@ -178,6 +178,7 @@
   "storage_paste_plural": "{count} Elemente einfügen",
   "storage_selected": "{count} ausgewählt",
   "storage_action_preview": "Vorschau",
+  "storage_action_refresh": "Aktualisieren",
   "storage_action_rename": "Umbenennen",
   "storage_action_download": "Herunterladen",
   "storage_action_cut": "Ausschneiden",
