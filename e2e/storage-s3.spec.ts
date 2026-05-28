@@ -26,12 +26,18 @@ declare const process: {
 };
 
 function uniquePrefix(testInfo: TestInfo, scope: string): string {
-  const slug = scope.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
+  const slug = scope
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
   return `${slug}-${testInfo.project.name.toLowerCase()}-${crypto.randomUUID()}/`;
 }
 
 function uniqueBucketName(testInfo: TestInfo, scope: string): string {
-  const slug = scope.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
+  const slug = scope
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
   return `garage-${slug}-${testInfo.project.name.toLowerCase()}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
@@ -64,8 +70,10 @@ async function openConnectForm(page: Page) {
 
   const connectHeading = page.getByRole('heading', { name: 'Connect to storage' });
   const disconnectButton = page.getByRole('button', { name: 'Disconnect' });
-  if (!(await connectHeading.isVisible().catch(() => false)) &&
-    (await disconnectButton.isVisible().catch(() => false))) {
+  if (
+    !(await connectHeading.isVisible().catch(() => false)) &&
+    (await disconnectButton.isVisible().catch(() => false))
+  ) {
     await disconnectButton.click();
   }
 
@@ -82,11 +90,7 @@ async function connectToStorage(page: Page, credentials: GarageCredentials) {
   await page.getByRole('button', { name: 'Connect' }).click();
 }
 
-async function connectAndOpenPrefix(
-  page: Page,
-  credentials: GarageCredentials,
-  prefix = ''
-) {
+async function connectAndOpenPrefix(page: Page, credentials: GarageCredentials, prefix = '') {
   await connectToStorage(page, credentials);
   await expect(page).toHaveURL('/storage');
   await page.goto(bucketRoute(credentials.bucket, prefix));
@@ -207,10 +211,14 @@ test.describe('Storage S3 (Garage)', () => {
     await page.getByRole('button', { name: 'Connect' }).click();
 
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
-    await expect(page.getByText('Could not connect — check the endpoint and credentials.')).toBeVisible();
+    await expect(
+      page.getByText('Could not connect — check the endpoint and credentials.')
+    ).toBeVisible();
   });
 
-  test('browses nested folders, uses breadcrumbs, and shows empty folders', async ({ page }, testInfo) => {
+  test('browses nested folders, uses breadcrumbs, and shows empty folders', async ({
+    page
+  }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'browse');
@@ -327,7 +335,9 @@ test.describe('Storage S3 (Garage)', () => {
     }
   });
 
-  test('uploads realistic faker-generated text, csv, and image files', async ({ page }, testInfo) => {
+  test('uploads realistic faker-generated text, csv, and image files', async ({
+    page
+  }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'faker-upload');
@@ -345,11 +355,9 @@ test.describe('Storage S3 (Garage)', () => {
 
       await page.getByRole('button', { name: 'Upload' }).click();
       const uploadModal = modalBox(page);
-      await uploadModal.locator('input[aria-label="Select files"]').setInputFiles([
-        textFixture,
-        csvFixture,
-        imageFixture
-      ]);
+      await uploadModal
+        .locator('input[aria-label="Select files"]')
+        .setInputFiles([textFixture, csvFixture, imageFixture]);
       await uploadModal.getByRole('button', { name: 'Upload' }).click();
       await expect(uploadModal.getByText('Upload complete')).toBeVisible();
       await expect(uploadModal.getByText('3 uploaded · 0 skipped · 0 failed')).toBeVisible();
@@ -359,22 +367,22 @@ test.describe('Storage S3 (Garage)', () => {
       await expect(rowByName(page, csvFixture.name)).toBeVisible();
       await expect(rowByName(page, imageFixture.name)).toBeVisible();
 
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}${textFixture.name}`)).toContain(
-        textFixture.expectedSnippet
-      );
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}${csvFixture.name}`)).toContain(
-        csvFixture.expectedCell
-      );
+      await expect(
+        await getObjectText(client, credentials.bucket, `${prefix}${textFixture.name}`)
+      ).toContain(textFixture.expectedSnippet);
+      await expect(
+        await getObjectText(client, credentials.bucket, `${prefix}${csvFixture.name}`)
+      ).toContain(csvFixture.expectedCell);
 
-      await expect((await headObject(client, credentials.bucket, `${prefix}${textFixture.name}`)).ContentType).toBe(
-        'text/plain'
-      );
-      await expect((await headObject(client, credentials.bucket, `${prefix}${csvFixture.name}`)).ContentType).toBe(
-        'text/csv'
-      );
-      await expect((await headObject(client, credentials.bucket, `${prefix}${imageFixture.name}`)).ContentType).toBe(
-        'image/svg+xml'
-      );
+      await expect(
+        (await headObject(client, credentials.bucket, `${prefix}${textFixture.name}`)).ContentType
+      ).toBe('text/plain');
+      await expect(
+        (await headObject(client, credentials.bucket, `${prefix}${csvFixture.name}`)).ContentType
+      ).toBe('text/csv');
+      await expect(
+        (await headObject(client, credentials.bucket, `${prefix}${imageFixture.name}`)).ContentType
+      ).toBe('image/svg+xml');
 
       await rowByName(page, textFixture.name).dblclick();
       await expect(page.getByRole('heading', { name: textFixture.name })).toBeVisible();
@@ -395,7 +403,9 @@ test.describe('Storage S3 (Garage)', () => {
     }
   });
 
-  test('uploads files and resolves replace, skip, and rename conflicts', async ({ page }, testInfo) => {
+  test('uploads files and resolves replace, skip, and rename conflicts', async ({
+    page
+  }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'upload');
@@ -444,14 +454,22 @@ test.describe('Storage S3 (Garage)', () => {
       await uploadModal.getByRole('button', { name: 'Upload' }).click();
       await expect(uploadModal.getByText('Files already exist')).toBeVisible();
 
-      await uploadModal.locator('li', { hasText: 'replace.txt' }).getByRole('button', { name: 'Replace' }).click();
-      await uploadModal.locator('li', { hasText: 'skip.txt' }).getByRole('button', { name: 'Skip' }).click();
+      await uploadModal
+        .locator('li', { hasText: 'replace.txt' })
+        .getByRole('button', { name: 'Replace' })
+        .click();
+      await uploadModal
+        .locator('li', { hasText: 'skip.txt' })
+        .getByRole('button', { name: 'Skip' })
+        .click();
 
       const renameItem = uploadModal.locator('li', { hasText: 'taken.txt' });
       await renameItem.getByRole('button', { name: 'Rename' }).click();
       await renameItem.getByLabel('New file name').fill('already-here.txt');
       await renameItem.getByRole('button', { name: 'Confirm name' }).click();
-      await expect(renameItem.getByText('This name already exists here. Please choose a different name.')).toBeVisible();
+      await expect(
+        renameItem.getByText('This name already exists here. Please choose a different name.')
+      ).toBeVisible();
 
       await renameItem.getByLabel('New file name').fill('renamed.txt');
       await renameItem.getByRole('button', { name: 'Confirm name' }).click();
@@ -464,11 +482,21 @@ test.describe('Storage S3 (Garage)', () => {
       await expect(rowByName(page, 'fresh.txt')).toBeVisible();
       await expect(rowByName(page, 'renamed.txt')).toBeVisible();
 
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}replace.txt`)).toBe('new replace');
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}skip.txt`)).toBe('old skip');
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}taken.txt`)).toBe('old taken');
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}renamed.txt`)).toBe('new taken');
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}fresh.txt`)).toBe('brand new');
+      await expect(await getObjectText(client, credentials.bucket, `${prefix}replace.txt`)).toBe(
+        'new replace'
+      );
+      await expect(await getObjectText(client, credentials.bucket, `${prefix}skip.txt`)).toBe(
+        'old skip'
+      );
+      await expect(await getObjectText(client, credentials.bucket, `${prefix}taken.txt`)).toBe(
+        'old taken'
+      );
+      await expect(await getObjectText(client, credentials.bucket, `${prefix}renamed.txt`)).toBe(
+        'new taken'
+      );
+      await expect(await getObjectText(client, credentials.bucket, `${prefix}fresh.txt`)).toBe(
+        'brand new'
+      );
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -495,15 +523,24 @@ test.describe('Storage S3 (Garage)', () => {
       await page.getByRole('button', { name: 'Delete permanently' }).click();
 
       await expect(page.getByText('This bucket is empty')).toBeVisible();
-      await expect(await objectExists(client, credentials.bucket, `${prefix}remove-me.txt`)).toBe(false);
-      await expect(await objectExists(client, credentials.bucket, `${prefix}archive/nested.txt`)).toBe(false);
+      await expect(await objectExists(client, credentials.bucket, `${prefix}remove-me.txt`)).toBe(
+        false
+      );
+      await expect(
+        await objectExists(client, credentials.bucket, `${prefix}archive/nested.txt`)
+      ).toBe(false);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
   });
 
-  test('surfaces real Garage permission errors for a read-only bucket', async ({ page }, testInfo) => {
-    test.skip(!hasGarageAdmin(), 'Skipped: Garage admin API is unavailable for per-test bucket setup');
+  test('surfaces real Garage permission errors for a read-only bucket', async ({
+    page
+  }, testInfo) => {
+    test.skip(
+      !hasGarageAdmin(),
+      'Skipped: Garage admin API is unavailable for per-test bucket setup'
+    );
 
     const baseCredentials = requireGarageCredentials();
     const adminClient = createS3Client(baseCredentials);
@@ -529,7 +566,9 @@ test.describe('Storage S3 (Garage)', () => {
       await uploadModal.locator('input[aria-label="Select files"]').setInputFiles(uploadFixture);
       await uploadModal.getByRole('button', { name: 'Upload' }).click();
       await expect(uploadModal.getByText('Upload complete')).toBeVisible();
-      await expect(uploadModal.getByText('Access denied. You do not have permission to upload here.')).toBeVisible();
+      await expect(
+        uploadModal.getByText('Access denied. You do not have permission to upload here.')
+      ).toBeVisible();
       await uploadModal.getByRole('button', { name: 'Done' }).click();
       await expect(await objectExists(adminClient, restrictedBucket, blockedKey)).toBe(false);
 
@@ -551,8 +590,13 @@ test.describe('Storage S3 (Garage)', () => {
 
   // ── Permission scenarios ───────────────────────────────────────────────────
 
-  test('shows access denied error when browsing a write-only bucket', async ({ page }, testInfo) => {
-    test.skip(!hasGarageAdmin(), 'Skipped: Garage admin API is unavailable for per-test bucket setup');
+  test('shows access denied error when browsing a write-only bucket', async ({
+    page
+  }, testInfo) => {
+    test.skip(
+      !hasGarageAdmin(),
+      'Skipped: Garage admin API is unavailable for per-test bucket setup'
+    );
 
     const baseCredentials = requireGarageCredentials();
     const writeonlyBucket = uniqueBucketName(testInfo, 'writeonly');
@@ -569,14 +613,15 @@ test.describe('Storage S3 (Garage)', () => {
     await page.goto(bucketRoute(writeonlyBucket));
 
     await expect(page.getByText('403')).toBeVisible();
-    await expect(
-      page.getByText('You do not have permission to access the bucket')
-    ).toBeVisible();
+    await expect(page.getByText('You do not have permission to access the bucket')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Back to storage' })).toBeVisible();
   });
 
   test('shows access denied error when browsing a no-access bucket', async ({ page }, testInfo) => {
-    test.skip(!hasGarageAdmin(), 'Skipped: Garage admin API is unavailable for per-test bucket setup');
+    test.skip(
+      !hasGarageAdmin(),
+      'Skipped: Garage admin API is unavailable for per-test bucket setup'
+    );
 
     const baseCredentials = requireGarageCredentials();
     const noAccessBucket = uniqueBucketName(testInfo, 'noaccess');
@@ -591,9 +636,7 @@ test.describe('Storage S3 (Garage)', () => {
     await page.goto(bucketRoute(noAccessBucket));
 
     await expect(page.getByText('403')).toBeVisible();
-    await expect(
-      page.getByText('You do not have permission to access the bucket')
-    ).toBeVisible();
+    await expect(page.getByText('You do not have permission to access the bucket')).toBeVisible();
   });
 
   // ── Selection and bulk operations ──────────────────────────────────────────
@@ -628,7 +671,9 @@ test.describe('Storage S3 (Garage)', () => {
     }
   });
 
-  test('selects all items and deselects them with the header checkbox', async ({ page }, testInfo) => {
+  test('selects all items and deselects them with the header checkbox', async ({
+    page
+  }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'select-all');
@@ -692,12 +737,7 @@ test.describe('Storage S3 (Garage)', () => {
     const cleanupKeys = [`${prefix}escape-test.txt`];
 
     try {
-      await putTextObject(
-        client,
-        credentials.bucket,
-        `${prefix}escape-test.txt`,
-        'escape test'
-      );
+      await putTextObject(client, credentials.bucket, `${prefix}escape-test.txt`, 'escape test');
 
       await connectAndOpenPrefix(page, credentials, prefix);
 
@@ -824,15 +864,15 @@ test.describe('Storage S3 (Garage)', () => {
 
       await expect(page.getByRole('heading', { name: 'archive.zip' })).toBeVisible();
       await expect(page.getByText('Preview unavailable')).toBeVisible();
-      await expect(
-        page.getByRole('link', { name: 'Download full file' })
-      ).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Download full file' })).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
   });
 
-  test('shows binary fallback preview for non-decodable binary content', async ({ page }, testInfo) => {
+  test('shows binary fallback preview for non-decodable binary content', async ({
+    page
+  }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'preview-bin');
@@ -855,9 +895,7 @@ test.describe('Storage S3 (Garage)', () => {
 
       await expect(page.getByRole('heading', { name: 'data.bin' })).toBeVisible();
       await expect(page.getByText('Binary content')).toBeVisible();
-      await expect(
-        page.getByRole('link', { name: 'Download full file' })
-      ).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Download full file' })).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -925,14 +963,16 @@ test.describe('Storage S3 (Garage)', () => {
     await connectToStorage(page, credentials);
     await expect(page).toHaveURL('/storage');
 
-    const bucketLink = page.locator('main').getByRole('link', { name: credentials.bucket, exact: true });
+    const bucketLink = page
+      .locator('main')
+      .getByRole('link', { name: credentials.bucket, exact: true });
     await expect(bucketLink).toBeVisible();
     await bucketLink.click();
 
     await expect(page).toHaveURL(bucketRoute(credentials.bucket));
-    await expect(
-      page.locator('nav[aria-label="breadcrumb"] [aria-current="page"]')
-    ).toContainText(credentials.bucket);
+    await expect(page.locator('nav[aria-label="breadcrumb"] [aria-current="page"]')).toContainText(
+      credentials.bucket
+    );
   });
 
   // ── Saved connections ──────────────────────────────────────────────────────
@@ -1012,12 +1052,7 @@ test.describe('Storage S3 (Garage)', () => {
     const cleanupKeys = [`${prefix}recent.txt`];
 
     try {
-      await putTextObject(
-        client,
-        credentials.bucket,
-        `${prefix}recent.txt`,
-        'recently accessed'
-      );
+      await putTextObject(client, credentials.bucket, `${prefix}recent.txt`, 'recently accessed');
 
       // Connect, navigate to prefix, and preview the file (records a file visit)
       await connectAndOpenPrefix(page, credentials, prefix);
