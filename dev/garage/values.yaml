@@ -1,0 +1,12 @@
+---
+image:
+  repository: oci.stackable.tech/stackable/dxflrs/garage
+  tag: v2.3.0
+  pullPolicy: IfNotPresent
+
+# NodePort values for host access.
+# S3 API is exposed on nodePorts.s3; the admin API on nodePorts.admin.
+# RPC (3901) is internal only and not exposed.
+nodePorts:
+  s3: 30900
+  admin: 30902

@@ -1,5 +1,5 @@
-metadata_dir = "/tmp/stackable-ui-garage/meta"
-data_dir = "/tmp/stackable-ui-garage/data"
+metadata_dir = "/tmp/stackable-ui/meta"
+data_dir = "/tmp/stackable-ui/data"
 db_engine = "sqlite"
 
 replication_factor = 1
