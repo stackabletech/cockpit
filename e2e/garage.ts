@@ -64,9 +64,7 @@ function readStringArray(value: unknown, keys: string[]): string[] {
 
 function extractAdminList(value: unknown): JsonRecord[] {
   if (Array.isArray(value)) {
-    return value
-      .map((item) => asRecord(item))
-      .filter((item): item is JsonRecord => item !== null);
+    return value.map((item) => asRecord(item)).filter((item): item is JsonRecord => item !== null);
   }
 
   const record = asRecord(value);
@@ -215,10 +213,10 @@ async function ensureAccessKey(keyName: string): Promise<{
 export function hasGarageCredentials(): boolean {
   return Boolean(
     process.env.S3_TEST_ENDPOINT &&
-      process.env.S3_TEST_REGION &&
-      process.env.S3_TEST_ACCESS_KEY_ID &&
-      process.env.S3_TEST_SECRET_ACCESS_KEY &&
-      process.env.S3_TEST_BUCKET
+    process.env.S3_TEST_REGION &&
+    process.env.S3_TEST_ACCESS_KEY_ID &&
+    process.env.S3_TEST_SECRET_ACCESS_KEY &&
+    process.env.S3_TEST_BUCKET
   );
 }
 
