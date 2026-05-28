@@ -35,7 +35,7 @@ Generated: 2026-05-28
 | `e2e/trino-tabs.spec.ts`      | 10    | 10   | 0    | All browsers                   |
 | `e2e/storage-s3.spec.ts`      | 29    | 29   | 0    | Requires local Garage instance |
 
-**Total: 78 tests / 78 pass**
+**Total: 78 tests / 78 pass** <!-- markdownlint-disable-line MD036/no-emphasis-as-heading -->
 
 Browsers: Chromium, Firefox, Mobile Chromium. Tests with `[setup-chromium]` /
 `[setup-firefox]` prefixes are auth setup steps, not counted above.
@@ -95,13 +95,13 @@ Browsers: Chromium, Firefox, Mobile Chromium. Tests with `[setup-chromium]` /
 
 Two describe blocks:
 
-**"Connection form (env-configured)"**
+#### "Connection form (env-configured)"
 
 | #   | Test                                                     | What it verifies                                           |
 | --- | -------------------------------------------------------- | ---------------------------------------------------------- |
 | 1   | `connection form is hidden when Trino is env-configured` | When Trino URL is in env, the connection form is not shown |
 
-**"Connection form (manual mode)"**
+#### "Connection form (manual mode)"
 
 | #   | Test                                                      | What it verifies                                        |
 | --- | --------------------------------------------------------- | ------------------------------------------------------- |
