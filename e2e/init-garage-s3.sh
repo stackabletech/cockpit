@@ -136,6 +136,8 @@ cat > "$S3_CONFIG_PATH" <<EOF
   "awsRegion": "$S3_REGION",
   "awsAccessKeyId": "$access_key_id",
   "awsSecretAccessKey": "$secret_access_key",
-  "bucket": "$S3_BUCKET"
+  "bucket": "$S3_BUCKET",
+  "garageAdminUrl": "$GARAGE_ADMIN_URL",
+  "garageAdminToken": "$GARAGE_ADMIN_TOKEN"
 }
 EOF
