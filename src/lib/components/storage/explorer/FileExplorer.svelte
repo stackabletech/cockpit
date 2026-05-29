@@ -3,13 +3,33 @@
   import { untrack } from 'svelte';
   import { navigating } from '$app/state';
   import { getStorageState } from '$lib/storage/context.js';
+  import { TabsState } from '$lib/storage/tabs.svelte.js';
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
+  import TabBar from './TabBar.svelte';
   import ObjectTable from './ObjectTable.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import StorageModals from '../modals/StorageModals.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
 
   const storage = getStorageState();
+  const tabsState = new TabsState(storage);
+
+  // Initialise first tab
+  $effect(() => {
+    // Ensure there's at least one tab once storage has bucket data
+    if (storage.bucket) {
+      untrack(() => tabsState.ensureInitialTab());
+    }
+  });
+
+  // Keep active tab snapshot in sync with navigation changes
+  $effect(() => {
+    // Track bucket/prefix changes
+    const _b = storage.bucket;
+    const _p = storage.prefix;
+    const _o = storage.objects;
+    untrack(() => tabsState.syncActiveTab());
+  });
 
   // Record location visit whenever the current bucket/prefix changes.
   $effect(() => {
@@ -17,11 +37,19 @@
     const p = storage.prefix;
     if (b) untrack(() => storage.bookmarks.recordLocationVisit(b, p));
   });
+
+  // Expose tabsState for the breadcrumb menu to use
+  import { setTabsState } from '$lib/storage/tabs-context.js';
+  setTabsState(tabsState);
 </script>
 
 <svelte:window onkeydown={storage.handleKeydown} />
 
 <div class="bg-base-100 flex flex-1 flex-col overflow-hidden">
+  {#if tabsState.hasTabs}
+    <TabBar {tabsState} />
+  {/if}
+
   <StorageBreadcrumb />
 
   <!-- svelte-ignore a11y_click_events_have_key_events -->

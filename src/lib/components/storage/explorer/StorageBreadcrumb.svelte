@@ -10,11 +10,14 @@
   import IconMoreVert from 'virtual:icons/material-symbols/more-vert';
   import IconPushPin from 'virtual:icons/material-symbols/push-pin';
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
+  import IconTab from 'virtual:icons/material-symbols/tab';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
+  import { getTabsState } from '$lib/storage/tabs-context.js';
   import type { StorageLocation } from '$lib/storage/types.js';
 
   const storage = getStorageState();
+  const tabsState = getTabsState();
 
   const breadcrumbParts = $derived(
     storage.prefix
@@ -316,6 +319,18 @@
         border p-1 shadow-lg
       "
     >
+      <li role="none">
+        <button
+          role="menuitem"
+          class="justify-start text-sm"
+          onclick={() => {
+            tabsState.addTab();
+          }}
+        >
+          <IconTab class="size-4 shrink-0" aria-hidden="true" />
+          {m.storage_tab_new()}
+        </button>
+      </li>
       <li role="none">
         {#if currentIsPinned}
           {@const PinIcon2 = IconPushPin}
