@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import path from 'path';
 
 export default async function globalSetup() {
-  process.loadEnvFile(path.join(import.meta.dirname, '..', '.env.test'));
+  process.loadEnvFile(path.join(import.meta.dirname, '../..', '.env.test'));
 
   // Optionally load S3 credentials written by the Garage setup step in CI.
   // When present, storage S3 tests run; when absent, they are skipped.
-  const s3ConfigPath = path.join(import.meta.dirname, '..', 's3-config.json');
+  const s3ConfigPath = path.join(import.meta.dirname, '../..', 's3-config.json');
   if (fs.existsSync(s3ConfigPath)) {
     const raw = fs.readFileSync(s3ConfigPath, 'utf-8');
     const cfg = JSON.parse(raw) as {
