@@ -58,7 +58,7 @@ describe('createS3Client', () => {
   it('does not set credentials when only accessKeyId provided', () => {
     const config: S3ConnectionConfig = { type: 's3', region: 'us-west-2', accessKeyId: 'AKID' };
     createS3Client(config);
-    const call = mockS3Client.mock.calls[mockS3Client.mock.calls.length - 1][0];
+    const call = mockS3Client.mock.calls.at(-1)![0] as { credentials?: unknown };
     expect(call.credentials).toBeUndefined();
   });
 });

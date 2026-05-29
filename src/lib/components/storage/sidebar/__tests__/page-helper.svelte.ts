@@ -15,7 +15,7 @@
 import { update } from '../../../../../../node_modules/@sveltejs/kit/src/runtime/client/state.svelte.js';
 import type { Page } from '@sveltejs/kit';
 
-export function setPageState(overrides: Partial<Page>): void {
+export function setPageState(overrides: Partial<Omit<Page, 'url'>> & { url?: URL }): void {
   update(overrides);
 }
 

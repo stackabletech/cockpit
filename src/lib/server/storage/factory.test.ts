@@ -20,7 +20,7 @@ describe('StorageProviderFactory', () => {
   it('creates S3StorageProvider for type s3', () => {
     const config: S3Config = { type: 's3', region: 'us-east-1', bucket: 'test' };
     const provider = StorageProviderFactory.create(config);
-    expect((provider as { config: S3Config }).config).toEqual(config);
+    expect((provider as unknown as { config: S3Config }).config).toEqual(config);
   });
 
   it('creates HDFSStorageProvider for type hdfs', () => {
@@ -31,6 +31,6 @@ describe('StorageProviderFactory', () => {
       user: faker.internet.username()
     };
     const provider = StorageProviderFactory.create(config);
-    expect((provider as { config: HDFSConfig }).config).toEqual(config);
+    expect((provider as unknown as { config: HDFSConfig }).config).toEqual(config);
   });
 });

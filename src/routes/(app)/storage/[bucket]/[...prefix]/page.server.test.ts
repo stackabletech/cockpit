@@ -33,7 +33,7 @@ describe('bucket page load', () => {
       ReturnType<typeof listObjects>
     >);
 
-    const result = await load(mockEvent());
+    const result = (await load(mockEvent())) as { bucket: string; prefix: string };
 
     expect(listObjects).toHaveBeenCalledWith('test-user', 'my-bucket', '', 25, undefined);
     expect(result.bucket).toBe('my-bucket');

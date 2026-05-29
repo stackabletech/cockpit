@@ -35,7 +35,7 @@ Generated: 2026-05-28
 | `e2e/trino-tabs.spec.ts`      | 10    | 10   | 0    | All browsers                   |
 | `e2e/storage-s3.spec.ts`      | 29    | 29   | 0    | Requires local Garage instance |
 
-**Total: 78 tests / 78 pass** <!-- markdownlint-disable-line MD036/no-emphasis-as-heading -->
+Total: **78 tests** / **78 pass**
 
 Browsers: Chromium, Firefox, Mobile Chromium. Tests with `[setup-chromium]` /
 `[setup-firefox]` prefixes are auth setup steps, not counted above.

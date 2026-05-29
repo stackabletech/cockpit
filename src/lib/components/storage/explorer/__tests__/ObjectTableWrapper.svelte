@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { setStorageState } from '$lib/storage/context.js';
   import type { StorageState } from '$lib/storage/state.svelte.js';
   import ObjectTable from '../ObjectTable.svelte';
@@ -8,7 +9,7 @@
   }
 
   let { state }: Props = $props();
-  setStorageState(state);
+  untrack(() => setStorageState(state));
 </script>
 
 <ObjectTable />

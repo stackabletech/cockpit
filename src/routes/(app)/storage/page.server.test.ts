@@ -43,7 +43,9 @@ describe('storage page load', () => {
       typeof getConnection
     >);
 
-    const result = await load({ locals: mockLocals() } as unknown as Parameters<typeof load>[0]);
+    const result = (await load({
+      locals: mockLocals()
+    } as unknown as Parameters<typeof load>[0])) as { connected: boolean; connectionForm: unknown };
     expect(result.connected).toBe(true);
     expect(result.connectionForm).toBeDefined();
   });
