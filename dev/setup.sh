@@ -4,10 +4,12 @@
 set -euo pipefail
 
 SKIP_TRINO=false
+SKIP_GARAGE=false
 for arg in "$@"; do
   case "$arg" in
     --skip-trino) SKIP_TRINO=true ;;
-    *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino]"; exit 1 ;;
+    --skip-garage) SKIP_GARAGE=true ;;
+    *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino] [--skip-garage]"; exit 1 ;;
   esac
 done
 
@@ -18,6 +20,9 @@ ENV_FILE="$PROJECT_DIR/.env.development"
 echo "=== Stackable UI dev environment setup ==="
 if [[ "$SKIP_TRINO" == true ]]; then
   echo "(Trino deployment skipped via --skip-trino)"
+fi
+if [[ "$SKIP_GARAGE" == true ]]; then
+  echo "(Garage deployment skipped via --skip-garage)"
 fi
 echo ""
 
@@ -72,6 +77,18 @@ if [[ "$SKIP_TRINO" == false ]]; then
   echo ""
   echo "Deploying Trino..."
   sed "s/\${NODE_IP}/$NODE_IP/g" "$SCRIPT_DIR/trino.yaml" | kubectl apply -f -
+fi
+
+# ------------------------------------------------------------------
+# 5b. Deploy Garage S3 (via Helm)
+# ------------------------------------------------------------------
+if [[ "$SKIP_GARAGE" == false ]]; then
+  echo ""
+  echo "Deploying Garage S3..."
+  helm upgrade --install garage "$SCRIPT_DIR/garage" \
+    --namespace default \
+    --wait \
+    --timeout 60s
 fi
 
 # On some local Kubernetes distributions (e.g. Rancher Desktop k3s), the node's
@@ -177,7 +194,47 @@ else
 fi
 
 # ------------------------------------------------------------------
-# 7. Write .env.development
+# 7. Initialise Garage S3 (create bucket + access key, write s3-config.json)
+# ------------------------------------------------------------------
+if [[ "$SKIP_GARAGE" == false ]]; then
+  echo ""
+  echo "Initialising Garage S3..."
+
+  GARAGE_ADMIN_PORT=30902
+  GARAGE_S3_PORT=30900
+  GARAGE_BASE_URL=""
+  deadline=$(( $(date +%s) + 60 ))
+  while [ -z "$GARAGE_BASE_URL" ] && [ "$(date +%s)" -lt "$deadline" ]; do
+    for base in "http://${NODE_IP}:${GARAGE_ADMIN_PORT}" "http://127.0.0.1:${GARAGE_ADMIN_PORT}" "http://localhost:${GARAGE_ADMIN_PORT}"; do
+      if curl -sf --max-time 2 -H "Authorization: Bearer stackable-ui-e2e-admin-token" "${base}/v2/ListBuckets" >/dev/null 2>&1; then
+        GARAGE_BASE_URL="$base"
+        break
+      fi
+    done
+    [ -z "$GARAGE_BASE_URL" ] && sleep 2
+  done
+
+  if [ -z "$GARAGE_BASE_URL" ]; then
+    echo "ERROR: Could not reach Garage admin API via NodePort ${GARAGE_ADMIN_PORT} within 60s."
+    echo "Tried: http://${NODE_IP}:${GARAGE_ADMIN_PORT}, http://127.0.0.1:${GARAGE_ADMIN_PORT}, http://localhost:${GARAGE_ADMIN_PORT}"
+    exit 1
+  fi
+
+  # Derive the matching S3 base URL from the same host
+  GARAGE_HOST=$(echo "$GARAGE_BASE_URL" | sed 's|http://||; s|:[0-9]*$||')
+  GARAGE_S3_URL="http://${GARAGE_HOST}:${GARAGE_S3_PORT}"
+
+  GARAGE_ADMIN_TOKEN=stackable-ui-e2e-admin-token \
+    S3_ENDPOINT="$GARAGE_S3_URL" \
+    GARAGE_ADMIN_URL="$GARAGE_BASE_URL" \
+    S3_CONFIG_PATH="$PROJECT_DIR/s3-config.json" \
+    "$SCRIPT_DIR/../e2e/init-garage-s3.sh"
+
+  echo "Wrote s3-config.json (S3 endpoint: ${GARAGE_S3_URL})"
+fi
+
+# ------------------------------------------------------------------
+# 8. Write .env.development
 # ------------------------------------------------------------------
 echo ""
 SESSION_SECRET=$(openssl rand -hex 32)
@@ -235,7 +292,7 @@ fi
 echo "Wrote $ENV_FILE"
 
 # ------------------------------------------------------------------
-# 8. Wait for Trino to be ready
+# 9. Wait for Trino to be ready
 # ------------------------------------------------------------------
 if [[ "$SKIP_TRINO" == false ]]; then
   echo ""
@@ -263,6 +320,11 @@ if [[ "$SKIP_TRINO" == false ]]; then
   echo ""
 else
   echo "Trino was skipped. Add STACKABLE_UI_TRINO_* vars to $ENV_FILE manually when ready."
+  echo ""
+fi
+if [[ "$SKIP_GARAGE" == false ]]; then
+  echo "Garage S3:      http://${NODE_IP}:30900  (admin: http://${NODE_IP}:30902)"
+  echo "  Credentials written to s3-config.json for E2E tests."
   echo ""
 fi
 echo "Test users (OIDC):"
