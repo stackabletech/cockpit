@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForHydration, ensureCatalogBrowserOpen, setTabSql } from './helpers';
+import { waitForHydration, ensureCatalogBrowserOpen, setTabSql } from '../support/helpers';
 
 test.describe('Catalog browser', () => {
   test.use({ locale: 'en-US' });

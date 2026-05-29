@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { waitForHydration } from './helpers';
+import { waitForHydration } from './support/helpers';
 
 /** Load the saved auth storage state, optionally stripping the locale cookie. */
 function loadAuthState(projectName: string, { withoutLocale = false } = {}) {
