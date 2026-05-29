@@ -6,18 +6,22 @@ import {
   S3Client
 } from '@aws-sdk/client-s3';
 import { expect, type Page, type TestInfo } from '@playwright/test';
-import {
-  type GarageCredentials
-} from '../support/garage.js';
+import { type GarageCredentials } from '../support/garage.js';
 import { waitForHydration } from '../support/helpers.js';
 
 export function uniquePrefix(testInfo: TestInfo, scope: string): string {
-  const slug = scope.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
+  const slug = scope
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
   return `${slug}-${testInfo.project.name.toLowerCase()}-${crypto.randomUUID()}/`;
 }
 
 export function uniqueBucketName(testInfo: TestInfo, scope: string): string {
-  const slug = scope.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
+  const slug = scope
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
   return `garage-${slug}-${testInfo.project.name.toLowerCase()}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
@@ -50,8 +54,10 @@ export async function openConnectForm(page: Page) {
 
   const connectHeading = page.getByRole('heading', { name: 'Connect to storage' });
   const disconnectButton = page.getByRole('button', { name: 'Disconnect' });
-  if (!(await connectHeading.isVisible().catch(() => false)) &&
-    (await disconnectButton.isVisible().catch(() => false))) {
+  if (
+    !(await connectHeading.isVisible().catch(() => false)) &&
+    (await disconnectButton.isVisible().catch(() => false))
+  ) {
     await disconnectButton.click();
   }
 
@@ -121,7 +127,11 @@ export async function deleteKnownKeys(client: S3Client, bucket: string, keys: st
   }
 }
 
-export async function objectExists(client: S3Client, bucket: string, key: string): Promise<boolean> {
+export async function objectExists(
+  client: S3Client,
+  bucket: string,
+  key: string
+): Promise<boolean> {
   try {
     await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
     return true;
@@ -130,7 +140,11 @@ export async function objectExists(client: S3Client, bucket: string, key: string
   }
 }
 
-export async function getObjectText(client: S3Client, bucket: string, key: string): Promise<string> {
+export async function getObjectText(
+  client: S3Client,
+  bucket: string,
+  key: string
+): Promise<string> {
   const output = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
   if (!output.Body) {
     throw new Error(`Object ${key} has no body`);

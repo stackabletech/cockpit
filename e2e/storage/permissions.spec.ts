@@ -30,8 +30,13 @@ test.describe('Storage S3 — Permissions', () => {
     );
   });
 
-  test('surfaces real Garage permission errors for a read-only bucket', async ({ page }, testInfo) => {
-    test.skip(!hasGarageAdmin(), 'Skipped: Garage admin API is unavailable for per-test bucket setup');
+  test('surfaces real Garage permission errors for a read-only bucket', async ({
+    page
+  }, testInfo) => {
+    test.skip(
+      !hasGarageAdmin(),
+      'Skipped: Garage admin API is unavailable for per-test bucket setup'
+    );
 
     const baseCredentials = requireGarageCredentials();
     const adminClient = createS3Client(baseCredentials);
@@ -57,7 +62,9 @@ test.describe('Storage S3 — Permissions', () => {
       await uploadModal.locator('input[aria-label="Select files"]').setInputFiles(uploadFixture);
       await uploadModal.getByRole('button', { name: 'Upload' }).click();
       await expect(uploadModal.getByText('Upload complete')).toBeVisible();
-      await expect(uploadModal.getByText('Access denied. You do not have permission to upload here.')).toBeVisible();
+      await expect(
+        uploadModal.getByText('Access denied. You do not have permission to upload here.')
+      ).toBeVisible();
       await uploadModal.getByRole('button', { name: 'Done' }).click();
       await expect(await objectExists(adminClient, restrictedBucket, blockedKey)).toBe(false);
 
@@ -77,8 +84,13 @@ test.describe('Storage S3 — Permissions', () => {
     }
   });
 
-  test('shows access denied error when browsing a write-only bucket', async ({ page }, testInfo) => {
-    test.skip(!hasGarageAdmin(), 'Skipped: Garage admin API is unavailable for per-test bucket setup');
+  test('shows access denied error when browsing a write-only bucket', async ({
+    page
+  }, testInfo) => {
+    test.skip(
+      !hasGarageAdmin(),
+      'Skipped: Garage admin API is unavailable for per-test bucket setup'
+    );
 
     const baseCredentials = requireGarageCredentials();
     const writeonlyBucket = uniqueBucketName(testInfo, 'writeonly');
@@ -95,14 +107,15 @@ test.describe('Storage S3 — Permissions', () => {
     await page.goto(bucketRoute(writeonlyBucket));
 
     await expect(page.getByText('403')).toBeVisible();
-    await expect(
-      page.getByText('You do not have permission to access the bucket')
-    ).toBeVisible();
+    await expect(page.getByText('You do not have permission to access the bucket')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Back to storage' })).toBeVisible();
   });
 
   test('shows access denied error when browsing a no-access bucket', async ({ page }, testInfo) => {
-    test.skip(!hasGarageAdmin(), 'Skipped: Garage admin API is unavailable for per-test bucket setup');
+    test.skip(
+      !hasGarageAdmin(),
+      'Skipped: Garage admin API is unavailable for per-test bucket setup'
+    );
 
     const baseCredentials = requireGarageCredentials();
     const noAccessBucket = uniqueBucketName(testInfo, 'noaccess');
@@ -117,8 +130,6 @@ test.describe('Storage S3 — Permissions', () => {
     await page.goto(bucketRoute(noAccessBucket));
 
     await expect(page.getByText('403')).toBeVisible();
-    await expect(
-      page.getByText('You do not have permission to access the bucket')
-    ).toBeVisible();
+    await expect(page.getByText('You do not have permission to access the bucket')).toBeVisible();
   });
 });

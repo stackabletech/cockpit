@@ -53,12 +53,7 @@ test.describe('Storage S3 — Context Menu', () => {
     const cleanupKeys = [`${prefix}escape-test.txt`];
 
     try {
-      await putTextObject(
-        client,
-        credentials.bucket,
-        `${prefix}escape-test.txt`,
-        'escape test'
-      );
+      await putTextObject(client, credentials.bucket, `${prefix}escape-test.txt`, 'escape test');
 
       await connectAndOpenPrefix(page, credentials, prefix);
 

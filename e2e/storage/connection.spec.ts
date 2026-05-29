@@ -1,13 +1,6 @@
 import { test, expect } from '@playwright/test';
-import {
-  hasGarageCredentials,
-  requireGarageCredentials
-} from '../support/garage.js';
-import {
-  connectToStorage,
-  openConnectForm,
-  bucketRoute
-} from './helpers.js';
+import { hasGarageCredentials, requireGarageCredentials } from '../support/garage.js';
+import { connectToStorage, openConnectForm, bucketRoute } from './helpers.js';
 
 test.describe('Storage S3 — Connection', () => {
   test.use({ locale: 'en-US' });
@@ -41,7 +34,9 @@ test.describe('Storage S3 — Connection', () => {
     await page.getByRole('button', { name: 'Connect' }).click();
 
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
-    await expect(page.getByText('Could not connect — check the endpoint and credentials.')).toBeVisible();
+    await expect(
+      page.getByText('Could not connect — check the endpoint and credentials.')
+    ).toBeVisible();
   });
 
   test('disconnects from Garage S3', async ({ page }) => {
@@ -97,13 +92,15 @@ test.describe('Storage S3 — Connection', () => {
     await connectToStorage(page, credentials);
     await expect(page).toHaveURL('/storage');
 
-    const bucketLink = page.locator('main').getByRole('link', { name: credentials.bucket, exact: true });
+    const bucketLink = page
+      .locator('main')
+      .getByRole('link', { name: credentials.bucket, exact: true });
     await expect(bucketLink).toBeVisible();
     await bucketLink.click();
 
     await expect(page).toHaveURL(bucketRoute(credentials.bucket));
-    await expect(
-      page.locator('nav[aria-label="breadcrumb"] [aria-current="page"]')
-    ).toContainText(credentials.bucket);
+    await expect(page.locator('nav[aria-label="breadcrumb"] [aria-current="page"]')).toContainText(
+      credentials.bucket
+    );
   });
 });

@@ -49,12 +49,7 @@ test.describe('Storage S3 — Recent Items', () => {
     const cleanupKeys = [`${prefix}recent.txt`];
 
     try {
-      await putTextObject(
-        client,
-        credentials.bucket,
-        `${prefix}recent.txt`,
-        'recently accessed'
-      );
+      await putTextObject(client, credentials.bucket, `${prefix}recent.txt`, 'recently accessed');
 
       await connectAndOpenPrefix(page, credentials, prefix);
       await rowByName(page, 'recent.txt').dblclick();

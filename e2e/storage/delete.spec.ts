@@ -45,8 +45,12 @@ test.describe('Storage S3 — Delete & Selection', () => {
       await page.getByRole('button', { name: 'Delete permanently' }).click();
 
       await expect(page.getByText('This bucket is empty')).toBeVisible();
-      await expect(await objectExists(client, credentials.bucket, `${prefix}remove-me.txt`)).toBe(false);
-      await expect(await objectExists(client, credentials.bucket, `${prefix}archive/nested.txt`)).toBe(false);
+      await expect(await objectExists(client, credentials.bucket, `${prefix}remove-me.txt`)).toBe(
+        false
+      );
+      await expect(
+        await objectExists(client, credentials.bucket, `${prefix}archive/nested.txt`)
+      ).toBe(false);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -82,7 +86,9 @@ test.describe('Storage S3 — Delete & Selection', () => {
     }
   });
 
-  test('selects all items and deselects them with the header checkbox', async ({ page }, testInfo) => {
+  test('selects all items and deselects them with the header checkbox', async ({
+    page
+  }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'select-all');

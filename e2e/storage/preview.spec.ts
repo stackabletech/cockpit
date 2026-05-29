@@ -73,15 +73,15 @@ test.describe('Storage S3 — Preview', () => {
 
       await expect(page.getByRole('heading', { name: 'archive.zip' })).toBeVisible();
       await expect(page.getByText('Preview unavailable')).toBeVisible();
-      await expect(
-        page.getByRole('link', { name: 'Download full file' })
-      ).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Download full file' })).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
   });
 
-  test('shows binary fallback preview for non-decodable binary content', async ({ page }, testInfo) => {
+  test('shows binary fallback preview for non-decodable binary content', async ({
+    page
+  }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'preview-bin');
@@ -103,9 +103,7 @@ test.describe('Storage S3 — Preview', () => {
 
       await expect(page.getByRole('heading', { name: 'data.bin' })).toBeVisible();
       await expect(page.getByText('Binary content')).toBeVisible();
-      await expect(
-        page.getByRole('link', { name: 'Download full file' })
-      ).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Download full file' })).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

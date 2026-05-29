@@ -23,7 +23,9 @@ test.describe('Storage S3 — Browsing', () => {
     );
   });
 
-  test('browses nested folders, uses breadcrumbs, and shows empty folders', async ({ page }, testInfo) => {
+  test('browses nested folders, uses breadcrumbs, and shows empty folders', async ({
+    page
+  }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'browse');
