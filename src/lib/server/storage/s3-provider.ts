@@ -5,6 +5,7 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
   DeleteObjectsCommand,
+  PutObjectCommand,
   type ListObjectsV2CommandOutput
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
@@ -134,6 +135,22 @@ export class S3StorageProvider implements StorageProvider {
       { bucket: this.bucket, key, content_type: contentType, content_length: contentLength },
       'S3 Upload'
     );
+
+    // Empty files cannot use multipart upload (S3 rejects empty parts).
+    // Use a simple PutObject request instead.
+    if (contentLength === 0) {
+      await this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: Buffer.alloc(0),
+          ContentType: contentType,
+          ContentLength: 0
+        })
+      );
+      return;
+    }
+
     const upload = new Upload({
       client: this.client,
       queueSize: 4,

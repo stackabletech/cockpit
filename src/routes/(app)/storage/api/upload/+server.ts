@@ -23,10 +23,6 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
   const userId = getUserId(locals);
   const { bucket, key } = requireBucketKey(url);
 
-  if (!request.body) {
-    throw error(400, 'Missing request body');
-  }
-
   const contentType = (request.headers.get('Content-Type') ?? 'application/octet-stream')
     .split(';')[0]
     .trim();
@@ -34,12 +30,19 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
   const rawLength = request.headers.get('Content-Length');
   const contentLength = rawLength ? parseInt(rawLength, 10) : undefined;
 
+  // An empty file (0 bytes) may arrive with a null body — this is valid.
+  if (!request.body && contentLength !== 0) {
+    throw error(400, 'Missing request body');
+  }
+
+  const body = request.body ?? Buffer.alloc(0);
+
   log.debug(
     { bucket, key, content_type: contentType, content_length: contentLength },
     'upload request received'
   );
 
-  await uploadObject(userId, bucket, key, request.body, contentType, contentLength);
+  await uploadObject(userId, bucket, key, body, contentType, contentLength);
 
   log.info(
     { bucket, key, content_type: contentType, content_length: contentLength },
