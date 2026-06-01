@@ -2,7 +2,7 @@ import { page } from 'vitest/browser';
 import { describe, expect, it, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
-import { userEvent } from '@vitest/browser/context';
+import { userEvent } from 'vitest/browser';
 import BucketListWrapper from './__tests__/BucketListWrapper.svelte';
 import { setPageState, resetPageState } from './__tests__/page-helper.svelte.js';
 import { StorageState } from '$lib/storage/state.svelte.js';

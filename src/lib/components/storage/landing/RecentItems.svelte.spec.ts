@@ -1,5 +1,5 @@
 import { page } from 'vitest/browser';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import RecentItemsWrapper from './__tests__/RecentItemsWrapper.svelte';
@@ -46,6 +46,10 @@ function createState(
 }
 
 describe('RecentItems', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   describe('tab interface', () => {
     it('should render tablist with two tabs', async () => {
       const state = createState();
