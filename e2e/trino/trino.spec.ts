@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForHydration, waitForQueryComplete, setTabSql } from './helpers';
+import { waitForHydration, waitForQueryComplete, setTabSql } from '../support/helpers';
 
 test.describe('Trino query editor', () => {
   test.use({ locale: 'en-US' });
