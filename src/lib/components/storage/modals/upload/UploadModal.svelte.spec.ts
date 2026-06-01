@@ -52,6 +52,19 @@ async function tick(ms = 50) {
   await new Promise((r) => setTimeout(r, ms));
 }
 
+/**
+ * Returns a manually-controlled promise so tests can check intermediate state
+ * and then cleanly resolve the operation before teardown — avoiding state
+ * updates on already-destroyed Svelte components.
+ */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 /** Select files and click Upload, wait for the flow to complete */
 async function selectAndUpload(files: File[]) {
   selectFiles(files);
@@ -433,19 +446,23 @@ describe('UploadModal', () => {
 
   describe('checking phase', () => {
     it('should show checking state during conflict check', async () => {
-      mockCheckObjectExists.mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve(false), 2000))
-      );
+      const check = deferred<boolean>();
+      mockCheckObjectExists.mockReturnValue(check.promise);
 
       render(UploadModal, defaultProps);
       selectFiles([createFile('a.txt')]);
       await tick();
 
       await page.getByRole('button', { name: /upload/i }).click();
-      // Don't wait long - check the checking phase quickly
-      await tick(50);
 
+      // Phase transitions to 'checking' before the check resolves; poll until
+      // the DOM reflects that state.
       await expect.element(page.getByText(/checking/i)).toBeInTheDocument();
+
+      // Resolve the check and wait for the full upload flow to complete so no
+      // state updates land on an already-destroyed component after teardown.
+      check.resolve(false);
+      await expect.element(page.getByRole('status')).toBeInTheDocument();
     });
   });
 
@@ -503,32 +520,44 @@ describe('UploadModal', () => {
     });
 
     it('should show uploading phase list during upload', async () => {
-      mockUploadFile.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 2000)));
+      const upload = deferred<void>();
+      mockUploadFile.mockReturnValue(upload.promise);
 
       render(UploadModal, defaultProps);
       selectFiles([createFile('a.txt')]);
       await tick();
 
       await page.getByRole('button', { name: /upload/i }).click();
-      await tick(100);
 
-      // During uploading, should show the file list
+      // During uploading the file list is visible; poll until the uploading
+      // phase is reached (after the conflict-check microtasks settle).
       const list = page.getByRole('list');
       await expect.element(list).toBeInTheDocument();
+
+      // Resolve the upload so the component reaches 'complete' cleanly before
+      // teardown, avoiding a state update on a destroyed component.
+      upload.resolve();
+      await expect.element(page.getByRole('status')).toBeInTheDocument();
     });
 
     it('should close button be disabled during upload', async () => {
-      mockUploadFile.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 2000)));
+      const upload = deferred<void>();
+      mockUploadFile.mockReturnValue(upload.promise);
 
       render(UploadModal, defaultProps);
       selectFiles([createFile('a.txt')]);
       await tick();
 
       await page.getByRole('button', { name: /upload/i }).click();
-      await tick(100);
 
+      // The close button is disabled while an upload is in progress.
       const closeBtn = page.getByRole('button', { name: /close/i });
       await expect.element(closeBtn).toBeDisabled();
+
+      // Resolve the upload so the component reaches 'complete' cleanly before
+      // teardown, avoiding a state update on a destroyed component.
+      upload.resolve();
+      await expect.element(page.getByRole('status')).toBeInTheDocument();
     });
   });
 
