@@ -46,3 +46,15 @@ export const defaultPageSize: number = (() => {
   const parsed = parseInt(raw ?? '', 10);
   return allowedPageSizes.includes(parsed) ? parsed : (allowedPageSizes[0] ?? 25);
 })();
+
+// ── Storage browser ──────────────────────────────────────────────────────────
+
+/** Maximum number of recently visited files and locations kept in localStorage
+ *  for the storage browser history.
+ *  Controlled by `PUBLIC_STACKABLE_UI_MAX_RECENT_FILES`. Default: 15.
+ *  Raise to retain a longer history; lower to reduce localStorage pressure on
+ *  deployments that handle many distinct objects. Must be a positive integer. */
+export const maxRecentFiles: number = (() => {
+  const parsed = parseInt(env.PUBLIC_STACKABLE_UI_MAX_RECENT_FILES ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 15;
+})();
