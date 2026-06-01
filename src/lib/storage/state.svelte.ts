@@ -11,6 +11,7 @@ import type {
   ActionName
 } from '$lib/storage/types.js';
 import { initPageSize, type PageSize } from '$lib/types/pagination.js';
+import { defaultPageSize } from '$lib/client/feature-flags.js';
 import { downloadObject, DownloadError } from '$lib/storage/download.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import { ActionError, getActionErrorMessage } from './errors.js';
@@ -24,7 +25,7 @@ export class StorageState {
     objects: [],
     hasNextPage: false,
     currentPage: 1,
-    pageSize: 25
+    pageSize: defaultPageSize
   });
   buckets = $state<string[]>([]);
   connected = $state(false);
