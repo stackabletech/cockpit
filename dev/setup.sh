@@ -283,14 +283,23 @@ STACKABLE_UI_SESSION_SECRET=${SESSION_SECRET}
 STACKABLE_UI_BASE_URL=http://localhost:5173
 STACKABLE_UI_STORAGE_BROWSER_ENABLED=true
 PUBLIC_STACKABLE_UI_STORAGE_AUTO_CONNECT=true
-
 EOF
 fi
 
 echo "Wrote $ENV_FILE"
 
 # ------------------------------------------------------------------
-# 9. Wait for Trino to be ready
+# 9. Create Kubernetes Secret for the Helm chart
+# ------------------------------------------------------------------
+echo ""
+echo "Creating stackable-ui-credentials Secret..."
+kubectl delete secret stackable-ui-credentials --ignore-not-found
+kubectl create secret generic stackable-ui-credentials \
+  --from-literal=oidc-client-secret="$SECRET" \
+  --from-literal=trino-auth-password=stackable-ui-dev
+
+# ------------------------------------------------------------------
+# 10. Wait for Trino to be ready
 # ------------------------------------------------------------------
 if [[ "$SKIP_TRINO" == false ]]; then
   echo ""

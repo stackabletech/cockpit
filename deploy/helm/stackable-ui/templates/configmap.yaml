@@ -5,15 +5,20 @@ metadata:
   labels:
     {{- include "stackable-ui.labels" . | nindent 4 }}
 data:
-  oidc-discovery-url: {{ .Values.auth.discoveryUrl | quote }}
-  oidc-client-id: {{ .Values.auth.clientId | quote }}
   base-url: {{ .Values.auth.baseUrl | quote }}
-  {{- if .Values.trino.url }}
-  trino-url: {{ .Values.trino.url | quote }}
+  {{- with .Values.origin }}
+  origin: {{ . | quote }}
   {{- end }}
-  {{- if .Values.trino.authType }}
-  trino-auth-type: {{ .Values.trino.authType | quote }}
+  {{- if .Values.auth.oidc.enabled }}
+  oidc-discovery-url: {{ required "auth.oidc.discoveryUrl is required when OIDC is enabled" .Values.auth.oidc.discoveryUrl | quote }}
+  oidc-client-id: {{ required "auth.oidc.clientId is required when OIDC is enabled" .Values.auth.oidc.clientId | quote }}
   {{- end }}
-  {{- if .Values.trino.authUsername }}
-  trino-auth-username: {{ .Values.trino.authUsername | quote }}
+  {{- with .Values.trino.url }}
+  trino-url: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.trino.auth.type }}
+  trino-auth-type: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.trino.auth.username }}
+  trino-auth-username: {{ . | quote }}
   {{- end }}
