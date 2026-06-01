@@ -1,9 +1,13 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import { untrack } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { navigating } from '$app/state';
   import { getStorageState } from '$lib/storage/context.js';
   import { TabsState } from '$lib/storage/tabs.svelte.js';
+  import { setTabsState } from '$lib/storage/tabs-context.js';
+  import { storageRestoreTabsEnabled } from '$lib/client/feature-flags.js';
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import TabBar from './TabBar.svelte';
   import ObjectTable from './ObjectTable.svelte';
@@ -12,23 +16,41 @@
   import Pagination from '$lib/components/Pagination.svelte';
 
   const storage = getStorageState();
-  const tabsState = new TabsState(storage);
 
-  // Initialise first tab
+  function navigateToLocation(bucket: string, prefix: string): void {
+    const encodedPrefix = prefix
+      ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
+      : '';
+
+    goto(
+      resolve('/(app)/storage/[bucket]/[...prefix]', {
+        bucket: encodeURIComponent(bucket),
+        prefix: encodedPrefix
+      }),
+      { replaceState: false }
+    );
+  }
+
+  const tabsState = new TabsState(storage, {
+    persistEnabled: storageRestoreTabsEnabled,
+    navigateToLocation
+  });
+  setTabsState(tabsState);
+
+  // Initialise tabs once storage has bucket data.
   $effect(() => {
-    // Ensure there's at least one tab once storage has bucket data
     if (storage.bucket) {
       untrack(() => tabsState.ensureInitialTab());
     }
   });
 
-  // Keep active tab snapshot in sync with navigation changes
+  // Keep active tab snapshot in sync with navigation changes. Also clears
+  // the stub flag on the active tab once fresh data has arrived.
   $effect(() => {
-    // Track bucket/prefix changes
-    const _b = storage.bucket;
-    const _p = storage.prefix;
-    const _o = storage.objects;
-    untrack(() => tabsState.syncActiveTab());
+    untrack(() => {
+      tabsState.markActiveTabLoaded();
+      tabsState.syncActiveTab();
+    });
   });
 
   // Record location visit whenever the current bucket/prefix changes.
@@ -37,10 +59,6 @@
     const p = storage.prefix;
     if (b) untrack(() => storage.bookmarks.recordLocationVisit(b, p));
   });
-
-  // Expose tabsState for the breadcrumb menu to use
-  import { setTabsState } from '$lib/storage/tabs-context.js';
-  setTabsState(tabsState);
 </script>
 
 <svelte:window onkeydown={storage.handleKeydown} />

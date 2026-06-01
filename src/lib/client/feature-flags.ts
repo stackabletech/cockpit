@@ -10,3 +10,10 @@ import { env } from '$env/dynamic/public';
  *  a connection manually. */
 export const storageAutoConnectEnabled =
   (env.PUBLIC_STACKABLE_UI_STORAGE_AUTO_CONNECT ?? 'false') === 'true';
+
+/** When `PUBLIC_STACKABLE_UI_STORAGE_RESTORE_TABS=true`, the file browser
+ *  saves open tabs (their name, order, and location) to localStorage and
+ *  restores them the next time the user navigates to `/storage`.
+ *  Disabled by default. */
+export const storageRestoreTabsEnabled =
+  (env.PUBLIC_STACKABLE_UI_STORAGE_RESTORE_TABS ?? 'false') === 'true';

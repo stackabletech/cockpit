@@ -25,7 +25,6 @@
 
   $effect(() => {
     // Re-check overflow whenever tabs change
-    const _len = tabsState.tabs.length;
     checkOverflow();
   });
 
@@ -159,7 +158,6 @@
 
 <div class="bg-base-200/60 relative flex items-end pt-1.5 pl-2">
   <!-- Tab list container — hidden scrollbar, overlapping tabs -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     bind:this={containerEl}
     class="tab-strip flex min-w-0 flex-1 items-end"
