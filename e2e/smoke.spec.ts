@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForHydration } from './helpers';
+import { waitForHydration } from './support/helpers';
 
 test.describe('Smoke tests', () => {
   test.use({ locale: 'en-US' });
