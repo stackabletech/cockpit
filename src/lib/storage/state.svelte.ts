@@ -245,7 +245,7 @@ export class StorageState {
 
       case 'preview':
         if (!key) {
-          addToast('warning', 'No file selected for preview');
+          addToast('warning', m.storage_action_preview_no_selection());
           return;
         }
         for (const f of effectiveSelectedFiles) {
@@ -256,7 +256,7 @@ export class StorageState {
 
       case 'download':
         if (!key) {
-          addToast('warning', 'No file selected for download');
+          addToast('warning', m.storage_action_download_no_selection());
           return;
         }
         for (const f of effectiveSelectedFiles) {

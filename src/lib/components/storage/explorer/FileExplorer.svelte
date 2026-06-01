@@ -17,6 +17,20 @@
     const p = storage.prefix;
     if (b) untrack(() => storage.bookmarks.recordLocationVisit(b, p));
   });
+
+  // Clicking anywhere inside the object-list container that is not a table row
+  // clears the current selection. Keyboard users already have Escape via the
+  // svelte:window handler below, so no key handler is needed here.
+  let objectListEl: HTMLDivElement;
+  $effect(() => {
+    function handleClick(e: MouseEvent) {
+      if (objectListEl.contains(e.target as Node) && !(e.target as HTMLElement).closest('tr')) {
+        storage.clearSelection();
+      }
+    }
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  });
 </script>
 
 <svelte:window onkeydown={storage.handleKeydown} />
@@ -24,14 +38,7 @@
 <div class="bg-base-100 flex flex-1 flex-col overflow-hidden">
   <StorageBreadcrumb />
 
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="relative min-h-0 flex-1 overflow-hidden"
-    onclick={(e) => {
-      if (!(e.target as HTMLElement).closest('tr')) storage.clearSelection();
-    }}
-  >
+  <div bind:this={objectListEl} class="relative min-h-0 flex-1 overflow-hidden">
     {#if storage.loading || storage.deleting || navigating.to}
       <div
         class="bg-base-100/70 absolute inset-0 z-20 flex items-center justify-center"
