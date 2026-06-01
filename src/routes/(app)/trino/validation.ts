@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export { ALLOWED_PAGE_SIZES, isPageSize, type PageSize } from '$lib/types/pagination.js';
+export { isPageSize, type PageSize } from '$lib/types/pagination.js';
 
 export const TabIdSchema = z.uuid();
 

@@ -1,9 +1,6 @@
 import { browser } from '$app/environment';
 import { allowedPageSizes, defaultPageSize } from '$lib/client/feature-flags.js';
 
-export { allowedPageSizes };
-/** @deprecated Use `allowedPageSizes` from `$lib/client/feature-flags.js` directly. */
-export { allowedPageSizes as ALLOWED_PAGE_SIZES };
 export type PageSize = number;
 
 export function isPageSize(n: number): n is PageSize {
