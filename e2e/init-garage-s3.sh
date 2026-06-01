@@ -9,6 +9,9 @@ set -euo pipefail
 : "${S3_BUCKET:=test-bucket}"
 : "${S3_CONFIG_PATH:=s3-config.json}"
 : "${S3_ACCESS_KEY_NAME:=e2e-test-app}"
+: "${S3_PERMISSION_OWNER:=true}"
+: "${S3_PERMISSION_READ:=true}"
+: "${S3_PERMISSION_WRITE:=true}"
 
 json_get() {
   local field="$1"
@@ -106,7 +109,7 @@ allow_bucket_key() {
   local bucket_id="$1"
   local access_key_id="$2"
 
-  admin_post '/v2/AllowBucketKey' "{\"bucketId\":\"$bucket_id\",\"accessKeyId\":\"$access_key_id\",\"permissions\":{\"owner\":true,\"read\":true,\"write\":true}}"
+  admin_post '/v2/AllowBucketKey' "{\"bucketId\":\"$bucket_id\",\"accessKeyId\":\"$access_key_id\",\"permissions\":{\"owner\":$S3_PERMISSION_OWNER,\"read\":$S3_PERMISSION_READ,\"write\":$S3_PERMISSION_WRITE}}"
 }
 
 bucket_id=$(get_bucket_id "$S3_BUCKET")
@@ -133,6 +136,8 @@ cat > "$S3_CONFIG_PATH" <<EOF
   "awsRegion": "$S3_REGION",
   "awsAccessKeyId": "$access_key_id",
   "awsSecretAccessKey": "$secret_access_key",
-  "bucket": "$S3_BUCKET"
+  "bucket": "$S3_BUCKET",
+  "garageAdminUrl": "$GARAGE_ADMIN_URL",
+  "garageAdminToken": "$GARAGE_ADMIN_TOKEN"
 }
 EOF
