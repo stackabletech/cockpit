@@ -80,10 +80,13 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox
+        run: npx playwright install --with-deps chromium
 
       - name: Compile Paraglide messages
         run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
+
+      - name: Sync SvelteKit
+        run: npx svelte-kit sync
 
       - name: Run unit tests
         run: npm run test:unit
