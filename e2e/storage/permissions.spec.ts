@@ -70,7 +70,7 @@ test.describe('Storage S3 — Permissions', () => {
 
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel(`Select ${existingKey}`).check();
-      await page.getByRole('button', { name: 'Delete' }).click();
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
       await page.getByRole('button', { name: 'Delete permanently' }).click();
 
       const errorToast = page

@@ -178,6 +178,11 @@ export class StorageState {
     this._onNavigate(this.prefix, null, this.pageSize);
   };
 
+  refresh = (): void => {
+    this.loading = true;
+    void invalidateAll();
+  };
+
   onPageSizeChange = (): void => {
     this.prevTokens = [];
     this.navigateFirst();
