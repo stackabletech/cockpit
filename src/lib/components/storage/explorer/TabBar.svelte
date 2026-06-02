@@ -175,7 +175,7 @@
         >
           <input
             type="text"
-            class="input input-xs w-24 text-xs"
+            class="border-base-300 focus:border-primary h-4 w-24 rounded border bg-transparent px-1 py-0 text-xs focus:outline-none"
             bind:value={renameValue}
             onblur={commitRename}
             onkeydown={handleRenameKeydown}
@@ -197,6 +197,7 @@
           class:opacity-50={dragIdx === idx}
           class:!border-primary={dragOverIdx === idx && dragIdx !== idx}
           onclick={() => tabsState.switchTo(tab.id)}
+          ondblclick={() => startRename(tab.id)}
           onmousedown={(e) => handleMiddleClick(e, tab.id)}
           onauxclick={(e) => handleMiddleClick(e, tab.id)}
           oncontextmenu={(e) => openCtxMenu(e, tab.id)}

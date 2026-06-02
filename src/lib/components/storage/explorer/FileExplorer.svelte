@@ -21,7 +21,6 @@
     const encodedPrefix = prefix
       ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
       : '';
-
     goto(
       resolve('/(app)/storage/[bucket]/[...prefix]', {
         bucket: encodeURIComponent(bucket),
@@ -44,9 +43,12 @@
     }
   });
 
-  // Keep active tab snapshot in sync with navigation changes. Also clears
-  // the stub flag on the active tab once fresh data has arrived.
+  // Keep the active tab snapshot in sync whenever location or page data
+  // changes. Both methods are called inside untrack to prevent a reactive
+  // loop: they read from this.tabs internally, and writing this.tabs would
+  // otherwise re-trigger the effect.
   $effect(() => {
+    void [storage.bucket, storage.prefix, storage.objects];
     untrack(() => {
       tabsState.markActiveTabLoaded();
       tabsState.syncActiveTab();

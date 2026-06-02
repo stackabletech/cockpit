@@ -325,6 +325,7 @@
           class="justify-start text-sm"
           onclick={() => {
             tabsState.addTab();
+            (document.activeElement as HTMLElement | null)?.blur();
           }}
         >
           <IconTab class="size-4 shrink-0" aria-hidden="true" />

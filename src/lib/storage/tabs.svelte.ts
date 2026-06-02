@@ -26,25 +26,31 @@ export interface Tab {
 
 // ── Persistence schema ────────────────────────────────────────────────────────
 
-interface PersistedTab {
+export interface PersistedTab {
   id: string;
   label: string;
   bucket: string;
   prefix: string;
 }
 
-interface PersistedTabsState {
+export interface PersistedTabsState {
   tabs: PersistedTab[];
   activeTabId: string;
 }
 
-// ── Internal helpers ──────────────────────────────────────────────────────────
+// ── Module-level restore request flag ────────────────────────────────────────
+// Set by the /storage banner when the user clicks "Restore tabs". Consumed
+// once by the next ensureInitialTab() call so the FileExplorer knows to
+// restore rather than start fresh. A module-level variable works here because
+// the banner navigates via SvelteKit (SPA navigation — no full page reload).
 
-let nextId = 1;
+let restoreRequestedOnNextMount = false;
 
-function generateTabId(): string {
-  return `tab-${nextId++}`;
+export function requestTabsRestore(): void {
+  restoreRequestedOnNextMount = true;
 }
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
 
 const EMPTY_PAGE: StoragePage = { objects: [], hasNextPage: false, currentPage: 1, pageSize: 25 };
 
@@ -112,7 +118,9 @@ export class TabsState {
     localStorage.setItem(LS_TABS, JSON.stringify(data));
   }
 
-  private loadFromPersistence(): PersistedTabsState | null {
+  /** Reads persisted tab state from localStorage without modifying any state.
+   *  Returns null if nothing is saved or persistence is disabled. */
+  peekPersistedTabs(): PersistedTabsState | null {
     if (!this.persistEnabled || !browser) return null;
     try {
       const raw = localStorage.getItem(LS_TABS);
@@ -125,73 +133,76 @@ export class TabsState {
     }
   }
 
+  /** Restores tabs from a previously peeked snapshot. Creates stub tabs for
+   *  all locations and navigates to the active one. Each tab gets a fresh UUID
+   *  to guarantee no key collisions with concurrently created tabs. */
+  restorePersistedTabs(saved: PersistedTabsState): void {
+    // Generate a fresh UUID per tab slot so that any duplicate IDs that may
+    // exist in older persisted data (from the previous counter-based scheme)
+    // never collide in the rendered each block.
+    const activeIdx = saved.tabs.findIndex((pt) => pt.id === saved.activeTabId);
+
+    this.tabs = saved.tabs.map((pt) => ({
+      id: crypto.randomUUID(),
+      label: pt.label,
+      stub: true,
+      snapshot: {
+        bucket: pt.bucket,
+        prefix: pt.prefix,
+        objects: EMPTY_PAGE,
+        prevTokens: [],
+        pageSize: this.storage.pageSize
+      }
+    }));
+
+    const mappedActiveId = activeIdx >= 0 ? this.tabs[activeIdx].id : this.tabs[0].id;
+    this.activeTabId = mappedActiveId;
+
+    // Persist immediately with the new UUIDs so the banner won't re-offer on
+    // the next visit to /storage.
+    this.saveToPersistence();
+
+    const activeTab = this.tabs.find((t) => t.id === mappedActiveId)!;
+
+    if (
+      this.storage.bucket === activeTab.snapshot.bucket &&
+      this.storage.prefix === activeTab.snapshot.prefix
+    ) {
+      this.markActiveTabLoaded();
+    } else if (this.navigateToLocation) {
+      this.navigateToLocation(activeTab.snapshot.bucket, activeTab.snapshot.prefix);
+    } else {
+      this.markActiveTabLoaded();
+    }
+  }
+
+  /** Removes the persisted tabs entry from localStorage. */
+  clearPersistedTabs(): void {
+    if (browser) localStorage.removeItem(LS_TABS);
+  }
+
   // ── Tab operations ───────────────────────────────────────────────────────
 
-  /** Initialises tabs from the current storage state (called once on first
-   *  data load). When persistence is enabled, attempts to restore saved tabs
-   *  and navigates to the previously active tab's location. */
+  /** Initialises tabs from the current storage state. If a restore was
+   *  requested via requestTabsRestore(), restores persisted tabs instead of
+   *  starting fresh. */
   ensureInitialTab(): void {
     if (this.tabs.length > 0) return;
 
-    const saved = this.loadFromPersistence();
-
-    if (saved && saved.tabs.length > 0) {
-      // Build stub tabs from persisted metadata
-      this.tabs = saved.tabs.map((pt) => ({
-        id: pt.id,
-        label: pt.label,
-        stub: true,
-        snapshot: {
-          ...EMPTY_PAGE,
-          bucket: pt.bucket,
-          prefix: pt.prefix,
-          prevTokens: [],
-          pageSize: this.storage.pageSize
-        } as unknown as TabSnapshot
-      }));
-      // Snapshot needs proper shape — build correctly
-      this.tabs = saved.tabs.map((pt) => ({
-        id: pt.id,
-        label: pt.label,
-        stub: true,
-        snapshot: {
-          bucket: pt.bucket,
-          prefix: pt.prefix,
-          objects: EMPTY_PAGE,
-          prevTokens: [],
-          pageSize: this.storage.pageSize
-        }
-      }));
-
-      const activeId =
-        saved.activeTabId && this.tabs.some((t) => t.id === saved.activeTabId)
-          ? saved.activeTabId
-          : this.tabs[0].id;
-      this.activeTabId = activeId;
-
-      const activeTab = this.tabs.find((t) => t.id === activeId)!;
-
-      // If the current page location already matches the active tab, mark it
-      // as loaded rather than triggering a redundant navigation.
-      if (
-        this.storage.bucket === activeTab.snapshot.bucket &&
-        this.storage.prefix === activeTab.snapshot.prefix
-      ) {
-        this.markActiveTabLoaded();
-      } else if (this.navigateToLocation) {
-        this.navigateToLocation(activeTab.snapshot.bucket, activeTab.snapshot.prefix);
-      } else {
-        // No navigate callback; just seed from current storage state
-        this.markActiveTabLoaded();
+    if (restoreRequestedOnNextMount && this.persistEnabled) {
+      restoreRequestedOnNextMount = false;
+      const saved = this.peekPersistedTabs();
+      if (saved && saved.tabs.length > 0) {
+        this.restorePersistedTabs(saved);
+        return;
       }
-    } else {
-      // No persisted state — initialise from current storage
-      const id = generateTabId();
-      const label = this.buildLabel(this.storage.bucket, this.storage.prefix);
-      this.tabs = [{ id, label, stub: false, snapshot: this.captureSnapshot() }];
-      this.activeTabId = id;
-      this.saveToPersistence();
     }
+
+    const id = crypto.randomUUID();
+    const label = this.buildLabel(this.storage.bucket, this.storage.prefix);
+    this.tabs = [{ id, label, stub: false, snapshot: this.captureSnapshot() }];
+    this.activeTabId = id;
+    this.saveToPersistence();
   }
 
   /** Marks the active tab as loaded with current storage data (clears stub). */
@@ -201,8 +212,11 @@ export class TabsState {
     if (idx === -1) return;
     const tab = this.tabs[idx];
     if (!tab.stub) return;
-    const updated: Tab = { ...tab, stub: false, snapshot: this.captureSnapshot() };
-    this.tabs = [...this.tabs.slice(0, idx), updated, ...this.tabs.slice(idx + 1)];
+    this.tabs = [
+      ...this.tabs.slice(0, idx),
+      { ...tab, stub: false, snapshot: this.captureSnapshot() },
+      ...this.tabs.slice(idx + 1)
+    ];
   }
 
   /** Updates the active tab's snapshot to reflect current storage state. */
@@ -227,7 +241,7 @@ export class TabsState {
   /** Adds a new tab at the current location and switches to it. */
   addTab(): void {
     this.syncActiveTab();
-    const id = generateTabId();
+    const id = crypto.randomUUID();
     const label = this.buildLabel(this.storage.bucket, this.storage.prefix);
     const newTab: Tab = { id, label, stub: false, snapshot: this.captureSnapshot() };
     this.tabs = [...this.tabs, newTab];
@@ -245,7 +259,6 @@ export class TabsState {
     this.saveToPersistence();
 
     if (tab.stub && this.navigateToLocation) {
-      // Stub: no cached data — navigate to load fresh
       this.navigateToLocation(tab.snapshot.bucket, tab.snapshot.prefix);
     } else {
       this.restoreSnapshot(tab.snapshot);
