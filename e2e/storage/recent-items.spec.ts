@@ -96,7 +96,7 @@ test.describe('Storage S3 — Recent Items', () => {
       await waitForHydration(page);
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel('Select to-delete.txt').check();
-      await page.getByRole('button', { name: 'Delete' }).click();
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
       await page.getByRole('button', { name: 'Delete permanently' }).click();
       await expect(page.getByText('This bucket is empty')).toBeVisible();
 
@@ -132,14 +132,14 @@ test.describe('Storage S3 — Recent Items', () => {
       await waitForHydration(page);
       await expect(page.locator('tbody').getByText('nested.txt')).toBeVisible();
       await page.getByRole('tab', { name: 'Recent Locations' }).click();
-      await expect(page.locator('tbody').getByText('sub')).toBeVisible();
+      await expect(page.locator('tbody').getByText('sub', { exact: true })).toBeVisible();
 
       // Delete the parent directory via the UI
       await page.goto(bucketRoute(credentials.bucket, prefix));
       await waitForHydration(page);
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel('Select sub').check();
-      await page.getByRole('button', { name: 'Delete' }).click();
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
       await page.getByRole('button', { name: 'Delete permanently' }).click();
       await expect(page.getByText('This bucket is empty')).toBeVisible();
 
@@ -148,7 +148,7 @@ test.describe('Storage S3 — Recent Items', () => {
       await waitForHydration(page);
       await expect(page.locator('tbody').getByText('nested.txt')).not.toBeVisible();
       await page.getByRole('tab', { name: 'Recent Locations' }).click();
-      await expect(page.locator('tbody').getByText('sub')).not.toBeVisible();
+      await expect(page.locator('tbody').getByText('sub', { exact: true })).not.toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, [nestedKey]);
     }
