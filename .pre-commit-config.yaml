@@ -62,7 +62,7 @@ repos:
       - id: helm-lint
         name: helm lint
         language: system
-        entry: helm lint deploy/helm/stackable-ui
+        entry: helm lint deploy/helm/cockpit
         stages: [pre-commit, pre-merge-commit]
         pass_filenames: false
         files: ^deploy/helm/
@@ -72,7 +72,7 @@ repos:
         language: system
         entry: >-
           bash -c '
-          helm template test deploy/helm/stackable-ui
+          helm template test deploy/helm/cockpit
           --set auth.oidc.discoveryUrl=https://stub
           --set auth.oidc.clientId=stub
           --set auth.oidc.clientSecret.secretKeyRef.name=stub > /dev/null'

@@ -1,14 +1,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "stackable-ui.fullname" . }}
+  name: {{ include "cockpit.fullname" . }}
   labels:
-    {{- include "stackable-ui.labels" . | nindent 4 }}
+    {{- include "cockpit.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "stackable-ui.selectorLabels" . | nindent 6 }}
+      {{- include "cockpit.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
@@ -18,7 +18,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        {{- include "stackable-ui.labels" . | nindent 8 }}
+        {{- include "cockpit.labels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -27,7 +27,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "stackable-ui.serviceAccountName" . }}
+      serviceAccountName: {{ include "cockpit.serviceAccountName" . }}
       {{- with .Values.terminationGracePeriodSeconds }}
       terminationGracePeriodSeconds: {{ . }}
       {{- end }}
@@ -37,7 +37,7 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: {{ include "stackable-ui.image" . }}
+          image: {{ include "cockpit.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
@@ -71,7 +71,7 @@ spec:
                   name: {{ .Values.sessionSecret.secretKeyRef.name | quote }}
                   key: {{ .Values.sessionSecret.secretKeyRef.key | quote }}
                   {{- else }}
-                  name: {{ include "stackable-ui.fullname" . }}
+                  name: {{ include "cockpit.fullname" . }}
                   key: session-secret
                   {{- end }}
             {{- if .Values.auth.oidc.enabled }}
@@ -84,13 +84,13 @@ spec:
             - name: STACKABLE_UI_BASE_URL
               valueFrom:
                 configMapKeyRef:
-                  name: {{ include "stackable-ui.fullname" . }}
+                  name: {{ include "cockpit.fullname" . }}
                   key: base-url
             {{- if .Values.origin }}
             - name: ORIGIN
               valueFrom:
                 configMapKeyRef:
-                  name: {{ include "stackable-ui.fullname" . }}
+                  name: {{ include "cockpit.fullname" . }}
                   key: origin
             {{- end }}
             {{- with .Values.proxy.protocolHeader }}
@@ -105,12 +105,12 @@ spec:
             - name: STACKABLE_UI_OIDC_DISCOVERY_URL
               valueFrom:
                 configMapKeyRef:
-                  name: {{ include "stackable-ui.fullname" . }}
+                  name: {{ include "cockpit.fullname" . }}
                   key: oidc-discovery-url
             - name: STACKABLE_UI_OIDC_CLIENT_ID
               valueFrom:
                 configMapKeyRef:
-                  name: {{ include "stackable-ui.fullname" . }}
+                  name: {{ include "cockpit.fullname" . }}
                   key: oidc-client-id
             - name: STACKABLE_UI_OIDC_USERNAME_CLAIM
               value: {{ .Values.auth.oidc.usernameClaim | quote }}
@@ -119,21 +119,21 @@ spec:
             - name: STACKABLE_UI_TRINO_URL
               valueFrom:
                 configMapKeyRef:
-                  name: {{ include "stackable-ui.fullname" . }}
+                  name: {{ include "cockpit.fullname" . }}
                   key: trino-url
             {{- end }}
             {{- if .Values.trino.auth.type }}
             - name: STACKABLE_UI_TRINO_AUTH_TYPE
               valueFrom:
                 configMapKeyRef:
-                  name: {{ include "stackable-ui.fullname" . }}
+                  name: {{ include "cockpit.fullname" . }}
                   key: trino-auth-type
             {{- end }}
             {{- if .Values.trino.auth.username }}
             - name: STACKABLE_UI_TRINO_AUTH_USERNAME
               valueFrom:
                 configMapKeyRef:
-                  name: {{ include "stackable-ui.fullname" . }}
+                  name: {{ include "cockpit.fullname" . }}
                   key: trino-auth-username
             {{- end }}
             {{- if eq .Values.trino.auth.type "basic" }}

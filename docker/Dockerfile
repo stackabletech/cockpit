@@ -84,7 +84,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --ignore-scripts
 FROM prod-deps AS sbom
 
 RUN npm ls --omit=dev && \
-    npx @cyclonedx/cyclonedx-npm --omit dev --output-file /build/stackable-ui.cdx.json
+    npx @cyclonedx/cyclonedx-npm --omit dev --output-file /build/cockpit.cdx.json
 
 #
 # Production stage - minimal runtime image
@@ -118,7 +118,7 @@ WORKDIR /stackable/app
 COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/build ./build
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node_modules
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
-COPY --from=sbom      --chown=${STACKABLE_USER_UID}:0 /build/stackable-ui.cdx.json ./stackable-ui.cdx.json
+COPY --from=sbom      --chown=${STACKABLE_USER_UID}:0 /build/cockpit.cdx.json ./cockpit.cdx.json
 COPY --chown=${STACKABLE_USER_UID}:0 LICENSE /licenses/LICENSE
 RUN chmod -R g=u /stackable/app
 
@@ -146,7 +146,7 @@ LABEL io.openshift.expose-services=""
 # https://github.com/opencontainers/image-spec/blob/036563a4a268d7c08b51a08f05a02a0fe74c7268/annotations.md#annotations
 LABEL org.opencontainers.image.authors="info@stackable.tech"
 LABEL org.opencontainers.image.url="https://stackable.tech"
-LABEL org.opencontainers.image.source="https://github.com/stackabletech/stackable-ui/"
+LABEL org.opencontainers.image.source="https://github.com/stackabletech/cockpit/"
 LABEL org.opencontainers.image.vendor="Stackable GmbH"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
