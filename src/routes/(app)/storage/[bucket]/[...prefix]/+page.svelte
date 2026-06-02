@@ -7,14 +7,16 @@
   let { data } = $props();
   const storage = getStorageState();
 
-  // Inject navigation handler — page owns URL construction
+  // Inject navigation handler — page owns URL construction.
+  // Uses storage.bucket (not data.bucket) so that after a tab switch via
+  // snapshot restore the handler still builds URLs for the active tab's bucket.
   storage.setNavigationHandler((prefix, continuationToken, pageSize) => {
     const encodedPrefix = prefix
       ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
       : '';
 
     const basePath = resolve('/(app)/storage/[bucket]/[...prefix]', {
-      bucket: encodeURIComponent(data.bucket),
+      bucket: encodeURIComponent(storage.bucket),
       prefix: encodedPrefix
     });
 

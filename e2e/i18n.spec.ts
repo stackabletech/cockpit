@@ -16,8 +16,17 @@ function loadAuthState(projectName: string, { withoutLocale = false } = {}) {
 test.describe('Internationalisation', () => {
   test.use({ locale: 'en-US' });
 
+  // Firefox is slower to hydrate and navigate; triple the default timeout for
+  // all tests in this block so they don't time out on slow CI runners.
+  test.beforeEach(() => {
+    test.slow();
+  });
+
   test('renders in English by default with lang="en"', async ({ page }) => {
     await page.goto('/');
+
+    // Wait for hydration so reactive state has settled before checking content.
+    await waitForHydration(page);
 
     const html = page.locator('html');
     await expect(html).toHaveAttribute('lang', 'en');

@@ -30,9 +30,25 @@
     );
   }
 
+  /** Updates the browser URL bar to reflect the active tab's location without
+   *  triggering a SvelteKit navigation or server refetch. Used when restoring
+   *  an in-memory snapshot on tab switch. */
+  function replaceLocationUrl(bucket: string, prefix: string): void {
+    const encodedPrefix = prefix
+      ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
+      : '';
+    const newPath = resolve('/(app)/storage/[bucket]/[...prefix]', {
+      bucket: encodeURIComponent(bucket),
+      prefix: encodedPrefix
+    });
+    history.replaceState(history.state, '', newPath);
+  }
+
   const tabsState = new TabsState(storage, {
     persistEnabled: storageRestoreTabsEnabled,
-    navigateToLocation
+    connectionId: storage.connectionId,
+    navigateToLocation,
+    replaceLocationUrl
   });
   setTabsState(tabsState);
 

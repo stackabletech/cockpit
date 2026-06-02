@@ -36,6 +36,10 @@ export interface PersistedTab {
 export interface PersistedTabsState {
   tabs: PersistedTab[];
   activeTabId: string;
+  /** Fingerprint of the connection that saved these tabs.
+   *  Absent in data saved before this field was introduced (treated as a match
+   *  for any connection to preserve backward compatibility). */
+  connectionId?: string;
 }
 
 // ── Module-level restore request flag ────────────────────────────────────────
@@ -62,7 +66,9 @@ export class TabsState {
 
   private storage: StorageState;
   private persistEnabled: boolean;
+  private connectionId: string | null;
   private navigateToLocation: ((bucket: string, prefix: string) => void) | null;
+  private replaceLocationUrl: ((bucket: string, prefix: string) => void) | null;
 
   get hasTabs(): boolean {
     return this.tabs.length > 1;
@@ -72,12 +78,16 @@ export class TabsState {
     storage: StorageState,
     options?: {
       persistEnabled?: boolean;
+      connectionId?: string | null;
       navigateToLocation?: (bucket: string, prefix: string) => void;
+      replaceLocationUrl?: (bucket: string, prefix: string) => void;
     }
   ) {
     this.storage = storage;
     this.persistEnabled = options?.persistEnabled ?? false;
+    this.connectionId = options?.connectionId ?? null;
     this.navigateToLocation = options?.navigateToLocation ?? null;
+    this.replaceLocationUrl = options?.replaceLocationUrl ?? null;
   }
 
   // ── Snapshot helpers ─────────────────────────────────────────────────────
@@ -100,6 +110,7 @@ export class TabsState {
     this.storage.pageSize = snapshot.pageSize;
     this.storage.loading = false;
     this.storage.clearSelection();
+    this.replaceLocationUrl?.(snapshot.bucket, snapshot.prefix);
   }
 
   // ── Persistence ──────────────────────────────────────────────────────────
@@ -113,13 +124,15 @@ export class TabsState {
         bucket: t.snapshot.bucket,
         prefix: t.snapshot.prefix
       })),
-      activeTabId: this.activeTabId ?? ''
+      activeTabId: this.activeTabId ?? '',
+      connectionId: this.connectionId ?? undefined
     };
     localStorage.setItem(LS_TABS, JSON.stringify(data));
   }
 
   /** Reads persisted tab state from localStorage without modifying any state.
-   *  Returns null if nothing is saved or persistence is disabled. */
+   *  Returns null if nothing is saved, persistence is disabled, or the saved
+   *  state belongs to a different connection. */
   peekPersistedTabs(): PersistedTabsState | null {
     if (!this.persistEnabled || !browser) return null;
     try {
@@ -127,6 +140,11 @@ export class TabsState {
       if (!raw) return null;
       const data = JSON.parse(raw) as PersistedTabsState;
       if (!Array.isArray(data.tabs) || data.tabs.length === 0) return null;
+      // If both sides have a connectionId and they don't match, this save belongs
+      // to a different connection — do not offer restore.
+      if (data.connectionId && this.connectionId && data.connectionId !== this.connectionId) {
+        return null;
+      }
       return data;
     } catch {
       return null;

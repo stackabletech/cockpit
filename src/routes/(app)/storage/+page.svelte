@@ -28,9 +28,16 @@
       const raw = localStorage.getItem(LS_TABS);
       if (!raw) return;
       const parsed = JSON.parse(raw) as PersistedTabsState;
-      if (Array.isArray(parsed?.tabs) && parsed.tabs.length > 1) {
-        savedTabs = parsed;
-      }
+      if (!Array.isArray(parsed?.tabs) || parsed.tabs.length <= 1) return;
+      // If the saved data carries a connectionId that differs from the current
+      // connection, do not offer restore (tabs are from a different connection).
+      if (
+        parsed.connectionId &&
+        storage.connectionId &&
+        parsed.connectionId !== storage.connectionId
+      )
+        return;
+      savedTabs = parsed;
     } catch {
       // ignore malformed data
     }
@@ -72,8 +79,6 @@
       </div>
     {/if}
 
-    <h1 class="mb-1 text-xl font-semibold">{m.storage_buckets_label()}</h1>
-
     {#if savedTabs}
       <div
         role="alert"
@@ -95,6 +100,8 @@
         </button>
       </div>
     {/if}
+
+    <h1 class="mb-1 text-xl font-semibold">{m.storage_buckets_label()}</h1>
 
     <p class="text-base-content/60 mb-6 text-sm">{m.storage_buckets_subtitle()}</p>
     <BucketGrid buckets={storage.buckets} />

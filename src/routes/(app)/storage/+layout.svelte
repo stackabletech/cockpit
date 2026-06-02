@@ -7,7 +7,8 @@
 
   const storage = new StorageState({
     connected: data.connected,
-    buckets: data.buckets
+    buckets: data.buckets,
+    connectionId: data.connectionId
   });
   setStorageState(storage);
 
@@ -15,6 +16,7 @@
   $effect(() => {
     storage.connected = data.connected;
     storage.buckets = data.buckets;
+    storage.connectionId = data.connectionId ?? null;
   });
 </script>
 

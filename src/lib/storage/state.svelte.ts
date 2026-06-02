@@ -73,6 +73,9 @@ export class StorageState {
   loading = $state(false);
   deleting = $state(false);
 
+  // ── Connection identity ──
+  connectionId = $state<string | null>(null);
+
   // ── Pagination ──
   prevTokens = $state<(string | null)[]>([]);
   pageSize = $state<PageSize>(initPageSize('storage_page_size'));
@@ -88,9 +91,10 @@ export class StorageState {
   // Constructor
   // ────────────────────────────────────────────────────────────────────────────
 
-  constructor(options?: { connected?: boolean; buckets?: string[] }) {
+  constructor(options?: { connected?: boolean; buckets?: string[]; connectionId?: string | null }) {
     if (options?.connected !== undefined) this.connected = options.connected;
     if (options?.buckets) this.buckets = options.buckets;
+    if (options?.connectionId !== undefined) this.connectionId = options.connectionId;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
