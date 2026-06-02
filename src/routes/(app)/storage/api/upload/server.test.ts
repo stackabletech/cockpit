@@ -75,4 +75,21 @@ describe('POST /storage/api/upload', () => {
     expect(res.status).toBe(201);
     expect(vi.mocked(uploadObject).mock.calls[0][4]).toBe('application/octet-stream');
   });
+
+  it('accepts an empty file with null body and Content-Length 0', async () => {
+    vi.mocked(uploadObject).mockResolvedValue(undefined);
+
+    const res = await POST(
+      mockEvent({
+        body: null,
+        headers: { 'Content-Type': 'text/plain', 'Content-Length': '0' }
+      })
+    );
+
+    expect(res.status).toBe(201);
+    const call = vi.mocked(uploadObject).mock.calls[0];
+    expect(Buffer.isBuffer(call[3])).toBe(true);
+    expect((call[3] as Buffer).length).toBe(0);
+    expect(call[5]).toBe(0);
+  });
 });

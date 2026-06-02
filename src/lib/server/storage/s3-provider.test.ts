@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { S3ServiceException } from '@aws-sdk/client-s3';
+import { S3ServiceException, PutObjectCommand } from '@aws-sdk/client-s3';
 
 vi.mock('$lib/server/logging', () => ({
   logger: { child: () => ({ trace: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }) }
@@ -362,6 +362,30 @@ describe('S3StorageProvider.putObject', () => {
     const opts = MockUpload.mock.calls[0][0] as { queueSize: number; partSize: number };
     expect(opts.queueSize).toBe(4);
     expect(opts.partSize).toBe(5 * 1024 * 1024);
+  });
+
+  it('uses PutObjectCommand for empty files instead of multipart Upload', async () => {
+    const { send } = makeProvider();
+    // Re-create provider with the send mock we can inspect
+    const client = { send } as unknown as import('@aws-sdk/client-s3').S3Client;
+    const config = { type: 's3' as const, region: 'us-east-1', bucket: 'test-bucket' };
+    const emptyProvider = new S3StorageProvider(config, client);
+    send.mockResolvedValue({});
+
+    await emptyProvider.putObject('empty.txt', new ReadableStream(), 'text/plain', 0);
+
+    expect(MockUpload).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledOnce();
+    const cmd = send.mock.calls[0][0];
+    expect(cmd).toBeInstanceOf(PutObjectCommand);
+    expect(cmd.input).toMatchObject({
+      Bucket: 'test-bucket',
+      Key: 'empty.txt',
+      ContentType: 'text/plain',
+      ContentLength: 0
+    });
+    expect(Buffer.isBuffer(cmd.input.Body)).toBe(true);
+    expect((cmd.input.Body as Buffer).length).toBe(0);
   });
 });
 
