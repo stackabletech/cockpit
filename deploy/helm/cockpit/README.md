@@ -1,6 +1,6 @@
-# Stackable UI Helm Chart
+# Cockpit Helm Chart
 
-This Helm chart deploys the Stackable Unified Data Platform UI on Kubernetes.
+This Helm chart deploys the Stackable Data Platform (SDP) Cockpit UI on Kubernetes.
 
 ## Requirements
 
@@ -12,32 +12,32 @@ This Helm chart deploys the Stackable Unified Data Platform UI on Kubernetes.
 ### Basic Installation
 
 ```bash
-helm install stackable-ui ./deploy/helm/stackable-ui
+helm install cockpit ./deploy/helm/cockpit
 ```
 
 ### Installation with Custom Values
 
 ```bash
-helm install stackable-ui ./deploy/helm/stackable-ui \
+helm install cockpit ./deploy/helm/cockpit \
   --set image.tag=0.0.0-dev
 ```
 
 ### Installation with Values File
 
 ```bash
-helm install stackable-ui ./deploy/helm/stackable-ui \
+helm install cockpit ./deploy/helm/cockpit \
   -f my-values.yaml
 ```
 
 ## Uninstalling the Chart
 
 ```bash
-helm uninstall stackable-ui
+helm uninstall cockpit
 ```
 
 ## Configuration
 
-The following table lists the configurable parameters of the Stackable UI chart and their default values.
+The following table lists the configurable parameters of the Cockpit chart and their default values.
 
 ### Global Parameters
 
@@ -45,7 +45,7 @@ The following table lists the configurable parameters of the Stackable UI chart 
 | --- | --- | --- |
 | `replicaCount` | Number of replicas | `1` |
 | `image.registry` | Container image registry | `oci.stackable.tech` |
-| `image.repository` | Container image repository | `sdp/stackable-ui` |
+| `image.repository` | Container image repository | `sdp/cockpit` |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `image.tag` | Image tag (overrides appVersion) | `""` |
 | `nameOverride` | String to partially override fullname | `""` |
@@ -144,6 +144,6 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 
 For issues and questions:
 
-- GitHub: <https://github.com/stackabletech/stackable-ui/issues>
+- GitHub: <https://github.com/stackabletech/cockpit/issues>
 - Documentation: <https://docs.stackable.tech/>
 - Email: <info@stackable.tech>

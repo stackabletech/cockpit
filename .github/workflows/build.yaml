@@ -1,5 +1,5 @@
 ---
-name: Build Stackable UI Container Image
+name: Build Cockpit Container Image
 
 permissions:
   contents: read
@@ -19,7 +19,7 @@ on:
   merge_group:
 
 env:
-  IMAGE_NAME: 'stackable-ui'
+  IMAGE_NAME: 'cockpit'
 
 jobs:
   detect-changes:
@@ -180,7 +180,7 @@ jobs:
           chart-registry-username: robot$sdp-charts+github-action-build
           chart-registry-password: ${{ secrets.HARBOR_ROBOT_SDP_CHARTS_GITHUB_ACTION_BUILD_SECRET }}
           chart-repository: sdp-charts
-          chart-directory: deploy/helm/stackable-ui
+          chart-directory: deploy/helm/cockpit
           chart-version: ${{ needs.build-container-image.outputs.image-version }}
           app-version: ${{ needs.build-container-image.outputs.image-version }}
 
