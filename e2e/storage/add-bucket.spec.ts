@@ -65,18 +65,22 @@ test.describe('Storage S3 — Add bucket manually', () => {
 
     const baseCredentials = requireGarageCredentials();
     const extraBucketName = uniqueBucketName(testInfo, 'manual-add');
-    const extraCredentials = await createGarageBucketCredentials(baseCredentials, {
+
+    // Connect before the extra bucket is created so it is absent from the initial listing.
+    // In Garage, AllowBucketKey with any permission causes the bucket to appear in ListBuckets,
+    // so we must create the bucket *after* the page has loaded to ensure it is not pre-listed.
+    await connectToStorage(page, baseCredentials);
+    await expect(page).toHaveURL('/storage');
+
+    // Create the extra bucket and grant the base key access now that the page is already loaded.
+    await createGarageBucketCredentials(baseCredentials, {
       bucketName: extraBucketName,
       keyName: `manual-${testInfo.project.name}-${crypto.randomUUID()}`,
       permissions: { owner: false, read: true, write: false },
       ownerAccessKeyId: baseCredentials.accessKeyId
     });
 
-    // Connect with credentials that do not have ListBuckets on the extra bucket
-    await connectToStorage(page, extraCredentials);
-    await expect(page).toHaveURL('/storage');
-
-    // The extra bucket should not be listed initially (no ListBuckets permission)
+    // The extra bucket should not be listed — it was created after the page loaded
     const main = page.locator('main');
     await expect(main.getByRole('link', { name: extraBucketName, exact: true })).not.toBeVisible();
 
