@@ -366,11 +366,15 @@ export class StorageState {
       failed: Array<{ key: string; code?: string; message?: string }>;
     };
 
-    // Clean up pinned locations and recent items for deleted directories
+    // Clean up pinned locations and recent items for deleted paths
     const dirPrefixes = keys.filter((k) => k.endsWith('/'));
+    const fileKeys = keys.filter((k) => !k.endsWith('/'));
     if (dirPrefixes.length > 0) {
       this.bookmarks.unpinUnderDirectories(bucket, dirPrefixes);
       this.bookmarks.removeItemsUnderDirectories(bucket, dirPrefixes);
+    }
+    if (fileKeys.length > 0) {
+      this.bookmarks.removeFiles(bucket, fileKeys);
     }
 
     return result;
