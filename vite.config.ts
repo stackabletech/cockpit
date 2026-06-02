@@ -18,6 +18,11 @@ export default defineConfig({
   ],
   server: { allowedHosts: true },
   test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['json', 'json-summary'],
+      reportsDirectory: './coverage'
+    },
     expect: { requireAssertions: true },
     projects: [
       {
