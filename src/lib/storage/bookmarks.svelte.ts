@@ -3,11 +3,11 @@ import {
   LS_PINS,
   LS_RECENT_FILES,
   LS_RECENT_LOCATIONS,
-  MAX_RECENT,
   loadFromStorage,
   persistToStorage
 } from './persistence.js';
-import { SvelteDate } from 'svelte/reactivity';
+import { maxRecentFiles } from '$lib/client/feature-flags.js';
+import { SvelteDate, SvelteSet } from 'svelte/reactivity';
 
 export class BookmarksState {
   pinnedLocations = $state<PinnedLocation[]>(loadFromStorage<PinnedLocation>(LS_PINS));
@@ -57,7 +57,7 @@ export class BookmarksState {
     const entry: RecentFile = { key, bucket, size, visitedAt: new SvelteDate().toISOString() };
     if (idx !== -1) this.recentFiles.splice(idx, 1);
     this.recentFiles.unshift(entry);
-    if (this.recentFiles.length > MAX_RECENT) this.recentFiles.splice(MAX_RECENT);
+    if (this.recentFiles.length > maxRecentFiles) this.recentFiles.splice(maxRecentFiles);
     persistToStorage(LS_RECENT_FILES, [...this.recentFiles]);
   }
 
@@ -67,8 +67,19 @@ export class BookmarksState {
     const entry: RecentLocation = { bucket, prefix, visitedAt: new SvelteDate().toISOString() };
     if (idx !== -1) this.recentLocations.splice(idx, 1);
     this.recentLocations.unshift(entry);
-    if (this.recentLocations.length > MAX_RECENT) this.recentLocations.splice(MAX_RECENT);
+    if (this.recentLocations.length > maxRecentFiles) this.recentLocations.splice(maxRecentFiles);
     persistToStorage(LS_RECENT_LOCATIONS, [...this.recentLocations]);
+  }
+
+  removeFiles(bucket: string, fileKeys: string[]): void {
+    if (fileKeys.length === 0) return;
+    const keySet = new SvelteSet(fileKeys);
+    const before = this.recentFiles.length;
+    const keep = this.recentFiles.filter((f) => !(f.bucket === bucket && keySet.has(f.key)));
+    if (keep.length !== before) {
+      this.recentFiles.splice(0, this.recentFiles.length, ...keep);
+      persistToStorage(LS_RECENT_FILES, [...this.recentFiles]);
+    }
   }
 
   removeItemsUnderDirectories(bucket: string, dirPrefixes: string[]): void {

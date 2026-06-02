@@ -2,7 +2,7 @@
   import type { SuperValidated } from 'sveltekit-superforms';
   import { superForm } from 'sveltekit-superforms';
   import { zod4 as zod } from 'sveltekit-superforms/adapters';
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconStorage from 'virtual:icons/material-symbols/storage';
   import * as m from '$lib/paraglide/messages.js';
@@ -34,16 +34,19 @@
   /** Connection pending the "Forget" confirmation. */
   let forgetCandidate: StoredConnection | null = $state(null);
 
-  const { form, errors, enhance, submitting, message } = superForm(connectionForm, {
-    validators: zod(StorageConnectionSchema),
-    onResult: ({ result }) => {
-      if (result.type === 'redirect') {
-        saveConnectionLocally($form);
-      } else {
-        autoConnecting = false;
+  const { form, errors, enhance, submitting, message } = superForm(
+    untrack(() => connectionForm),
+    {
+      validators: zod(StorageConnectionSchema),
+      onResult: ({ result }) => {
+        if (result.type === 'redirect') {
+          saveConnectionLocally($form);
+        } else {
+          autoConnecting = false;
+        }
       }
     }
-  });
+  );
 
   /** Display label for a saved connection (hostname or "AWS S3"). */
   function connectionLabel(conn: StoredConnection): string {

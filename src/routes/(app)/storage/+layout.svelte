@@ -1,15 +1,19 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import BucketList from '$lib/components/storage/sidebar/BucketList.svelte';
   import { StorageState } from '$lib/storage/state.svelte.js';
   import { setStorageState } from '$lib/storage/context.js';
 
   let { children, data } = $props();
 
-  const storage = new StorageState({
-    connected: data.connected,
-    buckets: data.buckets,
-    connectionId: data.connectionId
-  });
+  const storage = untrack(
+    () =>
+      new StorageState({
+        connected: data.connected,
+        buckets: data.buckets,
+        connectionId: data.connectionId
+      })
+  );
   setStorageState(storage);
 
   // Keep layout-level data in sync when SvelteKit re-runs the load function

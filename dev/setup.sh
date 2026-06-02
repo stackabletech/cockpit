@@ -272,8 +272,15 @@ STACKABLE_UI_TRINO_AUTH_USERNAME=stackable-ui
 STACKABLE_UI_TRINO_AUTH_PASSWORD=stackable-ui-dev
 STACKABLE_UI_TRINO_TLS_INSECURE=true
 STACKABLE_UI_STORAGE_BROWSER_ENABLED=true
+STACKABLE_UI_TEXT_PREVIEW_BYTES=262144
+STACKABLE_UI_IMAGE_PREVIEW_BYTES=5242880
+STACKABLE_UI_PDF_PREVIEW_BYTES=26214400
+STACKABLE_UI_FILE_PREVIEW_ROWS=250
 PUBLIC_STACKABLE_UI_STORAGE_AUTO_CONNECT=true
 PUBLIC_STACKABLE_UI_STORAGE_RESTORE_TABS=true
+PUBLIC_STACKABLE_UI_PAGE_SIZES=25,50,100
+PUBLIC_STACKABLE_UI_DEFAULT_PAGE_SIZE=25
+PUBLIC_STACKABLE_UI_MAX_RECENT_FILES=15
 EOF
 else
   cat > "$ENV_FILE" <<EOF
@@ -283,16 +290,32 @@ STACKABLE_UI_OIDC_CLIENT_SECRET=${SECRET}
 STACKABLE_UI_SESSION_SECRET=${SESSION_SECRET}
 STACKABLE_UI_BASE_URL=http://localhost:5173
 STACKABLE_UI_STORAGE_BROWSER_ENABLED=true
+STACKABLE_UI_TEXT_PREVIEW_BYTES=262144
+STACKABLE_UI_IMAGE_PREVIEW_BYTES=5242880
+STACKABLE_UI_PDF_PREVIEW_BYTES=26214400
+STACKABLE_UI_FILE_PREVIEW_ROWS=250
 PUBLIC_STACKABLE_UI_STORAGE_AUTO_CONNECT=true
 PUBLIC_STACKABLE_UI_STORAGE_RESTORE_TABS=true
+PUBLIC_STACKABLE_UI_PAGE_SIZES=25,50,100
+PUBLIC_STACKABLE_UI_DEFAULT_PAGE_SIZE=25
+PUBLIC_STACKABLE_UI_MAX_RECENT_FILES=15
 
 EOF
 fi
 
 echo "Wrote $ENV_FILE"
 
+# 9. Create Kubernetes Secret for the Helm chart
 # ------------------------------------------------------------------
-# 9. Wait for Trino to be ready
+echo ""
+echo "Creating stackable-ui-credentials Secret..."
+kubectl delete secret stackable-ui-credentials --ignore-not-found
+kubectl create secret generic stackable-ui-credentials \
+  --from-literal=oidc-client-secret="$SECRET" \
+  --from-literal=trino-auth-password=stackable-ui-dev
+
+# ------------------------------------------------------------------
+# 10. Wait for Trino to be ready
 # ------------------------------------------------------------------
 if [[ "$SKIP_TRINO" == false ]]; then
   echo ""
