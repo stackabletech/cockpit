@@ -40,7 +40,7 @@ test.describe('Storage S3 — Delete & Selection', () => {
       await page.getByLabel('Select remove-me.txt').check();
       await page.getByLabel('Select archive').check();
 
-      await page.getByRole('button', { name: 'Delete' }).click();
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
       await expect(page.getByText('All contents will be permanently deleted')).toBeVisible();
       await page.getByRole('button', { name: 'Delete permanently' }).click();
 
@@ -70,7 +70,7 @@ test.describe('Storage S3 — Delete & Selection', () => {
 
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel('Select keep-me.txt').check();
-      await page.getByRole('button', { name: 'Delete' }).click();
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
 
       await expect(page.getByText('This action cannot be undone.')).toBeVisible();
 

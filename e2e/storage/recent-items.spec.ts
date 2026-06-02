@@ -96,7 +96,7 @@ test.describe('Storage S3 — Recent Items', () => {
       await waitForHydration(page);
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel('Select to-delete.txt').check();
-      await page.getByRole('button', { name: 'Delete' }).click();
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
       await page.getByRole('button', { name: 'Delete permanently' }).click();
       await expect(page.getByText('This bucket is empty')).toBeVisible();
 
@@ -139,7 +139,7 @@ test.describe('Storage S3 — Recent Items', () => {
       await waitForHydration(page);
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel('Select sub').check();
-      await page.getByRole('button', { name: 'Delete' }).click();
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
       await page.getByRole('button', { name: 'Delete permanently' }).click();
       await expect(page.getByText('This bucket is empty')).toBeVisible();
 
