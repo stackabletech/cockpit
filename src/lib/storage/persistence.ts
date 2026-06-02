@@ -6,8 +6,6 @@ export const LS_PINS = 'pinned_storage_locations';
 export const LS_RECENT_FILES = 'recent_storage_files';
 export const LS_RECENT_LOCATIONS = 'recent_storage_locations';
 
-export const MAX_RECENT = 15;
-
 // ── Utilities ────────────────────────────────────────────────────────────────
 
 export function loadFromStorage<T>(key: string): T[] {

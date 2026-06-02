@@ -3,9 +3,7 @@ import { parquetMetadataAsync, parquetReadObjects, parquetSchema } from 'hyparqu
 import { compressors } from 'hyparquet-compressors';
 import type pino from 'pino';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
-
-/** Maximum rows to include in a parquet preview. */
-const PARQUET_PREVIEW_ROWS = 250;
+import { filePreviewRows } from '$lib/server/feature-flags.js';
 
 /**
  * Override the pure-JS GZIP decompressor from hyparquet-compressors with
@@ -82,7 +80,7 @@ export async function parquetPreview(
 
   const parquetMeta = await parquetMetadataAsync(footerBuffer);
   const totalRows = Number(parquetMeta.num_rows);
-  const previewRows = Math.min(totalRows, PARQUET_PREVIEW_ROWS);
+  const previewRows = Math.min(totalRows, filePreviewRows);
   const truncated = previewRows < totalRows;
   const schema = parquetSchema(parquetMeta);
   const columnNames = schema.children.map((e) => e.element.name);

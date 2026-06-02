@@ -105,6 +105,26 @@ docker build . -f docker/Dockerfile --build-arg TARGETARCH=x86 --build-arg VERSI
 docker run -p 3000:3000 stackable-ui:0.0.0-dev
 ```
 
+## Configuration
+
+The application is configured via environment variables. Create a `.env` file at the project root (or set these in your deployment environment).
+
+### Feature Flags
+
+| Variable                               | Type                             | Default | Description                                                                                                                                                             | Example                                     |
+| -------------------------------------- | -------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `STACKABLE_UI_COMPLETION_ENABLED`      | `boolean` (`"false"` to disable) | `true`  | Enables the SQL editor code-completion provider and the metadata endpoint. Set to `"false"` to fall back to plain syntax highlighting.                                  | `STACKABLE_UI_COMPLETION_ENABLED=false`     |
+| `STACKABLE_UI_STORAGE_BROWSER_ENABLED` | `boolean` (`"true"` to enable)   | `false` | Shows the S3/HDFS file browser in the sidebar and activates routes under `/storage`. Must be explicitly opted in to expose storage credentials and the file-browser UI. | `STACKABLE_UI_STORAGE_BROWSER_ENABLED=true` |
+
+### Storage Preview Limits
+
+| Variable                           | Type              | Default             | Description                                                                                | Example                                     |
+| ---------------------------------- | ----------------- | ------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------- |
+| `STACKABLE_UI_TEXT_PREVIEW_BYTES`  | `integer` (bytes) | `262144` (256 KiB)  | Maximum bytes fetched when previewing text, CSV, or JSON files.                            | `STACKABLE_UI_TEXT_PREVIEW_BYTES=524288`    |
+| `STACKABLE_UI_IMAGE_PREVIEW_BYTES` | `integer` (bytes) | `5242880` (5 MiB)   | Maximum bytes fetched when previewing image files.                                         | `STACKABLE_UI_IMAGE_PREVIEW_BYTES=10485760` |
+| `STACKABLE_UI_PDF_PREVIEW_BYTES`   | `integer` (bytes) | `26214400` (25 MiB) | Maximum bytes fetched when previewing PDF files.                                           | `STACKABLE_UI_PDF_PREVIEW_BYTES=52428800`   |
+| `STACKABLE_UI_FILE_PREVIEW_ROWS`   | `integer` (rows)  | `250`               | Maximum number of rows included in a tabular file preview (e.g. Parquet converted to CSV). | `STACKABLE_UI_FILE_PREVIEW_ROWS=500`        |
+
 ## Contributing
 
 1. Make your changes

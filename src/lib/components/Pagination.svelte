@@ -5,7 +5,8 @@
   import IconLastPage from 'virtual:icons/material-symbols/last-page';
   import * as m from '$lib/paraglide/messages.js';
   import { browser } from '$app/environment';
-  import { ALLOWED_PAGE_SIZES, isPageSize, type PageSize } from '$lib/types/pagination.js';
+  import { isPageSize, type PageSize } from '$lib/types/pagination.js';
+  import { allowedPageSizes } from '$lib/client/feature-flags.js';
 
   interface Props {
     /** Bound page size — parent initialises this from `initPageSize()`. */
@@ -92,7 +93,7 @@
       value={pageSize}
       onchange={handlePageSizeChange}
     >
-      {#each ALLOWED_PAGE_SIZES as size (size)}
+      {#each allowedPageSizes as size (size)}
         <option value={size}>{size}</option>
       {/each}
     </select>
