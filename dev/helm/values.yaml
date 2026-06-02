@@ -1,0 +1,22 @@
+---
+auth:
+  baseUrl: 'http://localhost:3000'
+  oidc:
+    discoveryUrl: 'http://172.18.0.2:30080/realms/stackable/.well-known/openid-configuration'
+    clientId: 'stackable-ui'
+    clientSecret:
+      secretKeyRef:
+        name: stackable-ui-credentials
+        key: oidc-client-secret
+
+trino:
+  url: 'https://trino-coordinator-default-headless:8443'
+  auth:
+    type: 'basic'
+    username: 'stackable-ui'
+    password:
+      secretKeyRef:
+        name: stackable-ui-credentials
+        key: trino-auth-password
+  tls:
+    insecure: true

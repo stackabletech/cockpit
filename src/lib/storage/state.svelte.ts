@@ -177,6 +177,11 @@ export class StorageState {
     this._onNavigate(this.prefix, null, this.pageSize);
   };
 
+  refresh = (): void => {
+    this.loading = true;
+    void invalidateAll();
+  };
+
   onPageSizeChange = (): void => {
     this.prevTokens = [];
     this.navigateFirst();
@@ -245,7 +250,7 @@ export class StorageState {
 
       case 'preview':
         if (!key) {
-          addToast('warning', 'No file selected for preview');
+          addToast('warning', m.storage_action_preview_no_selection());
           return;
         }
         for (const f of effectiveSelectedFiles) {
@@ -256,7 +261,7 @@ export class StorageState {
 
       case 'download':
         if (!key) {
-          addToast('warning', 'No file selected for download');
+          addToast('warning', m.storage_action_download_no_selection());
           return;
         }
         for (const f of effectiveSelectedFiles) {
@@ -365,11 +370,15 @@ export class StorageState {
       failed: Array<{ key: string; code?: string; message?: string }>;
     };
 
-    // Clean up pinned locations and recent items for deleted directories
+    // Clean up pinned locations and recent items for deleted paths
     const dirPrefixes = keys.filter((k) => k.endsWith('/'));
+    const fileKeys = keys.filter((k) => !k.endsWith('/'));
     if (dirPrefixes.length > 0) {
       this.bookmarks.unpinUnderDirectories(bucket, dirPrefixes);
       this.bookmarks.removeItemsUnderDirectories(bucket, dirPrefixes);
+    }
+    if (fileKeys.length > 0) {
+      this.bookmarks.removeFiles(bucket, fileKeys);
     }
 
     return result;

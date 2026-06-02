@@ -24,8 +24,12 @@ project.inlang/
 .parcel-cache/
 node_modules/
 
+# Vitest Coverage reports
+coverage/
+
 # Database migrations
 /drizzle/
 
 # Helm templates
 deploy/helm/
+dev/garage/
