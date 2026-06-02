@@ -68,12 +68,7 @@ Create the name of the service account to use
 {{- if and $existing $existing.data (index $existing.data "session-secret") }}
 {{- index $existing.data "session-secret" | b64dec }}
 {{- else }}
-{{- $existing := lookup "v1" "Secret" .Release.Namespace (include "stackable-ui.fullname" .) }}
-{{- if and $existing $existing.data (index $existing.data "session-secret") }}
-{{- index $existing.data "session-secret" | b64dec }}
-{{- else }}
 {{- randAlphaNum 64 }}
-{{- end }}
 {{- end }}
 {{- end }}
 
