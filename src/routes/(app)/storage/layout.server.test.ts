@@ -38,7 +38,12 @@ describe('storage layout load', () => {
     vi.mocked(getConnection).mockReturnValue(null);
 
     const result = await load(mockEvent());
-    expect(result).toEqual({ connected: false, buckets: [], connectionType: null });
+    expect(result).toEqual({
+      connected: false,
+      buckets: [],
+      connectionType: null,
+      connectionId: null
+    });
   });
 
   it('returns buckets when connected', async () => {
@@ -49,11 +54,14 @@ describe('storage layout load', () => {
     vi.mocked(listBuckets).mockResolvedValue(['bucket-a', 'bucket-b']);
 
     const result = await load(mockEvent());
-    expect(result).toEqual({
-      connected: true,
-      buckets: ['bucket-a', 'bucket-b'],
-      connectionType: 's3'
-    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        connected: true,
+        buckets: ['bucket-a', 'bucket-b'],
+        connectionType: 's3'
+      })
+    );
+    expect(result).toHaveProperty('connectionId');
   });
 
   it('returns empty buckets when listBuckets fails', async () => {
@@ -64,6 +72,9 @@ describe('storage layout load', () => {
     vi.mocked(listBuckets).mockRejectedValue(new Error('network'));
 
     const result = await load(mockEvent());
-    expect(result).toEqual({ connected: true, buckets: [], connectionType: 's3' });
+    expect(result).toEqual(
+      expect.objectContaining({ connected: true, buckets: [], connectionType: 's3' })
+    );
+    expect(result).toHaveProperty('connectionId');
   });
 });
