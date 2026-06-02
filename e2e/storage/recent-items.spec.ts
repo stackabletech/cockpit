@@ -132,7 +132,7 @@ test.describe('Storage S3 — Recent Items', () => {
       await waitForHydration(page);
       await expect(page.locator('tbody').getByText('nested.txt')).toBeVisible();
       await page.getByRole('tab', { name: 'Recent Locations' }).click();
-      await expect(page.locator('tbody').getByText('sub')).toBeVisible();
+      await expect(page.locator('tbody').getByText('sub', { exact: true })).toBeVisible();
 
       // Delete the parent directory via the UI
       await page.goto(bucketRoute(credentials.bucket, prefix));
@@ -148,7 +148,7 @@ test.describe('Storage S3 — Recent Items', () => {
       await waitForHydration(page);
       await expect(page.locator('tbody').getByText('nested.txt')).not.toBeVisible();
       await page.getByRole('tab', { name: 'Recent Locations' }).click();
-      await expect(page.locator('tbody').getByText('sub')).not.toBeVisible();
+      await expect(page.locator('tbody').getByText('sub', { exact: true })).not.toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, [nestedKey]);
     }
