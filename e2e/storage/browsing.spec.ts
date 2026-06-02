@@ -114,6 +114,38 @@ test.describe('Storage S3 — Browsing', () => {
     }
   });
 
+  test('refresh button reloads the file listing', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'refresh');
+    const initialKey = `${prefix}initial.txt`;
+    const addedKey = `${prefix}added-later.txt`;
+
+    try {
+      await putTextObject(client, credentials.bucket, initialKey, 'initial content');
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      // Only the initial file should be visible.
+      await expect(rowByName(page, 'initial.txt')).toBeVisible();
+      await expect(rowByName(page, 'added-later.txt')).not.toBeVisible();
+
+      // Upload a second file directly via S3, bypassing the UI.
+      await putTextObject(client, credentials.bucket, addedKey, 'added later');
+
+      // The newly added file should not appear yet — the listing is stale.
+      await expect(rowByName(page, 'added-later.txt')).not.toBeVisible();
+
+      // Click the refresh button in the toolbar.
+      await page.getByRole('button', { name: 'Refresh' }).click();
+
+      // After refresh the newly added file should now be visible.
+      await expect(rowByName(page, 'added-later.txt')).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [initialKey, addedKey]);
+    }
+  });
+
   test('changes the page size and shows more items per page', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
