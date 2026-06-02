@@ -107,6 +107,13 @@ export class StorageState {
     this.selectedKeys = new SvelteSet<string>();
   }
 
+  /** Add a bucket to the in-memory list (no server-side persistence). */
+  addBucket(name: string): void {
+    if (!this.buckets.includes(name)) {
+      this.buckets = [...this.buckets, name];
+    }
+  }
+
   setNavigationHandler(fn: NavigateFn): void {
     this._onNavigate = fn;
   }
