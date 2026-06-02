@@ -34,7 +34,7 @@ RUN NODEJS_VERSION=$(cat /tmp/.node-version) && \
         | tar -xzf - --strip-components=1 -C /usr/local
 
 #
-# Build stage - compiles the SvelteKit application
+# Build stage - compiles the SvelteKit application with full dependencies
 #
 FROM base AS builder
 
@@ -63,12 +63,28 @@ COPY svelte.config.js tsconfig.json vite.config.ts ./
 # builder stage.
 RUN STACKABLE_UI_SESSION_SECRET="build-time-placeholder" \
     STACKABLE_UI_BASE_URL="http://localhost:3000" \
-    npm run build && \
-    npx @cyclonedx/cyclonedx-npm --omit dev --output-file /build/stackable-ui.cdx.json
+    npm run build
+
+#
+# Production dependencies stage - clean prod-only install
+#
+FROM base AS prod-deps
+
+WORKDIR /build
+
+COPY package.json package-lock.json .npmrc ./
 
 # Install only production dependencies; --ignore-scripts skips the prepare script
 # (which would fail because antlr-ng is a devDependency and not available here)
-RUN --mount=type=cache,target=/root/.npm npm ci --omit dev --ignore-scripts
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --ignore-scripts
+
+#
+# SBOM stage - generate CycloneDX from the clean prod-only dependency tree
+#
+FROM prod-deps AS sbom
+
+RUN npm ls --omit=dev && \
+    npx @cyclonedx/cyclonedx-npm --omit dev --output-file /build/stackable-ui.cdx.json
 
 #
 # Production stage - minimal runtime image
@@ -99,10 +115,10 @@ RUN microdnf install -y shadow-utils && \
 WORKDIR /stackable/app
 
 # Copy built application from builder stage
-COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/build ./build
-COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node_modules
-COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
-COPY --from=builder --chown=${STACKABLE_USER_UID}:0 /build/stackable-ui.cdx.json ./stackable-ui.cdx.json
+COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/build ./build
+COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node_modules
+COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
+COPY --from=sbom      --chown=${STACKABLE_USER_UID}:0 /build/stackable-ui.cdx.json ./stackable-ui.cdx.json
 COPY --chown=${STACKABLE_USER_UID}:0 LICENSE /licenses/LICENSE
 RUN chmod -R g=u /stackable/app
 

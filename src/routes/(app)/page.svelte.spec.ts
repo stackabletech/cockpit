@@ -26,6 +26,30 @@ describe('/(app)/+page.svelte', () => {
     await expect.element(page.getByText('Health', { exact: true })).toBeInTheDocument();
   });
 
+  it('should display the service count from props', async () => {
+    render(Page, {
+      params: {},
+      data: { user: null, storageBrowserEnabled: true, serviceCount: 5, healthy: true },
+      form: null
+    });
+
+    await expect.element(page.getByText('5')).toBeInTheDocument();
+  });
+
+  it('should display the health OK status', async () => {
+    renderPage();
+
+    await expect.element(page.getByText('OK')).toBeInTheDocument();
+  });
+
+  it('should render the dashboard subtitle', async () => {
+    renderPage();
+
+    await expect
+      .element(page.getByText(/stackable unified data platform overview/i))
+      .toBeInTheDocument();
+  });
+
   it('should render the getting started section', async () => {
     renderPage();
 

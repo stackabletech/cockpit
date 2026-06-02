@@ -136,38 +136,41 @@
     enhance: connectionEnhance,
     errors: connectionErrors,
     message: connectionMessage
-  } = superForm(data.connectionForm, {
-    onSubmit({ cancel }) {
-      const result = ConnectionSchema.safeParse({
-        connectionUrl,
-        authType,
-        authUsername,
-        authPassword
-      });
-      if (!result.success) {
-        const errors: Record<string, string[]> = {};
-        for (const issue of result.error.issues) {
-          const key = String(issue.path[0]);
-          (errors[key] ??= []).push(issue.message);
+  } = superForm(
+    untrack(() => data.connectionForm),
+    {
+      onSubmit({ cancel }) {
+        const result = ConnectionSchema.safeParse({
+          connectionUrl,
+          authType,
+          authUsername,
+          authPassword
+        });
+        if (!result.success) {
+          const errors: Record<string, string[]> = {};
+          for (const issue of result.error.issues) {
+            const key = String(issue.path[0]);
+            (errors[key] ??= []).push(issue.message);
+          }
+          $connectionErrors = {
+            connectionUrl: errors.connectionUrl,
+            authType: errors.authType,
+            authUsername: errors.authUsername,
+            authPassword: errors.authPassword
+          };
+          cancel();
         }
-        $connectionErrors = {
-          connectionUrl: errors.connectionUrl,
-          authType: errors.authType,
-          authUsername: errors.authUsername,
-          authPassword: errors.authPassword
-        };
-        cancel();
-      }
-    },
-    onUpdated({ form }) {
-      const msg = form.message as ConnectionMessage | undefined;
-      if (msg?.type === 'success') {
-        catalogVersion++;
-      } else if (msg?.type === 'error') {
-        connectionOpen = true;
+      },
+      onUpdated({ form }) {
+        const msg = form.message as ConnectionMessage | undefined;
+        if (msg?.type === 'success') {
+          catalogVersion++;
+        } else if (msg?.type === 'error') {
+          connectionOpen = true;
+        }
       }
     }
-  });
+  );
 
   const isActive = $derived(runner.state !== 'IDLE' && !isTerminal(runner.state));
   const skippedStatements = $derived.by(() => {

@@ -169,6 +169,7 @@
       aria-selected="false"
       class="select-none"
     >
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div
         class="hover:bg-base-200 flex items-center gap-1 rounded px-1 py-0.5 text-sm {leaf
           ? ''

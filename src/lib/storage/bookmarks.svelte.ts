@@ -7,7 +7,7 @@ import {
   loadFromStorage,
   persistToStorage
 } from './persistence.js';
-import { SvelteDate } from 'svelte/reactivity';
+import { SvelteDate, SvelteSet } from 'svelte/reactivity';
 
 export class BookmarksState {
   pinnedLocations = $state<PinnedLocation[]>(loadFromStorage<PinnedLocation>(LS_PINS));
@@ -69,6 +69,17 @@ export class BookmarksState {
     this.recentLocations.unshift(entry);
     if (this.recentLocations.length > MAX_RECENT) this.recentLocations.splice(MAX_RECENT);
     persistToStorage(LS_RECENT_LOCATIONS, [...this.recentLocations]);
+  }
+
+  removeFiles(bucket: string, fileKeys: string[]): void {
+    if (fileKeys.length === 0) return;
+    const keySet = new SvelteSet(fileKeys);
+    const before = this.recentFiles.length;
+    const keep = this.recentFiles.filter((f) => !(f.bucket === bucket && keySet.has(f.key)));
+    if (keep.length !== before) {
+      this.recentFiles.splice(0, this.recentFiles.length, ...keep);
+      persistToStorage(LS_RECENT_FILES, [...this.recentFiles]);
+    }
   }
 
   removeItemsUnderDirectories(bucket: string, dirPrefixes: string[]): void {

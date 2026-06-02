@@ -33,6 +33,10 @@ dist/
 .claude/settings.local.json
 .claude/CLAUDE.local.md
 
+# Vitest coverage reports
+coverage/
+coverage/*
+
 # Playwright
 e2e/test-results
 e2e/.auth

@@ -179,6 +179,8 @@
   "storage_selected": "{count} selected",
   "storage_action_preview": "Preview",
   "storage_action_refresh": "Refresh",
+  "storage_action_preview_no_selection": "No file selected for preview.",
+  "storage_action_download_no_selection": "No file selected for download.",
   "storage_action_rename": "Rename",
   "storage_action_download": "Download",
   "storage_action_cut": "Cut",
