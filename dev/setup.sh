@@ -304,7 +304,17 @@ fi
 echo "Wrote $ENV_FILE"
 
 # ------------------------------------------------------------------
-# 9. Wait for Trino to be ready
+# 9. Create Kubernetes Secret for the Helm chart
+# ------------------------------------------------------------------
+echo ""
+echo "Creating stackable-ui-credentials Secret..."
+kubectl delete secret stackable-ui-credentials --ignore-not-found
+kubectl create secret generic stackable-ui-credentials \
+  --from-literal=oidc-client-secret="$SECRET" \
+  --from-literal=trino-auth-password=stackable-ui-dev
+
+# ------------------------------------------------------------------
+# 10. Wait for Trino to be ready
 # ------------------------------------------------------------------
 if [[ "$SKIP_TRINO" == false ]]; then
   echo ""
