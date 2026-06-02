@@ -1,7 +1,14 @@
 import type { z } from 'zod';
 import type { StorageConnectionSchema } from './schemas.js';
 
-type StoredConnection = z.infer<typeof StorageConnectionSchema>;
+export type StoredConnection = z.infer<typeof StorageConnectionSchema>;
+
+/**
+ * HTTP header name used to pass the S3 connection config from the browser to
+ * the backend API endpoints. Defined here (client-safe module) so both client
+ * and server code can import it without leaking server-only code to the browser.
+ */
+export const STORAGE_CONNECTION_HEADER = 'x-storage-connection';
 
 const STORAGE_KEY = 'stackable_storage_connections';
 
@@ -61,4 +68,12 @@ export function removeConnectionLocally(data: StoredConnection): void {
   } catch {
     // localStorage may be unavailable
   }
+}
+
+/**
+ * Encode a connection config as a base64 JSON string suitable for the
+ * `X-Storage-Connection` request header sent to the backend.
+ */
+export function getConnectionHeader(connection: StoredConnection): string {
+  return btoa(JSON.stringify(connection));
 }

@@ -30,11 +30,11 @@ S3 connection credentials (access key ID and secret access key) are persisted in
 
 ---
 
-### In-memory storage connection state
+### Download endpoint buffers entire object in browser memory
 
-**File:** `src/lib/server/storage/user-connections.ts`
+**File:** `src/lib/storage/download.ts`
 
-Per-user S3 connection configs (endpoint, region, credentials) are stored in a server-side `Map`. All connections are lost on server restart and cannot be shared across multiple replicas. Acceptable for the initial phase; mirrors the same pattern used by the Trino user-clients module. Long-term fix: persist encrypted connection configs server-side, tied to the authenticated session.
+`downloadObject` fetches the full S3 object body via the `/storage/api/download` endpoint, buffers it as a `Blob` in browser memory, then triggers a programmatic anchor click. This is simpler than streaming directly to disk but means the entire object must fit in browser memory before the save dialog appears. Acceptable for the current object sizes; for very large files (multiple GiB) this will cause memory pressure. Long-term fix: use the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) `createWritable()` to stream bytes directly to disk without buffering, with a fallback to the current Blob approach for Firefox (which does not support `showSaveFilePicker`).
 
 ---
 
@@ -125,14 +125,6 @@ No CSP headers are set anywhere. This leaves the app exposed to XSS in ways that
 **File:** `vite.config.ts`
 
 The dev server accepts requests from any host. This enables DNS rebinding attacks against local development environments. Should be restricted to `localhost` / `127.0.0.1` unless remote dev access is explicitly needed.
-
----
-
-### Upload endpoint uses in-memory S3 credentials
-
-**File:** `src/routes/(app)/storage/api/upload/+server.ts`, `src/lib/server/storage/user-connections.ts`
-
-The upload endpoint reads S3 credentials from the same per-user in-memory connection map used by download and preview. This introduces no additional security risk beyond what is already documented in the "In-memory storage connection state" entry above. Long-term fix: same as that entry — persist encrypted credentials server-side.
 
 ---
 

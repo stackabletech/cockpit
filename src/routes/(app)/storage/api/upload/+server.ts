@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { uploadObject } from '$lib/server/storage/service.js';
-import { getUserId } from '$lib/server/auth-utils.js';
+import { requireConnection } from '$lib/server/storage/connection.js';
 import { requireBucketKey } from '../params.js';
 import type { RequestHandler } from './$types';
 
@@ -11,16 +11,12 @@ import type { RequestHandler } from './$types';
  * @aws-sdk/lib-storage). The request body is piped to the S3 SDK without
  * buffering in server memory, regardless of file size.
  *
- * Assumptions (v0):
- * - Credentials come from the in-memory per-user S3 connection config
- *   (same as download/preview). No production credential vaulting.
- * - No server-side file size limit is enforced; S3's 5 TB object limit applies.
- * - A single Content-Type header value is trusted from the client and forwarded
- *   to S3 as-is.
+ * The connection config is read from the `X-Storage-Connection` request header
+ * (base64-encoded JSON), set by the client from its localStorage entry.
  */
 export const POST: RequestHandler = async ({ locals, url, request }) => {
   const log = locals.logger;
-  const userId = getUserId(locals);
+  const config = requireConnection(request);
   const { bucket, key } = requireBucketKey(url);
 
   if (!request.body) {
@@ -39,7 +35,7 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
     'upload request received'
   );
 
-  await uploadObject(userId, bucket, key, request.body, contentType, contentLength);
+  await uploadObject(config, bucket, key, request.body, contentType, contentLength);
 
   log.info(
     { bucket, key, content_type: contentType, content_length: contentLength },

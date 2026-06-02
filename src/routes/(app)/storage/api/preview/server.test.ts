@@ -3,11 +3,12 @@ import { S3ServiceException } from '@aws-sdk/client-s3';
 
 const mockGetMetadata = vi.fn();
 vi.mock('$lib/server/storage/utils.js', () => ({
-  getProviderForUser: vi.fn(() => ({ getMetadata: mockGetMetadata }))
+  getProvider: vi.fn(() => ({ getMetadata: mockGetMetadata }))
 }));
 
-vi.mock('$lib/server/auth-utils.js', () => ({
-  getUserId: vi.fn(() => 'test-user')
+vi.mock('$lib/server/storage/connection.js', () => ({
+  requireConnection: vi.fn(() => ({ type: 's3', region: 'us-east-1' })),
+  STORAGE_CONNECTION_HEADER: 'x-storage-connection'
 }));
 
 vi.mock('$lib/server/storage/preview/binary.js', () => ({
@@ -30,10 +31,15 @@ import { binaryPreview } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
 import { mapS3ErrorToHttp } from '$lib/server/storage/s3-errors.js';
 
+const CONNECTION_HEADER = {
+  'x-storage-connection': btoa(JSON.stringify({ type: 's3', region: 'us-east-1' }))
+};
+
 function mockEvent(params: string) {
   const url = new URL(`http://localhost/storage/api/preview?${params}`);
   return {
     url,
+    request: { headers: new Headers(CONNECTION_HEADER) },
     locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
   } as unknown as Parameters<typeof GET>[0];
 }
@@ -59,7 +65,7 @@ describe('GET /storage/api/preview', () => {
       'data.csv',
       'text/csv',
       100,
-      'test-user',
+      'client',
       expect.anything()
     );
   });
@@ -74,7 +80,7 @@ describe('GET /storage/api/preview', () => {
       'readme.txt',
       'text/plain',
       50,
-      'test-user',
+      'client',
       expect.anything()
     );
   });
