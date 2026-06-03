@@ -3,7 +3,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import type { Actions, PageServerLoad } from './$types';
 import { StorageConnectionSchema } from '$lib/storage/schemas.js';
-import { listBuckets } from '$lib/server/storage/service.js';
+import { getConnectionProvider } from '$lib/server/storage/utils.js';
 import type { S3ConnectionConfig } from '$lib/server/storage/types.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -38,7 +38,7 @@ export const actions: Actions = {
     };
 
     try {
-      await listBuckets(config);
+      await getConnectionProvider(config).listBuckets();
       log.info({ storage_type: type }, 'user storage connection verified');
     } catch (err) {
       log.warn({ err }, 'storage connection test failed');

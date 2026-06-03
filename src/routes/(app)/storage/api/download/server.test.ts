@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('$lib/server/storage/service.js', () => ({
-  downloadObject: vi.fn(),
-  getObjectMetadata: vi.fn()
+const mockProvider = { getObject: vi.fn(), getMetadata: vi.fn() };
+vi.mock('$lib/server/storage/utils.js', () => ({
+  getProvider: () => mockProvider
 }));
 
 vi.mock('$lib/server/storage/connection.js', () => ({
@@ -11,7 +11,6 @@ vi.mock('$lib/server/storage/connection.js', () => ({
 }));
 
 import { GET, HEAD } from './+server.js';
-import { downloadObject, getObjectMetadata } from '$lib/server/storage/service.js';
 
 const CONNECTION_HEADER = {
   'x-storage-connection': btoa(JSON.stringify({ type: 's3', region: 'us-east-1' }))
@@ -31,12 +30,12 @@ describe('GET /storage/api/download', () => {
 
   it('streams download with correct headers', async () => {
     const stream = new ReadableStream();
-    vi.mocked(downloadObject).mockResolvedValue({
+    mockProvider.getObject.mockResolvedValue({
       stream,
       contentType: 'text/csv',
       contentLength: 1234,
       etag: '"abc"'
-    } as unknown as Awaited<ReturnType<typeof downloadObject>>);
+    });
 
     const res = await GET(mockEvent('bucket=b1&key=path/data.csv'));
 
@@ -48,12 +47,12 @@ describe('GET /storage/api/download', () => {
   });
 
   it('uses application/octet-stream when no content type', async () => {
-    vi.mocked(downloadObject).mockResolvedValue({
+    mockProvider.getObject.mockResolvedValue({
       stream: new ReadableStream(),
       contentType: undefined,
       contentLength: undefined,
       etag: undefined
-    } as unknown as Awaited<ReturnType<typeof downloadObject>>);
+    });
 
     const res = await GET(mockEvent('bucket=b1&key=file.bin'));
     expect(res.headers.get('Content-Type')).toBe('application/octet-stream');
@@ -65,10 +64,10 @@ describe('HEAD /storage/api/download', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns 200 with metadata headers', async () => {
-    vi.mocked(getObjectMetadata).mockResolvedValue({
+    mockProvider.getMetadata.mockResolvedValue({
       contentType: 'application/json',
       size: 999
-    } as unknown as Awaited<ReturnType<typeof getObjectMetadata>>);
+    });
 
     const res = await HEAD(mockEvent('bucket=b1&key=data.json'));
 

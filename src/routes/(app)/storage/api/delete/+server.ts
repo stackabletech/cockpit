@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { deleteObjects } from '$lib/server/storage/service.js';
+import { getProvider } from '$lib/server/storage/utils.js';
 import { requireConnection } from '$lib/server/storage/connection.js';
 import { requireBucket } from '../params.js';
 
@@ -24,7 +24,7 @@ export const DELETE: RequestHandler = async ({ locals, url, request }) => {
 
   locals.logger.debug({ bucket, key_count: keys.length }, 'delete request received');
 
-  const result = await deleteObjects(config, bucket, keys);
+  const result = await getProvider(config, bucket).deleteObjects(keys);
 
   locals.logger.info(
     { bucket, key_count: keys.length, failed_count: result.failed.length },

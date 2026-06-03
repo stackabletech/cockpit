@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { listObjects } from '$lib/server/storage/service.js';
+import { getProvider } from '$lib/server/storage/utils.js';
 import { requireConnection } from '$lib/server/storage/connection.js';
 import type { RequestHandler } from './$types';
 
@@ -25,6 +25,10 @@ export const GET: RequestHandler = async ({ request, url, locals }) => {
     'listing objects'
   );
 
-  const page = await listObjects(config, bucket, prefix, pageSize, continuationToken);
+  const page = await getProvider(config, bucket).listObjects(
+    prefix,
+    pageSize,
+    continuationToken ?? undefined
+  );
   return Response.json(page);
 };

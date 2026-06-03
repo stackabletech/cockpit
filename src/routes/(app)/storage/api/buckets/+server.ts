@@ -1,4 +1,4 @@
-import { listBuckets } from '$lib/server/storage/service.js';
+import { getConnectionProvider } from '$lib/server/storage/utils.js';
 import { requireConnection } from '$lib/server/storage/connection.js';
 import type { RequestHandler } from './$types';
 
@@ -10,7 +10,7 @@ import type { RequestHandler } from './$types';
  */
 export const GET: RequestHandler = async ({ request, locals }) => {
   const config = requireConnection(request);
-  const buckets = await listBuckets(config);
+  const buckets = await getConnectionProvider(config).listBuckets();
   locals.logger.debug({ bucket_count: buckets.length }, 'bucket list returned');
   return Response.json(buckets);
 };

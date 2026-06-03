@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { faker } from '@faker-js/faker';
 
-vi.mock('$lib/server/storage/service.js', () => ({
-  deleteObjects: vi.fn()
+const mockProvider = { deleteObjects: vi.fn() };
+vi.mock('$lib/server/storage/utils.js', () => ({
+  getProvider: () => mockProvider
 }));
 
 vi.mock('$lib/server/storage/connection.js', () => ({
@@ -11,7 +12,6 @@ vi.mock('$lib/server/storage/connection.js', () => ({
 }));
 
 import { DELETE } from './+server.js';
-import { deleteObjects } from '$lib/server/storage/service.js';
 
 const CONNECTION_HEADER = {
   'x-storage-connection': btoa(JSON.stringify({ type: 's3', region: 'us-east-1' }))
@@ -51,12 +51,10 @@ describe('DELETE /storage/api/delete', () => {
   it('deletes objects and returns JSON result', async () => {
     const keys = [faker.system.fileName(), faker.system.fileName()];
     const result = { deleted: keys, failed: [] };
-    vi.mocked(deleteObjects).mockResolvedValue(
-      result as unknown as Awaited<ReturnType<typeof deleteObjects>>
-    );
+    mockProvider.deleteObjects.mockResolvedValue(result);
 
     const response = await DELETE(mockEvent({ bucket: 'b1', keys }));
-    expect(deleteObjects).toHaveBeenCalledWith(expect.objectContaining({ type: 's3' }), 'b1', keys);
+    expect(mockProvider.deleteObjects).toHaveBeenCalledWith(keys);
     expect(await response.json()).toEqual(result);
   });
 });
