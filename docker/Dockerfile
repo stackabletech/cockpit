@@ -61,8 +61,8 @@ COPY svelte.config.js tsconfig.json vite.config.ts ./
 # Build the application. The dummy env vars let better-auth initialise during
 # SSR prerender; they are scoped to this single RUN and discarded with the
 # builder stage.
-RUN STACKABLE_UI_SESSION_SECRET="build-time-placeholder" \
-    STACKABLE_UI_BASE_URL="http://localhost:3000" \
+RUN STACKABLE_COCKPIT_SESSION_SECRET="build-time-placeholder" \
+    STACKABLE_COCKPIT_BASE_URL="http://localhost:3000" \
     npm run build
 
 #
