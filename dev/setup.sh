@@ -206,7 +206,7 @@ if [[ "$SKIP_GARAGE" == false ]]; then
   deadline=$(( $(date +%s) + 60 ))
   while [ -z "$GARAGE_BASE_URL" ] && [ "$(date +%s)" -lt "$deadline" ]; do
     for base in "http://${NODE_IP}:${GARAGE_ADMIN_PORT}" "http://127.0.0.1:${GARAGE_ADMIN_PORT}" "http://localhost:${GARAGE_ADMIN_PORT}"; do
-      if curl -sf --max-time 2 -H "Authorization: Bearer stackable-ui-e2e-admin-token" "${base}/v2/ListBuckets" >/dev/null 2>&1; then
+      if curl -sf --max-time 2 -H "Authorization: Bearer stackable-cockpit-e2e-admin-token" "${base}/v2/ListBuckets" >/dev/null 2>&1; then
         GARAGE_BASE_URL="$base"
         break
       fi
@@ -224,7 +224,7 @@ if [[ "$SKIP_GARAGE" == false ]]; then
   GARAGE_HOST=$(echo "$GARAGE_BASE_URL" | sed 's|http://||; s|:[0-9]*$||')
   GARAGE_S3_URL="http://${GARAGE_HOST}:${GARAGE_S3_PORT}"
 
-  GARAGE_ADMIN_TOKEN=stackable-ui-e2e-admin-token \
+  GARAGE_ADMIN_TOKEN=stackable-cockpit-e2e-admin-token \
     S3_ENDPOINT="$GARAGE_S3_URL" \
     GARAGE_ADMIN_URL="$GARAGE_BASE_URL" \
     S3_CONFIG_PATH="$PROJECT_DIR/s3-config.json" \
