@@ -146,6 +146,6 @@ The upload endpoint imposes no maximum file size. S3's 5 TB single-object limit 
 
 ### No `/readyz` endpoint — readiness uses the trivial liveness probe
 
-**File:** `src/routes/healthz/+server.ts`, `deploy/helm/stackable-ui/values.yaml`
+**File:** `src/routes/healthz/+server.ts`, `deploy/helm/cockpit/values.yaml`
 
 Both `livenessProbe` and `readinessProbe` point at `/healthz`, which always returns 200. There is currently nothing meaningful to gate readiness on (better-auth uses an in-memory session store, OIDC discovery is fetched lazily on first auth call), so a separate `/readyz` would just be a placeholder. Once one of these lands — a real session store / DB, eager OIDC discovery, or a startup-time cache warm — split into `/healthz` (liveness, trivial) and `/readyz` (readiness, checking the new dependency), and update the helm probes accordingly.
