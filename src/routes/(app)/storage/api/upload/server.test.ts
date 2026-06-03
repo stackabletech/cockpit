@@ -5,11 +5,6 @@ vi.mock('$lib/server/storage/utils.js', () => ({
   getProvider: () => mockProvider
 }));
 
-vi.mock('$lib/server/storage/connection.js', () => ({
-  requireConnection: vi.fn(() => ({ type: 's3', region: 'us-east-1' })),
-  STORAGE_CONNECTION_HEADER: 'x-storage-connection'
-}));
-
 import { POST } from './+server.js';
 
 const CONNECTION_HEADER = {
@@ -31,7 +26,11 @@ function mockEvent(opts: {
   return {
     url,
     request: { body, headers },
-    locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
+    locals: {
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
+      user: { id: 'test-user' },
+      storageConfig: { type: 's3', region: 'us-east-1' }
+    }
   } as unknown as Parameters<typeof POST>[0];
 }
 
@@ -66,7 +65,7 @@ describe('POST /storage/api/upload', () => {
     );
 
     expect(res.status).toBe(201);
-    expect(mockProvider.putObject).toHaveBeenCalledWith(body, 'image/png', 100);
+    expect(mockProvider.putObject).toHaveBeenCalledWith('file.txt', body, 'image/png', 100);
   });
 
   it('defaults content type to application/octet-stream', async () => {
@@ -75,6 +74,6 @@ describe('POST /storage/api/upload', () => {
     const res = await POST(mockEvent({ headers: { ...CONNECTION_HEADER } }));
 
     expect(res.status).toBe(201);
-    expect(mockProvider.putObject.mock.calls[0][1]).toBe('application/octet-stream');
+    expect(mockProvider.putObject.mock.calls[0][2]).toBe('application/octet-stream');
   });
 });

@@ -6,11 +6,6 @@ vi.mock('$lib/server/storage/utils.js', () => ({
   getProvider: () => mockProvider
 }));
 
-vi.mock('$lib/server/storage/connection.js', () => ({
-  requireConnection: vi.fn(() => ({ type: 's3', region: 'us-east-1' })),
-  STORAGE_CONNECTION_HEADER: 'x-storage-connection'
-}));
-
 import { DELETE } from './+server.js';
 
 const CONNECTION_HEADER = {
@@ -29,7 +24,11 @@ function mockEvent(searchParams: Record<string, string | string[]>) {
   return {
     url,
     request: { headers: new Headers(CONNECTION_HEADER) },
-    locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
+    locals: {
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
+      user: { id: 'test-user' },
+      storageConfig: { type: 's3', region: 'us-east-1' }
+    }
   } as unknown as Parameters<typeof DELETE>[0];
 }
 

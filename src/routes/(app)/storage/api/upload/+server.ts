@@ -1,6 +1,5 @@
 import { error } from '@sveltejs/kit';
 import { getProvider } from '$lib/server/storage/utils.js';
-import { requireConnection } from '$lib/server/storage/connection.js';
 import { requireBucketKey } from '../params.js';
 import type { RequestHandler } from './$types';
 
@@ -11,12 +10,11 @@ import type { RequestHandler } from './$types';
  * @aws-sdk/lib-storage). The request body is piped to the S3 SDK without
  * buffering in server memory, regardless of file size.
  *
- * The connection config is read from the `X-Storage-Connection` request header
- * (base64-encoded JSON), set by the client from its localStorage entry.
+ * The connection config is parsed and validated by the `handleStorageConnection`
+ * middleware in hooks.server.ts before this handler runs.
  */
 export const POST: RequestHandler = async ({ locals, url, request }) => {
   const log = locals.logger;
-  const config = requireConnection(request);
   const { bucket, key } = requireBucketKey(url);
 
   if (!request.body) {
@@ -35,7 +33,12 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
     'upload request received'
   );
 
-  await getProvider(config, bucket).putObject(key, request.body, contentType, contentLength);
+  await getProvider(locals.storageConfig!, bucket).putObject(
+    key,
+    request.body,
+    contentType,
+    contentLength
+  );
 
   log.info(
     { bucket, key, content_type: contentType, content_length: contentLength },

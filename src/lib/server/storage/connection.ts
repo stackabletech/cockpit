@@ -4,8 +4,6 @@ import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
 import type { S3ConnectionConfig } from './types.js';
 import { logger } from '$lib/server/logging';
 
-export { STORAGE_CONNECTION_HEADER };
-
 const log = logger.child({ module: 'storage-connection' });
 
 /**
@@ -43,20 +41,13 @@ function parseConnectionPayload(raw: string): S3ConnectionConfig {
 
 /**
  * Extract the storage connection config from the `X-Storage-Connection` request header.
- * Returns `null` if the header is absent. Throws on malformed or invalid payloads.
+ * Returns `null` if the header is absent. Throws 400 on malformed or invalid payloads.
+ *
+ * Used by the `handleStorageConnection` middleware in `hooks.server.ts` to populate
+ * `event.locals.storageConfig` before any storage API handler runs.
  */
 export function getConnectionFromHeader(request: Request): S3ConnectionConfig | null {
   const header = request.headers.get(STORAGE_CONNECTION_HEADER);
   if (!header) return null;
   return parseConnectionPayload(header);
-}
-
-/**
- * Extract the storage connection config from the `X-Storage-Connection` request header.
- * Throws a 401 HTTP error if the header is absent.
- */
-export function requireConnection(request: Request): S3ConnectionConfig {
-  const conn = getConnectionFromHeader(request);
-  if (!conn) throw error(401, 'No storage connection configured');
-  return conn;
 }

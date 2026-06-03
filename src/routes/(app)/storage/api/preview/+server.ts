@@ -1,7 +1,6 @@
 import { S3ServiceException } from '@aws-sdk/client-s3';
 import { mapS3ErrorToHttp } from '$lib/server/storage/s3-errors.js';
 import { getProvider } from '$lib/server/storage/utils.js';
-import { requireConnection } from '$lib/server/storage/connection.js';
 // import { parquetPreview } from '$lib/server/storage/preview/parquet.js';
 import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
@@ -11,15 +10,14 @@ import type { RequestHandler } from './$types';
 /**
  * GET /storage/api/preview?bucket=<bucket>&key=<object-key>
  *
- * The connection config is read from the `X-Storage-Connection` request header
- * (base64-encoded JSON), set by the client from its localStorage entry.
+ * The connection config is parsed and validated by the `handleStorageConnection`
+ * middleware in hooks.server.ts before this handler runs.
  */
-export const GET: RequestHandler = async ({ url, locals, request }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
   const log = locals.logger;
-  const config = requireConnection(request);
   const { bucket, key } = requireBucketKey(url);
 
-  const provider = getProvider(config, bucket);
+  const provider = getProvider(locals.storageConfig!, bucket);
 
   try {
     const metadata = await provider.getMetadata(key);

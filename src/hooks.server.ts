@@ -1,11 +1,12 @@
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { httpRequestDuration } from '$lib/server/metrics';
 import { building, dev } from '$app/environment';
-import { redirect, type Handle, type HandleServerError } from '@sveltejs/kit';
+import { error, redirect, type Handle, type HandleServerError } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { auth, oidcEnabled } from '$lib/server/auth';
 import { requestLogger, logger } from '$lib/server/logging';
+import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
 if (dev) {
@@ -58,11 +59,28 @@ const handleAuthGuard: Handle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
+/**
+ * Parse the `x-storage-connection` header (base64 JSON) for every request and
+ * store the result in `event.locals.storageConfig`. For routes under
+ * `/(app)/storage/api/` the header is mandatory — the middleware throws 401
+ * before the handler runs if it is absent, so handlers can rely on
+ * `locals.storageConfig` being non-null. Throws 400 for a present but
+ * malformed / invalid header on any route.
+ */
+const handleStorageConnection: Handle = async ({ event, resolve }) => {
+  event.locals.storageConfig = getConnectionFromHeader(event.request);
+  if (event.locals.storageConfig === null && event.route.id?.startsWith('/(app)/storage/api/')) {
+    throw error(401, 'No storage connection configured');
+  }
+  return resolve(event);
+};
+
 export const handle = sequence(
   requestLogger,
   handleMetrics,
   handleParaglide,
-  ...(oidcEnabled ? [handleAuth, handleAuthGuard] : [])
+  ...(oidcEnabled ? [handleAuth, handleAuthGuard] : []),
+  handleStorageConnection
 );
 
 export const handleError: HandleServerError = ({ error, event, status, message }) => {
