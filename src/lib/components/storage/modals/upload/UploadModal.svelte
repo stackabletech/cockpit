@@ -8,6 +8,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { checkObjectExists, uploadFile, UploadError } from '$lib/storage/upload.js';
   import { formatFileSize } from '$lib/storage/utils.js';
+  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
   import UploadDropzone from './UploadDropzone.svelte';
   import UploadConflictEntry from './UploadConflictEntry.svelte';
   import UploadEntryStatus from './UploadEntryStatus.svelte';
@@ -98,10 +99,13 @@
     if (phase !== 'selected') return;
     phase = 'checking';
 
+    const conn = loadConnectionLocally();
+    const connHeader = conn ? getConnectionHeader(conn) : '';
+
     const results = await Promise.all(
       entries.map(async (e) => {
         try {
-          return { id: e.id, conflict: await checkObjectExists(bucket, e.targetKey) };
+          return { id: e.id, conflict: await checkObjectExists(bucket, e.targetKey, connHeader) };
         } catch {
           return { id: e.id, conflict: false };
         }
@@ -150,10 +154,18 @@
     entries = entries.map((e) =>
       e.id === entry.id ? { ...e, status: 'uploading' as const, progress: 0 } : e
     );
+    const conn = loadConnectionLocally();
+    const connHeader = conn ? getConnectionHeader(conn) : '';
     try {
-      await uploadFile(bucket, key, entry.file, (pct) => {
-        entries = entries.map((e) => (e.id === entry.id ? { ...e, progress: pct } : e));
-      });
+      await uploadFile(
+        bucket,
+        key,
+        entry.file,
+        (pct) => {
+          entries = entries.map((e) => (e.id === entry.id ? { ...e, progress: pct } : e));
+        },
+        connHeader
+      );
       entries = entries.map((e) =>
         e.id === entry.id ? { ...e, status: 'done' as const, progress: 100 } : e
       );
@@ -215,8 +227,10 @@
 
     entries = entries.map((e) => (e.id === id ? { ...e, renameState: 'checking' as const } : e));
     const newKey = resolvedKey(entry);
+    const conn = loadConnectionLocally();
+    const connHeader = conn ? getConnectionHeader(conn) : '';
     try {
-      const exists = await checkObjectExists(bucket, newKey);
+      const exists = await checkObjectExists(bucket, newKey, connHeader);
       const nextState: RenameState = exists ? 'conflict' : 'ok';
       entries = entries.map((e) => (e.id === id ? { ...e, renameState: nextState } : e));
     } catch {

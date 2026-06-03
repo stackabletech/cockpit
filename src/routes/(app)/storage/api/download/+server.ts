@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { downloadObject, getObjectMetadata } from '$lib/server/storage/service.js';
-import { getUserId } from '$lib/server/auth-utils.js';
+import { requireConnection } from '$lib/server/storage/connection.js';
 import { requireBucketKey } from '../params.js';
 
 /** Derive the bare filename from a (possibly path-prefixed) object key. */
@@ -15,14 +15,17 @@ function filenameFromKey(key: string): string {
  * Authentication is enforced by the app-level auth guard in hooks.server.ts.
  * The S3 body stream is piped straight to the HTTP response — no server-side
  * buffering occurs.
+ *
+ * The connection config is read from the `X-Storage-Connection` request header
+ * (base64-encoded JSON), set by the client from its localStorage entry.
  */
-export const GET: RequestHandler = async ({ locals, url }) => {
+export const GET: RequestHandler = async ({ locals, url, request }) => {
   const { bucket, key } = requireBucketKey(url);
-  const userId = getUserId(locals);
+  const config = requireConnection(request);
 
   locals.logger.debug({ bucket, key }, 'download request received');
 
-  const download = await downloadObject(userId, bucket, key);
+  const download = await downloadObject(config, bucket, key);
 
   const filename = filenameFromKey(key);
   // RFC 5987 encoding for non-ASCII filenames in Content-Disposition
@@ -53,16 +56,17 @@ export const GET: RequestHandler = async ({ locals, url }) => {
  *
  * Lightweight pre-flight that validates credentials and access rights using
  * a HeadObject call (no object body transferred). The client uses this before
- * initiating a native browser download to surface auth/not-found errors as
- * inline UI messages rather than browser download failures.
+ * initiating a download to surface auth/not-found errors as inline UI messages.
+ *
+ * The connection config is read from the `X-Storage-Connection` request header.
  */
-export const HEAD: RequestHandler = async ({ locals, url }) => {
+export const HEAD: RequestHandler = async ({ locals, url, request }) => {
   const { bucket, key } = requireBucketKey(url);
-  const userId = getUserId(locals);
+  const config = requireConnection(request);
 
   locals.logger.debug({ bucket, key }, 'download pre-flight check');
 
-  const meta = await getObjectMetadata(userId, bucket, key);
+  const meta = await getObjectMetadata(config, bucket, key);
 
   return new Response(null, {
     status: 200,

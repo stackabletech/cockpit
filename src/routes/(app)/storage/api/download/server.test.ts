@@ -5,17 +5,23 @@ vi.mock('$lib/server/storage/service.js', () => ({
   getObjectMetadata: vi.fn()
 }));
 
-vi.mock('$lib/server/auth-utils.js', () => ({
-  getUserId: vi.fn(() => 'test-user')
+vi.mock('$lib/server/storage/connection.js', () => ({
+  requireConnection: vi.fn(() => ({ type: 's3', region: 'us-east-1' })),
+  STORAGE_CONNECTION_HEADER: 'x-storage-connection'
 }));
 
 import { GET, HEAD } from './+server.js';
 import { downloadObject, getObjectMetadata } from '$lib/server/storage/service.js';
 
+const CONNECTION_HEADER = {
+  'x-storage-connection': btoa(JSON.stringify({ type: 's3', region: 'us-east-1' }))
+};
+
 function mockEvent(params: string) {
   const url = new URL(`http://localhost/storage/api/download?${params}`);
   return {
     url,
+    request: { headers: new Headers(CONNECTION_HEADER) },
     locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
   } as unknown as Parameters<typeof GET>[0];
 }

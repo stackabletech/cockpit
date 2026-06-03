@@ -13,7 +13,10 @@
   import PdfPreview from './preview/PdfPreview.svelte';
   import FallbackPreview from './preview/FallbackPreview.svelte';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
-  import { resolve } from '$app/paths';
+  import { downloadObject, DownloadError } from '$lib/storage/download.js';
+  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+  import { addToast } from '$lib/stores/toast.svelte.js';
+  import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
 
   interface Props {
     open: boolean;
@@ -87,9 +90,14 @@
     preview = { kind: 'loading' };
     revokeBlobUrls();
 
+    const conn = loadConnectionLocally();
+    const headers: HeadersInit = conn
+      ? { [STORAGE_CONNECTION_HEADER]: getConnectionHeader(conn) }
+      : {};
+
     try {
       const params = new URLSearchParams({ bucket: bkt, key });
-      const res = await fetch(`/storage/api/preview?${params}`);
+      const res = await fetch(`/storage/api/preview?${params}`, { headers });
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
@@ -211,9 +219,22 @@
 
   const filename = $derived(objectKey ? keyToName(objectKey) : '');
 
-  function buildDownloadUrl(key: string, bkt: string): string {
-    const params = new URLSearchParams({ bucket: bkt, key });
-    return `${resolve('/storage/api/download')}?${params}`;
+  async function triggerDownload() {
+    if (!objectKey) return;
+    const conn = loadConnectionLocally();
+    if (!conn) {
+      addToast('error', m.storage_download_error_unknown());
+      return;
+    }
+    try {
+      await downloadObject(bucket, objectKey, getConnectionHeader(conn));
+    } catch (err) {
+      if (err instanceof DownloadError) {
+        addToast('error', err.message);
+      } else {
+        addToast('error', m.storage_download_error_unknown());
+      }
+    }
   }
 
   function close() {
@@ -340,8 +361,7 @@
       {:else if preview.kind === 'fallback'}
         <FallbackPreview
           contentType={preview.contentType}
-          downloadUrl={objectKey ? buildDownloadUrl(objectKey, bucket) : '#'}
-          name={filename}
+          onDownload={triggerDownload}
           isBinary={preview.isBinary}
         />
       {/if}
@@ -351,25 +371,15 @@
     {#if preview.kind === 'text' || preview.kind === 'csv' || preview.kind === 'parquet' || preview.kind === 'image' || preview.kind === 'pdf'}
       <div class="border-base-300 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-2">
         {#if (preview.kind === 'text' || preview.kind === 'csv') && preview.truncated}
-          <a
-            href={objectKey ? buildDownloadUrl(objectKey, bucket) : '#'}
-            download={filename}
-            rel="external"
-            class="btn btn-ghost btn-sm gap-1.5"
-          >
+          <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
             <IconDownload class="size-4" aria-hidden="true" />
             {m.storage_preview_download_full()}
-          </a>
+          </button>
         {:else if preview.kind === 'image' || preview.kind === 'pdf'}
-          <a
-            href={objectKey ? buildDownloadUrl(objectKey, bucket) : '#'}
-            download={filename}
-            rel="external"
-            class="btn btn-ghost btn-sm gap-1.5"
-          >
+          <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
             <IconDownload class="size-4" aria-hidden="true" />
             {m.storage_preview_download_full()}
-          </a>
+          </button>
         {/if}
         <button class="btn btn-primary btn-sm" onclick={close}>
           {m.storage_preview_close()}
