@@ -22,7 +22,7 @@ function createLogger(): pino.Logger {
   const options: pino.LoggerOptions = {
     level: config.level,
     timestamp: pino.stdTimeFunctions.isoTime,
-    base: { service: 'stackable-ui' },
+    base: { service: 'stackable-cockpit' },
     redact: {
       paths: redactionPaths,
       censor: redactionCensor

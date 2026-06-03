@@ -1,11 +1,11 @@
 ---
-# Default values for stackable-ui
+# Default values for cockpit
 
 replicaCount: 1
 
 image:
   registry: oci.stackable.tech
-  repository: sdp/stackable-ui
+  repository: sdp/cockpit
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -58,14 +58,14 @@ ingress:
     # cert-manager.io/cluster-issuer: letsencrypt-prod
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: stackable-ui.local
+    - host: cockpit.local
       paths:
         - path: /
           pathType: Prefix
   tls: []
-  #  - secretName: stackable-ui-tls
+  #  - secretName: cockpit-tls
   #    hosts:
-  #      - stackable-ui.local
+  #      - cockpit.local
 
 resources:
   limits:
