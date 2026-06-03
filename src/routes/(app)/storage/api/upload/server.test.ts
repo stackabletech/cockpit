@@ -4,11 +4,6 @@ vi.mock('$lib/server/storage/service.js', () => ({
   uploadObject: vi.fn()
 }));
 
-vi.mock('$lib/server/storage/connection.js', () => ({
-  requireConnection: vi.fn(() => ({ type: 's3', region: 'us-east-1' })),
-  STORAGE_CONNECTION_HEADER: 'x-storage-connection'
-}));
-
 import { POST } from './+server.js';
 import { uploadObject } from '$lib/server/storage/service.js';
 
@@ -31,7 +26,11 @@ function mockEvent(opts: {
   return {
     url,
     request: { body, headers },
-    locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
+    locals: {
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
+      user: { id: 'test-user' },
+      storageConfig: { type: 's3', region: 'us-east-1' }
+    }
   } as unknown as Parameters<typeof POST>[0];
 }
 

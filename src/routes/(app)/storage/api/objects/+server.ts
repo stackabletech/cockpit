@@ -1,6 +1,5 @@
 import { error } from '@sveltejs/kit';
 import { listObjects } from '$lib/server/storage/service.js';
-import { requireConnection } from '$lib/server/storage/connection.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -8,10 +7,10 @@ import type { RequestHandler } from './$types';
  *
  * Returns a page of objects in the given bucket/prefix using the connection
  * config supplied in the `X-Storage-Connection` request header.
+ * The config is parsed and validated by the `handleStorageConnection` middleware
+ * in hooks.server.ts before this handler runs.
  */
-export const GET: RequestHandler = async ({ request, url, locals }) => {
-  const config = requireConnection(request);
-
+export const GET: RequestHandler = async ({ url, locals }) => {
   const bucket = url.searchParams.get('bucket')?.trim();
   if (!bucket) throw error(400, 'Missing required query parameter: bucket');
 
@@ -25,6 +24,12 @@ export const GET: RequestHandler = async ({ request, url, locals }) => {
     'listing objects'
   );
 
-  const page = await listObjects(config, bucket, prefix, pageSize, continuationToken);
+  const page = await listObjects(
+    locals.storageConfig!,
+    bucket,
+    prefix,
+    pageSize,
+    continuationToken
+  );
   return Response.json(page);
 };
