@@ -45,7 +45,8 @@ export const load: PageLoad = async ({ fetch, url, data }) => {
     // hydration-state mismatch that SvelteKit cannot safely recover from.
     // Handling 403 inline in +page.svelte avoids the boundary entirely and
     // keeps the sidebar visible so the user can navigate away.
-    if (res.status === 403) return { bucket, prefix, objects: EMPTY_PAGE, accessDenied: true as const };
+    if (res.status === 403)
+      return { bucket, prefix, objects: EMPTY_PAGE, accessDenied: true as const };
     const body = (await res.json().catch(() => ({}))) as { message?: string };
     throw error(res.status, body.message ?? 'Failed to load objects');
   }
