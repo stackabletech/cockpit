@@ -3,6 +3,8 @@
   import { resolve } from '$app/paths';
   import { getStorageState } from '$lib/storage/context.js';
   import FileExplorer from '$lib/components/storage/explorer/FileExplorer.svelte';
+  import IconWarning from 'virtual:icons/material-symbols/warning';
+  import * as m from '$lib/paraglide/messages.js';
 
   let { data } = $props();
   const storage = getStorageState();
@@ -32,4 +34,51 @@
   });
 </script>
 
-<FileExplorer />
+{#if data.accessDenied}
+  <!--
+    403 is rendered inline rather than via +error.svelte because throwing from a
+    universal load during initial hydration (when data.connected=true causes
+    BucketList to mount) can escape the storage error boundary and fall through
+    to the root fallback. Rendering inline keeps the sidebar visible.
+  -->
+  <div
+    class="
+      flex flex-1 flex-col items-center justify-center gap-6 p-8 text-center
+    "
+  >
+    <div
+      class="
+        bg-error/10 text-error flex size-20 items-center justify-center
+        rounded-full
+      "
+      aria-hidden="true"
+    >
+      <IconWarning class="size-10" aria-hidden="true" />
+    </div>
+
+    <div>
+      <p
+        class="
+          text-base-content/50 mb-1 text-sm font-medium tracking-widest uppercase
+        "
+      >
+        {m.storage_error_title()}
+      </p>
+      <h1 class="text-base-content text-3xl font-bold">403</h1>
+      <p class="text-base-content/70 mt-2 max-w-sm text-sm">
+        {m.storage_error_access_denied({ bucket: data.bucket })}
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-center gap-3">
+      <a href={resolve('/storage')} class="btn btn-sm btn-primary">
+        {m.storage_error_back_to_storage()}
+      </a>
+      <button type="button" class="btn btn-ghost btn-sm" onclick={() => history.back()}>
+        {m.storage_error_go_back()}
+      </button>
+    </div>
+  </div>
+{:else}
+  <FileExplorer />
+{/if}

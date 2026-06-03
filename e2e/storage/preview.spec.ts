@@ -73,7 +73,7 @@ test.describe('Storage S3 — Preview', () => {
 
       await expect(page.getByRole('heading', { name: 'archive.zip' })).toBeVisible();
       await expect(page.getByText('Preview unavailable')).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Download full file' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Download full file' })).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -103,7 +103,7 @@ test.describe('Storage S3 — Preview', () => {
 
       await expect(page.getByRole('heading', { name: 'data.bin' })).toBeVisible();
       await expect(page.getByText('Binary content')).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Download full file' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Download full file' })).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -172,8 +172,8 @@ test.describe('Storage S3 — Preview', () => {
       // File size badge is displayed
       await expect(page.locator('.badge', { hasText: /B$/ })).toBeVisible();
 
-      // Download link is available
-      await expect(page.getByRole('link', { name: 'Download full file' })).toBeVisible();
+      // Download button is available
+      await expect(page.getByRole('button', { name: 'Download full file' })).toBeVisible();
 
       // Close button works
       await page.getByRole('button', { name: 'Close' }).last().click();
