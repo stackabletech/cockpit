@@ -17,7 +17,7 @@ const log = logger.child({ module: 'trino-queries' });
 // --- TTL & eviction configuration ---
 
 /** Time (seconds) before completed, unaccessed tab queries are evicted. */
-const QUERY_TTL = Number(env.STACKABLE_UI_QUERY_TTL) || 1800; // 30 min
+const QUERY_TTL = Number(env.STACKABLE_COCKPIT_QUERY_TTL) || 1800; // 30 min
 const SWEEP_INTERVAL_MS = 60_000;
 
 // --- TrinoQuery model ---

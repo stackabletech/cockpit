@@ -82,16 +82,16 @@ The application includes a Helm chart for deploying to Kubernetes.
 
 ```bash
 # Install with default values
-helm install stackable-ui ./deploy/helm/stackable-ui
+helm install cockpit ./deploy/helm/cockpit
 
 # Install with custom configuration
-helm install stackable-ui ./deploy/helm/stackable-ui \
+helm install cockpit ./deploy/helm/cockpit \
   -f your-values.yaml
 ```
 
 #### Documentation
 
-For detailed Helm chart documentation, see [deploy/helm/stackable-ui/README.md](./deploy/helm/stackable-ui/README.md).
+For detailed Helm chart documentation, see [deploy/helm/cockpit/README.md](./deploy/helm/cockpit/README.md).
 
 ### Docker Deployment
 
@@ -99,10 +99,10 @@ Build and run the Docker image:
 
 ```bash
 # Build the image
-docker build . -f docker/Dockerfile --build-arg TARGETARCH=x86 --build-arg VERSION=0.0.0-dev -t stackable-ui:0.0.0-dev
+docker build . -f docker/Dockerfile --build-arg TARGETARCH=x86 --build-arg VERSION=0.0.0-dev -t cockpit:0.0.0-dev
 
 # Run the container
-docker run -p 3000:3000 stackable-ui:0.0.0-dev
+docker run -p 3000:3000 cockpit:0.0.0-dev
 ```
 
 ## Configuration
