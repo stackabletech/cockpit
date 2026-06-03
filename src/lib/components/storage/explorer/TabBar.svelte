@@ -157,58 +157,58 @@
 {/if}
 
 <div class="bg-base-200/60 relative flex items-end pt-1.5 pl-2">
-  <!-- Tab list container — hidden scrollbar, overlapping tabs -->
-  <div
-    bind:this={containerEl}
-    class="tab-strip flex min-w-0 flex-1 items-end"
-    role="tablist"
-    aria-label={m.storage_tab_list()}
-    onwheel={handleWheel}
-    onscroll={checkOverflow}
-  >
-    {#each tabsState.tabs as tab, idx (tab.id)}
-      {@const isActive = tab.id === tabsState.activeTabId}
-      {#if renamingId === tab.id}
-        <div
-          class="bg-base-100 border-base-300 relative z-30 flex shrink-0 items-center rounded-t-lg border border-b-0 px-3 py-1.5 shadow-sm"
-          style="margin-right: -8px;"
-        >
-          <input
-            type="text"
-            class="border-base-300 focus:border-primary h-4 w-24 rounded border bg-transparent px-1 py-0 text-xs focus:outline-none"
-            bind:value={renameValue}
-            onblur={commitRename}
-            onkeydown={handleRenameKeydown}
-            autofocus
-            aria-label={m.storage_tab_rename()}
-          />
-        </div>
-      {:else}
-        <button
-          role="tab"
-          aria-selected={isActive}
-          class="group relative flex max-w-44 shrink-0 items-center gap-1.5 rounded-t-lg border border-b-0 px-4 py-1.5 text-xs
-            transition-all select-none
-            {isActive
-            ? 'bg-base-100 border-base-300 text-base-content z-20 font-medium shadow-sm'
-            : 'text-base-content/60 hover:text-base-content/80 hover:bg-base-100/50 z-10 border-transparent'}"
-          style="margin-right: -8px;"
-          draggable="true"
-          class:opacity-50={dragIdx === idx}
-          class:!border-primary={dragOverIdx === idx && dragIdx !== idx}
-          onclick={() => tabsState.switchTo(tab.id)}
-          ondblclick={() => startRename(tab.id)}
-          onmousedown={(e) => handleMiddleClick(e, tab.id)}
-          onauxclick={(e) => handleMiddleClick(e, tab.id)}
-          oncontextmenu={(e) => openCtxMenu(e, tab.id)}
-          ondragstart={(e) => handleDragStart(e, idx)}
-          ondragover={(e) => handleDragOver(e, idx)}
-          ondrop={(e) => handleDrop(e, idx)}
-          ondragend={handleDragEnd}
-          title={tab.label}
-        >
-          <span class="truncate">{tab.label}</span>
-          {#if tabsState.tabs.length > 1}
+  {#if tabsState.hasTabs}
+    <!-- Tab list container — hidden scrollbar, overlapping tabs -->
+    <div
+      bind:this={containerEl}
+      class="tab-strip flex min-w-0 flex-1 items-end"
+      role="tablist"
+      aria-label={m.storage_tab_list()}
+      onwheel={handleWheel}
+      onscroll={checkOverflow}
+    >
+      {#each tabsState.tabs as tab, idx (tab.id)}
+        {@const isActive = tab.id === tabsState.activeTabId}
+        {#if renamingId === tab.id}
+          <div
+            class="bg-base-100 border-base-300 relative z-30 flex shrink-0 items-center rounded-t-lg border border-b-0 px-3 py-1.5 shadow-sm"
+            style="margin-right: -8px;"
+          >
+            <input
+              type="text"
+              class="border-base-300 focus:border-primary h-4 w-24 rounded border bg-transparent px-1 py-0 text-xs focus:outline-none"
+              bind:value={renameValue}
+              onblur={commitRename}
+              onkeydown={handleRenameKeydown}
+              autofocus
+              aria-label={m.storage_tab_rename()}
+            />
+          </div>
+        {:else}
+          <button
+            role="tab"
+            aria-selected={isActive}
+            class="group relative flex max-w-44 shrink-0 items-center gap-1.5 rounded-t-lg border border-b-0 px-4 py-1.5 text-xs
+              transition-all select-none
+              {isActive
+              ? 'bg-base-100 border-base-300 text-base-content z-20 font-medium shadow-sm'
+              : 'text-base-content/60 hover:text-base-content/80 hover:bg-base-100/50 z-10 border-transparent'}"
+            style="margin-right: -8px;"
+            draggable="true"
+            class:opacity-50={dragIdx === idx}
+            class:!border-primary={dragOverIdx === idx && dragIdx !== idx}
+            onclick={() => tabsState.switchTo(tab.id)}
+            ondblclick={() => startRename(tab.id)}
+            onmousedown={(e) => handleMiddleClick(e, tab.id)}
+            onauxclick={(e) => handleMiddleClick(e, tab.id)}
+            oncontextmenu={(e) => openCtxMenu(e, tab.id)}
+            ondragstart={(e) => handleDragStart(e, idx)}
+            ondragover={(e) => handleDragOver(e, idx)}
+            ondrop={(e) => handleDrop(e, idx)}
+            ondragend={handleDragEnd}
+            title={tab.label}
+          >
+            <span class="truncate">{tab.label}</span>
             <span
               class="text-base-content/40 hover:text-error shrink-0 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
               role="button"
@@ -227,37 +227,37 @@
             >
               <IconClose class="size-3" aria-hidden="true" />
             </span>
-          {/if}
-        </button>
-      {/if}
-    {/each}
+          </button>
+        {/if}
+      {/each}
+    </div>
 
-    <!-- Plus button — sits inline next to the last tab -->
-    <button
-      class="btn btn-ghost btn-xs z-20 ml-2 shrink-0"
-      title={m.storage_tab_new()}
-      aria-label={m.storage_tab_new()}
-      onclick={() => tabsState.addTab()}
-    >
-      <IconAdd class="size-3.5" aria-hidden="true" />
-    </button>
-  </div>
+    <!-- Fade-out gradient indicating more tabs to the left -->
+    {#if isOverflowLeft}
+      <div
+        class="from-base-200/60 pointer-events-none absolute top-0 bottom-0 left-0 z-30 w-12 bg-gradient-to-r to-transparent"
+        aria-hidden="true"
+      ></div>
+    {/if}
 
-  <!-- Fade-out gradient indicating more tabs to the left -->
-  {#if isOverflowLeft}
-    <div
-      class="from-base-200/60 pointer-events-none absolute top-0 bottom-0 left-0 z-30 w-12 bg-gradient-to-r to-transparent"
-      aria-hidden="true"
-    ></div>
+    <!-- Fade-out gradient indicating more tabs to the right -->
+    {#if isOverflowRight}
+      <div
+        class="from-base-200/60 pointer-events-none absolute top-0 right-0 bottom-0 z-30 w-12 bg-gradient-to-l to-transparent"
+        aria-hidden="true"
+      ></div>
+    {/if}
   {/if}
 
-  <!-- Fade-out gradient indicating more tabs to the right -->
-  {#if isOverflowRight}
-    <div
-      class="from-base-200/60 pointer-events-none absolute top-0 right-0 bottom-0 z-30 w-12 bg-gradient-to-l to-transparent"
-      aria-hidden="true"
-    ></div>
-  {/if}
+  <!-- Plus button — always rendered, outside tablist -->
+  <button
+    class="btn btn-ghost btn-xs z-20 ml-2 shrink-0"
+    title={m.storage_tab_new()}
+    aria-label={m.storage_tab_new()}
+    onclick={() => tabsState.addTab()}
+  >
+    <IconAdd class="size-3.5" aria-hidden="true" />
+  </button>
 </div>
 
 <style>

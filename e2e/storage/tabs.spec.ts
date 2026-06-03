@@ -177,7 +177,8 @@ test.describe('Storage — Explorer tab bar', () => {
     await tablist.getByRole('tab').nth(0).click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Close tab' }).click();
 
-    await expect(tablist.getByRole('tab')).toHaveCount(1);
+    // Closing down to one tab hides the tablist (hasTabs is false when only one tab remains)
+    await expect(tablist).not.toBeVisible();
   });
 
   test('New Tab via breadcrumb More Options adds a tab and closes the dropdown', async ({
@@ -285,6 +286,7 @@ test.describe('Storage — Restore tabs banner', () => {
   });
 
   test('Dismiss does not clear saved tabs — banner reappears on re-visit', async ({ page }) => {
+    test.slow(); // navigates to / (Trino editor) which is slow in Firefox
     const credentials = requireGarageCredentials();
 
     // Step 1: navigate to bucket and add a second tab via natural interaction

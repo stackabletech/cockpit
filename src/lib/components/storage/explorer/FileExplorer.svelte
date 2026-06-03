@@ -96,9 +96,7 @@
 <svelte:window onkeydown={storage.handleKeydown} />
 
 <div class="bg-base-100 flex flex-1 flex-col overflow-hidden">
-  {#if tabsState.hasTabs}
-    <TabBar {tabsState} />
-  {/if}
+  <TabBar {tabsState} />
 
   <StorageBreadcrumb />
 
