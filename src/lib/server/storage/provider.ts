@@ -13,7 +13,7 @@ export interface ObjectDownload {
 /** Backend-agnostic interface for a bucket-scoped storage provider. */
 export interface StorageProvider {
   /** List all buckets accessible with the current connection credentials. */
-  listBuckets(): Promise<string[]>;
+  listContainers(): Promise<string[]>;
   /**
    * List objects using cursor-based pagination. `continuationToken` is the
    * provider-specific opaque token returned from a previous call. When

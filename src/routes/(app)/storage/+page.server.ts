@@ -38,7 +38,7 @@ export const actions: Actions = {
     };
 
     try {
-      await getConnectionProvider(config).listBuckets();
+      await getConnectionProvider(config).listContainers();
       log.info({ storage_type: type }, 'user storage connection verified');
     } catch (err) {
       log.warn({ err }, 'storage connection test failed');

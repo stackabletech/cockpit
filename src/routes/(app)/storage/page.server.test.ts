@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockConnectionProvider = { listBuckets: vi.fn() };
+const mockConnectionProvider = { listContainers: vi.fn() };
 vi.mock('$lib/server/storage/utils.js', () => ({
   getConnectionProvider: () => mockConnectionProvider
 }));
@@ -87,7 +87,7 @@ describe('storage page actions', () => {
         secretAccessKey: 'sk'
       }
     } as unknown as Awaited<ReturnType<typeof superValidate>>);
-    mockConnectionProvider.listBuckets.mockRejectedValue(new Error('connection refused'));
+    mockConnectionProvider.listContainers.mockRejectedValue(new Error('connection refused'));
 
     const result = await actions.connect({
       request: new Request('http://localhost', { method: 'POST' }),
@@ -111,7 +111,7 @@ describe('storage page actions', () => {
         secretAccessKey: 'sk'
       }
     } as unknown as Awaited<ReturnType<typeof superValidate>>);
-    mockConnectionProvider.listBuckets.mockResolvedValue(['b1']);
+    mockConnectionProvider.listContainers.mockResolvedValue(['b1']);
 
     await expect(
       actions.connect({

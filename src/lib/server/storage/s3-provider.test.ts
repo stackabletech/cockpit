@@ -511,10 +511,10 @@ describe('S3StorageProvider constructor', () => {
 });
 
 // ---------------------------------------------------------------------------
-// listBuckets
+// listContainers
 // ---------------------------------------------------------------------------
 
-describe('S3StorageProvider.listBuckets', () => {
+describe('S3StorageProvider.listContainers', () => {
   let provider: S3StorageProvider;
   let send: ReturnType<typeof vi.fn>;
 
@@ -524,28 +524,28 @@ describe('S3StorageProvider.listBuckets', () => {
 
   it('returns bucket names', async () => {
     send.mockResolvedValue({ Buckets: [{ Name: 'a' }, { Name: 'b' }] });
-    expect(await provider.listBuckets()).toEqual(['a', 'b']);
+    expect(await provider.listContainers()).toEqual(['a', 'b']);
   });
 
   it('filters out buckets with no name', async () => {
     send.mockResolvedValue({ Buckets: [{ Name: 'a' }, { Name: undefined }, { Name: '' }] });
-    expect(await provider.listBuckets()).toEqual(['a']);
+    expect(await provider.listContainers()).toEqual(['a']);
   });
 
   it('handles null Buckets in response', async () => {
     send.mockResolvedValue({ Buckets: null });
-    expect(await provider.listBuckets()).toEqual([]);
+    expect(await provider.listContainers()).toEqual([]);
   });
 
   it('maps AccessDenied S3 error to HTTP 403', async () => {
     send.mockRejectedValue(makeS3Error('AccessDenied', 403));
-    await expect(provider.listBuckets()).rejects.toMatchObject({ status: 403 });
+    await expect(provider.listContainers()).rejects.toMatchObject({ status: 403 });
   });
 
   it('re-throws non-S3 errors', async () => {
     const err = new Error('network');
     send.mockRejectedValue(err);
-    await expect(provider.listBuckets()).rejects.toThrow('network');
+    await expect(provider.listContainers()).rejects.toThrow('network');
   });
 });
 
