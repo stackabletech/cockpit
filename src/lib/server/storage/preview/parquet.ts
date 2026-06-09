@@ -15,57 +15,28 @@ const fallbackLog = logger.child({ module: 'parquet-preview' });
 
 const nodeCompressors = {
   ...compressors,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature must match hyparquet's expectation
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   GZIP: (input: Uint8Array, _outputLength: number): Uint8Array => new Uint8Array(gunzipSync(input))
 };
 
 function stringifyStructuredParquetValue(value: object): string {
   return JSON.stringify(value, (_key, nestedValue: unknown) => {
-    if (typeof nestedValue === 'bigint') {
-      return nestedValue.toString();
-    }
-
-    if (nestedValue instanceof Date) {
-      return nestedValue.toISOString();
-    }
-
-    if (nestedValue instanceof Uint8Array) {
-      return Array.from(nestedValue);
-    }
-
+    if (typeof nestedValue === 'bigint') return nestedValue.toString();
+    if (nestedValue instanceof Date) return nestedValue.toISOString();
+    if (nestedValue instanceof Uint8Array) return Array.from(nestedValue);
     return nestedValue;
   });
 }
 
 function toSerializableParquetCell(value: unknown): string | number | boolean | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  if (typeof value === 'bigint') {
-    return value.toString();
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  if (value instanceof Uint8Array) {
-    return Array.from(value).join(',');
-  }
-
-  if (Array.isArray(value)) {
-    return stringifyStructuredParquetValue(value);
-  }
-
-  if (typeof value === 'object') {
-    return stringifyStructuredParquetValue(value);
-  }
-
-  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string') {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'bigint') return value.toString();
+  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Uint8Array) return Array.from(value).join(',');
+  if (Array.isArray(value) || typeof value === 'object')
+    return stringifyStructuredParquetValue(value as object);
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string')
     return value;
-  }
-
   return String(value);
 }
 
@@ -93,9 +64,7 @@ async function streamToArrayBuffer(stream: ReadableStream): Promise<ArrayBuffer>
 
   while (true) {
     const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
+    if (done) break;
     chunks.push(value as Uint8Array);
   }
 
@@ -111,10 +80,6 @@ async function streamToArrayBuffer(stream: ReadableStream): Promise<ArrayBuffer>
   return result.buffer;
 }
 
-/**
- * Reads a highly optimized preview of a Parquet file from S3.
- * It uses HTTP Range Requests to fetch ONLY the footer and the necessary chunk bytes.
- */
 export async function getParquetPreview(
   provider: StorageProvider,
   key: string,
@@ -129,7 +94,6 @@ export async function getParquetPreview(
     return createParquetPreviewResponse({ headers: [], rows: [], totalRows: 0 }, byteLength, 0);
   }
 
-  // Read footer metadata serially to avoid spiking range requests on large files.
   let footerQueue: Promise<void> = Promise.resolve();
   const footerBuffer = {
     byteLength,
@@ -158,43 +122,43 @@ export async function getParquetPreview(
     let rowsScanned = 0;
 
     for (const rowGroup of parquetMeta.row_groups) {
-      if (rowsScanned >= previewRows) {
-        break;
-      }
-
+      if (rowsScanned >= previewRows) break;
       rowsScanned += Number(rowGroup.num_rows);
 
       for (const column of rowGroup.columns) {
-        if (!column.offset_index_offset || !column.offset_index_length) {
-          continue;
+        // FIX 1: Fetch both offset_index AND column_index bounds
+        // hyparquet requests both. If we miss one, it triggers separate HTTP requests.
+        if (column.offset_index_offset && column.offset_index_length) {
+          const start = Number(column.offset_index_offset);
+          const end = start + column.offset_index_length;
+          if (start < offsetIndexStart) offsetIndexStart = start;
+          if (end > offsetIndexEnd) offsetIndexEnd = end;
         }
 
-        const start = Number(column.offset_index_offset);
-        const end = start + column.offset_index_length;
-        if (start < offsetIndexStart) {
-          offsetIndexStart = start;
-        }
-        if (end > offsetIndexEnd) {
-          offsetIndexEnd = end;
+        if (column.column_index_offset && column.column_index_length) {
+          const start = Number(column.column_index_offset);
+          const end = start + column.column_index_length;
+          if (start < offsetIndexStart) offsetIndexStart = start;
+          if (end > offsetIndexEnd) offsetIndexEnd = end;
         }
       }
     }
 
     let offsetIndexCache: { start: number; buffer: ArrayBuffer } | null = null;
-    if (isFinite(offsetIndexStart)) {
+    const indexSpan = offsetIndexEnd - offsetIndexStart;
+
+    // FIX 2: Safeguard against malformed files where indices span massive sizes
+    if (isFinite(offsetIndexStart) && indexSpan <= 10 * 1024 * 1024) {
       const stream = await provider.getObjectRange(key, offsetIndexStart, offsetIndexEnd - 1);
       offsetIndexCache = {
         start: offsetIndexStart,
         buffer: await streamToArrayBuffer(stream as ReadableStream)
       };
-      log.debug(
-        { key, offset_index_bytes: offsetIndexEnd - offsetIndexStart },
-        'Parquet offset index prefetched'
-      );
+      log.debug({ key, index_bytes: indexSpan }, 'Parquet indices prefetched');
     } else {
       log.warn(
         { key, preview_rows: previewRows },
-        'Parquet preview missing offset indexes; falling back to larger row-group reads'
+        'Parquet preview missing indices; falling back to larger reads'
       );
     }
 
@@ -206,16 +170,11 @@ export async function getParquetPreview(
         active += 1;
         return Promise.resolve();
       }
-
       return new Promise((resolve) => waiters.push(resolve));
     };
     const release = () => {
       const next = waiters.shift();
-      if (next) {
-        next();
-        return;
-      }
-
+      if (next) return next();
       active -= 1;
     };
 
@@ -224,22 +183,34 @@ export async function getParquetPreview(
       slice: (start: number, end?: number): Promise<ArrayBuffer> => {
         const rangeEnd = end ?? byteLength;
 
+        // FIX 3: Cap the maximum fallback read.
+        // If a file has no offset indices, hyparquet will ask for the ENTIRE compressed
+        // column chunk (which could be the whole 350MB file!).
+        // 5MB is easily enough to extract the first 250 rows before hyparquet completes the stream.
+        const MAX_PREVIEW_FETCH_BYTES = 5 * 1024 * 1024; // 5MB
+        let actualEnd = rangeEnd;
+
+        if (actualEnd - start > MAX_PREVIEW_FETCH_BYTES) {
+          actualEnd = start + MAX_PREVIEW_FETCH_BYTES;
+          log.trace({ key, capped: actualEnd - start }, 'Capped massive parquet chunk read');
+        }
+
         if (
           offsetIndexCache &&
           start >= offsetIndexCache.start &&
-          rangeEnd <= offsetIndexCache.start + offsetIndexCache.buffer.byteLength
+          actualEnd <= offsetIndexCache.start + offsetIndexCache.buffer.byteLength
         ) {
           return Promise.resolve(
             offsetIndexCache.buffer.slice(
               start - offsetIndexCache.start,
-              rangeEnd - offsetIndexCache.start
+              actualEnd - offsetIndexCache.start
             )
           );
         }
 
         return acquire().then(async () => {
           try {
-            const stream = await provider.getObjectRange(key, start, rangeEnd - 1);
+            const stream = await provider.getObjectRange(key, start, actualEnd - 1);
             return await streamToArrayBuffer(stream as ReadableStream);
           } finally {
             release();
@@ -262,7 +233,6 @@ export async function getParquetPreview(
     });
 
     log.info({ key, total_rows: totalRows, preview_rows: rows.length }, 'Parquet preview ready');
-
     return createParquetPreviewResponse({ headers, rows, totalRows }, byteLength, rows.length);
   } catch (error) {
     log.error({ err: error, key }, 'Failed to parse Parquet preview');
