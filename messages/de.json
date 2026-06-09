@@ -368,6 +368,7 @@
   "storage_tab_close": "Tab schließen",
   "storage_tab_rename": "Tab umbenennen",
   "storage_tab_list": "Explorer-Tabs",
+  "storage_tab_context_menu": "Tab-Optionen",
   "storage_restore_tabs_message": "Sie haben {count} gespeicherte(n) Tab(s) aus Ihrer letzten Sitzung.",
   "storage_restore_tabs_action": "Tabs wiederherstellen"
 }

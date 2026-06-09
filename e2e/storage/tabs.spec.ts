@@ -169,7 +169,7 @@ test.describe('Storage — Explorer tab bar', () => {
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
     await tablist.getByRole('tab').nth(0).click({ button: 'right' });
 
-    const tabmenu = page.getByRole('menu');
+    const tabmenu = page.getByRole('menu', { name: 'Tab options' });
     await expect(tabmenu).toBeVisible();
     await expect(tabmenu.getByRole('menuitem', { name: 'Rename tab' })).toBeVisible();
     await expect(tabmenu.getByRole('menuitem', { name: 'Close tab' })).toBeVisible();

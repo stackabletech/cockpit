@@ -130,6 +130,7 @@
   <ul
     class="menu menu-sm border-base-300 bg-base-100 fixed z-60 w-44 rounded-lg border p-1 shadow-lg"
     role="menu"
+    aria-label={m.storage_tab_context_menu()}
     style="left: {ctxMenu.x}px; top: {ctxMenu.y}px;"
   >
     <li role="none">
