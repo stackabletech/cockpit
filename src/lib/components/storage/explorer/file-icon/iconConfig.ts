@@ -9,10 +9,11 @@ import IconTs from 'virtual:icons/vscode-icons/file-type-typescript';
 import IconJson from 'virtual:icons/vscode-icons/file-type-json';
 import IconImage from 'virtual:icons/vscode-icons/file-type-image';
 import IconSvg from 'virtual:icons/vscode-icons/file-type-svg';
-import IconZip from 'virtual:icons/vscode-icons/file-type-zip';
+import IconZip from 'virtual:icons/material-icon-theme/zip';
 import IconText from 'virtual:icons/vscode-icons/file-type-text';
 import IconDocument from 'virtual:icons/vscode-icons/default-file';
-import IconYaml from 'virtual:icons/vscode-icons/file-type-yaml';
+import IconYaml from 'virtual:icons/material-icon-theme/yaml';
+import IconCsv from 'virtual:icons/lsicon/file-csv-filled';
 import IconToml from 'virtual:icons/vscode-icons/file-type-toml';
 import IconXml from 'virtual:icons/vscode-icons/file-type-xml';
 import IconSql from 'virtual:icons/vscode-icons/file-type-sql';
@@ -46,6 +47,7 @@ export type FileIconKind =
   | 'archive'
   | 'text'
   | 'yaml'
+  | 'csv'
   | 'toml'
   | 'xml'
   | 'sql'
@@ -83,6 +85,7 @@ export const FILE_ICON_CONFIG: Record<FileIconKind, IconConfig> = {
   archive: { component: IconZip },
   text: { component: IconText },
   yaml: { component: IconYaml },
+  csv: { component: IconCsv },
   toml: { component: IconToml },
   xml: { component: IconXml },
   sql: { component: IconSql },
@@ -156,7 +159,7 @@ const EXT_KIND = new Map<string, FileIconKind>([
   ['xz', 'archive'],
   ['zst', 'archive'],
   ['txt', 'text'],
-  ['csv', 'text'],
+  ['csv', 'csv'],
   ['tsv', 'text'],
   ['yaml', 'yaml'],
   ['yml', 'yaml'],
@@ -210,6 +213,7 @@ export function fileIconKind(contentType: string | undefined, key?: string): Fil
   if (contentType === 'application/json') return 'json';
   if (ARCHIVE_TYPES.has(contentType)) return 'archive';
   if (contentType === 'application/xml' || contentType === 'text/xml') return 'xml';
+  if (contentType === 'text/csv' || contentType === 'application/csv') return 'csv';
   if (contentType === 'text/yaml' || contentType === 'application/yaml') return 'yaml';
   if (contentType === 'application/toml') return 'toml';
   if (contentType === 'application/sql' || contentType === 'text/x-sql') return 'sql';
