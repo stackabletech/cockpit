@@ -1,62 +1,29 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-vi.mock('$lib/server/storage/service.js', () => ({
-  listObjects: vi.fn()
-}));
-
-vi.mock('$lib/server/auth-utils.js', () => ({
-  getUserId: vi.fn(() => 'test-user')
-}));
+import { describe, it, expect } from 'vitest';
 
 import { load } from './+page.server.js';
-import { listObjects } from '$lib/server/storage/service.js';
 
-function mockEvent(
-  opts: { bucket?: string; prefix?: string; searchParams?: Record<string, string> } = {}
-) {
-  const url = new URL('http://localhost/storage/b1/some/prefix');
-  for (const [k, v] of Object.entries(opts.searchParams ?? {})) {
-    url.searchParams.set(k, v);
-  }
+function mockEvent(opts: { bucket?: string; prefix?: string } = {}) {
   return {
     locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } },
-    params: { bucket: opts.bucket ?? 'my-bucket', prefix: opts.prefix ?? '' },
-    url
+    params: { bucket: opts.bucket ?? 'my-bucket', prefix: opts.prefix ?? '' }
   } as unknown as Parameters<typeof load>[0];
 }
 
-describe('bucket page load', () => {
-  beforeEach(() => vi.clearAllMocks());
+import { vi } from 'vitest';
 
-  it('lists objects with default page size', async () => {
-    vi.mocked(listObjects).mockResolvedValue({ items: [], prefixes: [] } as unknown as Awaited<
-      ReturnType<typeof listObjects>
-    >);
-
-    const result = (await load(mockEvent())) as { bucket: string; prefix: string };
-
-    expect(listObjects).toHaveBeenCalledWith('test-user', 'my-bucket', '', 25, undefined);
-    expect(result.bucket).toBe('my-bucket');
-    expect(result.prefix).toBe('');
+describe('bucket page server load', () => {
+  it('returns bucket and prefix', async () => {
+    const result = await load(mockEvent());
+    expect(result).toEqual({ bucket: 'my-bucket', prefix: '' });
   });
 
   it('adds trailing slash to prefix', async () => {
-    vi.mocked(listObjects).mockResolvedValue({ items: [] } as unknown as Awaited<
-      ReturnType<typeof listObjects>
-    >);
-
-    await load(mockEvent({ prefix: 'data/2024' }));
-
-    expect(listObjects).toHaveBeenCalledWith('test-user', 'my-bucket', 'data/2024/', 25, undefined);
+    const result = await load(mockEvent({ prefix: 'data/2024' }));
+    expect(result).toEqual({ bucket: 'my-bucket', prefix: 'data/2024/' });
   });
 
-  it('passes continuationToken and pageSize', async () => {
-    vi.mocked(listObjects).mockResolvedValue({ items: [] } as unknown as Awaited<
-      ReturnType<typeof listObjects>
-    >);
-
-    await load(mockEvent({ searchParams: { continuationToken: 'abc', pageSize: '50' } }));
-
-    expect(listObjects).toHaveBeenCalledWith('test-user', 'my-bucket', '', 50, 'abc');
+  it('handles empty prefix', async () => {
+    const result = await load(mockEvent({ bucket: 'test-bucket', prefix: '' }));
+    expect(result).toEqual({ bucket: 'test-bucket', prefix: '' });
   });
 });

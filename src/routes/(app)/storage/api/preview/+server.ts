@@ -1,19 +1,23 @@
 import { S3ServiceException } from '@aws-sdk/client-s3';
-import { getUserId } from '$lib/server/auth-utils.js';
 import { mapS3ErrorToHttp } from '$lib/server/storage/s3-errors.js';
-import { getProviderForUser } from '$lib/server/storage/utils.js';
+import { getProvider } from '$lib/server/storage/utils.js';
 // import { parquetPreview } from '$lib/server/storage/preview/parquet.js';
 import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
 import { requireBucketKey } from '../params.js';
 import type { RequestHandler } from './$types';
 
+/**
+ * GET /storage/api/preview?bucket=<bucket>&key=<object-key>
+ *
+ * The connection config is parsed and validated by the `handleStorageConnection`
+ * middleware in hooks.server.ts before this handler runs.
+ */
 export const GET: RequestHandler = async ({ url, locals }) => {
   const log = locals.logger;
-  const userId = getUserId(locals);
   const { bucket, key } = requireBucketKey(url);
 
-  const provider = getProviderForUser(userId, bucket);
+  const provider = getProvider(locals.storageConfig!, bucket);
 
   try {
     const metadata = await provider.getMetadata(key);
@@ -29,7 +33,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
     if (isParquet) {
       log.info(
-        { user_id: userId, bucket, key, content_type: rawContentType, total_size: totalSize },
+        { bucket, key, content_type: rawContentType, total_size: totalSize },
         'parquet preview disabled'
       );
       // TODO: re-enable once we have a more robust parquet preview solution in place
@@ -39,7 +43,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     // Skip body fetch for known-binary formats — client will show fallback immediately.
     if (KNOWN_BINARY_TYPES.has(rawContentType)) {
       log.info(
-        { user_id: userId, bucket, key, content_type: rawContentType },
+        { bucket, key, content_type: rawContentType },
         'skipping preview fetch for known-binary type'
       );
       return binaryPreview(rawContentType, totalSize);
@@ -52,7 +56,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         ? 'text/csv'
         : rawContentType;
 
-    return await streamPreview(provider, key, contentType, totalSize, userId, log);
+    // Pass a placeholder user identifier for logging purposes (no longer user-specific)
+    return await streamPreview(provider, key, contentType, totalSize, 'client', log);
   } catch (err) {
     if (err instanceof S3ServiceException) {
       mapS3ErrorToHttp(err, { bucket, key, operation: 'preview' });
