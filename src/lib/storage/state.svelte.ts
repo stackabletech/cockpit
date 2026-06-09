@@ -87,6 +87,11 @@ export class StorageState {
 
   // ── Navigation handler (injected by page component) ──
   private _onNavigate: NavigateFn = () => {};
+  // ── Refresh handler (injected by page component) ──
+  // Navigates to the current bucket/prefix using replaceState so that a
+  // refresh does not add an extra browser history entry. Falls back to
+  // invalidateAll when no handler has been set (e.g. in tests).
+  private _onRefreshNavigate: (() => void) | null = null;
 
   // ────────────────────────────────────────────────────────────────────────────
   // Constructor
@@ -113,6 +118,10 @@ export class StorageState {
 
   setNavigationHandler(fn: NavigateFn): void {
     this._onNavigate = fn;
+  }
+
+  setRefreshHandler(fn: () => void): void {
+    this._onRefreshNavigate = fn;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -184,7 +193,11 @@ export class StorageState {
 
   refresh = (): void => {
     this.loading = true;
-    void invalidateAll();
+    if (this._onRefreshNavigate) {
+      this._onRefreshNavigate();
+    } else {
+      void invalidateAll();
+    }
   };
 
   onPageSizeChange = (): void => {

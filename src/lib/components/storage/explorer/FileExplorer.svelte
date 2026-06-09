@@ -21,13 +21,14 @@
     const encodedPrefix = prefix
       ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
       : '';
-    goto(
-      resolve('/(app)/storage/[bucket]/[...prefix]', {
-        bucket: encodeURIComponent(bucket),
-        prefix: encodedPrefix
-      }),
-      { replaceState: false }
-    );
+    const basePath = resolve('/(app)/storage/[bucket]/[...prefix]', {
+      bucket: encodeURIComponent(bucket),
+      prefix: encodedPrefix
+    });
+    const url = new URL(basePath, location.origin);
+    if (storage.pageSize) url.searchParams.set('pageSize', String(storage.pageSize));
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- base path is built with resolve(); URL object is needed to append query params
+    goto(url, { replaceState: false });
   }
 
   /** Updates the browser URL bar to reflect the active tab's location without

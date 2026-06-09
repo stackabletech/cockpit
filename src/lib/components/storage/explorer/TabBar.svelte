@@ -156,8 +156,8 @@
   </ul>
 {/if}
 
-<div class="bg-base-200/60 relative flex items-end pt-1.5 pl-2">
-  {#if tabsState.hasTabs}
+{#if tabsState.hasTabs}
+  <div class="bg-base-200/60 relative flex items-end pt-1.5 pl-2">
     <!-- Tab list container — hidden scrollbar, overlapping tabs -->
     <div
       bind:this={containerEl}
@@ -209,27 +209,39 @@
             title={tab.label}
           >
             <span class="truncate">{tab.label}</span>
-            <span
-              class="text-base-content/40 hover:text-error shrink-0 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
-              role="button"
-              tabindex="-1"
-              aria-label={m.storage_tab_close()}
-              onclick={(e) => {
-                e.stopPropagation();
-                tabsState.closeTab(tab.id);
-              }}
-              onkeydown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
+            {#if tabsState.tabs.length > 1}
+              <span
+                class="text-base-content/40 hover:text-error shrink-0 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+                role="button"
+                tabindex="-1"
+                aria-label={m.storage_tab_close()}
+                onclick={(e) => {
                   e.stopPropagation();
                   tabsState.closeTab(tab.id);
-                }
-              }}
-            >
-              <IconClose class="size-3" aria-hidden="true" />
-            </span>
+                }}
+                onkeydown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.stopPropagation();
+                    tabsState.closeTab(tab.id);
+                  }
+                }}
+              >
+                <IconClose class="size-3" aria-hidden="true" />
+              </span>
+            {/if}
           </button>
         {/if}
       {/each}
+
+      <!-- Plus button — sits inline next to the last tab -->
+      <button
+        class="btn btn-ghost btn-xs z-20 ml-2 shrink-0"
+        title={m.storage_tab_new()}
+        aria-label={m.storage_tab_new()}
+        onclick={() => tabsState.addTab()}
+      >
+        <IconAdd class="size-3.5" aria-hidden="true" />
+      </button>
     </div>
 
     <!-- Fade-out gradient indicating more tabs to the left -->
@@ -247,18 +259,8 @@
         aria-hidden="true"
       ></div>
     {/if}
-  {/if}
-
-  <!-- Plus button — always rendered, outside tablist -->
-  <button
-    class="btn btn-ghost btn-xs z-20 ml-2 shrink-0"
-    title={m.storage_tab_new()}
-    aria-label={m.storage_tab_new()}
-    onclick={() => tabsState.addTab()}
-  >
-    <IconAdd class="size-3.5" aria-hidden="true" />
-  </button>
-</div>
+  </div>
+{/if}
 
 <style>
   .tab-strip {
