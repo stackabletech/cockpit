@@ -11,6 +11,7 @@
   import CsvPreview from './preview/CsvPreview.svelte';
   import ImagePreview from './preview/ImagePreview.svelte';
   import PdfPreview from './preview/PdfPreview.svelte';
+  import ParquetPreview from './preview/ParquetPreview.svelte';
   import FallbackPreview from './preview/FallbackPreview.svelte';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
   import { downloadObject, DownloadError } from '$lib/storage/download.js';
@@ -26,6 +27,12 @@
 
   let { open = $bindable(false), bucket, objectKey }: Props = $props();
 
+  interface ParquetPreviewPayload {
+    headers: string[];
+    rows: unknown[][];
+    totalRows: number;
+  }
+
   type PreviewKind =
     | { kind: 'idle' }
     | { kind: 'loading' }
@@ -40,7 +47,8 @@
     | { kind: 'csv'; text: string; truncated: boolean; totalSize: number; previewBytes: number }
     | {
         kind: 'parquet';
-        text: string;
+        headers: string[];
+        rows: unknown[][];
         truncated: boolean;
         totalSize: number;
         totalRows: number;
@@ -146,18 +154,32 @@
         return;
       }
 
+      if (format === 'parquet') {
+        const parquetPreview = await res.json().catch(() => null);
+
+        if (!isParquetPreviewPayload(parquetPreview)) {
+          preview = { kind: 'error', message: m.storage_preview_error_desc() };
+          return;
+        }
+
+        preview = {
+          kind: 'parquet',
+          headers: parquetPreview.headers,
+          rows: parquetPreview.rows,
+          truncated,
+          totalSize,
+          totalRows,
+          previewRows
+        };
+        return;
+      }
+
       // For everything else (text/*, application/json, application/octet-stream,
       // application/yaml, etc.) attempt UTF-8 decode. Success → text view;
       // failure → the file is genuinely binary.
       const text = await readTextSafely(res, key);
       if (text === null) {
         preview = { kind: 'fallback', contentType, isBinary: true };
-        return;
-      }
-
-      // Parquet data pre-parsed by the server and returned as CSV text.
-      if (format === 'parquet') {
-        preview = { kind: 'parquet', text, truncated, totalSize, totalRows, previewRows };
         return;
       }
 
@@ -215,6 +237,19 @@
     } catch {
       return null;
     }
+  }
+
+  function isParquetPreviewPayload(value: unknown): value is ParquetPreviewPayload {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    const payload = value as Partial<ParquetPreviewPayload>;
+    return (
+      Array.isArray(payload.headers) &&
+      Array.isArray(payload.rows) &&
+      typeof payload.totalRows === 'number'
+    );
   }
 
   const filename = $derived(objectKey ? keyToName(objectKey) : '');
@@ -348,7 +383,11 @@
       {:else if preview.kind === 'csv'}
         <CsvPreview text={preview.text} />
       {:else if preview.kind === 'parquet'}
-        <CsvPreview text={preview.text} />
+        <ParquetPreview
+          headers={preview.headers}
+          rows={preview.rows}
+          totalRows={preview.totalRows}
+        />
       {:else if preview.kind === 'image'}
         <ImagePreview
           src={preview.blobUrl}

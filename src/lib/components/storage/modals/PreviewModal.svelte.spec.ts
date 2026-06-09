@@ -277,14 +277,21 @@ describe('PreviewModal', () => {
       vi.stubGlobal(
         'fetch',
         vi.fn().mockResolvedValue(
-          mockFetchResponse('col1,col2\nval1,val2', {
-            contentType: 'text/csv',
-            format: 'parquet',
-            truncated: false,
-            totalSize: 5000,
-            totalRows: 100,
-            previewRows: 50
-          })
+          mockFetchResponse(
+            JSON.stringify({
+              headers: ['col1', 'col2'],
+              rows: [['val1', 'val2']],
+              totalRows: 100
+            }),
+            {
+              contentType: 'application/json',
+              format: 'parquet',
+              truncated: false,
+              totalSize: 5000,
+              totalRows: 100,
+              previewRows: 50
+            }
+          )
         )
       );
       render(PreviewModal, { ...defaultProps, objectKey: 'data/file.parquet' });
@@ -298,20 +305,28 @@ describe('PreviewModal', () => {
       vi.stubGlobal(
         'fetch',
         vi.fn().mockResolvedValue(
-          mockFetchResponse('col1,col2\nval1,val2', {
-            contentType: 'text/csv',
-            format: 'parquet',
-            truncated: true,
-            totalSize: 50000,
-            totalRows: 10000,
-            previewRows: 500
-          })
+          mockFetchResponse(
+            JSON.stringify({
+              headers: ['col1', 'col2'],
+              rows: [['val1', 'val2']],
+              totalRows: 10000
+            }),
+            {
+              contentType: 'application/json',
+              format: 'parquet',
+              truncated: true,
+              totalSize: 50000,
+              totalRows: 10000,
+              previewRows: 500
+            }
+          )
         )
       );
       render(PreviewModal, { ...defaultProps, objectKey: 'data/file.parquet' });
 
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
       await expect.element(page.getByText('val1')).toBeInTheDocument();
+      await expect.element(page.getByText(/showing first 1 of 10000 rows/i)).toBeInTheDocument();
     });
   });
 
