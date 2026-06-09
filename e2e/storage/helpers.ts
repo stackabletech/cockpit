@@ -82,7 +82,35 @@ export async function connectAndOpenPrefix(
   await connectToStorage(page, credentials);
   await expect(page).toHaveURL('/storage');
   await page.goto(bucketRoute(credentials.bucket, prefix));
+  await waitForObjectsLoaded(page);
+}
+
+/**
+ * Wait for the bucket object listing to be ready after a client-side load.
+ * With the new architecture, `waitForHydration` alone is insufficient because
+ * the object list is fetched client-side after hydration. This waits for either
+ * a table row or the empty-state message to appear, confirming the fetch has
+ * completed and the UI has updated.
+ */
+export async function waitForObjectsLoaded(page: Page) {
   await waitForHydration(page);
+  await page
+    .locator('tbody tr')
+    .or(page.getByText('This bucket is empty'))
+    .first()
+    .waitFor({ timeout: 15_000 });
+}
+
+/**
+ * Wait for the storage landing page to display the connected state.
+ * With the new client-side layout load, navigating to `/storage` initially
+ * renders the SSR default (disconnected) state. This waits until the
+ * client-side bucket fetch has completed and the connected UI (recent items
+ * tabs) is visible.
+ */
+export async function waitForStorageConnected(page: Page) {
+  await waitForHydration(page);
+  await expect(page.getByRole('tab', { name: 'Recent Files' })).toBeVisible({ timeout: 15_000 });
 }
 
 export async function putTextObject(

@@ -6,15 +6,6 @@ vi.mock('$lib/server/logging', () => ({
   logger: { child: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn() }) }
 }));
 
-const mockGetUserConnection = vi.fn();
-const mockSetUserConnection = vi.fn();
-const mockClearUserConnection = vi.fn();
-vi.mock('./user-connections.js', () => ({
-  getUserConnection: (...args: unknown[]) => mockGetUserConnection(...args),
-  setUserConnection: (...args: unknown[]) => mockSetUserConnection(...args),
-  clearUserConnection: (...args: unknown[]) => mockClearUserConnection(...args)
-}));
-
 const mockSend = vi.fn();
 vi.mock('./s3-client.js', () => ({
   createS3Client: () => ({ send: (...args: unknown[]) => mockSend(...args) })
@@ -31,7 +22,7 @@ const mockProvider = {
   listAllKeys: vi.fn()
 };
 vi.mock('./utils.js', () => ({
-  getProviderForUser: () => mockProvider
+  getProvider: () => mockProvider
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -54,36 +45,32 @@ import {
   uploadObject,
   deleteObjects
 } from './service.js';
+import type { S3ConnectionConfig } from './types.js';
+
+const config: S3ConnectionConfig = {
+  type: 's3',
+  region: faker.location.countryCode()
+};
 
 describe('storage service', () => {
-  const userId = faker.string.uuid();
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('listBuckets', () => {
-    it('returns empty array when no connection', async () => {
-      mockGetUserConnection.mockReturnValue(null);
-      expect(await listBuckets(userId)).toEqual([]);
-    });
-
     it('returns bucket names', async () => {
-      mockGetUserConnection.mockReturnValue({ type: 's3', region: 'us-east-1' });
       mockSend.mockResolvedValue({ Buckets: [{ Name: 'a' }, { Name: 'b' }] });
-      expect(await listBuckets(userId)).toEqual(['a', 'b']);
+      expect(await listBuckets(config)).toEqual(['a', 'b']);
     });
 
     it('filters out buckets with no name', async () => {
-      mockGetUserConnection.mockReturnValue({ type: 's3', region: 'us-east-1' });
       mockSend.mockResolvedValue({ Buckets: [{ Name: 'a' }, { Name: undefined }, { Name: '' }] });
-      expect(await listBuckets(userId)).toEqual(['a']);
+      expect(await listBuckets(config)).toEqual(['a']);
     });
 
     it('handles null Buckets in response', async () => {
-      mockGetUserConnection.mockReturnValue({ type: 's3', region: 'us-east-1' });
       mockSend.mockResolvedValue({ Buckets: null });
-      expect(await listBuckets(userId)).toEqual([]);
+      expect(await listBuckets(config)).toEqual([]);
     });
   });
 
@@ -91,7 +78,7 @@ describe('storage service', () => {
     it('proxies to provider', async () => {
       const page = { objects: [], prefixes: [], nextToken: null };
       mockProvider.listObjects.mockResolvedValue(page);
-      const result = await listObjects(userId, 'bucket', 'prefix/', 100);
+      const result = await listObjects(config, 'bucket', 'prefix/', 100);
       expect(mockProvider.listObjects).toHaveBeenCalledWith('prefix/', 100, undefined);
       expect(result).toEqual(page);
     });
@@ -99,21 +86,21 @@ describe('storage service', () => {
     it('passes continuation token when provided', async () => {
       const page = { objects: [], prefixes: [], nextToken: null };
       mockProvider.listObjects.mockResolvedValue(page);
-      await listObjects(userId, 'bucket', '', 10, 'tok');
+      await listObjects(config, 'bucket', '', 10, 'tok');
       expect(mockProvider.listObjects).toHaveBeenCalledWith('', 10, 'tok');
     });
 
     it('passes undefined when continuation token is null', async () => {
       const page = { objects: [], prefixes: [], nextToken: null };
       mockProvider.listObjects.mockResolvedValue(page);
-      await listObjects(userId, 'bucket', '', 10, null);
+      await listObjects(config, 'bucket', '', 10, null);
       expect(mockProvider.listObjects).toHaveBeenCalledWith('', 10, undefined);
     });
 
     it('throws S3ServiceException via mapS3ErrorToHttp', async () => {
       const err = makeS3Error('AccessDenied');
       mockProvider.listObjects.mockRejectedValue(err);
-      await expect(listObjects(userId, 'bucket', '', 10)).rejects.toThrow(err);
+      await expect(listObjects(config, 'bucket', '', 10)).rejects.toThrow(err);
       expect(mockMapS3ErrorToHttp).toHaveBeenCalledWith(err, {
         bucket: 'bucket',
         operation: 'listObjects'
@@ -123,7 +110,7 @@ describe('storage service', () => {
     it('rethrows non-S3 errors', async () => {
       const err = new Error('network');
       mockProvider.listObjects.mockRejectedValue(err);
-      await expect(listObjects(userId, 'bucket', '', 10)).rejects.toThrow('network');
+      await expect(listObjects(config, 'bucket', '', 10)).rejects.toThrow('network');
       expect(mockMapS3ErrorToHttp).not.toHaveBeenCalled();
     });
   });
@@ -132,14 +119,14 @@ describe('storage service', () => {
     it('returns download from provider', async () => {
       const download = { stream: new ReadableStream(), contentType: 'text/plain' };
       mockProvider.getObject.mockResolvedValue(download);
-      const result = await downloadObject(userId, 'bucket', 'key.txt');
+      const result = await downloadObject(config, 'bucket', 'key.txt');
       expect(result).toEqual(download);
     });
 
     it('throws S3ServiceException via mapS3ErrorToHttp', async () => {
       const err = makeS3Error('NoSuchKey');
       mockProvider.getObject.mockRejectedValue(err);
-      await expect(downloadObject(userId, 'bucket', 'key.txt')).rejects.toThrow(err);
+      await expect(downloadObject(config, 'bucket', 'key.txt')).rejects.toThrow(err);
       expect(mockMapS3ErrorToHttp).toHaveBeenCalledWith(err, {
         bucket: 'bucket',
         key: 'key.txt',
@@ -150,7 +137,7 @@ describe('storage service', () => {
     it('rethrows non-S3 errors', async () => {
       const err = new Error('timeout');
       mockProvider.getObject.mockRejectedValue(err);
-      await expect(downloadObject(userId, 'bucket', 'k')).rejects.toThrow('timeout');
+      await expect(downloadObject(config, 'bucket', 'k')).rejects.toThrow('timeout');
       expect(mockMapS3ErrorToHttp).not.toHaveBeenCalled();
     });
   });
@@ -159,13 +146,13 @@ describe('storage service', () => {
     it('proxies to provider', async () => {
       const meta = { contentType: 'text/plain', contentLength: 42 };
       mockProvider.getMetadata.mockResolvedValue(meta);
-      expect(await getObjectMetadata(userId, 'bucket', 'k')).toEqual(meta);
+      expect(await getObjectMetadata(config, 'bucket', 'k')).toEqual(meta);
     });
 
     it('throws S3ServiceException via mapS3ErrorToHttp', async () => {
       const err = makeS3Error('NoSuchKey');
       mockProvider.getMetadata.mockRejectedValue(err);
-      await expect(getObjectMetadata(userId, 'bucket', 'k')).rejects.toThrow(err);
+      await expect(getObjectMetadata(config, 'bucket', 'k')).rejects.toThrow(err);
       expect(mockMapS3ErrorToHttp).toHaveBeenCalledWith(err, {
         bucket: 'bucket',
         key: 'k',
@@ -176,7 +163,7 @@ describe('storage service', () => {
     it('rethrows non-S3 errors', async () => {
       const err = new Error('gone');
       mockProvider.getMetadata.mockRejectedValue(err);
-      await expect(getObjectMetadata(userId, 'bucket', 'k')).rejects.toThrow('gone');
+      await expect(getObjectMetadata(config, 'bucket', 'k')).rejects.toThrow('gone');
       expect(mockMapS3ErrorToHttp).not.toHaveBeenCalled();
     });
   });
@@ -184,7 +171,7 @@ describe('storage service', () => {
   describe('uploadObject', () => {
     it('proxies to provider', async () => {
       mockProvider.putObject.mockResolvedValue(undefined);
-      await uploadObject(userId, 'bucket', 'k', Buffer.from('x'), 'text/plain', 1);
+      await uploadObject(config, 'bucket', 'k', Buffer.from('x'), 'text/plain', 1);
       expect(mockProvider.putObject).toHaveBeenCalledWith('k', expect.any(Buffer), 'text/plain', 1);
     });
 
@@ -192,7 +179,7 @@ describe('storage service', () => {
       const err = makeS3Error('AccessDenied');
       mockProvider.putObject.mockRejectedValue(err);
       await expect(
-        uploadObject(userId, 'bucket', 'k', Buffer.from('x'), 'text/plain')
+        uploadObject(config, 'bucket', 'k', Buffer.from('x'), 'text/plain')
       ).rejects.toThrow(err);
       expect(mockMapS3ErrorToHttp).toHaveBeenCalledWith(err, {
         bucket: 'bucket',
@@ -205,7 +192,7 @@ describe('storage service', () => {
       const err = new Error('disk full');
       mockProvider.putObject.mockRejectedValue(err);
       await expect(
-        uploadObject(userId, 'bucket', 'k', Buffer.from('x'), 'text/plain')
+        uploadObject(config, 'bucket', 'k', Buffer.from('x'), 'text/plain')
       ).rejects.toThrow('disk full');
       expect(mockMapS3ErrorToHttp).not.toHaveBeenCalled();
     });
@@ -215,7 +202,7 @@ describe('storage service', () => {
     it('expands directory prefixes and deletes all', async () => {
       mockProvider.listAllKeys.mockResolvedValue(['dir/a.txt', 'dir/b.txt']);
       mockProvider.deleteObjects.mockResolvedValue({ failed: [] });
-      const result = await deleteObjects(userId, 'bucket', ['file.txt', 'dir/']);
+      const result = await deleteObjects(config, 'bucket', ['file.txt', 'dir/']);
       expect(mockProvider.listAllKeys).toHaveBeenCalledWith('dir/');
       expect(mockProvider.deleteObjects).toHaveBeenCalledWith([
         'file.txt',
@@ -228,15 +215,14 @@ describe('storage service', () => {
     it('uses directory key itself when no children found', async () => {
       mockProvider.listAllKeys.mockResolvedValue([]);
       mockProvider.deleteObjects.mockResolvedValue({ failed: [] });
-      await deleteObjects(userId, 'bucket', ['empty/']);
+      await deleteObjects(config, 'bucket', ['empty/']);
       expect(mockProvider.deleteObjects).toHaveBeenCalledWith(['empty/']);
     });
 
     it('returns empty result for no keys', async () => {
-      // No file keys, no dir prefixes after expansion
       mockProvider.listAllKeys.mockResolvedValue([]);
       mockProvider.deleteObjects.mockResolvedValue({ failed: [] });
-      const result = await deleteObjects(userId, 'bucket', []);
+      const result = await deleteObjects(config, 'bucket', []);
       expect(result).toEqual({ failed: [] });
     });
 
@@ -244,7 +230,7 @@ describe('storage service', () => {
       const err = makeS3Error('AccessDenied');
       mockProvider.listAllKeys.mockResolvedValue([]);
       mockProvider.deleteObjects.mockRejectedValue(err);
-      await expect(deleteObjects(userId, 'bucket', ['file.txt'])).rejects.toThrow(err);
+      await expect(deleteObjects(config, 'bucket', ['file.txt'])).rejects.toThrow(err);
       expect(mockMapS3ErrorToHttp).toHaveBeenCalledWith(err, {
         bucket: 'bucket',
         operation: 'deleteObjects'
@@ -254,7 +240,7 @@ describe('storage service', () => {
     it('rethrows non-S3 errors', async () => {
       const err = new Error('network');
       mockProvider.deleteObjects.mockRejectedValue(err);
-      await expect(deleteObjects(userId, 'bucket', ['file.txt'])).rejects.toThrow('network');
+      await expect(deleteObjects(config, 'bucket', ['file.txt'])).rejects.toThrow('network');
       expect(mockMapS3ErrorToHttp).not.toHaveBeenCalled();
     });
   });

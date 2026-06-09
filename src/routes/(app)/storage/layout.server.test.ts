@@ -7,17 +7,7 @@ vi.mock('$lib/server/feature-flags.js', () => ({
   }
 }));
 
-vi.mock('$lib/server/storage/service.js', () => ({
-  getConnection: vi.fn(),
-  listBuckets: vi.fn()
-}));
-
-vi.mock('$lib/server/auth-utils.js', () => ({
-  getUserId: vi.fn(() => 'test-user')
-}));
-
 import { load } from './+layout.server.js';
-import { getConnection, listBuckets } from '$lib/server/storage/service.js';
 
 function mockEvent() {
   return {
@@ -25,7 +15,7 @@ function mockEvent() {
   } as unknown as Parameters<typeof load>[0];
 }
 
-describe('storage layout load', () => {
+describe('storage layout server load', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('throws 404 when storage browser is disabled', async () => {
@@ -33,10 +23,8 @@ describe('storage layout load', () => {
     await expect(load(mockEvent())).rejects.toThrow(expect.objectContaining({ status: 404 }));
   });
 
-  it('returns connected:false when no connection', async () => {
+  it('returns disconnected default state', async () => {
     mockStorageBrowserEnabled.mockReturnValue(true);
-    vi.mocked(getConnection).mockReturnValue(null);
-
     const result = await load(mockEvent());
     expect(result).toEqual({
       connected: false,
@@ -44,37 +32,5 @@ describe('storage layout load', () => {
       connectionType: null,
       connectionId: null
     });
-  });
-
-  it('returns buckets when connected', async () => {
-    mockStorageBrowserEnabled.mockReturnValue(true);
-    vi.mocked(getConnection).mockReturnValue({ type: 's3' } as unknown as ReturnType<
-      typeof getConnection
-    >);
-    vi.mocked(listBuckets).mockResolvedValue(['bucket-a', 'bucket-b']);
-
-    const result = await load(mockEvent());
-    expect(result).toEqual(
-      expect.objectContaining({
-        connected: true,
-        buckets: ['bucket-a', 'bucket-b'],
-        connectionType: 's3'
-      })
-    );
-    expect(result).toHaveProperty('connectionId');
-  });
-
-  it('returns empty buckets when listBuckets fails', async () => {
-    mockStorageBrowserEnabled.mockReturnValue(true);
-    vi.mocked(getConnection).mockReturnValue({ type: 's3' } as unknown as ReturnType<
-      typeof getConnection
-    >);
-    vi.mocked(listBuckets).mockRejectedValue(new Error('network'));
-
-    const result = await load(mockEvent());
-    expect(result).toEqual(
-      expect.objectContaining({ connected: true, buckets: [], connectionType: 's3' })
-    );
-    expect(result).toHaveProperty('connectionId');
   });
 });

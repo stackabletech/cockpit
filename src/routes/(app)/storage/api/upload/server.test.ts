@@ -4,12 +4,12 @@ vi.mock('$lib/server/storage/service.js', () => ({
   uploadObject: vi.fn()
 }));
 
-vi.mock('$lib/server/auth-utils.js', () => ({
-  getUserId: vi.fn(() => 'test-user')
-}));
-
 import { POST } from './+server.js';
 import { uploadObject } from '$lib/server/storage/service.js';
+
+const CONNECTION_HEADER = {
+  'x-storage-connection': btoa(JSON.stringify({ type: 's3', region: 'us-east-1' }))
+};
 
 function mockEvent(opts: {
   params?: string;
@@ -20,13 +20,17 @@ function mockEvent(opts: {
     `http://localhost/storage/api/upload?${opts.params ?? 'bucket=b1&key=file.txt'}`
   );
   const headers = new Headers(
-    opts.headers ?? { 'Content-Type': 'text/plain', 'Content-Length': '42' }
+    opts.headers ?? { 'Content-Type': 'text/plain', 'Content-Length': '42', ...CONNECTION_HEADER }
   );
   const body = 'body' in opts ? opts.body : new ReadableStream();
   return {
     url,
     request: { body, headers },
-    locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
+    locals: {
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
+      user: { id: 'test-user' },
+      storageConfig: { type: 's3', region: 'us-east-1' }
+    }
   } as unknown as Parameters<typeof POST>[0];
 }
 
@@ -52,13 +56,17 @@ describe('POST /storage/api/upload', () => {
     const res = await POST(
       mockEvent({
         body,
-        headers: { 'Content-Type': 'image/png; charset=utf-8', 'Content-Length': '100' }
+        headers: {
+          'Content-Type': 'image/png; charset=utf-8',
+          'Content-Length': '100',
+          ...CONNECTION_HEADER
+        }
       })
     );
 
     expect(res.status).toBe(201);
     expect(uploadObject).toHaveBeenCalledWith(
-      'test-user',
+      expect.objectContaining({ type: 's3' }),
       'b1',
       'file.txt',
       body,
@@ -70,7 +78,7 @@ describe('POST /storage/api/upload', () => {
   it('defaults content type to application/octet-stream', async () => {
     vi.mocked(uploadObject).mockResolvedValue(undefined);
 
-    const res = await POST(mockEvent({ headers: {} }));
+    const res = await POST(mockEvent({ headers: { ...CONNECTION_HEADER } }));
 
     expect(res.status).toBe(201);
     expect(vi.mocked(uploadObject).mock.calls[0][4]).toBe('application/octet-stream');

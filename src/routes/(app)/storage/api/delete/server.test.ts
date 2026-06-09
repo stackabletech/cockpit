@@ -5,12 +5,12 @@ vi.mock('$lib/server/storage/service.js', () => ({
   deleteObjects: vi.fn()
 }));
 
-vi.mock('$lib/server/auth-utils.js', () => ({
-  getUserId: vi.fn(() => 'test-user')
-}));
-
 import { DELETE } from './+server.js';
 import { deleteObjects } from '$lib/server/storage/service.js';
+
+const CONNECTION_HEADER = {
+  'x-storage-connection': btoa(JSON.stringify({ type: 's3', region: 'us-east-1' }))
+};
 
 function mockEvent(searchParams: Record<string, string | string[]>) {
   const url = new URL('http://localhost/storage/api/delete');
@@ -23,7 +23,12 @@ function mockEvent(searchParams: Record<string, string | string[]>) {
   }
   return {
     url,
-    locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
+    request: { headers: new Headers(CONNECTION_HEADER) },
+    locals: {
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
+      user: { id: 'test-user' },
+      storageConfig: { type: 's3', region: 'us-east-1' }
+    }
   } as unknown as Parameters<typeof DELETE>[0];
 }
 
@@ -50,7 +55,7 @@ describe('DELETE /storage/api/delete', () => {
     );
 
     const response = await DELETE(mockEvent({ bucket: 'b1', keys }));
-    expect(deleteObjects).toHaveBeenCalledWith('test-user', 'b1', keys);
+    expect(deleteObjects).toHaveBeenCalledWith(expect.objectContaining({ type: 's3' }), 'b1', keys);
     expect(await response.json()).toEqual(result);
   });
 });
