@@ -126,8 +126,6 @@ export async function getParquetPreview(
       rowsScanned += Number(rowGroup.num_rows);
 
       for (const column of rowGroup.columns) {
-        // FIX 1: Fetch both offset_index AND column_index bounds
-        // hyparquet requests both. If we miss one, it triggers separate HTTP requests.
         if (column.offset_index_offset && column.offset_index_length) {
           const start = Number(column.offset_index_offset);
           const end = start + column.offset_index_length;
@@ -147,7 +145,6 @@ export async function getParquetPreview(
     let offsetIndexCache: { start: number; buffer: ArrayBuffer } | null = null;
     const indexSpan = offsetIndexEnd - offsetIndexStart;
 
-    // FIX 2: Safeguard against malformed files where indices span massive sizes
     if (isFinite(offsetIndexStart) && indexSpan <= 10 * 1024 * 1024) {
       const stream = await provider.getObjectRange(key, offsetIndexStart, offsetIndexEnd - 1);
       offsetIndexCache = {
@@ -183,11 +180,10 @@ export async function getParquetPreview(
       slice: (start: number, end?: number): Promise<ArrayBuffer> => {
         const rangeEnd = end ?? byteLength;
 
-        // FIX 3: Cap the maximum fallback read.
         // If a file has no offset indices, hyparquet will ask for the ENTIRE compressed
-        // column chunk (which could be the whole 350MB file!).
-        // 5MB is easily enough to extract the first 250 rows before hyparquet completes the stream.
-        const MAX_PREVIEW_FETCH_BYTES = 5 * 1024 * 1024; // 5MB
+        // column chunk.
+        // 1MB is easily enough to extract the first 250 rows before hyparquet completes the stream.
+        const MAX_PREVIEW_FETCH_BYTES = 1 * 1024 * 1024; // 1MB
         let actualEnd = rangeEnd;
 
         if (actualEnd - start > MAX_PREVIEW_FETCH_BYTES) {
