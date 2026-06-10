@@ -9,9 +9,9 @@
   import Modal from '$lib/components/Modal.svelte';
   import TextPreview from './preview/TextPreview.svelte';
   import CsvPreview from './preview/CsvPreview.svelte';
+  import ParquetPreview from './preview/ParquetPreview.svelte';
   import ImagePreview from './preview/ImagePreview.svelte';
   import PdfPreview from './preview/PdfPreview.svelte';
-  import ParquetPreview from './preview/ParquetPreview.svelte';
   import FallbackPreview from './preview/FallbackPreview.svelte';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
   import { downloadObject, DownloadError } from '$lib/storage/download.js';
@@ -20,14 +20,12 @@
   import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
 
   interface Props {
-    open: boolean;
-    bucket: string;
-    objectKey: string | null;
+    open?: boolean;
+    bucket?: string;
+    objectKey?: string | null;
   }
 
-  let { open = $bindable(false), bucket, objectKey }: Props = $props();
-
-  interface ParquetPreviewPayload {
+  interface ParquetPayload {
     headers: string[];
     rows: unknown[][];
     totalRows: number;
@@ -52,22 +50,20 @@
         truncated: boolean;
         totalSize: number;
         totalRows: number;
-        previewRows: number;
       }
     | { kind: 'image'; blobUrl: string; contentType: string; totalSize: number }
     | { kind: 'pdf'; blobUrl: string; totalSize: number }
     | { kind: 'fallback'; contentType: string; isBinary: boolean }
     | { kind: 'error'; message: string };
 
+  let { open = $bindable(false), bucket = '', objectKey = null }: Props = $props();
+
   let preview: PreviewKind = $state({ kind: 'idle' });
-  // Not $state — the template never reads blobUrls directly, only preview.blobUrl.
-  // Keeping it non-reactive prevents a read/write cycle inside the $effect below.
   let blobUrls: string[] = [];
   let maximized = $state(false);
   let imageNaturalWidth = $state(0);
   let imageNaturalHeight = $state(0);
 
-  // Revoke blob URLs when the component is destroyed
   onDestroy(() => {
     for (const url of blobUrls) {
       URL.revokeObjectURL(url);
@@ -81,11 +77,11 @@
     blobUrls = [];
   }
 
-  // Load preview whenever the modal opens or the key changes
   $effect(() => {
     if (open && objectKey) {
       void loadPreview(objectKey, bucket);
     }
+
     if (!open) {
       revokeBlobUrls();
       preview = { kind: 'idle' };
@@ -94,7 +90,7 @@
     }
   });
 
-  async function loadPreview(key: string, bkt: string) {
+  async function loadPreview(key: string, activeBucket: string) {
     preview = { kind: 'loading' };
     revokeBlobUrls();
 
@@ -104,7 +100,7 @@
       : {};
 
     try {
-      const params = new URLSearchParams({ bucket: bkt, key });
+      const params = new URLSearchParams({ bucket: activeBucket, key });
       const res = await fetch(`/storage/api/preview?${params}`, { headers });
 
       if (!res.ok) {
@@ -126,17 +122,13 @@
       const truncated = res.headers.get('X-Preview-Truncated') === 'true';
       const totalSize = Number(res.headers.get('X-Preview-Total-Size') ?? '0');
       const previewBytes = Number(res.headers.get('X-Preview-Bytes') ?? '0');
-      const totalRows = Number(res.headers.get('X-Preview-Total-Rows') ?? '0');
-      const previewRows = Number(res.headers.get('X-Preview-Preview-Rows') ?? '0');
 
-      // Server flagged this as a known-binary type — skip body fetch entirely.
       if (res.headers.get('X-Preview-Renderable') === 'false') {
         await res.body?.cancel();
         preview = { kind: 'fallback', contentType, isBinary: false };
         return;
       }
 
-      // Images — render as blob URL
       if (contentType.startsWith('image/')) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -145,7 +137,6 @@
         return;
       }
 
-      // PDF — render in iframe
       if (contentType === 'application/pdf') {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -155,35 +146,29 @@
       }
 
       if (format === 'parquet') {
-        const parquetPreview = await res.json().catch(() => null);
-
-        if (!isParquetPreviewPayload(parquetPreview)) {
+        const payload = await res.json().catch(() => null);
+        if (!isParquetPayload(payload)) {
           preview = { kind: 'error', message: m.storage_preview_error_desc() };
           return;
         }
 
         preview = {
           kind: 'parquet',
-          headers: parquetPreview.headers,
-          rows: parquetPreview.rows,
+          headers: payload.headers,
+          rows: payload.rows,
           truncated,
           totalSize,
-          totalRows,
-          previewRows
+          totalRows: payload.totalRows
         };
         return;
       }
 
-      // For everything else (text/*, application/json, application/octet-stream,
-      // application/yaml, etc.) attempt UTF-8 decode. Success → text view;
-      // failure → the file is genuinely binary.
       const text = await readTextSafely(res, key);
       if (text === null) {
         preview = { kind: 'fallback', contentType, isBinary: true };
         return;
       }
 
-      // CSV by content-type or file extension
       if (
         contentType === 'text/csv' ||
         contentType === 'application/csv' ||
@@ -194,25 +179,27 @@
         return;
       }
 
-      // All other decoded text
       preview = { kind: 'text', text, contentType, truncated, totalSize, previewBytes };
     } catch {
       preview = { kind: 'error', message: m.storage_preview_error_desc() };
     }
   }
 
-  /**
-   * Read response body as text. Handles UTF-16 BOMs, strict UTF-8, and falls
-   * back to Windows-1252 for CSV/TSV files (common for Excel-exported CSVs).
-   * Returns null if the content cannot be decoded as any recognised encoding
-   * (indicating genuinely binary content).
-   */
+  function isParquetPayload(value: unknown): value is ParquetPayload {
+    if (!value || typeof value !== 'object') return false;
+    const payload = value as Partial<ParquetPayload>;
+    return (
+      Array.isArray(payload.headers) &&
+      Array.isArray(payload.rows) &&
+      typeof payload.totalRows === 'number'
+    );
+  }
+
   async function readTextSafely(res: Response, key: string): Promise<string | null> {
     try {
       const buf = await res.arrayBuffer();
       const bytes = new Uint8Array(buf);
 
-      // Detect UTF-16 BOM (common in Excel "Save as CSV (UTF-16)")
       if (bytes.length >= 2) {
         if (bytes[0] === 0xff && bytes[1] === 0xfe) {
           return new TextDecoder('utf-16le').decode(buf);
@@ -222,12 +209,9 @@
         }
       }
 
-      // Try strict UTF-8 (handles UTF-8 with or without BOM)
       try {
         return new TextDecoder('utf-8', { fatal: true }).decode(buf);
       } catch {
-        // For CSV/TSV files try Windows-1252 — the default encoding used by
-        // Excel on Windows when exporting to CSV.
         const lowerKey = key.toLowerCase();
         if (lowerKey.endsWith('.csv') || lowerKey.endsWith('.tsv')) {
           return new TextDecoder('windows-1252').decode(buf);
@@ -239,28 +223,17 @@
     }
   }
 
-  function isParquetPreviewPayload(value: unknown): value is ParquetPreviewPayload {
-    if (!value || typeof value !== 'object') {
-      return false;
-    }
-
-    const payload = value as Partial<ParquetPreviewPayload>;
-    return (
-      Array.isArray(payload.headers) &&
-      Array.isArray(payload.rows) &&
-      typeof payload.totalRows === 'number'
-    );
-  }
-
   const filename = $derived(objectKey ? keyToName(objectKey) : '');
 
   async function triggerDownload() {
     if (!objectKey) return;
+
     const conn = loadConnectionLocally();
     if (!conn) {
       addToast('error', m.storage_download_error_unknown());
       return;
     }
+
     try {
       await downloadObject(bucket, objectKey, getConnectionHeader(conn));
     } catch (err) {
@@ -279,15 +252,41 @@
   function toggleMaximized() {
     maximized = !maximized;
   }
+
+  // Function to fetch additional parquet chunks during infinite scroll
+  async function fetchParquetRows(offset: number, limit: number): Promise<unknown[][]> {
+    if (!objectKey) return [];
+
+    const conn = loadConnectionLocally();
+    const headers: HeadersInit = conn
+      ? { [STORAGE_CONNECTION_HEADER]: getConnectionHeader(conn) }
+      : {};
+
+    const params = new URLSearchParams({
+      bucket,
+      key: objectKey,
+      offset: String(offset),
+      limit: String(limit)
+    });
+
+    const res = await fetch(`/storage/api/preview?${params}`, { headers });
+
+    if (!res.ok) {
+      throw new Error('Failed to fetch parquet chunk');
+    }
+
+    const payload = await res.json();
+    return payload.rows || [];
+  }
 </script>
 
 <Modal bind:open class="modal">
   <div
-    class="modal-box flex flex-col p-0 transition-none
-      {maximized ? 'h-dvh max-h-dvh w-screen max-w-none rounded-none' : 'w-full max-w-5xl'}"
+    class="modal-box flex flex-col p-0 transition-none {maximized
+      ? 'h-dvh max-h-dvh w-screen max-w-none rounded-none'
+      : 'w-full max-w-5xl'}"
     style={maximized ? '' : 'height: min(88dvh, 900px)'}
   >
-    <!-- Header -->
     <div class="border-base-300 flex shrink-0 items-center gap-3 border-b px-5 py-2">
       <div class="min-w-0 flex-1">
         <h2 class="text-base-content truncate font-semibold" id="preview-modal-title">
@@ -300,9 +299,7 @@
             >
             {#if preview.truncated}
               <span class="badge badge-soft badge-warning badge-sm">
-                {m.storage_preview_truncated({
-                  size: formatFileSize(preview.previewBytes)
-                })}
+                {m.storage_preview_truncated({ size: formatFileSize(preview.previewBytes) })}
               </span>
             {/if}
           </div>
@@ -314,7 +311,7 @@
             {#if preview.truncated}
               <span class="badge badge-soft badge-warning badge-sm">
                 {m.storage_preview_parquet_rows({
-                  count: preview.previewRows,
+                  count: preview.rows.length,
                   total: preview.totalRows
                 })}
               </span>
@@ -326,32 +323,32 @@
               >{formatFileSize(preview.totalSize)}</span
             >
             {#if preview.kind === 'image' && imageNaturalWidth > 0}
-              <span class="badge badge-neutral badge-sm font-mono"
-                >{imageNaturalWidth} &times; {imageNaturalHeight} px</span
-              >
+              <span class="badge badge-neutral badge-sm font-mono">
+                {imageNaturalWidth} &times; {imageNaturalHeight} px
+              </span>
             {/if}
           </div>
         {/if}
       </div>
+
       {#if maximized}
-        {@const MaximizeIcon = IconCloseFullscreen}
         <button
           class="btn btn-ghost btn-sm btn-square"
           onclick={toggleMaximized}
           aria-label="Restore"
         >
-          <MaximizeIcon class="size-4" aria-hidden="true" />
+          <IconCloseFullscreen class="size-4" aria-hidden="true" />
         </button>
       {:else}
-        {@const MaximizeIcon = IconOpenInFull}
         <button
           class="btn btn-ghost btn-sm btn-square"
           onclick={toggleMaximized}
           aria-label="Maximise"
         >
-          <MaximizeIcon class="size-4" aria-hidden="true" />
+          <IconOpenInFull class="size-4" aria-hidden="true" />
         </button>
       {/if}
+
       <button
         class="btn btn-ghost btn-sm btn-square"
         onclick={close}
@@ -361,8 +358,7 @@
       </button>
     </div>
 
-    <!-- Body -->
-    <div class="preview-scroll min-h-0 min-w-0 flex-1 overflow-scroll">
+    <div class="min-h-0 min-w-0 flex-1 overflow-scroll">
       {#if preview.kind === 'idle' || preview.kind === 'loading'}
         <div
           class="flex items-center justify-center p-12"
@@ -385,8 +381,9 @@
       {:else if preview.kind === 'parquet'}
         <ParquetPreview
           headers={preview.headers}
-          rows={preview.rows}
+          initialRows={preview.rows}
           totalRows={preview.totalRows}
+          fetchRows={fetchParquetRows}
         />
       {:else if preview.kind === 'image'}
         <ImagePreview
@@ -406,7 +403,6 @@
       {/if}
     </div>
 
-    <!-- Footer -->
     {#if preview.kind === 'text' || preview.kind === 'csv' || preview.kind === 'parquet' || preview.kind === 'image' || preview.kind === 'pdf'}
       <div class="border-base-300 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-2">
         {#if (preview.kind === 'text' || preview.kind === 'csv') && preview.truncated}
@@ -420,6 +416,7 @@
             {m.storage_preview_download_full()}
           </button>
         {/if}
+
         <button class="btn btn-primary btn-sm" onclick={close}>
           {m.storage_preview_close()}
         </button>

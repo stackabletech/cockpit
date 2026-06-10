@@ -31,8 +31,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       rawContentType === 'application/x-parquet' ||
       lowerKey.endsWith('.parquet');
 
+    const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
+    const limit = parseInt(url.searchParams.get('limit') ?? '250', 10);
+
     if (isParquet) {
-      return await getParquetPreview(provider, key, 250, log, totalSize);
+      return await getParquetPreview(provider, key, offset, limit, log, totalSize);
     }
 
     // Skip body fetch for known-binary formats — client will show fallback immediately.
