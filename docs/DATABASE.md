@@ -124,6 +124,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 ```
 
+### Connection Testing
+
+The database connection is tested automatically when the server starts. Check the logs for connection status:
+
 ```bash
 npm run dev   # Check terminal output for "Database connection successful"
 ```
