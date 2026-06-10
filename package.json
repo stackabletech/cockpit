@@ -17,6 +17,7 @@
     "test:unit": "vitest run",
     "test:e2e": "node --env-file=.env.test node_modules/.bin/vite build && playwright test",
     "test:e2e:garage": "./e2e/run-garage-tests.sh",
+    "test:e2e:postgres": "./e2e/run-postgres-tests.sh",
     "test:e2e:ui": "playwright test --ui",
     "generate:antlr": "cd src/lib/editor/grammar && antlr-ng -v -l -Dlanguage=TypeScript -o ../generated SqlBase.g4 && node patch-generated.mjs",
     "db:generate": "drizzle-kit generate",
