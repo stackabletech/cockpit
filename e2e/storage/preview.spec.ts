@@ -367,6 +367,135 @@ test.describe('Storage S3 — Preview', () => {
     }
   });
 
+  test('previews TSV files with table headers and data rows', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'preview-tsv');
+    const cleanupKeys = [`${prefix}data.tsv`];
+
+    try {
+      const tsvContent = ['name\tcity\tscore', 'Alice\tBerlin\t95', 'Bob\tMunich\t88'].join('\n');
+
+      await putTextObject(
+        client,
+        credentials.bucket,
+        `${prefix}data.tsv`,
+        tsvContent,
+        'text/tab-separated-values'
+      );
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'data.tsv').dblclick();
+
+      // Modal heading
+      await expect(page.getByRole('heading', { name: 'data.tsv' })).toBeVisible();
+
+      // CSV/TSV table is rendered with correct aria label
+      const table = page.getByRole('table', { name: 'CSV preview' });
+      await expect(table).toBeVisible();
+
+      // Headers are present
+      await expect(table.locator('th', { hasText: 'name' })).toBeVisible();
+      await expect(table.locator('th', { hasText: 'city' })).toBeVisible();
+      await expect(table.locator('th', { hasText: 'score' })).toBeVisible();
+
+      // Data rows are present
+      await expect(table.locator('td', { hasText: 'Alice' })).toBeVisible();
+      await expect(table.locator('td', { hasText: 'Berlin' })).toBeVisible();
+      await expect(table.locator('td', { hasText: '95' })).toBeVisible();
+      await expect(table.locator('td', { hasText: 'Bob' })).toBeVisible();
+
+      // File size badge is displayed
+      await expect(page.locator('.badge', { hasText: /B$/ })).toBeVisible();
+
+      // Close button works
+      await page.getByRole('button', { name: 'Close' }).last().click();
+      await expect(page.getByRole('heading', { name: 'data.tsv' })).not.toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('previews TSV files with quoted fields containing tabs', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'preview-tsv-quoted');
+    const cleanupKeys = [`${prefix}notes.tsv`];
+
+    try {
+      const tsvContent = ['name\tnotes', 'Alice\t"likes\ttabs\tin\tdata"', 'Bob\tplain text'].join(
+        '\n'
+      );
+
+      await putTextObject(
+        client,
+        credentials.bucket,
+        `${prefix}notes.tsv`,
+        tsvContent,
+        'text/tab-separated-values'
+      );
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'notes.tsv').dblclick();
+
+      await expect(page.getByRole('heading', { name: 'notes.tsv' })).toBeVisible();
+
+      const table = page.getByRole('table', { name: 'CSV preview' });
+      await expect(table).toBeVisible();
+
+      // Quoted fields with tabs are parsed correctly
+      await expect(table.locator('td', { hasText: 'likes\ttabs\tin\tdata' })).toBeVisible();
+      await expect(table.locator('td', { hasText: 'plain text' })).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('previews TSV files with application/vnd.ms-excel content type', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'preview-tsv-excel');
+    const cleanupKeys = [`${prefix}export.tsv`];
+
+    try {
+      const tsvContent = ['product\tprice\tqty', 'Widget\t19.99\t100', 'Gadget\t49.95\t50'].join(
+        '\n'
+      );
+
+      await client.send(
+        new PutObjectCommand({
+          Bucket: credentials.bucket,
+          Key: `${prefix}export.tsv`,
+          Body: Buffer.from(tsvContent),
+          ContentType: 'application/vnd.ms-excel'
+        })
+      );
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'export.tsv').dblclick();
+
+      await expect(page.getByRole('heading', { name: 'export.tsv' })).toBeVisible();
+
+      const table = page.getByRole('table', { name: 'CSV preview' });
+      await expect(table).toBeVisible();
+
+      await expect(table.locator('th', { hasText: 'product' })).toBeVisible();
+      await expect(table.locator('th', { hasText: 'price' })).toBeVisible();
+      await expect(table.locator('th', { hasText: 'qty' })).toBeVisible();
+
+      await expect(table.locator('td', { hasText: 'Widget' })).toBeVisible();
+      await expect(table.locator('td', { hasText: '19.99' })).toBeVisible();
+      await expect(table.locator('td', { hasText: '100' })).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   test('closes preview modal when the Escape key is pressed', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
