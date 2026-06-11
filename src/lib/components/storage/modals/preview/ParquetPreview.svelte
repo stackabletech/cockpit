@@ -127,6 +127,7 @@
       <table class="table-xs table w-full min-w-max" aria-label="Parquet preview">
         <thead class="bg-base-200 text-base-content/60 sticky top-0 z-10 text-xs shadow-sm">
           <tr>
+            <th class="text-base-content/30 w-10 text-right font-normal"></th>
             {#each headers as header (header)}
               <th class="font-semibold whitespace-nowrap">{header}</th>
             {/each}
@@ -136,13 +137,16 @@
           <!-- Top Spacer -->
           {#if paddingTop > 0}
             <tr style="height: {paddingTop}px;">
-              <td colspan={headers.length} class="border-0 p-0"></td>
+              <td colspan={headers.length + 1} class="border-0 p-0"></td>
             </tr>
           {/if}
 
           <!-- Visible Rows & Skeletons -->
           {#each visibleRows as row (row.index)}
             <tr class="hover:bg-base-200 h-8 transition-colors">
+              <td class="text-base-content/30 w-10 pr-1 text-right text-xs select-none"
+                >{(row.index + 1).toLocaleString(getLocale())}</td
+              >
               {#if row.data}
                 <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
                 {#each headers as _h, j (j)}
@@ -165,7 +169,7 @@
           <!-- Bottom Spacer -->
           {#if paddingBottom > 0}
             <tr style="height: {paddingBottom}px;">
-              <td colspan={headers.length} class="border-0 p-0"></td>
+              <td colspan={headers.length + 1} class="border-0 p-0"></td>
             </tr>
           {/if}
         </tbody>

@@ -49,6 +49,8 @@
     const lines = text.split('\n').filter((l) => l.trim() !== '');
     return lines.length > MAX_ROWS + 1;
   });
+
+  const uid = $props.id();
 </script>
 
 <div>
@@ -58,6 +60,7 @@
     <table class="table-xs table min-w-max" aria-label="CSV preview">
       <thead>
         <tr class="bg-base-200 text-base-content/60 sticky top-0 z-10 text-xs">
+          <th class="text-base-content/30 w-10 text-right font-normal" id="{uid}-line-hdr"></th>
           {#each headers as header (header)}
             <th class="font-semibold whitespace-nowrap">{header}</th>
           {/each}
@@ -66,6 +69,9 @@
       <tbody>
         {#each rows as row, i (i)}
           <tr class="hover:bg-base-200 transition-colors">
+            <td class="text-base-content/30 w-10 pr-1 text-right text-xs select-none"
+              >{(i + 1).toLocaleString()}</td
+            >
             <!--eslint-disable-next-line @typescript-eslint/no-unused-vars-->
             {#each headers as _h, j (j)}
               <td class="text-base-content/80 max-w-xs truncate text-xs">{row[j] ?? ''}</td>
