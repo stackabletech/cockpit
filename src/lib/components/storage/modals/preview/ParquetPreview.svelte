@@ -37,10 +37,10 @@
     }
   });
 
-  // Limit the scroll canvas to the chunks the user has explored PLUS a 1-chunk buffer.
+  // Limit the scroll canvas to the chunks the user has explored PLUS a 10-row buffer.
   // This causes the scrollbar to expand automatically as they scroll downwards.
   let virtualTotalRows = $derived(
-    Math.min(totalRows, (highestRequestedChunk + 1) * CHUNK_SIZE + 10) // 10 extra empty rows as buffer to trigger loading
+    Math.min(totalRows, (highestRequestedChunk + 1) * CHUNK_SIZE + 10)
   );
 
   let startIndex = $derived(Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 5));
