@@ -5,15 +5,22 @@ import path from 'path';
 
 const stateFile = path.resolve('.playwright/postgres-state.json');
 
-teardown('stop postgres container', async () => {
+teardown('stop test containers', async () => {
   try {
     const raw = await fs.readFile(stateFile, 'utf-8');
-    const { containerId } = JSON.parse(raw) as { containerId: string };
+    const { pgContainerId, garageContainerId } = JSON.parse(raw) as {
+      pgContainerId: string;
+      garageContainerId: string;
+    };
 
-    execSync(`docker stop ${containerId} && docker rm ${containerId}`, { stdio: 'ignore' });
+    for (const id of [pgContainerId, garageContainerId]) {
+      if (id) {
+        execSync(`docker stop ${id} && docker rm ${id}`, { stdio: 'ignore' });
+      }
+    }
 
     await fs.rm(stateFile, { force: true });
   } catch {
-    // Ignore missing state file or already-stopped container.
+    // Ignore missing state file or already-stopped containers.
   }
 });
