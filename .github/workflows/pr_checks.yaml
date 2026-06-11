@@ -114,4 +114,4 @@ jobs:
         run: npx playwright install --with-deps chromium firefox
 
       - name: Run E2E tests with Garage
-        run: npx playwright test
+        run: npm run test:e2e
