@@ -23,9 +23,4 @@ export POSTGRES_E2E_AVAILABLE=true
 
 node --env-file=.env.test node_modules/.bin/vite build
 # Run non-storage tests with full parallelism.
-node_modules/.bin/playwright test e2e/auth/ e2e/trino/ e2e/smoke.spec.ts e2e/i18n.spec.ts "$@"
-# Storage tests share a server-side S3 session per user and cannot run in
-# parallel within the same browser project. Run them serially.
-node_modules/.bin/playwright test e2e/storage/ --workers=1 "$@"
-# Database connectivity tests.
-node --env-file=.env.test node_modules/.bin/playwright test e2e/database/ "$@"
+node_modules/.bin/playwright test e2e/auth/ e2e/trino/ e2e/smoke.spec.ts e2e/i18n.spec.ts e2e/storage/ e2e/database/ --workers=1 "$@"
