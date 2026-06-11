@@ -91,9 +91,24 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
 
-  e2e-with-garage:
-    name: E2E Tests with Garage S3
+  e2e-tests:
+    name: E2E Tests with Garage S3 and PostgreSQL
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18.4-alpine3.23
+        env:
+          POSTGRES_DB: cockpit
+          POSTGRES_USER: cockpit
+          POSTGRES_PASSWORD: cockpit-test-password
+        ports:
+          - 31432:5432
+        options: >-
+          --health-cmd "pg_isready -U cockpit"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout
@@ -142,53 +157,6 @@ jobs:
             S3_CONFIG_PATH="$PWD/s3-config.json" \
             ./e2e/init-garage-s3.sh
 
-      - name: Run E2E tests with Garage
-        run: npm run test:e2e:garage
-
-      - name: Debug - print config
-        run: cat s3-config.json
-        if: failure()
-
-  e2e-with-postgres:
-    name: E2E Tests with PostgreSQL
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:18.4-alpine3.23
-        env:
-          POSTGRES_DB: cockpit
-          POSTGRES_USER: cockpit
-          POSTGRES_PASSWORD: cockpit-test-password
-        ports:
-          - 31432:5432
-        options: >-
-          --health-cmd "pg_isready -U cockpit"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
-        with:
-          node-version-file: '.node-version'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: Compile Paraglide messages
-        run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
-
       - name: Run database migrations
         env:
           DATABASE_HOST: localhost
@@ -199,12 +167,9 @@ jobs:
           NODE_ENV: development
         run: npx tsx src/lib/server/migrate.ts
 
-      - name: Run E2E tests with PostgreSQL
-        env:
-          DATABASE_HOST: localhost
-          DATABASE_PORT: '31432'
-          DATABASE_NAME: cockpit
-          DATABASE_USER: cockpit
-          DATABASE_PASSWORD: cockpit-test-password
-          POSTGRES_E2E_AVAILABLE: 'true'
-        run: npm run test:e2e:postgres
+      - name: Run E2E tests with Garage
+        run: npm run test:e2e:garage
+
+      - name: Debug - print config
+        run: cat s3-config.json
+        if: failure()

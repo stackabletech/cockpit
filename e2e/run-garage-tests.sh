@@ -11,9 +11,21 @@ if [[ ! -f "$S3_CONFIG_PATH" ]]; then
   exit 1
 fi
 
+# Database connection variables — can be overridden by the caller (e.g. CI).
+export DATABASE_HOST="${DATABASE_HOST:-localhost}"
+export DATABASE_PORT="${DATABASE_PORT:-31432}"
+export DATABASE_NAME="${DATABASE_NAME:-cockpit}"
+export DATABASE_USER="${DATABASE_USER:-cockpit}"
+export DATABASE_PASSWORD="${DATABASE_PASSWORD:-cockpit-dev-password}"
+
+# Signal to the e2e tests that PostgreSQL is available and they should run.
+export POSTGRES_E2E_AVAILABLE=true
+
 node --env-file=.env.test node_modules/.bin/vite build
 # Run non-storage tests with full parallelism.
 node_modules/.bin/playwright test e2e/auth/ e2e/trino/ e2e/smoke.spec.ts e2e/i18n.spec.ts "$@"
 # Storage tests share a server-side S3 session per user and cannot run in
 # parallel within the same browser project. Run them serially.
 node_modules/.bin/playwright test e2e/storage/ --workers=1 "$@"
+# Database connectivity tests.
+node --env-file=.env.test node_modules/.bin/playwright test e2e/database/ "$@"
