@@ -13,7 +13,11 @@ export default async function globalSetup() {
 
   // Start PostgreSQL testcontainer — must run in globalSetup (main process) so
   // that DATABASE_* env vars are inherited by the webServer subprocess.
-  pgContainer = await new PostgreSqlContainer('postgres:18.4-alpine3.23').start();
+  const pgContainerBuilder = new PostgreSqlContainer('postgres:18.4-alpine3.23');
+  if (process.env.DOCKER_NETWORK) {
+    pgContainerBuilder.withNetworkMode(process.env.DOCKER_NETWORK);
+  }
+  pgContainer = await pgContainerBuilder.start();
 
   process.env.DATABASE_HOST = pgContainer.getHost();
   process.env.DATABASE_PORT = pgContainer.getPort().toString();
@@ -24,7 +28,7 @@ export default async function globalSetup() {
   // Start Garage S3 testcontainer using the same image and config as CI.
   // The entrypoint is the bare /garage binary (no shell in this image), started
   // in single-node mode with the dev config bind-mounted into the container.
-  const garageContainer = await new GenericContainer(
+  const garageContainerBuilder = new GenericContainer(
     'oci.stackable.tech/stackable/dxflrs/garage:v2.3.0'
   )
     .withEntrypoint(['/garage'])
@@ -38,8 +42,11 @@ export default async function globalSetup() {
       }
     ])
     .withExposedPorts(3900, 3902)
-    .withWaitStrategy(Wait.forHttp('/', 3900).forStatusCodeMatching((code) => code < 500))
-    .start();
+    .withWaitStrategy(Wait.forHttp('/', 3900).forStatusCodeMatching((code) => code < 500));
+  if (process.env.DOCKER_NETWORK) {
+    garageContainerBuilder.withNetworkMode(process.env.DOCKER_NETWORK);
+  }
+  const garageContainer = await garageContainerBuilder.start();
 
   const garageHost = garageContainer.getHost();
   const garageS3Endpoint = `http://${garageHost}:${garageContainer.getMappedPort(3900)}`;

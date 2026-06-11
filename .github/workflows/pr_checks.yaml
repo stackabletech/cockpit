@@ -94,8 +94,14 @@ jobs:
   e2e-tests:
     name: E2E Tests with Garage S3 and PostgreSQL
     runs-on: ubuntu-latest
+    env:
+      TESTCONTAINERS_HOST_OVERRIDE: localhost
+      DOCKER_NETWORK: e2e
 
     steps:
+      - name: Set up Docker network
+        run: docker network create e2e
+
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
