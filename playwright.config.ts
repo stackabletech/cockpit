@@ -36,12 +36,24 @@ export default defineConfig({
     }
   ],
   projects: [
+    // Starts the PostgreSQL container (via globalSetup) and runs migrations.
+    // All browser projects depend on this so tests never run on an unmigrated DB.
+    {
+      name: 'setup-db',
+      testMatch: /db\.setup\.ts/,
+      teardown: 'cleanup-db'
+    },
+    {
+      name: 'cleanup-db',
+      testMatch: /db\.teardown\.ts/
+    },
     // Each browser project gets its own auth setup so that parallel workers
     // log in as different users. This prevents cross-worker races on shared
     // server-side state (e.g. the in-memory Trino connection store).
     {
       name: 'setup-chromium',
       testMatch: /auth\.setup\.ts/,
+      dependencies: ['setup-db'],
       use: {
         browserName: 'chromium',
         viewport: { width: 1280, height: 720 }
@@ -50,6 +62,7 @@ export default defineConfig({
     {
       name: 'setup-firefox',
       testMatch: /auth\.setup\.ts/,
+      dependencies: ['setup-db'],
       use: {
         browserName: 'firefox',
         viewport: { width: 1280, height: 720 }

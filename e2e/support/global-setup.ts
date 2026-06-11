@@ -1,10 +1,11 @@
 import fs from 'node:fs';
+import fsPromises from 'node:fs/promises';
 import path from 'path';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
-let pgContainer: StartedPostgreSqlContainer | undefined;
+export let pgContainer: StartedPostgreSqlContainer;
+
+const stateFile = path.resolve('.playwright/postgres-state.json');
 
 export default async function globalSetup() {
   process.loadEnvFile(path.join(import.meta.dirname, '../..', '.env.test'));
@@ -38,8 +39,11 @@ export default async function globalSetup() {
     }
   }
 
-  // Start a PostgreSQL testcontainer and run database migrations so that
-  // database E2E tests always have a clean, migrated schema available.
+  // Start a PostgreSQL testcontainer so that:
+  //   - DATABASE_* env vars are set here (main process) and therefore
+  //     inherited by the webServer subprocess before it starts, and
+  //   - The connection details are written to a state file so that the
+  //     setup-db and cleanup-db Playwright projects can read them.
   pgContainer = await new PostgreSqlContainer('postgres:18.4-alpine3.23').start();
 
   process.env.DATABASE_HOST = pgContainer.getHost();
@@ -48,12 +52,13 @@ export default async function globalSetup() {
   process.env.DATABASE_USER = pgContainer.getUsername();
   process.env.DATABASE_PASSWORD = pgContainer.getPassword();
 
-  const db = drizzle(pgContainer.getConnectionUri());
-  await migrate(db, {
-    migrationsFolder: path.join(import.meta.dirname, '../..', 'src/lib/server/migrations')
-  });
-
-  return async () => {
-    await pgContainer?.stop();
-  };
+  await fsPromises.mkdir(path.dirname(stateFile), { recursive: true });
+  await fsPromises.writeFile(
+    stateFile,
+    JSON.stringify({
+      connectionUri: pgContainer.getConnectionUri(),
+      containerId: pgContainer.getId()
+    }),
+    'utf-8'
+  );
 }
