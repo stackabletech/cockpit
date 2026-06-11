@@ -32,7 +32,7 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI
     },
     {
-      command: 'PORT=4173 npm run preview',
+      command: 'node --env-file=.env.test node_modules/.bin/vite preview --host --port 4173',
       url: baseURL,
       reuseExistingServer: !process.env.CI
     }
