@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
+  import { getLocale } from '$lib/paraglide/runtime.js';
 
   interface Props {
     headers: string[];
@@ -9,9 +10,16 @@
     totalRows?: number;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fetchRows?: (offset: number, limit: number) => Promise<any[][]>;
+    showingRowsCount?: number;
   }
 
-  let { headers, initialRows, totalRows = 0, fetchRows }: Props = $props();
+  let {
+    headers,
+    initialRows,
+    totalRows = 0,
+    fetchRows,
+    showingRowsCount = $bindable(0)
+  }: Props = $props();
 
   const CHUNK_SIZE = 250; // magic number: rows to display
   const ROW_HEIGHT = 32; // Exact height of table-xs (h-8)
@@ -23,25 +31,24 @@
   let loadedChunks = $state<Record<number, any[][]>>({});
   let loadingChunks = $state<Set<number>>(new Set());
 
-  // Track how deep the user has scrolled to push the "bottom padding" down dynamically
-  let highestRequestedChunk = $state(0);
-
   $effect(() => {
     if (initialRows && initialRows.length > 0) {
       untrack(() => {
         loadedChunks = { 0: initialRows };
         loadingChunks.clear();
-        highestRequestedChunk = 0;
         scrollTop = 0;
       });
     }
   });
 
-  // Limit the scroll canvas to the chunks the user has explored PLUS a 10-row buffer.
-  // This causes the scrollbar to expand automatically as they scroll downwards.
-  let virtualTotalRows = $derived(
-    Math.min(totalRows, (highestRequestedChunk + 1) * CHUNK_SIZE + 10)
-  );
+  // Limit the scroll canvas to the highest loaded chunk PLUS a 10-row buffer.
+  // The canvas only extends once chunks finish loading, not during fetch.
+  let highestLoadedChunk = $derived.by(() => {
+    const keys = Object.keys(loadedChunks).map(Number);
+    if (keys.length === 0) return 0;
+    return Math.max(...keys);
+  });
+  let virtualTotalRows = $derived(Math.min(totalRows, (highestLoadedChunk + 1) * CHUNK_SIZE + 10));
 
   let startIndex = $derived(Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 5));
   let endIndex = $derived(
@@ -84,7 +91,6 @@
       for (let c = startChunk; c <= endChunk; c++) {
         if (!loadedChunks[c] && !loadingChunks.has(c)) {
           loadingChunks.add(c);
-          highestRequestedChunk = Math.max(highestRequestedChunk, c);
 
           fetchRows(c * CHUNK_SIZE, CHUNK_SIZE)
             .then((data) => {
@@ -100,6 +106,12 @@
 
   const loadedRowsCount = $derived(Object.keys(loadedChunks).length * CHUNK_SIZE);
   const isTruncated = $derived(totalRows > loadedRowsCount);
+  const formattedLoadedRowsCount = $derived(loadedRowsCount.toLocaleString(getLocale()));
+  const formattedTotalRows = $derived(totalRows.toLocaleString(getLocale()));
+
+  $effect(() => {
+    showingRowsCount = loadedRowsCount;
+  });
 </script>
 
 <div class="relative flex h-full flex-col">
@@ -108,7 +120,7 @@
   {:else}
     <!-- eslint-disable-next-line svelte/valid-compile -->
     <div
-      class="max-h-[60vh] w-full overflow-auto"
+      class="min-h-0 w-full flex-1 overflow-auto"
       bind:clientHeight={containerHeight}
       onscroll={(e) => (scrollTop = e.currentTarget.scrollTop)}
     >
@@ -163,8 +175,11 @@
     {#if isTruncated}
       <p class="text-base-content/50 px-4 py-2 text-xs italic">
         {m.storage_preview_parquet_rows
-          ? m.storage_preview_parquet_rows({ count: loadedRowsCount, total: totalRows })
-          : `Showing ${Math.min(totalRows, loadedRowsCount).toLocaleString()} rows of ${totalRows.toLocaleString()}. Scroll to load more.`}
+          ? m.storage_preview_parquet_rows({
+              count: formattedLoadedRowsCount,
+              total: formattedTotalRows
+            })
+          : `Showing ${formattedLoadedRowsCount} of ${formattedTotalRows} rows. Scroll to load more.`}
       </p>
     {/if}
   {/if}

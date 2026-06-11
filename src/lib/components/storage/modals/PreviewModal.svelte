@@ -7,6 +7,7 @@
   import IconErrorOutline from 'virtual:icons/material-symbols/error-outline';
   import IconDownload from 'virtual:icons/material-symbols/download';
   import * as m from '$lib/paraglide/messages.js';
+  import { getLocale } from '$lib/paraglide/runtime.js';
   import Modal from '$lib/components/Modal.svelte';
   import TextPreview from './preview/TextPreview.svelte';
   import CsvPreview from './preview/CsvPreview.svelte';
@@ -74,6 +75,7 @@
   let maximized = $state(false);
   let imageNaturalWidth = $state(0);
   let imageNaturalHeight = $state(0);
+  let parquetShowingRowsCount = $state(0);
 
   onDestroy(() => {
     for (const url of blobUrls) {
@@ -278,6 +280,13 @@
     open = false;
   }
 
+  // Sync parquetShowingRowsCount with the preview data and ParquetPreview's loaded chunks
+  $effect(() => {
+    if (preview.kind === 'parquet') {
+      parquetShowingRowsCount = preview.rows.length;
+    }
+  });
+
   function toggleMaximized() {
     maximized = !maximized;
   }
@@ -340,8 +349,8 @@
             {#if preview.truncated}
               <span class="badge badge-soft badge-warning badge-sm">
                 {m.storage_preview_parquet_rows({
-                  count: preview.rows.length,
-                  total: preview.totalRows
+                  count: parquetShowingRowsCount.toLocaleString(getLocale()),
+                  total: preview.totalRows.toLocaleString(getLocale())
                 })}
               </span>
             {/if}
@@ -413,6 +422,7 @@
           initialRows={preview.rows}
           totalRows={preview.totalRows}
           fetchRows={fetchParquetRows}
+          bind:showingRowsCount={parquetShowingRowsCount}
         />
       {:else if preview.kind === 'image'}
         <ImagePreview
