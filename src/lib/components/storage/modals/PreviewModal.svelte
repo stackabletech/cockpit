@@ -173,7 +173,9 @@
         contentType === 'text/csv' ||
         contentType === 'application/csv' ||
         contentType === 'application/vnd.ms-excel' ||
-        key.toLowerCase().endsWith('.csv')
+        contentType === 'text/tab-separated-values' ||
+        key.toLowerCase().endsWith('.csv') ||
+        key.toLowerCase().endsWith('.tsv')
       ) {
         preview = { kind: 'csv', text, truncated, totalSize, previewBytes };
         return;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Papa from 'papaparse';
   import * as m from '$lib/paraglide/messages.js';
 
   const MAX_ROWS = 250;
@@ -10,44 +11,19 @@
   let { text }: Props = $props();
 
   const { headers, rows } = $derived.by(() => {
-    // Split into lines, strip trailing newline
-    const lines = text.split('\n').filter((l) => l.trim() !== '');
-    if (lines.length === 0) return { headers: [], rows: [] };
-
-    // Simple CSV parse: handle quoted fields
-    function parseLine(line: string): string[] {
-      const result: string[] = [];
-      let current = '';
-      let inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-          if (inQuotes && line[i + 1] === '"') {
-            current += '"';
-            i++;
-          } else {
-            inQuotes = !inQuotes;
-          }
-        } else if (ch === ',' && !inQuotes) {
-          result.push(current);
-          current = '';
-        } else {
-          current += ch;
-        }
-      }
-      result.push(current);
-      return result;
-    }
-
-    const [headerLine, ...dataLines] = lines;
-    const hdrs = parseLine(headerLine);
-    const rws = dataLines.slice(0, MAX_ROWS).map(parseLine);
-    return { headers: hdrs, rows: rws };
+    const result = Papa.parse(text, {
+      preview: MAX_ROWS,
+      header: false,
+      skipEmptyLines: true
+    });
+    if (result.data.length === 0) return { headers: [], rows: [] };
+    const [hdrs, ...data] = result.data as string[][];
+    return { headers: hdrs, rows: data };
   });
 
   const truncated = $derived.by(() => {
-    const lines = text.split('\n').filter((l) => l.trim() !== '');
-    return lines.length > MAX_ROWS + 1;
+    const result = Papa.parse(text, { skipEmptyLines: true });
+    return result.data.length > MAX_ROWS + 1;
   });
 </script>
 
