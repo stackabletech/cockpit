@@ -5,18 +5,6 @@ declare const process: {
   env: Record<string, string | undefined>;
 };
 
-/**
- * Database connectivity E2E tests.
- *
- * These tests only run when `POSTGRES_E2E_AVAILABLE=true` is set in the
- * environment — written by the "Start PostgreSQL" CI step via
- * `run-postgres-tests.sh`. They are automatically skipped in all other
- * environments.
- *
- * The tests connect directly to the database and query the
- * `user_storage_connections` table, verifying both connectivity and that
- * migrations have been applied.
- */
 test.describe('Database connectivity', () => {
   test.beforeEach(() => {
     test.skip(
@@ -31,7 +19,7 @@ test.describe('Database connectivity', () => {
       port: parseInt(process.env.DATABASE_PORT ?? '31432', 10),
       database: process.env.DATABASE_NAME ?? 'cockpit',
       user: process.env.DATABASE_USER ?? 'cockpit',
-      password: process.env.DATABASE_PASSWORD ?? 'cockpit-dev-password',
+      password: process.env.DATABASE_PASSWORD ?? 'cockpit-test-password',
       ssl: false
     });
 
