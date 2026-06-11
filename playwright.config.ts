@@ -5,10 +5,12 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4173';
 const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 export default defineConfig({
+  workers: process.env.CI ? 1 : undefined,
   testDir: path.join(import.meta.dirname, 'e2e'),
   outputDir: path.join(import.meta.dirname, 'e2e/test-results'),
   globalSetup: path.join(import.meta.dirname, 'e2e/support/global-setup.ts'),
   timeout: 60_000,
+  globalTimeout: 20 * 60_000,
   retries: 2,
   expect: {
     timeout: 10_000
