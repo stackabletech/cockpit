@@ -95,21 +95,6 @@ jobs:
     name: E2E Tests with Garage S3 and PostgreSQL
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:18.4-alpine3.23
-        env:
-          POSTGRES_DB: cockpit
-          POSTGRES_USER: cockpit
-          POSTGRES_PASSWORD: cockpit-test-password
-        ports:
-          - 31432:5432
-        options: >-
-          --health-cmd "pg_isready -U cockpit"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -156,16 +141,6 @@ jobs:
             S3_ENDPOINT='http://localhost:3900' \
             S3_CONFIG_PATH="$PWD/s3-config.json" \
             ./e2e/init-garage-s3.sh
-
-      - name: Run database migrations
-        env:
-          DATABASE_HOST: localhost
-          DATABASE_PORT: '31432'
-          DATABASE_NAME: cockpit
-          DATABASE_USER: cockpit
-          DATABASE_PASSWORD: cockpit-test-password
-          NODE_ENV: development
-        run: npx tsx src/lib/server/migrate.ts
 
       - name: Run E2E tests with Garage
         run: npm run test:e2e:garage

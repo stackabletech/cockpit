@@ -6,20 +6,13 @@ declare const process: {
 };
 
 test.describe('Database connectivity', () => {
-  test.beforeEach(() => {
-    test.skip(
-      process.env.POSTGRES_E2E_AVAILABLE !== 'true',
-      'Skipped: PostgreSQL not available (requires POSTGRES_E2E_AVAILABLE=true)'
-    );
-  });
-
   test('connects to the database and reports the database as healthy', async () => {
     const client = new Client({
-      host: process.env.DATABASE_HOST ?? 'localhost',
-      port: parseInt(process.env.DATABASE_PORT ?? '31432', 10),
-      database: process.env.DATABASE_NAME ?? 'cockpit',
-      user: process.env.DATABASE_USER ?? 'cockpit',
-      password: process.env.DATABASE_PASSWORD ?? 'cockpit-test-password',
+      host: process.env.DATABASE_HOST,
+      port: parseInt(process.env.DATABASE_PORT ?? '5432', 10),
+      database: process.env.DATABASE_NAME,
+      user: process.env.DATABASE_USER,
+      password: process.env.DATABASE_PASSWORD,
       ssl: false
     });
 

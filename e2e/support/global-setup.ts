@@ -1,5 +1,9 @@
 import fs from 'node:fs';
 import path from 'path';
+import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { Client } from 'pg';
+
+let pgContainer: StartedPostgreSqlContainer | undefined;
 
 export default async function globalSetup() {
   process.loadEnvFile(path.join(import.meta.dirname, '../..', '.env.test'));
@@ -32,4 +36,48 @@ export default async function globalSetup() {
       process.env.GARAGE_ADMIN_TOKEN = cfg.garageAdminToken;
     }
   }
+
+  // Start a PostgreSQL testcontainer and run database migrations so that
+  // database E2E tests always have a clean, migrated schema available.
+  pgContainer = await new PostgreSqlContainer('postgres:18.4-alpine3.23').start();
+
+  process.env.DATABASE_HOST = pgContainer.getHost();
+  process.env.DATABASE_PORT = pgContainer.getPort().toString();
+  process.env.DATABASE_NAME = pgContainer.getDatabase();
+  process.env.DATABASE_USER = pgContainer.getUsername();
+  process.env.DATABASE_PASSWORD = pgContainer.getPassword();
+
+  const client = new Client({
+    host: pgContainer.getHost(),
+    port: pgContainer.getPort(),
+    database: pgContainer.getDatabase(),
+    user: pgContainer.getUsername(),
+    password: pgContainer.getPassword()
+  });
+  await client.connect();
+  try {
+    const migrationsDir = path.join(import.meta.dirname, '../..', 'src/lib/server/migrations');
+    const migrationFiles = fs
+      .readdirSync(migrationsDir)
+      .filter((f) => f.endsWith('.sql'))
+      .sort();
+    for (const file of migrationFiles) {
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+      // Drizzle migration files use "--> statement-breakpoint" as a delimiter
+      // between statements. Split on that marker and execute each part.
+      const statements = sql.split(/--> statement-breakpoint/);
+      for (const statement of statements) {
+        const trimmed = statement.trim();
+        if (trimmed) {
+          await client.query(trimmed);
+        }
+      }
+    }
+  } finally {
+    await client.end();
+  }
+
+  return async () => {
+    await pgContainer?.stop();
+  };
 }
