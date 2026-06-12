@@ -26,12 +26,6 @@
     objectKey?: string | null;
   }
 
-  interface ParquetPayload {
-    headers: string[];
-    rows: unknown[][];
-    totalRows: number;
-  }
-
   type PreviewKind =
     | { kind: 'idle' }
     | { kind: 'loading' }
@@ -148,20 +142,37 @@
       }
 
       if (format === 'parquet') {
-        const payload = await res.json().catch(() => null);
-        if (!isParquetPayload(payload)) {
+        try {
+          await parseParquetStream(
+            res,
+            (headers, totalRows) => {
+              preview = {
+                kind: 'parquet',
+                headers,
+                rows: [],
+                truncated,
+                totalSize,
+                totalRows
+              };
+            },
+            (name, values) => {
+              if (preview.kind !== 'parquet') return;
+              const colIdx = preview.headers.indexOf(name);
+              if (colIdx < 0) return;
+              const rows = preview.rows;
+              while (rows.length < values.length) {
+                rows.push(new Array(preview.headers.length).fill(undefined));
+              }
+              for (let i = 0; i < values.length; i++) {
+                rows[i][colIdx] = values[i];
+              }
+              // Create new array reference so ParquetPreview detects the update
+              preview = { ...preview, rows: rows.slice() };
+            }
+          );
+        } catch {
           preview = { kind: 'error', message: m.storage_preview_error_desc() };
-          return;
         }
-
-        preview = {
-          kind: 'parquet',
-          headers: payload.headers,
-          rows: payload.rows,
-          truncated,
-          totalSize,
-          totalRows: payload.totalRows
-        };
         return;
       }
 
@@ -185,16 +196,6 @@
     } catch {
       preview = { kind: 'error', message: m.storage_preview_error_desc() };
     }
-  }
-
-  function isParquetPayload(value: unknown): value is ParquetPayload {
-    if (!value || typeof value !== 'object') return false;
-    const payload = value as Partial<ParquetPayload>;
-    return (
-      Array.isArray(payload.headers) &&
-      Array.isArray(payload.rows) &&
-      typeof payload.totalRows === 'number'
-    );
   }
 
   async function readTextSafely(res: Response, key: string): Promise<string | null> {
@@ -226,6 +227,89 @@
   }
 
   const filename = $derived(objectKey ? keyToName(objectKey) : '');
+
+  /** Parse an NDJSON parquet stream with immediate callbacks for headers and columns. */
+  async function parseParquetStream(
+    res: Response,
+    onHeaders: (headers: string[], totalRows: number) => void,
+    onColumn: (name: string, values: unknown[]) => void
+  ): Promise<void> {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const msg = JSON.parse(line);
+
+        if (msg.t === 'h') {
+          onHeaders(msg.h, msg.tr);
+        } else if (msg.t === 'c') {
+          onColumn(msg.n, msg.v);
+        } else if (msg.t === 'e') {
+          throw new Error('Server error reading parquet data');
+        }
+        // 'd' (done) — continue reading until stream ends
+      }
+    }
+  }
+
+  /** Read an NDJSON streaming response and progressively fill column data. */
+  async function readNdjsonStream(
+    res: Response,
+    onColumn?: (name: string, values: unknown[]) => void
+  ): Promise<{ headers: string[]; rows: unknown[][]; totalRows: number }> {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let resultHeaders: string[] = [];
+    let rows: unknown[][] = [];
+    let resultTotalRows = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const msg = JSON.parse(line);
+
+        if (msg.t === 'h') {
+          resultHeaders = msg.h;
+          resultTotalRows = msg.tr;
+        } else if (msg.t === 'c') {
+          const colIdx = resultHeaders.indexOf(msg.n);
+          if (colIdx < 0) continue;
+          const values = msg.v as unknown[];
+          while (rows.length < values.length) {
+            rows.push(new Array(resultHeaders.length).fill(undefined));
+          }
+          for (let i = 0; i < values.length; i++) {
+            if (!rows[i]) rows[i] = new Array(resultHeaders.length).fill(undefined);
+            rows[i][colIdx] = values[i];
+          }
+          onColumn?.(msg.n, values);
+        } else if (msg.t === 'e') {
+          throw new Error('Server error reading parquet data');
+        }
+        // 'd' (done) — just continue reading until stream ends
+      }
+    }
+
+    return { headers: resultHeaders, rows, totalRows: resultTotalRows };
+  }
 
   async function triggerDownload() {
     if (!objectKey) return;
@@ -263,11 +347,15 @@
   }
 
   // Function to fetch additional parquet chunks during infinite scroll
-  async function fetchParquetRows(offset: number, limit: number): Promise<unknown[][]> {
+  async function fetchParquetRows(
+    offset: number,
+    limit: number,
+    onColumn?: (name: string, values: unknown[]) => void
+  ): Promise<unknown[][]> {
     if (!objectKey) return [];
 
     const conn = loadConnectionLocally();
-    const headers: HeadersInit = conn
+    const fetchHeaders: HeadersInit = conn
       ? { [STORAGE_CONNECTION_HEADER]: getConnectionHeader(conn) }
       : {};
 
@@ -278,14 +366,14 @@
       limit: String(limit)
     });
 
-    const res = await fetch(`/storage/api/preview?${params}`, { headers });
+    const res = await fetch(`/storage/api/preview?${params}`, { headers: fetchHeaders });
 
     if (!res.ok) {
       throw new Error('Failed to fetch parquet chunk');
     }
 
-    const payload = await res.json();
-    return payload.rows || [];
+    const { rows } = await readNdjsonStream(res, onColumn);
+    return rows;
   }
 </script>
 

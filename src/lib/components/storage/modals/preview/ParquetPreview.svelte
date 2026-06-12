@@ -9,7 +9,11 @@
     initialRows: any[][];
     totalRows?: number;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    fetchRows?: (offset: number, limit: number) => Promise<any[][]>;
+    fetchRows?: (
+      offset: number,
+      limit: number,
+      onColumn?: (name: string, values: any[]) => void
+    ) => Promise<any[][]>;
     showingRowsCount?: number;
   }
 
@@ -32,7 +36,7 @@
   let loadingChunks = $state<Set<number>>(new Set());
 
   $effect(() => {
-    if (initialRows && initialRows.length > 0) {
+    if (initialRows) {
       untrack(() => {
         loadedChunks = { 0: initialRows };
         loadingChunks.clear();
@@ -42,7 +46,6 @@
   });
 
   // Limit the scroll canvas to the highest loaded chunk PLUS a 10-row buffer.
-  // The canvas only extends once chunks finish loading, not during fetch.
   let highestLoadedChunk = $derived.by(() => {
     const keys = Object.keys(loadedChunks).map(Number);
     if (keys.length === 0) return 0;
@@ -79,25 +82,45 @@
   $effect(() => {
     if (!fetchRows) return;
 
-    // Track state to trigger effect dependencies
     const currentStart = startIndex;
     const currentEnd = endIndex;
 
     const startChunk = Math.floor(currentStart / CHUNK_SIZE);
     const endChunk = Math.floor(currentEnd / CHUNK_SIZE);
 
-    // Run updates without creating reactivity feedback loops
     untrack(() => {
       for (let c = startChunk; c <= endChunk; c++) {
         if (!loadedChunks[c] && !loadingChunks.has(c)) {
           loadingChunks.add(c);
 
-          fetchRows(c * CHUNK_SIZE, CHUNK_SIZE)
+          // Initialize chunk with empty placeholder rows (undefined = not loaded yet)
+          const placeholder = Array.from({ length: CHUNK_SIZE }, () =>
+            new Array(headers.length).fill(undefined)
+          );
+          loadedChunks[c] = placeholder;
+
+          fetchRows(c * CHUNK_SIZE, CHUNK_SIZE, (name, values) => {
+            // Column data arrived: fill in values for this column in the placeholder chunk
+            const colIdx = headers.indexOf(name);
+            if (colIdx < 0) return;
+            const chunk = loadedChunks[c];
+            if (!chunk) return;
+            for (let i = 0; i < values.length && i < chunk.length; i++) {
+              if (chunk[i]) chunk[i][colIdx] = values[i];
+            }
+            // Create new reference so Svelte detects the update immediately
+            loadedChunks = { ...loadedChunks };
+          })
             .then((data) => {
-              loadedChunks[c] = data; // Triggers Svelte 5 Proxy Reactivity
+              loadingChunks.delete(c);
+              // Replace placeholder with fully populated data
+              loadedChunks = { ...loadedChunks, [c]: data };
             })
             .catch(() => {
               loadingChunks.delete(c);
+              const next = { ...loadedChunks };
+              delete next[c];
+              loadedChunks = next;
             });
         }
       }
@@ -147,16 +170,20 @@
               <td class="text-base-content/30 w-10 pr-1 text-right text-xs select-none"
                 >{(row.index + 1).toLocaleString(getLocale())}</td
               >
-              {#if row.data}
-                <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+              {#if row.data !== null && row.data !== undefined}
                 {#each headers as _h, j (j)}
-                  <td class="text-base-content/80 max-w-xs truncate text-xs">
-                    {row.data[j] !== null && row.data[j] !== undefined ? String(row.data[j]) : ''}
-                  </td>
+                  {#if row.data[j] !== undefined}
+                    <td class="text-base-content/80 max-w-xs truncate text-xs">
+                      {row.data[j] !== null ? String(row.data[j]) : ''}
+                    </td>
+                  {:else}
+                    <td class="p-1">
+                      <div class="bg-base-300/40 h-4 w-full animate-pulse rounded"></div>
+                    </td>
+                  {/if}
                 {/each}
               {:else}
-                <!-- Skeleton State -->
-                <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+                <!-- Skeleton State (full row not yet initialized) -->
                 {#each headers as _h, j (j)}
                   <td class="p-1">
                     <div class="bg-base-300/40 h-4 w-full animate-pulse rounded"></div>
