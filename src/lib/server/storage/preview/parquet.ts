@@ -1,20 +1,9 @@
 import { gunzipSync } from 'node:zlib';
-import {
-  parquetMetadataAsync,
-  parquetReadObjects,
-  parquetSchema,
-  type FileMetaData
-} from 'hyparquet';
+import { parquetMetadataAsync, parquetRead, parquetSchema, type FileMetaData } from 'hyparquet';
 import { compressors } from 'hyparquet-compressors';
 import type pino from 'pino';
 import { logger } from '$lib/server/logging';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
-
-interface ParquetPreviewPayload {
-  headers: string[];
-  rows: unknown[][];
-  totalRows: number;
-}
 
 const fallbackLog = logger.child({ module: 'parquet-preview' });
 
@@ -24,15 +13,9 @@ const nodeCompressors = {
   GZIP: (input: Uint8Array, _outputLength: number): Uint8Array => new Uint8Array(gunzipSync(input))
 };
 
-// --- IN-MEMORY CACHE FOR PAGINATION ---
-interface CacheEntry {
-  meta: FileMetaData;
-  indexCache: { start: number; buffer: ArrayBuffer } | null;
-  lastAccessed: number;
-}
-const metadataCache = new Map<string, CacheEntry>();
+// --- IN-MEMORY CACHE FOR METADATA ---
+const metadataCache = new Map<string, { meta: FileMetaData; lastAccessed: number }>();
 
-// Clean up memory cache periodically (TTL: 5 minutes)
 setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of metadataCache.entries()) {
@@ -41,7 +24,7 @@ setInterval(() => {
     }
   }
 }, 60 * 1000).unref();
-// ---------------------------------------
+// -------------------------------------
 
 function stringifyStructuredParquetValue(value: object): string {
   return JSON.stringify(value, (_key, nestedValue: unknown) => {
@@ -62,25 +45,6 @@ function toSerializableParquetCell(value: unknown): string | number | boolean | 
   if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string')
     return value;
   return String(value);
-}
-
-function createParquetPreviewResponse(
-  payload: ParquetPreviewPayload,
-  totalSize: number,
-  previewRows: number,
-  offset: number
-): Response {
-  return Response.json(payload, {
-    headers: {
-      'X-Preview-Format': 'parquet',
-      'X-Preview-Renderable': 'true',
-      'X-Preview-Truncated': String(payload.totalRows > offset + previewRows),
-      'X-Preview-Total-Size': String(totalSize),
-      'X-Preview-Total-Rows': String(payload.totalRows),
-      'X-Preview-Offset': String(offset),
-      'Cache-Control': 'no-store'
-    }
-  });
 }
 
 async function streamToArrayBuffer(stream: ReadableStream): Promise<ArrayBuffer> {
@@ -115,23 +79,25 @@ export async function getParquetPreview(
   const byteLength = totalSize ?? (await provider.getMetadata(key)).size;
 
   if (byteLength === 0) {
-    return createParquetPreviewResponse(
-      { headers: [], rows: [], totalRows: 0 },
-      byteLength,
-      0,
-      offset
-    );
+    return new Response(JSON.stringify({ t: 'h', h: [], tr: 0 }) + '\n', {
+      headers: {
+        'Content-Type': 'application/x-ndjson',
+        'X-Preview-Format': 'parquet',
+        'X-Preview-Renderable': 'true',
+        'X-Preview-Total-Size': '0',
+        'X-Preview-Total-Rows': '0',
+        'X-Preview-Offset': String(offset),
+        'Cache-Control': 'no-store'
+      }
+    });
   }
 
   let parquetMeta: FileMetaData;
-  let offsetIndexCache: { start: number; buffer: ArrayBuffer } | null = null;
 
-  // 1. Check in-memory Cache to avoid re-fetching footer and indexes during scroll
   const cached = metadataCache.get(key);
   if (cached) {
     cached.lastAccessed = Date.now();
     parquetMeta = cached.meta;
-    offsetIndexCache = cached.indexCache;
     log.debug({ key }, 'Used in-memory cached Parquet metadata');
   } else {
     let footerQueue: Promise<void> = Promise.resolve();
@@ -153,132 +119,192 @@ export async function getParquetPreview(
 
     parquetMeta = await parquetMetadataAsync(footerBuffer);
 
-    let offsetIndexStart = Infinity;
-    let offsetIndexEnd = 0;
-
-    // Scan ALL row groups to cache full file indices for instant pagination
-    for (const rowGroup of parquetMeta.row_groups) {
-      for (const column of rowGroup.columns) {
-        if (column.offset_index_offset && column.offset_index_length) {
-          const start = Number(column.offset_index_offset);
-          const end = start + column.offset_index_length;
-          if (start < offsetIndexStart) offsetIndexStart = start;
-          if (end > offsetIndexEnd) offsetIndexEnd = end;
-        }
-        if (column.column_index_offset && column.column_index_length) {
-          const start = Number(column.column_index_offset);
-          const end = start + column.column_index_length;
-          if (start < offsetIndexStart) offsetIndexStart = start;
-          if (end > offsetIndexEnd) offsetIndexEnd = end;
-        }
-      }
-    }
-
-    const indexSpan = offsetIndexEnd - offsetIndexStart;
-    if (isFinite(offsetIndexStart) && indexSpan <= 10 * 1024 * 1024) {
-      const stream = await provider.getObjectRange(key, offsetIndexStart, offsetIndexEnd - 1);
-      offsetIndexCache = {
-        start: offsetIndexStart,
-        buffer: await streamToArrayBuffer(stream as ReadableStream)
-      };
-      log.debug({ key, index_bytes: indexSpan }, 'Parquet indices prefetched and cached');
-    }
-
     metadataCache.set(key, {
       meta: parquetMeta,
-      indexCache: offsetIndexCache,
       lastAccessed: Date.now()
     });
   }
 
-  try {
-    const totalRows = Number(parquetMeta.num_rows);
-    const headers = parquetSchema(parquetMeta).children.map((entry) => entry.element.name);
+  const totalRows = Number(parquetMeta.num_rows);
+  const headers = parquetSchema(parquetMeta).children.map((entry) => entry.element.name);
 
-    const actualLimit = Math.min(limit, Math.max(0, totalRows - offset));
-    if (actualLimit <= 0) {
-      return createParquetPreviewResponse({ headers, rows: [], totalRows }, byteLength, 0, offset);
+  const actualLimit = Math.min(limit, Math.max(0, totalRows - offset));
+
+  if (actualLimit <= 0) {
+    return new Response(JSON.stringify({ t: 'h', h: headers, tr: totalRows }) + '\n', {
+      headers: {
+        'Content-Type': 'application/x-ndjson',
+        'X-Preview-Format': 'parquet',
+        'X-Preview-Renderable': 'true',
+        'X-Preview-Truncated': 'false',
+        'X-Preview-Total-Size': String(byteLength),
+        'X-Preview-Total-Rows': String(totalRows),
+        'X-Preview-Offset': String(offset),
+        'Cache-Control': 'no-store'
+      }
+    });
+  }
+
+  const requestedEnd = offset + actualLimit;
+
+  // Pre-fetch up to MAX_PREVIEW_FETCH_BYTES from the start of the file.
+  // For the common case (data of the first row group fits within the limit),
+  // this means hyparquet reads entirely from memory — only 2 HTTP requests
+  // total (footer + this).  When column data extends beyond the limit,
+  // individual slice() calls fall through to per-request HTTP fetches
+  // (bounded by useOffsetIndex to only pages needed for the requested rows).
+  const MAX_PREVIEW_FETCH_BYTES = 5 * 1024 * 1024; // magic number: amount of data in column to load
+  const previewLimit = Math.min(MAX_PREVIEW_FETCH_BYTES, byteLength);
+
+  /** In-memory buffer plus any extra ranges fetched for out-of-preview data. */
+  const bufferCache: Array<{ start: number; buffer: ArrayBuffer }> = [];
+
+  if (previewLimit > 0) {
+    const stream = await provider.getObjectRange(key, 0, previewLimit - 1);
+    bufferCache.push({ start: 0, buffer: await streamToArrayBuffer(stream as ReadableStream) });
+  }
+
+  // Also fetch exact byte spans for any row groups whose data starts beyond
+  // the preview limit, so we don't degrade to per-slice HTTP for those.
+  const extraFetches: Array<{ start: number; end: number }> = [];
+  let groupRowStart = 0;
+  for (const rowGroup of parquetMeta.row_groups) {
+    const groupRows = Number(rowGroup.num_rows);
+    const groupRowEnd = groupRowStart + groupRows;
+
+    if (groupRowEnd > offset && groupRowStart < requestedEnd) {
+      let minByte = Infinity;
+      let maxByte = -Infinity;
+
+      for (const column of rowGroup.columns) {
+        const meta = column.meta_data;
+        if (!meta) continue;
+
+        const colStart = Number(meta.dictionary_page_offset ?? meta.data_page_offset);
+        const colEnd = colStart + Number(meta.total_compressed_size);
+        if (colStart < minByte) minByte = colStart;
+        if (colEnd > maxByte) maxByte = colEnd;
+
+        if (column.offset_index_offset != null && column.offset_index_length != null) {
+          const offEnd = Number(column.offset_index_offset) + Number(column.offset_index_length);
+          if (offEnd > maxByte) maxByte = offEnd;
+        }
+        if (column.column_index_offset != null && column.column_index_length != null) {
+          const ciEnd = Number(column.column_index_offset) + Number(column.column_index_length);
+          if (ciEnd > maxByte) maxByte = ciEnd;
+        }
+      }
+
+      if (isFinite(minByte) && maxByte > minByte && minByte >= previewLimit) {
+        extraFetches.push({ start: minByte, end: maxByte });
+      }
     }
 
-    const concurrency = 4;
-    let active = 0;
-    const waiters: Array<() => void> = [];
-    const acquire = (): Promise<void> => {
-      if (active < concurrency) {
-        active += 1;
-        return Promise.resolve();
-      }
-      return new Promise((resolve) => waiters.push(resolve));
-    };
-    const release = () => {
-      const next = waiters.shift();
-      if (next) return next();
-      active -= 1;
-    };
-
-    const asyncFile = {
-      byteLength,
-      slice: (start: number, end?: number): Promise<ArrayBuffer> => {
-        const rangeEnd = end ?? byteLength;
-        const MAX_PREVIEW_FETCH_BYTES = 1 * 1024 * 1024; // 1MB chunk cap
-        let actualEnd = rangeEnd;
-
-        if (actualEnd - start > MAX_PREVIEW_FETCH_BYTES) {
-          actualEnd = start + MAX_PREVIEW_FETCH_BYTES;
-          log.trace({ key, capped: actualEnd - start }, 'Capped massive parquet chunk read');
-        }
-
-        if (
-          offsetIndexCache &&
-          start >= offsetIndexCache.start &&
-          actualEnd <= offsetIndexCache.start + offsetIndexCache.buffer.byteLength
-        ) {
-          return Promise.resolve(
-            offsetIndexCache.buffer.slice(
-              start - offsetIndexCache.start,
-              actualEnd - offsetIndexCache.start
-            )
-          );
-        }
-
-        return acquire().then(async () => {
-          try {
-            const stream = await provider.getObjectRange(key, start, actualEnd - 1);
-            return await streamToArrayBuffer(stream as ReadableStream);
-          } finally {
-            release();
-          }
-        });
-      }
-    };
-
-    const rowObjects = await parquetReadObjects({
-      file: asyncFile,
-      metadata: parquetMeta,
-      rowStart: offset, // Tell hyparquet to start reading from the requested chunk
-      rowEnd: offset + actualLimit, // Stop reading at chunk limit
-      useOffsetIndex: true,
-      compressors: nodeCompressors
-    });
-
-    const rows = rowObjects.map((row) => {
-      const valueMap = new Map(Object.entries(row as Record<string, unknown>));
-      return headers.map((header) => toSerializableParquetCell(valueMap.get(header)));
-    });
-
-    return createParquetPreviewResponse(
-      { headers, rows, totalRows },
-      byteLength,
-      rows.length,
-      offset
-    );
-  } catch (error) {
-    log.error({ err: error, key }, 'Failed to parse Parquet chunk');
-    return createParquetPreviewResponse(
-      { headers: [], rows: [], totalRows: 0 },
-      byteLength,
-      0,
-      offset
-    );
+    groupRowStart = groupRowEnd;
   }
+
+  if (extraFetches.length > 0) {
+    const results = await Promise.all(
+      extraFetches.map((r) =>
+        provider
+          .getObjectRange(key, r.start, r.end - 1)
+          .then((s) => streamToArrayBuffer(s as ReadableStream))
+          .then((buf) => ({ start: r.start, buffer: buf }))
+      )
+    );
+    bufferCache.push(...results);
+  }
+
+  const asyncFile = {
+    byteLength,
+    slice: async (_start: number, _end?: number): Promise<ArrayBuffer> => {
+      const end = _end ?? byteLength;
+      for (const { start, buffer } of bufferCache) {
+        const bufEnd = start + buffer.byteLength;
+        if (_start >= start && end <= bufEnd) {
+          return buffer.slice(_start - start, end - start);
+        }
+      }
+      const stream = await provider.getObjectRange(key, _start, end - 1);
+      return streamToArrayBuffer(stream as ReadableStream);
+    }
+  };
+
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    start(controller) {
+      // Send headers immediately
+      controller.enqueue(
+        encoder.encode(JSON.stringify({ t: 'h', h: headers, tr: totalRows }) + '\n')
+      );
+
+      // Use parquetRead with onChunk to stream columns as they load.
+      // Trim columnData to the requested [offset, requestedEnd) range because
+      // hyparquet's onChunk fires with page-granularity data that can include
+      // rows outside the requested range (intra-page trimming only happens in
+      // asyncGroupToRows called by onComplete, not in onChunk).
+      const readPromise = parquetRead({
+        file: asyncFile,
+        metadata: parquetMeta,
+        rowStart: offset,
+        rowEnd: requestedEnd,
+        useOffsetIndex: true,
+        compressors: nodeCompressors,
+        rowFormat: 'object',
+        onChunk: ({ columnName, columnData, rowStart: chunkStart, rowEnd: chunkEnd }) => {
+          try {
+            const trimStart = Math.max(0, offset - chunkStart);
+            const trimEnd = Math.max(0, chunkEnd - requestedEnd);
+            const sliced =
+              trimStart > 0 || trimEnd > 0
+                ? columnData.slice(trimStart, columnData.length - trimEnd)
+                : columnData;
+            const values = Array.from(sliced, (v: unknown) => toSerializableParquetCell(v));
+            controller.enqueue(
+              encoder.encode(JSON.stringify({ t: 'c', n: columnName, v: values }) + '\n')
+            );
+          } catch (err) {
+            log.error({ err, key, column: columnName }, 'Error serializing parquet column chunk');
+          }
+        },
+        onComplete: () => {
+          try {
+            controller.enqueue(encoder.encode(JSON.stringify({ t: 'd' }) + '\n'));
+            controller.close();
+          } catch {
+            // stream already closed (e.g. client disconnected)
+          }
+        }
+      });
+
+      readPromise.catch((err) => {
+        log.error({ err, key }, 'Failed to parse Parquet chunk');
+        try {
+          controller.enqueue(encoder.encode(JSON.stringify({ t: 'e' }) + '\n'));
+          controller.close();
+        } catch {
+          // stream already closed
+        }
+      });
+    },
+    cancel() {
+      // Client disconnected — no cleanup needed
+    }
+  });
+
+  const truncated = totalRows > offset + actualLimit;
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'application/x-ndjson',
+      'X-Preview-Format': 'parquet',
+      'X-Preview-Renderable': 'true',
+      'X-Preview-Truncated': String(truncated),
+      'X-Preview-Total-Size': String(byteLength),
+      'X-Preview-Total-Rows': String(totalRows),
+      'X-Preview-Offset': String(offset),
+      'Cache-Control': 'no-store'
+    }
+  });
 }
