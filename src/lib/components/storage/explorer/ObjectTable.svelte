@@ -15,6 +15,10 @@
   });
 
   function navigateUp() {
+    if (storage.isInArchive) {
+      storage.navigateUpFromArchive();
+      return;
+    }
     if (!storage.prefix) return;
     const withoutTrailing = storage.prefix.slice(0, -1);
     const lastSlash = withoutTrailing.lastIndexOf('/');

@@ -10,9 +10,11 @@
   import IconMoreVert from 'virtual:icons/material-symbols/more-vert';
   import IconPushPin from 'virtual:icons/material-symbols/push-pin';
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
+  import IconFolderZip from 'virtual:icons/material-symbols/folder-zip';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import type { StorageLocation } from '$lib/storage/types.js';
+  import { keyToName } from '$lib/storage/utils.js';
 
   const storage = getStorageState();
 
@@ -28,6 +30,25 @@
       : []
   );
 
+  const archiveParts = $derived(
+    storage.isInArchive && storage.archiveKey
+      ? [
+          ...(storage.archivePrefix
+            ? storage.archivePrefix
+                .replace(/\/$/, '')
+                .split('/')
+                .map((label, i, parts) => ({
+                  label,
+                  isArchive: false,
+                  prefix: parts.slice(0, i + 1).join('/') + '/'
+                }))
+            : [])
+        ]
+      : []
+  );
+
+  const archiveName = $derived(storage.archiveKey ? keyToName(storage.archiveKey) : '');
+
   const MAX_TAIL = 2;
   const collapsedParts = $derived(
     breadcrumbParts.length > MAX_TAIL ? breadcrumbParts.slice(0, -MAX_TAIL) : []
@@ -38,7 +59,6 @@
 
   const currentIsPinned = $derived(storage.bookmarks.isPinned(storage.bucket, storage.prefix));
 
-  // ── Breadcrumb label context menu (right-click to pin / unpin) ───────────
   let breadcrumbCtx = $state<({ x: number; y: number } & StorageLocation) | null>(null);
 
   function openBreadcrumbCtx(e: MouseEvent, b: string, p: string) {
@@ -141,7 +161,7 @@
     flex min-w-0 flex-1 items-center gap-1 text-sm
   "
   >
-    {#if breadcrumbParts.length === 0}
+    {#if breadcrumbParts.length === 0 && !storage.isInArchive}
       <span class="group flex shrink-0 items-center gap-1">
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <span
@@ -167,7 +187,13 @@
             py-0.5 transition-colors hover:cursor-pointer
           "
           title={storage.bucket}
-          onclick={() => storage.navigate('')}
+          onclick={() => {
+            if (storage.isInArchive) {
+              storage.exitArchive();
+            } else {
+              storage.navigate('');
+            }
+          }}
           oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
         >
           <IconStorage class="size-4" aria-hidden="true" />
@@ -218,7 +244,7 @@
       </div>
     {/if}
     {#each visibleParts as part, i (part.prefix)}
-      {@const isCurrent = i === visibleParts.length - 1}
+      {@const isCurrent = !storage.isInArchive && i === visibleParts.length - 1}
       <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
       <span class="group flex min-w-0 items-center gap-1">
         {#if isCurrent}
@@ -250,6 +276,51 @@
         {@render pinButton(storage.bucket, part.prefix)}
       </span>
     {/each}
+    {#if storage.isInArchive}
+      <!-- Archive breadcrumb separator + entry -->
+      <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
+      <span class="group flex shrink-0 items-center gap-1">
+        <button
+          class="
+            text-secondary flex items-center gap-1.5 rounded-sm px-1.5
+            py-0.5 font-medium transition-colors hover:cursor-pointer hover:opacity-70
+          "
+          title={m.storage_archive_exit()}
+          onclick={() => storage.exitArchive()}
+        >
+          <IconFolderZip class="size-4" aria-hidden="true" />
+          {archiveName}
+        </button>
+      </span>
+      {#each archiveParts as part}
+        <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
+        <span class="group flex min-w-0 items-center gap-1">
+          {#if part === archiveParts[archiveParts.length - 1]}
+            <span
+              class="
+                text-base-content min-w-0 truncate rounded-sm px-1.5 py-0.5
+                font-medium
+              "
+              title={part.label}
+              aria-current="page"
+            >
+              {part.label}
+            </span>
+          {:else}
+            <button
+              class="
+                hover:bg-base-200 hover:text-base-content min-w-0 truncate rounded-sm px-1.5
+                py-0.5 transition-colors hover:cursor-pointer
+              "
+              title={part.label}
+              onclick={() => storage.navigateInArchive(part.prefix)}
+            >
+              {part.label}
+            </button>
+          {/if}
+        </span>
+      {/each}
+    {/if}
   </nav>
 
   <!-- Item count badges -->
@@ -288,61 +359,66 @@
     {m.storage_select_toggle()}
   </button>
 
-  <!-- Upload button -->
-  <button
-    class="btn btn-primary btn-xs gap-1"
-    onclick={() => storage.openModal('upload', { bucket: storage.bucket, prefix: storage.prefix })}
-  >
-    <IconUpload class="size-3.5" aria-hidden="true" />
-    {m.storage_action_upload()}
-  </button>
+  <!-- Upload button (hidden inside archives) -->
+  {#if !storage.isInArchive}
+    <button
+      class="btn btn-primary btn-xs gap-1"
+      onclick={() =>
+        storage.openModal('upload', { bucket: storage.bucket, prefix: storage.prefix })}
+    >
+      <IconUpload class="size-3.5" aria-hidden="true" />
+      {m.storage_action_upload()}
+    </button>
+  {/if}
 
   <!-- More options (pin current location) -->
-  <div class="dropdown dropdown-end">
-    <button
-      tabindex="0"
-      class="btn btn-ghost btn-xs"
-      title={m.storage_more_options()}
-      aria-label={m.storage_more_options()}
-      aria-haspopup="menu"
-    >
-      <IconMoreVert class="size-3.5" aria-hidden="true" />
-    </button>
-    <ul
-      tabindex="0"
-      role="menu"
-      class="
-        dropdown-content menu rounded-box border-base-300 bg-base-100 z-50 w-52
-        border p-1 shadow-lg
-      "
-    >
-      <li role="none">
-        {#if currentIsPinned}
-          {@const PinIcon2 = IconPushPin}
-          <button
-            role="menuitem"
-            class="justify-start text-sm"
-            onclick={() => {
-              storage.bookmarks.unpin(storage.bucket, storage.prefix);
-            }}
-          >
-            <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
-            {m.storage_action_unpin()}
-          </button>
-        {:else}
-          {@const PinIcon2 = IconPushPinOutline}
-          <button
-            role="menuitem"
-            class="justify-start text-sm"
-            onclick={() => {
-              storage.bookmarks.pin(storage.bucket, storage.prefix);
-            }}
-          >
-            <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
-            {m.storage_action_pin()}
-          </button>
-        {/if}
-      </li>
-    </ul>
-  </div>
+  {#if !storage.isInArchive}
+    <div class="dropdown dropdown-end">
+      <button
+        tabindex="0"
+        class="btn btn-ghost btn-xs"
+        title={m.storage_more_options()}
+        aria-label={m.storage_more_options()}
+        aria-haspopup="menu"
+      >
+        <IconMoreVert class="size-3.5" aria-hidden="true" />
+      </button>
+      <ul
+        tabindex="0"
+        role="menu"
+        class="
+          dropdown-content menu rounded-box border-base-300 bg-base-100 z-50 w-52
+          border p-1 shadow-lg
+        "
+      >
+        <li role="none">
+          {#if currentIsPinned}
+            {@const PinIcon2 = IconPushPin}
+            <button
+              role="menuitem"
+              class="justify-start text-sm"
+              onclick={() => {
+                storage.bookmarks.unpin(storage.bucket, storage.prefix);
+              }}
+            >
+              <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
+              {m.storage_action_unpin()}
+            </button>
+          {:else}
+            {@const PinIcon2 = IconPushPinOutline}
+            <button
+              role="menuitem"
+              class="justify-start text-sm"
+              onclick={() => {
+                storage.bookmarks.pin(storage.bucket, storage.prefix);
+              }}
+            >
+              <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
+              {m.storage_action_pin()}
+            </button>
+          {/if}
+        </li>
+      </ul>
+    </div>
+  {/if}
 </div>

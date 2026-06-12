@@ -1,5 +1,5 @@
 import { SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
-import { invalidateAll } from '$app/navigation';
+import { invalidateAll, goto } from '$app/navigation';
 import * as m from '$lib/paraglide/messages.js';
 import type { StoragePage, StorageObject } from '$lib/storage/types.js';
 import type {
@@ -8,8 +8,11 @@ import type {
   ModalPayloads,
   ContextMenuState,
   NavigateFn,
-  ActionName
+  ActionName,
+  ArchiveListingResponse,
+  ArchiveEntry
 } from '$lib/storage/types.js';
+import { ARCHIVE_EXTENSIONS } from '$lib/storage/types.js';
 import { initPageSize, type PageSize } from '$lib/types/pagination.js';
 import { defaultPageSize } from '$lib/client/feature-flags.js';
 import { downloadObject, DownloadError } from '$lib/storage/download.js';
@@ -17,6 +20,7 @@ import { addToast } from '$lib/stores/toast.svelte.js';
 import { ActionError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
 import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+import { isArchiveExtension } from './utils.js';
 
 export class StorageState {
   // ── Core data (synced from server load) ──
@@ -79,6 +83,13 @@ export class StorageState {
   prevTokens = $state<(string | null)[]>([]);
   pageSize = $state<PageSize>(initPageSize('storage_page_size'));
   currentPage = $derived(this.prevTokens.length + 1);
+
+  // ── Archive navigation ──
+  archiveKey = $state<string | null>(null);
+  archivePrefix = $state('');
+  previousS3Prefix = $state('');
+  archiveLoading = $state(false);
+  isInArchive = $derived(this.archiveKey !== null);
 
   // ── Composed sub-state ──
   bookmarks = new BookmarksState();
@@ -179,6 +190,146 @@ export class StorageState {
     this._onNavigate(this.prefix, null, this.pageSize);
   };
 
+  // ── Archive navigation ────────────────────────────────────────────────────
+
+  /** Check if a filename looks like a navigable archive. */
+  isArchiveFile = (key: string): boolean => {
+    const lower = key.toLowerCase();
+    return ARCHIVE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+  };
+
+  /** Enter an archive file and show its contents as a virtual folder. */
+  enterArchive = async (archiveKey: string): Promise<void> => {
+    this.archiveKey = archiveKey;
+    this.archivePrefix = '';
+    this.previousS3Prefix = this.prefix;
+    this.archiveLoading = true;
+
+    try {
+      await this._fetchArchiveListing();
+    } catch (err) {
+      this.archiveKey = null;
+      this.archivePrefix = '';
+      this.previousS3Prefix = '';
+      this.archiveLoading = false;
+      addToast('error', err instanceof Error ? err.message : m.storage_archive_open_error());
+    }
+  };
+
+  /** Navigate within the current archive (virtual path). */
+  navigateInArchive = async (prefix: string): Promise<void> => {
+    if (!this.archiveKey) return;
+    this.archivePrefix = prefix;
+    this.archiveLoading = true;
+    this.prevTokens = [];
+
+    try {
+      await this._fetchArchiveListing();
+    } catch (err) {
+      this.archiveLoading = false;
+      addToast('error', err instanceof Error ? err.message : m.storage_archive_open_error());
+    }
+  };
+
+  /** Navigate up within the archive. If at root, exit the archive. */
+  navigateUpFromArchive = (): void => {
+    if (!this.archivePrefix) {
+      this.exitArchive();
+      return;
+    }
+    const withoutTrailing = this.archivePrefix.replace(/\/$/, '');
+    const lastSlash = withoutTrailing.lastIndexOf('/');
+    void this.navigateInArchive(lastSlash === -1 ? '' : withoutTrailing.slice(0, lastSlash + 1));
+  };
+
+  /** Exit the archive and return to the S3 folder that contains it. */
+  exitArchive = (): void => {
+    const s3Prefix = this.previousS3Prefix;
+    this.archiveKey = null;
+    this.archivePrefix = '';
+    this.previousS3Prefix = '';
+    this.archiveLoading = false;
+    this.navigate(s3Prefix);
+  };
+
+  /** Download a file from within the current archive. */
+  downloadFromArchive = async (internalPath: string): Promise<void> => {
+    if (!this.archiveKey) return;
+    try {
+      const conn = loadConnectionLocally();
+      if (!conn) {
+        addToast('error', m.storage_download_error_unknown());
+        return;
+      }
+      const connHeader = getConnectionHeader(conn);
+      const params = new URLSearchParams({
+        bucket: this.bucket,
+        key: this.archiveKey,
+        path: internalPath
+      });
+      const res = await fetch(`/storage/api/archive/extract?${params}`, {
+        headers: { 'x-storage-connection': connHeader }
+      });
+      if (!res.ok) {
+        const code =
+          res.status === 403 ? 'access_denied' : res.status === 404 ? 'not_found' : 'server_error';
+        throw new DownloadError(code, `Extract failed with status ${res.status}`);
+      }
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const filename = internalPath.split('/').filter(Boolean).pop() ?? internalPath;
+      const anchor = document.createElement('a');
+      anchor.href = blobUrl;
+      anchor.download = filename;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+    } catch (err: unknown) {
+      if (err instanceof DownloadError) {
+        addToast('error', getActionErrorMessage(new ActionError(err.code, err.message)));
+      } else {
+        addToast('error', m.storage_download_error_unknown());
+      }
+    }
+  };
+
+  /** Fetch archive listing from the server API. */
+  private async _fetchArchiveListing(): Promise<void> {
+    const conn = loadConnectionLocally();
+    if (!conn || !this.archiveKey) {
+      this.archiveLoading = false;
+      return;
+    }
+    const connHeader = getConnectionHeader(conn);
+    const params = new URLSearchParams({
+      bucket: this.bucket,
+      key: this.archiveKey,
+      internalPrefix: this.archivePrefix
+    });
+    const res = await fetch(`/storage/api/archive/listing?${params}`, {
+      headers: { 'x-storage-connection': connHeader }
+    });
+    if (!res.ok) {
+      throw new Error(m.storage_archive_open_error());
+    }
+    const data = (await res.json()) as ArchiveListingResponse;
+    this.objects = {
+      objects: data.entries.map((e: ArchiveEntry) => ({
+        key: e.key,
+        size: e.size,
+        lastModified: e.lastModified,
+        isDirectory: e.isDirectory,
+        contentType: undefined
+      })),
+      hasNextPage: data.hasMore,
+      currentPage: 1,
+      pageSize: null as never
+    };
+    this.archiveLoading = false;
+  }
+
   refresh = (): void => {
     this.loading = true;
     void invalidateAll();
@@ -255,6 +406,10 @@ export class StorageState {
           addToast('warning', m.storage_action_preview_no_selection());
           return;
         }
+        if (this.isInArchive) {
+          void this.downloadFromArchive(key);
+          return;
+        }
         for (const f of effectiveSelectedFiles) {
           this.bookmarks.recordFileVisit(this.bucket, f.key, f.size);
         }
@@ -264,6 +419,10 @@ export class StorageState {
       case 'download':
         if (!key) {
           addToast('warning', m.storage_action_download_no_selection());
+          return;
+        }
+        if (this.isInArchive) {
+          void this.downloadFromArchive(key);
           return;
         }
         for (const f of effectiveSelectedFiles) {

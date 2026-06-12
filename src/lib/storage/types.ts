@@ -92,3 +92,35 @@ export interface StoragePage {
 export interface DeleteObjectsResult {
   failed: Array<{ key: string; code?: string; message?: string }>;
 }
+
+// ── Archive navigation ───────────────────────────────────────────────────────
+
+export const ARCHIVE_EXTENSIONS = ['.zip', '.tar.gz', '.tgz', '.rar', '.7z'] as const;
+
+export type ArchiveFormat = (typeof ARCHIVE_EXTENSIONS)[number] extends `${string}${infer F}`
+  ? F
+  : string;
+
+/** A single entry inside an archive (file or directory). */
+export interface ArchiveEntry {
+  key: string;
+  size: number;
+  lastModified: Date;
+  isDirectory: boolean;
+}
+
+/** Response from the archive listing API. */
+export interface ArchiveListingResponse {
+  entries: ArchiveEntry[];
+  hasMore: boolean;
+}
+
+/** State when browsing inside an archive. */
+export interface ArchiveContext {
+  /** S3 key of the archive file being browsed. */
+  archiveKey: string;
+  /** Virtual path within the archive (empty string = archive root). */
+  archivePrefix: string;
+  /** The S3 prefix the user was at before entering the archive. */
+  previousS3Prefix: string;
+}

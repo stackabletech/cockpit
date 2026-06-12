@@ -44,18 +44,20 @@
         {m.storage_action_download()}
       </button>
 
-      <button
-        class="
-          btn btn-ghost btn-xs gap-1
-          {selectedCount > 0 ? 'text-error hover:bg-error/10' : ''}
-        "
-        title="{m.storage_action_delete()} (Del)"
-        onclick={() => storage.executeAction('delete')}
-        disabled={selectedCount === 0}
-      >
-        <IconDelete class="size-3.5" aria-hidden="true" />
-        {m.storage_action_delete()}
-      </button>
+      {#if !storage.isInArchive}
+        <button
+          class="
+            btn btn-ghost btn-xs gap-1
+            {selectedCount > 0 ? 'text-error hover:bg-error/10' : ''}
+          "
+          title="{m.storage_action_delete()} (Del)"
+          onclick={() => storage.executeAction('delete')}
+          disabled={selectedCount === 0}
+        >
+          <IconDelete class="size-3.5" aria-hidden="true" />
+          {m.storage_action_delete()}
+        </button>
+      {/if}
 
       <div class="ml-auto">
         <button

@@ -128,6 +128,22 @@ The dev server accepts requests from any host. This enables DNS rebinding attack
 
 ---
 
+### Archive browsing downloads entire file before parsing
+
+**File:** `src/lib/server/storage/archive.ts`
+
+Archive browsing (ZIP, TAR.GZ, RAR, 7z) downloads the entire archive from S3 to a temporary file on the server before listing or extracting entries. For ZIP files, the S3 cost could be reduced by fetching only the End of Central Directory record via a byte-range request (typically the last 64 KB), then reading the Central Directory entries — which avoids transferring the compressed file data. TAR.GZ/RAR/7z are inherently sequential formats and require a full download regardless. The temp files are cached for 30 minutes per archive with periodic cleanup. Long-term fix: implement a range-request-based ZIP reader that fetches only the central directory, falling back to full download for other formats.
+
+---
+
+### RAR and 7z archive support requires system binaries
+
+**File:** `src/lib/server/storage/archive.ts`
+
+RAR and 7z archive parsing shells out to `unrar` and `7zz`/`7z` system binaries respectively. These may not be installed in the production container image. If absent, the user sees a clear error message telling them to install the binary. ZIP and TAR.GZ work without system dependencies (pure JS). The Dockerfile should be updated to include `unrar` and `p7zip` (or similar) packages when RAR/7z support is needed in production.
+
+---
+
 ### No server-side file size limit on uploads (v0)
 
 **File:** `src/routes/(app)/storage/api/upload/+server.ts`
