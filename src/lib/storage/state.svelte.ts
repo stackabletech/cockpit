@@ -87,6 +87,7 @@ export class StorageState {
   // ── Archive navigation ──
   archiveKey = $state<string | null>(null);
   archivePrefix = $state('');
+  archiveNestedPath = $state<string | null>(null);
   previousS3Prefix = $state('');
   archiveLoading = $state(false);
   isInArchive = $derived(this.archiveKey !== null);
@@ -200,17 +201,26 @@ export class StorageState {
 
   /** Enter an archive file and show its contents as a virtual folder. */
   enterArchive = async (archiveKey: string): Promise<void> => {
-    this.archiveKey = archiveKey;
+    if (this.isInArchive) {
+      this.archiveNestedPath = archiveKey;
+    } else {
+      this.archiveKey = archiveKey;
+      this.archiveNestedPath = null;
+      this.previousS3Prefix = this.prefix;
+    }
     this.archivePrefix = '';
-    this.previousS3Prefix = this.prefix;
     this.archiveLoading = true;
 
     try {
       await this._fetchArchiveListing();
     } catch (err) {
-      this.archiveKey = null;
+      if (this.archiveNestedPath) {
+        this.archiveNestedPath = null;
+      } else {
+        this.archiveKey = null;
+        this.previousS3Prefix = '';
+      }
       this.archivePrefix = '';
-      this.previousS3Prefix = '';
       this.archiveLoading = false;
       addToast('error', err instanceof Error ? err.message : m.storage_archive_open_error());
     }
@@ -231,10 +241,20 @@ export class StorageState {
     }
   };
 
-  /** Navigate up within the archive. If at root, exit the archive. */
+  /** Navigate up within the archive. If at root, exit the archive or go to parent archive. */
   navigateUpFromArchive = (): void => {
     if (!this.archivePrefix) {
-      this.exitArchive();
+      if (this.archiveNestedPath) {
+        // Go back to outer archive root
+        this.archiveNestedPath = null;
+        this.archivePrefix = '';
+        this.archiveLoading = true;
+        void this._fetchArchiveListing().catch(() => {
+          this.archiveLoading = false;
+        });
+      } else {
+        this.exitArchive();
+      }
       return;
     }
     const withoutTrailing = this.archivePrefix.replace(/\/$/, '');
@@ -244,12 +264,14 @@ export class StorageState {
 
   /** Exit the archive and return to the S3 folder that contains it. */
   exitArchive = (): void => {
-    const s3Prefix = this.previousS3Prefix;
     this.archiveKey = null;
     this.archivePrefix = '';
+    this.archiveNestedPath = null;
     this.previousS3Prefix = '';
     this.archiveLoading = false;
-    this.navigate(s3Prefix);
+    this.loading = true;
+    this.prevTokens = [];
+    void invalidateAll();
   };
 
   /** Download a file from within the current archive. */
@@ -267,6 +289,9 @@ export class StorageState {
         key: this.archiveKey,
         path: internalPath
       });
+      if (this.archiveNestedPath) {
+        params.set('nestedArchivePath', this.archiveNestedPath);
+      }
       const res = await fetch(`/storage/api/archive/extract?${params}`, {
         headers: { 'x-storage-connection': connHeader }
       });
@@ -308,6 +333,9 @@ export class StorageState {
       key: this.archiveKey,
       internalPrefix: this.archivePrefix
     });
+    if (this.archiveNestedPath) {
+      params.set('nestedArchivePath', this.archiveNestedPath);
+    }
     const res = await fetch(`/storage/api/archive/listing?${params}`, {
       headers: { 'x-storage-connection': connHeader }
     });
@@ -501,6 +529,7 @@ export class StorageState {
 
   handleKeydown = (e: KeyboardEvent): void => {
     if (this.activeModal?.type === 'delete') return;
+    if (this.isInArchive) return; // No destructive actions inside archives
     if (e.key === 'Delete' && this.selectedKeys.size > 0) {
       this.openModal('delete', { keys: [...this.selectedKeys] });
     } else if (e.key === 'Escape') {

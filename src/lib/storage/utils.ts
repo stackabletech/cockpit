@@ -14,7 +14,12 @@ const CODE_TYPES = new Set([
   'text/markdown'
 ]);
 
-const ARCHIVE_TYPES = new Set(['application/gzip', 'application/zip', 'application/x-tar']);
+const ARCHIVE_TYPES = new Set([
+  'application/gzip',
+  'application/zip',
+  'application/x-tar',
+  'application/x-gzip'
+]);
 
 export function fileIconKind(contentType: string | undefined): FileIconKind {
   if (!contentType) return 'document';

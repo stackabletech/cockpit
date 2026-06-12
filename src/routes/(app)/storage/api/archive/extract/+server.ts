@@ -4,9 +4,12 @@ import { downloadObject, getObjectMetadata } from '$lib/server/storage/service.j
 import type { RequestHandler } from './$types';
 
 /**
- * GET /storage/api/archive/extract?bucket=<bucket>&key=<archive-key>&path=<internal-path>
+ * GET /storage/api/archive/extract?bucket=<bucket>&key=<archive-key>&path=<internal-path>&nestedArchivePath=<path>
  *
  * Extracts a single file from an archive and returns it as a stream.
+ * Supports nested archives: when `nestedArchivePath` is set, the file is
+ * extracted from within a nested archive inside the outer one.
+ *
  * The archive is downloaded from S3 once and cached server-side, so multiple
  * extractions from the same archive share a single S3 transfer.
  *
@@ -26,13 +29,15 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   const internalPath = url.searchParams.get('path')?.trim();
   if (!internalPath) throw error(400, 'Missing required query parameter: path');
 
+  const nestedArchivePath = url.searchParams.get('nestedArchivePath')?.trim() || undefined;
+
   const format = getArchiveFormat(key);
   if (!format) {
     throw error(400, `Unsupported archive format: ${key}`);
   }
 
   locals.logger.debug(
-    { bucket, key, internal_path: internalPath, format },
+    { bucket, key, internal_path: internalPath, nested_archive_path: nestedArchivePath, format },
     'extracting archive entry'
   );
 
@@ -40,7 +45,14 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     downloadObject(locals.storageConfig!, bucket, k).then((d) => d.stream);
   const metadataFn = (k: string) => getObjectMetadata(locals.storageConfig!, bucket, k);
 
-  const data = await extractArchiveEntry(bucket, key, internalPath, downloadFn, metadataFn);
+  const data = await extractArchiveEntry(
+    bucket,
+    key,
+    internalPath,
+    downloadFn,
+    metadataFn,
+    nestedArchivePath
+  );
 
   if (!data) {
     throw error(404, `File "${internalPath}" not found in archive`);

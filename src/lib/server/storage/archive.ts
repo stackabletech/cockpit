@@ -1,4 +1,12 @@
-import { createReadStream, createWriteStream, unlinkSync, existsSync, mkdtempSync } from 'node:fs';
+import {
+  createReadStream,
+  createWriteStream,
+  unlinkSync,
+  existsSync,
+  mkdtempSync,
+  writeFileSync,
+  rmSync
+} from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, extname } from 'node:path';
@@ -98,6 +106,7 @@ function streamToTempFile(stream: ReadableStream, ext: string): Promise<string> 
 const ARCHIVE_EXT_PATTERNS = [
   { ext: '.zip', formats: ['zip'] as const },
   { ext: '.tar.gz', formats: ['tar.gz', 'tgz'] as const },
+  { ext: '.tar', formats: ['tar'] as const },
   { ext: '.rar', formats: ['rar'] as const },
   { ext: '.7z', formats: ['7z'] as const }
 ];
@@ -135,33 +144,43 @@ function listZip(tempPath: string, internalPrefix: string): ArchiveListing {
   const result: ArchiveEntry[] = [];
 
   for (const entry of entries) {
-    let entryPath = normalizePath(entry.entryName);
-
-    if (entryPath.endsWith('/')) entryPath = entryPath.slice(0, -1);
+    const entryPath = normalizePath(entry.entryName);
 
     if (!entryPath.startsWith(prefix)) continue;
 
     const relative = entryPath.slice(prefix.length);
     if (!relative) continue;
 
-    if (relative.includes('/')) {
-      const dirName = relative.split('/')[0];
-      if (!seenDirs.has(dirName)) {
-        seenDirs.add(dirName);
+    if (entry.isDirectory) {
+      if (!seenDirs.has(relative)) {
+        seenDirs.add(relative);
         result.push({
-          key: ensureTrailingSlash(dirName),
+          key: relative,
           size: 0,
           lastModified: new Date(entry.header.time),
           isDirectory: true
         });
       }
     } else {
-      result.push({
-        key: relative,
-        size: entry.header.size,
-        lastModified: new Date(entry.header.time),
-        isDirectory: false
-      });
+      if (relative.includes('/')) {
+        const dirName = relative.split('/')[0] + '/';
+        if (!seenDirs.has(dirName)) {
+          seenDirs.add(dirName);
+          result.push({
+            key: dirName,
+            size: 0,
+            lastModified: new Date(entry.header.time),
+            isDirectory: true
+          });
+        }
+      } else {
+        result.push({
+          key: relative,
+          size: entry.header.size,
+          lastModified: new Date(entry.header.time),
+          isDirectory: false
+        });
+      }
     }
   }
 
@@ -173,6 +192,127 @@ function extractZipEntry(tempPath: string, internalPath: string): Buffer | null 
   const entry = zip.getEntry(internalPath);
   if (!entry || entry.isDirectory) return null;
   return entry.getData();
+}
+
+// ── TAR helpers (shared by plain .tar and .tar.gz) ────────────────────────────
+
+function onTarEntry(
+  header: tar.Headers,
+  stream: NodeJS.ReadableStream,
+  next: (err?: Error | null) => void,
+  prefix: string,
+  entries: ArchiveEntry[],
+  seenDirs: Set<string>
+): void {
+  let entryPath = normalizePath(header.name);
+
+  if (header.type === 'directory') {
+    entryPath = ensureTrailingSlash(entryPath);
+  }
+
+  if (!entryPath.startsWith(prefix)) {
+    stream.resume();
+    stream.on('end', next);
+    return;
+  }
+
+  const relative = entryPath.slice(prefix.length);
+  if (!relative) {
+    stream.resume();
+    stream.on('end', next);
+    return;
+  }
+
+  if (header.type === 'directory') {
+    if (!seenDirs.has(relative)) {
+      seenDirs.add(relative);
+      entries.push({
+        key: relative,
+        size: 0,
+        lastModified: new Date(header.mtime?.getTime() ?? 0),
+        isDirectory: true
+      });
+    }
+  } else {
+    if (relative.includes('/')) {
+      const dirName = relative.split('/')[0] + '/';
+      if (!seenDirs.has(dirName)) {
+        seenDirs.add(dirName);
+        entries.push({
+          key: dirName,
+          size: 0,
+          lastModified: new Date(0),
+          isDirectory: true
+        });
+      }
+    } else {
+      entries.push({
+        key: relative,
+        size: header.size ?? 0,
+        lastModified: new Date(header.mtime?.getTime() ?? 0),
+        isDirectory: false
+      });
+    }
+  }
+
+  stream.resume();
+  stream.on('end', next);
+}
+
+// ── TAR ───────────────────────────────────────────────────────────────────────
+
+function listTar(tempPath: string, internalPrefix: string): Promise<ArchiveListing> {
+  return new Promise((resolve, reject) => {
+    const prefix = internalPrefix ? ensureTrailingSlash(normalizePath(internalPrefix)) : '';
+    const entries: ArchiveEntry[] = [];
+    const seenDirs = new Set<string>();
+
+    const extract = tar.extract();
+
+    extract.on(
+      'entry',
+      (header: tar.Headers, stream: NodeJS.ReadableStream, next: (err?: Error | null) => void) => {
+        onTarEntry(header, stream, next, prefix, entries, seenDirs);
+      }
+    );
+
+    extract.on('finish', () => resolve({ entries, hasMore: false }));
+    extract.on('error', reject);
+
+    createReadStream(tempPath).pipe(extract);
+  });
+}
+
+function extractTarEntry(tempPath: string, internalPath: string): Promise<Buffer | null> {
+  return new Promise((resolve, reject) => {
+    const normalized = normalizePath(internalPath);
+    let found: Buffer | null = null;
+
+    const extract = tar.extract();
+
+    extract.on(
+      'entry',
+      (header: tar.Headers, stream: NodeJS.ReadableStream, next: (err?: Error | null) => void) => {
+        const entryPath = normalizePath(header.name);
+        if (header.type === 'file' && entryPath === normalized && !found) {
+          const chunks: Buffer[] = [];
+          stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+          stream.on('end', () => {
+            found = Buffer.concat(chunks);
+            next();
+          });
+        } else {
+          stream.resume();
+          stream.on('end', next);
+        }
+      }
+    );
+
+    extract.on('finish', () => resolve(found));
+    extract.on('error', reject);
+
+    createReadStream(tempPath).pipe(extract);
+  });
 }
 
 // ── TAR.GZ / TGZ ─────────────────────────────────────────────────────────────
@@ -189,67 +329,11 @@ function listTarGz(tempPath: string, internalPrefix: string): Promise<ArchiveLis
     extract.on(
       'entry',
       (header: tar.Headers, stream: NodeJS.ReadableStream, next: (err?: Error | null) => void) => {
-        let entryPath = normalizePath(header.name);
-
-        if (header.type === 'directory') {
-          entryPath = ensureTrailingSlash(entryPath);
-        }
-
-        if (!entryPath.startsWith(prefix)) {
-          stream.resume();
-          stream.on('end', next);
-          return;
-        }
-
-        const relative = entryPath.slice(prefix.length);
-        if (!relative) {
-          stream.resume();
-          stream.on('end', next);
-          return;
-        }
-
-        if (header.type === 'directory') {
-          const dir = ensureTrailingSlash(relative);
-          if (!seenDirs.has(dir)) {
-            seenDirs.add(dir);
-            entries.push({
-              key: dir,
-              size: 0,
-              lastModified: new Date(header.mtime?.getTime() ?? 0),
-              isDirectory: true
-            });
-          }
-        } else {
-          if (relative.includes('/')) {
-            const dirName = relative.split('/')[0] + '/';
-            if (!seenDirs.has(dirName)) {
-              seenDirs.add(dirName);
-              entries.push({
-                key: dirName,
-                size: 0,
-                lastModified: new Date(0),
-                isDirectory: true
-              });
-            }
-          } else {
-            entries.push({
-              key: relative,
-              size: header.size ?? 0,
-              lastModified: new Date(header.mtime?.getTime() ?? 0),
-              isDirectory: false
-            });
-          }
-        }
-
-        stream.resume();
-        stream.on('end', next);
+        onTarEntry(header, stream, next, prefix, entries, seenDirs);
       }
     );
 
-    extract.on('finish', () => {
-      resolve({ entries, hasMore: false });
-    });
-
+    extract.on('finish', () => resolve({ entries, hasMore: false }));
     extract.on('error', reject);
     gunzip.on('error', reject);
 
@@ -501,7 +585,6 @@ async function extract7zEntry(tempPath: string, internalPath: string): Promise<B
 }
 
 function rmRecursive(dir: string): void {
-  const { rmSync } = require('node:fs');
   rmSync(dir, { recursive: true, force: true });
 }
 
@@ -511,34 +594,117 @@ export type ArchiveDownloadFn = (key: string) => Promise<ReadableStream>;
 export type ArchiveMetadataFn = (key: string) => Promise<{ size: number; contentType?: string }>;
 
 /**
- * List the contents of an archive at a given internal prefix.
- * Downloads the archive from S3 once and caches it server-side for 30 minutes.
+ * Resolve the archive file to a local temp path.
+ * For nested archives, first download the outer archive, then extract the nested one.
  */
-export async function listArchiveContents(
+async function resolveArchivePath(
   bucket: string,
   key: string,
-  internalPrefix: string,
+  nestedArchivePath: string | undefined,
   downloadFn: ArchiveDownloadFn,
-  metadataFn: ArchiveMetadataFn
-): Promise<ArchiveListing> {
-  const format = getArchiveFormat(key);
-  if (!format) throw new Error(`Unsupported archive format: ${key}`);
-
+  _metadataFn: ArchiveMetadataFn
+): Promise<string> {
   let tempPath = getCachedPath(bucket, key);
   if (!tempPath) {
-    log.info({ bucket, key }, 'downloading archive for browsing');
-    const meta = await metadataFn(key);
+    log.info({ bucket, key }, 'downloading archive');
     const ext = extname(key) || '.bin';
     const stream = await downloadFn(key);
     tempPath = await streamToTempFile(stream, ext);
     cacheArchive(bucket, key, tempPath);
   }
 
-  log.debug({ bucket, key, internal_prefix: internalPrefix, format }, 'listing archive contents');
+  if (!nestedArchivePath) return tempPath;
+
+  // Resolve nested archive — cache it under a composite key
+  const nestedCacheKey = cacheKey(bucket, `${key}!/${nestedArchivePath}`);
+  const cachedEntry = archiveCache.get(nestedCacheKey);
+  if (cachedEntry && Date.now() < cachedEntry.expiresAt && existsSync(cachedEntry.path)) {
+    return cachedEntry.path;
+  }
+  if (cachedEntry) archiveCache.delete(nestedCacheKey);
+
+  log.info({ bucket, key, nested_archive_path: nestedArchivePath }, 'extracting nested archive');
+
+  // Extract nested archive from outer archive
+  const format = getArchiveFormat(key);
+  if (!format) throw new Error(`Unsupported archive format: ${key}`);
+
+  let nestedData: Buffer | null = null;
+  const normNestedPath = normalizePath(nestedArchivePath);
+
+  switch (format) {
+    case 'zip':
+      nestedData = extractZipEntry(tempPath, normNestedPath) ?? null;
+      break;
+    case 'tar':
+      nestedData = await extractTarEntry(tempPath, normNestedPath);
+      break;
+    case 'tar.gz':
+    case 'tgz':
+      nestedData = await extractTarGzEntry(tempPath, normNestedPath);
+      break;
+    case 'rar':
+      nestedData = await extractRarEntry(tempPath, normNestedPath);
+      break;
+    case '7z':
+      nestedData = await extract7zEntry(tempPath, normNestedPath);
+      break;
+  }
+
+  if (!nestedData) throw new Error(`Nested archive "${nestedArchivePath}" not found in ${key}`);
+
+  // Save nested archive to temp file and cache it
+  const nestedExt = extname(nestedArchivePath) || '.bin';
+  const nestedDir = mkdtempSync(join(tmpdir(), 'archive-nested-'));
+  const nestedPath = join(nestedDir, `archive${nestedExt}`);
+
+  writeFileSync(nestedPath, nestedData);
+
+  archiveCache.set(nestedCacheKey, {
+    path: nestedPath,
+    expiresAt: Date.now() + CACHE_TTL,
+    bucket,
+    key: `${key}!/${nestedArchivePath}`
+  });
+
+  return nestedPath;
+}
+
+/**
+ * List the contents of an archive at a given internal prefix.
+ * Downloads the archive from S3 once and caches it server-side for 30 minutes.
+ * Supports nested archives via the optional `nestedArchivePath` parameter.
+ */
+export async function listArchiveContents(
+  bucket: string,
+  key: string,
+  internalPrefix: string,
+  downloadFn: ArchiveDownloadFn,
+  metadataFn: ArchiveMetadataFn,
+  nestedArchivePath?: string
+): Promise<ArchiveListing> {
+  const effectiveKey = nestedArchivePath ? `${key}!/${nestedArchivePath}` : key;
+  const format = getArchiveFormat(effectiveKey);
+  if (!format) throw new Error(`Unsupported archive format: ${key}`);
+
+  const tempPath = await resolveArchivePath(bucket, key, nestedArchivePath, downloadFn, metadataFn);
+
+  log.debug(
+    {
+      bucket,
+      key,
+      internal_prefix: internalPrefix,
+      nested_archive_path: nestedArchivePath,
+      format
+    },
+    'listing archive contents'
+  );
 
   switch (format) {
     case 'zip':
       return listZip(tempPath, internalPrefix);
+    case 'tar':
+      return listTar(tempPath, internalPrefix);
     case 'tar.gz':
     case 'tgz':
       return listTarGz(tempPath, internalPrefix);
@@ -553,34 +719,34 @@ export async function listArchiveContents(
 
 /**
  * Extract a single file from an archive and return its content as a Buffer.
+ * Supports nested archives via the optional `nestedArchivePath` parameter.
  */
 export async function extractArchiveEntry(
   bucket: string,
   key: string,
   internalPath: string,
   downloadFn: ArchiveDownloadFn,
-  metadataFn: ArchiveMetadataFn
+  metadataFn: ArchiveMetadataFn,
+  nestedArchivePath?: string
 ): Promise<Buffer | null> {
-  const format = getArchiveFormat(key);
+  const effectiveKey = nestedArchivePath ? `${key}!/${nestedArchivePath}` : key;
+  const format = getArchiveFormat(effectiveKey);
   if (!format) throw new Error(`Unsupported archive format: ${key}`);
 
-  let tempPath = getCachedPath(bucket, key);
-  if (!tempPath) {
-    log.info({ bucket, key }, 'downloading archive for extraction');
-    const meta = await metadataFn(key);
-    const ext = extname(key) || '.bin';
-    const stream = await downloadFn(key);
-    tempPath = await streamToTempFile(stream, ext);
-    cacheArchive(bucket, key, tempPath);
-  }
+  const tempPath = await resolveArchivePath(bucket, key, nestedArchivePath, downloadFn, metadataFn);
 
-  log.debug({ bucket, key, internal_path: internalPath, format }, 'extracting archive entry');
+  log.debug(
+    { bucket, key, internal_path: internalPath, nested_archive_path: nestedArchivePath, format },
+    'extracting archive entry'
+  );
 
   const normalizedPath = normalizePath(internalPath);
 
   switch (format) {
     case 'zip':
       return extractZipEntry(tempPath, normalizedPath) ?? null;
+    case 'tar':
+      return extractTarEntry(tempPath, normalizedPath);
     case 'tar.gz':
     case 'tgz':
       return extractTarGzEntry(tempPath, normalizedPath);
@@ -589,7 +755,7 @@ export async function extractArchiveEntry(
     case '7z':
       return extract7zEntry(tempPath, normalizedPath);
     default:
-      throw new Error(`Unsupported archive format: ${format}`);
+      return null;
   }
 }
 

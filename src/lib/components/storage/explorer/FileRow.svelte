@@ -43,8 +43,6 @@
   ondblclick={() => {
     if (isArchive) {
       void storage.enterArchive(file.key);
-    } else if (storage.isInArchive) {
-      void storage.downloadFromArchive(file.key);
     } else {
       storage.executeAction('preview');
     }
