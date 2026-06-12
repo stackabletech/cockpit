@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { SvelteURLSearchParams } from 'svelte/reactivity';
   import IconCloseFullscreen from 'virtual:icons/material-symbols/close-fullscreen';
   import IconOpenInFull from 'virtual:icons/material-symbols/open-in-full';
   import IconClose from 'virtual:icons/material-symbols/close';
@@ -23,6 +24,9 @@
     open?: boolean;
     bucket?: string;
     objectKey?: string | null;
+    archiveKey?: string;
+    archivePath?: string;
+    nestedArchivePath?: string;
   }
 
   interface ParquetPayload {
@@ -56,7 +60,14 @@
     | { kind: 'fallback'; contentType: string; isBinary: boolean }
     | { kind: 'error'; message: string };
 
-  let { open = $bindable(false), bucket = '', objectKey = null }: Props = $props();
+  let {
+    open = $bindable(false),
+    bucket = '',
+    objectKey = null,
+    archiveKey = '',
+    archivePath = '',
+    nestedArchivePath = ''
+  }: Props = $props();
 
   let preview: PreviewKind = $state({ kind: 'idle' });
   let blobUrls: string[] = [];
@@ -100,8 +111,21 @@
       : {};
 
     try {
-      const params = new URLSearchParams({ bucket: activeBucket, key });
-      const res = await fetch(`/storage/api/preview?${params}`, { headers });
+      let res: Response;
+      if (archiveKey && archivePath) {
+        const params = new SvelteURLSearchParams({
+          bucket: activeBucket,
+          key: archiveKey,
+          path: archivePath
+        });
+        if (nestedArchivePath) {
+          params.set('nestedArchivePath', nestedArchivePath);
+        }
+        res = await fetch(`/storage/api/archive/extract?${params}`, { headers });
+      } else {
+        const params = new URLSearchParams({ bucket: activeBucket, key });
+        res = await fetch(`/storage/api/preview?${params}`, { headers });
+      }
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
@@ -118,12 +142,15 @@
       const contentType = (res.headers.get('Content-Type') ?? 'application/octet-stream')
         .split(';')[0]
         .trim();
-      const format = res.headers.get('X-Preview-Format');
-      const truncated = res.headers.get('X-Preview-Truncated') === 'true';
-      const totalSize = Number(res.headers.get('X-Preview-Total-Size') ?? '0');
-      const previewBytes = Number(res.headers.get('X-Preview-Bytes') ?? '0');
+      const fromArchive = !!(archiveKey && archivePath);
+      const format = fromArchive ? null : res.headers.get('X-Preview-Format');
+      const truncated = fromArchive ? false : res.headers.get('X-Preview-Truncated') === 'true';
+      const totalSize = Number(
+        res.headers.get('X-Preview-Total-Size') ?? res.headers.get('Content-Length') ?? '0'
+      );
+      const previewBytes = fromArchive ? 0 : Number(res.headers.get('X-Preview-Bytes') ?? '0');
 
-      if (res.headers.get('X-Preview-Renderable') === 'false') {
+      if (!fromArchive && res.headers.get('X-Preview-Renderable') === 'false') {
         await res.body?.cancel();
         preview = { kind: 'fallback', contentType, isBinary: false };
         return;
@@ -407,16 +434,18 @@
 
     {#if preview.kind === 'text' || preview.kind === 'csv' || preview.kind === 'parquet' || preview.kind === 'image' || preview.kind === 'pdf'}
       <div class="border-base-300 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-2">
-        {#if (preview.kind === 'text' || preview.kind === 'csv') && preview.truncated}
-          <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
-            <IconDownload class="size-4" aria-hidden="true" />
-            {m.storage_preview_download_full()}
-          </button>
-        {:else if preview.kind === 'image' || preview.kind === 'pdf'}
-          <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
-            <IconDownload class="size-4" aria-hidden="true" />
-            {m.storage_preview_download_full()}
-          </button>
+        {#if !archiveKey}
+          {#if (preview.kind === 'text' || preview.kind === 'csv') && preview.truncated}
+            <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
+              <IconDownload class="size-4" aria-hidden="true" />
+              {m.storage_preview_download_full()}
+            </button>
+          {:else if preview.kind === 'image' || preview.kind === 'pdf'}
+            <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
+              <IconDownload class="size-4" aria-hidden="true" />
+              {m.storage_preview_download_full()}
+            </button>
+          {/if}
         {/if}
 
         <button class="btn btn-primary btn-sm" onclick={close}>

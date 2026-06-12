@@ -28,7 +28,7 @@
   const isCtx = $derived(storage.contextMenu?.key === file.key);
   const kind = $derived(fileIconKind(file.contentType));
   const color = $derived(iconColors[kind]);
-  const isArchive = $derived(!storage.isInArchive && isArchiveExtension(file.key));
+  const isArchive = $derived(isArchiveExtension(file.key));
 </script>
 
 <tr

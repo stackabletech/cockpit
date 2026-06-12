@@ -90,14 +90,18 @@ function streamToTempFile(stream: ReadableStream, ext: string): Promise<string> 
       writable.destroy();
       try {
         unlinkSync(tmpPath);
-      } catch {}
+      } catch {
+        /* noop */
+      }
       reject(err);
     });
     writable.on('finish', () => resolve(tmpPath));
     writable.on('error', (err) => {
       try {
         unlinkSync(tmpPath);
-      } catch {}
+      } catch {
+        /* noop */
+      }
       reject(err);
     });
   });
@@ -117,10 +121,6 @@ function normalizePath(p: string): string {
 
 function ensureTrailingSlash(p: string): string {
   return p.endsWith('/') ? p : p + '/';
-}
-
-function trimLeadingSlash(p: string): string {
-  return p.startsWith('/') ? p.slice(1) : p;
 }
 
 export function getArchiveFormat(key: string): string | null {
@@ -152,7 +152,7 @@ function listZip(tempPath: string, internalPrefix: string): ArchiveListing {
     if (!relative) continue;
 
     if (entry.isDirectory) {
-      if (!seenDirs.has(relative)) {
+      if (!relative.includes('/') && !seenDirs.has(relative)) {
         seenDirs.add(relative);
         result.push({
           key: relative,
@@ -224,7 +224,7 @@ function onTarEntry(
   }
 
   if (header.type === 'directory') {
-    if (!seenDirs.has(relative)) {
+    if (!relative.includes('/') && !seenDirs.has(relative)) {
       seenDirs.add(relative);
       entries.push({
         key: relative,
@@ -399,7 +399,7 @@ async function listRar(tempPath: string, internalPrefix: string): Promise<Archiv
       if (!relative) continue;
 
       if (isDir) {
-        if (!seenDirs.has(relative)) {
+        if (!relative.includes('/') && !seenDirs.has(relative)) {
           seenDirs.add(relative);
           entries.push({
             key: relative,
@@ -449,7 +449,9 @@ async function extractRarEntry(tempPath: string, internalPath: string): Promise<
   } finally {
     try {
       unlinkSync(tmpDir);
-    } catch {}
+    } catch {
+      /* noop */
+    }
   }
 }
 
@@ -462,7 +464,9 @@ async function find7zBinary(): Promise<string | null> {
     try {
       await execAsync(`which ${bin}`, { timeout: 5000 });
       return bin;
-    } catch {}
+    } catch {
+      /* noop */
+    }
   }
   return null;
 }
@@ -498,7 +502,7 @@ function parse7zListing(stdout: string, prefix: string): ArchiveListing {
       if (currentPath && currentPath.startsWith(prefix)) {
         const relative = currentPath.slice(prefix.length);
         if (relative) {
-          if (isDir && !seenDirs.has(ensureTrailingSlash(relative))) {
+          if (isDir && !relative.includes('/') && !seenDirs.has(ensureTrailingSlash(relative))) {
             seenDirs.add(ensureTrailingSlash(relative));
             entries.push({
               key: ensureTrailingSlash(relative),
@@ -542,7 +546,7 @@ function parse7zListing(stdout: string, prefix: string): ArchiveListing {
   if (currentPath && currentPath.startsWith(prefix)) {
     const relative = currentPath.slice(prefix.length);
     if (relative) {
-      if (isDir && !seenDirs.has(ensureTrailingSlash(relative))) {
+      if (isDir && !relative.includes('/') && !seenDirs.has(ensureTrailingSlash(relative))) {
         entries.push({
           key: ensureTrailingSlash(relative),
           size: 0,
@@ -580,7 +584,9 @@ async function extract7zEntry(tempPath: string, internalPath: string): Promise<B
   } finally {
     try {
       rmRecursive(tmpDir);
-    } catch {}
+    } catch {
+      /* noop */
+    }
   }
 }
 
@@ -601,8 +607,7 @@ async function resolveArchivePath(
   bucket: string,
   key: string,
   nestedArchivePath: string | undefined,
-  downloadFn: ArchiveDownloadFn,
-  _metadataFn: ArchiveMetadataFn
+  downloadFn: ArchiveDownloadFn
 ): Promise<string> {
   let tempPath = getCachedPath(bucket, key);
   if (!tempPath) {
@@ -687,7 +692,7 @@ export async function listArchiveContents(
   const format = getArchiveFormat(effectiveKey);
   if (!format) throw new Error(`Unsupported archive format: ${key}`);
 
-  const tempPath = await resolveArchivePath(bucket, key, nestedArchivePath, downloadFn, metadataFn);
+  const tempPath = await resolveArchivePath(bucket, key, nestedArchivePath, downloadFn);
 
   log.debug(
     {
@@ -733,7 +738,7 @@ export async function extractArchiveEntry(
   const format = getArchiveFormat(effectiveKey);
   if (!format) throw new Error(`Unsupported archive format: ${key}`);
 
-  const tempPath = await resolveArchivePath(bucket, key, nestedArchivePath, downloadFn, metadataFn);
+  const tempPath = await resolveArchivePath(bucket, key, nestedArchivePath, downloadFn);
 
   log.debug(
     { bucket, key, internal_path: internalPath, nested_archive_path: nestedArchivePath, format },
@@ -766,7 +771,9 @@ export function clearArchiveCache(): void {
   for (const [cacheKey, entry] of archiveCache) {
     try {
       if (existsSync(entry.path)) unlinkSync(entry.path);
-    } catch {}
+    } catch {
+      /* noop */
+    }
     archiveCache.delete(cacheKey);
   }
 }

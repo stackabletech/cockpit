@@ -1,5 +1,5 @@
 import { SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
-import { invalidateAll, goto } from '$app/navigation';
+import { invalidateAll } from '$app/navigation';
 import * as m from '$lib/paraglide/messages.js';
 import type { StoragePage, StorageObject } from '$lib/storage/types.js';
 import type {
@@ -20,7 +20,6 @@ import { addToast } from '$lib/stores/toast.svelte.js';
 import { ActionError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
 import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
-import { isArchiveExtension } from './utils.js';
 
 export class StorageState {
   // ── Core data (synced from server load) ──
@@ -116,8 +115,12 @@ export class StorageState {
     this.prefix = prefix;
     this.objects = objects;
     this.loading = false;
-    // Clear selection on navigation
     this.selectedKeys = new SvelteSet<string>();
+    this.archiveKey = null;
+    this.archivePrefix = '';
+    this.archiveNestedPath = null;
+    this.previousS3Prefix = '';
+    this.archiveLoading = false;
   }
 
   setNavigationHandler(fn: NavigateFn): void {
@@ -241,6 +244,17 @@ export class StorageState {
     }
   };
 
+  /** Navigate to the root of the outermost archive (clears nested archive state). */
+  navigateToOuterArchiveRoot = (): void => {
+    this.archiveNestedPath = null;
+    this.archivePrefix = '';
+    this.archiveLoading = true;
+    this.prevTokens = [];
+    void this._fetchArchiveListing().catch(() => {
+      this.archiveLoading = false;
+    });
+  };
+
   /** Navigate up within the archive. If at root, exit the archive or go to parent archive. */
   navigateUpFromArchive = (): void => {
     if (!this.archivePrefix) {
@@ -264,6 +278,7 @@ export class StorageState {
 
   /** Exit the archive and return to the S3 folder that contains it. */
   exitArchive = (): void => {
+    const s3Prefix = this.previousS3Prefix;
     this.archiveKey = null;
     this.archivePrefix = '';
     this.archiveNestedPath = null;
@@ -271,8 +286,38 @@ export class StorageState {
     this.archiveLoading = false;
     this.loading = true;
     this.prevTokens = [];
-    void invalidateAll();
+    void this._fetchS3Objects(s3Prefix);
   };
+
+  /** Manually fetch S3 objects for the given prefix (used when exiting archive). */
+  private async _fetchS3Objects(prefix: string): Promise<void> {
+    try {
+      const conn = loadConnectionLocally();
+      if (!conn) {
+        this.loading = false;
+        return;
+      }
+      const connHeader = getConnectionHeader(conn);
+      const params = new SvelteURLSearchParams({
+        bucket: this.bucket,
+        prefix: prefix ?? '',
+        pageSize: String(this.pageSize)
+      });
+      const res = await fetch(`/storage/api/objects?${params}`, {
+        headers: { 'x-storage-connection': connHeader }
+      });
+      if (res.ok) {
+        const objects = (await res.json()) as StoragePage;
+        this.prefix = prefix;
+        this.objects = objects;
+      }
+    } catch {
+      // Fall back to invalidateAll if manual fetch fails
+      void invalidateAll();
+    } finally {
+      this.loading = false;
+    }
+  }
 
   /** Download a file from within the current archive. */
   downloadFromArchive = async (internalPath: string): Promise<void> => {
@@ -284,7 +329,7 @@ export class StorageState {
         return;
       }
       const connHeader = getConnectionHeader(conn);
-      const params = new URLSearchParams({
+      const params = new SvelteURLSearchParams({
         bucket: this.bucket,
         key: this.archiveKey,
         path: internalPath
@@ -328,7 +373,7 @@ export class StorageState {
       return;
     }
     const connHeader = getConnectionHeader(conn);
-    const params = new URLSearchParams({
+    const params = new SvelteURLSearchParams({
       bucket: this.bucket,
       key: this.archiveKey,
       internalPrefix: this.archivePrefix
@@ -343,9 +388,10 @@ export class StorageState {
       throw new Error(m.storage_archive_open_error());
     }
     const data = (await res.json()) as ArchiveListingResponse;
+    const prefix = this.archivePrefix || '';
     this.objects = {
       objects: data.entries.map((e: ArchiveEntry) => ({
-        key: e.key,
+        key: prefix + e.key,
         size: e.size,
         lastModified: e.lastModified,
         isDirectory: e.isDirectory,
@@ -359,8 +405,15 @@ export class StorageState {
   }
 
   refresh = (): void => {
-    this.loading = true;
-    void invalidateAll();
+    if (this.isInArchive) {
+      this.archiveLoading = true;
+      void this._fetchArchiveListing().catch(() => {
+        this.archiveLoading = false;
+      });
+    } else {
+      this.loading = true;
+      void invalidateAll();
+    }
   };
 
   onPageSizeChange = (): void => {
@@ -435,7 +488,12 @@ export class StorageState {
           return;
         }
         if (this.isInArchive) {
-          void this.downloadFromArchive(key);
+          this.openModal('preview', {
+            key,
+            archiveKey: this.archiveKey!,
+            archivePath: key,
+            nestedArchivePath: this.archiveNestedPath || undefined
+          });
           return;
         }
         for (const f of effectiveSelectedFiles) {

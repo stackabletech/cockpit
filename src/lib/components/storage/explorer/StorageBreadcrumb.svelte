@@ -48,6 +48,9 @@
   );
 
   const archiveName = $derived(storage.archiveKey ? keyToName(storage.archiveKey) : '');
+  const nestedArchiveName = $derived(
+    storage.archiveNestedPath ? keyToName(storage.archiveNestedPath) : ''
+  );
 
   const MAX_TAIL = 2;
   const collapsedParts = $derived(
@@ -68,6 +71,18 @@
 
   function closeBreadcrumbCtx() {
     breadcrumbCtx = null;
+  }
+
+  /** Navigate to an S3 prefix, clearing archive state first. */
+  function navigateS3(prefix: string) {
+    if (storage.isInArchive) {
+      storage.archiveKey = null;
+      storage.archivePrefix = '';
+      storage.archiveNestedPath = null;
+      storage.previousS3Prefix = '';
+      storage.archiveLoading = false;
+    }
+    storage.navigate(prefix);
   }
 </script>
 
@@ -231,7 +246,7 @@
               <div class="group flex items-center justify-between gap-2">
                 <button
                   class="flex-1 text-left text-sm hover:cursor-pointer"
-                  onclick={() => storage.navigate(part.prefix)}
+                  onclick={() => navigateS3(part.prefix)}
                   oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, part.prefix)}
                 >
                   {part.label}
@@ -267,7 +282,7 @@
               py-0.5 transition-colors hover:cursor-pointer
             "
             title={part.label}
-            onclick={() => storage.navigate(part.prefix)}
+            onclick={() => navigateS3(part.prefix)}
             oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, part.prefix)}
           >
             {part.label}
@@ -277,7 +292,7 @@
       </span>
     {/each}
     {#if storage.isInArchive}
-      <!-- Archive breadcrumb separator + entry -->
+      <!-- Outer archive entry -->
       <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
       <span class="group flex shrink-0 items-center gap-1">
         <button
@@ -285,14 +300,37 @@
             text-secondary flex items-center gap-1.5 rounded-sm px-1.5
             py-0.5 font-medium transition-colors hover:cursor-pointer hover:opacity-70
           "
-          title={m.storage_archive_exit()}
-          onclick={() => storage.exitArchive()}
+          title={archiveName}
+          onclick={() => {
+            if (storage.archiveNestedPath) {
+              storage.navigateToOuterArchiveRoot();
+            } else {
+              storage.navigateInArchive('');
+            }
+          }}
         >
           <IconFolderZip class="size-4" aria-hidden="true" />
           {archiveName}
         </button>
       </span>
-      {#each archiveParts as part}
+      <!-- Nested archive entry -->
+      {#if storage.archiveNestedPath}
+        <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
+        <span class="group flex shrink-0 items-center gap-1">
+          <button
+            class="
+              text-secondary flex items-center gap-1.5 rounded-sm px-1.5
+              py-0.5 font-medium transition-colors hover:cursor-pointer hover:opacity-70
+            "
+            title={nestedArchiveName}
+            onclick={() => storage.navigateInArchive('')}
+          >
+            <IconFolderZip class="size-4" aria-hidden="true" />
+            {nestedArchiveName}
+          </button>
+        </span>
+      {/if}
+      {#each archiveParts as part (part.prefix)}
         <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
         <span class="group flex min-w-0 items-center gap-1">
           {#if part === archiveParts[archiveParts.length - 1]}

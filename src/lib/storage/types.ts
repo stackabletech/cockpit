@@ -4,7 +4,12 @@ export type ModalType = 'delete' | 'preview' | 'upload';
 
 export interface ModalPayloads {
   delete: { keys: string[] };
-  preview: { key: string };
+  preview: {
+    key: string;
+    archiveKey?: string;
+    archivePath?: string;
+    nestedArchivePath?: string;
+  };
   upload: { bucket: string; prefix: string };
 }
 
