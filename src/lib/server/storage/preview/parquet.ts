@@ -262,9 +262,7 @@ export async function getParquetPreview(
                 : columnData;
             const values = Array.from(sliced, (v: unknown) => toSerializableParquetCell(v));
             controller.enqueue(
-              encoder.encode(
-                JSON.stringify({ t: 'c', n: columnName, v: values, rs: chunkStart }) + '\n'
-              )
+              encoder.encode(JSON.stringify({ t: 'c', n: columnName, v: values }) + '\n')
             );
           } catch (err) {
             log.error({ err, key, column: columnName }, 'Error serializing parquet column chunk');

@@ -182,16 +182,16 @@
                 totalRows
               };
             },
-            (name, values, rowStart = 0) => {
+            (name, values) => {
               if (preview.kind !== 'parquet') return;
               const colIdx = preview.headers.indexOf(name);
               if (colIdx < 0) return;
               const rows = preview.rows;
-              while (rows.length < rowStart + values.length) {
+              while (rows.length < values.length) {
                 rows.push(new Array(preview.headers.length).fill(undefined));
               }
               for (let i = 0; i < values.length; i++) {
-                rows[rowStart + i][colIdx] = values[i];
+                rows[i][colIdx] = values[i];
               }
               // Create new array reference so ParquetPreview detects the update
               preview = { ...preview, rows: rows.slice() };
@@ -261,7 +261,7 @@
   async function parseParquetStream(
     res: Response,
     onHeaders: (headers: string[], totalRows: number) => void,
-    onColumn: (name: string, values: unknown[], rowStart?: number) => void
+    onColumn: (name: string, values: unknown[]) => void
   ): Promise<void> {
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
@@ -282,7 +282,7 @@
         if (msg.t === 'h') {
           onHeaders(msg.h, msg.tr);
         } else if (msg.t === 'c') {
-          onColumn(msg.n, msg.v, msg.rs ?? 0);
+          onColumn(msg.n, msg.v);
         } else if (msg.t === 'e') {
           throw new Error('Server error reading parquet data');
         }
@@ -294,7 +294,7 @@
   /** Read an NDJSON streaming response and progressively fill column data. */
   async function readNdjsonStream(
     res: Response,
-    onColumn?: (name: string, values: unknown[], rowStart?: number) => void
+    onColumn?: (name: string, values: unknown[]) => void
   ): Promise<{ headers: string[]; rows: unknown[][]; totalRows: number }> {
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
@@ -322,16 +322,14 @@
           const colIdx = resultHeaders.indexOf(msg.n);
           if (colIdx < 0) continue;
           const values = msg.v as unknown[];
-          const rowStart = msg.rs ?? 0;
-          while (rows.length < rowStart + values.length) {
+          while (rows.length < values.length) {
             rows.push(new Array(resultHeaders.length).fill(undefined));
           }
           for (let i = 0; i < values.length; i++) {
-            if (!rows[rowStart + i])
-              rows[rowStart + i] = new Array(resultHeaders.length).fill(undefined);
-            rows[rowStart + i][colIdx] = values[i];
+            if (!rows[i]) rows[i] = new Array(resultHeaders.length).fill(undefined);
+            rows[i][colIdx] = values[i];
           }
-          onColumn?.(msg.n, values, rowStart);
+          onColumn?.(msg.n, values);
         } else if (msg.t === 'e') {
           throw new Error('Server error reading parquet data');
         }
@@ -381,7 +379,7 @@
   async function fetchParquetRows(
     offset: number,
     limit: number,
-    onColumn?: (name: string, values: unknown[], rowStart?: number) => void
+    onColumn?: (name: string, values: unknown[]) => void
   ): Promise<unknown[][]> {
     if (!objectKey) return [];
 

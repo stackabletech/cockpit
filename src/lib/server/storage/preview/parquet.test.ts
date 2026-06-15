@@ -78,7 +78,7 @@ async function readNdjsonResponse(res: Response): Promise<{
   const decoder = new TextDecoder();
   let buffer = '';
   let resultHeaders: string[] = [];
-  const rows: unknown[][] = [];
+  let rows: unknown[][] = [];
   let resultTotalRows = 0;
   let error: string | undefined;
 
@@ -101,14 +101,12 @@ async function readNdjsonResponse(res: Response): Promise<{
         const colIdx = resultHeaders.indexOf(msg.n);
         if (colIdx < 0) continue;
         const values = msg.v as unknown[];
-        const rowStart = msg.rs ?? 0;
-        while (rows.length < rowStart + values.length) {
+        while (rows.length < values.length) {
           rows.push(new Array(resultHeaders.length).fill(undefined));
         }
         for (let i = 0; i < values.length; i++) {
-          if (!rows[rowStart + i])
-            rows[rowStart + i] = new Array(resultHeaders.length).fill(undefined);
-          rows[rowStart + i][colIdx] = values[i];
+          if (!rows[i]) rows[i] = new Array(resultHeaders.length).fill(undefined);
+          rows[i][colIdx] = values[i];
         }
       } else if (msg.t === 'e') {
         error = 'Server error';
