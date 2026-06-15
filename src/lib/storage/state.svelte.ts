@@ -496,6 +496,10 @@ export class StorageState {
           });
           return;
         }
+        if (this.isArchiveFile(key)) {
+          void this.enterArchive(key);
+          return;
+        }
         for (const f of effectiveSelectedFiles) {
           this.bookmarks.recordFileVisit(this.bucket, f.key, f.size);
         }
