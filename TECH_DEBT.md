@@ -132,7 +132,59 @@ The dev server accepts requests from any host. This enables DNS rebinding attack
 
 **File:** `src/lib/server/storage/archive.ts`
 
-Archive browsing (ZIP, TAR.GZ, RAR, 7z) downloads the entire archive from S3 to a temporary file on the server before listing or extracting entries. For ZIP files, the S3 cost could be reduced by fetching only the End of Central Directory record via a byte-range request (typically the last 64 KB), then reading the Central Directory entries — which avoids transferring the compressed file data. TAR.GZ/RAR/7z are inherently sequential formats and require a full download regardless. The temp files are cached for 30 minutes per archive with periodic cleanup. Long-term fix: implement a range-request-based ZIP reader that fetches only the central directory, falling back to full download for other formats.
+Archive browsing (ZIP, TAR.GZ, RAR, 7z) downloads the entire archive from S3 to a temporary file on the server before listing or extracting entries. The feasibility of partial/random-access reading depends entirely on the archive format.
+
+#### ZIP (fixable with S3 Range requests)
+
+ZIP stores a **Central Directory** (full file listing) at the end of the file, preceded by an **EOCD** (End of Central Directory) record. This allows true random access:
+
+1. **HEAD** the S3 object to get `Content-Length`
+2. **Range request for the last ~100 bytes** → parse EOCD to locate the Central Directory
+3. **Range request for the Central Directory** → get full file listing (typically <50 KB)
+4. **To extract one file**: single Range request to that file's compressed data offset
+
+Total data transferred for listing: 2 Range requests, often under 50 KB regardless of archive size. Extraction costs only what the user opens — no temp file I/O needed for ZIPs at all.
+
+Available libraries with S3 Range support:
+
+- **`unzipper`** (`ZJONSSON/node-unzipper`) — `Open.s3()` for AWS SDK v2; `Open.custom()` with S3 Range workaround for v3 (see [issue #241](https://github.com/ZJONSSON/node-unzipper/issues/241)). Most mature option.
+- **`s3-range-zip`** (`numtel/s3-range-zip`) — Purpose-built for S3 Range-based ZIP reading with `@aws-sdk/client-s3`. Smaller and simpler.
+- **`unzipit`** (`greggman/unzipit`) — `HTTPRangeReader` requires presigned S3 URLs; better suited for browser use.
+
+**Recommendation**: Replace `adm-zip` with `unzipper.Open.custom()` using the AWS SDK v3 workaround. This eliminates download latency for ZIPs entirely (the most common archive format) and naturally supports nested archives (inner ZIP's central directory read the same way). Implementation steps:
+
+1. Install `unzipper` npm package, remove `adm-zip`
+2. Implement S3 custom reader using `HeadObjectCommand` + `GetObjectCommand` with `Range` header
+3. Replace `listZip()` with central directory parsing (no extraction needed for listing)
+4. Replace `extractFromZip()` with offset-based single-file extraction
+5. Keep `extractFromZip` as fallback name but implement via `unzipper`
+6. Remove ZIP from temp-file caching (TAR.GZ/RAR/7z still need it)
+7. Remove `adm-zip` dependency
+
+#### TAR.GZ (fundamentally limited — format constraint)
+
+TAR has no central index (sequential tape format). Gzip is a streaming compressor. Together they force full sequential decompression from the start. Three tiers of mitigation exist:
+
+- **Stream + skip** (Node.js `node-tar` + `zlib.createGunzip()`): decompress everything but avoid writing to disk. This is what the current approach effectively does after download. Bandwidth + CPU cost same as full download.
+- **Index-on-first-pass** (e.g. Rust [`iluvatar`](https://docs.rs/crate/iluvatar/latest)): records decompressor checkpoints on first pass, subsequent extractions restore nearest checkpoint and seek forward. No Node.js equivalent exists.
+- **Specialised format** ([`estargz`](https://github.com/containerd/stargz-snapshotter), [`tarzan`](https://github.com/astraw/tarzan-rs)): archives must be created in these formats; existing `.tar.gz` files cannot be retrofitted.
+
+**Recommendation**: Keep current full-download + temp cache. This is unavoidable for arbitrary `.tar.gz` files.
+
+#### RAR & 7z (limited — solid compression blocks)
+
+Both use solid compression where a single file's data may be interleaved across a compressed block. Without format-level block-to-file index (which neither exposes easily), extracting one file requires decompressing the entire solid block.
+
+**Recommendation**: Keep full-download + temp cache.
+
+#### Summary
+
+| Format | Partial access | Approach | Bandwidth per listing |
+|--------|---------------|----------|---------------------|
+| ZIP | ✅ Yes | S3 Range via `unzipper` | ~50 KB (2 Range calls) |
+| TAR.GZ | ❌ No | Full download + cache | Full archive |
+| RAR | ❌ No | Full download + cache | Full archive |
+| 7z | ❌ No | Full download + cache | Full archive |
 
 ---
 
