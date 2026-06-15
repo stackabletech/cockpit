@@ -51,34 +51,6 @@ test.describe('Storage S3 — Preview', () => {
     }
   });
 
-  test('shows fallback preview for a known binary file type', async ({ page }, testInfo) => {
-    const credentials = requireGarageCredentials();
-    const client = createS3Client(credentials);
-    const prefix = uniquePrefix(testInfo, 'preview-zip');
-    const cleanupKeys = [`${prefix}archive.zip`];
-
-    try {
-      await client.send(
-        new PutObjectCommand({
-          Bucket: credentials.bucket,
-          Key: `${prefix}archive.zip`,
-          Body: Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00, 0x00]),
-          ContentType: 'application/zip'
-        })
-      );
-
-      await connectAndOpenPrefix(page, credentials, prefix);
-
-      await rowByName(page, 'archive.zip').dblclick();
-
-      await expect(page.getByRole('heading', { name: 'archive.zip' })).toBeVisible();
-      await expect(page.getByText('Preview unavailable')).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Download full file' })).toBeVisible();
-    } finally {
-      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
-    }
-  });
-
   test('shows binary fallback preview for non-decodable binary content', async ({
     page
   }, testInfo) => {

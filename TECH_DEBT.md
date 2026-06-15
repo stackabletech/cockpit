@@ -179,12 +179,12 @@ Both use solid compression where a single file's data may be interleaved across 
 
 #### Summary
 
-| Format | Partial access | Approach | Bandwidth per listing |
-|--------|---------------|----------|---------------------|
-| ZIP | ✅ Yes | S3 Range via `unzipper` | ~50 KB (2 Range calls) |
-| TAR.GZ | ❌ No | Full download + cache | Full archive |
-| RAR | ❌ No | Full download + cache | Full archive |
-| 7z | ❌ No | Full download + cache | Full archive |
+| Format | Partial access | Approach                | Bandwidth per listing  |
+| ------ | -------------- | ----------------------- | ---------------------- |
+| ZIP    | ✅ Yes         | S3 Range via `unzipper` | ~50 KB (2 Range calls) |
+| TAR.GZ | ❌ No          | Full download + cache   | Full archive           |
+| RAR    | ❌ No          | Full download + cache   | Full archive           |
+| 7z     | ❌ No          | Full download + cache   | Full archive           |
 
 ---
 

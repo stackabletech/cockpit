@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
-import { readFileSync, unlinkSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { readFileSync, unlinkSync, existsSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import AdmZip from 'adm-zip';
@@ -142,11 +142,15 @@ describe('listArchiveContents', () => {
     for (const p of cleanupPaths) {
       try {
         if (existsSync(p)) unlinkSync(p);
-      } catch {}
+      } catch {
+        /* noop */
+      }
     }
     try {
       if (existsSync(testDir)) unlinkSync(testDir);
-    } catch {}
+    } catch {
+      /* noop */
+    }
   });
 
   describe('ZIP', () => {

@@ -12,7 +12,7 @@
 
   const { headers, rows } = $derived.by(() => {
     const result = Papa.parse(text, {
-      preview: MAX_ROWS,
+      preview: MAX_ROWS + 1,
       header: false,
       skipEmptyLines: true
     });

@@ -23,14 +23,14 @@ describe('CsvPreview', () => {
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
 
-    await expect.element(table.locator('th', { hasText: 'name' })).toBeInTheDocument();
-    await expect.element(table.locator('th', { hasText: 'city' })).toBeInTheDocument();
-    await expect.element(table.locator('th', { hasText: 'score' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'name' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'city' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'score' })).toBeInTheDocument();
 
-    await expect.element(table.locator('td', { hasText: 'Alice' })).toBeInTheDocument();
-    await expect.element(table.locator('td', { hasText: 'Berlin' })).toBeInTheDocument();
-    await expect.element(table.locator('td', { hasText: '95' })).toBeInTheDocument();
-    await expect.element(table.locator('td', { hasText: 'Bob' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'Alice' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'Berlin' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: '95' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'Bob' })).toBeInTheDocument();
   });
 
   it('should render TSV data correctly using tab separator', async () => {
@@ -40,13 +40,13 @@ describe('CsvPreview', () => {
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
 
-    await expect.element(table.locator('th', { hasText: 'name' })).toBeInTheDocument();
-    await expect.element(table.locator('th', { hasText: 'city' })).toBeInTheDocument();
-    await expect.element(table.locator('th', { hasText: 'score' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'name' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'city' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'score' })).toBeInTheDocument();
 
-    await expect.element(table.locator('td', { hasText: 'Alice' })).toBeInTheDocument();
-    await expect.element(table.locator('td', { hasText: 'Berlin' })).toBeInTheDocument();
-    await expect.element(table.locator('td', { hasText: '95' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'Alice' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'Berlin' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: '95' })).toBeInTheDocument();
   });
 
   it('should handle CSV with quoted fields containing commas', async () => {
@@ -57,12 +57,12 @@ describe('CsvPreview', () => {
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
 
-    await expect.element(table.locator('td', { hasText: 'Smith, John' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'Smith, John' })).toBeInTheDocument();
     await expect
-      .element(table.locator('td', { hasText: '123 Main St, Apt 4' }))
+      .element(page.getByRole('cell', { name: '123 Main St, Apt 4' }))
       .toBeInTheDocument();
-    await expect.element(table.locator('td', { hasText: 'Germany' })).toBeInTheDocument();
-    await expect.element(table.locator('td', { hasText: 'Doe, Jane' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'Germany' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'Doe, Jane' })).toBeInTheDocument();
   });
 
   it('should handle TSV with quoted fields containing tabs', async () => {
@@ -72,10 +72,10 @@ describe('CsvPreview', () => {
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
 
-    await expect.element(table.locator('td', { hasText: 'Alice' })).toBeInTheDocument();
-    await expect.element(table.locator('td', { hasText: 'likes\ttabs' })).toBeInTheDocument();
-    await expect.element(table.locator('td', { hasText: 'Bob' })).toBeInTheDocument();
-    await expect.element(table.locator('td', { hasText: 'plain' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'Alice' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'likes tabs' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'Bob' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'plain' })).toBeInTheDocument();
   });
 
   it('should handle headers with special characters', async () => {
@@ -86,7 +86,7 @@ describe('CsvPreview', () => {
     await expect.element(table).toBeInTheDocument();
 
     for (const header of ['first name', 'last.name', 'email-address']) {
-      await expect.element(table.locator('th', { hasText: header })).toBeInTheDocument();
+      await expect.element(page.getByRole('cell', { name: header })).toBeInTheDocument();
     }
   });
 
@@ -97,9 +97,12 @@ describe('CsvPreview', () => {
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
 
-    const cells = table.locator('td');
-    await expect(cells.nth(1)).toHaveTextContent('2');
-    await expect(cells.nth(2)).toHaveTextContent('');
+    const row1 = page.getByRole('row').nth(1);
+    await expect(row1.getByRole('cell').nth(1)).toHaveTextContent('2');
+    await expect(row1.getByRole('cell').nth(2)).toHaveTextContent('');
+
+    const row2 = page.getByRole('row').nth(2);
+    await expect(row2.getByRole('cell').nth(2)).toHaveTextContent('5');
   });
 
   it('should handle rows with empty quoted fields', async () => {
@@ -109,8 +112,8 @@ describe('CsvPreview', () => {
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
 
-    await expect.element(table.locator('td', { hasText: '1' })).toBeInTheDocument();
-    await expect.element(table.locator('td', { hasText: '3' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: '1' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: '3' })).toBeInTheDocument();
   });
 
   it('should handle CRLF line endings', async () => {
@@ -120,8 +123,8 @@ describe('CsvPreview', () => {
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
 
-    await expect.element(table.locator('td', { hasText: 'Alice' })).toBeInTheDocument();
-    await expect.element(table.locator('td', { hasText: 'Bob' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'Alice' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'Bob' })).toBeInTheDocument();
   });
 
   it('should render single row CSV correctly', async () => {
@@ -131,8 +134,8 @@ describe('CsvPreview', () => {
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
 
-    await expect.element(table.locator('th', { hasText: 'header' })).toBeInTheDocument();
-    await expect.element(table.locator('td', { hasText: 'value' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'header' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'value' })).toBeInTheDocument();
   });
 
   it('should not show truncation message when rows fit within limit', async () => {
@@ -180,7 +183,7 @@ describe('CsvPreview', () => {
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
 
-    const dataCells = await table.locator('td').all();
-    expect(dataCells.length).toBe(250);
+    const dataCells = await page.getByRole('cell').all();
+    expect(dataCells.length).toBe(251);
   });
 });
