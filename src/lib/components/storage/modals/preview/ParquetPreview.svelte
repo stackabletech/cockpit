@@ -35,7 +35,6 @@
   let loadedChunks = $state<Record<number, any[][]>>({});
   let loadingChunks = $state<Set<number>>(new Set());
 
-
   $effect(() => {
     if (initialRows) {
       untrack(() => {
