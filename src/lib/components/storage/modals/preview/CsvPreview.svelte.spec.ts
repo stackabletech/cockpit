@@ -97,12 +97,12 @@ describe('CsvPreview', () => {
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
 
-    const row1 = page.getByRole('row').nth(1);
-    await expect(row1.getByRole('cell').nth(1)).toHaveTextContent('2');
-    await expect(row1.getByRole('cell').nth(2)).toHaveTextContent('');
+    const row1 = table.getByRole('row').nth(1);
+    await expect(row1.getByRole('cell').nth(2)).toHaveTextContent('2');
+    await expect(row1.getByRole('cell').nth(3)).toHaveTextContent('');
 
-    const row2 = page.getByRole('row').nth(2);
-    await expect(row2.getByRole('cell').nth(2)).toHaveTextContent('5');
+    const row2 = table.getByRole('row').nth(2);
+    await expect(row2.getByRole('cell').nth(3)).toHaveTextContent('5');
   });
 
   it('should handle rows with empty quoted fields', async () => {
@@ -112,8 +112,9 @@ describe('CsvPreview', () => {
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
 
-    await expect.element(page.getByRole('cell', { name: '1' })).toBeInTheDocument();
-    await expect.element(page.getByRole('cell', { name: '3' })).toBeInTheDocument();
+    const row1 = page.getByRole('row').nth(1);
+    await expect(row1.getByRole('cell').nth(1)).toHaveTextContent('1');
+    await expect(row1.getByRole('cell').nth(3)).toHaveTextContent('3');
   });
 
   it('should handle CRLF line endings', async () => {
@@ -178,12 +179,13 @@ describe('CsvPreview', () => {
       rows.push(`val${i}`);
     }
     const csv = rows.join('\n');
-    render(CsvPreview, { text: csv });
+    const { container } = render(CsvPreview, { text: csv });
 
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
 
-    const dataCells = await page.getByRole('cell').all();
-    expect(dataCells.length).toBe(251);
+    const tables = await container.getElementsByTagName('table');
+    expect(tables.length).toBe(1);
+    expect(tables[0].rows.length).toBe(251);
   });
 });

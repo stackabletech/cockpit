@@ -8,12 +8,12 @@
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     initialRows: any[][];
     totalRows?: number;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     fetchRows?: (
       offset: number,
       limit: number,
-      onColumn?: (name: string, values: any[]) => void
-    ) => Promise<any[][]>;
+      onColumn?: (name: string, values: unknown[]) => void
+    ) => Promise<unknown[][]>;
     showingRowsCount?: number;
   }
 
@@ -25,15 +25,42 @@
     showingRowsCount = $bindable(0)
   }: Props = $props();
 
-  const CHUNK_SIZE = 250; // magic number: rows to display
-  const ROW_HEIGHT = 32; // Exact height of table-xs (h-8)
+  const CHUNK_SIZE = 250;
+  const ROW_HEIGHT = 32;
 
   let containerHeight = $state(400);
   let scrollTop = $state(0);
+  let containerEl: HTMLDivElement | undefined = $state();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let loadedChunks = $state<Record<number, any[][]>>({});
   let loadingChunks = $state<Set<number>>(new Set());
+
+  // Measure the container height with a ResizeObserver.
+  // We throttle observations via requestAnimationFrame to avoid
+  // the ResizeObserver loop bug (Svelte issue #18103).
+  // Reading el.clientHeight inside RAF gives the current (post-render) height.
+  $effect(() => {
+    const el = containerEl;
+    if (!el) return;
+
+    let rafId: number | undefined;
+    const observer = new ResizeObserver(() => {
+      if (rafId !== undefined) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = undefined;
+        containerHeight = el.clientHeight;
+      });
+    });
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+      if (rafId !== undefined) {
+        cancelAnimationFrame(rafId);
+      }
+    };
+  });
 
   $effect(() => {
     if (initialRows) {
@@ -143,8 +170,8 @@
   {:else}
     <!-- eslint-disable-next-line svelte/valid-compile -->
     <div
+      bind:this={containerEl}
       class="min-h-0 w-full flex-1 overflow-auto"
-      bind:clientHeight={containerHeight}
       onscroll={(e) => (scrollTop = e.currentTarget.scrollTop)}
     >
       <table class="table-xs table w-full min-w-max" aria-label="Parquet preview">
@@ -171,6 +198,7 @@
                 >{(row.index + 1).toLocaleString(getLocale())}</td
               >
               {#if row.data !== null && row.data !== undefined}
+                <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
                 {#each headers as _h, j (j)}
                   {#if row.data[j] !== undefined}
                     <td class="text-base-content/80 max-w-xs truncate text-xs">
@@ -184,6 +212,7 @@
                 {/each}
               {:else}
                 <!-- Skeleton State (full row not yet initialized) -->
+                <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
                 {#each headers as _h, j (j)}
                   <td class="p-1">
                     <div class="bg-base-300/40 h-4 w-full animate-pulse rounded"></div>
