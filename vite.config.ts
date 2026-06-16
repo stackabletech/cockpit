@@ -16,10 +16,6 @@ export default defineConfig({
       strategy: ['cookie', 'preferredLanguage', 'baseLocale']
     })
   ],
-  // Monaco's web worker must be built as IIFE (classic worker) so it can be
-  // loaded without { type: 'module' }. Vite 7 defaults to 'es' (module
-  // workers), which causes silent failures in Firefox headless CI.
-  worker: { format: 'iife' },
   server: { allowedHosts: true },
   test: {
     coverage: {

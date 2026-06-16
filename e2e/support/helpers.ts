@@ -6,40 +6,30 @@ import { randomUUID } from 'node:crypto';
  * Uses the split storage format: trino_tabs_index + trino_tab_{id}.
  * When no explicit IDs are provided, unique UUIDs are generated so that
  * server-side query state never leaks between tests.
- *
- * Uses addInitScript so the data is written before the page's own scripts
- * run on the next navigation. Also navigates to about:blank first so that
- * the caller's subsequent goto() always creates a new document — Firefox
- * may otherwise treat navigating to the current URL as a same-document
- * navigation, which skips addInitScript and produces 0 rendered tabs.
  */
-export async function setTabState(
+export function setTabState(
   page: Page,
   tabs: { id?: string; sql: string; label?: string | null }[],
   activeTabId?: string
 ) {
   const resolved = tabs.map((t) => ({ ...t, id: t.id ?? randomUUID() }));
-  const args = { tabs: resolved, activeTabId };
-
-  // Register for any subsequent navigation (new document).
-  await page.addInitScript(({ tabs, activeTabId }) => {
-    const index = {
-      tabs: tabs.map((t) => ({
-        id: t.id,
-        label: t.label ?? null,
-        createdAt: Date.now()
-      })),
-      activeTabId: activeTabId ?? tabs[0].id
-    };
-    localStorage.setItem('trino_tabs_index', JSON.stringify(index));
-    for (const t of tabs) {
-      localStorage.setItem('trino_tab_' + t.id, t.sql);
-    }
-  }, args);
-
-  // Navigate to about:blank so the caller's next goto() is always a
-  // cross-document navigation, guaranteeing addInitScript fires.
-  await page.goto('about:blank');
+  return page.addInitScript(
+    ({ tabs, activeTabId }) => {
+      const index = {
+        tabs: tabs.map((t) => ({
+          id: t.id,
+          label: t.label ?? null,
+          createdAt: Date.now()
+        })),
+        activeTabId: activeTabId ?? tabs[0].id
+      };
+      localStorage.setItem('trino_tabs_index', JSON.stringify(index));
+      for (const t of tabs) {
+        localStorage.setItem('trino_tab_' + t.id, t.sql);
+      }
+    },
+    { tabs: resolved, activeTabId }
+  );
 }
 
 /** Shorthand to set up a single tab with given SQL. */
