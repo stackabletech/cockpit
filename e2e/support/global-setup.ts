@@ -1,23 +1,29 @@
 import fsPromises from 'node:fs/promises';
 import path from 'path';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { GenericContainer, Wait } from 'testcontainers';
+import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainers';
 import { createGarageBucketCredentials } from './garage.js';
 
-export let pgContainer: StartedPostgreSqlContainer;
-
 const stateFile = path.resolve('.playwright/postgres-state.json');
+
+let pgContainer: StartedPostgreSqlContainer;
+let garageContainer: StartedTestContainer;
 
 export default async function globalSetup() {
   process.loadEnvFile(path.join(import.meta.dirname, '../..', '.env.test'));
 
   // Start PostgreSQL testcontainer — must run in globalSetup (main process) so
   // that DATABASE_* env vars are inherited by the webServer subprocess.
-  const pgContainerBuilder = new PostgreSqlContainer('postgres:18.4-alpine3.23');
+  const pgStart = Date.now();
+  console.log('Starting PostgreSQL testcontainer...');
+  const pgContainerBuilder = new PostgreSqlContainer('postgres:18.4-alpine3.23').withStartupTimeout(
+    120_000
+  );
   if (process.env.DOCKER_NETWORK) {
     pgContainerBuilder.withNetworkMode(process.env.DOCKER_NETWORK);
   }
   pgContainer = await pgContainerBuilder.start();
+  console.log(`PostgreSQL started in ${Date.now() - pgStart}ms`);
 
   process.env.DATABASE_HOST = pgContainer.getHost();
   process.env.DATABASE_PORT = pgContainer.getPort().toString();
@@ -28,6 +34,8 @@ export default async function globalSetup() {
   // Start Garage S3 testcontainer using the same image and config as CI.
   // The entrypoint is the bare /garage binary (no shell in this image), started
   // in single-node mode with the dev config bind-mounted into the container.
+  const garageStart = Date.now();
+  console.log('Starting Garage S3 testcontainer...');
   const garageContainerBuilder = new GenericContainer(
     'oci.stackable.tech/stackable/dxflrs/garage:v2.3.0'
   )
@@ -42,11 +50,13 @@ export default async function globalSetup() {
       }
     ])
     .withExposedPorts(3900, 3902)
-    .withWaitStrategy(Wait.forHttp('/', 3900).forStatusCodeMatching((code) => code < 500));
+    .withStartupTimeout(120_000)
+    .withWaitStrategy(Wait.forHttp('/', 3900).forStatusCode(200));
   if (process.env.DOCKER_NETWORK) {
     garageContainerBuilder.withNetworkMode(process.env.DOCKER_NETWORK);
   }
-  const garageContainer = await garageContainerBuilder.start();
+  garageContainer = await garageContainerBuilder.start();
+  console.log(`Garage S3 started in ${Date.now() - garageStart}ms`);
 
   const garageHost = garageContainer.getHost();
   const garageS3Endpoint = `http://${garageHost}:${garageContainer.getMappedPort(3900)}`;
@@ -58,6 +68,8 @@ export default async function globalSetup() {
   process.env.GARAGE_ADMIN_TOKEN = garageAdminToken;
 
   // Create the test bucket and access key via the Garage admin API.
+  const bucketStart = Date.now();
+  console.log('Creating Garage test bucket and credentials...');
   const credentials = await createGarageBucketCredentials(
     {
       endpoint: garageS3Endpoint,
@@ -72,6 +84,7 @@ export default async function globalSetup() {
       permissions: { owner: true, read: true, write: true }
     }
   );
+  console.log(`Garage setup complete in ${Date.now() - bucketStart}ms`);
 
   process.env.S3_TEST_ENDPOINT = garageS3Endpoint;
   process.env.S3_TEST_REGION = 'garage';
@@ -83,10 +96,17 @@ export default async function globalSetup() {
   await fsPromises.writeFile(
     stateFile,
     JSON.stringify({
-      connectionUri: pgContainer.getConnectionUri(),
-      pgContainerId: pgContainer.getId(),
-      garageContainerId: garageContainer.getId()
+      connectionUri: pgContainer.getConnectionUri()
     }),
     'utf-8'
   );
+
+  // Return a teardown function — runs in the main process after all tests,
+  // so we can call .stop() directly instead of shelling out to Docker CLI.
+  return async () => {
+    console.log('Tearing down testcontainers...');
+    await Promise.allSettled([garageContainer.stop(), pgContainer.stop()]);
+    await fsPromises.rm(stateFile, { force: true });
+    console.log('Testcontainers stopped.');
+  };
 }

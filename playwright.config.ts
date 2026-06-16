@@ -38,16 +38,12 @@ export default defineConfig({
     }
   ],
   projects: [
-    // Starts the PostgreSQL container (via globalSetup) and runs migrations.
+    // Runs database migrations against the PostgreSQL container started by globalSetup.
     // All browser projects depend on this so tests never run on an unmigrated DB.
+    // Container teardown is handled by the function returned from globalSetup.
     {
       name: 'setup-db',
-      testMatch: /db\.setup\.ts/,
-      teardown: 'cleanup-db'
-    },
-    {
-      name: 'cleanup-db',
-      testMatch: /db\.teardown\.ts/
+      testMatch: /db\.setup\.ts/
     },
     // Each browser project gets its own auth setup so that parallel workers
     // log in as different users. This prevents cross-worker races on shared
