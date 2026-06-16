@@ -202,13 +202,7 @@
             py-0.5 transition-colors hover:cursor-pointer
           "
           title={storage.bucket}
-          onclick={() => {
-            if (storage.isInArchive) {
-              storage.exitArchive();
-            } else {
-              storage.navigate('');
-            }
-          }}
+          onclick={() => storage.navigate('')}
           oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
         >
           <IconStorage class="size-4" aria-hidden="true" />

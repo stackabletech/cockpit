@@ -484,7 +484,7 @@
       </button>
     </div>
 
-    <div class="min-h-0 min-w-0 flex-1 overflow-scroll">
+    <div class="min-h-0 min-w-0 flex-1 overflow-auto">
       {#if preview.kind === 'idle' || preview.kind === 'loading'}
         <div
           class="flex items-center justify-center p-12"

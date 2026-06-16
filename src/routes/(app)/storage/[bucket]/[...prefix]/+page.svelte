@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { getStorageState } from '$lib/storage/context.js';
   import FileExplorer from '$lib/components/storage/explorer/FileExplorer.svelte';
@@ -28,8 +29,11 @@
     goto(url, { replaceState: false });
   });
 
-  // Sync server data into state whenever SvelteKit load runs
+  // Sync server data into state whenever SvelteKit data load or URL changes
+  // page.url.href ensures this re-runs after every navigation, even if data
+  // appears unchanged (e.g. same-route navigation to a different prefix).
   $effect(() => {
+    page.url.href;
     storage.syncFromServer(data.bucket, data.prefix, data.objects);
   });
 </script>
