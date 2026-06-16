@@ -2,7 +2,7 @@
   "name": "@stackable/stackable-cockpit",
   "private": true,
   "version": "0.0.1",
-  "license": "Apache-2.0",
+  "license": "OSL-3.0",
   "type": "module",
   "scripts": {
     "dev": "vite dev --host",

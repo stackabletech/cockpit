@@ -1,107 +1,85 @@
-# Stackable Unified Data Platform UI
+# Stackable Cockpit
 
-A SvelteKit application serving as the unified platform UI shell for Stackable's data infrastructure.
+[![License OSL 3.0](https://img.shields.io/badge/license-OSL--3.0-blue)](./LICENSE)
 
-## Current Status
+Stackable Cockpit is the unified web UI for the [Stackable Data Platform (SDP)](https://stackable.tech/).
+It provides a single place to work with the data services running on your platform. The first (and currently only)
+module is a **Trino SQL query editor** with single sign-on, per-user authorisation and catalogue
+browsing.
+More modules will be added over time.
 
-This repository currently contains an initial app shell only:
+This is currently an experimental part of the Stackable Data Platform.
 
-- Main layout with sidebar and header
-- Theme toggle (light/dark)
-- Dashboard placeholder content
-- Baseline Playwright smoke tests
+## About The Stackable Data Platform
 
-Feature implementation for the Trino Query UI will follow the project plan.
+This application is part of the Stackable Data Platform, a curated selection of best-of-breed data
+applications and tools that you can deploy and operate on Kubernetes. The platform builds on
+open-source Apache projects and provides Kubernetes operators to manage them, including:
 
-## Tech Stack
+- [Apache Airflow](https://github.com/stackabletech/airflow-operator)
+- [Apache HBase](https://github.com/stackabletech/hbase-operator)
+- [Apache Hadoop HDFS](https://github.com/stackabletech/hdfs-operator)
+- [Apache Hive](https://github.com/stackabletech/hive-operator)
+- [Apache Kafka](https://github.com/stackabletech/kafka-operator)
+- [Apache NiFi](https://github.com/stackabletech/nifi-operator)
+- [OpenSearch](https://github.com/stackabletech/opensearch-operator)
+- [Apache Spark](https://github.com/stackabletech/spark-k8s-operator)
+- [Apache Superset](https://github.com/stackabletech/superset-operator)
+- [Trino](https://github.com/stackabletech/trino-operator)
+- [Apache ZooKeeper](https://github.com/stackabletech/zookeeper-operator)
 
-- **SvelteKit** with Svelte 5 (runes)
-- **Tailwind CSS v4** + **DaisyUI**
-- **TypeScript**
-- **Playwright** for E2E tests
+Read more about the platform in the [documentation](https://docs.stackable.tech/).
 
 ## Quick Start
 
-### 1. Install Dependencies
+The required Node.js version is pinned in [`.node-version`](./.node-version).
 
 ```bash
+# Install dependencies
 npm install
-```
 
-### 2. Start Development Server
-
-```bash
+# Start the development server (http://localhost:5173)
 npm run dev
 ```
 
-The application will be available at <http://localhost:5173>.
+Copy [`.env.example`](./.env.example) to `.env` and adjust the values for your OIDC provider and
+Trino endpoint. For a fully pre-configured local environment (Keycloak and Trino on a local kind
+cluster), see [`dev/setup.sh`](./dev/setup.sh).
 
 ## Development
 
-### Commands
-
 ```bash
-# Development
-npm run dev              # Start dev server (port 5173)
+npm run dev          # Start the dev server
+npm run build        # Build for production
+npm run preview      # Preview the production build
 
-# Building
-npm run build            # Build for production
-npm run preview          # Preview production build
+npm run format       # Format all code
+npm run check        # Type checking
+npm run lint         # Linting
+npm run test:e2e     # Run the Playwright end-to-end tests
 
-# Quality Checks
-npm run format           # Format all code
-npm run check            # Type checking
-npm run lint             # Linting
-
-# E2E Tests
-npm run test:e2e         # Run all tests
-
-# ANTLR (after updating src/lib/editor/grammar/SqlBase.g4)
-npm run generate:antlr   # Regenerate TypeScript lexer/parser from grammar
+npm run generate:antlr   # Regenerate the lexer/parser after editing the SQL grammar
 ```
-
-## E2E Testing
-
-End-to-end tests use Playwright.
-
-### Running Tests
-
-```bash
-npm run test:e2e
-```
-
-Playwright is configured to start the dev server automatically during test runs.
 
 ## Deployment
 
-### Kubernetes Deployment with Helm
+### Helm
 
-The application includes a Helm chart for deploying to Kubernetes.
-
-#### Quick Start
+A Helm chart for Kubernetes is included under [`deploy/helm/cockpit`](./deploy/helm/cockpit):
 
 ```bash
-# Install with default values
-helm install cockpit ./deploy/helm/cockpit
-
-# Install with custom configuration
-helm install cockpit ./deploy/helm/cockpit \
-  -f your-values.yaml
+helm install cockpit ./deploy/helm/cockpit -f your-values.yaml
 ```
 
-#### Documentation
+See the [chart README](./deploy/helm/cockpit/README.md) for the full list of values.
 
-For detailed Helm chart documentation, see [deploy/helm/cockpit/README.md](./deploy/helm/cockpit/README.md).
-
-### Docker Deployment
-
-Build and run the Docker image:
+### Docker
 
 ```bash
-# Build the image
-docker build . -f docker/Dockerfile --build-arg TARGETARCH=x86 --build-arg VERSION=0.0.0-dev -t cockpit:0.0.0-dev
+docker build . -f docker/Dockerfile \
+  --build-arg TARGETARCH=x86 --build-arg VERSION=0.0.0-dev \
+  -t cockpit:0.0.0-dev
 
-# Run the container
 docker run -p 3000:3000 cockpit:0.0.0-dev
 ```
 
@@ -125,18 +103,39 @@ The application is configured via environment variables. Create a `.env` file at
 | `STACKABLE_COCKPIT_PDF_PREVIEW_BYTES`   | `integer` (bytes) | `26214400` (25 MiB) | Maximum bytes fetched when previewing PDF files.                                           | `STACKABLE_COCKPIT_PDF_PREVIEW_BYTES=52428800`   |
 | `STACKABLE_COCKPIT_FILE_PREVIEW_ROWS`   | `integer` (rows)  | `250`               | Maximum number of rows included in a tabular file preview (e.g. Parquet converted to CSV). | `STACKABLE_COCKPIT_FILE_PREVIEW_ROWS=500`        |
 
+## Documentation
+
+- Platform documentation: <https://docs.stackable.tech/>
+- Stackable website: <https://stackable.tech/>
+
 ## Contributing
 
-1. Make your changes
-2. Run quality checks:
+Contributions are welcome! Please open an issue or pull request. Before submitting changes, run the
+quality checks:
 
-   ```bash
-   npm run format
-   npm run check
-   npm run lint
-   ```
+```bash
+npm run format
+npm run check
+npm run lint
+npm run test:e2e
+```
 
-3. Run E2E tests
-4. Submit pull request
+Contributions require agreeing to a Contributor License Agreement (CLA). When you open your first
+pull request, the CLA assistant will guide you through signing it.
 
-For detailed development guidelines, see [CLAUDE.md](./CLAUDE.md).
+## Support
+
+- [GitHub Discussions](https://github.com/orgs/stackabletech/discussions)
+- [Discord](https://discord.gg/7kZ3BNnCAF)
+- [Commercial support plans](https://stackable.tech/en/plans/)
+
+## Sponsor
+
+If you find this project useful, consider [sponsoring Stackable](https://github.com/sponsors/stackabletech).
+
+## License
+
+Licensed under the [Open Software License version 3.0](./LICENSE). This project bundles the Trino
+SQL grammar and code derived from it, which are licensed under the
+[Apache License, Version 2.0](./LICENSE-Apache-2.0); the relevant source files carry upstream
+attribution headers.
