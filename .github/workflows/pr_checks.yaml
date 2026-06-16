@@ -179,7 +179,7 @@ jobs:
               ])
               .withExposedPorts(3900, 3902)
               .withWaitStrategy(
-                Wait.forHttp('/', 3900).forStatusCodeMatching((code) => code < 500)
+                Wait.forHttp('/health', 3902).forStatusCode(200)
               )
               .start();
             console.log(`Container started in ${Date.now() - t0}ms`);

@@ -51,7 +51,7 @@ export default async function globalSetup() {
     ])
     .withExposedPorts(3900, 3902)
     .withStartupTimeout(120_000)
-    .withWaitStrategy(Wait.forHttp('/', 3900).forStatusCode(200));
+    .withWaitStrategy(Wait.forHttp('/health', 3902).forStatusCode(200));
   if (process.env.DOCKER_NETWORK) {
     garageContainerBuilder.withNetworkMode(process.env.DOCKER_NETWORK);
   }
