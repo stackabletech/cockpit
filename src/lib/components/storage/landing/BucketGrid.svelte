@@ -1,5 +1,5 @@
 <script lang="ts">
-  import IconBucket from 'virtual:icons/gravity-ui/bucket';
+  import IconBucket from '../shared/BucketIcon.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { resolve } from '$app/paths';
 

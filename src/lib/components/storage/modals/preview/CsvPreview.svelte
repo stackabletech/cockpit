@@ -58,7 +58,7 @@
     <table class="table-xs table min-w-max" aria-label="CSV preview">
       <thead>
         <tr class="bg-base-200 text-base-content/60 sticky top-0 z-10 text-xs">
-          {#each headers as header (header)}
+          {#each headers as header, i (i)}
             <th class="font-semibold whitespace-nowrap">{header}</th>
           {/each}
         </tr>
