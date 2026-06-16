@@ -91,17 +91,62 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
 
+  debug-postgres:
+    name: Debug – PostgreSQL Testcontainer Readiness
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Docker info
+        run: |
+          docker version
+          docker info
+
+      - name: Start and probe PostgreSQL testcontainer
+        run: |
+          cat > /tmp/debug-postgres.ts << 'EOF'
+          import { PostgreSqlContainer } from '@testcontainers/postgresql';
+          import { Client } from 'pg';
+
+          console.log('Starting PostgreSQL testcontainer...');
+          const container = await new PostgreSqlContainer('postgres:18.4-alpine3.23').start();
+
+          console.log('Container started');
+          console.log(`  ID:       ${container.getId()}`);
+          console.log(`  Host:     ${container.getHost()}`);
+          console.log(`  Port:     ${container.getPort()}`);
+          console.log(`  Database: ${container.getDatabase()}`);
+          console.log(`  User:     ${container.getUsername()}`);
+          console.log(`  URI:      ${container.getConnectionUri()}`);
+
+          const client = new Client({ connectionString: container.getConnectionUri() });
+          await client.connect();
+          const { rows } = await client.query<{ version: string }>('SELECT version()');
+          console.log(`  PostgreSQL version: ${rows[0].version}`);
+          await client.end();
+
+          console.log('Container is ready and accepting connections.');
+          await container.stop();
+          console.log('Container stopped cleanly.');
+          EOF
+          npx tsx /tmp/debug-postgres.ts
+
   e2e-tests:
     name: E2E Tests with Garage S3 and PostgreSQL
     runs-on: ubuntu-latest
-    env:
-      TESTCONTAINERS_HOST_OVERRIDE: localhost
-      DOCKER_NETWORK: e2e
-
     steps:
-      - name: Set up Docker network
-        run: docker network create e2e
-
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -119,5 +164,5 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox
 
-      - name: Run E2E tests with Garage
+      - name: Run E2E tests with Garage and PostgreSQL
         run: npm run test:e2e
