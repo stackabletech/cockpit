@@ -116,7 +116,7 @@ jobs:
 
       - name: Start and probe PostgreSQL testcontainer
         run: |
-          cat > /tmp/debug-postgres.ts << 'EOF'
+          cat > debug-postgres.ts << 'EOF'
           import { PostgreSqlContainer } from '@testcontainers/postgresql';
           import { Client } from 'pg';
 
@@ -145,7 +145,7 @@ jobs:
 
           main().catch((err) => { console.error(err); process.exit(1); });
           EOF
-          npx tsx /tmp/debug-postgres.ts
+          npx tsx debug-postgres.ts
 
   e2e-tests:
     name: E2E Tests with Garage S3 and PostgreSQL
