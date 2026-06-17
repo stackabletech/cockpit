@@ -38,6 +38,15 @@
   // Calculate column widths once on load to prevent width shifts during scrolling
   let columnWidths = $state<number[]>([]);
 
+  // Measure actual rendered text width using canvas for cross-browser consistency
+  function textWidth(text: string): number {
+    if (typeof document === 'undefined') return text.length * 7;
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (!ctx) return text.length * 7;
+    ctx.font = '600 12px system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+    return ctx.measureText(text).width;
+  }
+
   $effect(() => {
     if (initialRows) {
       untrack(() => {
@@ -45,16 +54,18 @@
         loadingChunks.clear();
         scrollTop = 0;
         // Scan initial data to determine max content width per column
-        const widths = headers.map((h) => h.length);
+        const CELL_PADDING = 16;
+        const widths = headers.map((h) => textWidth(h));
         for (const row of initialRows) {
           if (!row) continue;
           for (let i = 0; i < headers.length; i++) {
             const val = row[i];
-            const len = val !== null && val !== undefined ? String(val).length : 0;
-            if (len > widths[i]) widths[i] = len;
+            const str = val !== null && val !== undefined ? String(val) : '';
+            const w = textWidth(str);
+            if (w > widths[i]) widths[i] = w;
           }
         }
-        columnWidths = widths;
+        columnWidths = widths.map((w) => Math.max(w + CELL_PADDING, 80));
       });
     }
   });
@@ -161,14 +172,14 @@
       bind:clientHeight={containerHeight}
       onscroll={(e) => (scrollTop = e.currentTarget.scrollTop)}
     >
-      <table class="table-xs table min-w-max table-fixed" aria-label="Parquet preview">
+      <table class="table-xs table table-fixed" aria-label="Parquet preview">
         <thead class="bg-base-200 text-base-content/60 sticky top-0 z-10 text-xs shadow-sm">
           <tr>
             <th class="text-base-content/30 w-10 text-right font-normal"></th>
             {#each headers as header, j (header)}
               <th
                 class="font-semibold truncate"
-                style="width: {Math.max(columnWidths[j] * 7.5 + 16, 80)}px"
+                style={columnWidths.length > 0 ? `width: ${columnWidths[j]}px` : ''}
               >{header}</th>
             {/each}
           </tr>
