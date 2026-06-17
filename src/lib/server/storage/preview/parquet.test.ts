@@ -78,7 +78,7 @@ async function readNdjsonResponse(res: Response): Promise<{
   const decoder = new TextDecoder();
   let buffer = '';
   let resultHeaders: string[] = [];
-  let rows: unknown[][] = [];
+  const rows: unknown[][] = [];
   let resultTotalRows = 0;
   let error: string | undefined;
 

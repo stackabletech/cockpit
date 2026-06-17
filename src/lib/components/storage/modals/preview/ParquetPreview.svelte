@@ -5,15 +5,14 @@
 
   interface Props {
     headers: string[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    initialRows: any[][];
+    initialRows: unknown[][];
     totalRows?: number;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     fetchRows?: (
       offset: number,
       limit: number,
-      onColumn?: (name: string, values: any[]) => void
-    ) => Promise<any[][]>;
+      onColumn?: (name: string, values: unknown[]) => void
+    ) => Promise<unknown[][]>;
     showingRowsCount?: number;
   }
 
@@ -43,7 +42,8 @@
     if (typeof document === 'undefined') return text.length * 7;
     const ctx = document.createElement('canvas').getContext('2d');
     if (!ctx) return text.length * 7;
-    ctx.font = '600 12px system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+    ctx.font =
+      '600 12px system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
     return ctx.measureText(text).width;
   }
 
@@ -178,9 +178,9 @@
             <th class="text-base-content/30 w-10 text-right font-normal"></th>
             {#each headers as header, j (header)}
               <th
-                class="font-semibold truncate"
-                style={columnWidths.length > 0 ? `width: ${columnWidths[j]}px` : ''}
-              >{header}</th>
+                class="truncate font-semibold"
+                style={columnWidths.length > 0 ? `width: ${columnWidths[j]}px` : ''}>{header}</th
+              >
             {/each}
           </tr>
         </thead>
@@ -199,6 +199,7 @@
                 >{(row.index + 1).toLocaleString(getLocale())}</td
               >
               {#if row.data !== null && row.data !== undefined}
+                <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
                 {#each headers as _h, j (j)}
                   {#if row.data[j] !== undefined}
                     <td class="text-base-content/80 truncate text-xs">
@@ -212,6 +213,7 @@
                 {/each}
               {:else}
                 <!-- Skeleton State (full row not yet initialized) -->
+                <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
                 {#each headers as _h, j (j)}
                   <td class="p-1">
                     <div class="bg-base-300/40 h-4 w-full animate-pulse rounded"></div>
