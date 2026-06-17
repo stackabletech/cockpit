@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForHydration } from '../support/helpers.js';
 
 test.describe('Authentication', () => {
   test.use({ locale: 'en-US' });
