@@ -314,6 +314,7 @@
   "storage_upload_retry": "Retry",
   "storage_upload_close": "Close",
   "storage_archive_open_error": "Could not open archive. The format may be unsupported or the archive is corrupt.",
+  "storage_archive_too_large": "Archive is too large to preview.",
   "storage_archive_exit": "Exit archive",
   "timestamp_just_now": "just now",
   "timestamp_minutes_ago": [

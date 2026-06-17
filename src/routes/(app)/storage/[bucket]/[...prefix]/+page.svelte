@@ -33,6 +33,7 @@
   // page.url.href ensures this re-runs after every navigation, even if data
   // appears unchanged (e.g. same-route navigation to a different prefix).
   $effect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     page.url.href;
     storage.syncFromServer(data.bucket, data.prefix, data.objects);
   });

@@ -1,7 +1,10 @@
 import { error } from '@sveltejs/kit';
 import { listArchiveContents } from '$lib/server/storage/archive.js';
 import { downloadObject, getObjectMetadata } from '$lib/server/storage/service.js';
+import { archivePreviewMaxMB } from '$lib/server/feature-flags.js';
 import type { RequestHandler } from './$types';
+
+const archivePreviewMaxBytes = archivePreviewMaxMB * 1024 * 1024;
 
 /**
  * GET /storage/api/archive/listing?bucket=<bucket>&key=<archive-key>&internalPrefix=<path>&nestedArchivePath=<path>
@@ -42,7 +45,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     internalPrefix,
     downloadFn,
     metadataFn,
-    nestedArchivePath
+    nestedArchivePath,
+    archivePreviewMaxBytes
   );
   return Response.json(listing);
 };

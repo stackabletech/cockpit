@@ -1,7 +1,10 @@
 import { error } from '@sveltejs/kit';
 import { extractArchiveEntry, getArchiveFormat } from '$lib/server/storage/archive.js';
 import { downloadObject, getObjectMetadata } from '$lib/server/storage/service.js';
+import { archivePreviewMaxMB } from '$lib/server/feature-flags.js';
 import type { RequestHandler } from './$types';
+
+const archivePreviewMaxBytes = archivePreviewMaxMB * 1024 * 1024;
 
 /**
  * GET /storage/api/archive/extract?bucket=<bucket>&key=<archive-key>&path=<internal-path>&nestedArchivePath=<path>
@@ -13,7 +16,8 @@ import type { RequestHandler } from './$types';
  * The archive is downloaded from S3 once and cached server-side, so multiple
  * extractions from the same archive share a single S3 transfer.
  *
- * Returns 404 if the internal path does not exist in the archive.
+ * Returns 404 if the internal path does not exist in the archive or if the
+ * archive exceeds the configured preview size limit.
  * Returns 400 if the archive is not a supported format.
  *
  * The connection config is parsed and validated by the `handleStorageConnection`
@@ -51,7 +55,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     internalPath,
     downloadFn,
     metadataFn,
-    nestedArchivePath
+    nestedArchivePath,
+    archivePreviewMaxBytes
   );
 
   if (!data) {

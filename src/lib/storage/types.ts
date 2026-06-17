@@ -118,6 +118,8 @@ export interface ArchiveEntry {
 export interface ArchiveListingResponse {
   entries: ArchiveEntry[];
   hasMore: boolean;
+  /** When true, the archive was too large to open for preview. */
+  tooLarge?: boolean;
 }
 
 /** State when browsing inside an archive. */

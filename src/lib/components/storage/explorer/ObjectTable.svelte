@@ -2,6 +2,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import IconArrowBack from 'virtual:icons/material-symbols/arrow-back';
   import IconFolderOpen from 'virtual:icons/material-symbols/folder-open';
+  import IconWarning from 'virtual:icons/material-symbols/warning';
   import SelectionToolbar from './SelectionToolbar.svelte';
   import FolderRow from './FolderRow.svelte';
   import FileRow from './FileRow.svelte';
@@ -74,24 +75,34 @@
         </tr>
       {/if}
 
-      <!-- Folders -->
-      {#each storage.folders as folder (folder.key)}
-        <FolderRow {folder} />
-      {/each}
-
-      <!-- Files -->
-      {#each storage.files as file (file.key)}
-        <FileRow {file} />
-      {/each}
-
-      <!-- Empty folder -->
-      {#if storage.folders.length === 0 && storage.files.length === 0}
+      {#if storage.archiveTooLarge}
+        <!-- Archive too large fallback -->
         <tr>
-          <td colspan={5} class="text-base-content/40 py-16 text-center">
-            <IconFolderOpen class="mx-auto mb-3 size-10 opacity-30" aria-hidden="true" />
-            {m.storage_bucket_empty()}
+          <td colspan={5} class="py-16 text-center">
+            <IconWarning class="text-warning mx-auto mb-3 size-10" aria-hidden="true" />
+            <p class="text-base-content font-semibold">{m.storage_archive_too_large()}</p>
           </td>
         </tr>
+      {:else}
+        <!-- Folders -->
+        {#each storage.folders as folder (folder.key)}
+          <FolderRow {folder} />
+        {/each}
+
+        <!-- Files -->
+        {#each storage.files as file (file.key)}
+          <FileRow {file} />
+        {/each}
+
+        <!-- Empty folder -->
+        {#if storage.folders.length === 0 && storage.files.length === 0}
+          <tr>
+            <td colspan={5} class="text-base-content/40 py-16 text-center">
+              <IconFolderOpen class="mx-auto mb-3 size-10 opacity-30" aria-hidden="true" />
+              {m.storage_bucket_empty()}
+            </td>
+          </tr>
+        {/if}
       {/if}
     </tbody>
   </table>

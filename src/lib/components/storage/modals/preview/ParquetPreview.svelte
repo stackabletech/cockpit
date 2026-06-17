@@ -8,12 +8,12 @@
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     initialRows: any[][];
     totalRows?: number;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     fetchRows?: (
       offset: number,
       limit: number,
-      onColumn?: (name: string, values: any[]) => void
-    ) => Promise<any[][]>;
+      onColumn?: (name: string, values: unknown[]) => void
+    ) => Promise<unknown[][]>;
     showingRowsCount?: number;
   }
 
@@ -167,9 +167,9 @@
             <th class="text-base-content/30 w-10 text-right font-normal"></th>
             {#each headers as header, j (header)}
               <th
-                class="font-semibold truncate"
-                style="width: {Math.max(columnWidths[j] * 7.5 + 16, 80)}px"
-              >{header}</th>
+                class="truncate font-semibold"
+                style="width: {Math.max(columnWidths[j] * 7.5 + 16, 80)}px">{header}</th
+              >
             {/each}
           </tr>
         </thead>
@@ -188,9 +188,9 @@
                 >{(row.index + 1).toLocaleString(getLocale())}</td
               >
               {#if row.data !== null && row.data !== undefined}
-                {#each headers as _h, j (j)}
+                {#each headers as header, j (j)}
                   {#if row.data[j] !== undefined}
-                    <td class="text-base-content/80 truncate text-xs">
+                    <td class="text-base-content/80 truncate text-xs" title={header}>
                       {row.data[j] !== null ? String(row.data[j]) : ''}
                     </td>
                   {:else}
@@ -201,8 +201,8 @@
                 {/each}
               {:else}
                 <!-- Skeleton State (full row not yet initialized) -->
-                {#each headers as _h, j (j)}
-                  <td class="p-1">
+                {#each headers as header, j (j)}
+                  <td class="p-1" title={header}>
                     <div class="bg-base-300/40 h-4 w-full animate-pulse rounded"></div>
                   </td>
                 {/each}

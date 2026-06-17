@@ -314,6 +314,7 @@
   "storage_upload_retry": "Erneut versuchen",
   "storage_upload_close": "Schlie\u00dfen",
   "storage_archive_open_error": "Archiv konnte nicht geöffnet werden. Das Format wird möglicherweise nicht unterstützt oder das Archiv ist beschädigt.",
+  "storage_archive_too_large": "Archiv ist zu groß für die Vorschau.",
   "storage_archive_exit": "Archiv verlassen",
   "timestamp_just_now": "gerade eben",
   "timestamp_minutes_ago": [

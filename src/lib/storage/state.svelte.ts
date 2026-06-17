@@ -89,6 +89,7 @@ export class StorageState {
   archiveNestedPath = $state<string | null>(null);
   previousS3Prefix = $state('');
   archiveLoading = $state(false);
+  archiveTooLarge = $state(false);
   isInArchive = $derived(this.archiveKey !== null);
 
   // ── Composed sub-state ──
@@ -121,6 +122,7 @@ export class StorageState {
     this.archiveNestedPath = null;
     this.previousS3Prefix = '';
     this.archiveLoading = false;
+    this.archiveTooLarge = false;
   }
 
   setNavigationHandler(fn: NavigateFn): void {
@@ -284,6 +286,7 @@ export class StorageState {
     this.archiveNestedPath = null;
     this.previousS3Prefix = '';
     this.archiveLoading = false;
+    this.archiveTooLarge = false;
     this.loading = true;
     this.prevTokens = [];
     void this._fetchS3Objects(s3Prefix);
@@ -388,6 +391,13 @@ export class StorageState {
       throw new Error(m.storage_archive_open_error());
     }
     const data = (await res.json()) as ArchiveListingResponse;
+    if (data.tooLarge) {
+      this.archiveTooLarge = true;
+      this.archiveLoading = false;
+      this.objects = { objects: [], hasNextPage: false, currentPage: 1, pageSize: null as never };
+      return;
+    }
+    this.archiveTooLarge = false;
     const prefix = this.archivePrefix || '';
     this.objects = {
       objects: data.entries.map((e: ArchiveEntry) => ({
