@@ -228,3 +228,11 @@ jobs:
 
       - name: Run E2E tests with Garage and PostgreSQL
         run: npm run test:e2e
+
+      - name: Upload Playwright traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: e2e/test-results/
+          retention-days: 7

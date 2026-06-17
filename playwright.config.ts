@@ -17,8 +17,9 @@ export default defineConfig({
   },
   use: {
     baseURL,
-    trace: 'retain-on-failure',
-    video: 'retain-on-failure'
+    trace: process.env.CI ? 'on' : 'retain-on-failure',
+    video: 'retain-on-failure',
+    screenshot: process.env.CI ? 'on' : 'only-on-failure'
   },
   webServer: [
     {
