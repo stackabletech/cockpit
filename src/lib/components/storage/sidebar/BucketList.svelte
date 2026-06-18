@@ -5,7 +5,7 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
-  import IconBucket from 'virtual:icons/gravity-ui/bucket';
+  import IconBucket from '../shared/BucketIcon.svelte';
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import IconGridView from 'virtual:icons/material-symbols/grid-view';
   import * as m from '$lib/paraglide/messages.js';
