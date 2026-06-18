@@ -366,7 +366,7 @@
   </button>
 
   <!-- Create button -->
-  <div class="dropdown dropdown-end" class:dropdown-open={createOpen}>
+  <div class="dropdown dropdown-end inline-flex" class:dropdown-open={createOpen}>
     <button
       class="btn btn-primary btn-xs gap-1"
       onclick={openCreate}
