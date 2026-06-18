@@ -281,6 +281,8 @@
   "storage_editor_discard": "Discard",
   "storage_editor_cancel": "Cancel",
   "storage_editor_error": "Failed to save file.",
+  "storage_editor_too_large": "File too large to save. The maximum editable file size is {limit}.",
+  "storage_editor_too_large_badge": "Read-only: exceeds {limit}",
   "storage_context_menu_actions": "Actions",
   "storage_action_upload": "Upload",
   "storage_upload_title": "Upload",

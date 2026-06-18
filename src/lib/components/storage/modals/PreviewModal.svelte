@@ -1,11 +1,13 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { SvelteURLSearchParams } from 'svelte/reactivity';
   import IconCloseFullscreen from 'virtual:icons/material-symbols/close-fullscreen';
   import IconOpenInFull from 'virtual:icons/material-symbols/open-in-full';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconErrorOutline from 'virtual:icons/material-symbols/error-outline';
   import IconDownload from 'virtual:icons/material-symbols/download';
   import IconSave from 'virtual:icons/material-symbols/save';
+  import IconBlock from 'virtual:icons/material-symbols/block';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
   import TextEditor from '$lib/components/editor/TextEditor.svelte';
@@ -19,6 +21,7 @@
   import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
   import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
+  import { maxEditableFileSize } from '$lib/client/feature-flags.js';
 
   interface Props {
     open: boolean;
@@ -66,6 +69,13 @@
   let showUnsavedConfirm = $state(false);
 
   const dirty = $derived(editorText !== originalText);
+
+  const filename = $derived(objectKey ? keyToName(objectKey) : '');
+
+  function isTooLargeToEdit(): boolean {
+    if (preview.kind !== 'text') return false;
+    return preview.totalSize > maxEditableFileSize;
+  }
 
   onDestroy(() => {
     for (const url of blobUrls) {
@@ -208,13 +218,6 @@
     }
   }
 
-  const filename = $derived(objectKey ? keyToName(objectKey) : '');
-
-  function getContentType(): string {
-    if (preview.kind === 'text') return preview.contentType;
-    return 'application/octet-stream';
-  }
-
   async function triggerDownload() {
     if (!objectKey) return;
     const conn = loadConnectionLocally();
@@ -233,8 +236,24 @@
     }
   }
 
+  function getSaveTextParams(): URLSearchParams | null {
+    if (preview.kind !== 'text' || !objectKey) return null;
+    const params = new SvelteURLSearchParams({ bucket, key: objectKey });
+    params.set('contentType', preview.contentType);
+    params.set('originalSize', String(preview.totalSize));
+    params.set('previewBytes', String(preview.previewBytes));
+    return params;
+  }
+
   async function handleSave() {
     if (!objectKey) return;
+    if (isTooLargeToEdit()) {
+      addToast('error', m.storage_editor_too_large({ limit: formatFileSize(maxEditableFileSize) }));
+      return;
+    }
+    const params = getSaveTextParams();
+    if (!params) return;
+
     saving = true;
     try {
       const conn = loadConnectionLocally();
@@ -242,10 +261,8 @@
       if (conn) {
         (headers as Record<string, string>)[STORAGE_CONNECTION_HEADER] = getConnectionHeader(conn);
       }
-      (headers as Record<string, string>)['Content-Type'] = getContentType();
 
-      const params = new URLSearchParams({ bucket, key: objectKey });
-      const res = await fetch(`/storage/api/upload?${params}`, {
+      const res = await fetch(`/storage/api/save-text?${params}`, {
         method: 'POST',
         headers,
         body: editorText
@@ -256,6 +273,11 @@
           addToast('error', m.storage_upload_error_not_connected());
         } else if (res.status === 403) {
           addToast('error', m.storage_upload_error_access_denied());
+        } else if (res.status === 413) {
+          addToast(
+            'error',
+            m.storage_editor_too_large({ limit: formatFileSize(maxEditableFileSize) })
+          );
         } else {
           addToast('error', m.storage_editor_error());
         }
@@ -408,12 +430,26 @@
           <p class="text-base-content/60 text-sm">{preview.message}</p>
         </div>
       {:else if preview.kind === 'text'}
-        <div class="h-full">
-          <TextEditor
-            bind:value={editorText}
-            contentType={preview.contentType}
-            onSave={handleSave}
-          />
+        <div class="flex h-full flex-col">
+          {#if isTooLargeToEdit()}
+            <div
+              class="bg-base-200 border-base-300 flex shrink-0 items-center gap-2 border-b px-4 py-2"
+            >
+              <IconBlock class="text-base-content/50 size-4" aria-hidden="true" />
+              <span class="text-base-content/60 text-xs">
+                {m.storage_editor_too_large_badge({ limit: formatFileSize(maxEditableFileSize) })}
+              </span>
+            </div>
+          {/if}
+          <div class="min-h-0 flex-1">
+            <TextEditor
+              bind:value={editorText}
+              contentType={preview.contentType}
+              {filename}
+              readonly={isTooLargeToEdit()}
+              onSave={handleSave}
+            />
+          </div>
         </div>
       {:else if preview.kind === 'csv'}
         <div class="preview-scroll h-full overflow-scroll">
@@ -466,7 +502,7 @@
             {m.storage_preview_download_full()}
           </button>
         {/if}
-        {#if preview.kind === 'text'}
+        {#if preview.kind === 'text' && !isTooLargeToEdit()}
           <button
             type="button"
             class="btn btn-primary btn-sm gap-1.5"

@@ -281,6 +281,8 @@
   "storage_editor_discard": "Verwerfen",
   "storage_editor_cancel": "Abbrechen",
   "storage_editor_error": "Datei konnte nicht gespeichert werden.",
+  "storage_editor_too_large": "Datei zu gro\u00df zum Speichern. Die maximal bearbeitbare Dateigr\u00f6\u00dfe betr\u00e4gt {limit}.",
+  "storage_editor_too_large_badge": "Schreibgesch\u00fctzt: \u00fcberschreitet {limit}",
   "storage_context_menu_actions": "Aktionen",
   "storage_action_upload": "Hochladen",
   "storage_upload_title": "Hochladen",

@@ -47,6 +47,18 @@ export const defaultPageSize: number = (() => {
   return allowedPageSizes.includes(parsed) ? parsed : (allowedPageSizes[0] ?? 25);
 })();
 
+// ── Storage browser: Text editor ─────────────────────────────────────────────
+
+/** Maximum file size (in bytes) that can be edited inline in the text editor.
+ *  Files larger than this will show a read-only preview without the save button.
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`. Default: 5242880 (5 MiB).
+ *  Raise to allow editing larger files; lower to avoid excessive S3 bandwidth
+ *  when saving truncated files (the full file must be re-uploaded). */
+export const maxEditableFileSize: number = (() => {
+  const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5 * 1024 * 1024;
+})();
+
 // ── Storage browser ──────────────────────────────────────────────────────────
 
 /** Maximum number of recently visited files and locations kept in localStorage
