@@ -5,9 +5,11 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconErrorOutline from 'virtual:icons/material-symbols/error-outline';
   import IconDownload from 'virtual:icons/material-symbols/download';
+  import IconSave from 'virtual:icons/material-symbols/save';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
-  import TextPreview from './preview/TextPreview.svelte';
+  import TextEditor from '$lib/components/editor/TextEditor.svelte';
+  import UnsavedConfirmDialog from './UnsavedConfirmDialog.svelte';
   import CsvPreview from './preview/CsvPreview.svelte';
   import ImagePreview from './preview/ImagePreview.svelte';
   import PdfPreview from './preview/PdfPreview.svelte';
@@ -52,14 +54,19 @@
     | { kind: 'error'; message: string };
 
   let preview: PreviewKind = $state({ kind: 'idle' });
-  // Not $state — the template never reads blobUrls directly, only preview.blobUrl.
-  // Keeping it non-reactive prevents a read/write cycle inside the $effect below.
   let blobUrls: string[] = [];
   let maximized = $state(false);
   let imageNaturalWidth = $state(0);
   let imageNaturalHeight = $state(0);
 
-  // Revoke blob URLs when the component is destroyed
+  // ── Text editor state ──
+  let editorText = $state('');
+  let originalText = $state('');
+  let saving = $state(false);
+  let showUnsavedConfirm = $state(false);
+
+  const dirty = $derived(editorText !== originalText);
+
   onDestroy(() => {
     for (const url of blobUrls) {
       URL.revokeObjectURL(url);
@@ -73,7 +80,6 @@
     blobUrls = [];
   }
 
-  // Load preview whenever the modal opens or the key changes
   $effect(() => {
     if (open && objectKey) {
       void loadPreview(objectKey, bucket);
@@ -83,6 +89,8 @@
       preview = { kind: 'idle' };
       imageNaturalWidth = 0;
       imageNaturalHeight = 0;
+      editorText = '';
+      originalText = '';
     }
   });
 
@@ -121,14 +129,12 @@
       const totalRows = Number(res.headers.get('X-Preview-Total-Rows') ?? '0');
       const previewRows = Number(res.headers.get('X-Preview-Preview-Rows') ?? '0');
 
-      // Server flagged this as a known-binary type — skip body fetch entirely.
       if (res.headers.get('X-Preview-Renderable') === 'false') {
         await res.body?.cancel();
         preview = { kind: 'fallback', contentType, isBinary: false };
         return;
       }
 
-      // Images — render as blob URL
       if (contentType.startsWith('image/')) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -137,7 +143,6 @@
         return;
       }
 
-      // PDF — render in iframe
       if (contentType === 'application/pdf') {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -146,22 +151,17 @@
         return;
       }
 
-      // For everything else (text/*, application/json, application/octet-stream,
-      // application/yaml, etc.) attempt UTF-8 decode. Success → text view;
-      // failure → the file is genuinely binary.
       const text = await readTextSafely(res, key);
       if (text === null) {
         preview = { kind: 'fallback', contentType, isBinary: true };
         return;
       }
 
-      // Parquet data pre-parsed by the server and returned as CSV text.
       if (format === 'parquet') {
         preview = { kind: 'parquet', text, truncated, totalSize, totalRows, previewRows };
         return;
       }
 
-      // CSV by content-type or file extension
       if (
         contentType === 'text/csv' ||
         contentType === 'application/csv' ||
@@ -172,25 +172,19 @@
         return;
       }
 
-      // All other decoded text
       preview = { kind: 'text', text, contentType, truncated, totalSize, previewBytes };
+      editorText = text;
+      originalText = text;
     } catch {
       preview = { kind: 'error', message: m.storage_preview_error_desc() };
     }
   }
 
-  /**
-   * Read response body as text. Handles UTF-16 BOMs, strict UTF-8, and falls
-   * back to Windows-1252 for CSV/TSV files (common for Excel-exported CSVs).
-   * Returns null if the content cannot be decoded as any recognised encoding
-   * (indicating genuinely binary content).
-   */
   async function readTextSafely(res: Response, key: string): Promise<string | null> {
     try {
       const buf = await res.arrayBuffer();
       const bytes = new Uint8Array(buf);
 
-      // Detect UTF-16 BOM (common in Excel "Save as CSV (UTF-16)")
       if (bytes.length >= 2) {
         if (bytes[0] === 0xff && bytes[1] === 0xfe) {
           return new TextDecoder('utf-16le').decode(buf);
@@ -200,12 +194,9 @@
         }
       }
 
-      // Try strict UTF-8 (handles UTF-8 with or without BOM)
       try {
         return new TextDecoder('utf-8', { fatal: true }).decode(buf);
       } catch {
-        // For CSV/TSV files try Windows-1252 — the default encoding used by
-        // Excel on Windows when exporting to CSV.
         const lowerKey = key.toLowerCase();
         if (lowerKey.endsWith('.csv') || lowerKey.endsWith('.tsv')) {
           return new TextDecoder('windows-1252').decode(buf);
@@ -218,6 +209,11 @@
   }
 
   const filename = $derived(objectKey ? keyToName(objectKey) : '');
+
+  function getContentType(): string {
+    if (preview.kind === 'text') return preview.contentType;
+    return 'application/octet-stream';
+  }
 
   async function triggerDownload() {
     if (!objectKey) return;
@@ -237,6 +233,74 @@
     }
   }
 
+  async function handleSave() {
+    if (!objectKey) return;
+    saving = true;
+    try {
+      const conn = loadConnectionLocally();
+      const headers: HeadersInit = {};
+      if (conn) {
+        (headers as Record<string, string>)[STORAGE_CONNECTION_HEADER] = getConnectionHeader(conn);
+      }
+      (headers as Record<string, string>)['Content-Type'] = getContentType();
+
+      const params = new URLSearchParams({ bucket, key: objectKey });
+      const res = await fetch(`/storage/api/upload?${params}`, {
+        method: 'POST',
+        headers,
+        body: editorText
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          addToast('error', m.storage_upload_error_not_connected());
+        } else if (res.status === 403) {
+          addToast('error', m.storage_upload_error_access_denied());
+        } else {
+          addToast('error', m.storage_editor_error());
+        }
+        return;
+      }
+
+      originalText = editorText;
+      addToast('success', m.storage_editor_saved());
+    } catch {
+      addToast('error', m.storage_editor_error());
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function handleSaveAndClose() {
+    await handleSave();
+    if (originalText === editorText) {
+      showUnsavedConfirm = false;
+      close();
+    }
+  }
+
+  function handleDiscard() {
+    showUnsavedConfirm = false;
+    editorText = originalText;
+    close();
+  }
+
+  function handleCloseClick() {
+    if (dirty) {
+      showUnsavedConfirm = true;
+    } else {
+      close();
+    }
+  }
+
+  function closeguard(): boolean {
+    if (dirty) {
+      showUnsavedConfirm = true;
+      return false;
+    }
+    return true;
+  }
+
   function close() {
     open = false;
   }
@@ -246,7 +310,7 @@
   }
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open {closeguard} class="modal">
   <div
     class="modal-box flex flex-col p-0 transition-none
       {maximized ? 'h-dvh max-h-dvh w-screen max-w-none rounded-none' : 'w-full max-w-5xl'}"
@@ -319,7 +383,7 @@
       {/if}
       <button
         class="btn btn-ghost btn-sm btn-square"
-        onclick={close}
+        onclick={handleCloseClick}
         aria-label={m.storage_preview_close()}
       >
         <IconClose class="size-5" aria-hidden="true" />
@@ -327,7 +391,7 @@
     </div>
 
     <!-- Body -->
-    <div class="preview-scroll min-h-0 min-w-0 flex-1 overflow-scroll">
+    <div class="min-h-0 min-w-0 flex-1 overflow-hidden">
       {#if preview.kind === 'idle' || preview.kind === 'loading'}
         <div
           class="flex items-center justify-center p-12"
@@ -344,33 +408,54 @@
           <p class="text-base-content/60 text-sm">{preview.message}</p>
         </div>
       {:else if preview.kind === 'text'}
-        <TextPreview text={preview.text} contentType={preview.contentType} />
+        <div class="h-full">
+          <TextEditor
+            bind:value={editorText}
+            contentType={preview.contentType}
+            onSave={handleSave}
+          />
+        </div>
       {:else if preview.kind === 'csv'}
-        <CsvPreview text={preview.text} />
+        <div class="preview-scroll h-full overflow-scroll">
+          <CsvPreview text={preview.text} />
+        </div>
       {:else if preview.kind === 'parquet'}
-        <CsvPreview text={preview.text} />
+        <div class="preview-scroll h-full overflow-scroll">
+          <CsvPreview text={preview.text} />
+        </div>
       {:else if preview.kind === 'image'}
-        <ImagePreview
-          src={preview.blobUrl}
-          name={filename}
-          bind:naturalWidth={imageNaturalWidth}
-          bind:naturalHeight={imageNaturalHeight}
-        />
+        <div class="preview-scroll h-full overflow-scroll">
+          <ImagePreview
+            src={preview.blobUrl}
+            name={filename}
+            bind:naturalWidth={imageNaturalWidth}
+            bind:naturalHeight={imageNaturalHeight}
+          />
+        </div>
       {:else if preview.kind === 'pdf'}
-        <PdfPreview src={preview.blobUrl} name={filename} />
+        <div class="preview-scroll h-full overflow-scroll">
+          <PdfPreview src={preview.blobUrl} name={filename} />
+        </div>
       {:else if preview.kind === 'fallback'}
-        <FallbackPreview
-          contentType={preview.contentType}
-          onDownload={triggerDownload}
-          isBinary={preview.isBinary}
-        />
+        <div class="preview-scroll h-full overflow-scroll">
+          <FallbackPreview
+            contentType={preview.contentType}
+            onDownload={triggerDownload}
+            isBinary={preview.isBinary}
+          />
+        </div>
       {/if}
     </div>
 
     <!-- Footer -->
     {#if preview.kind === 'text' || preview.kind === 'csv' || preview.kind === 'parquet' || preview.kind === 'image' || preview.kind === 'pdf'}
       <div class="border-base-300 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-2">
-        {#if (preview.kind === 'text' || preview.kind === 'csv') && preview.truncated}
+        {#if preview.kind === 'text' && preview.truncated}
+          <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
+            <IconDownload class="size-4" aria-hidden="true" />
+            {m.storage_preview_download_full()}
+          </button>
+        {:else if preview.kind === 'csv' && preview.truncated}
           <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
             <IconDownload class="size-4" aria-hidden="true" />
             {m.storage_preview_download_full()}
@@ -381,10 +466,34 @@
             {m.storage_preview_download_full()}
           </button>
         {/if}
-        <button class="btn btn-primary btn-sm" onclick={close}>
+        {#if preview.kind === 'text'}
+          <button
+            type="button"
+            class="btn btn-primary btn-sm gap-1.5"
+            onclick={handleSave}
+            disabled={!dirty || saving}
+          >
+            {#if saving}
+              <span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
+              {m.storage_editor_saving()}
+            {:else}
+              <IconSave class="size-4" aria-hidden="true" />
+              {m.storage_editor_save()}
+            {/if}
+          </button>
+        {/if}
+        <button class="btn btn-ghost btn-sm" onclick={handleCloseClick}>
           {m.storage_preview_close()}
         </button>
       </div>
     {/if}
   </div>
 </Modal>
+
+<!-- Unsaved changes confirmation -->
+<UnsavedConfirmDialog
+  bind:open={showUnsavedConfirm}
+  onSave={handleSaveAndClose}
+  onDiscard={handleDiscard}
+  onCancel={() => (showUnsavedConfirm = false)}
+/>

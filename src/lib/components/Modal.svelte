@@ -2,11 +2,13 @@
   let {
     open = $bindable(false),
     children,
-    class: className = ''
+    class: className = '',
+    closeguard
   }: {
     open: boolean;
     children: import('svelte').Snippet;
     class?: string;
+    closeguard?: () => boolean;
   } = $props();
 
   let dialogEl = $state<HTMLDialogElement | undefined>(undefined);
@@ -24,9 +26,27 @@
   function handleClose() {
     open = false;
   }
+
+  function handleCancel(e: Event) {
+    if (closeguard && !closeguard()) {
+      e.preventDefault();
+    }
+  }
+
+  function handleBackdrop(e: MouseEvent) {
+    if (e.target === dialogEl && closeguard && !closeguard()) {
+      e.preventDefault();
+    }
+  }
 </script>
 
-<dialog bind:this={dialogEl} class={className} onclose={handleClose}>
+<dialog
+  bind:this={dialogEl}
+  class={className}
+  onclose={handleClose}
+  oncancel={handleCancel}
+  onmousedown={handleBackdrop}
+>
   {#if open}
     {@render children()}
   {/if}
