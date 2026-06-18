@@ -136,7 +136,7 @@
   </span>
 {/snippet}
 
-<div class="border-base-300 flex items-center gap-3 border-b px-6 py-3">
+<div class="border-base-300 flex flex-wrap items-center gap-3 border-b px-6 py-3">
   <!-- Breadcrumbs -->
   <nav
     aria-label="breadcrumb"

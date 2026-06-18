@@ -74,7 +74,7 @@ The Download action is intentionally restricted to a single file at a time. Mult
 
 **File:** `src/lib/server/trino/queries.ts:20`
 
-Completed query snapshots (including result rows) are cleaned up after `STACKABLE_UI_QUERY_TTL` seconds (default 1800). If a user leaves and returns later, the results will be gone. Consider persisting results to disk or a cache with configurable TTL.
+Completed query snapshots (including result rows) are cleaned up after `STACKABLE_COCKPIT_QUERY_TTL` seconds (default 1800). If a user leaves and returns later, the results will be gone. Consider persisting results to disk or a cache with configurable TTL.
 
 ---
 

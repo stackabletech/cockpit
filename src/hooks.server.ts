@@ -7,6 +7,7 @@ import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { auth, oidcEnabled } from '$lib/server/auth';
 import { requestLogger, logger } from '$lib/server/logging';
 import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
+import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
 if (dev) {
@@ -68,6 +69,9 @@ const handleAuthGuard: Handle = async ({ event, resolve }) => {
  * malformed / invalid header on any route.
  */
 const handleStorageConnection: Handle = async ({ event, resolve }) => {
+  if (event.route.id?.startsWith('/(app)/storage/') && !storageBrowserEnabled) {
+    throw error(404, 'Storage browser is not enabled');
+  }
   event.locals.storageConfig = getConnectionFromHeader(event.request);
   if (event.locals.storageConfig === null && event.route.id?.startsWith('/(app)/storage/api/')) {
     throw error(401, 'No storage connection configured');

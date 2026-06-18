@@ -556,7 +556,7 @@ describe('UploadModal', () => {
       await expect.element(page.getByRole('status')).toBeInTheDocument();
     });
 
-    it('should close button be disabled during upload', async () => {
+    it('should show cancel button during upload', async () => {
       const upload = deferred<void>();
       mockUploadFile.mockReturnValue(upload.promise);
 
@@ -566,9 +566,9 @@ describe('UploadModal', () => {
 
       await page.getByRole('button', { name: /upload/i }).click();
 
-      // The close button is disabled while an upload is in progress.
-      const closeBtn = page.getByRole('button', { name: /close/i });
-      await expect.element(closeBtn).toBeDisabled();
+      // The cancel button is visible while an upload is in progress.
+      const cancelBtn = page.getByRole('button', { name: /cancel/i });
+      await expect.element(cancelBtn).toBeInTheDocument();
 
       // Resolve the upload so the component reaches 'complete' cleanly before
       // teardown, avoiding a state update on a destroyed component.

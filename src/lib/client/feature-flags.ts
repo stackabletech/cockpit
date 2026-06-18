@@ -4,12 +4,12 @@
 
 import { env } from '$env/dynamic/public';
 
-/** When `PUBLIC_STACKABLE_UI_STORAGE_AUTO_CONNECT=true`, the storage page
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT=true`, the storage page
  *  automatically reconnects to the most recently used connection when the
  *  user navigates to `/storage`. Disabled by default — the user must choose
  *  a connection manually. */
 export const storageAutoConnectEnabled =
-  (env.PUBLIC_STACKABLE_UI_STORAGE_AUTO_CONNECT ?? 'false') === 'true';
+  (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT ?? 'false') === 'true';
 
 /** When `PUBLIC_STACKABLE_UI_STORAGE_RESTORE_TABS=true`, the file browser
  *  saves open tabs (their name, order, and location) to localStorage and
@@ -37,19 +37,19 @@ function parsePageSizes(raw: string | undefined): readonly number[] {
 }
 
 /** The set of page sizes available in paginated list views.
- *  Controlled by `PUBLIC_STACKABLE_UI_PAGE_SIZES` (comma-separated positive
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES` (comma-separated positive
  *  integers, e.g. `"10,25,50,100"`). Default: `25,50,100`.
  *  Values are deduplicated and sorted ascending. */
 export const allowedPageSizes: readonly number[] = parsePageSizes(
-  env.PUBLIC_STACKABLE_UI_PAGE_SIZES
+  env.PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES
 );
 
 /** The page size selected by default when no user preference is stored.
- *  Controlled by `PUBLIC_STACKABLE_UI_DEFAULT_PAGE_SIZE`.
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE`.
  *  Must be one of the values in `allowedPageSizes`; if the configured value
  *  is not in the allowed set it falls back to the first allowed size. */
 export const defaultPageSize: number = (() => {
-  const raw = env.PUBLIC_STACKABLE_UI_DEFAULT_PAGE_SIZE;
+  const raw = env.PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE;
   const parsed = parseInt(raw ?? '', 10);
   return allowedPageSizes.includes(parsed) ? parsed : (allowedPageSizes[0] ?? 25);
 })();
@@ -58,10 +58,10 @@ export const defaultPageSize: number = (() => {
 
 /** Maximum number of recently visited files and locations kept in localStorage
  *  for the storage browser history.
- *  Controlled by `PUBLIC_STACKABLE_UI_MAX_RECENT_FILES`. Default: 15.
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES`. Default: 15.
  *  Raise to retain a longer history; lower to reduce localStorage pressure on
  *  deployments that handle many distinct objects. Must be a positive integer. */
 export const maxRecentFiles: number = (() => {
-  const parsed = parseInt(env.PUBLIC_STACKABLE_UI_MAX_RECENT_FILES ?? '', 10);
+  const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES ?? '', 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 15;
 })();

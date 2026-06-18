@@ -10,6 +10,10 @@ import type { StoragePage, StorageMetadata } from '$lib/storage/types.js';
 export class HDFSStorageProvider implements StorageProvider {
   constructor(_config: HDFSConfig) {}
 
+  listContainers(): Promise<string[]> {
+    throw new Error('HDFS not implemented');
+  }
+
   listObjects(
     _prefix: string,
     _pageSize: number,
