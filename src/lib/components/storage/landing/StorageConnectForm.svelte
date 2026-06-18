@@ -13,7 +13,7 @@
     loadAllConnectionsLocally,
     removeConnectionLocally
   } from '$lib/storage/connection-storage.js';
-  import { storageAutoConnectEnabled } from '$lib/client/feature-flags.js';
+  import { storageAutoConnectEnabled, storageAutoConnectTimeoutMs } from '$lib/client/feature-flags.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
   import type { z } from 'zod';
 
@@ -35,7 +35,6 @@
   /** Connection pending the "Forget" confirmation. */
   let forgetCandidate: StoredConnection | null = $state(null);
 
-  const AUTO_CONNECT_TIMEOUT_MS = 15_000;
   let connectTimeout: ReturnType<typeof setTimeout> | null = $state(null);
 
   const { form, errors, enhance, submitting, message } = superForm(
@@ -115,7 +114,7 @@
           autoConnecting = false;
           connectTimeout = null;
           addToast('error', m.storage_connect_timeout(), 8000);
-        }, AUTO_CONNECT_TIMEOUT_MS);
+        }, storageAutoConnectTimeoutMs);
       });
     }
   });
