@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('$lib/server/storage/service.js', () => ({
-  listBuckets: vi.fn()
+const mockConnectionProvider = { listContainers: vi.fn() };
+vi.mock('$lib/server/storage/utils.js', () => ({
+  getConnectionProvider: () => mockConnectionProvider
 }));
 
 vi.mock('$lib/storage/schemas.js', () => ({
@@ -18,7 +19,6 @@ vi.mock('sveltekit-superforms/adapters', () => ({
 }));
 
 import { load, actions } from './+page.server.js';
-import { listBuckets } from '$lib/server/storage/service.js';
 import { superValidate } from 'sveltekit-superforms';
 
 function mockLocals() {
@@ -87,7 +87,7 @@ describe('storage page actions', () => {
         secretAccessKey: 'sk'
       }
     } as unknown as Awaited<ReturnType<typeof superValidate>>);
-    vi.mocked(listBuckets).mockRejectedValue(new Error('connection refused'));
+    mockConnectionProvider.listContainers.mockRejectedValue(new Error('connection refused'));
 
     const result = await actions.connect({
       request: new Request('http://localhost', { method: 'POST' }),
@@ -111,7 +111,7 @@ describe('storage page actions', () => {
         secretAccessKey: 'sk'
       }
     } as unknown as Awaited<ReturnType<typeof superValidate>>);
-    vi.mocked(listBuckets).mockResolvedValue(['b1']);
+    mockConnectionProvider.listContainers.mockResolvedValue(['b1']);
 
     await expect(
       actions.connect({
