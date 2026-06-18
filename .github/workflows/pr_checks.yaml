@@ -91,118 +91,10 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
 
-  debug-postgres:
-    name: Debug – PostgreSQL + Garage Testcontainer Readiness
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
-        with:
-          node-version-file: '.node-version'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Docker info
-        run: |
-          docker version
-          docker info
-
-      - name: Pre-pull Docker images (timed)
-        run: |
-          echo "=== Pulling postgres:18.4-alpine3.23 ==="
-          time docker pull postgres:18.4-alpine3.23
-          echo "=== Pulling oci.stackable.tech/stackable/dxflrs/garage:v2.3.0 ==="
-          time docker pull oci.stackable.tech/stackable/dxflrs/garage:v2.3.0
-
-      - name: Start and probe PostgreSQL testcontainer
-        run: |
-          cat > debug-postgres.ts << 'EOF'
-          import { PostgreSqlContainer } from '@testcontainers/postgresql';
-          import { Client } from 'pg';
-
-          async function main() {
-            console.log('Starting PostgreSQL testcontainer...');
-            const t0 = Date.now();
-            const container = await new PostgreSqlContainer('postgres:18.4-alpine3.23').start();
-            console.log(`Container started in ${Date.now() - t0}ms`);
-            console.log(`  ID:       ${container.getId()}`);
-            console.log(`  Host:     ${container.getHost()}`);
-            console.log(`  Port:     ${container.getPort()}`);
-            console.log(`  Database: ${container.getDatabase()}`);
-            console.log(`  User:     ${container.getUsername()}`);
-            console.log(`  URI:      ${container.getConnectionUri()}`);
-
-            const client = new Client({ connectionString: container.getConnectionUri() });
-            await client.connect();
-            const { rows } = await client.query<{ version: string }>('SELECT version()');
-            console.log(`  PostgreSQL version: ${rows[0].version}`);
-            await client.end();
-
-            console.log('Container is ready and accepting connections.');
-            await container.stop();
-            console.log('Container stopped cleanly.');
-          }
-
-          main().catch((err) => { console.error(err); process.exit(1); });
-          EOF
-          npx tsx debug-postgres.ts
-
-      - name: Start and probe Garage testcontainer
-        run: |
-          cat > debug-garage.ts << 'EOF'
-          import { GenericContainer, Wait } from 'testcontainers';
-          import path from 'path';
-
-          async function main() {
-            console.log('Starting Garage testcontainer...');
-            const t0 = Date.now();
-            const container = await new GenericContainer(
-              'oci.stackable.tech/stackable/dxflrs/garage:v2.3.0'
-            )
-              .withEntrypoint(['/garage'])
-              .withCommand(['server', '--single-node'])
-              .withEnvironment({ GARAGE_CONFIG_FILE: '/etc/garage/garage.toml' })
-              .withBindMounts([
-                {
-                  source: path.resolve('dev/garage/garage.toml'),
-                  target: '/etc/garage/garage.toml',
-                  mode: 'ro'
-                }
-              ])
-              .withExposedPorts(3900, 3902)
-              .withWaitStrategy(
-                Wait.forHttp('/health', 3902).forStatusCode(200)
-              )
-              .start();
-            console.log(`Container started in ${Date.now() - t0}ms`);
-            console.log(`  ID:       ${container.getId()}`);
-            console.log(`  Host:     ${container.getHost()}`);
-            console.log(`  S3 port:  ${container.getMappedPort(3900)}`);
-            console.log(`  Admin port: ${container.getMappedPort(3902)}`);
-
-            await container.stop();
-            console.log('Container stopped cleanly.');
-          }
-
-          main().catch((err) => { console.error(err); process.exit(1); });
-          EOF
-          npx tsx debug-garage.ts
-
   e2e-tests:
     name: E2E Tests with Garage S3 and PostgreSQL
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      TESTCONTAINERS_RYUK_VERBOSE: 'true'
-      DEBUG: testcontainers
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -220,11 +112,6 @@ jobs:
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox
-
-      - name: Pre-pull Docker images
-        run: |
-          docker pull postgres:18.4-alpine3.23
-          docker pull oci.stackable.tech/stackable/dxflrs/garage:v2.3.0
 
       - name: Run E2E tests with Garage and PostgreSQL
         run: npm run test:e2e

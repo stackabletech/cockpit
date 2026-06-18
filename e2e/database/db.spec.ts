@@ -1,10 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { Client } from 'pg';
 
-declare const process: {
-  env: Record<string, string | undefined>;
-};
-
 test.describe('Database connectivity', () => {
   test('connects to the database and reports the database as healthy', async () => {
     const client = new Client({

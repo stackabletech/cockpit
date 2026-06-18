@@ -17,9 +17,9 @@ export default defineConfig({
   },
   use: {
     baseURL,
-    trace: process.env.CI ? 'on' : 'retain-on-failure',
+    trace: 'retain-on-failure',
     video: 'retain-on-failure',
-    screenshot: process.env.CI ? 'on' : 'only-on-failure'
+    screenshot: 'only-on-failure'
   },
   webServer: [
     {
@@ -44,7 +44,7 @@ export default defineConfig({
     // Container teardown is handled by the function returned from globalSetup.
     {
       name: 'setup-db',
-      testMatch: /db\.setup\.ts/
+      testMatch: /db-migrations\.setup\.ts/
     },
     // Each browser project gets its own auth setup so that parallel workers
     // log in as different users. This prevents cross-worker races on shared
