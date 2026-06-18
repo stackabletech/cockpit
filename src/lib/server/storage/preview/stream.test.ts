@@ -7,6 +7,7 @@ const mockLog = { info: vi.fn(), debug: vi.fn(), warn: vi.fn() } as unknown as p
 
 function makeProvider(overrides: Partial<StorageProvider> = {}): StorageProvider {
   return {
+    listContainers: vi.fn(),
     listObjects: vi.fn(),
     getObject: vi
       .fn()

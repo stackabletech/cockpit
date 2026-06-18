@@ -5,7 +5,7 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
-  import IconBucket from 'virtual:icons/gravity-ui/bucket';
+  import IconBucket from '../shared/BucketIcon.svelte';
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import IconGridView from 'virtual:icons/material-symbols/grid-view';
   import * as m from '$lib/paraglide/messages.js';
@@ -15,10 +15,12 @@
 
   const storage = getStorageState();
 
-  // Detect the active bucket from the URL so the highlight stays on when
-  // navigating into any sub-prefix within the bucket.
+  // page.url may be undefined in the error boundary state (when a client-side
+  // universal load throws and SvelteKit transitions to the error state). Guard
+  // with optional chaining to avoid crashing the layout and escalating the
+  // error to the root fallback handler.
   const activeBucket = $derived.by(() => {
-    const match = page.url.pathname.match(/^\/storage\/([^/]+)/);
+    const match = page.url?.pathname?.match(/^\/storage\/([^/]+)/);
     return match ? decodeURIComponent(match[1]) : null;
   });
   const activePrefix = $derived(page.params.prefix ? page.params.prefix + '/' : '');

@@ -82,12 +82,6 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Compile Paraglide messages
-        run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
-
-      - name: Sync SvelteKit
-        run: npx svelte-kit sync
-
       - name: Run unit tests
         run: npm run test:unit
 
@@ -137,14 +131,10 @@ jobs:
             sleep 1
           done
 
-          GARAGE_ADMIN_TOKEN='stackable-ui-e2e-admin-token' \
+          GARAGE_ADMIN_TOKEN='stackable-cockpit-e2e-admin-token' \
             S3_ENDPOINT='http://localhost:3900' \
             S3_CONFIG_PATH="$PWD/s3-config.json" \
             ./e2e/init-garage-s3.sh
 
       - name: Run E2E tests with Garage
         run: npm run test:e2e:garage
-
-      - name: Debug - print config
-        run: cat s3-config.json
-        if: failure()

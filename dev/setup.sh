@@ -5,11 +5,13 @@ set -euo pipefail
 
 SKIP_TRINO=false
 SKIP_GARAGE=false
+SKIP_POSTGRESQL=false
 for arg in "$@"; do
   case "$arg" in
     --skip-trino) SKIP_TRINO=true ;;
     --skip-garage) SKIP_GARAGE=true ;;
-    *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino] [--skip-garage]"; exit 1 ;;
+    --skip-postgresql) SKIP_POSTGRESQL=true ;;
+    *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino] [--skip-garage] [--skip-postgresql]"; exit 1 ;;
   esac
 done
 
@@ -17,12 +19,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$PROJECT_DIR/.env.development"
 
-echo "=== Stackable UI dev environment setup ==="
+echo "=== Stackable Cockpit dev environment setup ==="
 if [[ "$SKIP_TRINO" == true ]]; then
   echo "(Trino deployment skipped via --skip-trino)"
 fi
 if [[ "$SKIP_GARAGE" == true ]]; then
   echo "(Garage deployment skipped via --skip-garage)"
+fi
+if [[ "$SKIP_POSTGRESQL" == true ]]; then
+  echo "(PostgreSQL deployment skipped via --skip-postgresql)"
 fi
 echo ""
 
@@ -91,6 +96,18 @@ if [[ "$SKIP_GARAGE" == false ]]; then
     --timeout 60s
 fi
 
+# ------------------------------------------------------------------
+# 5c. Deploy PostgreSQL 18 (via Helm)
+# ------------------------------------------------------------------
+if [[ "$SKIP_POSTGRESQL" == false ]]; then
+  echo ""
+  echo "Deploying PostgreSQL 18..."
+  helm upgrade --install postgresql "$SCRIPT_DIR/postgresql" \
+    --namespace default \
+    --wait \
+    --timeout 60s
+fi
+
 # On some local Kubernetes distributions (e.g. Rancher Desktop k3s), the node's
 # InternalIP is not reachable from the host network, but NodePorts are exposed
 # on localhost. Probe both and use the first reachable URL.
@@ -127,7 +144,7 @@ if kcadm get realms/stackable --fields realm 2>/dev/null | grep -q '"stackable"'
   echo "Realm 'stackable' already exists, skipping Keycloak configuration."
   # Still need to fetch the client secret
   CLIENT_UUID=$(kcadm get clients -r stackable --fields id,clientId \
-    | grep -B1 '"stackable-ui"' | grep '"id"' | sed 's/.*: *"\(.*\)".*/\1/')
+    | grep -B1 '"stackable-cockpit"' | grep '"id"' | sed 's/.*: *"\(.*\)".*/\1/')
   SECRET=$(kcadm get clients/"$CLIENT_UUID"/client-secret -r stackable --fields value \
     | grep '"value"' | sed 's/.*: *"\(.*\)".*/\1/')
 else
@@ -143,10 +160,10 @@ else
     -s realm=stackable \
     -s enabled=true
 
-  echo "Creating client 'stackable-ui'..."
+  echo "Creating client 'stackable-cockpit'..."
   CLIENT_UUID=$(kcadm create clients \
     -r stackable \
-    -s clientId=stackable-ui \
+    -s clientId=stackable-cockpit \
     -s enabled=true \
     -s protocol=openid-connect \
     -s publicClient=false \
@@ -206,7 +223,7 @@ if [[ "$SKIP_GARAGE" == false ]]; then
   deadline=$(( $(date +%s) + 60 ))
   while [ -z "$GARAGE_BASE_URL" ] && [ "$(date +%s)" -lt "$deadline" ]; do
     for base in "http://${NODE_IP}:${GARAGE_ADMIN_PORT}" "http://127.0.0.1:${GARAGE_ADMIN_PORT}" "http://localhost:${GARAGE_ADMIN_PORT}"; do
-      if curl -sf --max-time 2 -H "Authorization: Bearer stackable-ui-e2e-admin-token" "${base}/v2/ListBuckets" >/dev/null 2>&1; then
+      if curl -sf --max-time 2 -H "Authorization: Bearer stackable-cockpit-e2e-admin-token" "${base}/v2/ListBuckets" >/dev/null 2>&1; then
         GARAGE_BASE_URL="$base"
         break
       fi
@@ -224,7 +241,7 @@ if [[ "$SKIP_GARAGE" == false ]]; then
   GARAGE_HOST=$(echo "$GARAGE_BASE_URL" | sed 's|http://||; s|:[0-9]*$||')
   GARAGE_S3_URL="http://${GARAGE_HOST}:${GARAGE_S3_PORT}"
 
-  GARAGE_ADMIN_TOKEN=stackable-ui-e2e-admin-token \
+  GARAGE_ADMIN_TOKEN=stackable-cockpit-e2e-admin-token \
     S3_ENDPOINT="$GARAGE_S3_URL" \
     GARAGE_ADMIN_URL="$GARAGE_BASE_URL" \
     S3_CONFIG_PATH="$PROJECT_DIR/s3-config.json" \
@@ -244,6 +261,20 @@ if [ -f "$ENV_FILE" ]; then
   cp "$ENV_FILE" "$ENV_FILE.bak"
 fi
 
+if [[ "$SKIP_POSTGRESQL" == false ]]; then
+  echo ""
+  echo "Waiting for PostgreSQL to be ready..."
+  kubectl wait --for=condition=ready pod -l app=postgresql --timeout=60s
+
+  echo "Running database migrations..."
+  DATABASE_HOST=localhost \
+    DATABASE_PORT=31432 \
+    DATABASE_NAME=cockpit \
+    DATABASE_USER=cockpit \
+    DATABASE_PASSWORD=cockpit-dev-password \
+    npx tsx src/lib/server/migrate.ts
+fi
+
 if [[ "$SKIP_TRINO" == false ]]; then
   TRINO_PORT=$(kubectl get svc trino-coordinator -o jsonpath='{.spec.ports[0].nodePort}')
 
@@ -261,28 +292,52 @@ fi
 
 if [[ "$SKIP_TRINO" == false ]]; then
   cat > "$ENV_FILE" <<EOF
-STACKABLE_UI_OIDC_DISCOVERY_URL=${KEYCLOAK_BASE_URL}/realms/stackable/.well-known/openid-configuration
-STACKABLE_UI_OIDC_CLIENT_ID=stackable-ui
-STACKABLE_UI_OIDC_CLIENT_SECRET=${SECRET}
-STACKABLE_UI_SESSION_SECRET=${SESSION_SECRET}
-STACKABLE_UI_BASE_URL=http://localhost:5173
-STACKABLE_UI_TRINO_URL=${TRINO_BASE_URL}
-STACKABLE_UI_TRINO_AUTH_TYPE=basic
-STACKABLE_UI_TRINO_AUTH_USERNAME=stackable-ui
-STACKABLE_UI_TRINO_AUTH_PASSWORD=stackable-ui-dev
-STACKABLE_UI_TRINO_TLS_INSECURE=true
-STACKABLE_UI_STORAGE_BROWSER_ENABLED=true
-PUBLIC_STACKABLE_UI_STORAGE_AUTO_CONNECT=true
+STACKABLE_COCKPIT_OIDC_DISCOVERY_URL=${KEYCLOAK_BASE_URL}/realms/stackable/.well-known/openid-configuration
+STACKABLE_COCKPIT_OIDC_CLIENT_ID=stackable-cockpit
+STACKABLE_COCKPIT_OIDC_CLIENT_SECRET=${SECRET}
+STACKABLE_COCKPIT_SESSION_SECRET=${SESSION_SECRET}
+STACKABLE_COCKPIT_BASE_URL=http://localhost:5173
+STACKABLE_COCKPIT_TRINO_URL=${TRINO_BASE_URL}
+STACKABLE_COCKPIT_TRINO_AUTH_TYPE=basic
+STACKABLE_COCKPIT_TRINO_AUTH_USERNAME=stackable-cockpit
+STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD=stackable-cockpit-dev
+STACKABLE_COCKPIT_TRINO_TLS_INSECURE=true
+STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true
+STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES=262144
+STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES=5242880
+STACKABLE_COCKPIT_PDF_PREVIEW_BYTES=26214400
+STACKABLE_COCKPIT_FILE_PREVIEW_ROWS=250
+PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT=true
+PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES=25,50,100
+PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE=25
+PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES=15
+DATABASE_HOST=localhost
+DATABASE_PORT=31432
+DATABASE_NAME=cockpit
+DATABASE_USER=cockpit
+DATABASE_PASSWORD=cockpit-dev-password
 EOF
 else
   cat > "$ENV_FILE" <<EOF
-STACKABLE_UI_OIDC_DISCOVERY_URL=${KEYCLOAK_BASE_URL}/realms/stackable/.well-known/openid-configuration
-STACKABLE_UI_OIDC_CLIENT_ID=stackable-ui
-STACKABLE_UI_OIDC_CLIENT_SECRET=${SECRET}
-STACKABLE_UI_SESSION_SECRET=${SESSION_SECRET}
-STACKABLE_UI_BASE_URL=http://localhost:5173
-STACKABLE_UI_STORAGE_BROWSER_ENABLED=true
-PUBLIC_STACKABLE_UI_STORAGE_AUTO_CONNECT=true
+STACKABLE_COCKPIT_OIDC_DISCOVERY_URL=${KEYCLOAK_BASE_URL}/realms/stackable/.well-known/openid-configuration
+STACKABLE_COCKPIT_OIDC_CLIENT_ID=stackable-cockpit
+STACKABLE_COCKPIT_OIDC_CLIENT_SECRET=${SECRET}
+STACKABLE_COCKPIT_SESSION_SECRET=${SESSION_SECRET}
+STACKABLE_COCKPIT_BASE_URL=http://localhost:5173
+STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true
+STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES=262144
+STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES=5242880
+STACKABLE_COCKPIT_PDF_PREVIEW_BYTES=26214400
+STACKABLE_COCKPIT_FILE_PREVIEW_ROWS=250
+PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT=true
+PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES=25,50,100
+PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE=25
+PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES=15
+DATABASE_HOST=localhost
+DATABASE_PORT=31432
+DATABASE_NAME=cockpit
+DATABASE_USER=cockpit
+DATABASE_PASSWORD=cockpit-dev-password
 EOF
 fi
 
@@ -292,11 +347,11 @@ echo "Wrote $ENV_FILE"
 # 9. Create Kubernetes Secret for the Helm chart
 # ------------------------------------------------------------------
 echo ""
-echo "Creating stackable-ui-credentials Secret..."
-kubectl delete secret stackable-ui-credentials --ignore-not-found
-kubectl create secret generic stackable-ui-credentials \
+echo "Creating stackable-cockpit-credentials Secret..."
+kubectl delete secret stackable-cockpit-credentials --ignore-not-found
+kubectl create secret generic stackable-cockpit-credentials \
   --from-literal=oidc-client-secret="$SECRET" \
-  --from-literal=trino-auth-password=stackable-ui-dev
+  --from-literal=trino-auth-password=stackable-cockpit-dev
 
 # ------------------------------------------------------------------
 # 10. Wait for Trino to be ready
@@ -323,15 +378,23 @@ echo ""
 if [[ "$SKIP_TRINO" == false ]]; then
   echo "Trino endpoint: https://${NODE_IP}:${TRINO_PORT}"
   echo ""
-  echo "Trino connection is pre-configured via STACKABLE_UI_TRINO_* env vars."
+  echo "Trino connection is pre-configured via STACKABLE_COCKPIT_TRINO_* env vars."
   echo ""
 else
-  echo "Trino was skipped. Add STACKABLE_UI_TRINO_* vars to $ENV_FILE manually when ready."
+  echo "Trino was skipped. Add STACKABLE_COCKPIT_TRINO_* vars to $ENV_FILE manually when ready."
   echo ""
 fi
 if [[ "$SKIP_GARAGE" == false ]]; then
   echo "Garage S3:      http://${NODE_IP}:30900  (admin: http://${NODE_IP}:30902)"
   echo "  Credentials written to s3-config.json for E2E tests."
+  echo ""
+fi
+if [[ "$SKIP_POSTGRESQL" == false ]]; then
+  echo "PostgreSQL:     localhost:31432"
+  echo "  Database:     cockpit"
+  echo "  User:         cockpit"
+  echo "  Password:     cockpit-dev-password"
+  echo "  Environment:  DATABASE_HOST, DATABASE_PORT, DATABASE_NAME, DATABASE_USER, DATABASE_PASSWORD"
   echo ""
 fi
 echo "Test users (OIDC):"

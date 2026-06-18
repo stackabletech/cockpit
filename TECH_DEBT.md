@@ -30,11 +30,11 @@ S3 connection credentials (access key ID and secret access key) are persisted in
 
 ---
 
-### In-memory storage connection state
+### Download endpoint buffers entire object in browser memory
 
-**File:** `src/lib/server/storage/user-connections.ts`
+**File:** `src/lib/storage/download.ts`
 
-Per-user S3 connection configs (endpoint, region, credentials) are stored in a server-side `Map`. All connections are lost on server restart and cannot be shared across multiple replicas. Acceptable for the initial phase; mirrors the same pattern used by the Trino user-clients module. Long-term fix: persist encrypted connection configs server-side, tied to the authenticated session.
+`downloadObject` fetches the full S3 object body via the `/storage/api/download` endpoint, buffers it as a `Blob` in browser memory, then triggers a programmatic anchor click. This is simpler than streaming directly to disk but means the entire object must fit in browser memory before the save dialog appears. Acceptable for the current object sizes; for very large files (multiple GiB) this will cause memory pressure. Long-term fix: use the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) `createWritable()` to stream bytes directly to disk without buffering, with a fallback to the current Blob approach for Firefox (which does not support `showSaveFilePicker`).
 
 ---
 
@@ -74,7 +74,7 @@ The Download action is intentionally restricted to a single file at a time. Mult
 
 **File:** `src/lib/server/trino/queries.ts:20`
 
-Completed query snapshots (including result rows) are cleaned up after `STACKABLE_UI_QUERY_TTL` seconds (default 1800). If a user leaves and returns later, the results will be gone. Consider persisting results to disk or a cache with configurable TTL.
+Completed query snapshots (including result rows) are cleaned up after `STACKABLE_COCKPIT_QUERY_TTL` seconds (default 1800). If a user leaves and returns later, the results will be gone. Consider persisting results to disk or a cache with configurable TTL.
 
 ---
 
@@ -128,14 +128,6 @@ The dev server accepts requests from any host. This enables DNS rebinding attack
 
 ---
 
-### Upload endpoint uses in-memory S3 credentials
-
-**File:** `src/routes/(app)/storage/api/upload/+server.ts`, `src/lib/server/storage/user-connections.ts`
-
-The upload endpoint reads S3 credentials from the same per-user in-memory connection map used by download and preview. This introduces no additional security risk beyond what is already documented in the "In-memory storage connection state" entry above. Long-term fix: same as that entry — persist encrypted credentials server-side.
-
----
-
 ### No server-side file size limit on uploads (v0)
 
 **File:** `src/routes/(app)/storage/api/upload/+server.ts`
@@ -146,6 +138,6 @@ The upload endpoint imposes no maximum file size. S3's 5 TB single-object limit 
 
 ### No `/readyz` endpoint — readiness uses the trivial liveness probe
 
-**File:** `src/routes/healthz/+server.ts`, `deploy/helm/stackable-ui/values.yaml`
+**File:** `src/routes/healthz/+server.ts`, `deploy/helm/cockpit/values.yaml`
 
 Both `livenessProbe` and `readinessProbe` point at `/healthz`, which always returns 200. There is currently nothing meaningful to gate readiness on (better-auth uses an in-memory session store, OIDC discovery is fetched lazily on first auth call), so a separate `/readyz` would just be a placeholder. Once one of these lands — a real session store / DB, eager OIDC discovery, or a startup-time cache warm — split into `/healthz` (liveness, trivial) and `/readyz` (readiness, checking the new dependency), and update the helm probes accordingly.

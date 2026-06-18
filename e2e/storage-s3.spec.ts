@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForHydration } from './helpers.js';
+import { waitForHydration } from './support/helpers';
 
 declare const process: {
   env: Record<string, string | undefined>;

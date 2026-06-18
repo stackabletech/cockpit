@@ -168,14 +168,22 @@ describe('UploadModal', () => {
       render(UploadModal, { ...defaultProps, prefix });
       await selectAndUpload([createFile('report.csv')]);
 
-      expect(mockCheckObjectExists).toHaveBeenCalledWith(expect.any(String), 'data/report.csv');
+      expect(mockCheckObjectExists).toHaveBeenCalledWith(
+        expect.any(String),
+        'data/report.csv',
+        expect.any(String)
+      );
     });
 
     it('should use filename directly when prefix is empty', async () => {
       render(UploadModal, { ...defaultProps, prefix: '' });
       await selectAndUpload([createFile('report.csv')]);
 
-      expect(mockCheckObjectExists).toHaveBeenCalledWith(expect.any(String), 'report.csv');
+      expect(mockCheckObjectExists).toHaveBeenCalledWith(
+        expect.any(String),
+        'report.csv',
+        expect.any(String)
+      );
     });
   });
 
@@ -196,7 +204,8 @@ describe('UploadModal', () => {
         defaultProps.bucket,
         'a.txt',
         expect.any(File),
-        expect.any(Function)
+        expect.any(Function),
+        expect.any(String)
       );
     });
 
@@ -337,7 +346,8 @@ describe('UploadModal', () => {
         expect.any(String),
         expect.any(String),
         expect.any(File),
-        expect.any(Function)
+        expect.any(Function),
+        expect.any(String)
       );
     });
 
@@ -439,7 +449,8 @@ describe('UploadModal', () => {
         expect.any(String),
         'folder/sub/data.csv',
         expect.any(File),
-        expect.any(Function)
+        expect.any(Function),
+        expect.any(String)
       );
     });
   });
@@ -510,12 +521,17 @@ describe('UploadModal', () => {
       render(UploadModal, { ...defaultProps, bucket });
       await selectAndUpload([createFile('a.txt')]);
 
-      expect(mockCheckObjectExists).toHaveBeenCalledWith(bucket, expect.any(String));
+      expect(mockCheckObjectExists).toHaveBeenCalledWith(
+        bucket,
+        expect.any(String),
+        expect.any(String)
+      );
       expect(mockUploadFile).toHaveBeenCalledWith(
         bucket,
         expect.any(String),
         expect.any(File),
-        expect.any(Function)
+        expect.any(Function),
+        expect.any(String)
       );
     });
 
@@ -540,7 +556,7 @@ describe('UploadModal', () => {
       await expect.element(page.getByRole('status')).toBeInTheDocument();
     });
 
-    it('should close button be disabled during upload', async () => {
+    it('should show cancel button during upload', async () => {
       const upload = deferred<void>();
       mockUploadFile.mockReturnValue(upload.promise);
 
@@ -550,9 +566,9 @@ describe('UploadModal', () => {
 
       await page.getByRole('button', { name: /upload/i }).click();
 
-      // The close button is disabled while an upload is in progress.
-      const closeBtn = page.getByRole('button', { name: /close/i });
-      await expect.element(closeBtn).toBeDisabled();
+      // The cancel button is visible while an upload is in progress.
+      const cancelBtn = page.getByRole('button', { name: /cancel/i });
+      await expect.element(cancelBtn).toBeInTheDocument();
 
       // Resolve the upload so the component reaches 'complete' cleanly before
       // teardown, avoiding a state update on a destroyed component.

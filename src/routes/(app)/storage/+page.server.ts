@@ -3,21 +3,13 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import type { Actions, PageServerLoad } from './$types';
 import { StorageConnectionSchema } from '$lib/storage/schemas.js';
-import { getUserId } from '$lib/server/auth-utils.js';
-import {
-  getConnection,
-  saveConnection,
-  clearConnection,
-  listBuckets
-} from '$lib/server/storage/service.js';
+import { getConnectionProvider } from '$lib/server/storage/utils.js';
 import type { S3ConnectionConfig } from '$lib/server/storage/types.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const connectionForm = await superValidate(zod(StorageConnectionSchema));
-  const userId = getUserId(locals);
-  const connected = getConnection(userId) !== null;
-  locals.logger.debug({ connected }, 'loading storage page');
-  return { connectionForm, connected };
+  locals.logger.debug('loading storage page');
+  return { connectionForm };
 };
 
 export const actions: Actions = {
@@ -30,7 +22,6 @@ export const actions: Actions = {
       return fail(400, { form });
     }
 
-    const userId = getUserId(locals);
     const { type, endpoint, pathStyle, region, accessKeyId, secretAccessKey } = form.data;
 
     if (type !== 's3') {
@@ -47,11 +38,9 @@ export const actions: Actions = {
     };
 
     try {
-      saveConnection(userId, config);
-      await listBuckets(userId);
-      log.info({ storage_type: type }, 'user storage connection verified and saved');
+      await getConnectionProvider(config).listContainers();
+      log.info({ storage_type: type }, 'user storage connection verified');
     } catch (err) {
-      clearConnection(userId);
       log.warn({ err }, 'storage connection test failed');
       return message(form, 'Could not connect — check the endpoint and credentials.', {
         status: 400
@@ -62,9 +51,7 @@ export const actions: Actions = {
   },
 
   disconnect: async ({ locals }) => {
-    const userId = getUserId(locals);
-    clearConnection(userId);
-    locals.logger.info({ user_id: userId }, 'user storage connection cleared');
+    locals.logger.info('user storage connection cleared');
     throw redirect(303, '/storage?disconnected=1');
   }
 };

@@ -1,12 +1,6 @@
 import type pino from 'pino';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
-
-/** Maximum bytes fetched for text-based previews (256 KiB). */
-const TEXT_PREVIEW_BYTES = 256 * 1024;
-/** Maximum bytes fetched for image previews (5 MiB). */
-const IMAGE_PREVIEW_BYTES = 5 * 1024 * 1024;
-/** Maximum bytes fetched for PDF previews (25 MiB). */
-const PDF_PREVIEW_BYTES = 25 * 1024 * 1024;
+import { textPreviewBytes, imagePreviewBytes, pdfPreviewBytes } from '$lib/server/feature-flags.js';
 
 export async function streamPreview(
   provider: StorageProvider,
@@ -18,11 +12,11 @@ export async function streamPreview(
 ): Promise<Response> {
   let limitBytes: number;
   if (contentType.startsWith('image/')) {
-    limitBytes = IMAGE_PREVIEW_BYTES;
+    limitBytes = imagePreviewBytes;
   } else if (contentType === 'application/pdf') {
-    limitBytes = PDF_PREVIEW_BYTES;
+    limitBytes = pdfPreviewBytes;
   } else {
-    limitBytes = TEXT_PREVIEW_BYTES;
+    limitBytes = textPreviewBytes;
   }
 
   const previewBytes = Math.min(totalSize, limitBytes);

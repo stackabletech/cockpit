@@ -8,6 +8,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { checkObjectExists, uploadFile, UploadError } from '$lib/storage/upload.js';
   import { formatFileSize } from '$lib/storage/utils.js';
+  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
   import UploadDropzone from './UploadDropzone.svelte';
   import UploadConflictEntry from './UploadConflictEntry.svelte';
   import UploadEntryStatus from './UploadEntryStatus.svelte';
@@ -26,6 +27,8 @@
 
   let phase = $state<Phase>('idle');
   let entries = $state<FileEntry[]>([]);
+
+  let cancelRequested = $state(false);
 
   // Reset when modal closes.
   $effect(() => {
@@ -96,17 +99,27 @@
 
   async function startUploadFlow() {
     if (phase !== 'selected') return;
+    cancelRequested = false;
     phase = 'checking';
+
+    const conn = loadConnectionLocally();
+    const connHeader = conn ? getConnectionHeader(conn) : '';
 
     const results = await Promise.all(
       entries.map(async (e) => {
         try {
-          return { id: e.id, conflict: await checkObjectExists(bucket, e.targetKey) };
+          return { id: e.id, conflict: await checkObjectExists(bucket, e.targetKey, connHeader) };
         } catch {
           return { id: e.id, conflict: false };
         }
       })
     );
+
+    if (cancelRequested) {
+      phase = 'idle';
+      entries = [];
+      return;
+    }
 
     const conflictMap = new Map(results.map((r) => [r.id, r.conflict]));
     entries = entries.map((e) => ({
@@ -125,6 +138,7 @@
 
   async function confirmAndUpload() {
     if (!canProceed) return;
+    cancelRequested = false;
     await doUploadAll();
   }
 
@@ -139,10 +153,19 @@
     const toUpload = entries.filter((e) => e.status !== 'skipped');
     const concurrency = 3;
     for (let i = 0; i < toUpload.length; i += concurrency) {
+      if (cancelRequested) {
+        const pending = new Set(toUpload.slice(i).map((e) => e.id));
+        entries = entries.map((e) =>
+          pending.has(e.id) ? { ...e, status: 'skipped' as const } : e
+        );
+        break;
+      }
       await Promise.all(toUpload.slice(i, i + concurrency).map(doUploadEntry));
     }
 
-    phase = 'complete';
+    if (!cancelRequested) {
+      phase = 'complete';
+    }
   }
 
   async function doUploadEntry(entry: FileEntry) {
@@ -150,10 +173,18 @@
     entries = entries.map((e) =>
       e.id === entry.id ? { ...e, status: 'uploading' as const, progress: 0 } : e
     );
+    const conn = loadConnectionLocally();
+    const connHeader = conn ? getConnectionHeader(conn) : '';
     try {
-      await uploadFile(bucket, key, entry.file, (pct) => {
-        entries = entries.map((e) => (e.id === entry.id ? { ...e, progress: pct } : e));
-      });
+      await uploadFile(
+        bucket,
+        key,
+        entry.file,
+        (pct) => {
+          entries = entries.map((e) => (e.id === entry.id ? { ...e, progress: pct } : e));
+        },
+        connHeader
+      );
       entries = entries.map((e) =>
         e.id === entry.id ? { ...e, status: 'done' as const, progress: 100 } : e
       );
@@ -215,8 +246,10 @@
 
     entries = entries.map((e) => (e.id === id ? { ...e, renameState: 'checking' as const } : e));
     const newKey = resolvedKey(entry);
+    const conn = loadConnectionLocally();
+    const connHeader = conn ? getConnectionHeader(conn) : '';
     try {
-      const exists = await checkObjectExists(bucket, newKey);
+      const exists = await checkObjectExists(bucket, newKey, connHeader);
       const nextState: RenameState = exists ? 'conflict' : 'ok';
       entries = entries.map((e) => (e.id === id ? { ...e, renameState: nextState } : e));
     } catch {
@@ -234,7 +267,12 @@
   }
 
   function handleCancel() {
-    if (phase === 'uploading') return;
+    if (phase === 'uploading') {
+      cancelRequested = true;
+      open = false;
+      return;
+    }
+    cancelRequested = true;
     phase = 'idle';
     entries = [];
     open = false;
@@ -270,7 +308,6 @@
       <button
         class="btn btn-ghost btn-sm btn-square"
         onclick={handleCancel}
-        disabled={phase === 'uploading'}
         aria-label={m.storage_upload_close()}
       >
         <IconClose class="size-5" aria-hidden="true" />
@@ -324,9 +361,12 @@
 
       <!-- ── checking ─────────────────────────────────────────────────────── -->
     {:else if phase === 'checking'}
-      <div class="flex items-center justify-center gap-3 py-8" aria-live="polite">
+      <div class="flex flex-col items-center justify-center gap-3 py-8" aria-live="polite">
         <span class="loading loading-spinner loading-sm text-primary" aria-hidden="true"></span>
         <span class="text-base-content/60 text-sm">{m.storage_upload_checking()}</span>
+        <button class="btn btn-ghost btn-sm mt-2" onclick={handleCancel}>
+          {m.storage_upload_overwrite_cancel()}
+        </button>
       </div>
 
       <!-- ── review: conflict resolution ──────────────────────────────────── -->
@@ -380,6 +420,11 @@
           <UploadEntryStatus {entry} />
         {/each}
       </ul>
+      <div class="flex justify-end">
+        <button class="btn btn-ghost btn-sm" onclick={handleCancel}>
+          {m.storage_upload_overwrite_cancel()}
+        </button>
+      </div>
 
       <!-- ── complete ───────────────────────────────────────────────────────── -->
     {:else if phase === 'complete'}

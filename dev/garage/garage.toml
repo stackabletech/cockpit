@@ -1,5 +1,5 @@
-metadata_dir = "/tmp/stackable-ui/meta"
-data_dir = "/tmp/stackable-ui/data"
+metadata_dir = "/tmp/stackable-cockpit/meta"
+data_dir = "/tmp/stackable-cockpit/data"
 db_engine = "sqlite"
 
 replication_factor = 1
@@ -10,7 +10,7 @@ rpc_secret = "2eef98a70ab343ba9dadf3809f38d63a2333a9f38909a3f3d3f3d3f3d3f3d3f3"
 
 [admin]
 api_bind_addr = "[::]:3902"
-admin_token = "stackable-ui-e2e-admin-token"
+admin_token = "stackable-cockpit-e2e-admin-token"
 
 [s3_api]
 s3_region = "garage"

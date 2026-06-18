@@ -1,7 +1,5 @@
 import type { LayoutServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
-import { getConnection, listBuckets } from '$lib/server/storage/service.js';
-import { getUserId } from '$lib/server/auth-utils.js';
 import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
@@ -9,18 +7,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     throw error(404, 'Not found');
   }
 
-  const userId = getUserId(locals);
-  const connection = getConnection(userId);
+  locals.logger.debug('loading storage layout');
 
-  if (!connection) {
-    return { connected: false, buckets: [] as string[], connectionType: null };
-  }
-
-  try {
-    const buckets = await listBuckets(userId);
-    return { connected: true, buckets, connectionType: connection.type };
-  } catch (err) {
-    locals.logger.warn({ err }, 'failed to list buckets for storage layout');
-    return { connected: true, buckets: [] as string[], connectionType: connection.type };
-  }
+  // Connected state and bucket list are determined client-side from localStorage
+  // and populated by the universal +layout.ts load after hydration.
+  return { connected: false, buckets: [] as string[], connectionType: null };
 };

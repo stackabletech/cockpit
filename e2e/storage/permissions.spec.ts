@@ -127,6 +127,7 @@ test.describe('Storage S3 — Permissions', () => {
     });
 
     await connectToStorage(page, noAccessCredentials);
+    await expect(page).toHaveURL('/storage');
     await page.goto(bucketRoute(noAccessBucket));
 
     await expect(page.getByText('403')).toBeVisible();
