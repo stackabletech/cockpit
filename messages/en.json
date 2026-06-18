@@ -315,6 +315,14 @@
   "storage_upload_rename_confirm": "Upload with this name",
   "storage_upload_retry": "Retry",
   "storage_upload_close": "Close",
+  "storage_action_create": "Create",
+  "storage_create_file": "New text file",
+  "storage_create_folder": "New directory",
+  "storage_create_name": "Name",
+  "storage_create_placeholder": "Enter name\u2026",
+  "storage_create_confirm": "Create",
+  "storage_create_cancel": "Cancel",
+  "storage_create_error": "Failed to create {name}",
   "timestamp_just_now": "just now",
   "timestamp_minutes_ago": [
     {

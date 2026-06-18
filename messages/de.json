@@ -315,6 +315,14 @@
   "storage_upload_rename_confirm": "Mit diesem Namen hochladen",
   "storage_upload_retry": "Erneut versuchen",
   "storage_upload_close": "Schlie\u00dfen",
+  "storage_action_create": "Erstellen",
+  "storage_create_file": "Neue Textdatei",
+  "storage_create_folder": "Neues Verzeichnis",
+  "storage_create_name": "Name",
+  "storage_create_placeholder": "Namen eingeben\u2026",
+  "storage_create_confirm": "Erstellen",
+  "storage_create_cancel": "Abbrechen",
+  "storage_create_error": "{name} konnte nicht erstellt werden",
   "timestamp_just_now": "gerade eben",
   "timestamp_minutes_ago": [
     {
