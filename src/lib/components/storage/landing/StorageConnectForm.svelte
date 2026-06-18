@@ -2,7 +2,7 @@
   import type { SuperValidated } from 'sveltekit-superforms';
   import { superForm } from 'sveltekit-superforms';
   import { zod4 as zod } from 'sveltekit-superforms/adapters';
-  import { onMount, tick, untrack } from 'svelte';
+  import { onMount, onDestroy, tick, untrack } from 'svelte';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconStorage from 'virtual:icons/material-symbols/storage';
   import * as m from '$lib/paraglide/messages.js';
@@ -14,6 +14,7 @@
     removeConnectionLocally
   } from '$lib/storage/connection-storage.js';
   import { storageAutoConnectEnabled } from '$lib/client/feature-flags.js';
+  import { addToast } from '$lib/stores/toast.svelte.js';
   import type { z } from 'zod';
 
   type StoredConnection = z.infer<typeof StorageConnectionSchema>;
@@ -34,11 +35,18 @@
   /** Connection pending the "Forget" confirmation. */
   let forgetCandidate: StoredConnection | null = $state(null);
 
+  const AUTO_CONNECT_TIMEOUT_MS = 15_000;
+  let connectTimeout: ReturnType<typeof setTimeout> | null = $state(null);
+
   const { form, errors, enhance, submitting, message } = superForm(
     untrack(() => connectionForm),
     {
       validators: zod(StorageConnectionSchema),
       onResult: ({ result }) => {
+        if (connectTimeout) {
+          clearTimeout(connectTimeout);
+          connectTimeout = null;
+        }
         if (result.type === 'redirect') {
           saveConnectionLocally($form);
         } else {
@@ -78,6 +86,15 @@
     forgetCandidate = null;
   }
 
+  /** Cancel an in-progress auto-connect attempt. */
+  function cancelAutoConnect() {
+    if (connectTimeout) {
+      clearTimeout(connectTimeout);
+      connectTimeout = null;
+    }
+    autoConnecting = false;
+  }
+
   onMount(() => {
     allConnections = loadAllConnectionsLocally();
     connectionsLoaded = true;
@@ -92,7 +109,20 @@
       $form.region = saved.region;
       $form.accessKeyId = saved.accessKeyId ?? '';
       $form.secretAccessKey = saved.secretAccessKey ?? '';
-      tick().then(() => formRef?.requestSubmit());
+      tick().then(() => {
+        formRef?.requestSubmit();
+        connectTimeout = setTimeout(() => {
+          autoConnecting = false;
+          connectTimeout = null;
+          addToast('error', m.storage_connect_timeout(), 8000);
+        }, AUTO_CONNECT_TIMEOUT_MS);
+      });
+    }
+  });
+
+  onDestroy(() => {
+    if (connectTimeout) {
+      clearTimeout(connectTimeout);
     }
   });
 </script>
@@ -102,6 +132,9 @@
     <div class="flex flex-col items-center gap-3 py-8">
       <span class="loading loading-spinner loading-md"></span>
       <p class="text-base-content/60 text-sm">{m.storage_connect_reconnecting()}</p>
+      <button type="button" class="btn btn-ghost btn-sm mt-2" onclick={cancelAutoConnect}>
+        {m.storage_connect_cancel()}
+      </button>
     </div>
   {/if}
 
@@ -127,7 +160,7 @@
           role="list"
           aria-label={m.storage_connect_saved()}
         >
-          {#each allConnections as conn (conn.type + '|' + (conn.endpoint ?? '') + '|' + (conn.accessKeyId ?? ''))}
+          {#each [...allConnections].reverse() as conn (conn.type + '|' + (conn.endpoint ?? '') + '|' + (conn.accessKeyId ?? ''))}
             <div class="relative shrink-0" role="listitem">
               <button
                 type="button"

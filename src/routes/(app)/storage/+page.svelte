@@ -11,7 +11,7 @@
 </script>
 
 {#if data.connected}
-  <div class="relative flex h-full min-h-0 flex-col overflow-hidden p-2">
+  <div class="relative flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto p-2">
     {#if navigating?.to?.url.pathname.startsWith('/storage/')}
       <div
         class="bg-base-100/70 absolute inset-0 z-10 flex items-center justify-center rounded-xl"
@@ -24,6 +24,8 @@
     <h1 class="mb-1 text-xl font-semibold">{m.storage_buckets_label()}</h1>
     <p class="text-base-content/60 mb-6 text-sm">{m.storage_buckets_subtitle()}</p>
     <BucketGrid buckets={storage.buckets} />
+  </div>
+  <div class="relative flex h-full min-h-0 flex-col overflow-y-auto p-2">
     <RecentItems />
   </div>
 {:else}
