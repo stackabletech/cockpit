@@ -71,6 +71,7 @@
   }
 
   // ── Fixed tooltip (avoids overflow clipping that breaks DaisyUI tooltips) ──
+  // Note: This is a temporary solution until it's fixed in daisyUI 5.6: https://github.com/saadeghi/daisyui/issues/3346#issuecomment-4544975800
   let tooltipText = $state<string | null>(null);
   let tooltipX = $state(0);
   let tooltipY = $state(0);
