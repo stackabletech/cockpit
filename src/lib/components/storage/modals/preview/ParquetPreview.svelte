@@ -134,7 +134,6 @@
           );
           loadedChunks[c] = placeholder;
 
-           
           fetchRows(
             c * CHUNK_SIZE,
             CHUNK_SIZE,
