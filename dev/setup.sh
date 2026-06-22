@@ -224,7 +224,8 @@ if [[ "$SKIP_GARAGE" == false ]]; then
   GARAGE_HOST=$(echo "$GARAGE_BASE_URL" | sed 's|http://||; s|:[0-9]*$||')
   GARAGE_S3_URL="http://${GARAGE_HOST}:${GARAGE_S3_PORT}"
 
-  GARAGE_ADMIN_TOKEN=stackable-cockpit-e2e-admin-token \
+  S3_SECRET_ACCESS_KEY=$(openssl rand -hex 32) \
+    GARAGE_ADMIN_TOKEN=stackable-cockpit-e2e-admin-token \
     S3_ENDPOINT="$GARAGE_S3_URL" \
     GARAGE_ADMIN_URL="$GARAGE_BASE_URL" \
     S3_CONFIG_PATH="$PROJECT_DIR/s3-config.json" \

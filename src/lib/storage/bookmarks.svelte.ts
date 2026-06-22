@@ -9,11 +9,28 @@ import {
 import { maxRecentFiles } from '$lib/client/feature-flags.js';
 import { SvelteDate, SvelteSet } from 'svelte/reactivity';
 
+function dedupByKey<T>(items: T[], keyFn: (item: T) => string): T[] {
+  const seen = new SvelteSet<string>();
+  return items.filter((item) => {
+    const key = keyFn(item);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export class BookmarksState {
-  pinnedLocations = $state<PinnedLocation[]>(loadFromStorage<PinnedLocation>(LS_PINS));
-  recentFiles = $state<RecentFile[]>(loadFromStorage<RecentFile>(LS_RECENT_FILES));
+  pinnedLocations = $state<PinnedLocation[]>(
+    dedupByKey(loadFromStorage<PinnedLocation>(LS_PINS), (p) => p.bucket + '\0' + p.prefix)
+  );
+  recentFiles = $state<RecentFile[]>(
+    dedupByKey(loadFromStorage<RecentFile>(LS_RECENT_FILES), (f) => f.bucket + '\0' + f.key)
+  );
   recentLocations = $state<RecentLocation[]>(
-    loadFromStorage<RecentLocation>(LS_RECENT_LOCATIONS).filter((l) => Boolean(l.bucket))
+    dedupByKey(
+      loadFromStorage<RecentLocation>(LS_RECENT_LOCATIONS).filter((l) => Boolean(l.bucket)),
+      (l) => l.bucket + '\0' + l.prefix
+    )
   );
 
   pin(bucket: string, prefix: string): void {
