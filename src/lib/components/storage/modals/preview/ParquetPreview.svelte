@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { untrack, onMount } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getLocale } from '$lib/paraglide/runtime.js';
 
@@ -47,25 +47,35 @@
     return ctx.measureText(text).width;
   }
 
-  $effect(() => {
-    if (initialRows) {
-      untrack(() => {
-        loadedChunks = { 0: initialRows };
-        loadingChunks.clear();
-        scrollTop = 0;
-        // Scan initial data to determine max content width per column
-        const CELL_PADDING = 16;
-        const widths = headers.map((h) => textWidth(h));
-        for (const row of initialRows) {
-          if (!row) continue;
-          for (let i = 0; i < headers.length; i++) {
-            const val = row[i];
-            const str = val !== null && val !== undefined ? String(val) : '';
-            const w = textWidth(str);
-            if (w > widths[i]) widths[i] = w;
-          }
+  // Sync initial data from parent into the virtual-scroll chunk system.
+  // When initialRows changes (e.g. streaming NDJSON data arrived), replace chunk 0.
+  function populateChunk0() {
+    if (initialRows && initialRows.length > 0) {
+      loadedChunks = { 0: initialRows };
+      loadingChunks.clear();
+      scrollTop = 0;
+      // Scan initial data to determine max content width per column
+      const CELL_PADDING = 16;
+      const widths = headers.map((h) => textWidth(h));
+      for (const row of initialRows) {
+        if (!row) continue;
+        for (let i = 0; i < headers.length; i++) {
+          const val = row[i];
+          const str = val !== null && val !== undefined ? String(val) : '';
+          const w = textWidth(str);
+          if (w > widths[i]) widths[i] = w;
         }
-        columnWidths = widths.map((w) => Math.max(w + CELL_PADDING, 80));
+      }
+      columnWidths = widths.map((w) => Math.max(w + CELL_PADDING, 80));
+    }
+  }
+
+  onMount(populateChunk0);
+
+  $effect(() => {
+    if (initialRows && initialRows.length > 0) {
+      untrack(() => {
+        populateChunk0();
       });
     }
   });
@@ -124,18 +134,26 @@
           );
           loadedChunks[c] = placeholder;
 
-          fetchRows(c * CHUNK_SIZE, CHUNK_SIZE, (name, values) => {
-            // Column data arrived: fill in values for this column in the placeholder chunk
-            const colIdx = headers.indexOf(name);
-            if (colIdx < 0) return;
-            const chunk = loadedChunks[c];
-            if (!chunk) return;
-            for (let i = 0; i < values.length && i < chunk.length; i++) {
-              if (chunk[i]) chunk[i][colIdx] = values[i];
-            }
-            // Create new reference so Svelte detects the update immediately
-            loadedChunks = { ...loadedChunks };
-          })
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          fetchRows(c * CHUNK_SIZE, CHUNK_SIZE, (() => {
+            // Track per-column position within this chunk because hyparquet
+            // may split column data across multiple messages.
+            const colPos: Record<string, number> = {};
+            return (name: string, values: unknown[]) => {
+              const colIdx = headers.indexOf(name);
+              if (colIdx < 0) return;
+              const chunk = loadedChunks[c];
+              if (!chunk) return;
+              let pos = colPos[name] ?? 0;
+              for (let i = 0; i < values.length && pos < chunk.length; i++) {
+                if (chunk[pos]) chunk[pos][colIdx] = values[i];
+                pos++;
+              }
+              colPos[name] = pos;
+              // Create new reference so Svelte detects the update immediately
+              loadedChunks = { ...loadedChunks };
+            };
+          })())
             .then((data) => {
               loadingChunks.delete(c);
               // Replace placeholder with fully populated data

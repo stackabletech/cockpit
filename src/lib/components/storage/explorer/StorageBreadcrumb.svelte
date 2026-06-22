@@ -153,7 +153,7 @@
           aria-current="page"
           oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
         >
-          <IconStorage class="size-4" aria-hidden="true" />
+          <IconStorage class="pointer-events-none size-4" aria-hidden="true" />
           {storage.bucket}
         </span>
         {@render pinButton(storage.bucket, '')}
@@ -177,7 +177,10 @@
       </span>
     {/if}
     {#if collapsedParts.length > 0}
-      <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
+      <IconChevronRight
+        class="text-base-content/30 pointer-events-none size-4 shrink-0"
+        aria-hidden="true"
+      />
       <div class="dropdown">
         <button
           tabindex="0"
@@ -219,7 +222,10 @@
     {/if}
     {#each visibleParts as part, i (part.prefix)}
       {@const isCurrent = i === visibleParts.length - 1}
-      <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
+      <IconChevronRight
+        class="text-base-content/30 pointer-events-none size-4 shrink-0"
+        aria-hidden="true"
+      />
       <span class="group flex min-w-0 items-center gap-1">
         {#if isCurrent}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
