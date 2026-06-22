@@ -134,26 +134,30 @@
           );
           loadedChunks[c] = placeholder;
 
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          fetchRows(c * CHUNK_SIZE, CHUNK_SIZE, (() => {
-            // Track per-column position within this chunk because hyparquet
-            // may split column data across multiple messages.
-            const colPos: Record<string, number> = {};
-            return (name: string, values: unknown[]) => {
-              const colIdx = headers.indexOf(name);
-              if (colIdx < 0) return;
-              const chunk = loadedChunks[c];
-              if (!chunk) return;
-              let pos = colPos[name] ?? 0;
-              for (let i = 0; i < values.length && pos < chunk.length; i++) {
-                if (chunk[pos]) chunk[pos][colIdx] = values[i];
-                pos++;
-              }
-              colPos[name] = pos;
-              // Create new reference so Svelte detects the update immediately
-              loadedChunks = { ...loadedChunks };
-            };
-          })())
+           
+          fetchRows(
+            c * CHUNK_SIZE,
+            CHUNK_SIZE,
+            (() => {
+              // Track per-column position within this chunk because hyparquet
+              // may split column data across multiple messages.
+              const colPos: Record<string, number> = {};
+              return (name: string, values: unknown[]) => {
+                const colIdx = headers.indexOf(name);
+                if (colIdx < 0) return;
+                const chunk = loadedChunks[c];
+                if (!chunk) return;
+                let pos = colPos[name] ?? 0;
+                for (let i = 0; i < values.length && pos < chunk.length; i++) {
+                  if (chunk[pos]) chunk[pos][colIdx] = values[i];
+                  pos++;
+                }
+                colPos[name] = pos;
+                // Create new reference so Svelte detects the update immediately
+                loadedChunks = { ...loadedChunks };
+              };
+            })()
+          )
             .then((data) => {
               loadingChunks.delete(c);
               // Replace placeholder with fully populated data
