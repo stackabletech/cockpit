@@ -1,4 +1,4 @@
-import { listBuckets } from '$lib/server/storage/service.js';
+import { getConnectionProvider } from '$lib/server/storage/utils.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -10,7 +10,7 @@ import type { RequestHandler } from './$types';
  * in hooks.server.ts before this handler runs.
  */
 export const GET: RequestHandler = async ({ locals }) => {
-  const buckets = await listBuckets(locals.storageConfig!);
+  const buckets = await getConnectionProvider(locals.storageConfig!).listContainers();
   locals.logger.debug({ bucket_count: buckets.length }, 'bucket list returned');
   return Response.json(buckets);
 };

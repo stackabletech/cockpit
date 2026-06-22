@@ -432,7 +432,7 @@
         <button
           class="btn btn-ghost btn-sm btn-square"
           onclick={toggleMaximized}
-          aria-label="Restore"
+          aria-label={m.storage_preview_restore()}
         >
           <IconCloseFullscreen class="size-4" aria-hidden="true" />
         </button>
@@ -440,7 +440,7 @@
         <button
           class="btn btn-ghost btn-sm btn-square"
           onclick={toggleMaximized}
-          aria-label="Maximise"
+          aria-label={m.storage_preview_maximise()}
         >
           <IconOpenInFull class="size-4" aria-hidden="true" />
         </button>

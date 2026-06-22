@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { uploadObject } from '$lib/server/storage/service.js';
+import { getProvider } from '$lib/server/storage/utils.js';
 import { requireBucketKey } from '../params.js';
 import type { RequestHandler } from './$types';
 
@@ -33,7 +33,12 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
     'upload request received'
   );
 
-  await uploadObject(locals.storageConfig!, bucket, key, request.body, contentType, contentLength);
+  await getProvider(locals.storageConfig!, bucket).putObject(
+    key,
+    request.body,
+    contentType,
+    contentLength
+  );
 
   log.info(
     { bucket, key, content_type: contentType, content_length: contentLength },

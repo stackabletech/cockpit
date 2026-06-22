@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { downloadObject, getObjectMetadata } from '$lib/server/storage/service.js';
+import { getProvider } from '$lib/server/storage/utils.js';
 import { requireBucketKey } from '../params.js';
 
 /** Derive the bare filename from a (possibly path-prefixed) object key. */
@@ -23,7 +23,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
   locals.logger.debug({ bucket, key }, 'download request received');
 
-  const download = await downloadObject(locals.storageConfig!, bucket, key);
+  const download = await getProvider(locals.storageConfig!, bucket).getObject(key);
 
   const filename = filenameFromKey(key);
   // RFC 5987 encoding for non-ASCII filenames in Content-Disposition
@@ -64,7 +64,7 @@ export const HEAD: RequestHandler = async ({ locals, url }) => {
 
   locals.logger.debug({ bucket, key }, 'download pre-flight check');
 
-  const meta = await getObjectMetadata(locals.storageConfig!, bucket, key);
+  const meta = await getProvider(locals.storageConfig!, bucket).getMetadata(key);
 
   return new Response(null, {
     status: 200,

@@ -14,3 +14,16 @@ export function getProvider(config: S3ConnectionConfig, bucket: string): Storage
 
   return StorageProviderFactory.create({ ...config, bucket });
 }
+
+/**
+ * Construct a connection-scoped storage provider for operations that do not
+ * require a specific bucket (e.g. listing all buckets).
+ * Throws a 400 HTTP error if the connection type is not supported.
+ */
+export function getConnectionProvider(config: S3ConnectionConfig): StorageProvider {
+  if (config.type !== 's3') {
+    throw error(400, 'Storage backend not supported');
+  }
+
+  return StorageProviderFactory.create({ ...config, bucket: '' });
+}

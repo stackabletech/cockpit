@@ -61,7 +61,7 @@
       <thead>
         <tr class="bg-base-200 text-base-content/60 sticky top-0 z-10 text-xs">
           <th class="text-base-content/30 w-10 text-right font-normal" id="{uid}-line-hdr"></th>
-          {#each headers as header (header)}
+          {#each headers as header, i (i)}
             <th class="font-semibold whitespace-nowrap">{header}</th>
           {/each}
         </tr>
