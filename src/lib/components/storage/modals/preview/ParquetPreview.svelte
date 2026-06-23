@@ -37,8 +37,6 @@
   // Calculate column widths once on load to prevent width shifts during scrolling
   let columnWidths = $state<number[]>([]);
 
-<<<<<<< HEAD
-=======
   // Measure actual rendered text width using canvas for cross-browser consistency
   function textWidth(text: string): number {
     if (typeof document === 'undefined') return text.length * 7;
@@ -74,28 +72,10 @@
 
   onMount(populateChunk0);
 
->>>>>>> origin/feat/s3-file-browser-preview-parquet
   $effect(() => {
     if (initialRows && initialRows.length > 0) {
       untrack(() => {
-<<<<<<< HEAD
-        loadedChunks = { 0: initialRows };
-        loadingChunks.clear();
-        scrollTop = 0;
-        // Scan initial data to determine max content width per column
-        const widths = headers.map((h) => h.length);
-        for (const row of initialRows) {
-          if (!row) continue;
-          for (let i = 0; i < headers.length; i++) {
-            const val = row[i];
-            const len = val !== null && val !== undefined ? String(val).length : 0;
-            if (len > widths[i]) widths[i] = len;
-          }
-        }
-        columnWidths = widths;
-=======
         populateChunk0();
->>>>>>> origin/feat/s3-file-browser-preview-parquet
       });
     }
   });
@@ -213,22 +193,14 @@
       bind:clientHeight={containerHeight}
       onscroll={(e) => (scrollTop = e.currentTarget.scrollTop)}
     >
-<<<<<<< HEAD
-      <table class="table-xs table min-w-max table-fixed" aria-label="Parquet preview">
-=======
       <table class="table-xs table table-fixed" aria-label="Parquet preview">
->>>>>>> origin/feat/s3-file-browser-preview-parquet
         <thead class="bg-base-200 text-base-content/60 sticky top-0 z-10 text-xs shadow-sm">
           <tr>
             <th class="text-base-content/30 w-10 text-right font-normal"></th>
             {#each headers as header, j (header)}
               <th
                 class="truncate font-semibold"
-<<<<<<< HEAD
-                style="width: {Math.max(columnWidths[j] * 7.5 + 16, 80)}px">{header}</th
-=======
                 style={columnWidths.length > 0 ? `width: ${columnWidths[j]}px` : ''}>{header}</th
->>>>>>> origin/feat/s3-file-browser-preview-parquet
               >
             {/each}
           </tr>
@@ -248,16 +220,10 @@
                 >{(row.index + 1).toLocaleString(getLocale())}</td
               >
               {#if row.data !== null && row.data !== undefined}
-<<<<<<< HEAD
-                {#each headers as header, j (j)}
-                  {#if row.data[j] !== undefined}
-                    <td class="text-base-content/80 truncate text-xs" title={header}>
-=======
-                <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+              <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
                 {#each headers as _h, j (j)}
                   {#if row.data[j] !== undefined}
                     <td class="text-base-content/80 truncate text-xs">
->>>>>>> origin/feat/s3-file-browser-preview-parquet
                       {row.data[j] !== null ? String(row.data[j]) : ''}
                     </td>
                   {:else}
@@ -268,14 +234,9 @@
                 {/each}
               {:else}
                 <!-- Skeleton State (full row not yet initialized) -->
-<<<<<<< HEAD
-                {#each headers as header, j (j)}
-                  <td class="p-1" title={header}>
-=======
                 <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
                 {#each headers as _h, j (j)}
                   <td class="p-1">
->>>>>>> origin/feat/s3-file-browser-preview-parquet
                     <div class="bg-base-300/40 h-4 w-full animate-pulse rounded"></div>
                   </td>
                 {/each}

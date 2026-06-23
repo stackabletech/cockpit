@@ -1,16 +1,6 @@
 <script lang="ts">
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
-<<<<<<< HEAD
-  import {
-    fileIconKind,
-    iconColors,
-    keyToName,
-    formatFileSize,
-    isArchiveExtension
-  } from '$lib/storage/utils.js';
-=======
-  import { keyToName, formatFileSize } from '$lib/storage/utils.js';
->>>>>>> origin/feat/s3-file-browser-preview-parquet
+  import { keyToName, formatFileSize, isArchiveExtension } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
   import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
   import FileIconAndName from './file-icon/FileIconAndName.svelte';
@@ -26,12 +16,7 @@
 
   const selected = $derived(storage.selectedKeys.has(file.key));
   const isCtx = $derived(storage.contextMenu?.key === file.key);
-<<<<<<< HEAD
-  const kind = $derived(fileIconKind(file.contentType));
-  const color = $derived(iconColors[kind]);
   const isArchive = $derived(isArchiveExtension(file.key));
-=======
->>>>>>> origin/feat/s3-file-browser-preview-parquet
 </script>
 
 <tr

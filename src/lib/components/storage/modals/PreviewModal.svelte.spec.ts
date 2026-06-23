@@ -102,8 +102,6 @@ describe('PreviewModal basics', () => {
     });
   });
 
-<<<<<<< HEAD
-=======
   describe('text preview', () => {
     it('should render text content after fetch completes', async () => {
       render(PreviewModal, defaultProps);
@@ -612,7 +610,6 @@ describe('PreviewModal basics', () => {
     });
   });
 
->>>>>>> origin/feat/s3-file-browser-preview-parquet
   describe('accessibility', () => {
     it('should have a dialog role', async () => {
       render(PreviewModal, defaultProps);

@@ -1,6 +1,7 @@
 import { page } from 'vitest/browser';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { faker } from '@faker-js/faker';
 import CsvPreview from './CsvPreview.svelte';
 
 describe('CsvPreview', () => {
@@ -65,11 +66,19 @@ describe('CsvPreview', () => {
     await expect.element(page.getByRole('cell', { name: 'Doe, Jane' })).toBeInTheDocument();
   });
 
-<<<<<<< HEAD
   it('should handle TSV with quoted fields containing tabs', async () => {
     const tsv = 'name\tnote\nAlice\t"likes\ttabs"\nBob\tplain';
     render(CsvPreview, { text: tsv });
-=======
+
+    const table = page.getByRole('table', { name: 'CSV preview' });
+    await expect.element(table).toBeInTheDocument();
+
+    await expect.element(page.getByRole('cell', { name: 'Alice' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'likes tabs' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'Bob' })).toBeInTheDocument();
+    await expect.element(page.getByRole('cell', { name: 'plain' })).toBeInTheDocument();
+  });
+
   it('should handle quoted fields with commas', async () => {
     const text = 'Name,Address\n"Smith, John","123 Main St, Apt 4"';
     render(CsvPreview, { text });
@@ -118,22 +127,11 @@ describe('CsvPreview', () => {
     );
     const text = [header, ...rows].join('\n');
     render(CsvPreview, { text });
->>>>>>> origin/feat/s3-file-browser-preview-parquet
 
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();
-
-    await expect.element(page.getByRole('cell', { name: 'Alice' })).toBeInTheDocument();
-    await expect.element(page.getByRole('cell', { name: 'likes tabs' })).toBeInTheDocument();
-    await expect.element(page.getByRole('cell', { name: 'Bob' })).toBeInTheDocument();
-    await expect.element(page.getByRole('cell', { name: 'plain' })).toBeInTheDocument();
   });
 
-<<<<<<< HEAD
-  it('should handle headers with special characters', async () => {
-    const csv = 'first name,last.name,email-address\nJohn,Doe,john@example.com';
-    render(CsvPreview, { text: csv });
-=======
   it('should render empty string for missing columns (row shorter than headers)', async () => {
     const text = 'A,B,C\n1';
     render(CsvPreview, { text });
@@ -159,7 +157,15 @@ describe('CsvPreview', () => {
   it('should handle header-only CSV', async () => {
     const text = 'Name,Email,City';
     render(CsvPreview, { text });
->>>>>>> origin/feat/s3-file-browser-preview-parquet
+
+    const table = page.getByRole('table', { name: 'CSV preview' });
+    await expect.element(table).toBeInTheDocument();
+    await expect.element(page.getByText('Name')).toBeInTheDocument();
+  });
+
+  it('should handle headers with special characters', async () => {
+    const csv = 'first name,last.name,email-address\nJohn,Doe,john@example.com';
+    render(CsvPreview, { text: csv });
 
     const table = page.getByRole('table', { name: 'CSV preview' });
     await expect.element(table).toBeInTheDocument();

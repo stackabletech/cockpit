@@ -256,16 +256,11 @@
       </div>
     {/if}
     {#each visibleParts as part, i (part.prefix)}
-<<<<<<< HEAD
       {@const isCurrent = !storage.isInArchive && i === visibleParts.length - 1}
-      <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
-=======
-      {@const isCurrent = i === visibleParts.length - 1}
       <IconChevronRight
         class="text-base-content/30 pointer-events-none size-4 shrink-0"
         aria-hidden="true"
       />
->>>>>>> origin/feat/s3-file-browser-preview-parquet
       <span class="group flex min-w-0 items-center gap-1">
         {#if isCurrent}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
