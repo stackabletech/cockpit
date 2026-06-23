@@ -13,7 +13,10 @@
     loadAllConnectionsLocally,
     removeConnectionLocally
   } from '$lib/storage/connection-storage.js';
-  import { storageAutoConnectEnabled, storageAutoConnectTimeoutMs } from '$lib/client/feature-flags.js';
+  import {
+    storageAutoConnectEnabled,
+    storageAutoConnectTimeoutMs
+  } from '$lib/client/feature-flags.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
   import type { z } from 'zod';
 
