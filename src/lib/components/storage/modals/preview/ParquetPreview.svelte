@@ -14,6 +14,8 @@
       onColumn?: (name: string, values: unknown[]) => void
     ) => Promise<unknown[][]>;
     showingRowsCount?: number;
+    /** When true, skip scroll-based chunk loading (e.g. tab is visually hidden). */
+    hidden?: boolean;
   }
 
   let {
@@ -21,7 +23,8 @@
     initialRows,
     totalRows = 0,
     fetchRows,
-    showingRowsCount = $bindable(0)
+    showingRowsCount = $bindable(0),
+    hidden = false
   }: Props = $props();
 
   const CHUNK_SIZE = 250; // magic number: rows to display
@@ -73,7 +76,7 @@
   onMount(populateChunk0);
 
   $effect(() => {
-    if (initialRows && initialRows.length > 0) {
+    if (initialRows && initialRows.length > 0 && !hidden) {
       untrack(() => {
         populateChunk0();
       });
@@ -115,7 +118,7 @@
 
   // Monitor scroll boundaries to safely trigger background chunk fetching
   $effect(() => {
-    if (!fetchRows) return;
+    if (!fetchRows || hidden) return;
 
     const currentStart = startIndex;
     const currentEnd = endIndex;

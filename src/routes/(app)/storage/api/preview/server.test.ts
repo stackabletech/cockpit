@@ -17,7 +17,15 @@ vi.mock('$lib/server/storage/preview/stream.js', () => ({
 
 vi.mock('$lib/server/storage/preview/parquet.js', () => ({
   getParquetPreview: vi.fn(
-    async () =>
+    async (
+      _provider: unknown,
+      _key: string,
+      _offset: number,
+      _limit: number,
+      _log: unknown,
+      _totalSize: number,
+      _includeData: boolean
+    ) =>
       new Response(JSON.stringify({ headers: ['a'], rows: [['1']], totalRows: 1 }), {
         headers: { 'X-Preview-Format': 'parquet', 'X-Preview-Renderable': 'true' }
       })
@@ -108,7 +116,8 @@ describe('GET /storage/api/preview', () => {
       0,
       250,
       expect.anything(),
-      5000
+      5000,
+      false
     );
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
@@ -127,7 +136,8 @@ describe('GET /storage/api/preview', () => {
       0,
       250,
       expect.anything(),
-      5000
+      5000,
+      false
     );
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
@@ -146,7 +156,8 @@ describe('GET /storage/api/preview', () => {
       500,
       100,
       expect.anything(),
-      50000
+      50000,
+      false
     );
   });
 
@@ -164,7 +175,8 @@ describe('GET /storage/api/preview', () => {
       0,
       250,
       expect.anything(),
-      0
+      0,
+      false
     );
   });
 

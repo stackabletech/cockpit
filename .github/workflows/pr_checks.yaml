@@ -131,8 +131,8 @@ jobs:
             sleep 1
           done
 
-          GARAGE_ADMIN_TOKEN='stackable-cockpit-e2e-admin-token' \
-            S3_ENDPOINT='http://localhost:3900' \
+          S3_SECRET_ACCESS_KEY="e2e-test-secret-key-for-ci" \
+            GARAGE_ADMIN_TOKEN='stackable-cockpit-e2e-admin-token' \
             S3_CONFIG_PATH="$PWD/s3-config.json" \
             ./e2e/init-garage-s3.sh
 

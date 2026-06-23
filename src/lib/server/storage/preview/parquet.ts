@@ -1,9 +1,20 @@
 import { gunzipSync } from 'node:zlib';
-import { parquetMetadataAsync, parquetRead, parquetSchema, type FileMetaData } from 'hyparquet';
+import {
+  parquetMetadataAsync,
+  parquetRead,
+  parquetSchema,
+  type FileMetaData,
+  type CompressionCodec,
+  type SchemaTree
+} from 'hyparquet';
 import { compressors } from 'hyparquet-compressors';
 import type pino from 'pino';
 import { logger } from '$lib/server/logging';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
+import {
+  parquetDisallowedCompression,
+  type ParquetDisallowedCompression
+} from '$lib/server/feature-flags';
 
 const fallbackLog = logger.child({ module: 'parquet-preview' });
 
@@ -26,6 +37,30 @@ setInterval(() => {
 }, 60 * 1000).unref();
 // -------------------------------------
 
+/**
+ * Check whether a parquet file's row groups contain any column matching a
+ * disallowed compression rule.
+ */
+function findBlockingRule(
+  meta: FileMetaData,
+  disallowed: ParquetDisallowedCompression[]
+): ParquetDisallowedCompression | undefined {
+  return disallowed.find((rule) =>
+    meta.row_groups.some((group) =>
+      group.columns.some((col) => {
+        if (col.meta_data?.codec !== rule.codec) return false;
+        if (!rule.requireOffsetIndex) return true;
+        const hasOffsetIndex =
+          col.offset_index_offset !== undefined &&
+          col.offset_index_offset !== null &&
+          col.offset_index_length !== undefined &&
+          col.offset_index_length > 0;
+        return !hasOffsetIndex;
+      })
+    )
+  );
+}
+
 function stringifyStructuredParquetValue(value: object): string {
   return JSON.stringify(value, (_key, nestedValue: unknown) => {
     if (typeof nestedValue === 'bigint') return nestedValue.toString();
@@ -33,6 +68,103 @@ function stringifyStructuredParquetValue(value: object): string {
     if (nestedValue instanceof Uint8Array) return Array.from(nestedValue);
     return nestedValue;
   });
+}
+
+/** Extract a human-readable type string from a schema element. */
+function describeColumnType(element: SchemaTree['element']): string {
+  if (element.logical_type) {
+    const lt = element.logical_type;
+    if (lt.type === 'STRING') return 'string';
+    if (lt.type === 'INTEGER') return `int(${lt.bitWidth})`;
+    if (lt.type === 'DECIMAL') return `decimal(${lt.precision},${lt.scale})`;
+    if (lt.type === 'DATE') return 'date';
+    if (lt.type === 'TIME') return 'time';
+    if (lt.type === 'TIMESTAMP') return 'timestamp';
+    if (lt.type === 'ENUM') return 'enum';
+    if (lt.type === 'UUID') return 'uuid';
+    if (lt.type === 'JSON') return 'json';
+    if (lt.type === 'BSON') return 'bson';
+    if (lt.type === 'MAP') return 'map';
+    if (lt.type === 'LIST') return 'list';
+    if (lt.type === 'FLOAT16') return 'float16';
+    if (lt.type === 'VARIANT') return 'variant';
+    if (lt.type === 'NULL') return 'null';
+    if (lt.type === 'INTERVAL') return 'interval';
+    if (lt.type === 'GEOMETRY') return 'geometry';
+    if (lt.type === 'GEOGRAPHY') return 'geography';
+  }
+  if (element.converted_type) {
+    if (element.converted_type === 'UTF8') return 'string';
+    if (element.converted_type === 'MAP') return 'map';
+    if (element.converted_type === 'LIST') return 'list';
+    if (element.converted_type === 'ENUM') return 'enum';
+    if (element.converted_type === 'DECIMAL')
+      return `decimal(${element.precision},${element.scale})`;
+    if (element.converted_type === 'DATE') return 'date';
+    if (element.converted_type === 'TIME_MILLIS') return 'time_ms';
+    if (element.converted_type === 'TIME_MICROS') return 'time_us';
+    if (element.converted_type === 'TIMESTAMP_MILLIS') return 'timestamp_ms';
+    if (element.converted_type === 'TIMESTAMP_MICROS') return 'timestamp_us';
+    if (element.converted_type === 'UINT_8') return 'uint8';
+    if (element.converted_type === 'UINT_16') return 'uint16';
+    if (element.converted_type === 'UINT_32') return 'uint32';
+    if (element.converted_type === 'UINT_64') return 'uint64';
+    if (element.converted_type === 'INT_8') return 'int8';
+    if (element.converted_type === 'INT_16') return 'int16';
+    if (element.converted_type === 'INT_32') return 'int32';
+    if (element.converted_type === 'INT_64') return 'int64';
+    if (element.converted_type === 'JSON') return 'json';
+    if (element.converted_type === 'BSON') return 'bson';
+    if (element.converted_type === 'INTERVAL') return 'interval';
+  }
+  if (element.type === 'BOOLEAN') return 'boolean';
+  if (element.type === 'INT32') return 'int32';
+  if (element.type === 'INT64') return 'int64';
+  if (element.type === 'INT96') return 'int96';
+  if (element.type === 'FLOAT') return 'float';
+  if (element.type === 'DOUBLE') return 'double';
+  if (element.type === 'BYTE_ARRAY') return 'binary';
+  if (element.type === 'FIXED_LEN_BYTE_ARRAY') return 'fixed_binary';
+  return 'unknown';
+}
+
+/** Collect the unique compression codecs used across all row groups. */
+function collectCompressionCodecs(meta: FileMetaData): CompressionCodec[] {
+  const codecs = new Set<CompressionCodec>();
+  for (const group of meta.row_groups) {
+    for (const col of group.columns) {
+      if (col.meta_data?.codec) {
+        codecs.add(col.meta_data.codec);
+      }
+    }
+  }
+  return Array.from(codecs);
+}
+
+/** Check whether the file has an offset index on at least one column. */
+function hasOffsetIndex(meta: FileMetaData): boolean {
+  return meta.row_groups.some((group) =>
+    group.columns.some(
+      (col) =>
+        col.offset_index_offset !== undefined &&
+        col.offset_index_offset !== null &&
+        col.offset_index_length !== undefined &&
+        col.offset_index_length > 0
+    )
+  );
+}
+
+/** Check whether the file has a column index on at least one column. */
+function hasColumnIndex(meta: FileMetaData): boolean {
+  return meta.row_groups.some((group) =>
+    group.columns.some(
+      (col) =>
+        col.column_index_offset !== undefined &&
+        col.column_index_offset !== null &&
+        col.column_index_length !== undefined &&
+        col.column_index_length > 0
+    )
+  );
 }
 
 function toSerializableParquetCell(value: unknown): string | number | boolean | null {
@@ -73,17 +205,27 @@ export async function getParquetPreview(
   offset = 0,
   limit = 250,
   requestLog: pino.Logger = fallbackLog,
-  totalSize?: number
+  totalSize?: number,
+  includeData = false
 ): Promise<Response> {
   const log = requestLog.child({ module: 'parquet-preview' });
   const byteLength = totalSize ?? (await provider.getMetadata(key)).size;
 
   if (byteLength === 0) {
-    return new Response(JSON.stringify({ t: 'h', h: [], tr: 0 }) + '\n', {
+    const meta = {
+      rowGroups: 0,
+      compressionCodecs: [] as string[],
+      hasOffsetIndex: false,
+      hasColumnIndex: false,
+      createdBy: null as string | null,
+      version: 0
+    };
+    return new Response(JSON.stringify({ t: 'h', h: [], tr: 0, s: [], m: meta }) + '\n', {
       headers: {
         'Content-Type': 'application/x-ndjson',
         'X-Preview-Format': 'parquet',
         'X-Preview-Renderable': 'true',
+        'X-Preview-Data-Blocked': 'false',
         'X-Preview-Total-Size': '0',
         'X-Preview-Total-Rows': '0',
         'X-Preview-Offset': String(offset),
@@ -126,23 +268,69 @@ export async function getParquetPreview(
   }
 
   const totalRows = Number(parquetMeta.num_rows);
-  const headers = parquetSchema(parquetMeta).children.map((entry) => entry.element.name);
+  const schemaTree = parquetSchema(parquetMeta);
+  const headers = schemaTree.children.map((entry) => entry.element.name);
+
+  const columnTypes = schemaTree.children.map((entry) => ({
+    name: entry.element.name,
+    type: describeColumnType(entry.element)
+  }));
+  const metadata = {
+    rowGroups: parquetMeta.row_groups.length,
+    compressionCodecs: collectCompressionCodecs(parquetMeta),
+    hasOffsetIndex: hasOffsetIndex(parquetMeta),
+    hasColumnIndex: hasColumnIndex(parquetMeta),
+    createdBy: parquetMeta.created_by ?? null,
+    version: parquetMeta.version
+  };
+
+  // ── Check if compression rules disallow data preview ─────────
+  const blockingRule = findBlockingRule(parquetMeta, parquetDisallowedCompression);
+
+  // Always return header message with schema + metadata (even when blocked).
+  // When blocked, set data-blocked header and never stream column data.
+  if (blockingRule || !includeData) {
+    log.warn(
+      { key, codec: blockingRule?.codec, require_offset_index: blockingRule?.requireOffsetIndex },
+      blockingRule ? 'Blocked parquet preview by compression rule' : 'Metadata-only parquet request'
+    );
+    const extraHeaders: Record<string, string> = {};
+    if (blockingRule) extraHeaders['X-Preview-Data-Blocked'] = 'true';
+    return new Response(
+      JSON.stringify({ t: 'h', h: headers, tr: totalRows, s: columnTypes, m: metadata }) + '\n',
+      {
+        headers: {
+          'Content-Type': 'application/x-ndjson',
+          'X-Preview-Format': 'parquet',
+          'X-Preview-Renderable': 'true',
+          ...extraHeaders,
+          'X-Preview-Total-Size': String(byteLength),
+          'X-Preview-Total-Rows': String(totalRows),
+          'X-Preview-Offset': String(offset),
+          'Cache-Control': 'no-store'
+        }
+      }
+    );
+  }
 
   const actualLimit = Math.min(limit, Math.max(0, totalRows - offset));
 
   if (actualLimit <= 0) {
-    return new Response(JSON.stringify({ t: 'h', h: headers, tr: totalRows }) + '\n', {
-      headers: {
-        'Content-Type': 'application/x-ndjson',
-        'X-Preview-Format': 'parquet',
-        'X-Preview-Renderable': 'true',
-        'X-Preview-Truncated': 'false',
-        'X-Preview-Total-Size': String(byteLength),
-        'X-Preview-Total-Rows': String(totalRows),
-        'X-Preview-Offset': String(offset),
-        'Cache-Control': 'no-store'
+    return new Response(
+      JSON.stringify({ t: 'h', h: headers, tr: totalRows, s: columnTypes, m: metadata }) + '\n',
+      {
+        headers: {
+          'Content-Type': 'application/x-ndjson',
+          'X-Preview-Format': 'parquet',
+          'X-Preview-Renderable': 'true',
+          'X-Preview-Truncated': 'false',
+          'X-Preview-Total-Size': String(byteLength),
+          'X-Preview-Total-Rows': String(totalRows),
+          'X-Preview-Offset': String(offset),
+          'Cache-Control': 'no-store'
+        }
       }
-    });
+    );
   }
 
   const requestedEnd = offset + actualLimit;
@@ -234,9 +422,11 @@ export async function getParquetPreview(
 
   const stream = new ReadableStream({
     start(controller) {
-      // Send headers immediately
+      // Send headers immediately with schema and metadata
       controller.enqueue(
-        encoder.encode(JSON.stringify({ t: 'h', h: headers, tr: totalRows }) + '\n')
+        encoder.encode(
+          JSON.stringify({ t: 'h', h: headers, tr: totalRows, s: columnTypes, m: metadata }) + '\n'
+        )
       );
 
       // Use parquetRead with onChunk to stream columns as they load.
