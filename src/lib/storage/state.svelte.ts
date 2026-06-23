@@ -103,6 +103,7 @@ export class StorageState {
     this.bucket = bucket;
     this.prefix = prefix;
     this.objects = objects;
+    this.prevTokens = [];
     this.loading = false;
     // Clear selection on navigation
     this.selectedKeys = new SvelteSet<string>();
