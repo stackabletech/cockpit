@@ -283,6 +283,7 @@ describe('PreviewModal', () => {
         totalSize?: number;
         totalRows?: number;
         previewRows?: number;
+        previewBytes?: number;
       }
     ): Response {
       const ndjson = messages.map((m) => JSON.stringify(m)).join('\n') + '\n';
