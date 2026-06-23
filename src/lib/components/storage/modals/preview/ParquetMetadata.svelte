@@ -90,7 +90,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each columnTypes as col, i}
+          {#each columnTypes as col, i (col.name)}
             <tr class="hover:bg-base-200 transition-colors">
               <td class="text-base-content/30 font-mono text-xs">{i + 1}</td>
               <td class="font-mono text-xs font-medium">{col.name}</td>
@@ -123,7 +123,7 @@
               >{m.storage_preview_parquet_none()}</span
             >
           {:else}
-            {#each metadata.compressionCodecs as codec}
+            {#each metadata.compressionCodecs as codec (codec)}
               <span class="badge badge-soft badge-sm font-mono">{codec}</span>
             {/each}
           {/if}

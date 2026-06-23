@@ -16,20 +16,12 @@ vi.mock('$lib/server/storage/preview/stream.js', () => ({
 }));
 
 vi.mock('$lib/server/storage/preview/parquet.js', () => ({
-  getParquetPreview: vi.fn(
-    async (
-      _provider: unknown,
-      _key: string,
-      _offset: number,
-      _limit: number,
-      _log: unknown,
-      _totalSize: number,
-      _includeData: boolean
-    ) =>
-      new Response(JSON.stringify({ headers: ['a'], rows: [['1']], totalRows: 1 }), {
-        headers: { 'X-Preview-Format': 'parquet', 'X-Preview-Renderable': 'true' }
-      })
-  )
+  getParquetPreview: vi.fn(async () => {
+    const body = JSON.stringify({ headers: ['a'], rows: [['1']], totalRows: 1 });
+    return new Response(body, {
+      headers: { 'X-Preview-Format': 'parquet', 'X-Preview-Renderable': 'true' }
+    });
+  })
 }));
 
 vi.mock('$lib/server/storage/s3-errors.js', () => ({

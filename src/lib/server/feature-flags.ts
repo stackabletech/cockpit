@@ -57,7 +57,7 @@ export interface ParquetDisallowedCompression {
 function parseParquetDisallowed(value: string | undefined): ParquetDisallowedCompression[] {
   if (!value) return [{ codec: 'GZIP', requireOffsetIndex: true }];
   return value
-    .split(';')
+    .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
     .map((entry) => {
@@ -71,7 +71,7 @@ function parseParquetDisallowed(value: string | undefined): ParquetDisallowedCom
     });
 }
 
-/** Semicolon-separated list of compression types to disallow from parquet
+/** Comma-separated list of compression types to disallow from parquet
  *  data preview. Each entry is either a compression codec name (e.g. `gzip`,
  *  `zstd`, `snappy`) or a codec suffixed with `-no_offset` (e.g.
  *  `gzip-no_offset`) to only block when the file lacks an offset index.
