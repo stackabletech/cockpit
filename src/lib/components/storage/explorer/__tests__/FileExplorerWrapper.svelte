@@ -9,7 +9,9 @@
   }
 
   let { state }: Props = $props();
-  untrack(() => setStorageState(state));
+  untrack(() => {
+    setStorageState(state);
+  });
 </script>
 
 <FileExplorer />

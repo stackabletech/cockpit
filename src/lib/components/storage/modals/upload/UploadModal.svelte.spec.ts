@@ -168,22 +168,14 @@ describe('UploadModal', () => {
       render(UploadModal, { ...defaultProps, prefix });
       await selectAndUpload([createFile('report.csv')]);
 
-      expect(mockCheckObjectExists).toHaveBeenCalledWith(
-        expect.any(String),
-        'data/report.csv',
-        expect.any(String)
-      );
+      expect(mockCheckObjectExists).toHaveBeenCalledWith(expect.any(String), 'data/report.csv');
     });
 
     it('should use filename directly when prefix is empty', async () => {
       render(UploadModal, { ...defaultProps, prefix: '' });
       await selectAndUpload([createFile('report.csv')]);
 
-      expect(mockCheckObjectExists).toHaveBeenCalledWith(
-        expect.any(String),
-        'report.csv',
-        expect.any(String)
-      );
+      expect(mockCheckObjectExists).toHaveBeenCalledWith(expect.any(String), 'report.csv');
     });
   });
 
@@ -204,8 +196,7 @@ describe('UploadModal', () => {
         defaultProps.bucket,
         'a.txt',
         expect.any(File),
-        expect.any(Function),
-        expect.any(String)
+        expect.any(Function)
       );
     });
 
@@ -346,8 +337,7 @@ describe('UploadModal', () => {
         expect.any(String),
         expect.any(String),
         expect.any(File),
-        expect.any(Function),
-        expect.any(String)
+        expect.any(Function)
       );
     });
 
@@ -449,8 +439,7 @@ describe('UploadModal', () => {
         expect.any(String),
         'folder/sub/data.csv',
         expect.any(File),
-        expect.any(Function),
-        expect.any(String)
+        expect.any(Function)
       );
     });
   });
@@ -521,17 +510,12 @@ describe('UploadModal', () => {
       render(UploadModal, { ...defaultProps, bucket });
       await selectAndUpload([createFile('a.txt')]);
 
-      expect(mockCheckObjectExists).toHaveBeenCalledWith(
-        bucket,
-        expect.any(String),
-        expect.any(String)
-      );
+      expect(mockCheckObjectExists).toHaveBeenCalledWith(bucket, expect.any(String));
       expect(mockUploadFile).toHaveBeenCalledWith(
         bucket,
         expect.any(String),
         expect.any(File),
-        expect.any(Function),
-        expect.any(String)
+        expect.any(Function)
       );
     });
 

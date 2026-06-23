@@ -7,11 +7,29 @@ vi.mock('$lib/server/feature-flags.js', () => ({
   }
 }));
 
+vi.mock('$lib/server/auth.js', () => ({
+  get oidcEnabled() {
+    return true;
+  },
+  auth: { api: { updateSession: vi.fn() } }
+}));
+
+const mockListUserConnections = vi.fn().mockResolvedValue([]);
+vi.mock('$lib/server/storage/connections-db.js', () => ({
+  listUserConnections: (...args: unknown[]) => mockListUserConnections(...args)
+}));
+
 import { load } from './+layout.server.js';
 
 function mockEvent() {
   return {
-    locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
+    locals: {
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
+      user: { id: 'test-user' },
+      session: {}
+    },
+    url: new URL('http://localhost/storage'),
+    request: { headers: new Headers() }
   } as unknown as Parameters<typeof load>[0];
 }
 
@@ -26,6 +44,12 @@ describe('storage layout server load', () => {
   it('returns disconnected default state', async () => {
     mockStorageBrowserEnabled.mockReturnValue(true);
     const result = await load(mockEvent());
-    expect(result).toEqual({ connected: false, buckets: [], connectionType: null });
+    expect(result).toEqual({
+      connected: false,
+      buckets: [],
+      connectionType: null,
+      connections: [],
+      connectError: null
+    });
   });
 });

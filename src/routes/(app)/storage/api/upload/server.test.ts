@@ -15,9 +15,7 @@ function mockEvent(opts: {
   const url = new URL(
     `http://localhost/storage/api/upload?${opts.params ?? 'bucket=b1&key=file.txt'}`
   );
-  const headers = new Headers(
-    opts.headers ?? { 'Content-Type': 'text/plain', 'Content-Length': '42' }
-  );
+  const headers = new Headers(opts.headers ?? { 'Content-Length': '42' });
   const body = 'body' in opts ? opts.body : new ReadableStream();
   return {
     url,

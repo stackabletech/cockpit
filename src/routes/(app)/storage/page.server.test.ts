@@ -6,7 +6,8 @@ vi.mock('$lib/server/storage/utils.js', () => ({
 }));
 
 vi.mock('$lib/storage/schemas.js', () => ({
-  StorageConnectionSchema: {} // superValidate is also mocked
+  StorageConnectionSchema: {}, // superValidate is also mocked
+  ConnectionIdSchema: {}
 }));
 
 vi.mock('sveltekit-superforms', () => ({
@@ -18,11 +19,29 @@ vi.mock('sveltekit-superforms/adapters', () => ({
   zod4: vi.fn((schema) => schema)
 }));
 
+const mockUpdateSession = vi.fn().mockResolvedValue(undefined);
+vi.mock('$lib/server/auth.js', () => ({
+  auth: { api: { updateSession: (...args: unknown[]) => mockUpdateSession(...args) } }
+}));
+
+const mockSaveConnection = vi.fn().mockResolvedValue('conn-123');
+const mockDeleteConnection = vi.fn().mockResolvedValue(undefined);
+vi.mock('$lib/server/storage/connections-db.js', () => ({
+  saveConnection: (...args: unknown[]) => mockSaveConnection(...args),
+  deleteConnection: (...args: unknown[]) => mockDeleteConnection(...args),
+  getConnectionForUser: vi.fn().mockResolvedValue(null),
+  listUserConnections: vi.fn().mockResolvedValue([])
+}));
+
 import { load, actions } from './+page.server.js';
 import { superValidate } from 'sveltekit-superforms';
 
 function mockLocals() {
-  return { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } };
+  return {
+    logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
+    user: { id: 'test-user' },
+    session: {}
+  };
 }
 
 describe('storage page load', () => {
@@ -123,9 +142,10 @@ describe('storage page actions', () => {
 
   it('disconnect: redirects', async () => {
     await expect(
-      actions.disconnect({ locals: mockLocals() } as unknown as Parameters<
-        typeof actions.disconnect
-      >[0])
+      actions.disconnect({
+        request: new Request('http://localhost', { method: 'POST' }),
+        locals: mockLocals()
+      } as unknown as Parameters<typeof actions.disconnect>[0])
     ).rejects.toThrow(
       expect.objectContaining({ status: 303, location: '/storage?disconnected=1' })
     );

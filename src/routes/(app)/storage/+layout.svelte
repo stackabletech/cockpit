@@ -3,7 +3,7 @@
   import { untrack } from 'svelte';
   import BucketList from '$lib/components/storage/sidebar/BucketList.svelte';
   import { StorageState } from '$lib/storage/state.svelte.js';
-  import { setStorageState, setBucketSidebarToggle } from '$lib/storage/context.js';
+  import { setStorageState } from '$lib/storage/context.js';
 
   let { children, data } = $props();
 
@@ -17,9 +17,6 @@
   setStorageState(storage);
 
   let bucketSidebarOpen = $state(false);
-  setBucketSidebarToggle(() => {
-    bucketSidebarOpen = !bucketSidebarOpen;
-  });
 
   // Keep layout-level data in sync when SvelteKit re-runs the load function
   $effect(() => {
