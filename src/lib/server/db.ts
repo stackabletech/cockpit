@@ -15,9 +15,11 @@ if (!dbPassword) {
   log.warn('DATABASE_PASSWORD not set, connection may fail');
 }
 
-// SSL is disabled in development (local k8s), enabled in production
-const isDev = process.env.NODE_ENV !== 'production';
-const sslMode = isDev ? false : true;
+// SSL: explicit DATABASE_SSL env var takes precedence; otherwise enabled in production.
+const sslMode =
+  process.env.DATABASE_SSL !== undefined
+    ? process.env.DATABASE_SSL === 'true'
+    : process.env.NODE_ENV === 'production';
 
 // Create a connection pool
 const pool = new Pool({

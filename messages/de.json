@@ -139,6 +139,7 @@
   "storage_connect_error": "Verbindung fehlgeschlagen — Endpunkt und Zugangsdaten prüfen.",
   "storage_connect_saved": "Gespeicherte Verbindungen",
   "storage_connect_no_saved": "Noch keine gespeicherten Verbindungen",
+  "storage_connect_error_unreachable": "Verbindung fehlgeschlagen — der Speicher-Endpunkt ist möglicherweise nicht erreichbar.",
   "storage_connect_forget": "Vergessen",
   "storage_connect_forget_confirm": "{endpoint} aus den gespeicherten Verbindungen entfernen?",
   "storage_connect_forget_cancel": "Abbrechen",

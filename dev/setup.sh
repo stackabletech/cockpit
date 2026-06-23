@@ -194,6 +194,7 @@ else
       -s username="$username" \
       -s email="$username@example.com" \
       -s firstName="$first" \
+      -s emailVerified=true \
       -s lastName="$last" \
       -s enabled=true
     kcadm set-password \
@@ -255,6 +256,7 @@ fi
 # ------------------------------------------------------------------
 echo ""
 SESSION_SECRET=$(openssl rand -hex 32)
+STORAGE_ENCRYPTION_KEY=$(openssl rand -base64 32)
 
 if [ -f "$ENV_FILE" ]; then
   echo "Backing up existing .env.development to .env.development.bak"
@@ -296,6 +298,7 @@ STACKABLE_COCKPIT_OIDC_DISCOVERY_URL=${KEYCLOAK_BASE_URL}/realms/stackable/.well
 STACKABLE_COCKPIT_OIDC_CLIENT_ID=stackable-cockpit
 STACKABLE_COCKPIT_OIDC_CLIENT_SECRET=${SECRET}
 STACKABLE_COCKPIT_SESSION_SECRET=${SESSION_SECRET}
+STACKABLE_COCKPIT_STORAGE_ENCRYPTION_KEY=${STORAGE_ENCRYPTION_KEY}
 STACKABLE_COCKPIT_BASE_URL=http://localhost:5173
 STACKABLE_COCKPIT_TRINO_URL=${TRINO_BASE_URL}
 STACKABLE_COCKPIT_TRINO_AUTH_TYPE=basic
@@ -323,6 +326,7 @@ STACKABLE_COCKPIT_OIDC_DISCOVERY_URL=${KEYCLOAK_BASE_URL}/realms/stackable/.well
 STACKABLE_COCKPIT_OIDC_CLIENT_ID=stackable-cockpit
 STACKABLE_COCKPIT_OIDC_CLIENT_SECRET=${SECRET}
 STACKABLE_COCKPIT_SESSION_SECRET=${SESSION_SECRET}
+STACKABLE_COCKPIT_STORAGE_ENCRYPTION_KEY=${STORAGE_ENCRYPTION_KEY}
 STACKABLE_COCKPIT_BASE_URL=http://localhost:5173
 STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true
 STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES=262144

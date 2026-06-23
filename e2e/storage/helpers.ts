@@ -64,6 +64,64 @@ export async function openConnectForm(page: Page) {
   await expect(connectHeading).toBeVisible();
 }
 
+/**
+ * Delete every saved connection for the current user and ensure the session is
+ * disconnected.  Uses in-page fetch() calls to the form actions so that
+ * Playwright actionability constraints (which fail for the absolutely-positioned
+ * X buttons on mobile) are never hit.  Call this in beforeEach hooks to prevent
+ * connections accumulated across (possibly interrupted) test runs from
+ * interfering with tests that expect an exact connection count.
+ */
+export async function clearAllSavedConnections(page: Page) {
+  await page.goto('/storage');
+  await waitForHydration(page);
+
+  // Use fetch() from within the page context so session cookies are included
+  // automatically and the same-origin Origin header satisfies CSRF checks.
+  await page.evaluate(async () => {
+    // 1. Disconnect the active connection (no-op if already disconnected).
+    await fetch('/storage?/disconnect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'same-origin'
+    });
+
+    // 2. Collect saved connection IDs from the carousel and delete each one.
+    //    We reload first so the DOM reflects the disconnected state with the
+    //    full carousel visible.
+    await fetch('/storage?disconnected=1');
+  });
+
+  // Reload to get the updated DOM with the carousel.
+  await page.reload();
+  await waitForHydration(page);
+
+  // Now delete all connections visible in the carousel.
+  const deleted = await page.evaluate(async () => {
+    // SvelteKit normalises "?/use" → "/storage?/use" on the rendered attribute,
+    // so match by input name only rather than the form action string.
+    const inputs = document.querySelectorAll<HTMLInputElement>(
+      '[role="listitem"] input[name="connectionId"]'
+    );
+    const ids = Array.from(inputs).map((i) => i.value);
+    for (const id of ids) {
+      await fetch('/storage?/deleteConnection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ connectionId: id }).toString(),
+        credentials: 'same-origin'
+      });
+    }
+    return ids.length;
+  });
+
+  // Reload once more so the page reflects the cleared state before the test begins.
+  if (deleted > 0) {
+    await page.reload();
+    await waitForHydration(page);
+  }
+}
+
 export async function connectToStorage(page: Page, credentials: GarageCredentials) {
   await openConnectForm(page);
   await page.getByLabel('Endpoint URL').fill(credentials.endpoint);
@@ -71,7 +129,7 @@ export async function connectToStorage(page: Page, credentials: GarageCredential
   await page.getByLabel('Access key ID').fill(credentials.accessKeyId);
   await page.getByLabel('Secret access key').fill(credentials.secretAccessKey);
   await expect(page.getByLabel('Use path-style addressing')).toBeChecked();
-  await page.getByRole('button', { name: 'Connect' }).click();
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
 }
 
 export async function connectAndOpenPrefix(

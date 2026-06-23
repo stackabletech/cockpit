@@ -5,7 +5,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4173';
 const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 export default defineConfig({
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   testDir: path.join(import.meta.dirname, 'e2e'),
   outputDir: path.join(import.meta.dirname, 'e2e/test-results'),
   globalSetup: path.join(import.meta.dirname, 'e2e/support/global-setup.ts'),
@@ -25,17 +25,17 @@ export default defineConfig({
     {
       command: 'npx tsx e2e/support/start-mock-oidc.ts',
       url: 'http://localhost:9090/.well-known/openid-configuration',
-      reuseExistingServer: !process.env.CI
+      reuseExistingServer: true
     },
     {
       command: 'npx tsx e2e/support/start-mock-trino.ts',
       url: 'http://localhost:8080',
-      reuseExistingServer: !process.env.CI
+      reuseExistingServer: true
     },
     {
       command: 'node --env-file=.env.test node_modules/.bin/vite preview --host --port 4173',
       url: baseURL,
-      reuseExistingServer: !process.env.CI
+      reuseExistingServer: true
     }
   ],
   projects: [

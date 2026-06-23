@@ -113,7 +113,7 @@
 
 <nav
   class="
-    border-base-300 bg-base-100 flex w-48 shrink-0 flex-col
+    border-base-300 bg-base-100 flex flex-1 flex-col
     rounded-lg border
   "
   aria-label={m.storage_buckets_label()}

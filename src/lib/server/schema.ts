@@ -12,6 +12,9 @@ export const userStorageConnections = pgTable(
     userId: text('user_id').notNull(),
     // Display name for this connection (e.g., "Primary S3", "Backup Storage")
     name: text('name').notNull(),
+    // Connection type and endpoint stored cleartext for listing without decryption
+    type: text('type').notNull().default('s3'),
+    endpoint: text('endpoint'),
     // Encrypted payload containing connection details and hash
     encryptedPayload: text('encrypted_payload').notNull(),
     hash: text('hash').notNull(),

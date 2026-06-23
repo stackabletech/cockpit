@@ -11,10 +11,11 @@
   import IconPushPin from 'virtual:icons/material-symbols/push-pin';
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
   import * as m from '$lib/paraglide/messages.js';
-  import { getStorageState } from '$lib/storage/context.js';
+  import { getStorageState, getBucketSidebarToggle } from '$lib/storage/context.js';
   import type { StorageLocation } from '$lib/storage/types.js';
 
   const storage = getStorageState();
+  const toggleBucketSidebar = getBucketSidebarToggle();
 
   const breadcrumbParts = $derived(
     storage.prefix
@@ -269,6 +270,16 @@
       <span class="font-bold">{storage.files.length}</span>
     </span>
   </div>
+
+  <!-- Bucket sidebar toggle (mobile only) -->
+  <button
+    class="btn btn-ghost btn-xs gap-1 lg:hidden"
+    title={m.storage_buckets_label()}
+    aria-label={m.storage_buckets_label()}
+    onclick={() => toggleBucketSidebar()}
+  >
+    <IconStorage class="size-3.5" aria-hidden="true" />
+  </button>
 
   <!-- Multi-select toggle -->
   <button

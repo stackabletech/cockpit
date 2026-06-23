@@ -27,3 +27,7 @@ export const StorageConnectionSchema = z
       });
     }
   });
+
+export const ConnectionIdSchema = z.object({
+  connectionId: z.uuid()
+});

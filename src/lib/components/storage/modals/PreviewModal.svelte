@@ -14,9 +14,7 @@
   import FallbackPreview from './preview/FallbackPreview.svelte';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
   import { downloadObject, DownloadError } from '$lib/storage/download.js';
-  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
-  import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
 
   interface Props {
     open: boolean;
@@ -90,14 +88,10 @@
     preview = { kind: 'loading' };
     revokeBlobUrls();
 
-    const conn = loadConnectionLocally();
-    const headers: HeadersInit = conn
-      ? { [STORAGE_CONNECTION_HEADER]: getConnectionHeader(conn) }
-      : {};
-
     try {
       const params = new URLSearchParams({ bucket: bkt, key });
-      const res = await fetch(`/storage/api/preview?${params}`, { headers });
+
+      const res = await fetch(`/storage/api/preview?${params}`);
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
@@ -221,13 +215,8 @@
 
   async function triggerDownload() {
     if (!objectKey) return;
-    const conn = loadConnectionLocally();
-    if (!conn) {
-      addToast('error', m.storage_download_error_unknown());
-      return;
-    }
     try {
-      await downloadObject(bucket, objectKey, getConnectionHeader(conn));
+      await downloadObject(bucket, objectKey);
     } catch (err) {
       if (err instanceof DownloadError) {
         addToast('error', err.message);

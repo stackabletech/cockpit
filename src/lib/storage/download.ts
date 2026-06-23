@@ -2,20 +2,17 @@
  * Client-side utility for downloading a single S3 object via the server proxy.
  *
  * Strategy:
- *  1. Fetch the object with the `X-Storage-Connection` header carrying the
- *     connection config from localStorage.
+ *  1. Fetch the object via the server proxy endpoint (session cookie is sent
+ *     automatically — no client-side credential header needed).
  *  2. On error: throw a `DownloadError` with a typed `code` so the caller can
  *     display a localised message.
  *  3. On success: create a Blob URL and trigger a native browser download via a
  *     programmatic anchor click.
  *
  * Note: The response body is buffered as a Blob before the download link is
- * constructed. This avoids exposing credentials in the URL (query-param approach)
- * while keeping the implementation simple. For very large files this will use
- * proportional browser memory — see TECH_DEBT.md for the long-term fix.
+ * constructed. For very large files this will use proportional browser memory —
+ * see TECH_DEBT.md for the long-term fix.
  */
-
-import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
 
 export type DownloadErrorCode =
   | 'not_connected'
@@ -54,16 +51,11 @@ function mapStatusToCode(status: number): DownloadErrorCode {
  *
  * @throws {DownloadError} when the server returns a non-2xx response.
  */
-export async function downloadObject(
-  bucket: string,
-  key: string,
-  connectionHeader: string
-): Promise<void> {
+export async function downloadObject(bucket: string, key: string): Promise<void> {
   const url = buildDownloadUrl(bucket, key);
 
-  const response = await fetch(url, {
-    headers: { [STORAGE_CONNECTION_HEADER]: connectionHeader }
-  });
+  // Session cookie is sent automatically — no connection header needed.
+  const response = await fetch(url);
 
   if (!response.ok) {
     const code = mapStatusToCode(response.status);

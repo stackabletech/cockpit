@@ -139,6 +139,7 @@
   "storage_connect_error": "Could not connect — check the endpoint and credentials.",
   "storage_connect_saved": "Saved connections",
   "storage_connect_no_saved": "No saved connections yet",
+  "storage_connect_error_unreachable": "Could not reconnect — the storage endpoint may be unavailable.",
   "storage_connect_forget": "Forget",
   "storage_connect_forget_confirm": "Remove {endpoint} from saved connections?",
   "storage_connect_forget_cancel": "Cancel",

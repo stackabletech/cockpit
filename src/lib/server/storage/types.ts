@@ -26,3 +26,12 @@ export type StorageConfig = S3Config | HDFSConfig;
 
 /** Per-user connection config stored in memory (no bucket). */
 export type StorageConnectionConfig = S3ConnectionConfig | HDFSConfig;
+
+/** Metadata for a saved connection — never includes credentials. */
+export interface ConnectionMetadata {
+  id: string;
+  name: string;
+  type: 's3';
+  endpoint?: string;
+  updatedAt: Date;
+}

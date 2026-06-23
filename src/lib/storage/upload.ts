@@ -9,11 +9,8 @@
  *   supported in Firefox.
  * - The file is sent as the raw request body — no base64 or multipart encoding.
  *   The server streams it directly to S3, preserving binary integrity.
- * - The connection config is passed via the `X-Storage-Connection` header
- *   (base64-encoded JSON), read by the server from the client's localStorage.
+ * - Session cookie is sent automatically — no client-side credential header needed.
  */
-
-import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
 
 export type UploadErrorCode =
   | 'not_connected'
@@ -57,16 +54,10 @@ function mapStatusToUploadCode(status: number): UploadErrorCode {
  * so no object body is transferred. Returns `true` if the object exists, `false`
  * if it does not. Throws `UploadError` for auth or server errors.
  */
-export async function checkObjectExists(
-  bucket: string,
-  key: string,
-  connectionHeader: string
-): Promise<boolean> {
+export async function checkObjectExists(bucket: string, key: string): Promise<boolean> {
   const url = buildDownloadUrl(bucket, key);
-  const res = await fetch(url, {
-    method: 'HEAD',
-    headers: { [STORAGE_CONNECTION_HEADER]: connectionHeader }
-  });
+  // Session cookie is sent automatically — no connection header needed.
+  const res = await fetch(url, { method: 'HEAD' });
   if (res.status === 200) return true;
   if (res.status === 404) return false;
   if (res.status === 401) throw new UploadError('not_connected', 'Not connected');
@@ -88,8 +79,7 @@ export function uploadFile(
   bucket: string,
   key: string,
   file: File,
-  onProgress: (pct: number) => void,
-  connectionHeader: string
+  onProgress: (pct: number) => void
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -121,7 +111,6 @@ export function uploadFile(
 
     xhr.open('POST', url);
     xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-    xhr.setRequestHeader(STORAGE_CONNECTION_HEADER, connectionHeader);
     xhr.send(file);
   });
 }

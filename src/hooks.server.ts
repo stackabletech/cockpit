@@ -6,7 +6,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { auth, oidcEnabled } from '$lib/server/auth';
 import { requestLogger, logger } from '$lib/server/logging';
-import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
+import { getConnectionForUser } from '$lib/server/storage/connections-db.js';
 import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
@@ -61,20 +61,38 @@ const handleAuthGuard: Handle = async ({ event, resolve }) => {
 };
 
 /**
- * Parse the `x-storage-connection` header (base64 JSON) for every request and
- * store the result in `event.locals.storageConfig`. For routes under
- * `/(app)/storage/api/` the header is mandatory — the middleware throws 401
- * before the handler runs if it is absent, so handlers can rely on
- * `locals.storageConfig` being non-null. Throws 400 for a present but
- * malformed / invalid header on any route.
+ * For routes under `/(app)/storage/api/`: require OIDC auth and an active
+ * storage connection in the session. Fetches a fresh (non-cached) session to
+ * ensure `activeStorageConnectionId` is current, then loads the decrypted
+ * connection config from the DB into `event.locals.storageConfig`.
+ * Throws 401 if any requirement is not met so handlers can trust locals.
  */
 const handleStorageConnection: Handle = async ({ event, resolve }) => {
   if (event.route.id?.startsWith('/(app)/storage/') && !storageBrowserEnabled) {
     throw error(404, 'Storage browser is not enabled');
   }
-  event.locals.storageConfig = getConnectionFromHeader(event.request);
-  if (event.locals.storageConfig === null && event.route.id?.startsWith('/(app)/storage/api/')) {
-    throw error(401, 'No storage connection configured');
+  event.locals.storageConfig = null;
+  if (event.route.id?.startsWith('/(app)/storage/api/')) {
+    if (!oidcEnabled) {
+      throw error(401, 'Storage requires authentication');
+    }
+    // Bypass cookie cache to get the freshest activeStorageConnectionId.
+    const freshSession = await auth.api.getSession({
+      headers: event.request.headers,
+      query: { disableCookieCache: true }
+    });
+    if (!freshSession?.user) {
+      throw error(401, 'Authentication required');
+    }
+    const connectionId = freshSession.session.activeStorageConnectionId;
+    if (!connectionId) {
+      throw error(401, 'No storage connection configured');
+    }
+    const config = await getConnectionForUser(freshSession.user.id, connectionId);
+    if (!config) {
+      throw error(401, 'Storage connection not found');
+    }
+    event.locals.storageConfig = config;
   }
   return resolve(event);
 };

@@ -16,7 +16,6 @@ import { downloadObject, DownloadError } from '$lib/storage/download.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import { ActionError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
-import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
 
 export class StorageState {
   // ── Core data (synced from server load) ──
@@ -270,12 +269,7 @@ export class StorageState {
           this.bookmarks.recordFileVisit(this.bucket, f.key, f.size);
         }
         try {
-          const conn = loadConnectionLocally();
-          if (!conn) {
-            addToast('error', m.storage_download_error_unknown());
-            return;
-          }
-          await downloadObject(this.bucket, key, getConnectionHeader(conn));
+          await downloadObject(this.bucket, key);
         } catch (err: unknown) {
           if (err instanceof DownloadError) {
             addToast('error', getActionErrorMessage(new ActionError(err.code, err.message)));
@@ -363,10 +357,8 @@ export class StorageState {
     const params = new SvelteURLSearchParams({ bucket });
     for (const key of keys) params.append('keys', key);
 
-    const conn = loadConnectionLocally();
-    const headers: HeadersInit = conn ? { 'x-storage-connection': getConnectionHeader(conn) } : {};
-
-    const res = await fetch(`/storage/api/delete?${params}`, { method: 'DELETE', headers });
+    // Session cookie is sent automatically — no connection header needed.
+    const res = await fetch(`/storage/api/delete?${params}`, { method: 'DELETE' });
     if (!res.ok) {
       let code: string;
       if (res.status === 401) code = 'not_connected';

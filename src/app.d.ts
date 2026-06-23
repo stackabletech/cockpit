@@ -16,10 +16,10 @@ declare global {
       logger: import('pino').Logger;
       requestId: string;
       /**
-       * Parsed S3 connection config extracted from the `x-storage-connection`
-       * request header by the `handleStorageConnection` middleware.
-       * Always non-null for requests to `/(app)/storage/api/*` routes
-       * (the middleware throws 401 before the handler runs if the header is absent).
+       * Populated by the `handleStorageConnection` middleware for requests to
+       * `/(app)/storage/api/*` routes. Loaded from the DB using the session's
+       * `activeStorageConnectionId`. Always non-null when the handler runs
+       * (the middleware throws 401 if the connection is absent or stale).
        * Null for all other routes.
        */
       storageConfig: import('$lib/server/storage/types.js').S3ConnectionConfig | null;

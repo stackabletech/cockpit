@@ -27,5 +27,9 @@
     <RecentItems />
   </div>
 {:else}
-  <StorageConnectForm connectionForm={data.connectionForm} />
+  <StorageConnectForm
+    connectionForm={data.connectionForm}
+    connections={data.connections}
+    connectError={data.connectError}
+  />
 {/if}

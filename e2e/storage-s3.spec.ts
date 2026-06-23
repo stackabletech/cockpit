@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForHydration } from './support/helpers';
+import { clearAllSavedConnections } from './storage/helpers.js';
 
 declare const process: {
   env: Record<string, string | undefined>;
@@ -19,15 +19,7 @@ test.describe('Storage S3 (Garage)', () => {
   test.use({ locale: 'en-US' });
 
   async function openConnectForm(page: import('@playwright/test').Page) {
-    await page.goto('/storage?disconnected=1');
-    await waitForHydration(page);
-
-    const disconnectButton = page.getByRole('button', { name: 'Disconnect' });
-    if (await disconnectButton.isVisible().catch(() => false)) {
-      await disconnectButton.click();
-    }
-
-    await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
+    await clearAllSavedConnections(page);
   }
 
   test('connects to Garage S3 bucket and lists buckets', async ({ page }) => {
@@ -53,7 +45,7 @@ test.describe('Storage S3 (Garage)', () => {
     // Path-style addressing is on by default (required for Garage) — verify it is checked
     await expect(page.getByLabel('Use path-style addressing')).toBeChecked();
 
-    await page.getByRole('button', { name: 'Connect' }).click();
+    await page.getByRole('button', { name: 'Connect', exact: true }).click();
 
     // After a successful connection the app redirects to /storage and shows the bucket list
     await expect(page).toHaveURL('/storage');
@@ -81,7 +73,7 @@ test.describe('Storage S3 (Garage)', () => {
     await page.getByLabel('Region').fill(region);
     await page.getByLabel('Access key ID').fill(accessKeyId);
     await page.getByLabel('Secret access key').fill(secretAccessKey);
-    await page.getByRole('button', { name: 'Connect' }).click();
+    await page.getByRole('button', { name: 'Connect', exact: true }).click();
     await expect(page.locator('main').getByRole('heading', { name: 'Buckets' })).toBeVisible();
 
     // Then disconnect

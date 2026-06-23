@@ -1,6 +1,5 @@
 import { browser } from '$app/environment';
-import { error, redirect } from '@sveltejs/kit';
-import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import type { StoragePage } from '$lib/storage/types.js';
 
@@ -22,9 +21,6 @@ export const load: PageLoad = async ({ fetch, url, data }) => {
 
   if (!browser) return { bucket, prefix, objects: EMPTY_PAGE };
 
-  const connection = loadConnectionLocally();
-  if (!connection) throw redirect(303, '/storage');
-
   const continuationToken = url.searchParams.get('continuationToken');
   const pageSizeParam = url.searchParams.get('pageSize');
 
@@ -32,12 +28,10 @@ export const load: PageLoad = async ({ fetch, url, data }) => {
   if (continuationToken) query.set('continuationToken', continuationToken);
   if (pageSizeParam) query.set('pageSize', pageSizeParam);
 
-  const res = await fetch(`/storage/api/objects?${query}`, {
-    headers: { 'x-storage-connection': getConnectionHeader(connection) }
-  });
+  const res = await fetch(`/storage/api/objects?${query}`);
 
   if (!res.ok) {
-    if (res.status === 401) throw redirect(303, '/storage');
+    if (res.status === 401) return { bucket, prefix, objects: EMPTY_PAGE };
     // For 403 we return an accessDenied flag rather than throwing error().
     // Throwing from a universal load during initial hydration (e.g. after
     // page.goto) can bypass the +error.svelte boundary and fall through to the

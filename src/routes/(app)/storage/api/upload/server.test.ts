@@ -7,10 +7,6 @@ vi.mock('$lib/server/storage/utils.js', () => ({
 
 import { POST } from './+server.js';
 
-const CONNECTION_HEADER = {
-  'x-storage-connection': btoa(JSON.stringify({ type: 's3', region: 'us-east-1' }))
-};
-
 function mockEvent(opts: {
   params?: string;
   body?: ReadableStream | null;
@@ -20,7 +16,7 @@ function mockEvent(opts: {
     `http://localhost/storage/api/upload?${opts.params ?? 'bucket=b1&key=file.txt'}`
   );
   const headers = new Headers(
-    opts.headers ?? { 'Content-Type': 'text/plain', 'Content-Length': '42', ...CONNECTION_HEADER }
+    opts.headers ?? { 'Content-Type': 'text/plain', 'Content-Length': '42' }
   );
   const body = 'body' in opts ? opts.body : new ReadableStream();
   return {
@@ -58,8 +54,7 @@ describe('POST /storage/api/upload', () => {
         body,
         headers: {
           'Content-Type': 'image/png; charset=utf-8',
-          'Content-Length': '100',
-          ...CONNECTION_HEADER
+          'Content-Length': '100'
         }
       })
     );
@@ -71,7 +66,7 @@ describe('POST /storage/api/upload', () => {
   it('defaults content type to application/octet-stream', async () => {
     mockProvider.putObject.mockResolvedValue(undefined);
 
-    const res = await POST(mockEvent({ headers: { ...CONNECTION_HEADER } }));
+    const res = await POST(mockEvent({}));
 
     expect(res.status).toBe(201);
     expect(mockProvider.putObject.mock.calls[0][2]).toBe('application/octet-stream');
