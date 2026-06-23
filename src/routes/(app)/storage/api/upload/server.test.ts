@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('$lib/server/storage/service.js', () => ({
-  uploadObject: vi.fn()
+const mockProvider = { putObject: vi.fn() };
+vi.mock('$lib/server/storage/utils.js', () => ({
+  getProvider: () => mockProvider
 }));
 
 import { POST } from './+server.js';
-import { uploadObject } from '$lib/server/storage/service.js';
 
 const CONNECTION_HEADER = {
   'x-storage-connection': btoa(JSON.stringify({ type: 's3', region: 'us-east-1' }))
@@ -50,7 +50,7 @@ describe('POST /storage/api/upload', () => {
   });
 
   it('uploads and returns 201', async () => {
-    vi.mocked(uploadObject).mockResolvedValue(undefined);
+    mockProvider.putObject.mockResolvedValue(undefined);
     const body = new ReadableStream();
 
     const res = await POST(
@@ -65,22 +65,15 @@ describe('POST /storage/api/upload', () => {
     );
 
     expect(res.status).toBe(201);
-    expect(uploadObject).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 's3' }),
-      'b1',
-      'file.txt',
-      body,
-      'image/png',
-      100
-    );
+    expect(mockProvider.putObject).toHaveBeenCalledWith('file.txt', body, 'image/png', 100);
   });
 
   it('defaults content type to application/octet-stream', async () => {
-    vi.mocked(uploadObject).mockResolvedValue(undefined);
+    mockProvider.putObject.mockResolvedValue(undefined);
 
     const res = await POST(mockEvent({ headers: { ...CONNECTION_HEADER } }));
 
     expect(res.status).toBe(201);
-    expect(vi.mocked(uploadObject).mock.calls[0][4]).toBe('application/octet-stream');
+    expect(mockProvider.putObject.mock.calls[0][2]).toBe('application/octet-stream');
   });
 });

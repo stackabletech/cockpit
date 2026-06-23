@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { untrack, onMount } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getLocale } from '$lib/paraglide/runtime.js';
 
   interface Props {
     headers: string[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    initialRows: any[][];
+    initialRows: unknown[][];
     totalRows?: number;
 
     fetchRows?: (
@@ -38,9 +37,48 @@
   // Calculate column widths once on load to prevent width shifts during scrolling
   let columnWidths = $state<number[]>([]);
 
+<<<<<<< HEAD
+=======
+  // Measure actual rendered text width using canvas for cross-browser consistency
+  function textWidth(text: string): number {
+    if (typeof document === 'undefined') return text.length * 7;
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (!ctx) return text.length * 7;
+    ctx.font =
+      '600 12px system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+    return ctx.measureText(text).width;
+  }
+
+  // Sync initial data from parent into the virtual-scroll chunk system.
+  // When initialRows changes (e.g. streaming NDJSON data arrived), replace chunk 0.
+  function populateChunk0() {
+    if (initialRows && initialRows.length > 0) {
+      loadedChunks = { 0: initialRows };
+      loadingChunks.clear();
+      scrollTop = 0;
+      // Scan initial data to determine max content width per column
+      const CELL_PADDING = 16;
+      const widths = headers.map((h) => textWidth(h));
+      for (const row of initialRows) {
+        if (!row) continue;
+        for (let i = 0; i < headers.length; i++) {
+          const val = row[i];
+          const str = val !== null && val !== undefined ? String(val) : '';
+          const w = textWidth(str);
+          if (w > widths[i]) widths[i] = w;
+        }
+      }
+      columnWidths = widths.map((w) => Math.max(w + CELL_PADDING, 80));
+    }
+  }
+
+  onMount(populateChunk0);
+
+>>>>>>> origin/feat/s3-file-browser-preview-parquet
   $effect(() => {
-    if (initialRows) {
+    if (initialRows && initialRows.length > 0) {
       untrack(() => {
+<<<<<<< HEAD
         loadedChunks = { 0: initialRows };
         loadingChunks.clear();
         scrollTop = 0;
@@ -55,6 +93,9 @@
           }
         }
         columnWidths = widths;
+=======
+        populateChunk0();
+>>>>>>> origin/feat/s3-file-browser-preview-parquet
       });
     }
   });
@@ -113,18 +154,29 @@
           );
           loadedChunks[c] = placeholder;
 
-          fetchRows(c * CHUNK_SIZE, CHUNK_SIZE, (name, values) => {
-            // Column data arrived: fill in values for this column in the placeholder chunk
-            const colIdx = headers.indexOf(name);
-            if (colIdx < 0) return;
-            const chunk = loadedChunks[c];
-            if (!chunk) return;
-            for (let i = 0; i < values.length && i < chunk.length; i++) {
-              if (chunk[i]) chunk[i][colIdx] = values[i];
-            }
-            // Create new reference so Svelte detects the update immediately
-            loadedChunks = { ...loadedChunks };
-          })
+          fetchRows(
+            c * CHUNK_SIZE,
+            CHUNK_SIZE,
+            (() => {
+              // Track per-column position within this chunk because hyparquet
+              // may split column data across multiple messages.
+              const colPos: Record<string, number> = {};
+              return (name: string, values: unknown[]) => {
+                const colIdx = headers.indexOf(name);
+                if (colIdx < 0) return;
+                const chunk = loadedChunks[c];
+                if (!chunk) return;
+                let pos = colPos[name] ?? 0;
+                for (let i = 0; i < values.length && pos < chunk.length; i++) {
+                  if (chunk[pos]) chunk[pos][colIdx] = values[i];
+                  pos++;
+                }
+                colPos[name] = pos;
+                // Create new reference so Svelte detects the update immediately
+                loadedChunks = { ...loadedChunks };
+              };
+            })()
+          )
             .then((data) => {
               loadingChunks.delete(c);
               // Replace placeholder with fully populated data
@@ -161,14 +213,22 @@
       bind:clientHeight={containerHeight}
       onscroll={(e) => (scrollTop = e.currentTarget.scrollTop)}
     >
+<<<<<<< HEAD
       <table class="table-xs table min-w-max table-fixed" aria-label="Parquet preview">
+=======
+      <table class="table-xs table table-fixed" aria-label="Parquet preview">
+>>>>>>> origin/feat/s3-file-browser-preview-parquet
         <thead class="bg-base-200 text-base-content/60 sticky top-0 z-10 text-xs shadow-sm">
           <tr>
             <th class="text-base-content/30 w-10 text-right font-normal"></th>
             {#each headers as header, j (header)}
               <th
                 class="truncate font-semibold"
+<<<<<<< HEAD
                 style="width: {Math.max(columnWidths[j] * 7.5 + 16, 80)}px">{header}</th
+=======
+                style={columnWidths.length > 0 ? `width: ${columnWidths[j]}px` : ''}>{header}</th
+>>>>>>> origin/feat/s3-file-browser-preview-parquet
               >
             {/each}
           </tr>
@@ -188,9 +248,16 @@
                 >{(row.index + 1).toLocaleString(getLocale())}</td
               >
               {#if row.data !== null && row.data !== undefined}
+<<<<<<< HEAD
                 {#each headers as header, j (j)}
                   {#if row.data[j] !== undefined}
                     <td class="text-base-content/80 truncate text-xs" title={header}>
+=======
+                <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+                {#each headers as _h, j (j)}
+                  {#if row.data[j] !== undefined}
+                    <td class="text-base-content/80 truncate text-xs">
+>>>>>>> origin/feat/s3-file-browser-preview-parquet
                       {row.data[j] !== null ? String(row.data[j]) : ''}
                     </td>
                   {:else}
@@ -201,8 +268,14 @@
                 {/each}
               {:else}
                 <!-- Skeleton State (full row not yet initialized) -->
+<<<<<<< HEAD
                 {#each headers as header, j (j)}
                   <td class="p-1" title={header}>
+=======
+                <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+                {#each headers as _h, j (j)}
+                  <td class="p-1">
+>>>>>>> origin/feat/s3-file-browser-preview-parquet
                     <div class="bg-base-300/40 h-4 w-full animate-pulse rounded"></div>
                   </td>
                 {/each}

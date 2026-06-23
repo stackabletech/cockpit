@@ -182,20 +182,29 @@
                 totalRows
               };
             },
-            (name, values) => {
-              if (preview.kind !== 'parquet') return;
-              const colIdx = preview.headers.indexOf(name);
-              if (colIdx < 0) return;
-              const rows = preview.rows;
-              while (rows.length < values.length) {
-                rows.push(new Array(preview.headers.length).fill(undefined));
-              }
-              for (let i = 0; i < values.length; i++) {
-                rows[i][colIdx] = values[i];
-              }
-              // Create new array reference so ParquetPreview detects the update
-              preview = { ...preview, rows: rows.slice() };
-            }
+            (() => {
+              // Track per-column row position because hyparquet splits column
+              // data across multiple NDJSON chunks. Without this, later chunks
+              // overwrite row 0 instead of appending at the correct offset.
+              const columnPos: Record<string, number> = {};
+              return (name: string, values: unknown[]) => {
+                if (preview.kind !== 'parquet') return;
+                const colIdx = preview.headers.indexOf(name);
+                if (colIdx < 0) return;
+                const rows = preview.rows;
+                let pos = columnPos[name] ?? 0;
+                for (let i = 0; i < values.length; i++) {
+                  while (rows.length <= pos) {
+                    rows.push(new Array(preview.headers.length).fill(undefined));
+                  }
+                  rows[pos][colIdx] = values[i];
+                  pos++;
+                }
+                columnPos[name] = pos;
+                // Create new array reference so ParquetPreview detects the update
+                preview = { ...preview, rows: rows.slice() };
+              };
+            })()
           );
         } catch {
           preview = { kind: 'error', message: m.storage_preview_error_desc() };
@@ -302,6 +311,7 @@
     let resultHeaders: string[] = [];
     let rows: unknown[][] = [];
     let resultTotalRows = 0;
+    const columnPos: Record<string, number> = {};
 
     while (true) {
       const { done, value } = await reader.read();
@@ -322,13 +332,15 @@
           const colIdx = resultHeaders.indexOf(msg.n);
           if (colIdx < 0) continue;
           const values = msg.v as unknown[];
-          while (rows.length < values.length) {
-            rows.push(new Array(resultHeaders.length).fill(undefined));
-          }
+          let pos = columnPos[msg.n] ?? 0;
           for (let i = 0; i < values.length; i++) {
-            if (!rows[i]) rows[i] = new Array(resultHeaders.length).fill(undefined);
-            rows[i][colIdx] = values[i];
+            while (rows.length <= pos) {
+              rows.push(new Array(resultHeaders.length).fill(undefined));
+            }
+            rows[pos][colIdx] = values[i];
+            pos++;
           }
+          columnPos[msg.n] = pos;
           onColumn?.(msg.n, values);
         } else if (msg.t === 'e') {
           throw new Error('Server error reading parquet data');
@@ -461,7 +473,7 @@
         <button
           class="btn btn-ghost btn-sm btn-square"
           onclick={toggleMaximized}
-          aria-label="Restore"
+          aria-label={m.storage_preview_restore()}
         >
           <IconCloseFullscreen class="size-4" aria-hidden="true" />
         </button>
@@ -469,7 +481,7 @@
         <button
           class="btn btn-ghost btn-sm btn-square"
           onclick={toggleMaximized}
-          aria-label="Maximise"
+          aria-label={m.storage_preview_maximise()}
         >
           <IconOpenInFull class="size-4" aria-hidden="true" />
         </button>

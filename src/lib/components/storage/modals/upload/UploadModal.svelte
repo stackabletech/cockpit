@@ -28,6 +28,8 @@
   let phase = $state<Phase>('idle');
   let entries = $state<FileEntry[]>([]);
 
+  let cancelRequested = $state(false);
+
   // Reset when modal closes.
   $effect(() => {
     if (!open) {
@@ -97,6 +99,7 @@
 
   async function startUploadFlow() {
     if (phase !== 'selected') return;
+    cancelRequested = false;
     phase = 'checking';
 
     const conn = loadConnectionLocally();
@@ -111,6 +114,12 @@
         }
       })
     );
+
+    if (cancelRequested) {
+      phase = 'idle';
+      entries = [];
+      return;
+    }
 
     const conflictMap = new Map(results.map((r) => [r.id, r.conflict]));
     entries = entries.map((e) => ({
@@ -129,6 +138,7 @@
 
   async function confirmAndUpload() {
     if (!canProceed) return;
+    cancelRequested = false;
     await doUploadAll();
   }
 
@@ -143,10 +153,19 @@
     const toUpload = entries.filter((e) => e.status !== 'skipped');
     const concurrency = 3;
     for (let i = 0; i < toUpload.length; i += concurrency) {
+      if (cancelRequested) {
+        const pending = new Set(toUpload.slice(i).map((e) => e.id));
+        entries = entries.map((e) =>
+          pending.has(e.id) ? { ...e, status: 'skipped' as const } : e
+        );
+        break;
+      }
       await Promise.all(toUpload.slice(i, i + concurrency).map(doUploadEntry));
     }
 
-    phase = 'complete';
+    if (!cancelRequested) {
+      phase = 'complete';
+    }
   }
 
   async function doUploadEntry(entry: FileEntry) {
@@ -248,7 +267,12 @@
   }
 
   function handleCancel() {
-    if (phase === 'uploading') return;
+    if (phase === 'uploading') {
+      cancelRequested = true;
+      open = false;
+      return;
+    }
+    cancelRequested = true;
     phase = 'idle';
     entries = [];
     open = false;
@@ -284,7 +308,6 @@
       <button
         class="btn btn-ghost btn-sm btn-square"
         onclick={handleCancel}
-        disabled={phase === 'uploading'}
         aria-label={m.storage_upload_close()}
       >
         <IconClose class="size-5" aria-hidden="true" />
@@ -338,9 +361,12 @@
 
       <!-- ── checking ─────────────────────────────────────────────────────── -->
     {:else if phase === 'checking'}
-      <div class="flex items-center justify-center gap-3 py-8" aria-live="polite">
+      <div class="flex flex-col items-center justify-center gap-3 py-8" aria-live="polite">
         <span class="loading loading-spinner loading-sm text-primary" aria-hidden="true"></span>
         <span class="text-base-content/60 text-sm">{m.storage_upload_checking()}</span>
+        <button class="btn btn-ghost btn-sm mt-2" onclick={handleCancel}>
+          {m.storage_upload_overwrite_cancel()}
+        </button>
       </div>
 
       <!-- ── review: conflict resolution ──────────────────────────────────── -->
@@ -394,6 +420,11 @@
           <UploadEntryStatus {entry} />
         {/each}
       </ul>
+      <div class="flex justify-end">
+        <button class="btn btn-ghost btn-sm" onclick={handleCancel}>
+          {m.storage_upload_overwrite_cancel()}
+        </button>
+      </div>
 
       <!-- ── complete ───────────────────────────────────────────────────────── -->
     {:else if phase === 'complete'}

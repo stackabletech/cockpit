@@ -168,7 +168,7 @@
   </span>
 {/snippet}
 
-<div class="border-base-300 flex items-center gap-3 border-b px-6 py-3">
+<div class="border-base-300 flex flex-wrap items-center gap-3 border-b px-6 py-3">
   <!-- Breadcrumbs -->
   <nav
     aria-label="breadcrumb"
@@ -188,7 +188,7 @@
           aria-current="page"
           oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
         >
-          <IconStorage class="size-4" aria-hidden="true" />
+          <IconStorage class="pointer-events-none size-4" aria-hidden="true" />
           {storage.bucket}
         </span>
         {@render pinButton(storage.bucket, '')}
@@ -212,7 +212,10 @@
       </span>
     {/if}
     {#if collapsedParts.length > 0}
-      <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
+      <IconChevronRight
+        class="text-base-content/30 pointer-events-none size-4 shrink-0"
+        aria-hidden="true"
+      />
       <div class="dropdown">
         <button
           tabindex="0"
@@ -253,8 +256,16 @@
       </div>
     {/if}
     {#each visibleParts as part, i (part.prefix)}
+<<<<<<< HEAD
       {@const isCurrent = !storage.isInArchive && i === visibleParts.length - 1}
       <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
+=======
+      {@const isCurrent = i === visibleParts.length - 1}
+      <IconChevronRight
+        class="text-base-content/30 pointer-events-none size-4 shrink-0"
+        aria-hidden="true"
+      />
+>>>>>>> origin/feat/s3-file-browser-preview-parquet
       <span class="group flex min-w-0 items-center gap-1">
         {#if isCurrent}
           <!-- svelte-ignore a11y_no_static_element_interactions -->

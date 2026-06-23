@@ -42,6 +42,7 @@ const mockLog = {
 
 function makeProvider(overrides: Partial<StorageProvider> = {}): StorageProvider {
   return {
+    listContainers: vi.fn(),
     listObjects: vi.fn(),
     getObject: vi.fn(),
     getObjectRange: vi.fn(),

@@ -5,11 +5,13 @@ set -euo pipefail
 
 SKIP_TRINO=false
 SKIP_GARAGE=false
+SKIP_POSTGRESQL=false
 for arg in "$@"; do
   case "$arg" in
     --skip-trino) SKIP_TRINO=true ;;
     --skip-garage) SKIP_GARAGE=true ;;
-    *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino] [--skip-garage]"; exit 1 ;;
+    --skip-postgresql) SKIP_POSTGRESQL=true ;;
+    *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino] [--skip-garage] [--skip-postgresql]"; exit 1 ;;
   esac
 done
 
@@ -23,6 +25,9 @@ if [[ "$SKIP_TRINO" == true ]]; then
 fi
 if [[ "$SKIP_GARAGE" == true ]]; then
   echo "(Garage deployment skipped via --skip-garage)"
+fi
+if [[ "$SKIP_POSTGRESQL" == true ]]; then
+  echo "(PostgreSQL deployment skipped via --skip-postgresql)"
 fi
 echo ""
 
@@ -86,6 +91,18 @@ if [[ "$SKIP_GARAGE" == false ]]; then
   echo ""
   echo "Deploying Garage S3..."
   helm upgrade --install garage "$SCRIPT_DIR/garage" \
+    --namespace default \
+    --wait \
+    --timeout 60s
+fi
+
+# ------------------------------------------------------------------
+# 5c. Deploy PostgreSQL 18 (via Helm)
+# ------------------------------------------------------------------
+if [[ "$SKIP_POSTGRESQL" == false ]]; then
+  echo ""
+  echo "Deploying PostgreSQL 18..."
+  helm upgrade --install postgresql "$SCRIPT_DIR/postgresql" \
     --namespace default \
     --wait \
     --timeout 60s
@@ -244,6 +261,20 @@ if [ -f "$ENV_FILE" ]; then
   cp "$ENV_FILE" "$ENV_FILE.bak"
 fi
 
+if [[ "$SKIP_POSTGRESQL" == false ]]; then
+  echo ""
+  echo "Waiting for PostgreSQL to be ready..."
+  kubectl wait --for=condition=ready pod -l app=postgresql --timeout=60s
+
+  echo "Running database migrations..."
+  DATABASE_HOST=localhost \
+    DATABASE_PORT=31432 \
+    DATABASE_NAME=cockpit \
+    DATABASE_USER=cockpit \
+    DATABASE_PASSWORD=cockpit-dev-password \
+    npx tsx src/lib/server/migrate.ts
+fi
+
 if [[ "$SKIP_TRINO" == false ]]; then
   TRINO_PORT=$(kubectl get svc trino-coordinator -o jsonpath='{.spec.ports[0].nodePort}')
 
@@ -281,6 +312,11 @@ PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT=true
 PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES=25,50,100
 PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE=25
 PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES=15
+DATABASE_HOST=localhost
+DATABASE_PORT=31432
+DATABASE_NAME=cockpit
+DATABASE_USER=cockpit
+DATABASE_PASSWORD=cockpit-dev-password
 EOF
 else
   cat > "$ENV_FILE" <<EOF
@@ -298,6 +334,11 @@ PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT=true
 PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES=25,50,100
 PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE=25
 PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES=15
+DATABASE_HOST=localhost
+DATABASE_PORT=31432
+DATABASE_NAME=cockpit
+DATABASE_USER=cockpit
+DATABASE_PASSWORD=cockpit-dev-password
 EOF
 fi
 
@@ -347,6 +388,14 @@ fi
 if [[ "$SKIP_GARAGE" == false ]]; then
   echo "Garage S3:      http://${NODE_IP}:30900  (admin: http://${NODE_IP}:30902)"
   echo "  Credentials written to s3-config.json for E2E tests."
+  echo ""
+fi
+if [[ "$SKIP_POSTGRESQL" == false ]]; then
+  echo "PostgreSQL:     localhost:31432"
+  echo "  Database:     cockpit"
+  echo "  User:         cockpit"
+  echo "  Password:     cockpit-dev-password"
+  echo "  Environment:  DATABASE_HOST, DATABASE_PORT, DATABASE_NAME, DATABASE_USER, DATABASE_PASSWORD"
   echo ""
 fi
 echo "Test users (OIDC):"

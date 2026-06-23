@@ -58,7 +58,7 @@
   </td>
   <td>
     <div class="flex items-center gap-2.5">
-      <IconFolder class="text-warning size-5 shrink-0" aria-hidden="true" />
+      <IconFolder class="text-warning pointer-events-none size-5 shrink-0" aria-hidden="true" />
       <span class="font-medium">{keyToName(folder.key)}</span>
     </div>
   </td>

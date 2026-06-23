@@ -1,10 +1,6 @@
 <script lang="ts">
-  import IconImage from 'virtual:icons/material-symbols/image';
-  import IconCode from 'virtual:icons/material-symbols/code';
-  import IconArchive from 'virtual:icons/material-symbols/archive';
-  import IconPictureAsPdf from 'virtual:icons/material-symbols/picture-as-pdf';
-  import IconDescription from 'virtual:icons/material-symbols/description';
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
+<<<<<<< HEAD
   import {
     fileIconKind,
     iconColors,
@@ -12,8 +8,12 @@
     formatFileSize,
     isArchiveExtension
   } from '$lib/storage/utils.js';
+=======
+  import { keyToName, formatFileSize } from '$lib/storage/utils.js';
+>>>>>>> origin/feat/s3-file-browser-preview-parquet
   import type { StorageObject } from '$lib/storage/types.js';
   import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
+  import FileIconAndName from './file-icon/FileIconAndName.svelte';
   import { getStorageState } from '$lib/storage/context.js';
 
   interface Props {
@@ -26,9 +26,12 @@
 
   const selected = $derived(storage.selectedKeys.has(file.key));
   const isCtx = $derived(storage.contextMenu?.key === file.key);
+<<<<<<< HEAD
   const kind = $derived(fileIconKind(file.contentType));
   const color = $derived(iconColors[kind]);
   const isArchive = $derived(isArchiveExtension(file.key));
+=======
+>>>>>>> origin/feat/s3-file-browser-preview-parquet
 </script>
 
 <tr
@@ -61,25 +64,7 @@
     />
   </td>
   <td>
-    <div class="flex items-center gap-2.5">
-      {#if kind === 'image'}
-        <IconImage class="size-5 shrink-0 {color}" aria-hidden="true" />
-      {:else if kind === 'code'}
-        <IconCode class="size-5 shrink-0 {color}" aria-hidden="true" />
-      {:else if kind === 'archive'}
-        <IconArchive class="size-5 shrink-0 {color}" aria-hidden="true" />
-      {:else if kind === 'pdf'}
-        <IconPictureAsPdf class="size-5 shrink-0 {color}" aria-hidden="true" />
-      {:else}
-        <IconDescription class="size-5 shrink-0 {color}" aria-hidden="true" />
-      {/if}
-      <span class="truncate">{keyToName(file.key)}</span>
-      {#if file.contentType}
-        <span class="badge badge-ghost badge-sm ml-1 shrink-0 text-[10px] opacity-50">
-          {file.contentType.split('/').at(-1) ?? ''}
-        </span>
-      {/if}
-    </div>
+    <FileIconAndName {file} />
   </td>
   <td class="text-right font-mono text-sm">{formatFileSize(file.size)}</td>
   <td class="text-base-content/60 text-sm"
