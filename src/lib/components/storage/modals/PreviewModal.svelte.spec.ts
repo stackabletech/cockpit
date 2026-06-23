@@ -273,18 +273,66 @@ describe('PreviewModal', () => {
   });
 
   describe('parquet preview', () => {
+    /** Create a mock Response-like object whose body yields NDJSON lines. */
+    function ndjsonResponse(
+      messages: Record<string, unknown>[],
+      options: {
+        contentType?: string;
+        format?: string;
+        truncated?: boolean;
+        totalSize?: number;
+        totalRows?: number;
+        previewRows?: number;
+      }
+    ): Response {
+      const ndjson = messages.map((m) => JSON.stringify(m)).join('\n') + '\n';
+      const headerMap: Record<string, string> = {
+        'content-type': options.contentType ?? 'application/json',
+        'x-preview-format': options.format ?? 'parquet',
+        'x-preview-truncated': String(options.truncated ?? false),
+        'x-preview-total-size': String(options.totalSize ?? 0),
+        'x-preview-bytes': String(options.previewBytes ?? 0)
+      };
+      if (options.totalRows !== undefined) {
+        headerMap['x-preview-total-rows'] = String(options.totalRows);
+      }
+      if (options.previewRows !== undefined) {
+        headerMap['x-preview-preview-rows'] = String(options.previewRows);
+      }
+      const encoded = new TextEncoder().encode(ndjson);
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        headers: { get: (name: string) => headerMap[name.toLowerCase()] ?? null },
+        body: {
+          getReader() {
+            let done = false;
+            return {
+              read() {
+                if (done) return Promise.resolve({ done: true, value: undefined });
+                done = true;
+                return Promise.resolve({ done: false, value: encoded });
+              },
+              cancel() {}
+            };
+          }
+        },
+        json: async () => ({ error: 'not available' })
+      };
+      return mockResponse as unknown as Response;
+    }
+
     it('should render parquet preview when format header is parquet', async () => {
       vi.stubGlobal(
         'fetch',
         vi.fn().mockResolvedValue(
-          mockFetchResponse(
-            JSON.stringify({
-              headers: ['col1', 'col2'],
-              rows: [['val1', 'val2']],
-              totalRows: 100
-            }),
+          ndjsonResponse(
+            [
+              { t: 'h', h: ['col1', 'col2'], tr: 100 },
+              { t: 'c', n: 'col1', v: ['val1'] },
+              { t: 'c', n: 'col2', v: ['val2'] }
+            ],
             {
-              contentType: 'application/json',
               format: 'parquet',
               truncated: false,
               totalSize: 5000,
@@ -297,22 +345,22 @@ describe('PreviewModal', () => {
       render(PreviewModal, { ...defaultProps, objectKey: 'data/file.parquet' });
 
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
-      // Parquet shows a size badge in the header
-      await expect.element(page.getByText('val1')).toBeInTheDocument();
+      // Parquet preview renders a table with headers
+      await expect.element(page.getByText('col1')).toBeInTheDocument();
+      await expect.element(page.getByText('col2')).toBeInTheDocument();
     });
 
     it('should show row count badge when parquet is truncated', async () => {
       vi.stubGlobal(
         'fetch',
         vi.fn().mockResolvedValue(
-          mockFetchResponse(
-            JSON.stringify({
-              headers: ['col1', 'col2'],
-              rows: [['val1', 'val2']],
-              totalRows: 10000
-            }),
+          ndjsonResponse(
+            [
+              { t: 'h', h: ['col1', 'col2'], tr: 10000 },
+              { t: 'c', n: 'col1', v: ['val1'] },
+              { t: 'c', n: 'col2', v: ['val2'] }
+            ],
             {
-              contentType: 'application/json',
               format: 'parquet',
               truncated: true,
               totalSize: 50000,
@@ -325,8 +373,8 @@ describe('PreviewModal', () => {
       render(PreviewModal, { ...defaultProps, objectKey: 'data/file.parquet' });
 
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
-      await expect.element(page.getByText('val1')).toBeInTheDocument();
-      await expect.element(page.getByText(/showing first 1 of 10000 rows/i)).toBeInTheDocument();
+      await expect.element(page.getByText('col1')).toBeInTheDocument();
+      await expect.element(page.getByText('Showing first 1 of 10,000 rows')).toBeInTheDocument();
     });
   });
 

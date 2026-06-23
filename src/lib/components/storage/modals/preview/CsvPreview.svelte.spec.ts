@@ -45,7 +45,10 @@ describe('CsvPreview', () => {
     const text = 'A,B,C\n1,,3\n,,';
     render(CsvPreview, { text });
 
-    await expect.element(page.getByText('1')).toBeInTheDocument();
+    // nth(1) to skip the line-number cell, get the data cell
+    await expect
+      .element(page.getByRole('cell', { name: '1', exact: true }).nth(1))
+      .toBeInTheDocument();
     await expect.element(page.getByText('3')).toBeInTheDocument();
   });
 
@@ -59,7 +62,7 @@ describe('CsvPreview', () => {
     render(CsvPreview, { text });
 
     // Should show truncation notice
-    const notice = page.getByText(/250/);
+    const notice = page.getByText('Showing first 250 rows');
     await expect.element(notice).toBeInTheDocument();
   });
 
@@ -81,14 +84,21 @@ describe('CsvPreview', () => {
     render(CsvPreview, { text });
 
     // Row has only 1 field but 3 headers, so columns B and C should render as empty via ?? ''
-    await expect.element(page.getByRole('cell', { name: '1', exact: true })).toBeInTheDocument();
-    // There should be 3 cells in the body row
+    await expect
+      .element(page.getByRole('cell', { name: '1', exact: true }).nth(1))
+      .toBeInTheDocument();
+    // There should be 3 data cells + 1 line number cell in the body row
     const rows = page.getByRole('row');
     // row 0 is header, row 1 is data
     const dataCells = rows.nth(1).getByRole('cell');
+    // Line number cell
     await expect.element(dataCells.nth(0)).toHaveTextContent('1');
-    await expect.element(dataCells.nth(1)).toHaveTextContent('');
-    await expect.element(dataCells.nth(2)).toHaveTextContent('');
+    // Column A: value '1'
+    await expect.element(dataCells.nth(1)).toHaveTextContent('1');
+    // Column B: missing, renders as empty
+    await expect.element(dataCells.nth(2)).toHaveTextContent(/^$/);
+    // Column C: missing, renders as empty
+    await expect.element(dataCells.nth(3)).toHaveTextContent(/^$/);
   });
 
   it('should handle header-only CSV', async () => {
