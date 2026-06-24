@@ -61,7 +61,7 @@ describe('ParquetMetadata', () => {
       metadata: defaultMetadata
     });
 
-    await expect.element(page.getByText('Compression & Indexes')).toBeInTheDocument();
+    await expect.element(page.getByText('Compression & Indexes').first()).toBeInTheDocument();
     await expect.element(page.getByText('SNAPPY')).toBeInTheDocument();
     await expect.element(page.getByText('GZIP')).toBeInTheDocument();
     await expect.element(page.getByText('Available')).toBeInTheDocument();
@@ -77,7 +77,7 @@ describe('ParquetMetadata', () => {
       metadata: defaultMetadata
     });
 
-    await expect.element(page.getByText('Row groups')).toBeInTheDocument();
+    await expect.element(page.getByText('Row groups').first()).toBeInTheDocument();
   });
 
   it('should render created by when present', async () => {

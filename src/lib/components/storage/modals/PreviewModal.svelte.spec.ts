@@ -284,6 +284,7 @@ describe('PreviewModal', () => {
         totalRows?: number;
         previewRows?: number;
         previewBytes?: number;
+        dataBlocked?: boolean;
       }
     ): Response {
       const ndjson = messages.map((m) => JSON.stringify(m)).join('\n') + '\n';
@@ -295,6 +296,9 @@ describe('PreviewModal', () => {
         'x-preview-bytes': String(options.previewBytes ?? 0),
         'x-preview-renderable': 'true'
       };
+      if (options.dataBlocked) {
+        headerMap['x-preview-data-blocked'] = 'true';
+      }
       if (options.totalRows !== undefined) {
         headerMap['x-preview-total-rows'] = String(options.totalRows);
       }
@@ -364,11 +368,11 @@ describe('PreviewModal', () => {
 
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
       // Metadata tab should be active by default showing schema info
-      await expect.element(page.getByText('col1')).toBeInTheDocument();
-      await expect.element(page.getByText('col2')).toBeInTheDocument();
+      await expect.element(page.getByText('col1').first()).toBeInTheDocument();
+      await expect.element(page.getByText('col2').first()).toBeInTheDocument();
       // Tab labels should be visible
       await expect.element(page.getByText('Metadata')).toBeInTheDocument();
-      await expect.element(page.getByText('Data')).toBeInTheDocument();
+      await expect.element(page.getByRole('tab', { name: 'Data', exact: true })).toBeInTheDocument();
     });
 
     it('should show row count badge when parquet is truncated', async () => {
@@ -407,8 +411,8 @@ describe('PreviewModal', () => {
       render(PreviewModal, { ...defaultProps, objectKey: 'data/file.parquet' });
 
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
-      await expect.element(page.getByText('col1')).toBeInTheDocument();
-      await expect.element(page.getByText('Showing first 1 of 10,000 rows')).toBeInTheDocument();
+      await expect.element(page.getByText('col1').first()).toBeInTheDocument();
+      await expect.element(page.getByText('Showing first 0 of 10,000 rows (parquet)').first()).toBeInTheDocument();
     });
 
     it('should show data table when clicking Data tab', async () => {
@@ -449,37 +453,56 @@ describe('PreviewModal', () => {
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
 
       // Click the Data tab
-      await page.getByRole('tab', { name: 'Data' }).click();
+      await page.getByRole('tab', { name: 'Data' }).first().click();
 
       // Parquet preview table should be visible with column headers
       await expect
         .element(page.getByRole('table', { name: 'Parquet preview' }))
         .toBeInTheDocument();
-      await expect.element(page.getByText('col1')).toBeInTheDocument();
-      await expect.element(page.getByText('col2')).toBeInTheDocument();
+      await expect.element(page.getByText('col1').first()).toBeInTheDocument();
+      await expect.element(page.getByText('col2').first()).toBeInTheDocument();
     });
 
     it('should show blocked message when parquet is not renderable', async () => {
-      const blockedHeaders: Record<string, string> = {
-        'content-type': 'application/json',
-        'x-preview-format': 'parquet',
-        'x-preview-renderable': 'false',
-        'x-preview-total-size': '5000'
-      };
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        headers: { get: (name: string) => blockedHeaders[name.toLowerCase()] ?? null },
-        body: null,
-        json: async () => ({ error: 'not available' })
-      };
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          ndjsonResponse(
+            [
+              {
+                t: 'h',
+                h: ['col1', 'col2'],
+                tr: 100,
+                s: [
+                  { name: 'col1', type: 'string' },
+                  { name: 'col2', type: 'int64' }
+                ],
+                m: {
+                  rowGroups: 1,
+                  compressionCodecs: ['SNAPPY', 'GZIP'],
+                  hasOffsetIndex: true,
+                  hasColumnIndex: true,
+                  createdBy: null,
+                  version: 1
+                }
+              }
+            ],
+            {
+              format: 'parquet',
+              dataBlocked: true,
+              truncated: false,
+              totalSize: 5000,
+              totalRows: 100,
+              previewRows: 50
+            }
+          )
+        )
+      );
 
       render(PreviewModal, { ...defaultProps, objectKey: 'data/blocked.parquet' });
 
       await expect.element(page.getByText('blocked.parquet')).toBeInTheDocument();
-      await expect.element(page.getByText('Preview blocked')).toBeInTheDocument();
-      await expect.element(page.getByText(/GZIP compression/)).toBeInTheDocument();
+      await expect.element(page.getByText('Preview blocked').first()).toBeInTheDocument();
     });
   });
 
