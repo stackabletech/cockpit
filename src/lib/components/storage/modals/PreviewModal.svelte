@@ -28,18 +28,31 @@
     objectKey?: string | null;
   }
 
+  interface ColumnStats {
+    nullCount: number | null;
+    distinctCount: number | null;
+    min: string | null;
+    max: string | null;
+  }
+
   interface ColumnTypeInfo {
     name: string;
     type: string;
+    codec: string;
+    compressedSize: number;
+    uncompressedSize: number;
+    stats: ColumnStats;
   }
 
   interface ParquetFileMeta {
     rowGroups: number;
     compressionCodecs: string[];
+    compressionUniform: boolean;
     hasOffsetIndex: boolean;
     hasColumnIndex: boolean;
     createdBy: string | null;
     version: number;
+    arrowSchema: string | null;
   }
 
   type PreviewKind =
@@ -278,10 +291,12 @@
             msg.m ?? {
               rowGroups: 0,
               compressionCodecs: [],
+              compressionUniform: true,
               hasOffsetIndex: false,
               hasColumnIndex: false,
               createdBy: null,
-              version: 0
+              version: 0,
+              arrowSchema: null
             }
           );
         } else if (msg.t === 'c') {

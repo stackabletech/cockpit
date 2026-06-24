@@ -387,5 +387,18 @@
   "storage_preview_parquet_column_index": "Spalten-Index",
   "storage_preview_parquet_available": "Verfügbar",
   "storage_preview_parquet_missing": "Fehlt",
-  "storage_preview_parquet_none": "Keine"
+  "storage_preview_parquet_none": "Keine",
+  "storage_preview_parquet_compression": "Kompression",
+  "storage_preview_parquet_uncompressed": "Unkomprimiert",
+  "storage_preview_parquet_compressed": "Komprimiert",
+  "storage_preview_parquet_size": "Größe",
+  "storage_preview_parquet_statistics": "Statistiken",
+  "storage_preview_parquet_min": "Min",
+  "storage_preview_parquet_max": "Max",
+  "storage_preview_parquet_null_count": "Null-Anzahl",
+  "storage_preview_parquet_distinct_count": "Distinct-Anzahl",
+  "storage_preview_parquet_not_stored": "Nicht gespeichert",
+  "storage_preview_parquet_arrow_schema": "Arrow-Schema",
+  "storage_preview_parquet_arrow_schema_present": "Eingebettetes Arrow-Schema ({size})",
+  "storage_preview_parquet_uniform": "einheitlich"
 }

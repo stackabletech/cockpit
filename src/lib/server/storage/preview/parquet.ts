@@ -70,6 +70,227 @@ function stringifyStructuredParquetValue(value: object): string {
   });
 }
 
+/**
+ * Statistics aggregated across all row groups for a single column.
+ */
+interface ColumnStats {
+  nullCount: number | null;
+  distinctCount: number | null;
+  min: string | null;
+  max: string | null;
+}
+
+/**
+ * Per-column detail assembled from all row groups.
+ */
+interface ColumnDetail {
+  name: string;
+  type: string;
+  codec: string;
+  compressedSize: number;
+  uncompressedSize: number;
+  stats: ColumnStats;
+}
+
+/** Serialize a min/max stat value to a string for client transmission. */
+function statToString(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'bigint') return value.toString();
+  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Uint8Array)
+    return `<${Array.from(value.slice(0, 8)).join(',')}${value.length > 8 ? '...' : ''}>`;
+  if (typeof value === 'string') return value.length > 100 ? value.slice(0, 100) + '…' : value;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return String(value);
+  return String(value);
+}
+
+/**
+ * Collect per-column details (sizes, codec, stats) from all row groups.
+ */
+function collectColumnDetails(meta: FileMetaData, schemaTree: SchemaTree): ColumnDetail[] {
+  return schemaTree.children.map((entry) => {
+    const colName = entry.element.name;
+    let compressedSize = 0;
+    let uncompressedSize = 0;
+    const codecs = new Set<string>();
+    let aggNullCount: number | null = null;
+    let aggDistinctCount: number | null = null;
+    let aggMin: string | null = null;
+    let aggMax: string | null = null;
+    let hasAnyStats = false;
+
+    for (const group of meta.row_groups) {
+      for (const col of group.columns) {
+        const md = col.meta_data;
+        if (!md) continue;
+        if (
+          md.path_in_schema.length === 0 ||
+          md.path_in_schema[md.path_in_schema.length - 1] !== colName
+        )
+          continue;
+
+        codecs.add(md.codec);
+        compressedSize += Number(md.total_compressed_size);
+        uncompressedSize += Number(md.total_uncompressed_size);
+
+        const st = md.statistics;
+        if (st) {
+          hasAnyStats = true;
+          const nullCount = st.null_count !== undefined ? Number(st.null_count) : null;
+          const distinctCount = st.distinct_count !== undefined ? Number(st.distinct_count) : null;
+
+          if (nullCount !== null) {
+            aggNullCount = (aggNullCount ?? 0) + nullCount;
+          }
+          if (distinctCount !== null) {
+            aggDistinctCount = (aggDistinctCount ?? 0) + distinctCount;
+          }
+
+          const minVal = statToString(st.min ?? st.min_value ?? null);
+          const maxVal = statToString(st.max ?? st.max_value ?? null);
+
+          if (minVal !== null) {
+            if (aggMin === null || minVal < aggMin) aggMin = minVal;
+          }
+          if (maxVal !== null) {
+            if (aggMax === null || maxVal > aggMax) aggMax = maxVal;
+          }
+        }
+      }
+    }
+
+    const codec = codecs.size === 1 ? codecs.values().next().value! : 'MIXED';
+
+    return {
+      name: colName,
+      type: describeColumnType(entry.element),
+      codec,
+      compressedSize,
+      uncompressedSize,
+      stats: {
+        nullCount: hasAnyStats ? aggNullCount : null,
+        distinctCount: hasAnyStats ? aggDistinctCount : null,
+        min: hasAnyStats ? aggMin : null,
+        max: hasAnyStats ? aggMax : null
+      }
+    };
+  });
+}
+
+/**
+ * Try to decode the embedded Arrow schema from Parquet key_value_metadata.
+ * Returns a human-readable description (field names & types), or null on failure.
+ *
+ * The ARROW:schema value is a base64-encoded Arrow IPC serialised Schema
+ * (Flatbuffers format inside an IPC message framing).
+ */
+function extractArrowSchema(meta: FileMetaData): string | null {
+  if (!meta.key_value_metadata) return null;
+  const kv = meta.key_value_metadata.find((e) => e.key === 'ARROW:schema');
+  if (!kv?.value) return null;
+
+  try {
+    const bytes = Uint8Array.from(atob(kv.value), (c) => c.charCodeAt(0));
+    if (bytes.length < 8) return null;
+
+    const dv = (pos: number) => new DataView(bytes.buffer, bytes.byteOffset + pos);
+
+    // IPC framing: optional 0xFFFFFFFF continuation indicator, then 4-byte metadata length
+    let pos = 0;
+    let metaLen: number;
+    const first = dv(0).getInt32(0, true);
+    if (first === -1) {
+      pos = 8;
+      metaLen = dv(4).getInt32(0, true);
+    } else {
+      metaLen = first;
+      pos = 4;
+    }
+    if (pos + metaLen > bytes.length) return null;
+
+    // Flatbuffers helpers operating on the metadata slice
+    const fb = {
+      buf: bytes.slice(pos, pos + metaLen),
+      i32(at: number) {
+        return new DataView(this.buf.buffer, this.buf.byteOffset + at).getInt32(0, true);
+      },
+      i16(at: number) {
+        return new DataView(this.buf.buffer, this.buf.byteOffset + at).getInt16(0, true);
+      },
+      i8(at: number) {
+        return new DataView(this.buf.buffer, this.buf.byteOffset + at).getInt8(0);
+      }
+    };
+
+    // Parse a Flatbuffers table: return field offsets (0 = absent)
+    function tableFields(tab: number): number[] {
+      const vtOff = tab - fb.i32(tab); // vtable location
+      const n = fb.i16(vtOff + 2); // number of fields
+      const offs: number[] = [];
+      for (let i = 0; i < n; i++) offs.push(fb.i16(vtOff + 4 + i * 2));
+      return offs;
+    }
+
+    // Read a string at a uoffset_t pointer
+    function fbStr(at: number): string {
+      const strOff = fb.i32(at); // uoffset_t relative to `at`
+      const start = at + strOff;
+      const len = fb.i32(start);
+      return new TextDecoder().decode(fb.buf.slice(start + 4, start + 4 + len));
+    }
+
+    // Read a uoffset_t and return the absolute offset
+    function fbOff(at: number): number {
+      return at + fb.i32(at);
+    }
+
+    // Read a vector (returns element start offset and count)
+    function fbVec(at: number): { elemStart: number; count: number } | null {
+      const vecOff = fb.i32(at);
+      const start = at + vecOff;
+      const count = fb.i32(start);
+      return { elemStart: start + 4, count };
+    }
+
+    // Message table starts at 0 within the metadata block
+    const msgFields = tableFields(0);
+    if (msgFields.length < 3) return null;
+
+    // Field 1 (header_type, ubyte) — tab=0 so fieldPos = msgFields[1]
+    if (msgFields[1] === 0) return null;
+    const headerType = fb.i8(msgFields[1]);
+    if (headerType !== 1) return null; // 1 = Schema
+
+    // Field 2 (header, table offset) — tab=0 so fieldPos = msgFields[2]
+    if (msgFields[2] === 0) return null;
+    const schemaTab = fbOff(msgFields[2]);
+
+    // Schema table: field 1 = fields vector
+    const schemaFields = tableFields(schemaTab);
+    if (schemaFields.length < 2 || schemaFields[1] === 0) return null;
+    // fieldPos for fields vector: schemaTab + schemaFields[1]
+    const vec = fbVec(schemaTab + schemaFields[1]);
+    if (!vec || vec.count === 0) return null;
+
+    const fieldEntries: string[] = [];
+    for (let i = 0; i < vec.count; i++) {
+      const fieldTabOff = fb.i32(vec.elemStart + i * 4);
+      const fieldTabAbs = vec.elemStart + i * 4 + fieldTabOff;
+      const ff = tableFields(fieldTabAbs);
+      if (ff.length > 0 && ff[0] !== 0) {
+        const name = fbStr(fieldTabAbs + ff[0]);
+        fieldEntries.push(name);
+      }
+    }
+
+    if (fieldEntries.length === 0) return null;
+    return fieldEntries.join(', ');
+  } catch {
+    return null;
+  }
+}
+
 /** Extract a human-readable type string from a schema element. */
 function describeColumnType(element: SchemaTree['element']): string {
   if (element.logical_type) {
@@ -215,10 +436,12 @@ export async function getParquetPreview(
     const meta = {
       rowGroups: 0,
       compressionCodecs: [] as string[],
+      compressionUniform: true,
       hasOffsetIndex: false,
       hasColumnIndex: false,
       createdBy: null as string | null,
-      version: 0
+      version: 0,
+      arrowSchema: null as string | null
     };
     return new Response(JSON.stringify({ t: 'h', h: [], tr: 0, s: [], m: meta }) + '\n', {
       headers: {
@@ -271,17 +494,17 @@ export async function getParquetPreview(
   const schemaTree = parquetSchema(parquetMeta);
   const headers = schemaTree.children.map((entry) => entry.element.name);
 
-  const columnTypes = schemaTree.children.map((entry) => ({
-    name: entry.element.name,
-    type: describeColumnType(entry.element)
-  }));
+  const columnDetails = collectColumnDetails(parquetMeta, schemaTree);
+  const arrowSchema = extractArrowSchema(parquetMeta);
   const metadata = {
     rowGroups: parquetMeta.row_groups.length,
     compressionCodecs: collectCompressionCodecs(parquetMeta),
+    compressionUniform: new Set(columnDetails.map((c) => c.codec)).size <= 1,
     hasOffsetIndex: hasOffsetIndex(parquetMeta),
     hasColumnIndex: hasColumnIndex(parquetMeta),
     createdBy: parquetMeta.created_by ?? null,
-    version: parquetMeta.version
+    version: parquetMeta.version,
+    arrowSchema
   };
 
   // ── Check if compression rules disallow data preview ─────────
@@ -297,7 +520,7 @@ export async function getParquetPreview(
     const extraHeaders: Record<string, string> = {};
     if (blockingRule) extraHeaders['X-Preview-Data-Blocked'] = 'true';
     return new Response(
-      JSON.stringify({ t: 'h', h: headers, tr: totalRows, s: columnTypes, m: metadata }) + '\n',
+      JSON.stringify({ t: 'h', h: headers, tr: totalRows, s: columnDetails, m: metadata }) + '\n',
       {
         headers: {
           'Content-Type': 'application/x-ndjson',
@@ -317,7 +540,7 @@ export async function getParquetPreview(
 
   if (actualLimit <= 0) {
     return new Response(
-      JSON.stringify({ t: 'h', h: headers, tr: totalRows, s: columnTypes, m: metadata }) + '\n',
+      JSON.stringify({ t: 'h', h: headers, tr: totalRows, s: columnDetails, m: metadata }) + '\n',
       {
         headers: {
           'Content-Type': 'application/x-ndjson',
@@ -425,7 +648,8 @@ export async function getParquetPreview(
       // Send headers immediately with schema and metadata
       controller.enqueue(
         encoder.encode(
-          JSON.stringify({ t: 'h', h: headers, tr: totalRows, s: columnTypes, m: metadata }) + '\n'
+          JSON.stringify({ t: 'h', h: headers, tr: totalRows, s: columnDetails, m: metadata }) +
+            '\n'
         )
       );
 

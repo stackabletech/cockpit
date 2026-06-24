@@ -279,9 +279,9 @@ describe('getParquetPreview', () => {
     // Schema info
     expect(body.schema).toBeDefined();
     expect(body.schema).toHaveLength(3);
-    expect(body.schema![0]).toEqual({ name: 'id', type: 'int64' });
-    expect(body.schema![1]).toEqual({ name: 'name', type: 'string' });
-    expect(body.schema![2]).toEqual({ name: 'active', type: 'boolean' });
+    expect(body.schema![0]).toMatchObject({ name: 'id', type: 'int64' });
+    expect(body.schema![1]).toMatchObject({ name: 'name', type: 'string' });
+    expect(body.schema![2]).toMatchObject({ name: 'active', type: 'boolean' });
 
     // Metadata
     expect(body.metadata).toBeDefined();
