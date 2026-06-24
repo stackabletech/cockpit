@@ -100,9 +100,11 @@ export class StorageState {
   // ────────────────────────────────────────────────────────────────────────────
 
   syncFromServer(bucket: string, prefix: string, objects: StoragePage): void {
+    const bucketChanged = bucket !== this.bucket;
     this.bucket = bucket;
     this.prefix = prefix;
     this.objects = objects;
+    if (bucketChanged) this.prevTokens = [];
     this.loading = false;
     // Clear selection on navigation
     this.selectedKeys = new SvelteSet<string>();
