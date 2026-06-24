@@ -339,16 +339,32 @@ describe('PreviewModal', () => {
                 h: ['col1', 'col2'],
                 tr: 100,
                 s: [
-                  { name: 'col1', type: 'string' },
-                  { name: 'col2', type: 'int64' }
+                  {
+                    name: 'col1',
+                    type: 'string',
+                    codec: 'SNAPPY',
+                    compressedSize: 100,
+                    uncompressedSize: 200,
+                    stats: { nullCount: 0, distinctCount: null, min: null, max: null }
+                  },
+                  {
+                    name: 'col2',
+                    type: 'int64',
+                    codec: 'SNAPPY',
+                    compressedSize: 50,
+                    uncompressedSize: 80,
+                    stats: { nullCount: null, distinctCount: null, min: null, max: null }
+                  }
                 ],
                 m: {
                   rowGroups: 1,
                   compressionCodecs: ['SNAPPY'],
+                  compressionUniform: true,
                   hasOffsetIndex: true,
                   hasColumnIndex: true,
                   createdBy: null,
-                  version: 1
+                  version: 1,
+                  arrowSchema: null
                 }
               },
               { t: 'c', n: 'col1', v: ['val1'] },
@@ -391,10 +407,12 @@ describe('PreviewModal', () => {
                 m: {
                   rowGroups: 1,
                   compressionCodecs: ['SNAPPY'],
+                  compressionUniform: true,
                   hasOffsetIndex: true,
                   hasColumnIndex: true,
                   createdBy: null,
-                  version: 1
+                  version: 1,
+                  arrowSchema: null
                 }
               },
               { t: 'c', n: 'col1', v: ['val1'] },
@@ -433,10 +451,12 @@ describe('PreviewModal', () => {
                 m: {
                   rowGroups: 1,
                   compressionCodecs: ['SNAPPY'],
+                  compressionUniform: true,
                   hasOffsetIndex: true,
                   hasColumnIndex: true,
                   createdBy: null,
-                  version: 1
+                  version: 1,
+                  arrowSchema: null
                 }
               },
               { t: 'c', n: 'col1', v: ['val1'] },
@@ -478,16 +498,32 @@ describe('PreviewModal', () => {
                 h: ['col1', 'col2'],
                 tr: 100,
                 s: [
-                  { name: 'col1', type: 'string' },
-                  { name: 'col2', type: 'int64' }
+                  {
+                    name: 'col1',
+                    type: 'string',
+                    codec: 'SNAPPY',
+                    compressedSize: 100,
+                    uncompressedSize: 200,
+                    stats: { nullCount: null, distinctCount: null, min: null, max: null }
+                  },
+                  {
+                    name: 'col2',
+                    type: 'int64',
+                    codec: 'GZIP',
+                    compressedSize: 50,
+                    uncompressedSize: 80,
+                    stats: { nullCount: null, distinctCount: null, min: null, max: null }
+                  }
                 ],
                 m: {
                   rowGroups: 1,
                   compressionCodecs: ['SNAPPY', 'GZIP'],
+                  compressionUniform: false,
                   hasOffsetIndex: true,
                   hasColumnIndex: true,
                   createdBy: null,
-                  version: 1
+                  version: 1,
+                  arrowSchema: null
                 }
               }
             ],
