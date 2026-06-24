@@ -372,7 +372,9 @@ describe('PreviewModal', () => {
       await expect.element(page.getByText('col2').first()).toBeInTheDocument();
       // Tab labels should be visible
       await expect.element(page.getByText('Metadata')).toBeInTheDocument();
-      await expect.element(page.getByRole('tab', { name: 'Data', exact: true })).toBeInTheDocument();
+      await expect
+        .element(page.getByRole('tab', { name: 'Data', exact: true }))
+        .toBeInTheDocument();
     });
 
     it('should show row count badge when parquet is truncated', async () => {
@@ -412,7 +414,9 @@ describe('PreviewModal', () => {
 
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
       await expect.element(page.getByText('col1').first()).toBeInTheDocument();
-      await expect.element(page.getByText('Showing first 0 of 10,000 rows (parquet)').first()).toBeInTheDocument();
+      await expect
+        .element(page.getByText('Showing first 0 of 10,000 rows (parquet)').first())
+        .toBeInTheDocument();
     });
 
     it('should show data table when clicking Data tab', async () => {
