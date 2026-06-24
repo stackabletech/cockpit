@@ -13,8 +13,7 @@
   const kind = $derived(fileIconKind(file.contentType, file.key));
   const config = $derived(FILE_ICON_CONFIG[kind]);
 
-  const ext = $derived(file.key.split('.').at(-1)?.toLowerCase() ?? '');
-  const badge = $derived(file.contentType ? (file.contentType.split('/').at(-1) ?? '') : ext);
+  const badge = $derived(file.contentType ? (file.contentType.split('/').at(-1) ?? '') : '');
 </script>
 
 <div class="flex items-center gap-2.5">
