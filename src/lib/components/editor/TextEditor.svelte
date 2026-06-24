@@ -9,19 +9,20 @@
     contentType = 'text/plain',
     filename = '',
     readonly = false,
+    ready = $bindable(false),
     onSave
   }: {
     value?: string;
     contentType?: string;
     filename?: string;
     readonly?: boolean;
+    ready?: boolean;
     onSave?: () => void;
   } = $props();
 
   let container: HTMLDivElement;
   let editor: import('monaco-editor').editor.IStandaloneCodeEditor | undefined;
   let monaco = $state<typeof import('monaco-editor') | undefined>(undefined);
-  let ready = $state(false);
 
   const extension = $derived(filename.split('.').pop()?.toLowerCase() ?? '');
 

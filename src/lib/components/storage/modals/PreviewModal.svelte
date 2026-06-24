@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { browser } from '$app/environment';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
   import IconCloseFullscreen from 'virtual:icons/material-symbols/close-fullscreen';
   import IconOpenInFull from 'virtual:icons/material-symbols/open-in-full';
@@ -67,6 +68,7 @@
   let originalText = $state('');
   let saving = $state(false);
   let showUnsavedConfirm = $state(false);
+  let editorReady = $state(false);
 
   const dirty = $derived(editorText !== originalText);
 
@@ -92,13 +94,20 @@
 
   $effect(() => {
     if (open && objectKey) {
+      editorReady = false;
       void loadPreview(objectKey, bucket);
+      // Start loading Monaco in parallel with data fetching
+      if (browser) {
+        import('monaco-editor/esm/vs/editor/editor.worker?worker');
+        import('monaco-editor');
+      }
     }
     if (!open) {
       revokeBlobUrls();
       preview = { kind: 'idle' };
       imageNaturalWidth = 0;
       imageNaturalHeight = 0;
+      editorReady = false;
       editorText = '';
       originalText = '';
     }
@@ -430,7 +439,18 @@
           <p class="text-base-content/60 text-sm">{preview.message}</p>
         </div>
       {:else if preview.kind === 'text'}
-        <div class="flex h-full flex-col">
+        <div class="relative flex h-full flex-col">
+          {#if !editorReady}
+            <div
+              class="bg-base-100/80 absolute inset-0 z-10 flex items-center justify-center"
+              aria-live="polite"
+              aria-label={m.storage_preview_loading()}
+            >
+              <span class="loading loading-spinner loading-md text-primary" aria-hidden="true"
+              ></span>
+              <span class="sr-only">{m.storage_preview_loading()}</span>
+            </div>
+          {/if}
           {#if isTooLargeToEdit()}
             <div
               class="bg-base-200 border-base-300 flex shrink-0 items-center gap-2 border-b px-4 py-2"
@@ -444,6 +464,7 @@
           <div class="min-h-0 flex-1">
             <TextEditor
               bind:value={editorText}
+              bind:ready={editorReady}
               contentType={preview.contentType}
               {filename}
               readonly={isTooLargeToEdit()}
