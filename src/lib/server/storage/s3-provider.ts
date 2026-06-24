@@ -237,32 +237,41 @@ export class S3StorageProvider implements StorageProvider {
       }
     }
 
-    return withS3Errors(
-      async () => {
-        const output = await this.client.send(
-          new DeleteObjectsCommand({
-            Bucket: this.bucket,
-            Delete: {
-              Objects: resolvedKeys.map((key) => ({ Key: key })),
-              Quiet: true
-            }
-          })
-        );
-        const failed = (output.Errors ?? []).map((e) => ({
-          key: e.Key ?? '',
-          code: e.Code,
-          message: e.Message
-        }));
-        if (failed.length > 0) {
-          log.warn(
-            { bucket: this.bucket, failed_count: failed.length },
-            'some objects failed to delete'
-          );
-        }
-        return { failed };
-      },
-      { bucket: this.bucket, operation: 'deleteObjects' }
-    );
+    // S3 DeleteObjects has a limit of 1000 keys per request.
+    // MinIO/Ionos return MalformedXML when exceeding this limit.
+    const MAX_KEYS = 1000;
+    const allFailed: Array<{ key: string; code?: string; message?: string }> = [];
+
+    for (let i = 0; i < resolvedKeys.length; i += MAX_KEYS) {
+      const chunk = resolvedKeys.slice(i, i + MAX_KEYS);
+      log.trace(
+        { bucket: this.bucket, chunk_offset: i, chunk_size: chunk.length },
+        'S3 DeleteObjects chunk'
+      );
+      const output = await this.client.send(
+        new DeleteObjectsCommand({
+          Bucket: this.bucket,
+          Delete: {
+            Objects: chunk.map((key) => ({ Key: key })),
+            Quiet: true
+          }
+        })
+      );
+      const failed = (output.Errors ?? []).map((e) => ({
+        key: e.Key ?? '',
+        code: e.Code,
+        message: e.Message
+      }));
+      allFailed.push(...failed);
+    }
+
+    if (allFailed.length > 0) {
+      log.warn(
+        { bucket: this.bucket, failed_count: allFailed.length },
+        'some objects failed to delete'
+      );
+    }
+    return { failed: allFailed };
   }
 
   async listAllKeys(prefix: string): Promise<string[]> {
