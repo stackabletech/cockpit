@@ -528,6 +528,38 @@ describe('UploadModal', () => {
       check.resolve(false);
       await expect.element(page.getByRole('status')).toBeInTheDocument();
     });
+
+    it('should check at most 3 files concurrently (default uploadConcurrency)', async () => {
+      // Hold each check until we explicitly resolve it so we can inspect
+      // how many calls are in-flight at the same time.
+      // The mock setup-client.ts sets uploadConcurrency = 3 (the default).
+      const pending: Array<() => void> = [];
+      mockCheckObjectExists.mockImplementation(
+        () => new Promise<boolean>((resolve) => pending.push(() => resolve(false)))
+      );
+
+      render(UploadModal, defaultProps);
+      selectFiles(Array.from({ length: 5 }, (_, i) => createFile(`file${i}.txt`)));
+      await tick();
+
+      await page.getByRole('button', { name: /upload/i }).click();
+
+      // Wait until the checking phase is visible; by this point the first
+      // batch of checks has been fired but is still pending.
+      await expect.element(page.getByText(/checking/i)).toBeInTheDocument();
+
+      // Only the first batch (3) should have started — not all 5.
+      expect(mockCheckObjectExists).toHaveBeenCalledTimes(3);
+
+      // Unblock the first batch; the second batch (2) then fires.
+      pending.splice(0, 3).forEach((fn) => fn());
+      // Drain the second batch too so the component reaches a terminal state.
+      await vi.waitFor(() => expect(pending.length).toBe(2));
+      pending.splice(0).forEach((fn) => fn());
+
+      await expect.element(page.getByRole('status')).toBeInTheDocument();
+      expect(mockCheckObjectExists).toHaveBeenCalledTimes(5);
+    });
   });
 
   describe('accessibility', () => {

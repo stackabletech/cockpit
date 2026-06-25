@@ -222,7 +222,7 @@
         {#each storage.bookmarks.pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
           {@const active = isPinnedActive(pin)}
           <li role="none" class="group relative">
-            <div class="tooltip tooltip-right relative z-50 w-full" data-tip={pinnedLabel(pin)}>
+            <div class="tooltip tooltip-right relative z-30 w-full" data-tip={pinnedLabel(pin)}>
               <!-- eslint-disable svelte/no-navigation-without-resolve -->
               <a
                 href={pinnedHref(pin)}

@@ -8,7 +8,8 @@ vi.mock('$lib/client/feature-flags.js', () => ({
   storageAutoConnectEnabled: false,
   allowedPageSizes: [25, 50, 100],
   defaultPageSize: 25,
-  maxRecentFiles: 15
+  maxRecentFiles: 15,
+  uploadConcurrency: 3
 }));
 
 // Prevent components from auto-submitting forms in browser tests.
