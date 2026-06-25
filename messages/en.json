@@ -294,6 +294,8 @@
   "storage_upload_checking": "Checking for conflicts\u2026",
   "storage_upload_conflicts_title": "Files already exist",
   "storage_upload_conflicts_desc": "Choose what to do for each conflicting file.",
+  "storage_upload_skip_all": "Skip all",
+  "storage_upload_replace_all": "Replace all",
   "storage_upload_resolution_replace": "Replace",
   "storage_upload_resolution_skip": "Skip",
   "storage_upload_resolution_rename": "Rename",

@@ -261,6 +261,59 @@ describe('UploadModal', () => {
       const list = page.getByRole('list');
       await expect.element(list).toBeInTheDocument();
     });
+
+    it('should show Skip all and Replace all buttons in review phase', async () => {
+      mockCheckObjectExists.mockResolvedValue(true);
+      render(UploadModal, defaultProps);
+      await selectAndUpload([createFile('existing.txt')]);
+
+      await expect.element(page.getByRole('button', { name: /skip all/i })).toBeInTheDocument();
+      await expect.element(page.getByRole('button', { name: /replace all/i })).toBeInTheDocument();
+    });
+
+    it('should enable upload button after clicking Skip all', async () => {
+      mockCheckObjectExists.mockResolvedValue(true);
+      render(UploadModal, defaultProps);
+      await selectAndUpload([createFile('conflict.txt')]);
+
+      await page.getByRole('button', { name: /skip all/i }).click();
+
+      const uploadBtn = page.getByRole('button', { name: /upload/i });
+      await expect.element(uploadBtn).not.toBeDisabled();
+    });
+
+    it('should enable upload button after clicking Replace all', async () => {
+      mockCheckObjectExists.mockResolvedValue(true);
+      render(UploadModal, defaultProps);
+      await selectAndUpload([createFile('conflict.txt')]);
+
+      await page.getByRole('button', { name: /replace all/i }).click();
+
+      const uploadBtn = page.getByRole('button', { name: /upload/i });
+      await expect.element(uploadBtn).not.toBeDisabled();
+    });
+
+    it('should resolve all conflicts as skip when Skip all is clicked on multiple files', async () => {
+      mockCheckObjectExists.mockResolvedValue(true);
+      render(UploadModal, defaultProps);
+      await selectAndUpload([createFile('a.txt'), createFile('b.txt'), createFile('c.txt')]);
+
+      await page.getByRole('button', { name: /skip all/i }).click();
+
+      const uploadBtn = page.getByRole('button', { name: /upload/i });
+      await expect.element(uploadBtn).not.toBeDisabled();
+    });
+
+    it('should resolve all conflicts as replace when Replace all is clicked on multiple files', async () => {
+      mockCheckObjectExists.mockResolvedValue(true);
+      render(UploadModal, defaultProps);
+      await selectAndUpload([createFile('a.txt'), createFile('b.txt'), createFile('c.txt')]);
+
+      await page.getByRole('button', { name: /replace all/i }).click();
+
+      const uploadBtn = page.getByRole('button', { name: /upload/i });
+      await expect.element(uploadBtn).not.toBeDisabled();
+    });
   });
 
   describe('upload flow - error handling', () => {

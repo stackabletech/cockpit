@@ -197,6 +197,24 @@
     }
   }
 
+  // ── Bulk resolution ────────────────────────────────────────────────────────
+
+  function skipAll() {
+    entries = entries.map((e) =>
+      e.conflict
+        ? { ...e, resolution: 'skip' as Resolution, renameState: 'idle' as RenameState }
+        : e
+    );
+  }
+
+  function replaceAll() {
+    entries = entries.map((e) =>
+      e.conflict
+        ? { ...e, resolution: 'replace' as Resolution, renameState: 'idle' as RenameState }
+        : e
+    );
+  }
+
   // ── Resolution handlers ────────────────────────────────────────────────────
 
   function setResolution(id: string, res: Resolution) {
@@ -377,6 +395,15 @@
           <p class="text-base-content font-semibold">{m.storage_upload_conflicts_title()}</p>
           <p class="text-base-content/60 mt-0.5 text-sm">{m.storage_upload_conflicts_desc()}</p>
         </div>
+      </div>
+
+      <div class="mb-2 flex justify-end gap-2">
+        <button class="btn btn-ghost btn-xs" onclick={skipAll}>
+          {m.storage_upload_skip_all()}
+        </button>
+        <button class="btn btn-ghost btn-xs" onclick={replaceAll}>
+          {m.storage_upload_replace_all()}
+        </button>
       </div>
 
       <ul
