@@ -9,6 +9,8 @@
   import IconBucket from '../shared/BucketIcon.svelte';
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import IconGridView from 'virtual:icons/material-symbols/grid-view';
+  import IconPowerOff from 'virtual:icons/material-symbols/power-settings-new';
+  import Modal from '$lib/components/Modal.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
@@ -94,6 +96,15 @@
       document.body.style.userSelect = '';
     }
   });
+
+  // ── Disconnect confirmation ───────────────────────────────────────────────
+  let disconnectConfirmOpen = $state(false);
+  let disconnectForm = $state<HTMLFormElement | null>(null);
+
+  function confirmDisconnect() {
+    disconnectConfirmOpen = false;
+    disconnectForm?.requestSubmit();
+  }
 
   // page.url may be undefined in the error boundary state (when a client-side
   // universal load throws and SvelteKit transitions to the error state). Guard
@@ -306,20 +317,40 @@
     {/if}
   </ul>
 
-  <!-- TODO: This needs to be a two step process to avoid unintentional disconnects from misclicks -->
   <!-- Disconnect button -->
   <div class="border-base-300 border-t p-2">
-    <form method="POST" action="/storage?/disconnect">
+    <form bind:this={disconnectForm} method="POST" action="/storage?/disconnect">
       <button
-        type="submit"
-        class="
-        btn text-base-content/60 btn-ghost btn-xs hover:text-error w-full
-      "
+        type="button"
+        class="btn text-base-content/60 btn-ghost btn-xs hover:text-error w-full"
+        onclick={() => (disconnectConfirmOpen = true)}
       >
         {m.storage_disconnect()}
       </button>
     </form>
   </div>
+
+  <!-- Disconnect confirmation modal -->
+  <Modal bind:open={disconnectConfirmOpen} class="modal">
+    <div class="modal-box max-w-sm">
+      <h3 class="mb-3 flex items-center gap-2 text-lg font-bold">
+        <IconPowerOff class="text-error size-5 shrink-0" aria-hidden="true" />
+        {m.storage_disconnect_confirm_title()}
+      </h3>
+      <p class="text-base-content/80 text-sm">
+        {m.storage_disconnect_confirm_message()}
+      </p>
+      <div class="modal-action mt-6">
+        <button class="btn btn-ghost" onclick={() => (disconnectConfirmOpen = false)}>
+          {m.storage_disconnect_cancel()}
+        </button>
+        <button class="btn btn-outline btn-error" onclick={confirmDisconnect}>
+          <IconPowerOff class="size-4" aria-hidden="true" />
+          {m.storage_disconnect_confirm_button()}
+        </button>
+      </div>
+    </div>
+  </Modal>
 
   <!-- Drag-to-resize handle -->
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
