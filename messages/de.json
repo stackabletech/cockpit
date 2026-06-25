@@ -144,6 +144,7 @@
   "storage_connect_forget_cancel": "Abbrechen",
   "storage_connect_forget_label": "Verbindung zu {endpoint} vergessen",
   "storage_disconnect": "Verbindung Trennen",
+  "storage_sidebar_resize_handle": "Seitenleiste in der Größe ändern",
   "storage_buckets_label": "Buckets",
   "storage_buckets_subtitle": "Durchsuchen und verwalten Sie Ihre gespeicherten Objekte.",
   "storage_view_all_buckets": "Alle Buckets anzeigen",
