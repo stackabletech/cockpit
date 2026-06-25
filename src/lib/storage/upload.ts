@@ -34,11 +34,11 @@ export class UploadError extends Error {
 }
 
 function buildUploadUrl(bucket: string, key: string): string {
-  return `/storage/api/upload?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
+  return `/api/storage/upload?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
 }
 
 function buildDownloadUrl(bucket: string, key: string): string {
-  return `/storage/api/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
+  return `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
 }
 
 function mapStatusToUploadCode(status: number): UploadErrorCode {
