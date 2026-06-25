@@ -387,7 +387,7 @@ export class StorageState {
     const conn = loadConnectionLocally();
     const headers: HeadersInit = conn ? { 'x-storage-connection': getConnectionHeader(conn) } : {};
 
-    const res = await fetch(`/storage/api/delete?${params}`, { method: 'DELETE', headers });
+    const res = await fetch(`/api/storage/delete?${params}`, { method: 'DELETE', headers });
     if (!res.ok) {
       let code: string;
       if (res.status === 401) code = 'not_connected';
