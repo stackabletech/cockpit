@@ -415,7 +415,7 @@
       data: 'true'
     });
 
-    const res = await fetch(`/storage/api/preview?${params}`, { headers: fetchHeaders });
+    const res = await fetch(`/api/storage/preview?${params}`, { headers: fetchHeaders });
 
     if (!res.ok) {
       throw new Error('Failed to fetch parquet chunk');
