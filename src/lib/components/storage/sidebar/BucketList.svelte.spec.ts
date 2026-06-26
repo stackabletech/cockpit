@@ -274,9 +274,7 @@ describe('BucketList', () => {
 
       // Click on the "Buckets" section header — a non-interactive span that is
       // outside the context menu but does not trigger browser navigation.
-      const bucketsHeader = page
-        .getByRole('navigation')
-        .getByText('Buckets', { exact: true });
+      const bucketsHeader = page.getByRole('navigation').getByText('Buckets', { exact: true });
       await bucketsHeader.click();
 
       await expect.element(page.getByRole('menuitem', { name: /unpin/i })).not.toBeInTheDocument();
