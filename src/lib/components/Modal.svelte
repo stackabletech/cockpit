@@ -36,9 +36,10 @@
   function handleBackdropClick(e: MouseEvent) {
     // The click target is the <dialog> element itself only when the backdrop is
     // clicked; clicks inside the content bubble up to child elements instead.
+    if (e.target !== dialogEl) return;
     if (closeguard && !closeguard()) {
       e.preventDefault();
-    } else if (e.target === dialogEl) {
+    } else {
       open = false;
     }
   }

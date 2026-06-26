@@ -72,6 +72,18 @@
 
   const dirty = $derived(editorText !== originalText);
 
+  // Prevent accidental browser tab/window close when there are unsaved changes.
+  $effect(() => {
+    if (!dirty) return;
+
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  });
+
   const filename = $derived(objectKey ? keyToName(objectKey) : '');
 
   function isTooLargeToEdit(): boolean {

@@ -28,7 +28,7 @@
       <button class="btn btn-ghost" onclick={onCancel}>
         {m.storage_editor_cancel()}
       </button>
-      <button class="btn btn-outline btn-ghost" onclick={onDiscard}>
+      <button class="btn btn-outline btn-ghost btn-error" onclick={onDiscard}>
         {m.storage_editor_discard()}
       </button>
       <button class="btn btn-primary" onclick={onSave}>
