@@ -25,6 +25,9 @@
 <div class="preview-scroll h-full overflow-x-auto overflow-y-auto">
   <table class="table-sm table">
     <thead class="bg-base-100 sticky top-0 z-10">
+      <!-- Selection action toolbar -->
+      <SelectionToolbar />
+
       <!-- Column headers -->
       <tr
         class="
@@ -50,9 +53,6 @@
         <th class="w-3/12 font-semibold">{m.storage_header_last_modified()}</th>
         <th class="w-10"></th>
       </tr>
-
-      <!-- Selection action toolbar -->
-      <SelectionToolbar />
     </thead>
 
     <tbody>

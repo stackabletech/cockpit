@@ -17,6 +17,7 @@ import { addToast } from '$lib/stores/toast.svelte.js';
 import { ActionError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
 import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+import { keyToName } from '$lib/storage/utils.js';
 
 export class StorageState {
   // ── Core data (synced from server load) ──
@@ -100,9 +101,11 @@ export class StorageState {
   // ────────────────────────────────────────────────────────────────────────────
 
   syncFromServer(bucket: string, prefix: string, objects: StoragePage): void {
+    const bucketChanged = bucket !== this.bucket;
     this.bucket = bucket;
     this.prefix = prefix;
     this.objects = objects;
+    if (bucketChanged) this.prevTokens = [];
     this.loading = false;
     // Clear selection on navigation
     this.selectedKeys = new SvelteSet<string>();
@@ -292,6 +295,24 @@ export class StorageState {
       case 'unpin':
         this.bookmarks.unpin(this.bucket, ctxKey ?? this.prefix);
         return;
+
+      case 'copy-filename': {
+        const nameKey = ctxKey ?? this.selectedFiles[0]?.key;
+        if (!nameKey) return;
+        await navigator.clipboard.writeText(keyToName(nameKey));
+        addToast('success', m.storage_action_copy_filename_success());
+        return;
+      }
+
+      case 'copy-path': {
+        const pathKey = ctxKey ?? this.selectedFiles[0]?.key;
+        if (!pathKey) return;
+        // Strip trailing slash for folders so the URI is canonical.
+        const cleanKey = pathKey.endsWith('/') ? pathKey.slice(0, -1) : pathKey;
+        await navigator.clipboard.writeText(`s3://${this.bucket}/${cleanKey}`);
+        addToast('success', m.storage_action_copy_path_success());
+        return;
+      }
     }
   };
 
@@ -366,7 +387,7 @@ export class StorageState {
     const conn = loadConnectionLocally();
     const headers: HeadersInit = conn ? { 'x-storage-connection': getConnectionHeader(conn) } : {};
 
-    const res = await fetch(`/storage/api/delete?${params}`, { method: 'DELETE', headers });
+    const res = await fetch(`/api/storage/delete?${params}`, { method: 'DELETE', headers });
     if (!res.ok) {
       let code: string;
       if (res.status === 401) code = 'not_connected';

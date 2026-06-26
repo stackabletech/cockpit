@@ -65,3 +65,14 @@ export const maxRecentFiles: number = (() => {
   const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES ?? '', 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 15;
 })();
+
+/** Maximum number of parallel HTTP requests fired during the upload conflict
+ *  check and during the upload itself.
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_UPLOAD_CONCURRENCY`. Default: 3.
+ *  Raise for faster bulk uploads on high-throughput connections; lower to
+ *  reduce server pressure on constrained deployments. Must be a positive
+ *  integer. */
+export const uploadConcurrency: number = (() => {
+  const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_UPLOAD_CONCURRENCY ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 3;
+})();

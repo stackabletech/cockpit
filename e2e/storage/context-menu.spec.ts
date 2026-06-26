@@ -93,4 +93,76 @@ test.describe('Storage S3 — Context Menu', () => {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
   });
+
+  test('Copy filename copies the bare file name to the clipboard', async ({
+    page,
+    context,
+    browserName
+  }, testInfo) => {
+    // Firefox does not support clipboard-read in grantPermissions.
+    test.skip(browserName === 'firefox', 'Firefox does not support clipboard-read permission');
+
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'ctx-copy-name');
+    const cleanupKeys = [`${prefix}copy-name-test.txt`];
+
+    try {
+      await putTextObject(
+        client,
+        credentials.bucket,
+        `${prefix}copy-name-test.txt`,
+        'copy name test'
+      );
+
+      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'copy-name-test.txt').click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Copy filename' }).click();
+
+      await expect(page.getByText('Filename copied to clipboard')).toBeVisible();
+
+      const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+      expect(clipboardText).toBe('copy-name-test.txt');
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('Copy path copies the full s3:// URI to the clipboard', async ({
+    page,
+    context,
+    browserName
+  }, testInfo) => {
+    // Firefox does not support clipboard-read in grantPermissions.
+    test.skip(browserName === 'firefox', 'Firefox does not support clipboard-read permission');
+
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'ctx-copy-path');
+    const cleanupKeys = [`${prefix}copy-path-test.txt`];
+
+    try {
+      await putTextObject(
+        client,
+        credentials.bucket,
+        `${prefix}copy-path-test.txt`,
+        'copy path test'
+      );
+
+      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'copy-path-test.txt').click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Copy path' }).click();
+
+      await expect(page.getByText('Path copied to clipboard')).toBeVisible();
+
+      const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+      expect(clipboardText).toBe(`s3://${credentials.bucket}/${prefix}copy-path-test.txt`);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
 });

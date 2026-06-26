@@ -21,7 +21,7 @@ export const load: LayoutLoad = async ({ fetch, url }) => {
   const header = getConnectionHeader(connection);
 
   try {
-    const res = await fetch('/storage/api/buckets', {
+    const res = await fetch('/api/storage/buckets', {
       headers: { 'x-storage-connection': header }
     });
 

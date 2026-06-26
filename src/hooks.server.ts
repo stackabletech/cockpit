@@ -63,17 +63,21 @@ const handleAuthGuard: Handle = async ({ event, resolve }) => {
 /**
  * Parse the `x-storage-connection` header (base64 JSON) for every request and
  * store the result in `event.locals.storageConfig`. For routes under
- * `/(app)/storage/api/` the header is mandatory — the middleware throws 401
+ * `/(app)/api/storage/` the header is mandatory — the middleware throws 401
  * before the handler runs if it is absent, so handlers can rely on
  * `locals.storageConfig` being non-null. Throws 400 for a present but
  * malformed / invalid header on any route.
  */
 const handleStorageConnection: Handle = async ({ event, resolve }) => {
-  if (event.route.id?.startsWith('/(app)/storage/') && !storageBrowserEnabled) {
+  if (
+    (event.route.id?.startsWith('/(app)/storage/') ||
+      event.route.id?.startsWith('/(app)/api/storage/')) &&
+    !storageBrowserEnabled
+  ) {
     throw error(404, 'Storage browser is not enabled');
   }
   event.locals.storageConfig = getConnectionFromHeader(event.request);
-  if (event.locals.storageConfig === null && event.route.id?.startsWith('/(app)/storage/api/')) {
+  if (event.locals.storageConfig === null && event.route.id?.startsWith('/(app)/api/storage/')) {
     throw error(401, 'No storage connection configured');
   }
   return resolve(event);
