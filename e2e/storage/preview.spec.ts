@@ -308,10 +308,11 @@ test.describe('Storage S3 — Preview', () => {
       // Modal heading
       await expect(page.getByRole('heading', { name: 'data.parquet' })).toBeVisible();
 
-      // Default view is Metadata tab — schema column names should be visible
-      await expect(page.getByText('id')).toBeVisible();
-      await expect(page.getByText('name')).toBeVisible();
-      await expect(page.getByText('score')).toBeVisible();
+      // Default view is Metadata tab — schema column names should be visible in the Schema table
+      const schemaTable = page.getByRole('table', { name: 'Schema' });
+      await expect(schemaTable.getByRole('cell', { name: 'id' })).toBeVisible();
+      await expect(schemaTable.getByRole('cell', { name: 'name' })).toBeVisible();
+      await expect(schemaTable.getByRole('cell', { name: 'score' })).toBeVisible();
 
       // Tabs are visible
       await expect(page.getByRole('tab', { name: 'Metadata' })).toBeVisible();
@@ -373,7 +374,9 @@ test.describe('Storage S3 — Preview', () => {
       await expect(page.getByRole('heading', { name: 'measurements.parquet' })).toBeVisible();
 
       // Schema column names should be visible in default metadata tab
-      await expect(page.getByText('name')).toBeVisible();
+      await expect(
+        page.getByRole('table', { name: 'Schema' }).getByRole('cell', { name: 'name' })
+      ).toBeVisible();
 
       // Click Data tab to view data table
       await page.getByRole('tab', { name: 'Data' }).click();
