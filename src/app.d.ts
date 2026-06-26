@@ -18,7 +18,7 @@ declare global {
       /**
        * Parsed S3 connection config extracted from the `x-storage-connection`
        * request header by the `handleStorageConnection` middleware.
-       * Always non-null for requests to `/(app)/storage/api/*` routes
+       * Always non-null for requests to `/(app)/api/storage/*` routes
        * (the middleware throws 401 before the handler runs if the header is absent).
        * Null for all other routes.
        */

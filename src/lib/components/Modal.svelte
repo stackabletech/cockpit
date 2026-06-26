@@ -33,9 +33,13 @@
     }
   }
 
-  function handleBackdrop(e: MouseEvent) {
-    if (e.target === dialogEl && closeguard && !closeguard()) {
+  function handleBackdropClick(e: MouseEvent) {
+    // The click target is the <dialog> element itself only when the backdrop is
+    // clicked; clicks inside the content bubble up to child elements instead.
+    if (closeguard && !closeguard()) {
       e.preventDefault();
+    } else if (e.target === dialogEl) {
+      open = false;
     }
   }
 </script>
@@ -45,7 +49,7 @@
   class={className}
   onclose={handleClose}
   oncancel={handleCancel}
-  onmousedown={handleBackdrop}
+  onclick={handleBackdropClick}
 >
   {#if open}
     {@render children()}

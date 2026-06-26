@@ -9,7 +9,8 @@ vi.mock('$lib/client/feature-flags.js', () => ({
   allowedPageSizes: [25, 50, 100],
   defaultPageSize: 25,
   maxRecentFiles: 15,
-  maxEditableFileSize: 5 * 1024 * 1024
+  maxEditableFileSize: 5 * 1024 * 1024,
+  uploadConcurrency: 3
 }));
 
 // Prevent components from auto-submitting forms in browser tests.

@@ -124,7 +124,7 @@
 
     try {
       const params = new URLSearchParams({ bucket: bkt, key });
-      const res = await fetch(`/storage/api/preview?${params}`, { headers });
+      const res = await fetch(`/api/storage/preview?${params}`, { headers });
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
