@@ -1,6 +1,6 @@
 import { uploadObject } from '$lib/server/storage/service.js';
+import type { RequestHandler } from '@sveltejs/kit';
 import { requireBucketKey } from '../params.js';
-import type { RequestHandler } from './$types';
 
 /**
  * POST /storage/api/create?bucket=<bucket>&key=<object-key>

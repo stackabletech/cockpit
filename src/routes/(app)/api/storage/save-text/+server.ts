@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { uploadObject } from '$lib/server/storage/service.js';
 import { getProvider } from '$lib/server/storage/utils.js';
 import { requireBucketKey } from '../params.js';
-import type { RequestHandler } from './$types';
+import type { RequestHandler } from '@sveltejs/kit';
 
 /**
  * POST /storage/api/save-text?bucket=<bucket>&key=<key>&contentType=<type>&originalSize=<number>&previewBytes=<number>
