@@ -316,10 +316,10 @@ test.describe('Storage S3 — Preview', () => {
 
       // Tabs are visible
       await expect(page.getByRole('tab', { name: 'Metadata' })).toBeVisible();
-      await expect(page.getByRole('tab', { name: 'Data' })).toBeVisible();
+      await expect(page.getByRole('tab', { name: 'Data', exact: true })).toBeVisible();
 
       // Click the Data tab to view the data table
-      await page.getByRole('tab', { name: 'Data' }).click();
+      await page.getByRole('tab', { name: 'Data', exact: true }).click();
 
       // Parquet preview table with correct aria label
       const table = page.getByRole('table', { name: 'Parquet preview' });
@@ -379,7 +379,7 @@ test.describe('Storage S3 — Preview', () => {
       ).toBeVisible();
 
       // Click Data tab to view data table
-      await page.getByRole('tab', { name: 'Data' }).click();
+      await page.getByRole('tab', { name: 'Data', exact: true }).click();
       const table = page.getByRole('table', { name: 'Parquet preview' });
       await expect(table).toBeVisible();
       await expect(table.locator('th', { hasText: 'name' })).toBeVisible();
