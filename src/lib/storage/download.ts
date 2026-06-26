@@ -35,7 +35,7 @@ export class DownloadError extends Error {
 }
 
 function buildDownloadUrl(bucket: string, key: string): string {
-  return `/storage/api/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
+  return `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
 }
 
 function mapStatusToCode(status: number): DownloadErrorCode {

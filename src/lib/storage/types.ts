@@ -30,7 +30,15 @@ export type NavigateFn = (
 
 // ── Action names ─────────────────────────────────────────────────────────────
 
-export type ActionName = 'download' | 'upload' | 'preview' | 'delete' | 'pin' | 'unpin';
+export type ActionName =
+  | 'download'
+  | 'upload'
+  | 'preview'
+  | 'delete'
+  | 'pin'
+  | 'unpin'
+  | 'copy-filename'
+  | 'copy-path';
 
 // ── Storage locations ────────────────────────────────────────────────────────
 

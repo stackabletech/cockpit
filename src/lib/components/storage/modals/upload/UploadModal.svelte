@@ -9,6 +9,7 @@
   import { checkObjectExists, uploadFile, UploadError } from '$lib/storage/upload.js';
   import { formatFileSize } from '$lib/storage/utils.js';
   import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+  import { uploadConcurrency } from '$lib/client/feature-flags.js';
   import UploadDropzone from './UploadDropzone.svelte';
   import UploadConflictEntry from './UploadConflictEntry.svelte';
   import UploadEntryStatus from './UploadEntryStatus.svelte';
@@ -105,15 +106,25 @@
     const conn = loadConnectionLocally();
     const connHeader = conn ? getConnectionHeader(conn) : '';
 
-    const results = await Promise.all(
-      entries.map(async (e) => {
-        try {
-          return { id: e.id, conflict: await checkObjectExists(bucket, e.targetKey, connHeader) };
-        } catch {
-          return { id: e.id, conflict: false };
-        }
-      })
-    );
+    const results: { id: string; conflict: boolean }[] = [];
+    for (let i = 0; i < entries.length; i += uploadConcurrency) {
+      if (cancelRequested) {
+        phase = 'idle';
+        entries = [];
+        return;
+      }
+      const batch = entries.slice(i, i + uploadConcurrency);
+      const batchResults = await Promise.all(
+        batch.map(async (e) => {
+          try {
+            return { id: e.id, conflict: await checkObjectExists(bucket, e.targetKey, connHeader) };
+          } catch {
+            return { id: e.id, conflict: false };
+          }
+        })
+      );
+      results.push(...batchResults);
+    }
 
     if (cancelRequested) {
       phase = 'idle';
@@ -151,8 +162,7 @@
     );
 
     const toUpload = entries.filter((e) => e.status !== 'skipped');
-    const concurrency = 3;
-    for (let i = 0; i < toUpload.length; i += concurrency) {
+    for (let i = 0; i < toUpload.length; i += uploadConcurrency) {
       if (cancelRequested) {
         const pending = new Set(toUpload.slice(i).map((e) => e.id));
         entries = entries.map((e) =>
@@ -160,7 +170,7 @@
         );
         break;
       }
-      await Promise.all(toUpload.slice(i, i + concurrency).map(doUploadEntry));
+      await Promise.all(toUpload.slice(i, i + uploadConcurrency).map(doUploadEntry));
     }
 
     if (!cancelRequested) {
@@ -195,6 +205,24 @@
         e.id === entry.id ? { ...e, status: 'error' as const, errorMessage: msg } : e
       );
     }
+  }
+
+  // ── Bulk resolution ────────────────────────────────────────────────────────
+
+  function skipAll() {
+    entries = entries.map((e) =>
+      e.conflict
+        ? { ...e, resolution: 'skip' as Resolution, renameState: 'idle' as RenameState }
+        : e
+    );
+  }
+
+  function replaceAll() {
+    entries = entries.map((e) =>
+      e.conflict
+        ? { ...e, resolution: 'replace' as Resolution, renameState: 'idle' as RenameState }
+        : e
+    );
   }
 
   // ── Resolution handlers ────────────────────────────────────────────────────
@@ -377,6 +405,15 @@
           <p class="text-base-content font-semibold">{m.storage_upload_conflicts_title()}</p>
           <p class="text-base-content/60 mt-0.5 text-sm">{m.storage_upload_conflicts_desc()}</p>
         </div>
+      </div>
+
+      <div class="mb-2 flex justify-end gap-2">
+        <button class="btn btn-ghost btn-xs" onclick={skipAll}>
+          {m.storage_upload_skip_all()}
+        </button>
+        <button class="btn btn-ghost btn-xs" onclick={replaceAll}>
+          {m.storage_upload_replace_all()}
+        </button>
       </div>
 
       <ul
