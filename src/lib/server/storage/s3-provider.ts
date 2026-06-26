@@ -248,14 +248,17 @@ export class S3StorageProvider implements StorageProvider {
         { bucket: this.bucket, chunk_offset: i, chunk_size: chunk.length },
         'S3 DeleteObjects chunk'
       );
-      const output = await this.client.send(
-        new DeleteObjectsCommand({
-          Bucket: this.bucket,
-          Delete: {
-            Objects: chunk.map((key) => ({ Key: key })),
-            Quiet: true
-          }
-        })
+      const output = await withS3Errors(() =>
+        this.client.send(
+          new DeleteObjectsCommand({
+            Bucket: this.bucket,
+            Delete: {
+              Objects: chunk.map((key) => ({ Key: key })),
+              Quiet: true
+            }
+          })
+        ),
+        { bucket: this.bucket, operation: 'deleteObjects' }
       );
       const failed = (output.Errors ?? []).map((e) => ({
         key: e.Key ?? '',
