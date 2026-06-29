@@ -78,10 +78,14 @@ describe('ParquetMetadata', () => {
     await expect.element(page.getByText('SNAPPY').first()).toBeInTheDocument();
     await expect.element(page.getByText('GZIP').first()).toBeInTheDocument();
 
-    // Stats: min/max for id
-    await expect.element(page.getByText('1 .. 100')).toBeInTheDocument();
-    // Stats: null count + distinct count for id
-    await expect.element(page.getByText('null=0 dist=100')).toBeInTheDocument();
+    // Stats labels
+    await expect.element(page.getByText('Min').first()).toBeInTheDocument();
+    await expect.element(page.getByText('Max').first()).toBeInTheDocument();
+    await expect.element(page.getByText('Null count').first()).toBeInTheDocument();
+    await expect.element(page.getByText('Distinct count').first()).toBeInTheDocument();
+    // Stats values for id column
+    await expect.element(page.getByText('1').first()).toBeInTheDocument();
+    await expect.element(page.getByText('100').first()).toBeInTheDocument();
 
     // Not stored for score column (no stats)
     await expect.element(page.getByText('Not stored')).toBeInTheDocument();
