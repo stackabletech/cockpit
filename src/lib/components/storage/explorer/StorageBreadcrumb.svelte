@@ -196,7 +196,7 @@
           role="listbox"
           aria-label={m.storage_breadcrumb_more()}
           class="
-            dropdown-content menu rounded-box border-base-300 bg-base-100 z-50 w-48
+            dropdown-content menu rounded-box border-base-300 bg-base-100 z-30 w-48
             border p-1 shadow-lg
           "
         >
@@ -255,14 +255,14 @@
   <!-- Item count badges -->
   <div class="flex shrink-0 items-center gap-1.5">
     <span
-      class="tooltip tooltip-bottom badge badge-soft badge-primary badge-sm z-60 gap-1"
+      class="tooltip tooltip-bottom badge badge-soft badge-primary badge-sm z-30 gap-1"
       data-tip={m.storage_folder_count({ count: storage.folders.length })}
     >
       <IconFolderOutline class="size-4" aria-hidden="true" />
       <span class="font-bold">{storage.folders.length}</span>
     </span>
     <span
-      class="tooltip tooltip-bottom badge badge-soft badge-primary badge-sm z-60 gap-1"
+      class="tooltip tooltip-bottom badge badge-soft badge-primary badge-sm z-30 gap-1"
       data-tip={m.storage_file_count({ count: storage.files.length })}
     >
       <IconDescriptionOutline class="size-4" aria-hidden="true" />
@@ -312,7 +312,7 @@
       tabindex="0"
       role="menu"
       class="
-        dropdown-content menu rounded-box border-base-300 bg-base-100 z-50 w-52
+        dropdown-content menu rounded-box border-base-300 bg-base-100 z-30 w-52
         border p-1 shadow-lg
       "
     >

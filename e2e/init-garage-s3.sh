@@ -8,6 +8,8 @@ set -euo pipefail
 : "${S3_REGION:=garage}"
 : "${S3_BUCKET:=test-bucket}"
 : "${S3_CONFIG_PATH:=s3-config.json}"
+: "${S3_ACCESS_KEY_ID:=E2E00000000000000001}"
+: "${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY must be set}"
 : "${S3_ACCESS_KEY_NAME:=e2e-test-app}"
 : "${S3_PERMISSION_OWNER:=true}"
 : "${S3_PERMISSION_READ:=true}"
@@ -41,20 +43,6 @@ json_find_bucket_id_by_alias() {
   ' "$bucket_name"
 }
 
-json_find_key_id_by_name() {
-  local key_name="$1"
-
-  node -e '
-    const fs = require("fs");
-    const keyName = process.argv[1];
-    const items = JSON.parse(fs.readFileSync(0, "utf8"));
-    const key = items.find((item) => item?.name === keyName && item?.expired === false);
-    if (key?.id) {
-      process.stdout.write(key.id);
-    }
-  ' "$key_name"
-}
-
 admin_post() {
   local path="$1"
   local payload="$2"
@@ -81,28 +69,10 @@ get_bucket_id() {
   admin_get '/v2/ListBuckets' | json_find_bucket_id_by_alias "$bucket_name"
 }
 
-get_key_id() {
-  local key_name="$1"
-
-  admin_get '/v2/ListKeys' | json_find_key_id_by_name "$key_name"
-}
-
-get_key_info() {
-  local access_key_id="$1"
-
-  admin_get "/v2/GetKeyInfo?id=$access_key_id&showSecretKey=true"
-}
-
 create_bucket() {
   local bucket_name="$1"
 
   admin_post '/v2/CreateBucket' "{\"globalAlias\":\"$bucket_name\"}"
-}
-
-create_access_key() {
-  local key_name="$1"
-
-  admin_post '/v2/CreateKey' "{\"name\":\"$key_name\",\"neverExpires\":true}"
 }
 
 allow_bucket_key() {
@@ -112,30 +82,23 @@ allow_bucket_key() {
   admin_post '/v2/AllowBucketKey' "{\"bucketId\":\"$bucket_id\",\"accessKeyId\":\"$access_key_id\",\"permissions\":{\"owner\":$S3_PERMISSION_OWNER,\"read\":$S3_PERMISSION_READ,\"write\":$S3_PERMISSION_WRITE}}"
 }
 
+# Import pre-defined access key (idempotent — Garage ignores re-import of existing keys)
+admin_post '/v2/ImportKey' "{\"accessKeyId\":\"$S3_ACCESS_KEY_ID\",\"secretAccessKey\":\"$S3_SECRET_ACCESS_KEY\",\"name\":\"$S3_ACCESS_KEY_NAME\",\"neverExpires\":true}" >/dev/null 2>&1 || true
+
 bucket_id=$(get_bucket_id "$S3_BUCKET")
 if [[ -z "$bucket_id" ]]; then
   bucket_response=$(create_bucket "$S3_BUCKET")
   bucket_id=$(printf '%s' "$bucket_response" | json_get 'id')
 fi
 
-access_key_id=$(get_key_id "$S3_ACCESS_KEY_NAME")
-if [[ -z "$access_key_id" ]]; then
-  key_response=$(create_access_key "$S3_ACCESS_KEY_NAME")
-  access_key_id=$(printf '%s' "$key_response" | json_get 'accessKeyId')
-  secret_access_key=$(printf '%s' "$key_response" | json_get 'secretAccessKey')
-else
-  key_response=$(get_key_info "$access_key_id")
-  secret_access_key=$(printf '%s' "$key_response" | json_get 'secretAccessKey')
-fi
-
-allow_bucket_key "$bucket_id" "$access_key_id" >/dev/null
+allow_bucket_key "$bucket_id" "$S3_ACCESS_KEY_ID" >/dev/null
 
 cat > "$S3_CONFIG_PATH" <<EOF
 {
   "awsEndpoint": "$S3_ENDPOINT",
   "awsRegion": "$S3_REGION",
-  "awsAccessKeyId": "$access_key_id",
-  "awsSecretAccessKey": "$secret_access_key",
+  "awsAccessKeyId": "$S3_ACCESS_KEY_ID",
+  "awsSecretAccessKey": "$S3_SECRET_ACCESS_KEY",
   "bucket": "$S3_BUCKET",
   "garageAdminUrl": "$GARAGE_ADMIN_URL",
   "garageAdminToken": "$GARAGE_ADMIN_TOKEN"

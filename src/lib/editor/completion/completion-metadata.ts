@@ -1,4 +1,4 @@
-// Typed client for GET /trino/completion/metadata with a short-lived in-memory
+// Typed client for GET /api/trino/completion/metadata with a short-lived in-memory
 // cache. Used by the Monaco completion provider; kept provider-agnostic so it
 // can be shared by other callers that need the same metadata.
 
@@ -46,7 +46,7 @@ async function fetchCached<T>(cacheKey: string, qs: URLSearchParams, empty: T): 
   }
 
   const promise = (async () => {
-    const res = await fetch(`/trino/completion/metadata?${qs.toString()}`);
+    const res = await fetch(`/api/trino/completion/metadata?${qs.toString()}`);
     if (!res.ok) return empty;
     const value = (await res.json()) as T;
     clientCache.set(cacheKey, { value, expiresAt: Date.now() + CLIENT_CACHE_TTL_MS });
