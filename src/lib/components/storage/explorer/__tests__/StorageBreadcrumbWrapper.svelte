@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
   import { setStorageState } from '$lib/storage/context.js';
   import { setTabsState } from '$lib/storage/tabs-context.js';
   import { TabsState } from '$lib/storage/tabs.svelte.js';
@@ -12,8 +11,9 @@
   }
 
   let { state, tabsState: tabsStateProp }: Props = $props();
-  const effectiveTabsState = tabsStateProp ?? new TabsState(state);
-  untrack(() => {
+  const effectiveTabsState = $derived(tabsStateProp ?? new TabsState(state));
+
+  $effect(() => {
     setStorageState(state);
     setTabsState(effectiveTabsState);
   });

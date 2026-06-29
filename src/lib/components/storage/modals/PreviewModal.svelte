@@ -26,6 +26,7 @@
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
+  import { maxEditableFileSize } from '$lib/client/feature-flags.js';
 
   interface Props {
     open?: boolean;
@@ -439,11 +440,10 @@
 
     saving = true;
     try {
-      const conn = loadConnectionLocally();
-      const headers: HeadersInit = {};
-      if (conn) {
-        (headers as Record<string, string>)[STORAGE_CONNECTION_HEADER] = getConnectionHeader(conn);
-      }
+      const connectionId = connectionStore.activeConnectionId;
+      const headers: HeadersInit = connectionId
+        ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
+        : {};
 
       const res = await fetch(`/api/storage/save-text?${params}`, {
         method: 'POST',
@@ -529,9 +529,9 @@
   ): Promise<unknown[][]> {
     if (!objectKey) return [];
 
-    const conn = loadConnectionLocally();
-    const fetchHeaders: HeadersInit = conn
-      ? { [STORAGE_CONNECTION_HEADER]: getConnectionHeader(conn) }
+    const connectionId = connectionStore.activeConnectionId;
+    const fetchHeaders: HeadersInit = connectionId
+      ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
       : {};
 
     const params = new URLSearchParams({
