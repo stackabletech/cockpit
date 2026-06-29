@@ -144,6 +144,8 @@
   });
 
   onMount(async () => {
+    // Load Monaco's NLS bundle for the active locale. Static import strings are
+    // required — Vite cannot bundle bare-specifier template literals at build time.
     if (getLocale() === 'de') {
       // @ts-expect-error — Monaco ESM nls bundle has no types
       await import('monaco-editor/esm/nls.messages.de.js');
