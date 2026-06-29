@@ -20,7 +20,9 @@ test.describe('Storage S3 — Connection', () => {
     await expect(page).toHaveURL('/storage');
     const main = page.locator('main');
     await expect(main.getByRole('heading', { name: 'Buckets' })).toBeVisible();
-    await expect(main.getByRole('link', { name: credentials.bucket, exact: true })).toBeVisible();
+    await expect(
+      main.getByRole('link', { name: credentials.bucket, exact: true }).first()
+    ).toBeVisible();
   });
 
   test('shows an error for invalid Garage credentials', async ({ page }) => {
@@ -46,6 +48,9 @@ test.describe('Storage S3 — Connection', () => {
     await expect(page.locator('main').getByRole('heading', { name: 'Buckets' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Disconnect' }).click();
+    // Clicking Disconnect opens a confirmation modal; confirm by clicking the
+    // Disconnect button inside the dialog.
+    await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
   });
 
@@ -94,7 +99,8 @@ test.describe('Storage S3 — Connection', () => {
 
     const bucketLink = page
       .locator('main')
-      .getByRole('link', { name: credentials.bucket, exact: true });
+      .getByRole('link', { name: credentials.bucket, exact: true })
+      .first();
     await expect(bucketLink).toBeVisible();
     await bucketLink.click();
 

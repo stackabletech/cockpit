@@ -11,12 +11,21 @@ import { env } from '$env/dynamic/public';
 export const storageAutoConnectEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT ?? 'false') === 'true';
 
-/** When `PUBLIC_STACKABLE_UI_STORAGE_RESTORE_TABS=true`, the file browser
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RESTORE_TABS=true`, the file browser
  *  saves open tabs (their name, order, and location) to localStorage and
  *  restores them the next time the user navigates to `/storage`.
  *  Disabled by default. */
 export const storageRestoreTabsEnabled =
-  (env.PUBLIC_STACKABLE_UI_STORAGE_RESTORE_TABS ?? 'false') === 'true';
+  (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_RESTORE_TABS ??
+    env.PUBLIC_STACKABLE_UI_STORAGE_RESTORE_TABS ??
+    'false') === 'true';
+
+/** Timeout in milliseconds for the storage auto-connect attempt. Default: 15 000 (15 s).
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT_TIMEOUT_MS`. */
+export const storageAutoConnectTimeoutMs: number = (() => {
+  const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT_TIMEOUT_MS ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 15_000;
+})();
 
 // ── Pagination ───────────────────────────────────────────────────────────────
 
@@ -54,6 +63,18 @@ export const defaultPageSize: number = (() => {
   return allowedPageSizes.includes(parsed) ? parsed : (allowedPageSizes[0] ?? 25);
 })();
 
+// ── Storage browser: Text editor ─────────────────────────────────────────────
+
+/** Maximum file size (in bytes) that can be edited inline in the text editor.
+ *  Files larger than this will show a read-only preview without the save button.
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`. Default: 5242880 (5 MiB).
+ *  Raise to allow editing larger files; lower to avoid excessive S3 bandwidth
+ *  when saving truncated files (the full file must be re-uploaded). */
+export const maxEditableFileSize: number = (() => {
+  const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5 * 1024 * 1024;
+})();
+
 // ── Storage browser ──────────────────────────────────────────────────────────
 
 /** Maximum number of recently visited files and locations kept in localStorage
@@ -64,4 +85,15 @@ export const defaultPageSize: number = (() => {
 export const maxRecentFiles: number = (() => {
   const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES ?? '', 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 15;
+})();
+
+/** Maximum number of parallel HTTP requests fired during the upload conflict
+ *  check and during the upload itself.
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_UPLOAD_CONCURRENCY`. Default: 3.
+ *  Raise for faster bulk uploads on high-throughput connections; lower to
+ *  reduce server pressure on constrained deployments. Must be a positive
+ *  integer. */
+export const uploadConcurrency: number = (() => {
+  const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_UPLOAD_CONCURRENCY ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 3;
 })();

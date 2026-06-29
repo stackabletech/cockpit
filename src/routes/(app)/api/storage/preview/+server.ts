@@ -1,7 +1,7 @@
 import { S3ServiceException } from '@aws-sdk/client-s3';
 import { mapS3ErrorToHttp } from '$lib/server/storage/s3-errors.js';
 import { getProvider } from '$lib/server/storage/utils.js';
-// import { parquetPreview } from '$lib/server/storage/preview/parquet.js';
+import { getParquetPreview } from '$lib/server/storage/preview/parquet';
 import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
 import { requireBucketKey } from '../params.js';
@@ -25,19 +25,18 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const totalSize = metadata.size;
     const lowerKey = key.toLowerCase();
 
-    // Parquet files (by content-type or extension) — parse server-side and emit CSV rows.
+    // Parquet files (by content-type or extension) — parse server-side and emit structured preview rows.
     const isParquet =
       rawContentType === 'application/vnd.apache.parquet' ||
       rawContentType === 'application/x-parquet' ||
       lowerKey.endsWith('.parquet');
 
+    const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
+    const limit = parseInt(url.searchParams.get('limit') ?? '250', 10);
+    const includeData = url.searchParams.get('data') === 'true';
+
     if (isParquet) {
-      log.info(
-        { bucket, key, content_type: rawContentType, total_size: totalSize },
-        'parquet preview disabled'
-      );
-      // TODO: re-enable once we have a more robust parquet preview solution in place
-      // return await parquetPreview(provider, key, totalSize, userId, log);
+      return await getParquetPreview(provider, key, offset, limit, log, totalSize, includeData);
     }
 
     // Skip body fetch for known-binary formats — client will show fallback immediately.

@@ -7,6 +7,8 @@
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
   import IconPushPin from 'virtual:icons/material-symbols/push-pin';
   import IconDelete from 'virtual:icons/material-symbols/delete';
+  import IconContentCopy from 'virtual:icons/material-symbols/content-copy';
+  import IconFileCopy from 'virtual:icons/material-symbols/file-copy-outline';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import type { ActionName } from '$lib/storage/types.js';
@@ -70,6 +72,20 @@
       hidden: false
     },
     {
+      key: 'copy-filename' as ActionName,
+      icon: IconFileCopy as Component,
+      label: m.storage_action_copy_filename(),
+      disabled: storage.contextMenu === null,
+      hidden: false
+    },
+    {
+      key: 'copy-path' as ActionName,
+      icon: IconContentCopy as Component,
+      label: m.storage_action_copy_path(),
+      disabled: storage.contextMenu === null,
+      hidden: false
+    },
+    {
       key: 'pin' as ActionName,
       icon: IconPushPinOutline as Component,
       label: m.storage_action_pin(),
@@ -101,7 +117,7 @@
 <ul
   bind:this={menuEl}
   class="
-    menu menu-sm border-base-300 bg-base-100 absolute z-70 w-48 rounded-lg
+    menu menu-sm border-base-300 bg-base-100 fixed z-70 w-48 rounded-lg
     border p-1 shadow-lg
   "
   role="menu"

@@ -4,6 +4,10 @@ import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import PreviewModal from './PreviewModal.svelte';
 
+// Prevent Monaco Editor from loading in tests by making $app/environment's
+// `browser` return false. TextEditor renders a plain <pre> as fallback.
+vi.mock('$app/environment', () => ({ browser: false }));
+
 // Mock $app/paths
 vi.mock('$app/paths', () => ({
   resolve: (path: string) => path
@@ -273,45 +277,276 @@ describe('PreviewModal', () => {
   });
 
   describe('parquet preview', () => {
-    it('should render parquet preview when format header is parquet', async () => {
+    /** Create a mock Response-like object whose body yields NDJSON lines. */
+    function ndjsonResponse(
+      messages: Record<string, unknown>[],
+      options: {
+        contentType?: string;
+        format?: string;
+        truncated?: boolean;
+        totalSize?: number;
+        totalRows?: number;
+        previewRows?: number;
+        previewBytes?: number;
+        dataBlocked?: boolean;
+      }
+    ): Response {
+      const ndjson = messages.map((m) => JSON.stringify(m)).join('\n') + '\n';
+      const headerMap: Record<string, string> = {
+        'content-type': options.contentType ?? 'application/json',
+        'x-preview-format': options.format ?? 'parquet',
+        'x-preview-truncated': String(options.truncated ?? false),
+        'x-preview-total-size': String(options.totalSize ?? 0),
+        'x-preview-bytes': String(options.previewBytes ?? 0),
+        'x-preview-renderable': 'true'
+      };
+      if (options.dataBlocked) {
+        headerMap['x-preview-data-blocked'] = 'true';
+      }
+      if (options.totalRows !== undefined) {
+        headerMap['x-preview-total-rows'] = String(options.totalRows);
+      }
+      if (options.previewRows !== undefined) {
+        headerMap['x-preview-preview-rows'] = String(options.previewRows);
+      }
+      const encoded = new TextEncoder().encode(ndjson);
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        headers: { get: (name: string) => headerMap[name.toLowerCase()] ?? null },
+        body: {
+          getReader() {
+            let done = false;
+            return {
+              read() {
+                if (done) return Promise.resolve({ done: true, value: undefined });
+                done = true;
+                return Promise.resolve({ done: false, value: encoded });
+              },
+              cancel() {}
+            };
+          }
+        },
+        json: async () => ({ error: 'not available' })
+      };
+      return mockResponse as unknown as Response;
+    }
+
+    it('should render metadata tab by default and show schema info', async () => {
       vi.stubGlobal(
         'fetch',
         vi.fn().mockResolvedValue(
-          mockFetchResponse('col1,col2\nval1,val2', {
-            contentType: 'text/csv',
-            format: 'parquet',
-            truncated: false,
-            totalSize: 5000,
-            totalRows: 100,
-            previewRows: 50
-          })
+          ndjsonResponse(
+            [
+              {
+                t: 'h',
+                h: ['col1', 'col2'],
+                tr: 100,
+                s: [
+                  {
+                    name: 'col1',
+                    type: 'string',
+                    codec: 'SNAPPY',
+                    compressedSize: 100,
+                    uncompressedSize: 200,
+                    stats: { nullCount: 0, distinctCount: null, min: null, max: null }
+                  },
+                  {
+                    name: 'col2',
+                    type: 'int64',
+                    codec: 'SNAPPY',
+                    compressedSize: 50,
+                    uncompressedSize: 80,
+                    stats: { nullCount: null, distinctCount: null, min: null, max: null }
+                  }
+                ],
+                m: {
+                  rowGroups: 1,
+                  compressionCodecs: ['SNAPPY'],
+                  compressionUniform: true,
+                  hasOffsetIndex: true,
+                  hasColumnIndex: true,
+                  createdBy: null,
+                  version: 1,
+                  arrowSchema: null
+                }
+              },
+              { t: 'c', n: 'col1', v: ['val1'] },
+              { t: 'c', n: 'col2', v: ['val2'] }
+            ],
+            {
+              format: 'parquet',
+              truncated: false,
+              totalSize: 5000,
+              totalRows: 100,
+              previewRows: 50
+            }
+          )
         )
       );
       render(PreviewModal, { ...defaultProps, objectKey: 'data/file.parquet' });
 
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
-      // Parquet shows a size badge in the header
-      await expect.element(page.getByText('val1')).toBeInTheDocument();
+      // Metadata tab should be active by default showing schema info
+      await expect.element(page.getByText('col1').first()).toBeInTheDocument();
+      await expect.element(page.getByText('col2').first()).toBeInTheDocument();
+      // Tab labels should be visible
+      await expect.element(page.getByText('Metadata')).toBeInTheDocument();
+      await expect
+        .element(page.getByRole('tab', { name: 'Data', exact: true }))
+        .toBeInTheDocument();
     });
 
     it('should show row count badge when parquet is truncated', async () => {
       vi.stubGlobal(
         'fetch',
         vi.fn().mockResolvedValue(
-          mockFetchResponse('col1,col2\nval1,val2', {
-            contentType: 'text/csv',
-            format: 'parquet',
-            truncated: true,
-            totalSize: 50000,
-            totalRows: 10000,
-            previewRows: 500
-          })
+          ndjsonResponse(
+            [
+              {
+                t: 'h',
+                h: ['col1', 'col2'],
+                tr: 10000,
+                s: [],
+                m: {
+                  rowGroups: 1,
+                  compressionCodecs: ['SNAPPY'],
+                  compressionUniform: true,
+                  hasOffsetIndex: true,
+                  hasColumnIndex: true,
+                  createdBy: null,
+                  version: 1,
+                  arrowSchema: null
+                }
+              },
+              { t: 'c', n: 'col1', v: ['val1'] },
+              { t: 'c', n: 'col2', v: ['val2'] }
+            ],
+            {
+              format: 'parquet',
+              truncated: true,
+              totalSize: 50000,
+              totalRows: 10000,
+              previewRows: 500
+            }
+          )
         )
       );
       render(PreviewModal, { ...defaultProps, objectKey: 'data/file.parquet' });
 
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
-      await expect.element(page.getByText('val1')).toBeInTheDocument();
+      await expect.element(page.getByText('col1').first()).toBeInTheDocument();
+      await expect
+        .element(page.getByText('Showing first 0 of 10,000 rows (parquet)').first())
+        .toBeInTheDocument();
+    });
+
+    it('should show data table when clicking Data tab', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          ndjsonResponse(
+            [
+              {
+                t: 'h',
+                h: ['col1', 'col2'],
+                tr: 100,
+                s: [],
+                m: {
+                  rowGroups: 1,
+                  compressionCodecs: ['SNAPPY'],
+                  compressionUniform: true,
+                  hasOffsetIndex: true,
+                  hasColumnIndex: true,
+                  createdBy: null,
+                  version: 1,
+                  arrowSchema: null
+                }
+              },
+              { t: 'c', n: 'col1', v: ['val1'] },
+              { t: 'c', n: 'col2', v: ['val2'] }
+            ],
+            {
+              format: 'parquet',
+              truncated: false,
+              totalSize: 5000,
+              totalRows: 100,
+              previewRows: 50
+            }
+          )
+        )
+      );
+      render(PreviewModal, { ...defaultProps, objectKey: 'data/file.parquet' });
+
+      await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
+
+      // Click the Data tab
+      await page.getByRole('tab', { name: 'Data' }).first().click();
+
+      // Parquet preview table should be visible with column headers
+      await expect
+        .element(page.getByRole('table', { name: 'Parquet preview' }))
+        .toBeInTheDocument();
+      await expect.element(page.getByText('col1').first()).toBeInTheDocument();
+      await expect.element(page.getByText('col2').first()).toBeInTheDocument();
+    });
+
+    it('should show blocked message when parquet is not renderable', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          ndjsonResponse(
+            [
+              {
+                t: 'h',
+                h: ['col1', 'col2'],
+                tr: 100,
+                s: [
+                  {
+                    name: 'col1',
+                    type: 'string',
+                    codec: 'SNAPPY',
+                    compressedSize: 100,
+                    uncompressedSize: 200,
+                    stats: { nullCount: null, distinctCount: null, min: null, max: null }
+                  },
+                  {
+                    name: 'col2',
+                    type: 'int64',
+                    codec: 'GZIP',
+                    compressedSize: 50,
+                    uncompressedSize: 80,
+                    stats: { nullCount: null, distinctCount: null, min: null, max: null }
+                  }
+                ],
+                m: {
+                  rowGroups: 1,
+                  compressionCodecs: ['SNAPPY', 'GZIP'],
+                  compressionUniform: false,
+                  hasOffsetIndex: true,
+                  hasColumnIndex: true,
+                  createdBy: null,
+                  version: 1,
+                  arrowSchema: null
+                }
+              }
+            ],
+            {
+              format: 'parquet',
+              dataBlocked: true,
+              truncated: false,
+              totalSize: 5000,
+              totalRows: 100,
+              previewRows: 50
+            }
+          )
+        )
+      );
+
+      render(PreviewModal, { ...defaultProps, objectKey: 'data/blocked.parquet' });
+
+      await expect.element(page.getByText('blocked.parquet')).toBeInTheDocument();
+      await expect.element(page.getByText('Preview blocked').first()).toBeInTheDocument();
     });
   });
 

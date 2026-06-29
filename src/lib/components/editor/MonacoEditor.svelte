@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import { theme } from '$lib/theme.svelte';
+  import { getLocale } from '$lib/paraglide/runtime.js';
   import {
     registerTrinoSql,
     setCompletionDefaultsGetter,
@@ -133,7 +134,6 @@
   // Start loading in parallel with the rest of the page — not deferred to onMount.
   // Guarded by `browser` because SvelteKit evaluates component scripts on the server too.
   const workerImport = browser ? import('monaco-editor/esm/vs/editor/editor.worker?worker') : null;
-  const monacoImport = browser ? import('monaco-editor') : null;
 
   function toMonacoTheme(t: string): string {
     return t === 'dark' ? 'vs-dark' : 'vs';
@@ -144,13 +144,20 @@
   });
 
   onMount(async () => {
+    // Load Monaco's NLS bundle for the active locale. Static import strings are
+    // required — Vite cannot bundle bare-specifier template literals at build time.
+    if (getLocale() === 'de') {
+      // @ts-expect-error — Monaco ESM nls bundle has no types
+      await import('monaco-editor/esm/nls.messages.de.js');
+    }
+
     // By the time onMount fires the imports are likely already resolved.
     const EditorWorker = (await workerImport!).default;
     self.MonacoEnvironment = {
       getWorker: () => new EditorWorker()
     };
 
-    monaco = await monacoImport!;
+    monaco = await import('monaco-editor');
 
     setCompletionDefaultsGetter(() => ({
       catalog: defaultCatalog || undefined,

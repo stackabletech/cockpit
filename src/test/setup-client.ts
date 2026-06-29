@@ -9,7 +9,9 @@ vi.mock('$lib/client/feature-flags.js', () => ({
   storageRestoreTabsEnabled: false,
   allowedPageSizes: [25, 50, 100],
   defaultPageSize: 25,
-  maxRecentFiles: 15
+  maxRecentFiles: 15,
+  maxEditableFileSize: 5 * 1024 * 1024,
+  uploadConcurrency: 3
 }));
 
 // Prevent components from auto-submitting forms in browser tests.
@@ -20,4 +22,9 @@ vi.mock('$lib/client/feature-flags.js', () => ({
 // with a no-op for the duration of each test.
 beforeEach(() => {
   vi.spyOn(HTMLFormElement.prototype, 'requestSubmit').mockImplementation(() => {});
+
+  // Clear localStorage before each test to prevent BookmarksState (and any
+  // other localStorage-backed state) from leaking pinned locations, recent
+  // files, or other browser-storage data between tests.
+  localStorage.clear();
 });
