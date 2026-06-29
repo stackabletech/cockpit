@@ -99,7 +99,7 @@
       <IconSchema class="size-4" aria-hidden="true" />
       {m.storage_preview_parquet_schema()}
     </h3>
-    <div class="overflow-x-auto">
+    <div>
       <table class="table-xs w-full table-fixed" aria-label={m.storage_preview_parquet_schema()}>
         <colgroup>
           <col class="w-8" />
@@ -190,28 +190,42 @@
                   <span class="text-base-content/30 text-xs">&mdash;</span>
                 {/if}
               </td>
-              <td class="min-w-32 overflow-hidden text-xs">
-                {#if col.stats.min !== null || col.stats.max !== null || col.stats.nullCount !== null}
-                  <div class="flex flex-col gap-0.5">
-                    {#if col.stats.min !== null && col.stats.max !== null}
-                      <span
-                        class="truncate font-mono text-[10px]"
-                        title="{col.stats.min} .. {col.stats.max}"
-                      >
-                        {col.stats.min} .. {col.stats.max}
-                      </span>
+              <td class="min-w-36 overflow-hidden text-xs">
+                {#if col.stats.min !== null || col.stats.max !== null || col.stats.nullCount !== null || col.stats.distinctCount !== null}
+                  <dl class="grid grid-cols-[auto_1fr] gap-x-1.5 gap-y-0.5">
+                    {#if col.stats.min !== null}
+                      <dt class="text-base-content/50 shrink-0 text-[10px]">
+                        {m.storage_preview_parquet_min()}
+                      </dt>
+                      <dd class="m-0 truncate font-mono text-[10px]" title={col.stats.min}>
+                        {col.stats.min}
+                      </dd>
                     {/if}
-                    <span class="text-base-content/50">
-                      {#if col.stats.nullCount !== null}
-                        null={col.stats.nullCount.toLocaleString(getLocale())}
-                      {/if}
-                      {#if col.stats.distinctCount !== null}
-                        {col.stats.nullCount !== null
-                          ? ' '
-                          : ''}dist={col.stats.distinctCount.toLocaleString(getLocale())}
-                      {/if}
-                    </span>
-                  </div>
+                    {#if col.stats.max !== null}
+                      <dt class="text-base-content/50 shrink-0 text-[10px]">
+                        {m.storage_preview_parquet_max()}
+                      </dt>
+                      <dd class="m-0 truncate font-mono text-[10px]" title={col.stats.max}>
+                        {col.stats.max}
+                      </dd>
+                    {/if}
+                    {#if col.stats.nullCount !== null}
+                      <dt class="text-base-content/50 shrink-0 text-[10px]">
+                        {m.storage_preview_parquet_null_count()}
+                      </dt>
+                      <dd class="m-0 font-mono text-[10px]">
+                        {col.stats.nullCount.toLocaleString(getLocale())}
+                      </dd>
+                    {/if}
+                    {#if col.stats.distinctCount !== null}
+                      <dt class="text-base-content/50 shrink-0 text-[10px]">
+                        {m.storage_preview_parquet_distinct_count()}
+                      </dt>
+                      <dd class="m-0 font-mono text-[10px]">
+                        {col.stats.distinctCount.toLocaleString(getLocale())}
+                      </dd>
+                    {/if}
+                  </dl>
                 {:else}
                   <span class="text-base-content/30 italic"
                     >{m.storage_preview_parquet_not_stored()}</span
