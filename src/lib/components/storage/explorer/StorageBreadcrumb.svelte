@@ -230,7 +230,7 @@
           aria-current="page"
           oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
         >
-          <IconStorage class="size-4" aria-hidden="true" />
+          <IconStorage class="pointer-events-none size-4" aria-hidden="true" />
           {storage.bucket}
         </span>
         {@render pinButton(storage.bucket, '')}

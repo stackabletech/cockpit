@@ -46,6 +46,42 @@ export const pdfPreviewBytes =
  *  and the size of the payload sent to the browser. */
 export const filePreviewRows = parseInt(env.STACKABLE_COCKPIT_FILE_PREVIEW_ROWS ?? '', 10) || 250;
 
+// ── Parquet preview restrictions ───────────────────────────────────────────
+
+export interface ParquetDisallowedCompression {
+  /** Upper-case compression codec name (e.g. `GZIP`, `ZSTD`, `SNAPPY`). */
+  codec: string;
+  /** When true, only block files using this codec if they lack an offset index. */
+  requireOffsetIndex: boolean;
+}
+
+function parseParquetDisallowed(value: string | undefined): ParquetDisallowedCompression[] {
+  if (!value) return [{ codec: 'GZIP', requireOffsetIndex: true }];
+  return value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      if (entry.endsWith('-no_offset')) {
+        return {
+          codec: entry.slice(0, -'-no_offset'.length).toUpperCase(),
+          requireOffsetIndex: true
+        };
+      }
+      return { codec: entry.toUpperCase(), requireOffsetIndex: false };
+    });
+}
+
+/** Comma-separated list of compression types to disallow from parquet
+ *  data preview. Each entry is either a compression codec name (e.g. `gzip`,
+ *  `zstd`, `snappy`) or a codec suffixed with `-no_offset` (e.g.
+ *  `gzip-no_offset`) to only block when the file lacks an offset index.
+ *  Controlled by `STACKABLE_COCKPIT_PARQUET_PREVIEW_DISALLOWED_COMPRESSION_TYPES`.
+ *  Default: `gzip-no_offset`. */
+export const parquetDisallowedCompression = parseParquetDisallowed(
+  env.STACKABLE_COCKPIT_PARQUET_PREVIEW_DISALLOWED_COMPRESSION_TYPES ?? 'gzip-no_offset'
+);
+
 // ── Storage browser: Text editor ─────────────────────────────────────────────
 
 /** Maximum file size (in bytes) that may be saved via the inline text editor.

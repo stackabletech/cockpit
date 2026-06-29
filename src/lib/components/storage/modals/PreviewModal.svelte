@@ -7,13 +7,17 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconErrorOutline from 'virtual:icons/material-symbols/error-outline';
   import IconDownload from 'virtual:icons/material-symbols/download';
+  import IconFilePresent from 'virtual:icons/material-symbols/file-present';
   import IconSave from 'virtual:icons/material-symbols/save';
   import IconBlock from 'virtual:icons/material-symbols/block';
   import * as m from '$lib/paraglide/messages.js';
+  import { getLocale } from '$lib/paraglide/runtime.js';
   import Modal from '$lib/components/Modal.svelte';
   import TextEditor from '$lib/components/editor/TextEditor.svelte';
   import UnsavedConfirmDialog from './UnsavedConfirmDialog.svelte';
   import CsvPreview from './preview/CsvPreview.svelte';
+  import ParquetPreview from './preview/ParquetPreview.svelte';
+  import ParquetMetadata from './preview/ParquetMetadata.svelte';
   import ImagePreview from './preview/ImagePreview.svelte';
   import PdfPreview from './preview/PdfPreview.svelte';
   import FallbackPreview from './preview/FallbackPreview.svelte';
@@ -25,12 +29,37 @@
   import { maxEditableFileSize } from '$lib/client/feature-flags.js';
 
   interface Props {
-    open: boolean;
-    bucket: string;
-    objectKey: string | null;
+    open?: boolean;
+    bucket?: string;
+    objectKey?: string | null;
   }
 
-  let { open = $bindable(false), bucket, objectKey }: Props = $props();
+  interface ColumnStats {
+    nullCount: number | null;
+    distinctCount: number | null;
+    min: string | null;
+    max: string | null;
+  }
+
+  interface ColumnTypeInfo {
+    name: string;
+    type: string;
+    codec: string;
+    compressedSize: number;
+    uncompressedSize: number;
+    stats: ColumnStats;
+  }
+
+  interface ParquetFileMeta {
+    rowGroups: number;
+    compressionCodecs: string[];
+    compressionUniform: boolean;
+    hasOffsetIndex: boolean;
+    hasColumnIndex: boolean;
+    createdBy: string | null;
+    version: number;
+    arrowSchema: string | null;
+  }
 
   type PreviewKind =
     | { kind: 'idle' }
@@ -46,22 +75,29 @@
     | { kind: 'csv'; text: string; truncated: boolean; totalSize: number; previewBytes: number }
     | {
         kind: 'parquet';
-        text: string;
+        headers: string[];
+        columnTypes: ColumnTypeInfo[];
+        metadata: ParquetFileMeta;
+        rows: unknown[][];
+        dataBlocked: boolean;
         truncated: boolean;
         totalSize: number;
         totalRows: number;
-        previewRows: number;
       }
     | { kind: 'image'; blobUrl: string; contentType: string; totalSize: number }
     | { kind: 'pdf'; blobUrl: string; totalSize: number }
     | { kind: 'fallback'; contentType: string; isBinary: boolean }
     | { kind: 'error'; message: string };
 
+  let { open = $bindable(false), bucket = '', objectKey = null }: Props = $props();
+
   let preview: PreviewKind = $state({ kind: 'idle' });
   let blobUrls: string[] = [];
   let maximized = $state(false);
   let imageNaturalWidth = $state(0);
   let imageNaturalHeight = $state(0);
+  let parquetShowingRowsCount = $state(0);
+  let parquetTab: 'metadata' | 'data' = $state('metadata');
 
   // ── Text editor state ──
   let editorText = $state('');
@@ -90,7 +126,6 @@
     if (preview.kind !== 'text') return false;
     return preview.totalSize > maxEditableFileSize;
   }
-
   onDestroy(() => {
     for (const url of blobUrls) {
       URL.revokeObjectURL(url);
@@ -114,18 +149,20 @@
         import('monaco-editor');
       }
     }
+
     if (!open) {
       revokeBlobUrls();
       preview = { kind: 'idle' };
       imageNaturalWidth = 0;
       imageNaturalHeight = 0;
+      parquetTab = 'metadata';
       editorReady = false;
       editorText = '';
       originalText = '';
     }
   });
 
-  async function loadPreview(key: string, bkt: string) {
+  async function loadPreview(key: string, activeBucket: string) {
     preview = { kind: 'loading' };
     revokeBlobUrls();
 
@@ -135,7 +172,7 @@
       : {};
 
     try {
-      const params = new URLSearchParams({ bucket: bkt, key });
+      const params = new URLSearchParams({ bucket: activeBucket, key });
       const res = await fetch(`/api/storage/preview?${params}`, { headers });
 
       if (!res.ok) {
@@ -157,8 +194,35 @@
       const truncated = res.headers.get('X-Preview-Truncated') === 'true';
       const totalSize = Number(res.headers.get('X-Preview-Total-Size') ?? '0');
       const previewBytes = Number(res.headers.get('X-Preview-Bytes') ?? '0');
-      const totalRows = Number(res.headers.get('X-Preview-Total-Rows') ?? '0');
-      const previewRows = Number(res.headers.get('X-Preview-Preview-Rows') ?? '0');
+
+      // Parquet takes priority — parse header for metadata (always), load data on-demand
+      if (format === 'parquet') {
+        try {
+          const dataBlocked = res.headers.get('X-Preview-Data-Blocked') === 'true';
+          await parseParquetStream(
+            res,
+            (headers, totalRows, columnTypes, metadata) => {
+              preview = {
+                kind: 'parquet',
+                headers,
+                columnTypes,
+                metadata,
+                rows: [],
+                dataBlocked,
+                truncated,
+                totalSize,
+                totalRows
+              };
+            },
+            () => {
+              // Ignore any column data in the initial load (metadata-only request)
+            }
+          );
+        } catch {
+          preview = { kind: 'error', message: m.storage_preview_error_desc() };
+        }
+        return;
+      }
 
       if (res.headers.get('X-Preview-Renderable') === 'false') {
         await res.body?.cancel();
@@ -185,11 +249,6 @@
       const text = await readTextSafely(res, key);
       if (text === null) {
         preview = { kind: 'fallback', contentType, isBinary: true };
-        return;
-      }
-
-      if (format === 'parquet') {
-        preview = { kind: 'parquet', text, truncated, totalSize, totalRows, previewRows };
         return;
       }
 
@@ -239,13 +298,118 @@
     }
   }
 
+  /** Parse an NDJSON parquet stream with callbacks for headers (incl. schema/metadata) and columns. */
+  async function parseParquetStream(
+    res: Response,
+    onHeaders: (
+      headers: string[],
+      totalRows: number,
+      columnTypes: ColumnTypeInfo[],
+      metadata: ParquetFileMeta
+    ) => void,
+    onColumn: (name: string, values: unknown[]) => void
+  ): Promise<void> {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const msg = JSON.parse(line);
+
+        if (msg.t === 'h') {
+          onHeaders(
+            msg.h,
+            msg.tr,
+            msg.s ?? [],
+            msg.m ?? {
+              rowGroups: 0,
+              compressionCodecs: [],
+              compressionUniform: true,
+              hasOffsetIndex: false,
+              hasColumnIndex: false,
+              createdBy: null,
+              version: 0,
+              arrowSchema: null
+            }
+          );
+        } else if (msg.t === 'c') {
+          onColumn(msg.n, msg.v);
+        } else if (msg.t === 'e') {
+          throw new Error('Server error reading parquet data');
+        }
+      }
+    }
+  }
+
+  /** Read an NDJSON streaming response and progressively fill column data. */
+  async function readNdjsonStream(
+    res: Response,
+    onColumn?: (name: string, values: unknown[]) => void
+  ): Promise<{ headers: string[]; rows: unknown[][]; totalRows: number }> {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let resultHeaders: string[] = [];
+    let rows: unknown[][] = [];
+    let resultTotalRows = 0;
+    const columnPos: Record<string, number> = {};
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const msg = JSON.parse(line);
+
+        if (msg.t === 'h') {
+          resultHeaders = msg.h;
+          resultTotalRows = msg.tr;
+        } else if (msg.t === 'c') {
+          const colIdx = resultHeaders.indexOf(msg.n);
+          if (colIdx < 0) continue;
+          const values = msg.v as unknown[];
+          let pos = columnPos[msg.n] ?? 0;
+          for (let i = 0; i < values.length; i++) {
+            while (rows.length <= pos) {
+              rows.push(new Array(resultHeaders.length).fill(undefined));
+            }
+            rows[pos][colIdx] = values[i];
+            pos++;
+          }
+          columnPos[msg.n] = pos;
+          onColumn?.(msg.n, values);
+        } else if (msg.t === 'e') {
+          throw new Error('Server error reading parquet data');
+        }
+      }
+    }
+
+    return { headers: resultHeaders, rows, totalRows: resultTotalRows };
+  }
+
   async function triggerDownload() {
     if (!objectKey) return;
+
     const conn = loadConnectionLocally();
     if (!conn) {
       addToast('error', m.storage_download_error_unknown());
       return;
     }
+
     try {
       await downloadObject(bucket, objectKey, getConnectionHeader(conn));
     } catch (err) {
@@ -348,18 +512,56 @@
     open = false;
   }
 
+  // Sync parquetShowingRowsCount with the preview data
+  $effect(() => {
+    if (preview.kind === 'parquet') {
+      parquetShowingRowsCount = preview.rows.length;
+    }
+  });
+
   function toggleMaximized() {
     maximized = !maximized;
+  }
+
+  // Function to fetch additional parquet chunks during infinite scroll
+  async function fetchParquetRows(
+    offset: number,
+    limit: number,
+    onColumn?: (name: string, values: unknown[]) => void
+  ): Promise<unknown[][]> {
+    if (!objectKey) return [];
+
+    const conn = loadConnectionLocally();
+    const fetchHeaders: HeadersInit = conn
+      ? { [STORAGE_CONNECTION_HEADER]: getConnectionHeader(conn) }
+      : {};
+
+    const params = new URLSearchParams({
+      bucket,
+      key: objectKey,
+      offset: String(offset),
+      limit: String(limit),
+      data: 'true'
+    });
+
+    const res = await fetch(`/api/storage/preview?${params}`, { headers: fetchHeaders });
+
+    if (!res.ok) {
+      throw new Error('Failed to fetch parquet chunk');
+    }
+
+    const { rows } = await readNdjsonStream(res, onColumn);
+    return rows;
   }
 </script>
 
 <Modal bind:open {closeguard} class="modal">
   <div
-    class="modal-box flex flex-col p-0 transition-none
-      {maximized ? 'h-dvh max-h-dvh w-screen max-w-none rounded-none' : 'w-full max-w-5xl'}"
+    class="modal-box flex flex-col p-0 transition-none {maximized
+      ? 'h-dvh max-h-dvh w-screen max-w-none rounded-none'
+      : 'w-full max-w-5xl'}"
     style={maximized ? '' : 'height: min(88dvh, 900px)'}
   >
-    <!-- Header -->
     <div class="border-base-300 flex shrink-0 items-center gap-3 border-b px-5 py-2">
       <div class="min-w-0 flex-1">
         <h2 class="text-base-content truncate font-semibold" id="preview-modal-title">
@@ -372,9 +574,7 @@
             >
             {#if preview.truncated}
               <span class="badge badge-soft badge-warning badge-sm">
-                {m.storage_preview_truncated({
-                  size: formatFileSize(preview.previewBytes)
-                })}
+                {m.storage_preview_truncated({ size: formatFileSize(preview.previewBytes) })}
               </span>
             {/if}
           </div>
@@ -383,11 +583,15 @@
             <span class="badge badge-neutral badge-sm font-mono"
               >{formatFileSize(preview.totalSize)}</span
             >
-            {#if preview.truncated}
+            {#if preview.dataBlocked}
+              <span class="badge badge-soft badge-warning badge-sm">
+                {m.storage_preview_parquet_blocked_title()}
+              </span>
+            {:else if preview.truncated}
               <span class="badge badge-soft badge-warning badge-sm">
                 {m.storage_preview_parquet_rows({
-                  count: preview.previewRows,
-                  total: preview.totalRows
+                  count: parquetShowingRowsCount.toLocaleString(getLocale()),
+                  total: preview.totalRows.toLocaleString(getLocale())
                 })}
               </span>
             {/if}
@@ -398,32 +602,32 @@
               >{formatFileSize(preview.totalSize)}</span
             >
             {#if preview.kind === 'image' && imageNaturalWidth > 0}
-              <span class="badge badge-neutral badge-sm font-mono"
-                >{imageNaturalWidth} &times; {imageNaturalHeight} px</span
-              >
+              <span class="badge badge-neutral badge-sm font-mono">
+                {imageNaturalWidth} &times; {imageNaturalHeight} px
+              </span>
             {/if}
           </div>
         {/if}
       </div>
+
       {#if maximized}
-        {@const MaximizeIcon = IconCloseFullscreen}
         <button
           class="btn btn-ghost btn-sm btn-square"
           onclick={toggleMaximized}
           aria-label={m.storage_preview_restore()}
         >
-          <MaximizeIcon class="size-4" aria-hidden="true" />
+          <IconCloseFullscreen class="size-4" aria-hidden="true" />
         </button>
       {:else}
-        {@const MaximizeIcon = IconOpenInFull}
         <button
           class="btn btn-ghost btn-sm btn-square"
           onclick={toggleMaximized}
           aria-label={m.storage_preview_maximise()}
         >
-          <MaximizeIcon class="size-4" aria-hidden="true" />
+          <IconOpenInFull class="size-4" aria-hidden="true" />
         </button>
       {/if}
+
       <button
         class="btn btn-ghost btn-sm btn-square"
         onclick={handleCloseClick}
@@ -433,8 +637,45 @@
       </button>
     </div>
 
+    {#if preview.kind === 'parquet'}
+      <div
+        class="bg-base-200 border-base-300 flex gap-0 border-b"
+        role="tablist"
+        aria-label={m.storage_preview_parquet_tab_aria()}
+      >
+        <button
+          class="relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {parquetTab ===
+          'metadata'
+            ? 'bg-base-100 text-primary'
+            : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
+          role="tab"
+          aria-selected={parquetTab === 'metadata'}
+          onclick={() => (parquetTab = 'metadata')}
+        >
+          {m.storage_preview_parquet_tab_metadata()}
+          {#if parquetTab === 'metadata'}
+            <span class="bg-primary absolute inset-x-0 bottom-0 h-0.5" aria-hidden="true"></span>
+          {/if}
+        </button>
+        <button
+          class="relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {parquetTab ===
+          'data'
+            ? 'bg-base-100 text-primary'
+            : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
+          role="tab"
+          aria-selected={parquetTab === 'data'}
+          onclick={() => (parquetTab = 'data')}
+        >
+          {m.storage_preview_parquet_tab_data()}
+          {#if parquetTab === 'data'}
+            <span class="bg-primary absolute inset-x-0 bottom-0 h-0.5" aria-hidden="true"></span>
+          {/if}
+        </button>
+      </div>
+    {/if}
+
     <!-- Body -->
-    <div class="min-h-0 min-w-0 flex-1 overflow-hidden">
+    <div class="min-h-0 min-w-0 flex-1 overflow-auto">
       {#if preview.kind === 'idle' || preview.kind === 'loading'}
         <div
           class="flex items-center justify-center p-12"
@@ -449,6 +690,46 @@
           <IconErrorOutline class="text-error size-12" aria-hidden="true" />
           <p class="text-base-content font-semibold">{m.storage_preview_error_title()}</p>
           <p class="text-base-content/60 text-sm">{preview.message}</p>
+        </div>
+      {:else if preview.kind === 'parquet'}
+        <!-- Metadata tab: always mounted, hidden when Data tab is active -->
+        <div class={parquetTab === 'metadata' ? 'h-full' : 'hidden h-full'}>
+          <ParquetMetadata
+            headers={preview.headers}
+            columnTypes={preview.columnTypes}
+            totalRows={preview.totalRows}
+            totalSize={preview.totalSize}
+            metadata={preview.metadata}
+          />
+        </div>
+        <!-- Data tab: always mounted (preserves scroll + chunks), hidden when Metadata tab is active -->
+        <div class={parquetTab === 'data' ? 'h-full' : 'hidden h-full'}>
+          {#if preview.dataBlocked}
+            <div class="flex min-h-full flex-col items-center justify-center gap-4 p-8 text-center">
+              <IconFilePresent class="text-base-content/30 size-16" aria-hidden="true" />
+              <div>
+                <p class="text-base-content font-semibold">
+                  {m.storage_preview_parquet_blocked_title()}
+                </p>
+                <p class="text-base-content/60 mt-1 text-sm">
+                  {m.storage_preview_parquet_blocked_desc()}
+                </p>
+              </div>
+              <button type="button" class="btn btn-primary btn-sm gap-2" onclick={triggerDownload}>
+                <IconDownload class="size-4" aria-hidden="true" />
+                {m.storage_preview_download_full()}
+              </button>
+            </div>
+          {:else}
+            <ParquetPreview
+              headers={preview.headers}
+              initialRows={preview.rows}
+              totalRows={preview.totalRows}
+              fetchRows={fetchParquetRows}
+              bind:showingRowsCount={parquetShowingRowsCount}
+              hidden={parquetTab !== 'data'}
+            />
+          {/if}
         </div>
       {:else if preview.kind === 'text'}
         <div class="relative flex h-full flex-col">
@@ -485,13 +766,7 @@
           </div>
         </div>
       {:else if preview.kind === 'csv'}
-        <div class="preview-scroll h-full overflow-scroll">
-          <CsvPreview text={preview.text} />
-        </div>
-      {:else if preview.kind === 'parquet'}
-        <div class="preview-scroll h-full overflow-scroll">
-          <CsvPreview text={preview.text} />
-        </div>
+        <CsvPreview text={preview.text} />
       {:else if preview.kind === 'image'}
         <div class="preview-scroll h-full overflow-scroll">
           <ImagePreview
@@ -516,15 +791,14 @@
       {/if}
     </div>
 
-    <!-- Footer -->
     {#if preview.kind === 'text' || preview.kind === 'csv' || preview.kind === 'parquet' || preview.kind === 'image' || preview.kind === 'pdf'}
       <div class="border-base-300 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-2">
-        {#if preview.kind === 'text' && preview.truncated}
+        {#if preview.kind === 'parquet' && preview.dataBlocked}
           <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
             <IconDownload class="size-4" aria-hidden="true" />
             {m.storage_preview_download_full()}
           </button>
-        {:else if preview.kind === 'csv' && preview.truncated}
+        {:else if (preview.kind === 'text' || preview.kind === 'csv') && preview.truncated}
           <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
             <IconDownload class="size-4" aria-hidden="true" />
             {m.storage_preview_download_full()}

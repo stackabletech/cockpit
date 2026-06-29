@@ -34,5 +34,5 @@
 </div>
 
 {#snippet renderIcon(cfg: IconConfig)}
-  <cfg.component class="size-5 shrink-0" aria-hidden="true" />
+  <cfg.component class="pointer-events-none size-5 shrink-0" aria-hidden="true" />
 {/snippet}
