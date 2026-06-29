@@ -11,7 +11,8 @@
     () =>
       new StorageState({
         connected: data.connected,
-        buckets: data.buckets
+        buckets: data.buckets,
+        connectionId: connectionStore.activeConnectionId
       })
   );
   setStorageState(storage);
@@ -20,6 +21,7 @@
   $effect(() => {
     storage.connected = data.connected;
     storage.buckets = data.buckets;
+    storage.connectionId = connectionStore.activeConnectionId;
     connectionStore.connections = data.connections;
   });
 </script>
