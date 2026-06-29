@@ -224,7 +224,6 @@
         return;
       }
 
-
       if (res.headers.get('X-Preview-Renderable') === 'false') {
         await res.body?.cancel();
         preview = { kind: 'fallback', contentType, isBinary: false };
@@ -252,8 +251,6 @@
         preview = { kind: 'fallback', contentType, isBinary: true };
         return;
       }
-
-
 
       if (
         contentType === 'text/csv' ||
@@ -403,7 +400,6 @@
 
     return { headers: resultHeaders, rows, totalRows: resultTotalRows };
   }
-
 
   async function triggerDownload() {
     if (!objectKey) return;
@@ -680,7 +676,6 @@
 
     <!-- Body -->
     <div class="min-h-0 min-w-0 flex-1 overflow-auto">
-
       {#if preview.kind === 'idle' || preview.kind === 'loading'}
         <div
           class="flex items-center justify-center p-12"
@@ -772,7 +767,6 @@
         </div>
       {:else if preview.kind === 'csv'}
         <CsvPreview text={preview.text} />
-
       {:else if preview.kind === 'image'}
         <div class="preview-scroll h-full overflow-scroll">
           <ImagePreview
@@ -832,7 +826,6 @@
           </button>
         {/if}
         <button class="btn btn-ghost btn-sm" onclick={handleCloseClick}>
-
           {m.storage_preview_close()}
         </button>
       </div>
