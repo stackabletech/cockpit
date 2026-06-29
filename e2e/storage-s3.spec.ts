@@ -19,15 +19,26 @@ test.describe('Storage S3 (Garage)', () => {
   test.use({ locale: 'en-US' });
 
   async function openConnectForm(page: import('@playwright/test').Page) {
-    await page.goto('/storage?disconnected=1');
+    await page.goto('/storage');
     await waitForHydration(page);
 
     const disconnectButton = page.getByRole('button', { name: 'Disconnect' });
     if (await disconnectButton.isVisible().catch(() => false)) {
       await disconnectButton.click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
     }
 
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
+
+    // Clear all saved connections so tests start from a clean state.
+    const savedList = page.getByRole('list', { name: 'Saved connections' });
+    while (await savedList.isVisible().catch(() => false)) {
+      const items = savedList.getByRole('listitem');
+      if ((await items.count()) === 0) break;
+      await items.first().getByRole('button').last().click();
+      await page.getByRole('button', { name: 'Forget', exact: true }).click();
+      await waitForHydration(page);
+    }
   }
 
   test('connects to Garage S3 bucket and lists buckets', async ({ page }) => {
@@ -53,7 +64,7 @@ test.describe('Storage S3 (Garage)', () => {
     // Path-style addressing is on by default (required for Garage) — verify it is checked
     await expect(page.getByLabel('Use path-style addressing')).toBeChecked();
 
-    await page.getByRole('button', { name: 'Connect' }).click();
+    await page.getByRole('button', { name: 'Connect', exact: true }).click();
 
     // After a successful connection the app redirects to /storage and shows the bucket list
     await expect(page).toHaveURL('/storage');
@@ -81,11 +92,13 @@ test.describe('Storage S3 (Garage)', () => {
     await page.getByLabel('Region').fill(region);
     await page.getByLabel('Access key ID').fill(accessKeyId);
     await page.getByLabel('Secret access key').fill(secretAccessKey);
-    await page.getByRole('button', { name: 'Connect' }).click();
+    await page.getByRole('button', { name: 'Connect', exact: true }).click();
     await expect(page.locator('main').getByRole('heading', { name: 'Buckets' })).toBeVisible();
 
     // Then disconnect
     await page.getByRole('button', { name: 'Disconnect' }).click();
+    // Disconnect now shows a confirmation modal; confirm it
+    await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
 
     // Should return to the connect form
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();

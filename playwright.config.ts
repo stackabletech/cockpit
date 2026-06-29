@@ -5,7 +5,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4173';
 const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 export default defineConfig({
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 1 : 1,
   testDir: path.join(import.meta.dirname, 'e2e'),
   outputDir: path.join(import.meta.dirname, 'e2e/test-results'),
   globalSetup: path.join(import.meta.dirname, 'e2e/support/global-setup.ts'),
@@ -33,7 +33,7 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI
     },
     {
-      command: 'node --env-file=.env.test node_modules/.bin/vite preview --host --port 4173',
+      command: 'node --env-file=.env.test build/index.js',
       url: baseURL,
       reuseExistingServer: !process.env.CI
     }

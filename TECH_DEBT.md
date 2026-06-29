@@ -22,11 +22,9 @@ Trino error messages are stored verbatim in `query.error` and surfaced through `
 
 ---
 
-### S3 connection credentials stored in localStorage
+### ~~S3 connection credentials stored in localStorage~~ — RESOLVED
 
-**File:** `src/lib/storage/connection-storage.ts`, `src/lib/components/storage/StorageConnectForm.svelte`
-
-S3 connection credentials (access key ID and secret access key) are persisted in plaintext `localStorage` so the browser can auto-reconnect after a page reload or server restart. `localStorage` is accessible to any JavaScript running on the page and is visible in browser DevTools, making it vulnerable to XSS. Acceptable for the current early stage where the alternative is users having to re-enter credentials after every server restart. Long-term fix: persist encrypted credentials server-side, tied to the authenticated session; send only a session token to the client.
+Previously, S3 connection credentials were persisted in plaintext `localStorage`. This has been replaced by a server-side encrypted credential store backed by PostgreSQL. Credentials are encrypted with AES-256-GCM using a per-deployment application key (`STORAGE_ENCRYPTION_KEY`). The client now sends only a connection UUID (`x-storage-connection-id` header); the server decrypts and creates the S3 client. See `src/lib/server/storage/encryption.ts` and `src/lib/server/storage/connection.ts`.
 
 ---
 

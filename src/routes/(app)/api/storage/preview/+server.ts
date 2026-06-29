@@ -8,7 +8,7 @@ import { requireBucketKey } from '../params.js';
 import type { RequestHandler } from './$types';
 
 /**
- * GET /storage/api/preview?bucket=<bucket>&key=<object-key>
+ * GET /api/storage/preview?bucket=<bucket>&key=<object-key>
  *
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.

@@ -31,7 +31,7 @@ test.describe('Storage S3 — Connection', () => {
     await page.getByLabel('Region').fill(credentials.region);
     await page.getByLabel('Access key ID').fill(credentials.accessKeyId);
     await page.getByLabel('Secret access key').fill(`${credentials.secretAccessKey}-wrong`);
-    await page.getByRole('button', { name: 'Connect' }).click();
+    await page.getByRole('button', { name: 'Connect', exact: true }).click();
 
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
     await expect(
@@ -58,7 +58,8 @@ test.describe('Storage S3 — Connection', () => {
     await connectToStorage(page, credentials);
     await expect(page).toHaveURL('/storage');
 
-    await openConnectForm(page);
+    // Do not clear saved connections — we need the one we just saved.
+    await openConnectForm(page, { clearSaved: false });
 
     const savedList = page.getByRole('list', { name: 'Saved connections' });
     await expect(savedList).toBeVisible();
@@ -75,18 +76,29 @@ test.describe('Storage S3 — Connection', () => {
     await connectToStorage(page, credentials);
     await expect(page).toHaveURL('/storage');
 
-    await openConnectForm(page);
+    // Do not clear saved connections — we need the one we just saved.
+    await openConnectForm(page, { clearSaved: false });
 
     const savedList = page.getByRole('list', { name: 'Saved connections' });
     await expect(savedList).toBeVisible();
+
+    // Count items before — retries accumulate connections in the DB, so there
+    // may be more than one.  We only assert that forgetting ONE removes exactly
+    // one entry, not that the list becomes empty.
+    const countBefore = await savedList.getByRole('listitem').count();
 
     await savedList.getByRole('listitem').first().getByRole('button').last().click();
 
     await expect(page.getByRole('button', { name: 'Forget', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Forget', exact: true }).click();
 
-    await expect(savedList).not.toBeVisible();
-    await expect(page.getByText('No saved connections yet')).toBeVisible();
+    if (countBefore === 1) {
+      // Last connection removed — list collapses entirely
+      await expect(page.getByText('No saved connections yet')).toBeVisible();
+    } else {
+      // Other connections still exist — list shrinks by exactly one
+      await expect(savedList.getByRole('listitem')).toHaveCount(countBefore - 1);
+    }
   });
 
   test('clicking a bucket tile in the grid navigates to the bucket explorer', async ({ page }) => {

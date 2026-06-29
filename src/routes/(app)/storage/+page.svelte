@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { navigating } from '$app/state';
+  import { navigating, page } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import BucketGrid from '$lib/components/storage/landing/BucketGrid.svelte';
@@ -8,6 +8,10 @@
 
   let { data } = $props();
   const storage = getStorageState();
+
+  const connectError = $derived<string | null>(
+    (page.form as { error?: string } | null)?.error ?? null
+  );
 </script>
 
 {#if data.connected}
@@ -27,5 +31,9 @@
     <RecentItems />
   </div>
 {:else}
-  <StorageConnectForm connectionForm={data.connectionForm} />
+  <StorageConnectForm
+    connectionForm={data.connectionForm}
+    connections={data.connections ?? []}
+    {connectError}
+  />
 {/if}

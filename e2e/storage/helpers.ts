@@ -40,7 +40,24 @@ export function bucketRoute(bucket: string, prefix = ''): string {
   return `/storage/${encodeURIComponent(bucket)}/${encoded}`;
 }
 
-export async function openConnectForm(page: Page) {
+export async function clearSavedConnections(page: Page) {
+  // The "Forget connection" buttons only appear on the disconnected connect form.
+  // Call this after openConnectForm (which ensures the connect form is visible).
+  const savedList = page.getByRole('list', { name: 'Saved connections' });
+  while (await savedList.isVisible().catch(() => false)) {
+    const items = savedList.getByRole('listitem');
+    if ((await items.count()) === 0) break;
+    // Click the trash/forget icon on the first saved connection
+    await items.first().getByRole('button').last().click();
+    // Confirm the forget modal
+    await page.getByRole('button', { name: 'Forget', exact: true }).click();
+    // The form action POSTs and the server redirects back to /storage;
+    // wait for the page to re-hydrate before checking the list again.
+    await waitForHydration(page);
+  }
+}
+
+export async function openConnectForm(page: Page, { clearSaved = true } = {}) {
   await page.goto('/');
   if (new URL(page.url()).pathname.startsWith('/auth/login')) {
     await waitForHydration(page);
@@ -49,7 +66,7 @@ export async function openConnectForm(page: Page) {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   }
 
-  await page.goto('/storage?disconnected=1');
+  await page.goto('/storage');
   await waitForHydration(page);
 
   const connectHeading = page.getByRole('heading', { name: 'Connect to storage' });
@@ -59,9 +76,17 @@ export async function openConnectForm(page: Page) {
     (await disconnectButton.isVisible().catch(() => false))
   ) {
     await disconnectButton.click();
+    // Confirm the disconnect dialog
+    await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
   }
 
   await expect(connectHeading).toBeVisible();
+
+  // Clear all saved connections so each test starts from a clean state and
+  // cannot be disrupted by connections left over from previous tests or retries.
+  if (clearSaved) {
+    await clearSavedConnections(page);
+  }
 }
 
 export async function connectToStorage(page: Page, credentials: GarageCredentials) {
@@ -71,7 +96,12 @@ export async function connectToStorage(page: Page, credentials: GarageCredential
   await page.getByLabel('Access key ID').fill(credentials.accessKeyId);
   await page.getByLabel('Secret access key').fill(credentials.secretAccessKey);
   await expect(page.getByLabel('Use path-style addressing')).toBeChecked();
-  await page.getByRole('button', { name: 'Connect' }).click();
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  // Wait for the client-side connected state to be established before returning.
+  // This confirms the session's activeStorageConnectionId is set and the layout
+  // has fetched the bucket list — reducing the window for session race conditions
+  // when parallel workers share the same server-side session.
+  await waitForStorageConnected(page);
 }
 
 export async function connectAndOpenPrefix(
@@ -80,8 +110,14 @@ export async function connectAndOpenPrefix(
   prefix = ''
 ) {
   await connectToStorage(page, credentials);
-  await expect(page).toHaveURL('/storage');
   await page.goto(bucketRoute(credentials.bucket, prefix));
+  // If a parallel worker's disconnect raced with this navigation the page will
+  // have been redirected back to /storage.  Detect that and reconnect once.
+  await waitForHydration(page);
+  if (!page.url().includes(encodeURIComponent(credentials.bucket))) {
+    await connectToStorage(page, credentials);
+    await page.goto(bucketRoute(credentials.bucket, prefix));
+  }
   await waitForObjectsLoaded(page);
 }
 

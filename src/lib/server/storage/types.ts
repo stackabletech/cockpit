@@ -7,6 +7,8 @@ export interface S3ConnectionConfig {
   region: string;
   accessKeyId?: string;
   secretAccessKey?: string;
+  /** Extra bucket names to include alongside the auto-discovered list. */
+  additionalBuckets?: string[];
 }
 
 /** Full S3 config for creating a bucket-scoped provider. */
@@ -26,3 +28,10 @@ export type StorageConfig = S3Config | HDFSConfig;
 
 /** Per-user connection config stored in memory (no bucket). */
 export type StorageConnectionConfig = S3ConnectionConfig | HDFSConfig;
+
+/** Minimal connection metadata returned to the client. */
+export interface ConnectionMetadata {
+  id: string;
+  name: string;
+  endpoint: string | null;
+}

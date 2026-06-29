@@ -14,9 +14,9 @@
   import FallbackPreview from './preview/FallbackPreview.svelte';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
   import { downloadObject, DownloadError } from '$lib/storage/download.js';
-  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
-  import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
 
   interface Props {
     open: boolean;
@@ -90,9 +90,9 @@
     preview = { kind: 'loading' };
     revokeBlobUrls();
 
-    const conn = loadConnectionLocally();
-    const headers: HeadersInit = conn
-      ? { [STORAGE_CONNECTION_HEADER]: getConnectionHeader(conn) }
+    const connectionId = connectionStore.activeConnectionId;
+    const headers: HeadersInit = connectionId
+      ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
       : {};
 
     try {
@@ -221,13 +221,13 @@
 
   async function triggerDownload() {
     if (!objectKey) return;
-    const conn = loadConnectionLocally();
-    if (!conn) {
+    const connectionId = connectionStore.activeConnectionId;
+    if (!connectionId) {
       addToast('error', m.storage_download_error_unknown());
       return;
     }
     try {
-      await downloadObject(bucket, objectKey, getConnectionHeader(conn));
+      await downloadObject(bucket, objectKey, connectionId);
     } catch (err) {
       if (err instanceof DownloadError) {
         addToast('error', err.message);

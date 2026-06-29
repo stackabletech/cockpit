@@ -26,6 +26,12 @@ vi.mock('$lib/storage/upload.js', () => ({
   UploadError: MockUploadError
 }));
 
+// Provide a stable, isolated connection store so mutations from other test
+// files (e.g. StorageConnectForm.svelte.spec.ts) cannot bleed across.
+vi.mock('$lib/storage/connection-store.svelte.js', () => ({
+  connectionStore: { activeConnectionId: null, connections: [] }
+}));
+
 const defaultProps = {
   open: true,
   bucket: faker.word.noun(),

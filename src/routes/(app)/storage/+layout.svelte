@@ -3,6 +3,7 @@
   import BucketList from '$lib/components/storage/sidebar/BucketList.svelte';
   import { StorageState } from '$lib/storage/state.svelte.js';
   import { setStorageState } from '$lib/storage/context.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
 
   let { children, data } = $props();
 
@@ -19,6 +20,7 @@
   $effect(() => {
     storage.connected = data.connected;
     storage.buckets = data.buckets;
+    connectionStore.connections = data.connections;
   });
 </script>
 

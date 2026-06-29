@@ -16,7 +16,7 @@ import { downloadObject, DownloadError } from '$lib/storage/download.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import { ActionError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
-import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+import { connectionStore } from '$lib/storage/connection-store.svelte.js';
 import { keyToName } from '$lib/storage/utils.js';
 
 export class StorageState {
@@ -273,12 +273,12 @@ export class StorageState {
           this.bookmarks.recordFileVisit(this.bucket, f.key, f.size);
         }
         try {
-          const conn = loadConnectionLocally();
-          if (!conn) {
+          const connectionId = connectionStore.activeConnectionId;
+          if (!connectionId) {
             addToast('error', m.storage_download_error_unknown());
             return;
           }
-          await downloadObject(this.bucket, key, getConnectionHeader(conn));
+          await downloadObject(this.bucket, key, connectionId);
         } catch (err: unknown) {
           if (err instanceof DownloadError) {
             addToast('error', getActionErrorMessage(new ActionError(err.code, err.message)));
@@ -384,8 +384,8 @@ export class StorageState {
     const params = new SvelteURLSearchParams({ bucket });
     for (const key of keys) params.append('keys', key);
 
-    const conn = loadConnectionLocally();
-    const headers: HeadersInit = conn ? { 'x-storage-connection': getConnectionHeader(conn) } : {};
+    const connectionId = connectionStore.activeConnectionId;
+    const headers: HeadersInit = connectionId ? { 'x-storage-connection-id': connectionId } : {};
 
     const res = await fetch(`/api/storage/delete?${params}`, { method: 'DELETE', headers });
     if (!res.ok) {
