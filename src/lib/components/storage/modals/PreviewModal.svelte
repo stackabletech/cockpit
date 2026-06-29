@@ -1,15 +1,20 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { browser } from '$app/environment';
+  import { SvelteURLSearchParams } from 'svelte/reactivity';
   import IconCloseFullscreen from 'virtual:icons/material-symbols/close-fullscreen';
   import IconOpenInFull from 'virtual:icons/material-symbols/open-in-full';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconErrorOutline from 'virtual:icons/material-symbols/error-outline';
   import IconDownload from 'virtual:icons/material-symbols/download';
   import IconFilePresent from 'virtual:icons/material-symbols/file-present';
+  import IconSave from 'virtual:icons/material-symbols/save';
+  import IconBlock from 'virtual:icons/material-symbols/block';
   import * as m from '$lib/paraglide/messages.js';
   import { getLocale } from '$lib/paraglide/runtime.js';
   import Modal from '$lib/components/Modal.svelte';
-  import TextPreview from './preview/TextPreview.svelte';
+  import TextEditor from '$lib/components/editor/TextEditor.svelte';
+  import UnsavedConfirmDialog from './UnsavedConfirmDialog.svelte';
   import CsvPreview from './preview/CsvPreview.svelte';
   import ParquetPreview from './preview/ParquetPreview.svelte';
   import ParquetMetadata from './preview/ParquetMetadata.svelte';
@@ -21,6 +26,7 @@
   import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
   import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
+  import { maxEditableFileSize } from '$lib/client/feature-flags.js';
 
   interface Props {
     open?: boolean;
@@ -93,6 +99,33 @@
   let parquetShowingRowsCount = $state(0);
   let parquetTab: 'metadata' | 'data' = $state('metadata');
 
+  // ── Text editor state ──
+  let editorText = $state('');
+  let originalText = $state('');
+  let saving = $state(false);
+  let showUnsavedConfirm = $state(false);
+  let editorReady = $state(false);
+
+  const dirty = $derived(editorText !== originalText);
+
+  // Prevent accidental browser tab/window close when there are unsaved changes.
+  $effect(() => {
+    if (!dirty) return;
+
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  });
+
+  const filename = $derived(objectKey ? keyToName(objectKey) : '');
+
+  function isTooLargeToEdit(): boolean {
+    if (preview.kind !== 'text') return false;
+    return preview.totalSize > maxEditableFileSize;
+  }
   onDestroy(() => {
     for (const url of blobUrls) {
       URL.revokeObjectURL(url);
@@ -108,7 +141,13 @@
 
   $effect(() => {
     if (open && objectKey) {
+      editorReady = false;
       void loadPreview(objectKey, bucket);
+      // Start loading Monaco in parallel with data fetching
+      if (browser) {
+        import('monaco-editor/esm/vs/editor/editor.worker?worker');
+        import('monaco-editor');
+      }
     }
 
     if (!open) {
@@ -117,6 +156,9 @@
       imageNaturalWidth = 0;
       imageNaturalHeight = 0;
       parquetTab = 'metadata';
+      editorReady = false;
+      editorText = '';
+      originalText = '';
     }
   });
 
@@ -182,6 +224,7 @@
         return;
       }
 
+
       if (res.headers.get('X-Preview-Renderable') === 'false') {
         await res.body?.cancel();
         preview = { kind: 'fallback', contentType, isBinary: false };
@@ -210,6 +253,8 @@
         return;
       }
 
+
+
       if (
         contentType === 'text/csv' ||
         contentType === 'application/csv' ||
@@ -221,6 +266,8 @@
       }
 
       preview = { kind: 'text', text, contentType, truncated, totalSize, previewBytes };
+      editorText = text;
+      originalText = text;
     } catch {
       preview = { kind: 'error', message: m.storage_preview_error_desc() };
     }
@@ -253,8 +300,6 @@
       return null;
     }
   }
-
-  const filename = $derived(objectKey ? keyToName(objectKey) : '');
 
   /** Parse an NDJSON parquet stream with callbacks for headers (incl. schema/metadata) and columns. */
   async function parseParquetStream(
@@ -359,6 +404,7 @@
     return { headers: resultHeaders, rows, totalRows: resultTotalRows };
   }
 
+
   async function triggerDownload() {
     if (!objectKey) return;
 
@@ -377,6 +423,93 @@
         addToast('error', m.storage_download_error_unknown());
       }
     }
+  }
+
+  function getSaveTextParams(): URLSearchParams | null {
+    if (preview.kind !== 'text' || !objectKey) return null;
+    const params = new SvelteURLSearchParams({ bucket, key: objectKey });
+    params.set('contentType', preview.contentType);
+    params.set('originalSize', String(preview.totalSize));
+    params.set('previewBytes', String(preview.previewBytes));
+    return params;
+  }
+
+  async function handleSave() {
+    if (!objectKey) return;
+    if (isTooLargeToEdit()) {
+      addToast('error', m.storage_editor_too_large({ limit: formatFileSize(maxEditableFileSize) }));
+      return;
+    }
+    const params = getSaveTextParams();
+    if (!params) return;
+
+    saving = true;
+    try {
+      const conn = loadConnectionLocally();
+      const headers: HeadersInit = {};
+      if (conn) {
+        (headers as Record<string, string>)[STORAGE_CONNECTION_HEADER] = getConnectionHeader(conn);
+      }
+
+      const res = await fetch(`/api/storage/save-text?${params}`, {
+        method: 'POST',
+        headers,
+        body: editorText
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          addToast('error', m.storage_upload_error_not_connected());
+        } else if (res.status === 403) {
+          addToast('error', m.storage_upload_error_access_denied());
+        } else if (res.status === 413) {
+          addToast(
+            'error',
+            m.storage_editor_too_large({ limit: formatFileSize(maxEditableFileSize) })
+          );
+        } else {
+          addToast('error', m.storage_editor_error());
+        }
+        return;
+      }
+
+      originalText = editorText;
+      addToast('success', m.storage_editor_saved());
+    } catch {
+      addToast('error', m.storage_editor_error());
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function handleSaveAndClose() {
+    await handleSave();
+    if (originalText === editorText) {
+      showUnsavedConfirm = false;
+      close();
+    }
+  }
+
+  function handleDiscard() {
+    showUnsavedConfirm = false;
+    editorText = originalText;
+    close();
+  }
+
+  function handleCloseClick() {
+    if (dirty) {
+      showUnsavedConfirm = true;
+    } else {
+      close();
+    }
+  }
+
+  function closeguard(): boolean {
+    if (dirty) {
+      showUnsavedConfirm = true;
+      return false;
+    }
+    return true;
   }
 
   function close() {
@@ -426,7 +559,7 @@
   }
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open {closeguard} class="modal">
   <div
     class="modal-box flex flex-col p-0 transition-none {maximized
       ? 'h-dvh max-h-dvh w-screen max-w-none rounded-none'
@@ -501,7 +634,7 @@
 
       <button
         class="btn btn-ghost btn-sm btn-square"
-        onclick={close}
+        onclick={handleCloseClick}
         aria-label={m.storage_preview_close()}
       >
         <IconClose class="size-5" aria-hidden="true" />
@@ -545,7 +678,9 @@
       </div>
     {/if}
 
+    <!-- Body -->
     <div class="min-h-0 min-w-0 flex-1 overflow-auto">
+
       {#if preview.kind === 'idle' || preview.kind === 'loading'}
         <div
           class="flex items-center justify-center p-12"
@@ -602,24 +737,63 @@
           {/if}
         </div>
       {:else if preview.kind === 'text'}
-        <TextPreview text={preview.text} contentType={preview.contentType} />
+        <div class="relative flex h-full flex-col">
+          {#if !editorReady}
+            <div
+              class="bg-base-100/80 absolute inset-0 z-10 flex items-center justify-center"
+              aria-live="polite"
+              aria-label={m.storage_preview_loading()}
+            >
+              <span class="loading loading-spinner loading-md text-primary" aria-hidden="true"
+              ></span>
+              <span class="sr-only">{m.storage_preview_loading()}</span>
+            </div>
+          {/if}
+          {#if isTooLargeToEdit()}
+            <div
+              class="bg-base-200 border-base-300 flex shrink-0 items-center gap-2 border-b px-4 py-2"
+            >
+              <IconBlock class="text-base-content/50 size-4" aria-hidden="true" />
+              <span class="text-base-content/60 text-xs">
+                {m.storage_editor_too_large_badge({ limit: formatFileSize(maxEditableFileSize) })}
+              </span>
+            </div>
+          {/if}
+          <div class="min-h-0 flex-1">
+            <TextEditor
+              bind:value={editorText}
+              bind:ready={editorReady}
+              contentType={preview.contentType}
+              {filename}
+              readonly={isTooLargeToEdit()}
+              onSave={handleSave}
+            />
+          </div>
+        </div>
       {:else if preview.kind === 'csv'}
         <CsvPreview text={preview.text} />
+
       {:else if preview.kind === 'image'}
-        <ImagePreview
-          src={preview.blobUrl}
-          name={filename}
-          bind:naturalWidth={imageNaturalWidth}
-          bind:naturalHeight={imageNaturalHeight}
-        />
+        <div class="preview-scroll h-full overflow-scroll">
+          <ImagePreview
+            src={preview.blobUrl}
+            name={filename}
+            bind:naturalWidth={imageNaturalWidth}
+            bind:naturalHeight={imageNaturalHeight}
+          />
+        </div>
       {:else if preview.kind === 'pdf'}
-        <PdfPreview src={preview.blobUrl} name={filename} />
+        <div class="preview-scroll h-full overflow-scroll">
+          <PdfPreview src={preview.blobUrl} name={filename} />
+        </div>
       {:else if preview.kind === 'fallback'}
-        <FallbackPreview
-          contentType={preview.contentType}
-          onDownload={triggerDownload}
-          isBinary={preview.isBinary}
-        />
+        <div class="preview-scroll h-full overflow-scroll">
+          <FallbackPreview
+            contentType={preview.contentType}
+            onDownload={triggerDownload}
+            isBinary={preview.isBinary}
+          />
+        </div>
       {/if}
     </div>
 
@@ -641,11 +815,35 @@
             {m.storage_preview_download_full()}
           </button>
         {/if}
+        {#if preview.kind === 'text' && !isTooLargeToEdit()}
+          <button
+            type="button"
+            class="btn btn-primary btn-sm gap-1.5"
+            onclick={handleSave}
+            disabled={!dirty || saving}
+          >
+            {#if saving}
+              <span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
+              {m.storage_editor_saving()}
+            {:else}
+              <IconSave class="size-4" aria-hidden="true" />
+              {m.storage_editor_save()}
+            {/if}
+          </button>
+        {/if}
+        <button class="btn btn-ghost btn-sm" onclick={handleCloseClick}>
 
-        <button class="btn btn-primary btn-sm" onclick={close}>
           {m.storage_preview_close()}
         </button>
       </div>
     {/if}
   </div>
 </Modal>
+
+<!-- Unsaved changes confirmation -->
+<UnsavedConfirmDialog
+  bind:open={showUnsavedConfirm}
+  onSave={handleSaveAndClose}
+  onDiscard={handleDiscard}
+  onCancel={() => (showUnsavedConfirm = false)}
+/>

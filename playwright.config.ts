@@ -22,17 +22,17 @@ export default defineConfig({
     {
       command: 'npx tsx e2e/support/start-mock-oidc.ts',
       url: 'http://localhost:9090/.well-known/openid-configuration',
-      reuseExistingServer: true
+      reuseExistingServer: false
     },
     {
       command: 'npx tsx e2e/support/start-mock-trino.ts',
       url: 'http://localhost:8080',
-      reuseExistingServer: true
+      reuseExistingServer: false
     },
     {
       command: 'PORT=4173 node --env-file=.env.test build',
       url: baseURL,
-      reuseExistingServer: true
+      reuseExistingServer: false
     }
   ],
   projects: [

@@ -222,35 +222,35 @@ export class S3StorageProvider implements StorageProvider {
       return { failed: [] };
     }
 
-    // Expand directory prefixes to their contained keys
-    const resolvedKeys: string[] = [];
-    for (const key of keys) {
-      if (key.endsWith('/')) {
-        const children = await this.listAllKeys(key);
-        if (children.length > 0) {
-          resolvedKeys.push(...children);
-        } else {
-          resolvedKeys.push(key);
+    return withS3Errors(
+      async () => {
+        // Expand directory prefixes to their contained keys
+        const resolvedKeys: string[] = [];
+        for (const key of keys) {
+          if (key.endsWith('/')) {
+            const children = await this.listAllKeys(key);
+            if (children.length > 0) {
+              resolvedKeys.push(...children);
+            } else {
+              resolvedKeys.push(key);
+            }
+          } else {
+            resolvedKeys.push(key);
+          }
         }
-      } else {
-        resolvedKeys.push(key);
-      }
-    }
 
-    // S3 DeleteObjects has a limit of 1000 keys per request.
-    // MinIO/Ionos return MalformedXML when exceeding this limit.
-    const MAX_KEYS = 1000;
-    const allFailed: Array<{ key: string; code?: string; message?: string }> = [];
+        // S3 DeleteObjects has a limit of 1000 keys per request.
+        // MinIO/Ionos return MalformedXML when exceeding this limit.
+        const MAX_KEYS = 1000;
+        const allFailed: Array<{ key: string; code?: string; message?: string }> = [];
 
-    for (let i = 0; i < resolvedKeys.length; i += MAX_KEYS) {
-      const chunk = resolvedKeys.slice(i, i + MAX_KEYS);
-      log.trace(
-        { bucket: this.bucket, chunk_offset: i, chunk_size: chunk.length },
-        'S3 DeleteObjects chunk'
-      );
-      const output = await withS3Errors(
-        () =>
-          this.client.send(
+        for (let i = 0; i < resolvedKeys.length; i += MAX_KEYS) {
+          const chunk = resolvedKeys.slice(i, i + MAX_KEYS);
+          log.trace(
+            { bucket: this.bucket, chunk_offset: i, chunk_size: chunk.length },
+            'S3 DeleteObjects chunk'
+          );
+          const output = await this.client.send(
             new DeleteObjectsCommand({
               Bucket: this.bucket,
               Delete: {
@@ -258,24 +258,25 @@ export class S3StorageProvider implements StorageProvider {
                 Quiet: true
               }
             })
-          ),
-        { bucket: this.bucket, operation: 'deleteObjects' }
-      );
-      const failed = (output.Errors ?? []).map((e) => ({
-        key: e.Key ?? '',
-        code: e.Code,
-        message: e.Message
-      }));
-      allFailed.push(...failed);
-    }
+          );
+          const failed = (output.Errors ?? []).map((e) => ({
+            key: e.Key ?? '',
+            code: e.Code,
+            message: e.Message
+          }));
+          allFailed.push(...failed);
+        }
 
-    if (allFailed.length > 0) {
-      log.warn(
-        { bucket: this.bucket, failed_count: allFailed.length },
-        'some objects failed to delete'
-      );
-    }
-    return { failed: allFailed };
+        if (allFailed.length > 0) {
+          log.warn(
+            { bucket: this.bucket, failed_count: allFailed.length },
+            'some objects failed to delete'
+          );
+        }
+        return { failed: allFailed };
+      },
+      { bucket: this.bucket, operation: 'deleteObjects' }
+    );
   }
 
   async listAllKeys(prefix: string): Promise<string[]> {

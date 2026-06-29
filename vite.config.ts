@@ -16,6 +16,9 @@ export default defineConfig({
       strategy: ['cookie', 'preferredLanguage', 'baseLocale']
     })
   ],
+  optimizeDeps: {
+    include: ['@sveltejs/kit', 'svelte']
+  },
   server: { allowedHosts: true },
   test: {
     coverage: {

@@ -4,6 +4,10 @@ import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import PreviewModal from './PreviewModal.svelte';
 
+// Prevent Monaco Editor from loading in tests by making $app/environment's
+// `browser` return false. TextEditor renders a plain <pre> as fallback.
+vi.mock('$app/environment', () => ({ browser: false }));
+
 // Mock $app/paths
 vi.mock('$app/paths', () => ({
   resolve: (path: string) => path

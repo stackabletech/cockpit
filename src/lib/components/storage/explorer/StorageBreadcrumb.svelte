@@ -10,9 +10,12 @@
   import IconMoreVert from 'virtual:icons/material-symbols/more-vert';
   import IconPushPin from 'virtual:icons/material-symbols/push-pin';
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
+  import IconAdd from 'virtual:icons/material-symbols/add';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import type { StorageLocation } from '$lib/storage/types.js';
+  import { invalidateAll } from '$app/navigation';
+  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
 
   const storage = getStorageState();
 
@@ -37,6 +40,80 @@
   );
 
   const currentIsPinned = $derived(storage.bookmarks.isPinned(storage.bucket, storage.prefix));
+
+  // ── Create menu (inline dropdown) ─────────────────────────────────────
+  let createOpen = $state(false);
+  let createType = $state<'file' | 'folder'>('file');
+  let createName = $state('');
+  let createStep = $state<'choose' | 'name'>('choose');
+  let creating = $state(false);
+  let createError = $state('');
+
+  const NAME_INVALID_CHARS = /[^\w\s./()\-+@,:;!$*'=]/g;
+
+  function sanitizeName(raw: string): string {
+    return raw.replace(NAME_INVALID_CHARS, '');
+  }
+
+  function openCreate() {
+    createOpen = true;
+    createStep = 'choose';
+    createType = 'file';
+    createName = '';
+    createError = '';
+  }
+
+  function closeCreate() {
+    createOpen = false;
+  }
+
+  function selectCreateType(type: 'file' | 'folder') {
+    createType = type;
+    createStep = 'name';
+    createName = type === 'file' ? 'untitled.txt' : 'new-folder';
+    createError = '';
+  }
+
+  async function createObject(bucket: string, key: string): Promise<void> {
+    const params = new URLSearchParams({ bucket, key });
+    const conn = loadConnectionLocally();
+    const headers: HeadersInit = conn ? { 'x-storage-connection': getConnectionHeader(conn) } : {};
+    const res = await fetch(`/api/storage/create?${params}`, { method: 'POST', headers });
+    if (!res.ok) throw new Error(`Create failed with status ${res.status}`);
+  }
+
+  async function handleCreate() {
+    const name = sanitizeName(createName.trim());
+    if (!name || name === '.' || name === '..') {
+      createError = m.storage_create_error({ name: createName });
+      return;
+    }
+    creating = true;
+    createError = '';
+
+    try {
+      const isFolder = createType === 'folder';
+      const parts = name.split('/');
+
+      // Create intermediate directory markers for each path segment
+      for (let i = 0; i < parts.length - 1; i++) {
+        const dirKey = storage.prefix + parts.slice(0, i + 1).join('/') + '/';
+        await createObject(storage.bucket, dirKey);
+      }
+
+      // Create the final object (file or directory)
+      const finalKey = storage.prefix + name + (isFolder ? '/' : '');
+      await createObject(storage.bucket, finalKey);
+
+      closeCreate();
+      storage.loading = true;
+      void invalidateAll();
+    } catch {
+      createError = m.storage_create_error({ name: createName });
+    } finally {
+      creating = false;
+    }
+  }
 
   // ── Breadcrumb label context menu (right-click to pin / unpin) ───────────
   let breadcrumbCtx = $state<({ x: number; y: number } & StorageLocation) | null>(null);
@@ -293,6 +370,96 @@
     </span>
     {m.storage_select_toggle()}
   </button>
+
+  <!-- Create button -->
+  <div class="dropdown dropdown-end inline-flex" class:dropdown-open={createOpen}>
+    <button
+      class="btn btn-primary btn-xs gap-1"
+      onclick={openCreate}
+      aria-haspopup="menu"
+      aria-expanded={createOpen}
+    >
+      <IconAdd class="size-3.5" aria-hidden="true" />
+      {m.storage_action_create()}
+    </button>
+    {#if createOpen}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="fixed inset-0 z-40"
+        onmousedown={closeCreate}
+        onkeydown={(e) => e.key === 'Escape' && closeCreate()}
+      ></div>
+      {#if createStep === 'choose'}
+        <ul
+          role="menu"
+          class="
+            dropdown-content menu rounded-box border-base-300 bg-base-100 z-60 w-48
+            border p-1 shadow-lg
+          "
+        >
+          <li role="none">
+            <button
+              role="menuitem"
+              class="justify-start text-sm"
+              onclick={() => selectCreateType('file')}
+            >
+              <IconDescriptionOutline class="size-4 shrink-0" aria-hidden="true" />
+              {m.storage_create_file()}
+            </button>
+          </li>
+          <li role="none">
+            <button
+              role="menuitem"
+              class="justify-start text-sm"
+              onclick={() => selectCreateType('folder')}
+            >
+              <IconFolderOutline class="size-4 shrink-0" aria-hidden="true" />
+              {m.storage_create_folder()}
+            </button>
+          </li>
+        </ul>
+      {:else}
+        <div
+          class="
+            dropdown-content rounded-box border-base-300 bg-base-100 z-60 w-64
+            border p-3 shadow-lg
+          "
+        >
+          <label for="create-name-input" class="label label-text mb-1 p-0">
+            {m.storage_create_name()}
+          </label>
+          <input
+            id="create-name-input"
+            class="input input-bordered input-sm w-full"
+            value={createName}
+            placeholder={m.storage_create_placeholder()}
+            oninput={(e) => {
+              createName = sanitizeName(e.currentTarget.value);
+            }}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') handleCreate();
+              if (e.key === 'Escape') closeCreate();
+            }}
+          />
+          {#if createError}
+            <p class="text-error mt-1 text-xs">{createError}</p>
+          {/if}
+          <div class="mt-2 flex justify-end gap-2">
+            <button class="btn btn-ghost btn-xs" disabled={creating} onclick={closeCreate}>
+              {m.storage_create_cancel()}
+            </button>
+            <button
+              class="btn btn-primary btn-xs"
+              disabled={creating || !createName.trim()}
+              onclick={handleCreate}
+            >
+              {m.storage_create_confirm()}
+            </button>
+          </div>
+        </div>
+      {/if}
+    {/if}
+  </div>
 
   <!-- Upload button -->
   <button
