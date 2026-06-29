@@ -26,6 +26,11 @@ describe('storage layout server load', () => {
   it('returns disconnected default state', async () => {
     mockStorageBrowserEnabled.mockReturnValue(true);
     const result = await load(mockEvent());
-    expect(result).toEqual({ connected: false, buckets: [], connectionType: null });
+    expect(result).toEqual({
+      connected: false,
+      buckets: [],
+      connectionType: null,
+      connectionId: null
+    });
   });
 });

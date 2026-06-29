@@ -1,15 +1,76 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import { untrack } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { navigating } from '$app/state';
   import { getStorageState } from '$lib/storage/context.js';
+  import { TabsState } from '$lib/storage/tabs.svelte.js';
+  import { setTabsState } from '$lib/storage/tabs-context.js';
+  import { storageRestoreTabsEnabled } from '$lib/client/feature-flags.js';
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
+  import TabBar from './TabBar.svelte';
   import ObjectTable from './ObjectTable.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import StorageModals from '../modals/StorageModals.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
 
   const storage = getStorageState();
+
+  function navigateToLocation(bucket: string, prefix: string): void {
+    const encodedPrefix = prefix
+      ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
+      : '';
+    const basePath = resolve('/(app)/storage/[bucket]/[...prefix]', {
+      bucket: encodeURIComponent(bucket),
+      prefix: encodedPrefix
+    });
+    const url = new URL(basePath, location.origin);
+    if (storage.pageSize) url.searchParams.set('pageSize', String(storage.pageSize));
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- base path is built with resolve(); URL object is needed to append query params
+    goto(url, { replaceState: false });
+  }
+
+  /** Updates the browser URL bar to reflect the active tab's location without
+   *  triggering a SvelteKit navigation or server refetch. Used when restoring
+   *  an in-memory snapshot on tab switch. */
+  function replaceLocationUrl(bucket: string, prefix: string): void {
+    const encodedPrefix = prefix
+      ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
+      : '';
+    const newPath = resolve('/(app)/storage/[bucket]/[...prefix]', {
+      bucket: encodeURIComponent(bucket),
+      prefix: encodedPrefix
+    });
+    history.replaceState(history.state, '', newPath);
+  }
+
+  const tabsState = new TabsState(storage, {
+    persistEnabled: storageRestoreTabsEnabled,
+    connectionId: storage.connectionId,
+    navigateToLocation,
+    replaceLocationUrl
+  });
+  setTabsState(tabsState);
+
+  // Initialise tabs once storage has bucket data.
+  $effect(() => {
+    if (storage.bucket) {
+      untrack(() => tabsState.ensureInitialTab());
+    }
+  });
+
+  // Keep the active tab snapshot in sync whenever location or page data
+  // changes. Both methods are called inside untrack to prevent a reactive
+  // loop: they read from this.tabs internally, and writing this.tabs would
+  // otherwise re-trigger the effect.
+  $effect(() => {
+    void [storage.bucket, storage.prefix, storage.objects];
+    untrack(() => {
+      tabsState.markActiveTabLoaded();
+      tabsState.syncActiveTab();
+    });
+  });
 
   // Record location visit whenever the current bucket/prefix changes.
   $effect(() => {
@@ -36,6 +97,8 @@
 <svelte:window onkeydown={storage.handleKeydown} />
 
 <div class="bg-base-100 flex flex-1 flex-col overflow-hidden">
+  <TabBar {tabsState} />
+
   <StorageBreadcrumb />
 
   <div bind:this={objectListEl} class="relative min-h-0 flex-1 overflow-hidden">

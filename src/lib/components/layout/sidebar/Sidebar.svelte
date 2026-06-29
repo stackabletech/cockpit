@@ -19,9 +19,14 @@
 
   const sections = $derived(getNavSections({ storageBrowserEnabled }));
 
+  // Explicitly derive currentPath so Svelte 5 tracks page.url.pathname
+  // as a reactive dependency. Without this, changes to page.url.pathname
+  // may not reliably trigger re-renders in all browsers during hydration.
+  const currentPath = $derived(page.url.pathname);
+
   function isActive(href: string): boolean {
-    if (href === '/') return page.url.pathname === '/';
-    return page.url.pathname.startsWith(href);
+    if (href === '/') return currentPath === '/';
+    return currentPath.startsWith(href);
   }
 
   function handleNavClick(event: MouseEvent, item: NavItem) {

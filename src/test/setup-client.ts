@@ -6,6 +6,7 @@ import { vi, beforeEach } from 'vitest';
 // env vars are set.
 vi.mock('$lib/client/feature-flags.js', () => ({
   storageAutoConnectEnabled: false,
+  storageRestoreTabsEnabled: false,
   allowedPageSizes: [25, 50, 100],
   defaultPageSize: 25,
   maxRecentFiles: 15,

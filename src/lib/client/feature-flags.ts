@@ -11,6 +11,15 @@ import { env } from '$env/dynamic/public';
 export const storageAutoConnectEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT ?? 'false') === 'true';
 
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RESTORE_TABS=true`, the file browser
+ *  saves open tabs (their name, order, and location) to localStorage and
+ *  restores them the next time the user navigates to `/storage`.
+ *  Disabled by default. */
+export const storageRestoreTabsEnabled =
+  (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_RESTORE_TABS ??
+    env.PUBLIC_STACKABLE_UI_STORAGE_RESTORE_TABS ??
+    'false') === 'true';
+
 /** Timeout in milliseconds for the storage auto-connect attempt. Default: 15 000 (15 s).
  *  Controlled by `PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT_TIMEOUT_MS`. */
 export const storageAutoConnectTimeoutMs: number = (() => {

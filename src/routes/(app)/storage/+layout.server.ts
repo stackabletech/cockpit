@@ -11,5 +11,5 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
   // Connected state and bucket list are determined client-side from localStorage
   // and populated by the universal +layout.ts load after hydration.
-  return { connected: false, buckets: [] as string[], connectionType: null };
+  return { connected: false, buckets: [] as string[], connectionType: null, connectionId: null };
 };
