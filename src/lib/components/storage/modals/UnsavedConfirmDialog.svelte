@@ -31,33 +31,9 @@
       <button class="btn btn-outline btn-ghost btn-error btn-sm" onclick={onDiscard}>
         {m.storage_editor_discard()}
       </button>
-      <!-- eslint-disable-next-line better-tailwindcss/no-unknown-classes -->
-      <button class="btn btn-primary save-btn" onclick={onSave}>
+      <button class="btn btn-primary btn-sm" onclick={onSave}>
         {m.storage_editor_save_and_close()}
       </button>
     </div>
   </div>
 </Modal>
-
-<style>
-  /*
-   * The save button needs to wrap its label text in German ("Speichern und schließen").
-   * DaisyUI places all .btn styles inside @layer daisyui.*, so Svelte's unlayered
-   * component styles unconditionally win the cascade without !important.
-   *
-   * - flex/min-width: button fills remaining row space (cancel+discard are btn-sm,
-   *   leaving ~154 px here — enough for two-line German text).
-   * - height/align-self: removes the fixed --size height and opts out of the
-   *   parent's align-items:stretch so the button can actually grow taller.
-   * - white-space/line-height: allow the label to break at word boundaries.
-   */
-  .save-btn {
-    flex: 1;
-    min-width: 0;
-    white-space: normal;
-    height: auto;
-    min-height: 2.5rem;
-    align-self: center;
-    line-height: 1.25;
-  }
-</style>
