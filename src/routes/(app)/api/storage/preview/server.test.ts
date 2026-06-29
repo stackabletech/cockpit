@@ -15,6 +15,15 @@ vi.mock('$lib/server/storage/preview/stream.js', () => ({
   streamPreview: vi.fn(async () => new Response('preview content'))
 }));
 
+vi.mock('$lib/server/storage/preview/parquet.js', () => ({
+  getParquetPreview: vi.fn(async () => {
+    const body = JSON.stringify({ headers: ['a'], rows: [['1']], totalRows: 1 });
+    return new Response(body, {
+      headers: { 'X-Preview-Format': 'parquet', 'X-Preview-Renderable': 'true' }
+    });
+  })
+}));
+
 vi.mock('$lib/server/storage/s3-errors.js', () => ({
   mapS3ErrorToHttp: vi.fn((err) => {
     throw err;
@@ -24,6 +33,7 @@ vi.mock('$lib/server/storage/s3-errors.js', () => ({
 import { GET } from './+server.js';
 import { binaryPreview } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
+import { getParquetPreview } from '$lib/server/storage/preview/parquet.js';
 import { mapS3ErrorToHttp } from '$lib/server/storage/s3-errors.js';
 
 const CONNECTION_HEADER = {
@@ -81,6 +91,84 @@ describe('GET /api/storage/preview', () => {
       50,
       'client',
       expect.anything()
+    );
+  });
+
+  it('detects parquet by content-type and delegates to getParquetPreview', async () => {
+    mockGetMetadata.mockResolvedValue({
+      contentType: 'application/vnd.apache.parquet',
+      size: 5000
+    });
+
+    const res = await GET(mockEvent('bucket=b1&key=data.parquet'));
+
+    expect(getParquetPreview).toHaveBeenCalledWith(
+      expect.anything(),
+      'data.parquet',
+      0,
+      250,
+      expect.anything(),
+      5000,
+      false
+    );
+    expect(res.headers.get('X-Preview-Format')).toBe('parquet');
+  });
+
+  it('detects parquet by .parquet extension', async () => {
+    mockGetMetadata.mockResolvedValue({
+      contentType: 'application/octet-stream',
+      size: 5000
+    });
+
+    const res = await GET(mockEvent('bucket=b1&key=measurements.parquet'));
+
+    expect(getParquetPreview).toHaveBeenCalledWith(
+      expect.anything(),
+      'measurements.parquet',
+      0,
+      250,
+      expect.anything(),
+      5000,
+      false
+    );
+    expect(res.headers.get('X-Preview-Format')).toBe('parquet');
+  });
+
+  it('passes offset and limit query params to getParquetPreview', async () => {
+    mockGetMetadata.mockResolvedValue({
+      contentType: 'application/x-parquet',
+      size: 50000
+    });
+
+    await GET(mockEvent('bucket=b1&key=large.parquet&offset=500&limit=100'));
+
+    expect(getParquetPreview).toHaveBeenCalledWith(
+      expect.anything(),
+      'large.parquet',
+      500,
+      100,
+      expect.anything(),
+      50000,
+      false
+    );
+  });
+
+  it('handles zero-size parquet file gracefully', async () => {
+    mockGetMetadata.mockResolvedValue({
+      contentType: 'application/vnd.apache.parquet',
+      size: 0
+    });
+
+    await GET(mockEvent('bucket=b1&key=empty.parquet'));
+
+    expect(getParquetPreview).toHaveBeenCalledWith(
+      expect.anything(),
+      'empty.parquet',
+      0,
+      250,
+      expect.anything(),
+      0,
+      false
     );
   });
 

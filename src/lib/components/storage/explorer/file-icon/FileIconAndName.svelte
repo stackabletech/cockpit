@@ -13,7 +13,13 @@
   const kind = $derived(fileIconKind(file.contentType, file.key));
   const config = $derived(FILE_ICON_CONFIG[kind]);
 
-  const ext = $derived(file.key.split('.').at(-1)?.toLowerCase() ?? '');
+  // Only extract an extension when the key actually contains a dot. Without
+  // the guard, files without a dot (e.g. "Makefile") produce a badge whose
+  // text is the entire filename, which is both incorrect and breaks tests that
+  // expect a unique match for the filename text.
+  const ext = $derived(
+    file.key.includes('.') ? (file.key.split('.').at(-1)?.toLowerCase() ?? '') : ''
+  );
   const badge = $derived(file.contentType ? (file.contentType.split('/').at(-1) ?? '') : ext);
 </script>
 
@@ -28,5 +34,5 @@
 </div>
 
 {#snippet renderIcon(cfg: IconConfig)}
-  <cfg.component class="size-5 shrink-0" aria-hidden="true" />
+  <cfg.component class="pointer-events-none size-5 shrink-0" aria-hidden="true" />
 {/snippet}

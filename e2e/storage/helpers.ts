@@ -231,3 +231,19 @@ export async function headObject(client: S3Client, bucket: string, key: string) 
 
 // Re-export expect for convenience
 export { expect };
+
+/** Seeds the `storage_tabs` localStorage key before the first page load of a
+ *  test, simulating a previous session's saved tab state. Because this uses
+ *  `addInitScript` it runs on every navigation within the test context, so the
+ *  data is available regardless of which page triggers the initial load. */
+export async function seedStorageTabsState(
+  page: Page,
+  state: {
+    tabs: Array<{ id: string; label: string; bucket: string; prefix: string }>;
+    activeTabId: string;
+  }
+): Promise<void> {
+  await page.addInitScript((data) => {
+    localStorage.setItem('storage_tabs', JSON.stringify(data));
+  }, state);
+}

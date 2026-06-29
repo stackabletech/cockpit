@@ -117,7 +117,7 @@
 <ul
   bind:this={menuEl}
   class="
-    menu menu-sm border-base-300 bg-base-100 absolute z-70 w-48 rounded-lg
+    menu menu-sm border-base-300 bg-base-100 fixed z-70 w-48 rounded-lg
     border p-1 shadow-lg
   "
   role="menu"

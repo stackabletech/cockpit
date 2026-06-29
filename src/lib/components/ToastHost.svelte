@@ -28,17 +28,34 @@
     {@const ToastIcon = iconMap[toast.type]}
     <div
       role="alert"
-      class="alert {alertClassMap[toast.type]} flex max-w-sm items-start gap-2 shadow-lg"
+      class="alert {alertClassMap[toast.type]} flex max-w-sm flex-col items-start gap-2 shadow-lg"
     >
-      <ToastIcon class="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-      <span class="flex-1 text-sm">{toast.message}</span>
-      <button
-        class="btn btn-ghost btn-xs ml-1 shrink-0"
-        aria-label="Dismiss"
-        onclick={() => removeToast(toast.id)}
-      >
-        <IconClose class="h-4 w-4" aria-hidden="true" />
-      </button>
+      <div class="flex w-full items-start gap-2">
+        <ToastIcon class="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+        <span class="flex-1 text-sm">{toast.message}</span>
+        <button
+          class="btn btn-ghost btn-xs ml-1 shrink-0"
+          aria-label="Dismiss"
+          onclick={() => removeToast(toast.id)}
+        >
+          <IconClose class="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+      {#if toast.actions && toast.actions.length > 0}
+        <div class="flex w-full justify-end gap-2">
+          {#each toast.actions as action, i (i)}
+            <button
+              class="btn btn-sm btn-neutral"
+              onclick={() => {
+                action.onClick();
+                removeToast(toast.id);
+              }}
+            >
+              {action.label}
+            </button>
+          {/each}
+        </div>
+      {/if}
     </div>
   {/each}
 </div>

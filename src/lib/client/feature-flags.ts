@@ -11,6 +11,22 @@ import { env } from '$env/dynamic/public';
 export const storageAutoConnectEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT ?? 'false') === 'true';
 
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RESTORE_TABS=true`, the file browser
+ *  saves open tabs (their name, order, and location) to localStorage and
+ *  restores them the next time the user navigates to `/storage`.
+ *  Disabled by default. */
+export const storageRestoreTabsEnabled =
+  (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_RESTORE_TABS ??
+    env.PUBLIC_STACKABLE_UI_STORAGE_RESTORE_TABS ??
+    'false') === 'true';
+
+/** Timeout in milliseconds for the storage auto-connect attempt. Default: 15 000 (15 s).
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT_TIMEOUT_MS`. */
+export const storageAutoConnectTimeoutMs: number = (() => {
+  const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT_TIMEOUT_MS ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 15_000;
+})();
+
 // ── Pagination ───────────────────────────────────────────────────────────────
 
 /** Parse a comma-separated page-sizes string into a deduplicated, sorted list
@@ -45,6 +61,18 @@ export const defaultPageSize: number = (() => {
   const raw = env.PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE;
   const parsed = parseInt(raw ?? '', 10);
   return allowedPageSizes.includes(parsed) ? parsed : (allowedPageSizes[0] ?? 25);
+})();
+
+// ── Storage browser: Text editor ─────────────────────────────────────────────
+
+/** Maximum file size (in bytes) that can be edited inline in the text editor.
+ *  Files larger than this will show a read-only preview without the save button.
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`. Default: 5242880 (5 MiB).
+ *  Raise to allow editing larger files; lower to avoid excessive S3 bandwidth
+ *  when saving truncated files (the full file must be re-uploaded). */
+export const maxEditableFileSize: number = (() => {
+  const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5 * 1024 * 1024;
 })();
 
 // ── Storage browser ──────────────────────────────────────────────────────────
