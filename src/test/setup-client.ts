@@ -21,4 +21,9 @@ vi.mock('$lib/client/feature-flags.js', () => ({
 // with a no-op for the duration of each test.
 beforeEach(() => {
   vi.spyOn(HTMLFormElement.prototype, 'requestSubmit').mockImplementation(() => {});
+
+  // Clear localStorage before each test to prevent BookmarksState (and any
+  // other localStorage-backed state) from leaking pinned locations, recent
+  // files, or other browser-storage data between tests.
+  localStorage.clear();
 });

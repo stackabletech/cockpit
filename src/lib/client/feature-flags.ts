@@ -11,6 +11,13 @@ import { env } from '$env/dynamic/public';
 export const storageAutoConnectEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT ?? 'false') === 'true';
 
+/** Timeout in milliseconds for the storage auto-connect attempt. Default: 15 000 (15 s).
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT_TIMEOUT_MS`. */
+export const storageAutoConnectTimeoutMs: number = (() => {
+  const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT_TIMEOUT_MS ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 15_000;
+})();
+
 // ── Pagination ───────────────────────────────────────────────────────────────
 
 /** Parse a comma-separated page-sizes string into a deduplicated, sorted list
