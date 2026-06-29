@@ -6,6 +6,7 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
   DeleteObjectsCommand,
+  PutObjectCommand,
   type ListObjectsV2CommandOutput
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
@@ -183,6 +184,22 @@ export class S3StorageProvider implements StorageProvider {
       { bucket: this.bucket, key, content_type: contentType, content_length: contentLength },
       'S3 Upload'
     );
+
+    // Empty files cannot use multipart upload (S3 rejects empty parts).
+    // Use a simple PutObject request instead.
+    if (contentLength === 0) {
+      await this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: Buffer.alloc(0),
+          ContentType: contentType,
+          ContentLength: 0
+        })
+      );
+      return;
+    }
+
     const upload = new Upload({
       client: this.client,
       queueSize: 4,
@@ -205,44 +222,58 @@ export class S3StorageProvider implements StorageProvider {
       return { failed: [] };
     }
 
-    // Expand directory prefixes to their contained keys
-    const resolvedKeys: string[] = [];
-    for (const key of keys) {
-      if (key.endsWith('/')) {
-        const children = await this.listAllKeys(key);
-        if (children.length > 0) {
-          resolvedKeys.push(...children);
-        } else {
-          resolvedKeys.push(key);
-        }
-      } else {
-        resolvedKeys.push(key);
-      }
-    }
-
     return withS3Errors(
       async () => {
-        const output = await this.client.send(
-          new DeleteObjectsCommand({
-            Bucket: this.bucket,
-            Delete: {
-              Objects: resolvedKeys.map((key) => ({ Key: key })),
-              Quiet: true
+        // Expand directory prefixes to their contained keys
+        const resolvedKeys: string[] = [];
+        for (const key of keys) {
+          if (key.endsWith('/')) {
+            const children = await this.listAllKeys(key);
+            if (children.length > 0) {
+              resolvedKeys.push(...children);
+            } else {
+              resolvedKeys.push(key);
             }
-          })
-        );
-        const failed = (output.Errors ?? []).map((e) => ({
-          key: e.Key ?? '',
-          code: e.Code,
-          message: e.Message
-        }));
-        if (failed.length > 0) {
+          } else {
+            resolvedKeys.push(key);
+          }
+        }
+
+        // S3 DeleteObjects has a limit of 1000 keys per request.
+        // MinIO/Ionos return MalformedXML when exceeding this limit.
+        const MAX_KEYS = 1000;
+        const allFailed: Array<{ key: string; code?: string; message?: string }> = [];
+
+        for (let i = 0; i < resolvedKeys.length; i += MAX_KEYS) {
+          const chunk = resolvedKeys.slice(i, i + MAX_KEYS);
+          log.trace(
+            { bucket: this.bucket, chunk_offset: i, chunk_size: chunk.length },
+            'S3 DeleteObjects chunk'
+          );
+          const output = await this.client.send(
+            new DeleteObjectsCommand({
+              Bucket: this.bucket,
+              Delete: {
+                Objects: chunk.map((key) => ({ Key: key })),
+                Quiet: true
+              }
+            })
+          );
+          const failed = (output.Errors ?? []).map((e) => ({
+            key: e.Key ?? '',
+            code: e.Code,
+            message: e.Message
+          }));
+          allFailed.push(...failed);
+        }
+
+        if (allFailed.length > 0) {
           log.warn(
-            { bucket: this.bucket, failed_count: failed.length },
+            { bucket: this.bucket, failed_count: allFailed.length },
             'some objects failed to delete'
           );
         }
-        return { failed };
+        return { failed: allFailed };
       },
       { bucket: this.bucket, operation: 'deleteObjects' }
     );

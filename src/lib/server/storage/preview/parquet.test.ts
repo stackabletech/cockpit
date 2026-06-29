@@ -29,6 +29,16 @@ vi.mock('$lib/server/logging', () => ({
   }
 }));
 
+vi.mock('$lib/server/feature-flags', () => ({
+  parquetDisallowedCompression: [{ codec: 'GZIP', requireOffsetIndex: true }],
+  storageBrowserEnabled: true,
+  completionEnabled: true,
+  filePreviewRows: 250,
+  textPreviewBytes: 256 * 1024,
+  imagePreviewBytes: 5 * 1024 * 1024,
+  pdfPreviewBytes: 25 * 1024 * 1024
+}));
+
 import { getParquetPreview } from './parquet.js';
 
 const mockLog = {
@@ -74,6 +84,15 @@ async function readNdjsonResponse(res: Response): Promise<{
   totalRows: number;
   truncated: boolean;
   error?: string;
+  schema?: Array<{ name: string; type: string }>;
+  metadata?: {
+    rowGroups: number;
+    compressionCodecs: string[];
+    hasOffsetIndex: boolean;
+    hasColumnIndex: boolean;
+    createdBy: string | null;
+    version: number;
+  };
 }> {
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
@@ -82,6 +101,17 @@ async function readNdjsonResponse(res: Response): Promise<{
   const rows: unknown[][] = [];
   let resultTotalRows = 0;
   let error: string | undefined;
+  let schema: Array<{ name: string; type: string }> | undefined;
+  let metadata:
+    | {
+        rowGroups: number;
+        compressionCodecs: string[];
+        hasOffsetIndex: boolean;
+        hasColumnIndex: boolean;
+        createdBy: string | null;
+        version: number;
+      }
+    | undefined;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -98,6 +128,8 @@ async function readNdjsonResponse(res: Response): Promise<{
       if (msg.t === 'h') {
         resultHeaders = msg.h;
         resultTotalRows = msg.tr;
+        schema = msg.s;
+        metadata = msg.m;
       } else if (msg.t === 'c') {
         const colIdx = resultHeaders.indexOf(msg.n);
         if (colIdx < 0) continue;
@@ -120,7 +152,9 @@ async function readNdjsonResponse(res: Response): Promise<{
     rows,
     totalRows: resultTotalRows,
     truncated: res.headers.get('X-Preview-Truncated') === 'true',
-    error
+    error,
+    schema,
+    metadata
   };
 }
 
@@ -137,7 +171,9 @@ function invokeParquetReadCallbacks(
     onComplete?: () => void;
   };
 
-  // Simulate column data streaming: fire onChunk for each column
+  // Simulate column data streaming: fire onChunk for each column.
+  // NOT passing rowStart/rowEnd so the trimming logic in parquet.ts uses
+  // undefined → NaN → false comparison → passes through full columnData.
   for (const [colName, values] of Object.entries(columnDataMap)) {
     if (options.onChunk) {
       options.onChunk({ columnName: colName, columnData: values });
@@ -164,9 +200,16 @@ describe('getParquetPreview', () => {
 
     mockParquetSchema.mockReturnValue({
       children: [
-        { element: { name: 'id' } },
-        { element: { name: 'name' } },
-        { element: { name: 'active' } }
+        { element: { name: 'id', type: 'INT64' } },
+        {
+          element: {
+            name: 'name',
+            type: 'BYTE_ARRAY',
+            converted_type: 'UTF8',
+            logical_type: { type: 'STRING' }
+          }
+        },
+        { element: { name: 'active', type: 'BOOLEAN' } }
       ]
     });
   });
@@ -190,11 +233,19 @@ describe('getParquetPreview', () => {
     expect(body.headers).toEqual([]);
     expect(body.rows).toEqual([]);
     expect(body.totalRows).toBe(0);
+    expect(body.schema).toEqual([]);
+    expect(body.metadata).toBeDefined();
+    expect(body.metadata?.rowGroups).toBe(0);
     expect(mockParquetMetadataAsync).not.toHaveBeenCalled();
   });
 
-  it('parses parquet metadata and returns headers and rows', async () => {
-    mockParquetMetadataAsync.mockResolvedValue({ num_rows: 2n, row_groups: [] });
+  it('parses parquet metadata and returns headers and rows with schema and metadata', async () => {
+    mockParquetMetadataAsync.mockResolvedValue({
+      num_rows: 2n,
+      row_groups: [],
+      created_by: 'test',
+      version: 1
+    });
     mockParquetRead.mockImplementation((...args: unknown[]) =>
       resolvedMockParquetRead(args, {
         id: [1n, 2n],
@@ -208,13 +259,12 @@ describe('getParquetPreview', () => {
       getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
     });
 
-    const res = await getParquetPreview(provider, 'data.parquet', 0, 250, mockLog);
+    const res = await getParquetPreview(provider, 'data.parquet', 0, 250, mockLog, undefined, true);
 
     expect(res.status).toBe(200);
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
     expect(res.headers.get('X-Preview-Renderable')).toBe('true');
     expect(res.headers.get('X-Preview-Total-Rows')).toBe('2');
-    expect(res.headers.get('X-Preview-Thumbnail')).toBeNull();
     expect(res.headers.get('X-Preview-Total-Size')).toBe('1024');
     expect(res.headers.get('X-Preview-Offset')).toBe('0');
 
@@ -225,6 +275,18 @@ describe('getParquetPreview', () => {
       ['2', 'Bob', false]
     ]);
     expect(body.totalRows).toBe(2);
+
+    // Schema info
+    expect(body.schema).toBeDefined();
+    expect(body.schema).toHaveLength(3);
+    expect(body.schema![0]).toMatchObject({ name: 'id', type: 'int64' });
+    expect(body.schema![1]).toMatchObject({ name: 'name', type: 'string' });
+    expect(body.schema![2]).toMatchObject({ name: 'active', type: 'boolean' });
+
+    // Metadata
+    expect(body.metadata).toBeDefined();
+    expect(body.metadata?.rowGroups).toBe(0);
+    expect(body.metadata?.version).toBe(1);
   });
 
   it('handles pagination with offset and limit', async () => {
@@ -243,7 +305,15 @@ describe('getParquetPreview', () => {
       getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
     });
 
-    const res = await getParquetPreview(provider, 'large.parquet', 500, 50, mockLog);
+    const res = await getParquetPreview(
+      provider,
+      'large.parquet',
+      500,
+      50,
+      mockLog,
+      undefined,
+      true
+    );
 
     expect(res.headers.get('X-Preview-Offset')).toBe('500');
 
@@ -288,7 +358,15 @@ describe('getParquetPreview', () => {
       getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
     });
 
-    const res = await getParquetPreview(provider, 'final.parquet', 50, 250, mockLog);
+    const res = await getParquetPreview(
+      provider,
+      'final.parquet',
+      50,
+      250,
+      mockLog,
+      undefined,
+      true
+    );
 
     expect(res.headers.get('X-Preview-Truncated')).toBe('false');
     const body = await readNdjsonResponse(res);
@@ -309,7 +387,15 @@ describe('getParquetPreview', () => {
       getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
     });
 
-    const res = await getParquetPreview(provider, 'bigint.parquet');
+    const res = await getParquetPreview(
+      provider,
+      'bigint.parquet',
+      0,
+      250,
+      mockLog,
+      undefined,
+      true
+    );
     const body = await readNdjsonResponse(res);
     expect(body.rows[0][0]).toBe('9007199254740993');
   });
@@ -329,7 +415,15 @@ describe('getParquetPreview', () => {
       getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
     });
 
-    const res = await getParquetPreview(provider, 'dates.parquet');
+    const res = await getParquetPreview(
+      provider,
+      'dates.parquet',
+      0,
+      250,
+      mockLog,
+      undefined,
+      true
+    );
     const body = await readNdjsonResponse(res);
     expect(body.rows[0][0]).toBe('2025-06-15T10:30:00.000Z');
   });
@@ -348,7 +442,7 @@ describe('getParquetPreview', () => {
       getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
     });
 
-    const res = await getParquetPreview(provider, 'blob.parquet');
+    const res = await getParquetPreview(provider, 'blob.parquet', 0, 250, mockLog, undefined, true);
     const body = await readNdjsonResponse(res);
     expect(body.rows[0][0]).toBe('1,2,3,255');
   });
@@ -367,7 +461,15 @@ describe('getParquetPreview', () => {
       getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
     });
 
-    const res = await getParquetPreview(provider, 'nested.parquet');
+    const res = await getParquetPreview(
+      provider,
+      'nested.parquet',
+      0,
+      250,
+      mockLog,
+      undefined,
+      true
+    );
     const body = await readNdjsonResponse(res);
     expect(body.rows[0][0]).toBe(JSON.stringify({ foo: 'bar', num: 42 }));
   });
@@ -390,7 +492,15 @@ describe('getParquetPreview', () => {
       getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
     });
 
-    const res = await getParquetPreview(provider, 'nulls.parquet');
+    const res = await getParquetPreview(
+      provider,
+      'nulls.parquet',
+      0,
+      250,
+      mockLog,
+      undefined,
+      true
+    );
     const body = await readNdjsonResponse(res);
     expect(body.rows[0]).toEqual(['x', null, null]);
     expect(body.rows[1]).toEqual(['y', null, 'z']);
@@ -418,7 +528,15 @@ describe('getParquetPreview', () => {
       getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
     });
 
-    const res = await getParquetPreview(provider, 'values.parquet');
+    const res = await getParquetPreview(
+      provider,
+      'values.parquet',
+      0,
+      250,
+      mockLog,
+      undefined,
+      true
+    );
     const body = await readNdjsonResponse(res);
     expect(body.rows[0]).toEqual([true, 98.5, 42]);
   });
@@ -432,7 +550,15 @@ describe('getParquetPreview', () => {
       getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
     });
 
-    const res = await getParquetPreview(provider, 'corrupt.parquet', 0, 250, mockLog);
+    const res = await getParquetPreview(
+      provider,
+      'corrupt.parquet',
+      0,
+      250,
+      mockLog,
+      undefined,
+      true
+    );
 
     expect(res.status).toBe(200);
     const body = await readNdjsonResponse(res);
@@ -461,5 +587,181 @@ describe('getParquetPreview', () => {
     // Second call — should hit cache, not call parquetMetadataAsync again
     await getParquetPreview(provider, 'cached.parquet', 0, 5, mockLog);
     expect(mockParquetMetadataAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks preview for GZIP parquet without offset index', async () => {
+    mockParquetMetadataAsync.mockResolvedValue({
+      num_rows: 5n,
+      row_groups: [
+        {
+          num_rows: 5n,
+          total_byte_size: 1000n,
+          columns: [
+            {
+              file_offset: 100n,
+              meta_data: {
+                type: 'BYTE_ARRAY',
+                codec: 'GZIP',
+                path_in_schema: ['name'],
+                num_values: 5n,
+                total_compressed_size: 200n,
+                total_uncompressed_size: 100n,
+                data_page_offset: 100n,
+                encodings: ['PLAIN']
+              },
+              offset_index_offset: null,
+              offset_index_length: null
+            }
+          ]
+        }
+      ],
+      created_by: 'test',
+      version: 1
+    });
+
+    const provider = makeProvider({
+      getMetadata: vi.fn().mockResolvedValue({ size: 1024, contentType: 'application/x-parquet' }),
+      getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
+    });
+
+    const res = await getParquetPreview(provider, 'gzip-no-offset.parquet', 0, 250, mockLog);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('X-Preview-Format')).toBe('parquet');
+    expect(res.headers.get('X-Preview-Renderable')).toBe('true');
+    expect(res.headers.get('X-Preview-Data-Blocked')).toBe('true');
+    expect(res.headers.get('X-Preview-Total-Size')).toBe('1024');
+    const body = await readNdjsonResponse(res);
+    expect(body.headers).toEqual(['id', 'name', 'active']);
+    expect(body.metadata).toBeDefined();
+    expect(body.metadata?.rowGroups).toBe(1);
+    expect(body.rows).toEqual([]);
+  });
+
+  it('allows preview for GZIP parquet when offset index is present', async () => {
+    mockParquetMetadataAsync.mockResolvedValue({
+      num_rows: 2n,
+      row_groups: [
+        {
+          num_rows: 2n,
+          total_byte_size: 500n,
+          columns: [
+            {
+              file_offset: 100n,
+              meta_data: {
+                type: 'BYTE_ARRAY',
+                codec: 'GZIP',
+                path_in_schema: ['name'],
+                num_values: 2n,
+                total_compressed_size: 100n,
+                total_uncompressed_size: 50n,
+                data_page_offset: 100n,
+                encodings: ['PLAIN']
+              },
+              offset_index_offset: 500n,
+              offset_index_length: 50
+            }
+          ]
+        }
+      ],
+      created_by: 'test',
+      version: 1
+    });
+    mockParquetSchema.mockReturnValue({
+      children: [
+        {
+          element: {
+            name: 'name',
+            type: 'BYTE_ARRAY',
+            converted_type: 'UTF8',
+            logical_type: { type: 'STRING' }
+          }
+        }
+      ]
+    });
+    mockParquetRead.mockImplementation((...args: unknown[]) =>
+      resolvedMockParquetRead(args, { name: ['Alice', 'Bob'] })
+    );
+
+    const provider = makeProvider({
+      getMetadata: vi.fn().mockResolvedValue({ size: 1024, contentType: 'application/x-parquet' }),
+      getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
+    });
+
+    const res = await getParquetPreview(
+      provider,
+      'gzip-with-offset.parquet',
+      0,
+      250,
+      mockLog,
+      undefined,
+      true
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('X-Preview-Format')).toBe('parquet');
+    expect(res.headers.get('X-Preview-Renderable')).toBe('true');
+    const body = await readNdjsonResponse(res);
+    expect(body.headers).toEqual(['name']);
+    expect(body.rows).toEqual([['Alice'], ['Bob']]);
+  });
+
+  it('allows preview for non-GZIP parquet without offset index', async () => {
+    mockParquetMetadataAsync.mockResolvedValue({
+      num_rows: 2n,
+      row_groups: [
+        {
+          num_rows: 2n,
+          total_byte_size: 500n,
+          columns: [
+            {
+              file_offset: 100n,
+              meta_data: {
+                type: 'BYTE_ARRAY',
+                codec: 'SNAPPY',
+                path_in_schema: ['name'],
+                num_values: 2n,
+                total_compressed_size: 100n,
+                total_uncompressed_size: 50n,
+                data_page_offset: 100n,
+                encodings: ['PLAIN']
+              },
+              offset_index_offset: null,
+              offset_index_length: null
+            }
+          ]
+        }
+      ],
+      created_by: 'test',
+      version: 1
+    });
+    mockParquetSchema.mockReturnValue({
+      children: [
+        {
+          element: {
+            name: 'name',
+            type: 'BYTE_ARRAY',
+            converted_type: 'UTF8',
+            logical_type: { type: 'STRING' }
+          }
+        }
+      ]
+    });
+    mockParquetRead.mockImplementation((...args: unknown[]) =>
+      resolvedMockParquetRead(args, { name: ['Alice'] })
+    );
+
+    const provider = makeProvider({
+      getMetadata: vi.fn().mockResolvedValue({ size: 1024, contentType: 'application/x-parquet' }),
+      getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
+    });
+
+    const res = await getParquetPreview(provider, 'snappy-no-offset.parquet', 0, 250, mockLog);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('X-Preview-Format')).toBe('parquet');
+    expect(res.headers.get('X-Preview-Renderable')).toBe('true');
+    const body = await readNdjsonResponse(res);
+    expect(body.headers).toEqual(['name']);
   });
 });

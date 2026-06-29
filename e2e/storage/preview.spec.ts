@@ -280,11 +280,26 @@ test.describe('Storage S3 — Preview', () => {
       // Modal heading
       await expect(page.getByRole('heading', { name: 'data.parquet' })).toBeVisible();
 
+
+      // Default view is Metadata tab — schema column names should be visible in the Schema table
+      const schemaTable = page.getByRole('table', { name: 'Schema' });
+      await expect(schemaTable.getByRole('cell', { name: 'id' })).toBeVisible();
+      await expect(schemaTable.getByRole('cell', { name: 'name' })).toBeVisible();
+      await expect(schemaTable.getByRole('cell', { name: 'score' })).toBeVisible();
+
+      // Tabs are visible
+      await expect(page.getByRole('tab', { name: 'Metadata' })).toBeVisible();
+      await expect(page.getByRole('tab', { name: 'Data', exact: true })).toBeVisible();
+
+      // Click the Data tab to view the data table
+      await page.getByRole('tab', { name: 'Data', exact: true }).click();
+
+
       // Parquet preview table with correct aria label
       const table = page.getByRole('table', { name: 'Parquet preview' });
       await expect(table).toBeVisible();
 
-      // Column headers
+      // Column headers in data table
       await expect(table.locator('th', { hasText: 'id' })).toBeVisible();
       await expect(table.locator('th', { hasText: 'name' })).toBeVisible();
       await expect(table.locator('th', { hasText: 'score' })).toBeVisible();
@@ -331,6 +346,14 @@ test.describe('Storage S3 — Preview', () => {
       await rowByName(page, 'measurements.parquet').dblclick();
 
       await expect(page.getByRole('heading', { name: 'measurements.parquet' })).toBeVisible();
+
+      // Schema column names should be visible in default metadata tab
+      await expect(
+        page.getByRole('table', { name: 'Schema' }).getByRole('cell', { name: 'name' })
+      ).toBeVisible();
+
+      // Click Data tab to view data table
+      await page.getByRole('tab', { name: 'Data', exact: true }).click();
       const table = page.getByRole('table', { name: 'Parquet preview' });
       await expect(table).toBeVisible();
       await expect(table.locator('th', { hasText: 'name' })).toBeVisible();

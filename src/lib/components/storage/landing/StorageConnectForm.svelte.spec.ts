@@ -9,7 +9,8 @@ type ConnectionFormProp = ComponentProps<typeof StorageConnectForm>['connectionF
 
 // Mock feature flags to disable auto-connect
 vi.mock('$lib/client/feature-flags.js', () => ({
-  storageAutoConnectEnabled: false
+  storageAutoConnectEnabled: false,
+  storageAutoConnectTimeoutMs: 15_000
 }));
 
 // Mock connection-storage module

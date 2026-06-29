@@ -373,7 +373,7 @@
     viewStates.delete(id);
     tabStore.closeTab(id);
     // Clean up server-side query state for this tab.
-    fetch(`/trino/query?tabId=${encodeURIComponent(id)}&cleanup=true`, { method: 'DELETE' });
+    fetch(`/api/trino/query?tabId=${encodeURIComponent(id)}&cleanup=true`, { method: 'DELETE' });
   }
 
   function handleTabAdd() {

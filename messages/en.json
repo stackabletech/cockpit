@@ -92,7 +92,7 @@
   "trino_catalog_error": "Failed to load catalog",
   "trino_catalog_load_children_error": "Failed to load",
   "trino_view_in_trino": "View in Trino",
-  "trino_tab_new": "New tab",
+  "trino_tab_new": "New Tab",
   "trino_tab_close": "Close tab {name}",
   "trino_tab_default_name": "Untitled",
   "trino_tab_rename": "Rename tab",
@@ -136,6 +136,8 @@
   "storage_connect_secret_key": "Secret access key",
   "storage_connect_submit": "Connect",
   "storage_connect_reconnecting": "Reconnecting to storage…",
+  "storage_connect_timeout": "Connection timed out. The storage backend did not respond.",
+  "storage_connect_cancel": "Cancel",
   "storage_connect_error": "Could not connect — check the endpoint and credentials.",
   "storage_connect_saved": "Saved connections",
   "storage_connect_no_saved": "No saved connections yet",
@@ -144,6 +146,11 @@
   "storage_connect_forget_cancel": "Cancel",
   "storage_connect_forget_label": "Forget connection to {endpoint}",
   "storage_disconnect": "Disconnect",
+  "storage_disconnect_confirm_title": "Disconnect from storage?",
+  "storage_disconnect_confirm_message": "You will be returned to the connection screen.",
+  "storage_disconnect_cancel": "Cancel",
+  "storage_disconnect_confirm_button": "Disconnect",
+  "storage_sidebar_resize_handle": "Resize sidebar",
   "storage_buckets_label": "Buckets",
   "storage_buckets_subtitle": "Browse and manage your stored objects.",
   "storage_view_all_buckets": "View all buckets",
@@ -155,8 +162,13 @@
   "storage_files": "files",
   "storage_folder_count": [
     {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
       "match": {
         "countPlural=one": "1 folder",
         "countPlural=other": "{count} folders"
@@ -165,8 +177,13 @@
   ],
   "storage_file_count": [
     {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
       "match": {
         "countPlural=one": "1 file",
         "countPlural=other": "{count} files"
@@ -190,6 +207,10 @@
   "storage_action_paste": "Paste",
   "storage_action_pin": "Pin this location",
   "storage_action_unpin": "Unpin",
+  "storage_action_copy_filename": "Copy filename",
+  "storage_action_copy_filename_success": "Filename copied to clipboard.",
+  "storage_action_copy_path": "Copy path",
+  "storage_action_copy_path_success": "Path copied to clipboard.",
   "storage_pinned_label": "Pinned Access",
   "storage_more_options": "More options",
   "storage_recent_files": "Recent Files",
@@ -210,9 +231,9 @@
   "storage_loading": "Loading…",
   "storage_breadcrumb_more": "More folders",
   "storage_error_title": "Storage error",
-  "storage_error_access_denied": "You do not have permission to access the bucket \u201c{bucket}\u201d.",
-  "storage_error_not_found": "The bucket \u201c{bucket}\u201d does not exist.",
-  "storage_error_storage_error": "An error occurred while accessing the bucket \u201c{bucket}\u201d.",
+  "storage_error_access_denied": "You do not have permission to access the bucket “{bucket}”.",
+  "storage_error_not_found": "The bucket “{bucket}” does not exist.",
+  "storage_error_storage_error": "An error occurred while accessing the bucket “{bucket}”.",
   "storage_error_back_to_storage": "Back to storage",
   "storage_error_go_back": "Go back",
   "storage_download_error_title": "Download failed",
@@ -235,8 +256,13 @@
   "storage_delete_error_unknown": "An unexpected error occurred while deleting. Please try again.",
   "storage_delete_partial_failure": [
     {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
       "match": {
         "countPlural=one": "1 item could not be deleted.",
         "countPlural=other": "{count} items could not be deleted."
@@ -272,6 +298,17 @@
   "storage_preview_pdf_too_large": "PDF is too large to preview inline.",
   "storage_preview_maximise": "Maximise",
   "storage_preview_restore": "Restore",
+  "storage_editor_save": "Save",
+  "storage_editor_saving": "Saving…",
+  "storage_editor_saved": "Saved",
+  "storage_editor_unsaved_title": "Unsaved changes",
+  "storage_editor_unsaved_desc": "You have unsaved changes. What would you like to do?",
+  "storage_editor_save_and_close": "Save and close",
+  "storage_editor_discard": "Discard",
+  "storage_editor_cancel": "Cancel",
+  "storage_editor_error": "Failed to save file.",
+  "storage_editor_too_large": "File too large to save. The maximum editable file size is {limit}.",
+  "storage_editor_too_large_badge": "Read-only: exceeds {limit}",
   "storage_context_menu_actions": "Actions",
   "storage_action_upload": "Upload",
   "storage_upload_title": "Upload",
@@ -282,9 +319,11 @@
   "storage_upload_to_prefix": "Uploading to: {prefix}",
   "storage_upload_total_size": "Total: {size}",
   "storage_upload_start": "Upload",
-  "storage_upload_checking": "Checking for conflicts\u2026",
+  "storage_upload_checking": "Checking for conflicts…",
   "storage_upload_conflicts_title": "Files already exist",
   "storage_upload_conflicts_desc": "Choose what to do for each conflicting file.",
+  "storage_upload_skip_all": "Skip all",
+  "storage_upload_replace_all": "Replace all",
   "storage_upload_resolution_replace": "Replace",
   "storage_upload_resolution_skip": "Skip",
   "storage_upload_resolution_rename": "Rename",
@@ -292,13 +331,13 @@
   "storage_upload_rename_same_name_error": "Please enter a different name, or select Replace or Skip.",
   "storage_upload_rename_confirm_action": "Confirm name",
   "storage_upload_rename_taken": "This name already exists here. Please choose a different name.",
-  "storage_upload_uploading": "Uploading\u2026 {pct}%",
+  "storage_upload_uploading": "Uploading… {pct}%",
   "storage_upload_status_queued": "queued",
   "storage_upload_status_done": "done",
   "storage_upload_status_skipped": "skipped",
   "storage_upload_status_failed": "failed",
   "storage_upload_complete_title": "Upload complete",
-  "storage_upload_complete_summary": "{uploaded} uploaded \u00b7 {skipped} skipped \u00b7 {failed} failed",
+  "storage_upload_complete_summary": "{uploaded} uploaded · {skipped} skipped · {failed} failed",
   "storage_upload_done": "Done",
   "storage_upload_success": "File uploaded successfully.",
   "storage_upload_error_not_connected": "No storage connection configured. Please connect first.",
@@ -308,21 +347,76 @@
   "storage_upload_error_server_error": "A server error occurred. Please retry.",
   "storage_upload_error_unknown": "An unexpected error occurred. Please retry.",
   "storage_upload_overwrite_title": "File already exists",
-  "storage_upload_overwrite_message": "An object named \u201c{name}\u201d already exists in this location. What would you like to do?",
+  "storage_upload_overwrite_message": "An object named “{name}” already exists in this location. What would you like to do?",
   "storage_upload_overwrite_replace": "Replace",
   "storage_upload_overwrite_cancel": "Cancel",
   "storage_upload_overwrite_rename": "Rename",
   "storage_upload_rename_confirm": "Upload with this name",
   "storage_upload_retry": "Retry",
   "storage_upload_close": "Close",
+  "storage_action_create": "Create",
+  "storage_create_file": "New text file",
+  "storage_create_folder": "New directory",
+  "storage_create_name": "Name",
+  "storage_create_placeholder": "Enter name…",
+  "storage_create_confirm": "Create",
+  "storage_create_cancel": "Cancel",
+  "storage_create_error": "Failed to create {name}",
+  "storage_tab_new": "New Tab",
+  "storage_tab_close": "Close tab",
+  "storage_tab_rename": "Rename tab",
+  "storage_tab_list": "Explorer tabs",
+  "storage_tab_context_menu": "Tab options",
+  "storage_restore_tabs_message": "You have {count} saved tab(s) from your last session.",
+  "storage_restore_tabs_action": "Restore tabs",
+  "storage_preview_parquet_tab_aria": "Parquet preview tabs",
+  "storage_preview_parquet_tab_metadata": "Metadata",
+  "storage_preview_parquet_tab_data": "Data",
+  "storage_preview_parquet_blocked_title": "Preview blocked",
+  "storage_preview_parquet_blocked_desc": "This parquet file uses a compression type that has been disallowed by the administrator. Contact your administrator if you believe this to be an issue.",
+  "storage_preview_parquet_overview": "Overview",
+  "storage_preview_parquet_file_size": "File size",
+  "storage_preview_parquet_total_rows": "Total rows",
+  "storage_preview_parquet_total_columns": "Total columns",
+  "storage_preview_parquet_version": "Version",
+  "storage_preview_parquet_created_by": "Created by",
+  "storage_preview_parquet_schema": "Schema",
+  "storage_preview_parquet_column": "Column",
+  "storage_preview_parquet_type": "Type",
+  "storage_preview_parquet_compression_indexes": "Compression & Indexes",
+  "storage_preview_parquet_row_groups": "Row groups",
+  "storage_preview_parquet_row_group": "Group",
+  "storage_preview_parquet_offset_index": "Offset index",
+  "storage_preview_parquet_column_index": "Column index",
+  "storage_preview_parquet_available": "Available",
+  "storage_preview_parquet_missing": "Missing",
+  "storage_preview_parquet_none": "None",
+  "storage_preview_parquet_compression": "Compression",
+  "storage_preview_parquet_uncompressed": "Uncompressed",
+  "storage_preview_parquet_compressed": "Compressed",
+  "storage_preview_parquet_size": "Size",
+  "storage_preview_parquet_statistics": "Statistics",
+  "storage_preview_parquet_min": "Min",
+  "storage_preview_parquet_max": "Max",
+  "storage_preview_parquet_null_count": "Null count",
+  "storage_preview_parquet_distinct_count": "Distinct count",
+  "storage_preview_parquet_not_stored": "Not stored",
+  "storage_preview_parquet_arrow_schema": "Arrow schema",
+  "storage_preview_parquet_arrow_schema_present": "Embedded Arrow schema ({size})",
+  "storage_preview_parquet_uniform": "uniform",
   "storage_archive_open_error": "Could not open archive. The format may be unsupported or the archive is corrupt.",
   "storage_archive_too_large": "Archive is too large to preview.",
   "storage_archive_exit": "Exit archive",
   "timestamp_just_now": "just now",
   "timestamp_minutes_ago": [
     {
-      "declarations": ["input count", "local n = count: plural"],
-      "selectors": ["n"],
+      "declarations": [
+        "input count",
+        "local n = count: plural"
+      ],
+      "selectors": [
+        "n"
+      ],
       "match": {
         "n=one": "{count}m ago",
         "n=other": "{count}m ago"
@@ -331,8 +425,13 @@
   ],
   "timestamp_hours_ago": [
     {
-      "declarations": ["input count", "local n = count: plural"],
-      "selectors": ["n"],
+      "declarations": [
+        "input count",
+        "local n = count: plural"
+      ],
+      "selectors": [
+        "n"
+      ],
       "match": {
         "n=one": "{count}h ago",
         "n=other": "{count}h ago"
@@ -341,8 +440,13 @@
   ],
   "timestamp_days_ago": [
     {
-      "declarations": ["input count", "local n = count: plural"],
-      "selectors": ["n"],
+      "declarations": [
+        "input count",
+        "local n = count: plural"
+      ],
+      "selectors": [
+        "n"
+      ],
       "match": {
         "n=one": "{count}d ago",
         "n=other": "{count}d ago"
@@ -351,8 +455,13 @@
   ],
   "timestamp_months_ago": [
     {
-      "declarations": ["input count", "local n = count: plural"],
-      "selectors": ["n"],
+      "declarations": [
+        "input count",
+        "local n = count: plural"
+      ],
+      "selectors": [
+        "n"
+      ],
       "match": {
         "n=one": "{count}mo ago",
         "n=other": "{count}mo ago"
@@ -361,8 +470,13 @@
   ],
   "timestamp_years_ago": [
     {
-      "declarations": ["input count", "local n = count: plural"],
-      "selectors": ["n"],
+      "declarations": [
+        "input count",
+        "local n = count: plural"
+      ],
+      "selectors": [
+        "n"
+      ],
       "match": {
         "n=one": "{count}y ago",
         "n=other": "{count}y ago"

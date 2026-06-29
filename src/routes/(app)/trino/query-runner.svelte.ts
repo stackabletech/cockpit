@@ -105,7 +105,7 @@ function createQueryRunner(tabId: string): QueryRunner {
 
     while (polling && !signal.aborted) {
       try {
-        const res = await fetch(`/trino/query?tabId=${encodeURIComponent(tabId)}`, { signal });
+        const res = await fetch(`/api/trino/query?tabId=${encodeURIComponent(tabId)}`, { signal });
 
         if (!res.ok) {
           state = 'FAILED';
@@ -126,7 +126,7 @@ function createQueryRunner(tabId: string): QueryRunner {
         );
         if (hasNewlyCompleted) {
           const fullRes = await fetch(
-            `/trino/query?tabId=${encodeURIComponent(tabId)}&lightweight=false`,
+            `/api/trino/query?tabId=${encodeURIComponent(tabId)}&lightweight=false`,
             { signal }
           );
           if (fullRes.ok) {
@@ -179,7 +179,7 @@ function createQueryRunner(tabId: string): QueryRunner {
     state = 'SUBMITTING';
 
     try {
-      const res = await fetch('/trino/query', {
+      const res = await fetch('/api/trino/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -234,7 +234,7 @@ function createQueryRunner(tabId: string): QueryRunner {
     state = 'CANCELLED';
 
     try {
-      await fetch(`/trino/query?tabId=${encodeURIComponent(tabId)}`, { method: 'DELETE' });
+      await fetch(`/api/trino/query?tabId=${encodeURIComponent(tabId)}`, { method: 'DELETE' });
     } catch {
       // Best-effort cancel.
     }
@@ -246,7 +246,9 @@ function createQueryRunner(tabId: string): QueryRunner {
     if (results.length > 0 && results[results.length - 1].rows.length > 0) return;
 
     try {
-      const res = await fetch(`/trino/query?tabId=${encodeURIComponent(tabId)}&lightweight=false`);
+      const res = await fetch(
+        `/api/trino/query?tabId=${encodeURIComponent(tabId)}&lightweight=false`
+      );
       if (!res.ok) return;
       const snapshots: QuerySnapshot[] = await res.json();
       if (snapshots.length > 0) {

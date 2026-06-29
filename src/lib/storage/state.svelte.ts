@@ -20,6 +20,7 @@ import { addToast } from '$lib/stores/toast.svelte.js';
 import { ActionError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
 import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+import { keyToName } from '$lib/storage/utils.js';
 
 export class StorageState {
   // ── Core data (synced from server load) ──
@@ -78,6 +79,9 @@ export class StorageState {
   loading = $state(false);
   deleting = $state(false);
 
+  // ── Connection identity ──
+  connectionId = $state<string | null>(null);
+
   // ── Pagination ──
   prevTokens = $state<(string | null)[]>([]);
   pageSize = $state<PageSize>(initPageSize('storage_page_size'));
@@ -97,14 +101,20 @@ export class StorageState {
 
   // ── Navigation handler (injected by page component) ──
   private _onNavigate: NavigateFn = () => {};
+  // ── Refresh handler (injected by page component) ──
+  // Navigates to the current bucket/prefix using replaceState so that a
+  // refresh does not add an extra browser history entry. Falls back to
+  // invalidateAll when no handler has been set (e.g. in tests).
+  private _onRefreshNavigate: (() => void) | null = null;
 
   // ────────────────────────────────────────────────────────────────────────────
   // Constructor
   // ────────────────────────────────────────────────────────────────────────────
 
-  constructor(options?: { connected?: boolean; buckets?: string[] }) {
+  constructor(options?: { connected?: boolean; buckets?: string[]; connectionId?: string | null }) {
     if (options?.connected !== undefined) this.connected = options.connected;
     if (options?.buckets) this.buckets = options.buckets;
+    if (options?.connectionId !== undefined) this.connectionId = options.connectionId;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -112,9 +122,11 @@ export class StorageState {
   // ────────────────────────────────────────────────────────────────────────────
 
   syncFromServer(bucket: string, prefix: string, objects: StoragePage): void {
+    const bucketChanged = bucket !== this.bucket;
     this.bucket = bucket;
     this.prefix = prefix;
     this.objects = objects;
+    if (bucketChanged) this.prevTokens = [];
     this.loading = false;
     this.selectedKeys = new SvelteSet<string>();
     this.archiveKey = null;
@@ -127,6 +139,10 @@ export class StorageState {
 
   setNavigationHandler(fn: NavigateFn): void {
     this._onNavigate = fn;
+  }
+
+  setRefreshHandler(fn: () => void): void {
+    this._onRefreshNavigate = fn;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -422,7 +438,11 @@ export class StorageState {
       });
     } else {
       this.loading = true;
-      void invalidateAll();
+      if (this._onRefreshNavigate) {
+        this._onRefreshNavigate();
+      } else {
+        void invalidateAll();
+      }
     }
   };
 
@@ -551,6 +571,24 @@ export class StorageState {
       case 'unpin':
         this.bookmarks.unpin(this.bucket, ctxKey ?? this.prefix);
         return;
+
+      case 'copy-filename': {
+        const nameKey = ctxKey ?? this.selectedFiles[0]?.key;
+        if (!nameKey) return;
+        await navigator.clipboard.writeText(keyToName(nameKey));
+        addToast('success', m.storage_action_copy_filename_success());
+        return;
+      }
+
+      case 'copy-path': {
+        const pathKey = ctxKey ?? this.selectedFiles[0]?.key;
+        if (!pathKey) return;
+        // Strip trailing slash for folders so the URI is canonical.
+        const cleanKey = pathKey.endsWith('/') ? pathKey.slice(0, -1) : pathKey;
+        await navigator.clipboard.writeText(`s3://${this.bucket}/${cleanKey}`);
+        addToast('success', m.storage_action_copy_path_success());
+        return;
+      }
     }
   };
 
@@ -626,7 +664,7 @@ export class StorageState {
     const conn = loadConnectionLocally();
     const headers: HeadersInit = conn ? { 'x-storage-connection': getConnectionHeader(conn) } : {};
 
-    const res = await fetch(`/storage/api/delete?${params}`, { method: 'DELETE', headers });
+    const res = await fetch(`/api/storage/delete?${params}`, { method: 'DELETE', headers });
     if (!res.ok) {
       let code: string;
       if (res.status === 401) code = 'not_connected';

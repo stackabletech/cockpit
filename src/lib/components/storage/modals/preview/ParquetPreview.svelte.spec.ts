@@ -159,13 +159,7 @@ describe('ParquetPreview', () => {
       totalRows: 1000
     });
 
-    const table = page.getByRole('table', { name: 'Parquet preview' });
-    await expect.element(table).toBeInTheDocument();
-
-    // First row should be visible at initial scroll position
-    await expect
-      .element(page.getByRole('cell', { name: 'User-1', exact: true }))
-      .toBeInTheDocument();
+    await expect.element(page.getByText('User-250')).toBeInTheDocument();
   });
 
   it('should display all headers including those with special characters', async () => {

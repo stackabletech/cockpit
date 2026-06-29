@@ -74,7 +74,7 @@ describe('FileRow', () => {
     const state = createState([file]);
     render(FileRowWrapper, { state, file });
 
-    await expect.element(page.getByText('unknown-file')).toBeInTheDocument();
+    await expect.element(page.getByText('unknown-file').first()).toBeInTheDocument();
   });
 
   it('should show checkbox when showCheckboxes is true', async () => {

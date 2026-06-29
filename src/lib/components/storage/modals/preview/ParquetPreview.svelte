@@ -14,6 +14,8 @@
       onColumn?: (name: string, values: unknown[]) => void
     ) => Promise<unknown[][]>;
     showingRowsCount?: number;
+    /** When true, skip scroll-based chunk loading (e.g. tab is visually hidden). */
+    hidden?: boolean;
   }
 
   let {
@@ -21,11 +23,12 @@
     initialRows,
     totalRows = 0,
     fetchRows,
-    showingRowsCount = $bindable(0)
+    showingRowsCount = $bindable(0),
+    hidden = false
   }: Props = $props();
 
-  const CHUNK_SIZE = 250;
-  const ROW_HEIGHT = 32;
+  const CHUNK_SIZE = 250; // magic number: rows to display
+  const ROW_HEIGHT = 32; // Exact height of table-xs (h-8)
 
   let containerHeight = $state(400);
   let scrollTop = $state(0);
@@ -73,7 +76,7 @@
   onMount(populateChunk0);
 
   $effect(() => {
-    if (initialRows && initialRows.length > 0) {
+    if (initialRows && initialRows.length > 0 && !hidden) {
       untrack(() => {
         populateChunk0();
       });
@@ -115,7 +118,7 @@
 
   // Monitor scroll boundaries to safely trigger background chunk fetching
   $effect(() => {
-    if (!fetchRows) return;
+    if (!fetchRows || hidden) return;
 
     const currentStart = startIndex;
     const currentEnd = endIndex;
@@ -220,7 +223,7 @@
                 >{(row.index + 1).toLocaleString(getLocale())}</td
               >
               {#if row.data !== null && row.data !== undefined}
-              <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+                <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
                 {#each headers as _h, j (j)}
                   {#if row.data[j] !== undefined}
                     <td class="text-base-content/80 truncate text-xs">

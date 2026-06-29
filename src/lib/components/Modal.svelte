@@ -2,11 +2,13 @@
   let {
     open = $bindable(false),
     children,
-    class: className = ''
+    class: className = '',
+    closeguard
   }: {
     open: boolean;
     children: import('svelte').Snippet;
     class?: string;
+    closeguard?: () => boolean;
   } = $props();
 
   let dialogEl = $state<HTMLDialogElement | undefined>(undefined);
@@ -24,9 +26,32 @@
   function handleClose() {
     open = false;
   }
+
+  function handleCancel(e: Event) {
+    if (closeguard && !closeguard()) {
+      e.preventDefault();
+    }
+  }
+
+  function handleBackdropClick(e: MouseEvent) {
+    // The click target is the <dialog> element itself only when the backdrop is
+    // clicked; clicks inside the content bubble up to child elements instead.
+    if (e.target !== dialogEl) return;
+    if (closeguard && !closeguard()) {
+      e.preventDefault();
+    } else {
+      open = false;
+    }
+  }
 </script>
 
-<dialog bind:this={dialogEl} class={className} onclose={handleClose}>
+<dialog
+  bind:this={dialogEl}
+  class={className}
+  onclose={handleClose}
+  oncancel={handleCancel}
+  onclick={handleBackdropClick}
+>
   {#if open}
     {@render children()}
   {/if}

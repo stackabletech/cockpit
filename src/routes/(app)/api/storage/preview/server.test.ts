@@ -16,12 +16,12 @@ vi.mock('$lib/server/storage/preview/stream.js', () => ({
 }));
 
 vi.mock('$lib/server/storage/preview/parquet.js', () => ({
-  getParquetPreview: vi.fn(
-    async () =>
-      new Response(JSON.stringify({ headers: ['a'], rows: [['1']], totalRows: 1 }), {
-        headers: { 'X-Preview-Format': 'parquet', 'X-Preview-Renderable': 'true' }
-      })
-  )
+  getParquetPreview: vi.fn(async () => {
+    const body = JSON.stringify({ headers: ['a'], rows: [['1']], totalRows: 1 });
+    return new Response(body, {
+      headers: { 'X-Preview-Format': 'parquet', 'X-Preview-Renderable': 'true' }
+    });
+  })
 }));
 
 vi.mock('$lib/server/storage/s3-errors.js', () => ({
@@ -174,7 +174,8 @@ describe('GET /storage/api/preview', () => {
       0,
       250,
       expect.anything(),
-      5000
+      5000,
+      false
     );
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
@@ -193,7 +194,8 @@ describe('GET /storage/api/preview', () => {
       0,
       250,
       expect.anything(),
-      5000
+      5000,
+      false
     );
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
@@ -212,7 +214,8 @@ describe('GET /storage/api/preview', () => {
       500,
       100,
       expect.anything(),
-      50000
+      50000,
+      false
     );
   });
 
@@ -230,7 +233,8 @@ describe('GET /storage/api/preview', () => {
       0,
       250,
       expect.anything(),
-      0
+      0,
+      false
     );
   });
 
