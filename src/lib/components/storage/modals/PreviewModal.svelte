@@ -283,7 +283,7 @@
         (headers as Record<string, string>)[STORAGE_CONNECTION_HEADER] = getConnectionHeader(conn);
       }
 
-      const res = await fetch(`/storage/api/save-text?${params}`, {
+      const res = await fetch(`/api/storage/save-text?${params}`, {
         method: 'POST',
         headers,
         body: editorText

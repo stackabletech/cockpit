@@ -2,6 +2,7 @@
 // from the live process env so consumers don't repeat the env-name + parsing.
 
 import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 /** When `STACKABLE_COCKPIT_COMPLETION_ENABLED=false`, the SQL editor's
  *  code-completion provider is not registered and the metadata endpoint
@@ -44,3 +45,16 @@ export const pdfPreviewBytes =
  *  Higher values give more data context but increase server-side S3 reads
  *  and the size of the payload sent to the browser. */
 export const filePreviewRows = parseInt(env.STACKABLE_COCKPIT_FILE_PREVIEW_ROWS ?? '', 10) || 250;
+
+// ── Storage browser: Text editor ─────────────────────────────────────────────
+
+/** Maximum file size (in bytes) that may be saved via the inline text editor.
+ *  Files with an `originalSize` exceeding this limit are treated as read-only
+ *  and save requests are rejected with HTTP 413. Mirrors the client-side flag
+ *  `maxEditableFileSize` so that the restriction is enforced even if the client
+ *  check is bypassed.
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`. Default: 5242880 (5 MiB). */
+export const maxEditableFileSize: number = (() => {
+  const parsed = parseInt(publicEnv.PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5 * 1024 * 1024;
+})();

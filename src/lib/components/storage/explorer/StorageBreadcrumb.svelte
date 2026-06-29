@@ -78,7 +78,7 @@
     const params = new URLSearchParams({ bucket, key });
     const conn = loadConnectionLocally();
     const headers: HeadersInit = conn ? { 'x-storage-connection': getConnectionHeader(conn) } : {};
-    const res = await fetch(`/storage/api/create?${params}`, { method: 'POST', headers });
+    const res = await fetch(`/api/storage/create?${params}`, { method: 'POST', headers });
     if (!res.ok) throw new Error(`Create failed with status ${res.status}`);
   }
 

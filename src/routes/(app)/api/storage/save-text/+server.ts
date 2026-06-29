@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import { uploadObject } from '$lib/server/storage/service.js';
 import { getProvider } from '$lib/server/storage/utils.js';
 import { requireBucketKey } from '../params.js';
+import { maxEditableFileSize } from '$lib/server/feature-flags.js';
 import type { RequestHandler } from '@sveltejs/kit';
 
 /**
@@ -29,6 +30,14 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
 
   if (!request.body) {
     throw error(400, 'Missing request body');
+  }
+
+  if (originalSize > maxEditableFileSize) {
+    log.warn(
+      { bucket, key, original_size: originalSize, max_editable_size: maxEditableFileSize },
+      'save-text rejected: file exceeds max editable size (read-only)'
+    );
+    throw error(413, 'File exceeds the maximum editable size and is read-only');
   }
 
   const truncated = previewBytes > 0 && previewBytes < originalSize;
