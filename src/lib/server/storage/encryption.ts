@@ -1,8 +1,20 @@
-import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHmac, randomBytes, hkdfSync } from 'node:crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96-bit IV recommended for GCM
 const AUTH_TAG_LENGTH = 16; // 128-bit authentication tag
+
+// HKDF parameters for deriving a dedicated HMAC subkey.
+// A fixed zero salt is acceptable here because the master key already has
+// sufficient entropy. The info label binds the subkey to its specific purpose,
+// ensuring AES and HMAC never share key material.
+const HMAC_SUBKEY_SALT = Buffer.alloc(32);
+const HMAC_SUBKEY_INFO = Buffer.from('storage-connection-fingerprint-v1');
+
+/** Derive a dedicated 32-byte HMAC subkey from the master key using HKDF-SHA256. */
+function deriveHmacSubkey(masterKey: Buffer): Buffer {
+  return Buffer.from(hkdfSync('sha256', masterKey, HMAC_SUBKEY_SALT, HMAC_SUBKEY_INFO, 32));
+}
 
 /**
  * Encrypt a plaintext string using AES-256-GCM.
@@ -45,8 +57,11 @@ export function decrypt(ciphertext: string, key: Buffer): string {
  * Compute an HMAC-SHA256 fingerprint of the connection credentials.
  * Used to detect duplicate connections before inserting a new row.
  *
+ * A dedicated HMAC subkey is derived from the master key via HKDF so that
+ * the same key material is never used for both AES-256-GCM and HMAC-SHA256.
+ *
  * @param credentials - The connection fields to fingerprint.
- * @param key - The 32-byte application key (used as HMAC key).
+ * @param key - The 32-byte master key (same key passed to encrypt/decrypt).
  * @returns Hex-encoded HMAC-SHA256 digest.
  */
 export function fingerprint(
@@ -58,11 +73,12 @@ export function fingerprint(
   },
   key: Buffer
 ): string {
+  const hmacKey = deriveHmacSubkey(key);
   const material = [
     credentials.endpoint,
     credentials.region,
     credentials.accessKeyId,
     credentials.secretAccessKey
   ].join('|');
-  return createHmac('sha256', key).update(material, 'utf8').digest('hex');
+  return createHmac('sha256', hmacKey).update(material, 'utf8').digest('hex');
 }

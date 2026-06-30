@@ -88,7 +88,12 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
   } else {
     event.locals.storageConfig = null;
   }
-  if (event.locals.storageConfig === null && event.route.id?.startsWith('/(app)/api/storage/')) {
+  // The connections management endpoint itself does not require a connection header —
+  // it is used to list/create connections before one is selected.
+  const requiresConnectionHeader =
+    event.route.id?.startsWith('/(app)/api/storage/') &&
+    !event.route.id?.startsWith('/(app)/api/storage/connections');
+  if (event.locals.storageConfig === null && requiresConnectionHeader) {
     throw error(401, 'No storage connection configured');
   }
   return resolve(event);

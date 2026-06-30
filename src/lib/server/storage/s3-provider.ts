@@ -27,7 +27,7 @@ async function withS3Errors<T>(
   try {
     return await fn();
   } catch (err) {
-    mapS3ErrorToHttp(err, context);
+    return mapS3ErrorToHttp(err, context);
   }
 }
 
