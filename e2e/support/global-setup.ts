@@ -13,8 +13,17 @@ let garageContainer: StartedTestContainer;
 export default async function globalSetup() {
   process.loadEnvFile(path.join(import.meta.dirname, '../..', '.env.test'));
 
-  // Start testcontainers — must run in globalSetup (main process) so
-  // that env vars are inherited by the webServer subprocess.
+  // When invoked via `npm run test:e2e`, the run-e2e.ts wrapper starts
+  // containers before spawning Playwright so that the webServer subprocess
+  // inherits DATABASE_* and S3_* env vars.  Nothing to do here in that case.
+  if (process.env.TESTCONTAINERS_STARTED === 'true') {
+    return;
+  }
+
+  // Fallback for direct `playwright test` invocations (e.g. from the IDE).
+  // Note: in this path the webServer process is already running before
+  // containers are ready, so connection errors are possible unless
+  // reuseExistingServer is true and an existing server is already up.
   pgContainer = await startPostgres();
   garageContainer = await startGarage();
 
