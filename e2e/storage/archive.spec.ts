@@ -168,8 +168,9 @@ test.describe('Storage S3 — Archive preview', () => {
       await page.getByRole('button', { name: credentials.bucket }).click();
       await waitForObjectsLoaded(page);
 
-      // Should be back at the S3 listing
-      await expect(rowByName(page, 'archive.zip')).toBeVisible();
+      // Should be at the bucket root (archive exited)
+      await expect(page).toHaveURL(new RegExp(`/storage/${credentials.bucket}$`));
+      await expect(page.getByText('archive.zip')).not.toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
