@@ -238,6 +238,59 @@
         return;
       }
 
+      if (res.headers.get('X-Preview-Format') === 'parquet') {
+        const dataBlocked = res.headers.get('X-Preview-Data-Blocked') === 'true';
+        let parquetHeaders: string[] = [];
+        let parquetColumnTypes: ColumnTypeInfo[] = [];
+        let parquetMeta: ParquetFileMeta = {
+          rowGroups: 0,
+          compressionCodecs: [],
+          compressionUniform: true,
+          hasOffsetIndex: false,
+          hasColumnIndex: false,
+          createdBy: null,
+          version: 0,
+          arrowSchema: null
+        };
+        const parquetRows: unknown[][] = [];
+        const columnPos: Record<string, number> = {};
+        let parquetTotalRows = 0;
+        await parseParquetStream(
+          res,
+          (headers, totalRows, columnTypes, meta) => {
+            parquetHeaders = headers;
+            parquetTotalRows = totalRows;
+            parquetColumnTypes = columnTypes;
+            parquetMeta = meta;
+          },
+          (name, values) => {
+            const colIdx = parquetHeaders.indexOf(name);
+            if (colIdx < 0) return;
+            let pos = columnPos[name] ?? 0;
+            for (let i = 0; i < values.length; i++) {
+              while (parquetRows.length <= pos) {
+                parquetRows.push(new Array(parquetHeaders.length).fill(undefined));
+              }
+              parquetRows[pos][colIdx] = values[i];
+              pos++;
+            }
+            columnPos[name] = pos;
+          }
+        );
+        preview = {
+          kind: 'parquet',
+          headers: parquetHeaders,
+          columnTypes: parquetColumnTypes,
+          metadata: parquetMeta,
+          rows: parquetRows,
+          dataBlocked,
+          truncated: parquetRows.length < parquetTotalRows,
+          totalSize,
+          totalRows: parquetTotalRows
+        };
+        return;
+      }
+
       const text = await readTextSafely(res, key);
       if (text === null) {
         preview = { kind: 'fallback', contentType, isBinary: true };
