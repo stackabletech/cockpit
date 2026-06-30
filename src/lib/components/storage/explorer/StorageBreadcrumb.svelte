@@ -283,7 +283,13 @@
             py-0.5 transition-colors hover:cursor-pointer
           "
           title={storage.bucket}
-          onclick={() => storage.navigate('')}
+          onclick={() => {
+            if (storage.isInArchive) {
+              storage.exitArchive();
+            } else {
+              storage.navigate('');
+            }
+          }}
           oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
         >
           <IconStorage class="size-4" aria-hidden="true" />
@@ -580,65 +586,67 @@
     </button>
   {/if}
 
-  <!-- More options (pin current location) -->
-  <div class="dropdown dropdown-end">
-    <button
-      tabindex="0"
-      class="btn btn-ghost btn-xs"
-      title={m.storage_more_options()}
-      aria-label={m.storage_more_options()}
-      aria-haspopup="menu"
-    >
-      <IconMoreVert class="size-3.5" aria-hidden="true" />
-    </button>
-    <ul
-      tabindex="0"
-      role="menu"
-      class="
+  <!-- More options (pin current location) — hidden in archive mode -->
+  {#if !storage.isInArchive}
+    <div class="dropdown dropdown-end">
+      <button
+        tabindex="0"
+        class="btn btn-ghost btn-xs"
+        title={m.storage_more_options()}
+        aria-label={m.storage_more_options()}
+        aria-haspopup="menu"
+      >
+        <IconMoreVert class="size-3.5" aria-hidden="true" />
+      </button>
+      <ul
+        tabindex="0"
+        role="menu"
+        class="
         dropdown-content menu rounded-box border-base-300 bg-base-100 z-30 w-52
         border p-1 shadow-lg
       "
-    >
-      <li role="none">
-        <button
-          role="menuitem"
-          class="justify-start text-sm"
-          onclick={() => {
-            tabsState.addTab();
-            (document.activeElement as HTMLElement | null)?.blur();
-          }}
-        >
-          <IconTab class="size-4 shrink-0" aria-hidden="true" />
-          {m.storage_tab_new()}
-        </button>
-      </li>
-      <li role="none">
-        {#if currentIsPinned}
-          {@const PinIcon2 = IconPushPin}
+      >
+        <li role="none">
           <button
             role="menuitem"
             class="justify-start text-sm"
             onclick={() => {
-              storage.bookmarks.unpin(storage.bucket, storage.prefix);
+              tabsState.addTab();
+              (document.activeElement as HTMLElement | null)?.blur();
             }}
           >
-            <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
-            {m.storage_action_unpin()}
+            <IconTab class="size-4 shrink-0" aria-hidden="true" />
+            {m.storage_tab_new()}
           </button>
-        {:else}
-          {@const PinIcon2 = IconPushPinOutline}
-          <button
-            role="menuitem"
-            class="justify-start text-sm"
-            onclick={() => {
-              storage.bookmarks.pin(storage.bucket, storage.prefix);
-            }}
-          >
-            <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
-            {m.storage_action_pin()}
-          </button>
-        {/if}
-      </li>
-    </ul>
-  </div>
+        </li>
+        <li role="none">
+          {#if currentIsPinned}
+            {@const PinIcon2 = IconPushPin}
+            <button
+              role="menuitem"
+              class="justify-start text-sm"
+              onclick={() => {
+                storage.bookmarks.unpin(storage.bucket, storage.prefix);
+              }}
+            >
+              <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
+              {m.storage_action_unpin()}
+            </button>
+          {:else}
+            {@const PinIcon2 = IconPushPinOutline}
+            <button
+              role="menuitem"
+              class="justify-start text-sm"
+              onclick={() => {
+                storage.bookmarks.pin(storage.bucket, storage.prefix);
+              }}
+            >
+              <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
+              {m.storage_action_pin()}
+            </button>
+          {/if}
+        </li>
+      </ul>
+    </div>
+  {/if}
 </div>

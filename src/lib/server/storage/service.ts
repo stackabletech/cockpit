@@ -1,10 +1,10 @@
 import { getProvider } from './utils.js';
 import type { ObjectDownload } from './provider.js';
 import type { StorageMetadata } from '$lib/storage/types.js';
-import type { StorageConfig } from './types.js';
+import type { S3ConnectionConfig, StorageConfig } from './types.js';
 
 export async function uploadObject(
-  config: StorageConfig,
+  config: StorageConfig | S3ConnectionConfig,
   bucket: string,
   key: string,
   body: Buffer,
@@ -16,7 +16,7 @@ export async function uploadObject(
 }
 
 export async function downloadObject(
-  config: StorageConfig,
+  config: StorageConfig | S3ConnectionConfig,
   bucket: string,
   key: string
 ): Promise<ObjectDownload> {
@@ -25,7 +25,7 @@ export async function downloadObject(
 }
 
 export async function getObjectMetadata(
-  config: StorageConfig,
+  config: StorageConfig | S3ConnectionConfig,
   bucket: string,
   key: string
 ): Promise<StorageMetadata> {

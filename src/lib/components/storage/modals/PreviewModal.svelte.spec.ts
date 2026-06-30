@@ -1,5 +1,5 @@
 import { page } from 'vitest/browser';
-import { describe, expect, it, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import PreviewModal from './PreviewModal.svelte';
@@ -44,20 +44,14 @@ function mockFetchResponse(
 describe('PreviewModal basics', () => {
   const fetchMock = vi.fn();
 
-  beforeAll(() => {
-    vi.stubGlobal('fetch', fetchMock);
-  });
-
-  afterAll(() => {
-    vi.unstubAllGlobals();
-  });
-
   beforeEach(() => {
+    vi.stubGlobal('fetch', fetchMock);
     fetchMock.mockResolvedValue(mockFetchResponse('Hello world'));
   });
 
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
     fetchMock.mockReset();
   });
 
@@ -421,7 +415,7 @@ describe('PreviewModal basics', () => {
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
       await expect.element(page.getByText('col1').first()).toBeInTheDocument();
       await expect
-        .element(page.getByText('Showing first 0 of 10,000 rows (parquet)').first())
+        .element(page.getByText('Showing first 1 of 10,000 rows (parquet)').first())
         .toBeInTheDocument();
     });
 
