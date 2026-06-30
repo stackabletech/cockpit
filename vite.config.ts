@@ -4,7 +4,6 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import Icons from 'unplugin-icons/vite';
 import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
-import path from 'node:path';
 
 export default defineConfig({
   plugins: [
@@ -17,13 +16,6 @@ export default defineConfig({
       strategy: ['cookie', 'preferredLanguage', 'baseLocale']
     })
   ],
-  resolve: {
-    alias: [
-      { find: 'typebox/compile', replacement: path.resolve('./src/stubs/typebox-compile.ts') },
-      { find: 'typebox/format', replacement: path.resolve('./src/stubs/typebox-format.ts') },
-      { find: 'typebox', replacement: path.resolve('./src/stubs/typebox.ts') }
-    ]
-  },
   optimizeDeps: {
     include: ['@sveltejs/kit', 'svelte']
   },
