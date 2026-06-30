@@ -191,6 +191,7 @@
       <button
         role="menuitem"
         class="justify-start {breadcrumbIsPinned ? 'text-error' : ''}"
+        title={breadcrumbIsPinned ? m.storage_action_unpin() : m.storage_action_pin()}
         onclick={() => {
           if (storage.bookmarks.isPinned(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix)) {
             storage.bookmarks.unpin(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix);
@@ -220,10 +221,10 @@
   >
     <button
       class="
-          tooltip tooltip-bottom btn btn-ghost btn-xs group/pin z-60 size-5 p-0
+          btn btn-ghost btn-xs group/pin z-60 size-5 p-0
           {pinned ? 'hover:text-error' : 'hover:text-white'}
         "
-      data-tip={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
+      title={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
       aria-label={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
       onclick={() => {
         if (pinned) {
@@ -283,13 +284,7 @@
             py-0.5 transition-colors hover:cursor-pointer
           "
           title={storage.bucket}
-          onclick={() => {
-            if (storage.isInArchive) {
-              storage.exitArchive();
-            } else {
-              storage.navigate('');
-            }
-          }}
+          onclick={() => navigateS3('')}
           oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
         >
           <IconStorage class="size-4" aria-hidden="true" />
@@ -587,44 +582,45 @@
   {/if}
 
   <!-- More options (pin current location) — hidden in archive mode -->
-  {#if !storage.isInArchive}
-    <div class="dropdown dropdown-end">
-      <button
-        tabindex="0"
-        class="btn btn-ghost btn-xs"
-        title={m.storage_more_options()}
-        aria-label={m.storage_more_options()}
-        aria-haspopup="menu"
-      >
-        <IconMoreVert class="size-3.5" aria-hidden="true" />
-      </button>
-      <ul
-        tabindex="0"
-        role="menu"
-        class="
+  <div class="dropdown dropdown-end">
+    <button
+      tabindex="0"
+      class="btn btn-ghost btn-xs"
+      title={m.storage_more_options()}
+      aria-label={m.storage_more_options()}
+      aria-haspopup="menu"
+    >
+      <IconMoreVert class="size-3.5" aria-hidden="true" />
+    </button>
+    <ul
+      tabindex="0"
+      role="menu"
+      class="
         dropdown-content menu rounded-box border-base-300 bg-base-100 z-30 w-52
         border p-1 shadow-lg
       "
-      >
-        <li role="none">
-          <button
-            role="menuitem"
-            class="justify-start text-sm"
-            onclick={() => {
-              tabsState.addTab();
-              (document.activeElement as HTMLElement | null)?.blur();
-            }}
-          >
-            <IconTab class="size-4 shrink-0" aria-hidden="true" />
-            {m.storage_tab_new()}
-          </button>
-        </li>
+    >
+      <li role="none">
+        <button
+          role="menuitem"
+          class="justify-start text-sm"
+          onclick={() => {
+            tabsState.addTab();
+            (document.activeElement as HTMLElement | null)?.blur();
+          }}
+        >
+          <IconTab class="size-4 shrink-0" aria-hidden="true" />
+          {m.storage_tab_new()}
+        </button>
+      </li>
+      {#if !storage.isInArchive}
         <li role="none">
           {#if currentIsPinned}
             {@const PinIcon2 = IconPushPin}
             <button
               role="menuitem"
               class="justify-start text-sm"
+              title={m.storage_action_unpin()}
               onclick={() => {
                 storage.bookmarks.unpin(storage.bucket, storage.prefix);
               }}
@@ -637,6 +633,7 @@
             <button
               role="menuitem"
               class="justify-start text-sm"
+              title={m.storage_action_pin()}
               onclick={() => {
                 storage.bookmarks.pin(storage.bucket, storage.prefix);
               }}
@@ -646,7 +643,7 @@
             </button>
           {/if}
         </li>
-      </ul>
-    </div>
-  {/if}
+      {/if}
+    </ul>
+  </div>
 </div>
