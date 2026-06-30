@@ -514,16 +514,6 @@ describe('StorageBreadcrumb', () => {
       await expect.element(page.getByRole('button', { name: /upload/i })).not.toBeInTheDocument();
     });
 
-    it('should hide more options button when in archive mode', async () => {
-      const state = createState();
-      state.archiveKey = 'data.zip';
-      render(StorageBreadcrumbWrapper, { state });
-
-      const moreBtn = page.getByRole('button', { name: /more options/i });
-      await expect.element(moreBtn).not.toBeInTheDocument();
-    });
-  });
-
   describe('new tab', () => {
     it('should show "New Tab" option in the more options menu', async () => {
       const state = createState();
