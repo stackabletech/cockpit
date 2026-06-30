@@ -47,6 +47,7 @@ repos:
       - id: semgrep
         verbose: true
         args: ['--config', 'p/typescript', '--skip-unknown-extensions', '--disable-version-check']
+        stages: [pre-commit, pre-merge-commit]
         files: \.(ts|tsx|js|jsx|mjs|cjs)$
         exclude: ^e2e/
 
