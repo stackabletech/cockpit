@@ -513,6 +513,7 @@ describe('StorageBreadcrumb', () => {
 
       await expect.element(page.getByRole('button', { name: /upload/i })).not.toBeInTheDocument();
     });
+  });
 
   describe('new tab', () => {
     it('should show "New Tab" option in the more options menu', async () => {
