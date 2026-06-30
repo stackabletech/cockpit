@@ -63,6 +63,10 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
     if (done) break;
     editChunks.push(value);
     totalEditBytes += value.length;
+    if (totalEditBytes > maxEditableFileSize) {
+      editReader.cancel();
+      throw error(413, 'File exceeds the maximum editable size and is read-only');
+    }
   }
 
   let mergedBuffer: Buffer;

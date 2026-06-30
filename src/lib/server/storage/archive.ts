@@ -1,7 +1,6 @@
 import {
   createReadStream,
   createWriteStream,
-  unlinkSync,
   existsSync,
   mkdtempSync,
   writeFileSync,
@@ -9,9 +8,9 @@ import {
 } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, extname } from 'node:path';
+import { join, extname, resolve, sep } from 'node:path';
 import { createGunzip } from 'node:zlib';
-import { exec } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import AdmZip from 'adm-zip';
 import * as tar from 'tar-stream';
@@ -20,7 +19,7 @@ import { logger } from '$lib/server/logging';
 
 const log = logger.child({ module: 'archive-service' });
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface ArchiveEntry {
   key: string;
@@ -53,7 +52,8 @@ const cleanupTimer = setInterval(() => {
   for (const [cacheKey, entry] of archiveCache) {
     if (now > entry.expiresAt) {
       try {
-        if (existsSync(entry.path)) unlinkSync(entry.path);
+        const dir = join(entry.path, '..');
+        if (existsSync(dir)) rmRecursive(dir);
       } catch (err) {
         log.warn({ err, cache_key: cacheKey }, 'failed to clean up archive temp file');
       }
@@ -87,23 +87,24 @@ function streamToTempFile(stream: ReadableStream, ext: string): Promise<string> 
     const tmpPath = join(tmpDir, `archive${ext}`);
     const writable = createWriteStream(tmpPath);
     const nodeStream = Readable.fromWeb(stream as import('stream/web').ReadableStream);
-    nodeStream.pipe(writable);
-    nodeStream.on('error', (err) => {
-      writable.destroy();
+
+    function cleanup() {
       try {
-        unlinkSync(tmpPath);
+        rmRecursive(tmpDir);
       } catch {
         /* noop */
       }
+    }
+
+    nodeStream.pipe(writable);
+    nodeStream.on('error', (err) => {
+      writable.destroy();
+      cleanup();
       reject(err);
     });
     writable.on('finish', () => resolve(tmpPath));
     writable.on('error', (err) => {
-      try {
-        unlinkSync(tmpPath);
-      } catch {
-        /* noop */
-      }
+      cleanup();
       reject(err);
     });
   });
@@ -444,7 +445,7 @@ async function listRar(tempPath: string, internalPrefix: string): Promise<Archiv
   const prefix = internalPrefix ? ensureTrailingSlash(normalizePath(internalPrefix)) : '';
 
   try {
-    const { stdout } = await execAsync(`unrar lb "${tempPath}"`, { timeout: 30000 });
+    const { stdout } = await execFileAsync('unrar', ['lb', tempPath], { timeout: 30000 });
     const allEntries = stdout
       .split('\n')
       .map((l) => normalizePath(l.trim()))
@@ -455,7 +456,7 @@ async function listRar(tempPath: string, internalPrefix: string): Promise<Archiv
 
     for (const entryPath of allEntries) {
       const isDir = entryPath.endsWith('/');
-      const path = isDir ? entryPath : entryPath;
+      const path = entryPath;
 
       if (!path.startsWith(prefix)) continue;
       const relative = path.slice(prefix.length);
@@ -501,7 +502,7 @@ async function listRar(tempPath: string, internalPrefix: string): Promise<Archiv
 async function extractRarEntry(tempPath: string, internalPath: string): Promise<Buffer | null> {
   const tmpDir = mkdtempSync(join(tmpdir(), 'rar-extract-'));
   try {
-    const { stdout } = await execAsync(`unrar p -inul "${tempPath}" "${internalPath}"`, {
+    const { stdout } = await execFileAsync('unrar', ['p', '-inul', tempPath, internalPath], {
       timeout: 30000,
       maxBuffer: 100 * 1024 * 1024
     });
@@ -511,7 +512,7 @@ async function extractRarEntry(tempPath: string, internalPath: string): Promise<
     throw new Error('RAR extraction failed: ' + (err instanceof Error ? err.message : String(err)));
   } finally {
     try {
-      unlinkSync(tmpDir);
+      rmRecursive(tmpDir);
     } catch {
       /* noop */
     }
@@ -525,7 +526,7 @@ const SEVEN_ZIP_BINARIES = ['7zz', '7zr', '7z'];
 async function find7zBinary(): Promise<string | null> {
   for (const bin of SEVEN_ZIP_BINARIES) {
     try {
-      await execAsync(`which ${bin}`, { timeout: 5000 });
+      await execFileAsync('which', [bin], { timeout: 5000 });
       return bin;
     } catch {
       /* noop */
@@ -545,7 +546,7 @@ async function list7z(
   const prefix = internalPrefix ? ensureTrailingSlash(normalizePath(internalPrefix)) : '';
 
   try {
-    const { stdout } = await execAsync(`"${bin}" l -slt -ba "${tempPath}"`, { timeout: 30000 });
+    const { stdout } = await execFileAsync(bin, ['l', '-slt', '-ba', tempPath], { timeout: 30000 });
     return parse7zListing(stdout, prefix, maxBytes);
   } catch (err) {
     throw new Error('7z listing failed: ' + (err instanceof Error ? err.message : String(err)));
@@ -645,14 +646,21 @@ async function extract7zEntry(tempPath: string, internalPath: string): Promise<B
   const bin = await find7zBinary();
   if (!bin) throw new Error('7z support requires 7-Zip to be installed on the server.');
 
+  if (internalPath.includes('..')) {
+    throw new Error('Path traversal rejected');
+  }
+
   const tmpDir = mkdtempSync(join(tmpdir(), '7z-extract-'));
   try {
-    await execAsync(`"${bin}" x -y -o"${tmpDir}" "${tempPath}" "${internalPath}"`, {
+    await execFileAsync(bin, ['x', '-y', `-o${tmpDir}`, tempPath, internalPath], {
       timeout: 60000
     });
-    const outPath = join(tmpDir, internalPath);
-    if (!existsSync(outPath)) return null;
-    return readFile(outPath);
+    const resolvedPath = resolve(tmpDir, internalPath);
+    if (!resolvedPath.startsWith(tmpDir + sep)) {
+      throw new Error('Path traversal rejected');
+    }
+    if (!existsSync(resolvedPath)) return null;
+    return readFile(resolvedPath);
   } catch (err) {
     throw new Error('7z extraction failed: ' + (err instanceof Error ? err.message : String(err)));
   } finally {
@@ -901,7 +909,8 @@ export async function extractArchiveEntry(
 export function clearArchiveCache(): void {
   for (const [cacheKey, entry] of archiveCache) {
     try {
-      if (existsSync(entry.path)) unlinkSync(entry.path);
+      const dir = join(entry.path, '..');
+      if (existsSync(dir)) rmRecursive(dir);
     } catch {
       /* noop */
     }
