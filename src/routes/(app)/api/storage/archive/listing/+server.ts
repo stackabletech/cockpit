@@ -1,10 +1,8 @@
 import { error } from '@sveltejs/kit';
 import { listArchiveContents } from '$lib/server/storage/archive.js';
 import { downloadObject, getObjectMetadata } from '$lib/server/storage/service.js';
-import { archivePreviewMaxMB } from '$lib/server/feature-flags.js';
+import { archivePreviewMaxBytes } from '$lib/server/feature-flags.js';
 import type { RequestHandler } from './$types';
-
-const archivePreviewMaxBytes = archivePreviewMaxMB * 1024 * 1024;
 
 /**
  * GET /api/storage/archive/listing?bucket=<bucket>&key=<archive-key>&internalPrefix=<path>&nestedArchivePath=<path>
