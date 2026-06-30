@@ -41,6 +41,15 @@ repos:
     hooks:
       - id: hadolint
 
+  - repo: https://github.com/semgrep/pre-commit
+    rev: deab6d496da5b26298b2937aca9a221506cf3a65 # 1.168.0
+    hooks:
+      - id: semgrep
+        verbose: true
+        args: ['--config', 'p/typescript', '--skip-unknown-extensions', '--disable-version-check']
+        files: \.(ts|tsx|js|jsx|mjs|cjs)$
+        exclude: ^e2e/
+
   - repo: local
     hooks:
       - id: npm-lint
