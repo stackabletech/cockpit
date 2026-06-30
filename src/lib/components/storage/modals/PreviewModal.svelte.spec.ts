@@ -19,15 +19,24 @@ const defaultProps = {
   objectKey: 'path/to/document.txt'
 };
 
-function mockFetchResponse(body: BodyInit | null): Response {
+function mockFetchResponse(
+  body: BodyInit | null,
+  opts?: {
+    contentType?: string;
+    truncated?: boolean;
+    totalSize?: number;
+    previewBytes?: number;
+    renderable?: boolean;
+  }
+): Response {
   return new Response(body, {
     status: 200,
     headers: {
-      'Content-Type': 'text/plain',
+      'Content-Type': opts?.contentType ?? 'text/plain',
       'X-Preview-Format': 'text',
-      'X-Preview-Truncated': 'false',
-      'X-Preview-Total-Size': '11',
-      'X-Preview-Bytes': '11'
+      'X-Preview-Truncated': String(opts?.truncated ?? false),
+      'X-Preview-Total-Size': String(opts?.totalSize ?? 11),
+      'X-Preview-Bytes': String(opts?.previewBytes ?? 11)
     }
   });
 }

@@ -1,7 +1,9 @@
 class Base {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static Check(_value: unknown): boolean {
     return false;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static Errors(_value: unknown): { message: string }[] {
     return [];
   }

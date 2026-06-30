@@ -20,7 +20,7 @@ export function getProvider(config: StorageConfig, bucket: string): StorageProvi
  * require a specific bucket (e.g. listing all buckets).
  * Throws a 400 HTTP error if the connection type is not supported.
  */
-export function getConnectionProvider(config: S3ConnectionConfig): StorageProvider {
+export function getConnectionProvider(config: StorageConfig): StorageProvider {
   if (config.type !== 's3') {
     throw error(400, 'Storage backend not supported');
   }
