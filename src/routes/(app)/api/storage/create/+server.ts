@@ -3,7 +3,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { requireBucketKey } from '../params.js';
 
 /**
- * POST /storage/api/create?bucket=<bucket>&key=<object-key>
+ * POST /api/storage/create?bucket=<bucket>&key=<object-key>
  *
  * Creates an empty object (zero bytes) at the given key.
  * If the key ends with '/', it creates a directory marker.

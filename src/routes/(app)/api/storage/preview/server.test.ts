@@ -41,7 +41,7 @@ const CONNECTION_HEADER = {
 };
 
 function mockEvent(params: string) {
-  const url = new URL(`http://localhost/storage/api/preview?${params}`);
+  const url = new URL(`http://localhost/api/storage/preview?${params}`);
   return {
     url,
     request: { headers: new Headers(CONNECTION_HEADER) },
@@ -53,7 +53,7 @@ function mockEvent(params: string) {
   } as unknown as Parameters<typeof GET>[0];
 }
 
-describe('GET /storage/api/preview', () => {
+describe('GET /api/storage/preview', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns binary preview for known binary types', async () => {

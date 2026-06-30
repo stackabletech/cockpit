@@ -8,7 +8,7 @@ function filenameFromKey(key: string): string {
 }
 
 /**
- * GET /storage/api/download?bucket=<bucket>&key=<object-key>
+ * GET /api/storage/download?bucket=<bucket>&key=<object-key>
  *
  * Proxies an S3 object directly to the client as a streaming download.
  * Authentication is enforced by the app-level auth guard in hooks.server.ts.
@@ -50,7 +50,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 };
 
 /**
- * HEAD /storage/api/download?bucket=<bucket>&key=<object-key>
+ * HEAD /api/storage/download?bucket=<bucket>&key=<object-key>
  *
  * Lightweight pre-flight that validates credentials and access rights using
  * a HeadObject call (no object body transferred). The client uses this before

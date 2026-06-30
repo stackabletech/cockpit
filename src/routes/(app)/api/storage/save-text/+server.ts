@@ -6,7 +6,7 @@ import { maxEditableFileSize } from '$lib/server/feature-flags.js';
 import type { RequestHandler } from '@sveltejs/kit';
 
 /**
- * POST /storage/api/save-text?bucket=<bucket>&key=<key>&contentType=<type>&originalSize=<number>&previewBytes=<number>
+ * POST /api/storage/save-text?bucket=<bucket>&key=<key>&contentType=<type>&originalSize=<number>&previewBytes=<number>
  *
  * Saves edited text content back to S3. When the original file was truncated
  * during preview (previewBytes < originalSize), the endpoint fetches the

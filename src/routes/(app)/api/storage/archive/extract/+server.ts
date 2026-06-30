@@ -7,7 +7,7 @@ import type { RequestHandler } from './$types';
 const archivePreviewMaxBytes = archivePreviewMaxMB * 1024 * 1024;
 
 /**
- * GET /storage/api/archive/extract?bucket=<bucket>&key=<archive-key>&path=<internal-path>&nestedArchivePath=<path>
+ * GET /api/storage/archive/extract?bucket=<bucket>&key=<archive-key>&path=<internal-path>&nestedArchivePath=<path>
  *
  * Extracts a single file from an archive and returns it as a stream.
  * Supports nested archives: when `nestedArchivePath` is set, the file is

@@ -192,7 +192,7 @@
         if (nestedArchivePath) {
           params.set('nestedArchivePath', nestedArchivePath);
         }
-        res = await fetch(`/storage/api/archive/extract?${params}`, { headers });
+        res = await fetch(`/api/storage/archive/extract?${params}`, { headers });
       } else {
         const params = new URLSearchParams({ bucket: activeBucket, key });
         res = await fetch(`/api/storage/preview?${params}`, { headers });
@@ -213,26 +213,15 @@
       const contentType = (res.headers.get('Content-Type') ?? 'application/octet-stream')
         .split(';')[0]
         .trim();
-      let res: Response;
-      if (archiveKey && archivePath) {
-        const params = new SvelteURLSearchParams({
-          bucket: activeBucket,
-          key: archiveKey,
-          path: archivePath
-        });
-        if (nestedArchivePath) {
-          params.set('nestedArchivePath', nestedArchivePath);
-        }
-        res = await fetch(`/storage/api/archive/extract?${params}`, { headers });
-      } else {
-        const params = new URLSearchParams({ bucket: activeBucket, key });
-        res = await fetch(`/api/storage/preview?${params}`, { headers });
-      }
-        await res.body?.cancel();
-        preview = { kind: 'fallback', contentType, isBinary: false };
-        return;
-      }
-
+      const totalSize = parseInt(
+        res.headers.get('X-Preview-Total-Size') ?? res.headers.get('Content-Length') ?? '0',
+        10
+      );
+      const previewBytes = parseInt(
+        res.headers.get('X-Preview-Bytes') ?? res.headers.get('Content-Length') ?? '0',
+        10
+      );
+      const truncated = res.headers.get('X-Preview-Truncated') === 'true';
       if (contentType.startsWith('image/')) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -358,7 +347,7 @@
   /** Read an NDJSON streaming response and progressively fill column data. */
   async function readNdjsonStream(
     res: Response,
-    onColumn?: (name: string, values: unknown[]) => void
+    onColumn: ((name: string, values: unknown[]) => void) | undefined
   ): Promise<{ headers: string[]; rows: unknown[][]; totalRows: number }> {
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
@@ -400,92 +389,6 @@
         } else if (msg.t === 'e') {
           throw new Error('Server error reading parquet data');
         }
-      }
-    }
-
-    return { headers: resultHeaders, rows, totalRows: resultTotalRows };
-  }
-
-  /** Parse an NDJSON parquet stream with immediate callbacks for headers and columns. */
-  async function parseParquetStream(
-    res: Response,
-    onHeaders: (headers: string[], totalRows: number) => void,
-    onColumn: (name: string, values: unknown[]) => void
-  ): Promise<void> {
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        const msg = JSON.parse(line);
-
-        if (msg.t === 'h') {
-          onHeaders(msg.h, msg.tr);
-        } else if (msg.t === 'c') {
-          onColumn(msg.n, msg.v);
-        } else if (msg.t === 'e') {
-          throw new Error('Server error reading parquet data');
-        }
-        // 'd' (done) — continue reading until stream ends
-      }
-    }
-  }
-
-  /** Read an NDJSON streaming response and progressively fill column data. */
-  async function readNdjsonStream(
-    res: Response,
-    onColumn?: (name: string, values: unknown[]) => void
-  ): Promise<{ headers: string[]; rows: unknown[][]; totalRows: number }> {
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let resultHeaders: string[] = [];
-    let rows: unknown[][] = [];
-    let resultTotalRows = 0;
-    const columnPos: Record<string, number> = {};
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        const msg = JSON.parse(line);
-
-        if (msg.t === 'h') {
-          resultHeaders = msg.h;
-          resultTotalRows = msg.tr;
-        } else if (msg.t === 'c') {
-          const colIdx = resultHeaders.indexOf(msg.n);
-          if (colIdx < 0) continue;
-          const values = msg.v as unknown[];
-          let pos = columnPos[msg.n] ?? 0;
-          for (let i = 0; i < values.length; i++) {
-            while (rows.length <= pos) {
-              rows.push(new Array(resultHeaders.length).fill(undefined));
-            }
-            rows[pos][colIdx] = values[i];
-            pos++;
-          }
-          columnPos[msg.n] = pos;
-          onColumn?.(msg.n, values);
-        } else if (msg.t === 'e') {
-          throw new Error('Server error reading parquet data');
-        }
-        // 'd' (done) — just continue reading until stream ends
       }
     }
 
@@ -618,7 +521,7 @@
   async function fetchParquetRows(
     offset: number,
     limit: number,
-    onColumn?: (name: string, values: unknown[]) => void
+    onColumn: ((name: string, values: unknown[]) => void) | undefined
   ): Promise<unknown[][]> {
     if (!objectKey) return [];
 

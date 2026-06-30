@@ -162,13 +162,8 @@
   "storage_files": "Dateien",
   "storage_folder_count": [
     {
-      "declarations": [
-        "input count",
-        "local countPlural = count: plural"
-      ],
-      "selectors": [
-        "countPlural"
-      ],
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
       "match": {
         "countPlural=one": "1 Ordner",
         "countPlural=other": "{count} Ordner"
@@ -177,13 +172,8 @@
   ],
   "storage_file_count": [
     {
-      "declarations": [
-        "input count",
-        "local countPlural = count: plural"
-      ],
-      "selectors": [
-        "countPlural"
-      ],
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
       "match": {
         "countPlural=one": "1 Datei",
         "countPlural=other": "{count} Dateien"
@@ -256,13 +246,8 @@
   "storage_delete_error_unknown": "Beim Löschen ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es erneut.",
   "storage_delete_partial_failure": [
     {
-      "declarations": [
-        "input count",
-        "local countPlural = count: plural"
-      ],
-      "selectors": [
-        "countPlural"
-      ],
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
       "match": {
         "countPlural=one": "1 Element konnte nicht gelöscht werden.",
         "countPlural=other": "{count} Elemente konnten nicht gelöscht werden."
@@ -410,13 +395,8 @@
   "timestamp_just_now": "gerade eben",
   "timestamp_minutes_ago": [
     {
-      "declarations": [
-        "input count",
-        "local n = count: plural"
-      ],
-      "selectors": [
-        "n"
-      ],
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
       "match": {
         "n=one": "vor {count} Min.",
         "n=other": "vor {count} Min."
@@ -425,13 +405,8 @@
   ],
   "timestamp_hours_ago": [
     {
-      "declarations": [
-        "input count",
-        "local n = count: plural"
-      ],
-      "selectors": [
-        "n"
-      ],
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
       "match": {
         "n=one": "vor {count} Std.",
         "n=other": "vor {count} Std."
@@ -440,13 +415,8 @@
   ],
   "timestamp_days_ago": [
     {
-      "declarations": [
-        "input count",
-        "local n = count: plural"
-      ],
-      "selectors": [
-        "n"
-      ],
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
       "match": {
         "n=one": "vor {count} T.",
         "n=other": "vor {count} T."
@@ -455,13 +425,8 @@
   ],
   "timestamp_months_ago": [
     {
-      "declarations": [
-        "input count",
-        "local n = count: plural"
-      ],
-      "selectors": [
-        "n"
-      ],
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
       "match": {
         "n=one": "vor {count} Mon.",
         "n=other": "vor {count} Mon."
@@ -470,13 +435,8 @@
   ],
   "timestamp_years_ago": [
     {
-      "declarations": [
-        "input count",
-        "local n = count: plural"
-      ],
-      "selectors": [
-        "n"
-      ],
+      "declarations": ["input count", "local n = count: plural"],
+      "selectors": ["n"],
       "match": {
         "n=one": "vor {count} J.",
         "n=other": "vor {count} J."

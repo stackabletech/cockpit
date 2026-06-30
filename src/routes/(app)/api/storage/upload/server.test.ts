@@ -17,7 +17,7 @@ function mockEvent(opts: {
   headers?: Record<string, string>;
 }) {
   const url = new URL(
-    `http://localhost/storage/api/upload?${opts.params ?? 'bucket=b1&key=file.txt'}`
+    `http://localhost/api/storage/upload?${opts.params ?? 'bucket=b1&key=file.txt'}`
   );
   const headers = new Headers(
     opts.headers ?? { 'Content-Type': 'text/plain', 'Content-Length': '42', ...CONNECTION_HEADER }
@@ -34,7 +34,7 @@ function mockEvent(opts: {
   } as unknown as Parameters<typeof POST>[0];
 }
 
-describe('POST /storage/api/upload', () => {
+describe('POST /api/storage/upload', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('throws 400 when bucket/key missing', async () => {

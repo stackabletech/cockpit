@@ -4,7 +4,7 @@ import { requireBucketKey } from '../params.js';
 import type { RequestHandler } from './$types';
 
 /**
- * POST /storage/api/upload?bucket=<bucket>&key=<object-key>
+ * POST /api/storage/upload?bucket=<bucket>&key=<object-key>
  *
  * Streams an uploaded file directly to S3 using multipart upload (via
  * @aws-sdk/lib-storage). The request body is piped to the S3 SDK without

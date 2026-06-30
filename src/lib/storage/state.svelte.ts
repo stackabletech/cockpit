@@ -322,7 +322,7 @@ export class StorageState {
         prefix: prefix ?? '',
         pageSize: String(this.pageSize)
       });
-      const res = await fetch(`/storage/api/objects?${params}`, {
+      const res = await fetch(`/api/storage/objects?${params}`, {
         headers: { 'x-storage-connection': connHeader }
       });
       if (res.ok) {
@@ -356,7 +356,7 @@ export class StorageState {
       if (this.archiveNestedPath) {
         params.set('nestedArchivePath', this.archiveNestedPath);
       }
-      const res = await fetch(`/storage/api/archive/extract?${params}`, {
+      const res = await fetch(`/api/storage/archive/extract?${params}`, {
         headers: { 'x-storage-connection': connHeader }
       });
       if (!res.ok) {
@@ -400,7 +400,7 @@ export class StorageState {
     if (this.archiveNestedPath) {
       params.set('nestedArchivePath', this.archiveNestedPath);
     }
-    const res = await fetch(`/storage/api/archive/listing?${params}`, {
+    const res = await fetch(`/api/storage/archive/listing?${params}`, {
       headers: { 'x-storage-connection': connHeader }
     });
     if (!res.ok) {

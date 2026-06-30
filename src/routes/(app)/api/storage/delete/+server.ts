@@ -4,7 +4,7 @@ import { getProvider } from '$lib/server/storage/utils.js';
 import { requireBucket } from '../params.js';
 
 /**
- * DELETE /storage/api/delete?bucket=<bucket>&keys=<key1>&keys=<key2>&...
+ * DELETE /api/storage/delete?bucket=<bucket>&keys=<key1>&keys=<key2>&...
  *
  * Deletes one or more S3 objects from the given bucket.
  * Authentication is enforced by the app-level auth guard in hooks.server.ts.

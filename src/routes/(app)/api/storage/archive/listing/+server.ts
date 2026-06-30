@@ -7,7 +7,7 @@ import type { RequestHandler } from './$types';
 const archivePreviewMaxBytes = archivePreviewMaxMB * 1024 * 1024;
 
 /**
- * GET /storage/api/archive/listing?bucket=<bucket>&key=<archive-key>&internalPrefix=<path>&nestedArchivePath=<path>
+ * GET /api/storage/archive/listing?bucket=<bucket>&key=<archive-key>&internalPrefix=<path>&nestedArchivePath=<path>
  *
  * Lists the contents of an archive file at the given internal path.
  * Supports nested archives via the optional `nestedArchivePath` parameter:
