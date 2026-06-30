@@ -71,8 +71,9 @@ test.describe('Storage S3 (Garage)', () => {
     const main = page.locator('main');
     await expect(main.getByRole('heading', { name: 'Buckets' })).toBeVisible();
 
-    // The bucket created during Garage setup must appear in the list
-    await expect(main.getByRole('link', { name: bucket, exact: true })).toBeVisible();
+    // The bucket created during Garage setup must appear in the grid
+    // (use .first() because the sidebar nav also renders a link to each bucket)
+    await expect(main.getByRole('link', { name: bucket, exact: true }).first()).toBeVisible();
   });
 
   test('disconnects from Garage S3', async ({ page }) => {
