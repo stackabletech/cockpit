@@ -4,6 +4,7 @@ import type { S3ConnectionConfig } from './types.js';
 export function createS3Client(config: S3ConnectionConfig): S3Client {
   return new S3Client({
     region: config.region,
+    requestChecksumCalculation: 'WHEN_REQUIRED',
     ...(config.endpoint && {
       endpoint: config.endpoint,
       forcePathStyle: config.pathStyle ?? true
