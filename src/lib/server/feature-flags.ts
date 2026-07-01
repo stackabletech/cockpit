@@ -16,6 +16,16 @@ export const completionEnabled = env.STACKABLE_COCKPIT_COMPLETION_ENABLED !== 'f
  *  credentials and the file-browser UI. */
 export const storageBrowserEnabled = env.STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED === 'true';
 
+// ── Infinite scroll preview ───────────────────────────────────────────────────
+
+/** When `STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED=false`, the CSV and Parquet
+ *  file previews load a fixed number of rows without virtual scrolling / infinite
+ *  loading. Enabled by default — the previews fetch row chunks lazily as the
+ *  user scrolls, reducing S3 costs and browser memory for large files.
+ *  Controlled by `STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED`. Default: `true`. */
+export const infiniteScrollEnabled =
+  env.PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED !== 'false';
+
 // ── Storage preview limits ───────────────────────────────────────────────────
 
 /** Maximum bytes fetched when streaming a text, CSV, or JSON file preview.

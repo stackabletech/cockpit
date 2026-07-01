@@ -36,7 +36,8 @@ vi.mock('$lib/server/feature-flags', () => ({
   filePreviewRows: 250,
   textPreviewBytes: 256 * 1024,
   imagePreviewBytes: 5 * 1024 * 1024,
-  pdfPreviewBytes: 25 * 1024 * 1024
+  pdfPreviewBytes: 25 * 1024 * 1024,
+  infiniteScrollEnabled: true
 }));
 
 import { getParquetPreview } from './parquet.js';
