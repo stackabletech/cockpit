@@ -64,7 +64,8 @@ describe('createS3Client', () => {
     createS3Client(baseConfig({ credentials: { accessKey: 'AKID', secretKey: 'SECRET' } }));
     expect(mockS3Client).toHaveBeenCalledWith(
       expect.objectContaining({
-        credentials: { accessKeyId: 'AKID', secretAccessKey: 'SECRET' }
+        credentials: { accessKeyId: 'AKID', secretAccessKey: 'SECRET' },
+        requestChecksumCalculation: 'WHEN_REQUIRED'
       })
     );
   });
