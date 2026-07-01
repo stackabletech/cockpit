@@ -3,7 +3,7 @@ import { getProvider } from '$lib/server/storage/utils.js';
 import type { RequestHandler } from './$types';
 
 /**
- * GET /storage/api/objects?bucket=<bucket>&prefix=<prefix>&pageSize=<n>&continuationToken=<token>
+ * GET /api/storage/objects?bucket=<bucket>&prefix=<prefix>&pageSize=<n>&continuationToken=<token>
  *
  * Returns a page of objects in the given bucket/prefix using the connection
  * config supplied in the `X-Storage-Connection` request header.

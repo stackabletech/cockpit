@@ -8,7 +8,7 @@ import { requireBucketKey } from '../params.js';
 import type { RequestHandler } from './$types';
 
 /**
- * GET /storage/api/preview?bucket=<bucket>&key=<object-key>
+ * GET /api/storage/preview?bucket=<bucket>&key=<object-key>
  *
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.
@@ -48,12 +48,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       return binaryPreview(rawContentType, totalSize);
     }
 
-    // Normalise the content-type for Excel-exported CSV files so the client
-    // treats them as text/csv rather than binary.
-    const contentType =
-      rawContentType === 'application/vnd.ms-excel' && lowerKey.endsWith('.csv')
-        ? 'text/csv'
-        : rawContentType;
+    // Normalise the content-type for Excel-exported CSV/TSV files so the client
+    // treats them as text/csv or text/tab-separated-values rather than binary.
+    let contentType = rawContentType;
+    if (rawContentType === 'application/vnd.ms-excel') {
+      if (lowerKey.endsWith('.csv')) contentType = 'text/csv';
+      else if (lowerKey.endsWith('.tsv')) contentType = 'text/tab-separated-values';
+    }
 
     // Pass a placeholder user identifier for logging purposes (no longer user-specific)
     return await streamPreview(provider, key, contentType, totalSize, 'client', log);

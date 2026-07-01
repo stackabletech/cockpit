@@ -3,6 +3,7 @@ import type { StoragePage } from '$lib/storage/types.js';
 import type { PageSize } from '$lib/types/pagination.js';
 import type { StorageState } from './state.svelte.js';
 import { LS_TABS } from './persistence.js';
+import { keyToName } from './utils.js';
 
 // ── Tab data ─────────────────────────────────────────────────────────────────
 
@@ -12,6 +13,15 @@ export interface TabSnapshot {
   objects: StoragePage;
   prevTokens: (string | null)[];
   pageSize: PageSize;
+  archiveKey: string | null;
+  archivePrefix: string;
+  archiveNestedPath: string | null;
+  previousS3Prefix: string;
+  archiveLoading: boolean;
+  archiveTooLarge: boolean;
+  /** Pre-computed auto-generated label for this snapshot (used by syncActiveTab
+   *  to decide whether the label was manually renamed). */
+  autoLabel: string;
 }
 
 export interface Tab {
@@ -98,8 +108,26 @@ export class TabsState {
       prefix: this.storage.prefix,
       objects: this.storage.objects,
       prevTokens: [...this.storage.prevTokens],
-      pageSize: this.storage.pageSize
+      pageSize: this.storage.pageSize,
+      archiveKey: this.storage.archiveKey,
+      archivePrefix: this.storage.archivePrefix,
+      archiveNestedPath: this.storage.archiveNestedPath,
+      previousS3Prefix: this.storage.previousS3Prefix,
+      archiveLoading: this.storage.archiveLoading,
+      archiveTooLarge: this.storage.archiveTooLarge,
+      autoLabel: this.computeAutoLabel()
     };
+  }
+
+  private computeAutoLabel(): string {
+    if (this.storage.isInArchive && this.storage.archiveKey) {
+      return this.archiveLabelFrom(
+        this.storage.archiveKey,
+        this.storage.archivePrefix,
+        this.storage.archiveNestedPath
+      );
+    }
+    return this.buildLabel(this.storage.bucket, this.storage.prefix);
   }
 
   private restoreSnapshot(snapshot: TabSnapshot): void {
@@ -108,6 +136,12 @@ export class TabsState {
     this.storage.objects = snapshot.objects;
     this.storage.prevTokens = [...snapshot.prevTokens];
     this.storage.pageSize = snapshot.pageSize;
+    this.storage.archiveKey = snapshot.archiveKey;
+    this.storage.archivePrefix = snapshot.archivePrefix;
+    this.storage.archiveNestedPath = snapshot.archiveNestedPath;
+    this.storage.previousS3Prefix = snapshot.previousS3Prefix;
+    this.storage.archiveLoading = snapshot.archiveLoading;
+    this.storage.archiveTooLarge = snapshot.archiveTooLarge;
     this.storage.loading = false;
     this.storage.clearSelection();
     this.replaceLocationUrl?.(snapshot.bucket, snapshot.prefix);
@@ -169,7 +203,14 @@ export class TabsState {
         prefix: pt.prefix,
         objects: EMPTY_PAGE,
         prevTokens: [],
-        pageSize: this.storage.pageSize
+        pageSize: this.storage.pageSize,
+        archiveKey: null,
+        archivePrefix: '',
+        archiveNestedPath: null,
+        previousS3Prefix: '',
+        archiveLoading: false,
+        archiveTooLarge: false,
+        autoLabel: pt.label
       }
     }));
 
@@ -217,7 +258,7 @@ export class TabsState {
     }
 
     const id = crypto.randomUUID();
-    const label = this.buildLabel(this.storage.bucket, this.storage.prefix);
+    const label = this.computeAutoLabel();
     this.tabs = [{ id, label, stub: false, snapshot: this.captureSnapshot() }];
     this.activeTabId = id;
     this.saveToPersistence();
@@ -247,10 +288,7 @@ export class TabsState {
       ...tab,
       stub: false,
       snapshot: this.captureSnapshot(),
-      label:
-        tab.label === this.buildLabel(tab.snapshot.bucket, tab.snapshot.prefix)
-          ? this.buildLabel(this.storage.bucket, this.storage.prefix)
-          : tab.label
+      label: tab.label === tab.snapshot.autoLabel ? this.computeAutoLabel() : tab.label
     };
     this.tabs = [...this.tabs.slice(0, idx), updatedTab, ...this.tabs.slice(idx + 1)];
     this.saveToPersistence();
@@ -260,7 +298,7 @@ export class TabsState {
   addTab(): void {
     this.syncActiveTab();
     const id = crypto.randomUUID();
-    const label = this.buildLabel(this.storage.bucket, this.storage.prefix);
+    const label = this.computeAutoLabel();
     const newTab: Tab = { id, label, stub: false, snapshot: this.captureSnapshot() };
     this.tabs = [...this.tabs, newTab];
     this.activeTabId = id;
@@ -335,5 +373,23 @@ export class TabsState {
     if (!prefix) return bucket;
     const parts = prefix.replace(/\/$/, '').split('/');
     return parts[parts.length - 1];
+  }
+
+  private archiveLabelFrom(
+    archiveKey: string | null,
+    archivePrefix: string,
+    archiveNestedPath: string | null
+  ): string {
+    if (archivePrefix) {
+      const parts = archivePrefix.replace(/\/$/, '').split('/');
+      return parts[parts.length - 1];
+    }
+    if (archiveNestedPath) {
+      return keyToName(archiveNestedPath);
+    }
+    if (archiveKey) {
+      return keyToName(archiveKey);
+    }
+    return '';
   }
 }

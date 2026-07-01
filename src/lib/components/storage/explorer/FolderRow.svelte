@@ -28,13 +28,19 @@
   onclick={(e) => {
     if (storage.selectionMode || e.ctrlKey || e.metaKey) {
       storage.toggleSelect(folder.key, true);
+    } else if (storage.isInArchive) {
+      storage.navigateInArchive(folder.key);
     } else {
       storage.navigate(folder.key);
     }
   }}
   ondblclick={(e) => {
     if (e.ctrlKey || e.metaKey) {
-      storage.navigate(folder.key);
+      if (storage.isInArchive) {
+        storage.navigateInArchive(folder.key);
+      } else {
+        storage.navigate(folder.key);
+      }
     }
   }}
   oncontextmenu={(e) => storage.openContextMenu(e, folder.key)}

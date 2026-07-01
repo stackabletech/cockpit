@@ -10,12 +10,14 @@
   import IconMoreVert from 'virtual:icons/material-symbols/more-vert';
   import IconPushPin from 'virtual:icons/material-symbols/push-pin';
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
+  import IconFolderZip from 'virtual:icons/material-symbols/folder-zip';
   import IconTab from 'virtual:icons/material-symbols/tab';
   import IconAdd from 'virtual:icons/material-symbols/add';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import { getTabsState } from '$lib/storage/tabs-context.js';
   import type { StorageLocation } from '$lib/storage/types.js';
+  import { keyToName } from '$lib/storage/utils.js';
   import { invalidateAll } from '$app/navigation';
   import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
 
@@ -32,6 +34,28 @@
             prefix: parts.slice(0, i + 1).join('/') + '/'
           }))
       : []
+  );
+
+  const archiveParts = $derived(
+    storage.isInArchive && storage.archiveKey
+      ? [
+          ...(storage.archivePrefix
+            ? storage.archivePrefix
+                .replace(/\/$/, '')
+                .split('/')
+                .map((label, i, parts) => ({
+                  label,
+                  isArchive: false,
+                  prefix: parts.slice(0, i + 1).join('/') + '/'
+                }))
+            : [])
+        ]
+      : []
+  );
+
+  const archiveName = $derived(storage.archiveKey ? keyToName(storage.archiveKey) : '');
+  const nestedArchiveName = $derived(
+    storage.archiveNestedPath ? keyToName(storage.archiveNestedPath) : ''
   );
 
   const MAX_TAIL = 2;
@@ -129,6 +153,18 @@
   function closeBreadcrumbCtx() {
     breadcrumbCtx = null;
   }
+
+  /** Navigate to an S3 prefix, clearing archive state first. */
+  function navigateS3(prefix: string) {
+    if (storage.isInArchive) {
+      storage.archiveKey = null;
+      storage.archivePrefix = '';
+      storage.archiveNestedPath = null;
+      storage.previousS3Prefix = '';
+      storage.archiveLoading = false;
+    }
+    storage.navigate(prefix);
+  }
 </script>
 
 {#if breadcrumbCtx}
@@ -155,6 +191,7 @@
       <button
         role="menuitem"
         class="justify-start {breadcrumbIsPinned ? 'text-error' : ''}"
+        title={breadcrumbIsPinned ? m.storage_action_unpin() : m.storage_action_pin()}
         onclick={() => {
           if (storage.bookmarks.isPinned(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix)) {
             storage.bookmarks.unpin(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix);
@@ -184,10 +221,10 @@
   >
     <button
       class="
-          tooltip tooltip-bottom btn btn-ghost btn-xs group/pin z-60 size-5 p-0
+          btn btn-ghost btn-xs group/pin z-60 size-5 p-0
           {pinned ? 'hover:text-error' : 'hover:text-white'}
         "
-      data-tip={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
+      title={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
       aria-label={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
       onclick={() => {
         if (pinned) {
@@ -221,7 +258,7 @@
     flex min-w-0 flex-1 items-center gap-1 text-sm
   "
   >
-    {#if breadcrumbParts.length === 0}
+    {#if breadcrumbParts.length === 0 && !storage.isInArchive}
       <span class="group flex shrink-0 items-center gap-1">
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <span
@@ -247,7 +284,7 @@
             py-0.5 transition-colors hover:cursor-pointer
           "
           title={storage.bucket}
-          onclick={() => storage.navigate('')}
+          onclick={() => navigateS3('')}
           oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
         >
           <IconStorage class="size-4" aria-hidden="true" />
@@ -288,7 +325,7 @@
               <div class="group flex items-center justify-between gap-2">
                 <button
                   class="flex-1 text-left text-sm hover:cursor-pointer"
-                  onclick={() => storage.navigate(part.prefix)}
+                  onclick={() => navigateS3(part.prefix)}
                   oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, part.prefix)}
                 >
                   {part.label}
@@ -301,7 +338,7 @@
       </div>
     {/if}
     {#each visibleParts as part, i (part.prefix)}
-      {@const isCurrent = i === visibleParts.length - 1}
+      {@const isCurrent = !storage.isInArchive && i === visibleParts.length - 1}
       <IconChevronRight
         class="text-base-content/30 pointer-events-none size-4 shrink-0"
         aria-hidden="true"
@@ -327,7 +364,7 @@
               py-0.5 transition-colors hover:cursor-pointer
             "
             title={part.label}
-            onclick={() => storage.navigate(part.prefix)}
+            onclick={() => navigateS3(part.prefix)}
             oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, part.prefix)}
           >
             {part.label}
@@ -336,6 +373,74 @@
         {@render pinButton(storage.bucket, part.prefix)}
       </span>
     {/each}
+    {#if storage.isInArchive}
+      <!-- Outer archive entry -->
+      <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
+      <span class="group flex shrink-0 items-center gap-1">
+        <button
+          class="
+            text-secondary flex items-center gap-1.5 rounded-sm px-1.5
+            py-0.5 font-medium transition-colors hover:cursor-pointer hover:opacity-70
+          "
+          title={archiveName}
+          onclick={() => {
+            if (storage.archiveNestedPath) {
+              storage.navigateToOuterArchiveRoot();
+            } else {
+              storage.navigateInArchive('');
+            }
+          }}
+        >
+          <IconFolderZip class="size-4" aria-hidden="true" />
+          {archiveName}
+        </button>
+      </span>
+      <!-- Nested archive entry -->
+      {#if storage.archiveNestedPath}
+        <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
+        <span class="group flex shrink-0 items-center gap-1">
+          <button
+            class="
+              text-secondary flex items-center gap-1.5 rounded-sm px-1.5
+              py-0.5 font-medium transition-colors hover:cursor-pointer hover:opacity-70
+            "
+            title={nestedArchiveName}
+            onclick={() => storage.navigateInArchive('')}
+          >
+            <IconFolderZip class="size-4" aria-hidden="true" />
+            {nestedArchiveName}
+          </button>
+        </span>
+      {/if}
+      {#each archiveParts as part (part.prefix)}
+        <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
+        <span class="group flex min-w-0 items-center gap-1">
+          {#if part === archiveParts[archiveParts.length - 1]}
+            <span
+              class="
+                text-base-content min-w-0 truncate rounded-sm px-1.5 py-0.5
+                font-medium
+              "
+              title={part.label}
+              aria-current="page"
+            >
+              {part.label}
+            </span>
+          {:else}
+            <button
+              class="
+                hover:bg-base-200 hover:text-base-content min-w-0 truncate rounded-sm px-1.5
+                py-0.5 transition-colors hover:cursor-pointer
+              "
+              title={part.label}
+              onclick={() => storage.navigateInArchive(part.prefix)}
+            >
+              {part.label}
+            </button>
+          {/if}
+        </span>
+      {/each}
+    {/if}
   </nav>
 
   <!-- Item count badges -->
@@ -464,16 +569,19 @@
     {/if}
   </div>
 
-  <!-- Upload button -->
-  <button
-    class="btn btn-primary btn-xs gap-1"
-    onclick={() => storage.openModal('upload', { bucket: storage.bucket, prefix: storage.prefix })}
-  >
-    <IconUpload class="size-3.5" aria-hidden="true" />
-    {m.storage_action_upload()}
-  </button>
+  <!-- Upload button (hidden inside archives) -->
+  {#if !storage.isInArchive}
+    <button
+      class="btn btn-primary btn-xs gap-1"
+      onclick={() =>
+        storage.openModal('upload', { bucket: storage.bucket, prefix: storage.prefix })}
+    >
+      <IconUpload class="size-3.5" aria-hidden="true" />
+      {m.storage_action_upload()}
+    </button>
+  {/if}
 
-  <!-- More options (pin current location) -->
+  <!-- More options (pin current location) — hidden in archive mode -->
   <div class="dropdown dropdown-end">
     <button
       tabindex="0"
@@ -505,33 +613,37 @@
           {m.storage_tab_new()}
         </button>
       </li>
-      <li role="none">
-        {#if currentIsPinned}
-          {@const PinIcon2 = IconPushPin}
-          <button
-            role="menuitem"
-            class="justify-start text-sm"
-            onclick={() => {
-              storage.bookmarks.unpin(storage.bucket, storage.prefix);
-            }}
-          >
-            <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
-            {m.storage_action_unpin()}
-          </button>
-        {:else}
-          {@const PinIcon2 = IconPushPinOutline}
-          <button
-            role="menuitem"
-            class="justify-start text-sm"
-            onclick={() => {
-              storage.bookmarks.pin(storage.bucket, storage.prefix);
-            }}
-          >
-            <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
-            {m.storage_action_pin()}
-          </button>
-        {/if}
-      </li>
+      {#if !storage.isInArchive}
+        <li role="none">
+          {#if currentIsPinned}
+            {@const PinIcon2 = IconPushPin}
+            <button
+              role="menuitem"
+              class="justify-start text-sm"
+              title={m.storage_action_unpin()}
+              onclick={() => {
+                storage.bookmarks.unpin(storage.bucket, storage.prefix);
+              }}
+            >
+              <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
+              {m.storage_action_unpin()}
+            </button>
+          {:else}
+            {@const PinIcon2 = IconPushPinOutline}
+            <button
+              role="menuitem"
+              class="justify-start text-sm"
+              title={m.storage_action_pin()}
+              onclick={() => {
+                storage.bookmarks.pin(storage.bucket, storage.prefix);
+              }}
+            >
+              <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
+              {m.storage_action_pin()}
+            </button>
+          {/if}
+        </li>
+      {/if}
     </ul>
   </div>
 </div>

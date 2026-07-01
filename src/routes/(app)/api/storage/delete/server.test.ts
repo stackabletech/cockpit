@@ -13,7 +13,7 @@ const CONNECTION_HEADER = {
 };
 
 function mockEvent(searchParams: Record<string, string | string[]>) {
-  const url = new URL('http://localhost/storage/api/delete');
+  const url = new URL('http://localhost/api/storage/delete');
   for (const [k, v] of Object.entries(searchParams)) {
     if (Array.isArray(v)) {
       v.forEach((val) => url.searchParams.append(k, val));
@@ -32,7 +32,7 @@ function mockEvent(searchParams: Record<string, string | string[]>) {
   } as unknown as Parameters<typeof DELETE>[0];
 }
 
-describe('DELETE /storage/api/delete', () => {
+describe('DELETE /api/storage/delete', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('throws 400 when bucket is missing', async () => {

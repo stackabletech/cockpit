@@ -12,7 +12,7 @@ const CONNECTION_HEADER = {
 };
 
 function mockEvent(params: string) {
-  const url = new URL(`http://localhost/storage/api/download?${params}`);
+  const url = new URL(`http://localhost/api/storage/download?${params}`);
   return {
     url,
     request: { headers: new Headers(CONNECTION_HEADER) },
@@ -24,7 +24,7 @@ function mockEvent(params: string) {
   } as unknown as Parameters<typeof GET>[0];
 }
 
-describe('GET /storage/api/download', () => {
+describe('GET /api/storage/download', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('streams download with correct headers', async () => {
@@ -59,7 +59,7 @@ describe('GET /storage/api/download', () => {
   });
 });
 
-describe('HEAD /storage/api/download', () => {
+describe('HEAD /api/storage/download', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns 200 with metadata headers', async () => {

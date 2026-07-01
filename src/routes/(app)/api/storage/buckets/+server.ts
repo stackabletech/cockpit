@@ -2,7 +2,7 @@ import { getConnectionProvider } from '$lib/server/storage/utils.js';
 import type { RequestHandler } from './$types';
 
 /**
- * GET /storage/api/buckets
+ * GET /api/storage/buckets
  *
  * Returns the list of buckets accessible with the connection config supplied in
  * the `X-Storage-Connection` request header (base64-encoded JSON).

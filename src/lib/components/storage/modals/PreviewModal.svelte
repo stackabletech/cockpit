@@ -32,6 +32,9 @@
     open?: boolean;
     bucket?: string;
     objectKey?: string | null;
+    archiveKey?: string;
+    archivePath?: string;
+    nestedArchivePath?: string;
   }
 
   interface ColumnStats {
@@ -89,7 +92,14 @@
     | { kind: 'fallback'; contentType: string; isBinary: boolean }
     | { kind: 'error'; message: string };
 
-  let { open = $bindable(false), bucket = '', objectKey = null }: Props = $props();
+  let {
+    open = $bindable(false),
+    bucket = '',
+    objectKey = null,
+    archiveKey = '',
+    archivePath = '',
+    nestedArchivePath = ''
+  }: Props = $props();
 
   let preview: PreviewKind = $state({ kind: 'idle' });
   let blobUrls: string[] = [];
@@ -172,8 +182,21 @@
       : {};
 
     try {
-      const params = new URLSearchParams({ bucket: activeBucket, key });
-      const res = await fetch(`/api/storage/preview?${params}`, { headers });
+      let res: Response;
+      if (archiveKey && archivePath) {
+        const params = new SvelteURLSearchParams({
+          bucket: activeBucket,
+          key: archiveKey,
+          path: archivePath
+        });
+        if (nestedArchivePath) {
+          params.set('nestedArchivePath', nestedArchivePath);
+        }
+        res = await fetch(`/api/storage/archive/extract?${params}`, { headers });
+      } else {
+        const params = new URLSearchParams({ bucket: activeBucket, key });
+        res = await fetch(`/api/storage/preview?${params}`, { headers });
+      }
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
@@ -190,46 +213,15 @@
       const contentType = (res.headers.get('Content-Type') ?? 'application/octet-stream')
         .split(';')[0]
         .trim();
-      const format = res.headers.get('X-Preview-Format');
+      const totalSize = parseInt(
+        res.headers.get('X-Preview-Total-Size') ?? res.headers.get('Content-Length') ?? '0',
+        10
+      );
+      const previewBytes = parseInt(
+        res.headers.get('X-Preview-Bytes') ?? res.headers.get('Content-Length') ?? '0',
+        10
+      );
       const truncated = res.headers.get('X-Preview-Truncated') === 'true';
-      const totalSize = Number(res.headers.get('X-Preview-Total-Size') ?? '0');
-      const previewBytes = Number(res.headers.get('X-Preview-Bytes') ?? '0');
-
-      // Parquet takes priority — parse header for metadata (always), load data on-demand
-      if (format === 'parquet') {
-        try {
-          const dataBlocked = res.headers.get('X-Preview-Data-Blocked') === 'true';
-          await parseParquetStream(
-            res,
-            (headers, totalRows, columnTypes, metadata) => {
-              preview = {
-                kind: 'parquet',
-                headers,
-                columnTypes,
-                metadata,
-                rows: [],
-                dataBlocked,
-                truncated,
-                totalSize,
-                totalRows
-              };
-            },
-            () => {
-              // Ignore any column data in the initial load (metadata-only request)
-            }
-          );
-        } catch {
-          preview = { kind: 'error', message: m.storage_preview_error_desc() };
-        }
-        return;
-      }
-
-      if (res.headers.get('X-Preview-Renderable') === 'false') {
-        await res.body?.cancel();
-        preview = { kind: 'fallback', contentType, isBinary: false };
-        return;
-      }
-
       if (contentType.startsWith('image/')) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -246,6 +238,59 @@
         return;
       }
 
+      if (res.headers.get('X-Preview-Format') === 'parquet') {
+        const dataBlocked = res.headers.get('X-Preview-Data-Blocked') === 'true';
+        let parquetHeaders: string[] = [];
+        let parquetColumnTypes: ColumnTypeInfo[] = [];
+        let parquetMeta: ParquetFileMeta = {
+          rowGroups: 0,
+          compressionCodecs: [],
+          compressionUniform: true,
+          hasOffsetIndex: false,
+          hasColumnIndex: false,
+          createdBy: null,
+          version: 0,
+          arrowSchema: null
+        };
+        const parquetRows: unknown[][] = [];
+        const columnPos: Record<string, number> = {};
+        let parquetTotalRows = 0;
+        await parseParquetStream(
+          res,
+          (headers, totalRows, columnTypes, meta) => {
+            parquetHeaders = headers;
+            parquetTotalRows = totalRows;
+            parquetColumnTypes = columnTypes;
+            parquetMeta = meta;
+          },
+          (name, values) => {
+            const colIdx = parquetHeaders.indexOf(name);
+            if (colIdx < 0) return;
+            let pos = columnPos[name] ?? 0;
+            for (let i = 0; i < values.length; i++) {
+              while (parquetRows.length <= pos) {
+                parquetRows.push(new Array(parquetHeaders.length).fill(undefined));
+              }
+              parquetRows[pos][colIdx] = values[i];
+              pos++;
+            }
+            columnPos[name] = pos;
+          }
+        );
+        preview = {
+          kind: 'parquet',
+          headers: parquetHeaders,
+          columnTypes: parquetColumnTypes,
+          metadata: parquetMeta,
+          rows: parquetRows,
+          dataBlocked,
+          truncated: parquetRows.length < parquetTotalRows,
+          totalSize,
+          totalRows: parquetTotalRows
+        };
+        return;
+      }
+
       const text = await readTextSafely(res, key);
       if (text === null) {
         preview = { kind: 'fallback', contentType, isBinary: true };
@@ -256,7 +301,9 @@
         contentType === 'text/csv' ||
         contentType === 'application/csv' ||
         contentType === 'application/vnd.ms-excel' ||
-        key.toLowerCase().endsWith('.csv')
+        contentType === 'text/tab-separated-values' ||
+        key.toLowerCase().endsWith('.csv') ||
+        key.toLowerCase().endsWith('.tsv')
       ) {
         preview = { kind: 'csv', text, truncated, totalSize, previewBytes };
         return;
@@ -353,7 +400,7 @@
   /** Read an NDJSON streaming response and progressively fill column data. */
   async function readNdjsonStream(
     res: Response,
-    onColumn?: (name: string, values: unknown[]) => void
+    onColumn: ((name: string, values: unknown[]) => void) | undefined
   ): Promise<{ headers: string[]; rows: unknown[][]; totalRows: number }> {
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
@@ -527,7 +574,7 @@
   async function fetchParquetRows(
     offset: number,
     limit: number,
-    onColumn?: (name: string, values: unknown[]) => void
+    onColumn: ((name: string, values: unknown[]) => void) | undefined
   ): Promise<unknown[][]> {
     if (!objectKey) return [];
 
@@ -798,12 +845,12 @@
             <IconDownload class="size-4" aria-hidden="true" />
             {m.storage_preview_download_full()}
           </button>
-        {:else if (preview.kind === 'text' || preview.kind === 'csv') && preview.truncated}
+        {:else if !archiveKey && (preview.kind === 'text' || preview.kind === 'csv') && preview.truncated}
           <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
             <IconDownload class="size-4" aria-hidden="true" />
             {m.storage_preview_download_full()}
           </button>
-        {:else if preview.kind === 'image' || preview.kind === 'pdf'}
+        {:else if !archiveKey && (preview.kind === 'image' || preview.kind === 'pdf')}
           <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
             <IconDownload class="size-4" aria-hidden="true" />
             {m.storage_preview_download_full()}

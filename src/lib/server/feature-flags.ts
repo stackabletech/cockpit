@@ -46,6 +46,15 @@ export const pdfPreviewBytes =
  *  and the size of the payload sent to the browser. */
 export const filePreviewRows = parseInt(env.STACKABLE_COCKPIT_FILE_PREVIEW_ROWS ?? '', 10) || 250;
 
+/** Maximum compressed size of an archive that will be opened for in-browser
+ *  preview. Archives larger than this threshold will not be downloaded at all
+ *  and a "too large" fallback is shown instead. During listing the total
+ *  decompressed entry size is also checked against this limit.
+ *  Controlled by `STACKABLE_COCKPIT_ARCHIVE_PREVIEW_MAX_MB`. Default: 100 MB. */
+export const archivePreviewMaxBytes =
+  parseInt(env.STACKABLE_COCKPIT_ARCHIVE_PREVIEW_MAX_MB ?? '', 10) * 1024 * 1024 ||
+  100 * 1024 * 1024;
+
 // ── Parquet preview restrictions ───────────────────────────────────────────
 
 export interface ParquetDisallowedCompression {
