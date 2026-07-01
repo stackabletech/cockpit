@@ -14,7 +14,10 @@ describe('createS3Client', () => {
   it('creates client with region only (no endpoint, no credentials)', () => {
     const config: S3ConnectionConfig = { type: 's3', region: 'us-east-1' };
     createS3Client(config);
-    expect(mockS3Client).toHaveBeenCalledWith({ region: 'us-east-1' });
+    expect(mockS3Client).toHaveBeenCalledWith({
+      region: 'us-east-1',
+      requestChecksumCalculation: 'WHEN_REQUIRED'
+    });
   });
 
   it('sets endpoint and forcePathStyle when endpoint provided', () => {
@@ -22,7 +25,11 @@ describe('createS3Client', () => {
     const config: S3ConnectionConfig = { type: 's3', region: 'eu-west-1', endpoint };
     createS3Client(config);
     expect(mockS3Client).toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint, forcePathStyle: true })
+      expect.objectContaining({
+        endpoint,
+        forcePathStyle: true,
+        requestChecksumCalculation: 'WHEN_REQUIRED'
+      })
     );
   });
 
@@ -36,7 +43,11 @@ describe('createS3Client', () => {
     };
     createS3Client(config);
     expect(mockS3Client).toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint, forcePathStyle: false })
+      expect.objectContaining({
+        endpoint,
+        forcePathStyle: false,
+        requestChecksumCalculation: 'WHEN_REQUIRED'
+      })
     );
   });
 
@@ -50,7 +61,8 @@ describe('createS3Client', () => {
     createS3Client(config);
     expect(mockS3Client).toHaveBeenCalledWith(
       expect.objectContaining({
-        credentials: { accessKeyId: 'AKID', secretAccessKey: 'SECRET' }
+        credentials: { accessKeyId: 'AKID', secretAccessKey: 'SECRET' },
+        requestChecksumCalculation: 'WHEN_REQUIRED'
       })
     );
   });
