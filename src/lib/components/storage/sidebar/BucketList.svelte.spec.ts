@@ -6,16 +6,16 @@ import { userEvent } from 'vitest/browser';
 import BucketListWrapper from './__tests__/BucketListWrapper.svelte';
 import { setPageState, resetPageState } from './__tests__/page-helper.svelte.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
-import type { PinnedLocation } from '$lib/storage/types.js';
+import type { StorageLocation } from '$lib/storage/types.js';
 
 function createState(
   opts: {
     buckets?: string[];
-    pinned?: PinnedLocation[];
+    pinned?: StorageLocation[];
   } = {}
 ): StorageState {
   const buckets = opts.buckets ?? [];
-  const state = new StorageState({ connected: true, buckets });
+  const state = new StorageState({ connected: true, buckets, connectionId: 'test-conn-id' });
   state.bucket = buckets[0] ?? '';
   state.prefix = '';
   if (opts.pinned) {

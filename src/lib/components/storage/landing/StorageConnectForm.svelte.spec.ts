@@ -4,8 +4,25 @@ import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import type { ComponentProps } from 'svelte';
 import StorageConnectForm from './StorageConnectForm.svelte';
+import type { SavedConnection } from '$lib/storage/connection-storage.js';
 
 type ConnectionFormProp = ComponentProps<typeof StorageConnectForm>['connectionForm'];
+
+/** Build a minimal StoredConnection fixture with a stable UUID. */
+function makeConn(
+  overrides: Partial<Omit<SavedConnection, 'id'>> & { id?: string } = {}
+): SavedConnection {
+  return {
+    id: overrides.id ?? '00000000-0000-0000-0000-000000000001',
+    type: 's3',
+    endpoint: '',
+    pathStyle: true,
+    region: 'eu-central-1',
+    accessKeyId: '',
+    secretAccessKey: '',
+    ...overrides
+  };
+}
 
 // Mock feature flags to disable auto-connect
 vi.mock('$lib/client/feature-flags.js', () => ({
@@ -17,7 +34,10 @@ vi.mock('$lib/storage/connection-storage.js', () => ({
   saveConnectionLocally: vi.fn(),
   loadConnectionLocally: vi.fn(() => null),
   loadAllConnectionsLocally: vi.fn(() => []),
-  removeConnectionLocally: vi.fn()
+  removeConnectionLocally: vi.fn(),
+  updateConnectionLocally: vi.fn(),
+  removeConnectionById: vi.fn(),
+  loadConnectionById: vi.fn(() => null)
 }));
 
 // Mock paraglide messages
@@ -43,7 +63,8 @@ vi.mock('$lib/paraglide/messages.js', () => ({
   storage_connect_forget_confirm: ({ endpoint }: { endpoint: string }) =>
     `Forget connection to ${endpoint}?`,
   storage_connect_forget_cancel: () => 'Cancel',
-  storage_connect_forget: () => 'Forget'
+  storage_connect_forget: () => 'Forget',
+  storage_connect_manage: () => 'Manage connections'
 }));
 
 function createMockForm(overrides: Record<string, unknown> = {}): ConnectionFormProp {
@@ -52,6 +73,7 @@ function createMockForm(overrides: Record<string, unknown> = {}): ConnectionForm
     posted: false,
     errors: {},
     data: {
+      id: '00000000-0000-0000-0000-000000000001',
       type: 's3' as const,
       endpoint: '',
       pathStyle: true,
@@ -136,14 +158,12 @@ describe('StorageConnectForm', () => {
   it('should show saved connections when present', async () => {
     const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      {
-        type: 's3',
+      makeConn({
         endpoint: 'https://minio.example.com',
-        pathStyle: true,
         region: 'us-east-1',
         accessKeyId: 'AKIA123',
         secretAccessKey: 'secret'
-      }
+      })
     ]);
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
@@ -154,14 +174,11 @@ describe('StorageConnectForm', () => {
   it('should show forget button for saved connections', async () => {
     const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      {
-        type: 's3',
+      makeConn({
+        id: '00000000-0000-0000-0000-000000000011',
         endpoint: 'https://s3.test.io',
-        pathStyle: true,
-        region: 'eu-west-1',
-        accessKeyId: '',
-        secretAccessKey: ''
-      }
+        region: 'eu-west-1'
+      })
     ]);
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
@@ -174,14 +191,11 @@ describe('StorageConnectForm', () => {
   it('should open forget confirmation dialog when forget button clicked', async () => {
     const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      {
-        type: 's3',
+      makeConn({
+        id: '00000000-0000-0000-0000-000000000012',
         endpoint: 'https://s3.remove.io',
-        pathStyle: true,
-        region: 'eu-west-1',
-        accessKeyId: '',
-        secretAccessKey: ''
-      }
+        region: 'eu-west-1'
+      })
     ]);
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
@@ -199,30 +213,25 @@ describe('StorageConnectForm', () => {
   it('should show multiple saved connections', async () => {
     const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      {
-        type: 's3',
+      makeConn({
+        id: '00000000-0000-0000-0000-000000000013',
         endpoint: 'https://first.example.com',
-        pathStyle: true,
-        region: 'us-east-1',
-        accessKeyId: '',
-        secretAccessKey: ''
-      },
-      {
-        type: 's3',
+        region: 'us-east-1'
+      }),
+      makeConn({
+        id: '00000000-0000-0000-0000-000000000014',
         endpoint: 'https://second.example.com',
         pathStyle: false,
         region: 'eu-west-1',
         accessKeyId: faker.string.alphanumeric(20),
         secretAccessKey: faker.string.alphanumeric(40)
-      },
-      {
-        type: 's3',
+      }),
+      makeConn({
+        id: '00000000-0000-0000-0000-000000000015',
         endpoint: '',
         pathStyle: false,
-        region: 'us-west-2',
-        accessKeyId: '',
-        secretAccessKey: ''
-      }
+        region: 'us-west-2'
+      })
     ]);
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
@@ -235,14 +244,11 @@ describe('StorageConnectForm', () => {
   it('should render saved connections in a list role', async () => {
     const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      {
-        type: 's3',
+      makeConn({
+        id: '00000000-0000-0000-0000-000000000016',
         endpoint: 'https://listed.example.com',
-        pathStyle: true,
-        region: 'us-east-1',
-        accessKeyId: '',
-        secretAccessKey: ''
-      }
+        region: 'us-east-1'
+      })
     ]);
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
@@ -267,14 +273,11 @@ describe('StorageConnectForm', () => {
   it('should close forget dialog when cancel is clicked', async () => {
     const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      {
-        type: 's3',
+      makeConn({
+        id: '00000000-0000-0000-0000-000000000017',
         endpoint: 'https://s3.cancel.io',
-        pathStyle: true,
-        region: 'eu-west-1',
-        accessKeyId: '',
-        secretAccessKey: ''
-      }
+        region: 'eu-west-1'
+      })
     ]);
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
@@ -291,14 +294,11 @@ describe('StorageConnectForm', () => {
   it('should remove connection when forget is confirmed', async () => {
     const { loadAllConnectionsLocally, removeConnectionLocally } =
       await import('$lib/storage/connection-storage.js');
-    const conn = {
-      type: 's3' as const,
+    const conn = makeConn({
+      id: '00000000-0000-0000-0000-000000000018',
       endpoint: 'https://s3.forget.io',
-      pathStyle: true,
-      region: 'eu-west-1',
-      accessKeyId: '',
-      secretAccessKey: ''
-    };
+      region: 'eu-west-1'
+    });
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([conn]);
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
@@ -315,14 +315,11 @@ describe('StorageConnectForm', () => {
   it('should show connection label with invalid URL as raw endpoint', async () => {
     const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      {
-        type: 's3',
+      makeConn({
+        id: '00000000-0000-0000-0000-000000000019',
         endpoint: 'not-a-valid-url',
-        pathStyle: true,
-        region: 'us-east-1',
-        accessKeyId: '',
-        secretAccessKey: ''
-      }
+        region: 'us-east-1'
+      })
     ]);
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
@@ -333,14 +330,12 @@ describe('StorageConnectForm', () => {
   it('should show AWS S3 label when endpoint is undefined', async () => {
     const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      {
-        type: 's3',
+      makeConn({
+        id: '00000000-0000-0000-0000-000000000020',
         endpoint: undefined,
         pathStyle: false,
-        region: 'us-west-2',
-        accessKeyId: '',
-        secretAccessKey: ''
-      }
+        region: 'us-west-2'
+      })
     ]);
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
@@ -418,14 +413,14 @@ describe('StorageConnectForm', () => {
   it('should fill form fields when a saved connection is clicked', async () => {
     const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      {
-        type: 's3',
+      makeConn({
+        id: '00000000-0000-0000-0000-000000000021',
         endpoint: 'https://s3.select.io',
         pathStyle: false,
         region: 'ap-southeast-1',
         accessKeyId: 'AKIASELECT',
         secretAccessKey: 'secretselect'
-      }
+      })
     ]);
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
@@ -443,14 +438,11 @@ describe('StorageConnectForm', () => {
   it('should show saved connections heading when connections exist', async () => {
     const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      {
-        type: 's3',
+      makeConn({
+        id: '00000000-0000-0000-0000-000000000022',
         endpoint: 'https://heading.example.com',
-        pathStyle: true,
-        region: 'us-east-1',
-        accessKeyId: '',
-        secretAccessKey: ''
-      }
+        region: 'us-east-1'
+      })
     ]);
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
@@ -481,14 +473,11 @@ describe('StorageConnectForm', () => {
   it('should close forget dialog via backdrop button', async () => {
     const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      {
-        type: 's3',
+      makeConn({
+        id: '00000000-0000-0000-0000-000000000023',
         endpoint: 'https://s3.backdrop.io',
-        pathStyle: true,
-        region: 'eu-west-1',
-        accessKeyId: '',
-        secretAccessKey: ''
-      }
+        region: 'eu-west-1'
+      })
     ]);
 
     render(StorageConnectForm, { connectionForm: createMockForm() });

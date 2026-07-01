@@ -11,12 +11,11 @@
     saveConnectionLocally,
     loadConnectionLocally,
     loadAllConnectionsLocally,
-    removeConnectionLocally
+    removeConnectionLocally,
+    type SavedConnection
   } from '$lib/storage/connection-storage.js';
   import { storageAutoConnectEnabled } from '$lib/client/feature-flags.js';
   import type { z } from 'zod';
-
-  type StoredConnection = z.infer<typeof StorageConnectionSchema>;
 
   interface Props {
     connectionForm: SuperValidated<z.infer<typeof StorageConnectionSchema>, string>;
@@ -28,11 +27,11 @@
 
   let formRef: HTMLFormElement | null = $state(null);
   let autoConnecting = $state(false);
-  let allConnections: StoredConnection[] = $state([]);
+  let allConnections: SavedConnection[] = $state([]);
   let connectionsLoaded = $state(false);
 
   /** Connection pending the "Forget" confirmation. */
-  let forgetCandidate: StoredConnection | null = $state(null);
+  let forgetCandidate: SavedConnection | null = $state(null);
 
   const { form, errors, enhance, submitting, message } = superForm(
     untrack(() => connectionForm),
@@ -40,7 +39,7 @@
       validators: zod(StorageConnectionSchema),
       onResult: ({ result }) => {
         if (result.type === 'redirect') {
-          saveConnectionLocally($form);
+          saveConnectionLocally({ ...$form, id: $form.id || crypto.randomUUID() });
         } else {
           autoConnecting = false;
         }
@@ -48,8 +47,9 @@
     }
   );
 
-  /** Display label for a saved connection (hostname or "AWS S3"). */
-  function connectionLabel(conn: StoredConnection): string {
+  /** Display label for a saved connection: name, then hostname, then "AWS S3". */
+  function connectionLabel(conn: SavedConnection): string {
+    if (conn.name) return conn.name;
     if (conn.endpoint) {
       try {
         return new URL(conn.endpoint).hostname;
@@ -61,7 +61,9 @@
   }
 
   /** Fill the form with a saved connection and immediately submit. */
-  function selectConnection(conn: StoredConnection) {
+  function selectConnection(conn: SavedConnection) {
+    $form.id = conn.id;
+    $form.name = conn.name ?? '';
     $form.type = conn.type;
     $form.endpoint = conn.endpoint ?? '';
     $form.pathStyle = conn.pathStyle ?? true;
@@ -72,7 +74,7 @@
   }
 
   /** Forget a connection from local storage and refresh the list. */
-  function forgetConnection(conn: StoredConnection) {
+  function forgetConnection(conn: SavedConnection) {
     removeConnectionLocally(conn);
     allConnections = loadAllConnectionsLocally();
     forgetCandidate = null;
@@ -86,6 +88,7 @@
     const saved = loadConnectionLocally();
     if (saved) {
       autoConnecting = true;
+      $form.id = saved.id;
       $form.type = saved.type;
       $form.endpoint = saved.endpoint ?? '';
       $form.pathStyle = saved.pathStyle ?? true;
@@ -110,7 +113,7 @@
     <p class="text-base-content/60 mb-6 text-sm">{m.storage_connect_subtitle()}</p>
 
     <div
-      class="mb-6 h-24 {connectionsLoaded && allConnections.length === 0
+      class="mb-2 h-24 {connectionsLoaded && allConnections.length === 0
         ? 'bg-base-200 flex items-center justify-center rounded-xl'
         : ''}"
     >
@@ -127,7 +130,7 @@
           role="list"
           aria-label={m.storage_connect_saved()}
         >
-          {#each allConnections as conn (conn.type + '|' + (conn.endpoint ?? '') + '|' + (conn.accessKeyId ?? ''))}
+          {#each allConnections as conn (conn.id)}
             <div class="relative shrink-0" role="listitem">
               <button
                 type="button"
@@ -164,6 +167,13 @@
         <p class="text-base-content/50 text-sm">{m.storage_connect_no_saved()}</p>
       {/if}
     </div>
+    {#if connectionsLoaded && allConnections.length > 0}
+      <div class="mb-6 text-right">
+        <a href="/storage/connections" class="link link-primary text-xs">
+          {m.storage_connect_manage()}
+        </a>
+      </div>
+    {/if}
   </div>
 
   <form

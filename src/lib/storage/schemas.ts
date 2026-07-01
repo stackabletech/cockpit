@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const StorageConnectionSchema = z
   .object({
+    id: z.string().uuid().optional(),
+    name: z.string().optional(),
     type: z.enum(['s3', 'hdfs']).default('s3'),
     endpoint: z.url({ message: 'Must be a valid URL' }).or(z.literal('')).optional(),
     pathStyle: z.boolean().default(true),

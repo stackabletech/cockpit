@@ -96,8 +96,12 @@ test.describe('Storage S3 — Context Menu', () => {
 
   test('Copy filename copies the bare file name to the clipboard', async ({
     page,
-    context
+    context,
+    browserName
   }, testInfo) => {
+    // Firefox does not support clipboard-read in grantPermissions.
+    test.skip(browserName === 'firefox', 'Firefox does not support clipboard-read permission');
+
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'ctx-copy-name');
@@ -128,8 +132,12 @@ test.describe('Storage S3 — Context Menu', () => {
 
   test('Copy path copies the full s3:// URI to the clipboard', async ({
     page,
-    context
+    context,
+    browserName
   }, testInfo) => {
+    // Firefox does not support clipboard-read in grantPermissions.
+    test.skip(browserName === 'firefox', 'Firefox does not support clipboard-read permission');
+
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'ctx-copy-path');
