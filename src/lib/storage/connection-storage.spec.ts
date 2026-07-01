@@ -33,15 +33,18 @@ if (!globalThis.crypto) {
   vi.stubGlobal('crypto', webcrypto);
 }
 
-function makeConn(overrides: Partial<StoredConnection> = {}): SavedConnection {
+function makeConn(
+  overrides: Partial<Omit<SavedConnection, 'id'>> & { id?: string } = {}
+): SavedConnection {
   return {
     id: overrides.id ?? crypto.randomUUID(),
     type: 's3',
-    endpoint: 'https://s3.example.com',
-    pathStyle: true,
-    region: 'eu-central-1',
-    accessKeyId: 'AKIA123',
-    secretAccessKey: 'secret',
+    host: 'minio.example.com',
+    port: 9000,
+    tls: { verification: 'Full' },
+    accessStyle: 'Path',
+    region: { name: 'us-east-1' },
+    credentials: { accessKey: 'AKIA123', secretKey: 'secret' },
     ...overrides
   } as SavedConnection;
 }
@@ -53,11 +56,11 @@ describe('connection-storage', () => {
 
   describe('saveConnectionLocally', () => {
     it('stores a connection and assigns the given id', () => {
-      const conn = makeConn({ id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' });
+      const conn = makeConn({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
       saveConnectionLocally(conn);
       const stored = loadAllConnectionsLocally();
       expect(stored).toHaveLength(1);
-      expect(stored[0].id).toBe('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+      expect(stored[0].id).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
     });
 
     it('generates a uuid when id is not set', () => {
@@ -74,64 +77,77 @@ describe('connection-storage', () => {
     });
 
     it('appends to the end (most recently used)', () => {
-      const a = makeConn({ id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' });
-      const b = makeConn({ id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' });
+      const a = makeConn({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
+      const b = makeConn({ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' });
       saveConnectionLocally(a);
       saveConnectionLocally(b);
       const stored = loadAllConnectionsLocally();
-      expect(stored[stored.length - 1].id).toBe('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+      expect(stored[stored.length - 1].id).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
     });
 
     it('replaces an existing connection with the same id and moves it to end', () => {
-      const conn = makeConn({ id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', region: 'us-east-1' });
+      const conn = makeConn({
+        id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        region: { name: 'us-east-1' }
+      });
       saveConnectionLocally(conn);
       const updated = makeConn({
-        id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-        region: 'eu-west-1'
+        id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        region: { name: 'eu-west-1' }
       });
       saveConnectionLocally(updated);
       const stored = loadAllConnectionsLocally();
       expect(stored).toHaveLength(1);
-      expect(stored[0].region).toBe('eu-west-1');
+      expect(stored[0].region.name).toBe('eu-west-1');
     });
   });
 
   describe('updateConnectionLocally', () => {
     it('updates an existing connection in-place by id', () => {
-      const a = makeConn({ id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', region: 'us-east-1' });
-      const b = makeConn({ id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', region: 'eu-west-1' });
+      const a = makeConn({
+        id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        region: { name: 'us-east-1' }
+      });
+      const b = makeConn({
+        id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        region: { name: 'eu-west-1' }
+      });
       saveConnectionLocally(a);
       saveConnectionLocally(b);
 
-      updateConnectionLocally('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', { region: 'ap-south-1' });
+      updateConnectionLocally('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', {
+        region: { name: 'ap-south-1' }
+      });
 
       const stored = loadAllConnectionsLocally();
       expect(stored).toHaveLength(2);
       // Preserved position (first)
-      expect(stored[0].id).toBe('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
-      expect(stored[0].region).toBe('ap-south-1');
+      expect(stored[0].id).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+      expect(stored[0].region.name).toBe('ap-south-1');
       // Second connection unchanged
-      expect(stored[1].id).toBe('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
-      expect(stored[1].region).toBe('eu-west-1');
+      expect(stored[1].id).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+      expect(stored[1].region.name).toBe('eu-west-1');
     });
 
     it('is a no-op when the id does not exist', () => {
-      const a = makeConn({ id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' });
+      const a = makeConn({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
       saveConnectionLocally(a);
 
-      updateConnectionLocally('00000000-0000-0000-0000-000000000000', { region: 'us-west-2' });
+      updateConnectionLocally('00000000-0000-0000-0000-000000000000', {
+        region: { name: 'us-west-2' }
+      });
 
       const stored = loadAllConnectionsLocally();
       expect(stored).toHaveLength(1);
-      expect(stored[0].region).toBe(a.region);
+      expect(stored[0].region.name).toBe(a.region.name);
     });
 
     it('preserves the id even when data omits it', () => {
-      const conn = makeConn({ id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' });
+      const conn = makeConn({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
       saveConnectionLocally(conn);
-      updateConnectionLocally('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', { name: 'Prod' });
+      updateConnectionLocally('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', { name: 'Prod' });
       const stored = loadAllConnectionsLocally();
-      expect(stored[0].id).toBe('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+      expect(stored[0].id).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
       expect(stored[0].name).toBe('Prod');
     });
   });
@@ -142,19 +158,20 @@ describe('connection-storage', () => {
     });
 
     it('returns the last (most recently used) connection', () => {
-      const a = makeConn({ id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' });
-      const b = makeConn({ id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' });
+      const a = makeConn({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
+      const b = makeConn({ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' });
       saveConnectionLocally(a);
       saveConnectionLocally(b);
       const loaded = loadConnectionLocally();
-      expect(loaded?.id).toBe('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+      expect(loaded?.id).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
     });
   });
 
   describe('loadAllConnectionsLocally', () => {
-    it('silently drops entries without an id field', () => {
-      // Write raw data including a legacy entry without id
+    it('silently drops entries that fail schema validation (clean break)', () => {
+      // Write raw data including a legacy entry with old schema fields
       const legacy = {
+        id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
         type: 's3',
         endpoint: 'https://old.example.com',
         pathStyle: true,
@@ -162,12 +179,12 @@ describe('connection-storage', () => {
         accessKeyId: '',
         secretAccessKey: ''
       };
-      const valid = makeConn({ id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' });
+      const valid = makeConn({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
       localStorage.setItem(STORAGE_KEY, JSON.stringify([legacy, valid]));
 
       const stored = loadAllConnectionsLocally();
       expect(stored).toHaveLength(1);
-      expect(stored[0].id).toBe('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+      expect(stored[0].id).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
     });
 
     it('returns an empty array when localStorage is empty', () => {
@@ -177,8 +194,8 @@ describe('connection-storage', () => {
 
   describe('removeConnectionLocally', () => {
     it('removes a connection matched by id', () => {
-      const a = makeConn({ id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' });
-      const b = makeConn({ id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' });
+      const a = makeConn({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
+      const b = makeConn({ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' });
       saveConnectionLocally(a);
       saveConnectionLocally(b);
 
@@ -186,35 +203,35 @@ describe('connection-storage', () => {
 
       const stored = loadAllConnectionsLocally();
       expect(stored).toHaveLength(1);
-      expect(stored[0].id).toBe('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+      expect(stored[0].id).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
     });
   });
 
   describe('removeConnectionById', () => {
     it('removes a connection by id string', () => {
-      const a = makeConn({ id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' });
-      const b = makeConn({ id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' });
+      const a = makeConn({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
+      const b = makeConn({ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' });
       saveConnectionLocally(a);
       saveConnectionLocally(b);
 
-      removeConnectionById('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+      removeConnectionById('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
 
       const stored = loadAllConnectionsLocally();
       expect(stored).toHaveLength(1);
-      expect(stored[0].id).toBe('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+      expect(stored[0].id).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
     });
   });
 
   describe('loadConnectionById', () => {
     it('returns the connection with the given id', () => {
-      const a = makeConn({ id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' });
+      const a = makeConn({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
       saveConnectionLocally(a);
-      const found = loadConnectionById('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
-      expect(found?.id).toBe('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+      const found = loadConnectionById('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+      expect(found?.id).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
     });
 
     it('returns null when the id does not exist', () => {
-      expect(loadConnectionById('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')).toBeNull();
+      expect(loadConnectionById('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')).toBeNull();
     });
   });
 });

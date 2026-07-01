@@ -44,14 +44,16 @@ test.describe('Storage S3 (Garage)', () => {
 
     await openConnectForm(page);
 
-    // Fill in the connection form
-    await page.getByLabel('Endpoint URL').fill(endpoint);
+    // Fill in the connection form — parse URL into host/port
+    const url = new URL(endpoint);
+    await page.getByLabel('Host').fill(url.hostname);
+    if (url.port) await page.getByLabel('Port').fill(url.port);
+    const tlsToggle = page.getByLabel('Use TLS');
+    if (url.protocol !== 'https:' && (await tlsToggle.isChecked())) await tlsToggle.uncheck();
+    await page.getByLabel('Access style').selectOption('Path');
     await page.getByLabel('Region').fill(region);
-    await page.getByLabel('Access key ID').fill(accessKeyId);
-    await page.getByLabel('Secret access key').fill(secretAccessKey);
-
-    // Path-style addressing is on by default (required for Garage) — verify it is checked
-    await expect(page.getByLabel('Use path-style addressing')).toBeChecked();
+    await page.getByLabel('Access key').fill(accessKeyId);
+    await page.getByLabel('Secret key').fill(secretAccessKey);
 
     await page.getByRole('button', { name: 'Connect' }).click();
 
@@ -77,10 +79,15 @@ test.describe('Storage S3 (Garage)', () => {
 
     // First connect
     await openConnectForm(page);
-    await page.getByLabel('Endpoint URL').fill(endpoint);
+    const url2 = new URL(endpoint);
+    await page.getByLabel('Host').fill(url2.hostname);
+    if (url2.port) await page.getByLabel('Port').fill(url2.port);
+    const tlsToggle2 = page.getByLabel('Use TLS');
+    if (url2.protocol !== 'https:' && (await tlsToggle2.isChecked())) await tlsToggle2.uncheck();
+    await page.getByLabel('Access style').selectOption('Path');
     await page.getByLabel('Region').fill(region);
-    await page.getByLabel('Access key ID').fill(accessKeyId);
-    await page.getByLabel('Secret access key').fill(secretAccessKey);
+    await page.getByLabel('Access key').fill(accessKeyId);
+    await page.getByLabel('Secret key').fill(secretAccessKey);
     await page.getByRole('button', { name: 'Connect' }).click();
     await expect(page.locator('main').getByRole('heading', { name: 'Buckets' })).toBeVisible();
 

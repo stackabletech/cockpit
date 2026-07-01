@@ -66,9 +66,9 @@ test.describe('Storage — Connections management', () => {
     await page.getByRole('link', { name: /edit/i }).first().click();
     await waitForHydration(page);
 
-    await expect(page.getByLabel('Endpoint URL')).toHaveValue(credentials.endpoint);
+    await expect(page.getByLabel('Host')).toHaveValue(new URL(credentials.endpoint).hostname);
     await expect(page.getByLabel('Region')).toHaveValue(credentials.region);
-    await expect(page.getByLabel('Access key ID')).toHaveValue(credentials.accessKeyId);
+    await expect(page.getByLabel('Access key')).toHaveValue(credentials.accessKeyId);
   });
 
   test('edit page shows success message after saving valid credentials', async ({ page }) => {
@@ -94,7 +94,7 @@ test.describe('Storage — Connections management', () => {
     await page.getByRole('link', { name: /edit/i }).first().click();
     await waitForHydration(page);
 
-    await page.getByLabel('Secret access key').fill('wrong-secret');
+    await page.getByLabel('Secret key').fill('wrong-secret');
     await page.getByRole('button', { name: 'Save changes' }).click();
 
     await expect(

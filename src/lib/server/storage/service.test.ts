@@ -49,7 +49,9 @@ import type { S3ConnectionConfig } from './types.js';
 
 const config: S3ConnectionConfig = {
   type: 's3',
-  region: faker.location.countryCode()
+  host: 'minio.example.com',
+  accessStyle: 'Path',
+  region: { name: faker.location.countryCode() }
 };
 
 describe('storage service', () => {

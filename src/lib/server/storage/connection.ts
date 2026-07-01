@@ -29,13 +29,18 @@ function parseConnectionPayload(raw: string): S3ConnectionConfig {
     throw error(400, 'Storage backend not supported');
   }
 
+  const { host, port, tls, accessStyle, region, credentials } = parsed.data;
+  const resolvedCredentials =
+    credentials.accessKey && credentials.secretKey ? credentials : undefined;
+
   return {
     type: 's3',
-    endpoint: parsed.data.endpoint || undefined,
-    pathStyle: parsed.data.pathStyle,
-    region: parsed.data.region,
-    accessKeyId: parsed.data.accessKeyId || undefined,
-    secretAccessKey: parsed.data.secretAccessKey || undefined
+    host,
+    port,
+    tls,
+    accessStyle,
+    region,
+    credentials: resolvedCredentials
   };
 }
 

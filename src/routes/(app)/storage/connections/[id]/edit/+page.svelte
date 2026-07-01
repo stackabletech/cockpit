@@ -32,6 +32,7 @@
   const { form, errors, enhance, submitting, message } = superForm(
     untrack(() => data.editForm),
     {
+      dataType: 'json',
       validators: zod(StorageConnectionSchema),
       onResult: ({ result }) => {
         if (result.type === 'success' && result.data?.form?.message === 'ok') {
@@ -60,11 +61,12 @@
     $form.id = found.id;
     $form.name = found.name ?? '';
     $form.type = found.type;
-    $form.endpoint = found.endpoint ?? '';
-    $form.pathStyle = found.pathStyle ?? true;
+    $form.host = found.host;
+    $form.port = found.port;
+    $form.tls = found.tls;
+    $form.accessStyle = found.accessStyle;
     $form.region = found.region;
-    $form.accessKeyId = found.accessKeyId ?? '';
-    $form.secretAccessKey = found.secretAccessKey ?? '';
+    $form.credentials = found.credentials ?? { accessKey: '', secretKey: '' };
 
     // Check if this is the currently active connection
     const active = loadConnectionLocally();
@@ -118,40 +120,101 @@
       <!-- Backend type (hidden — editing type not supported) -->
       <input type="hidden" name="type" value={$form.type} />
 
-      <!-- Endpoint URL -->
+      <!-- Host -->
       <div>
-        <label for="{uid}-endpoint" class="label mb-1 text-sm font-medium">
-          {m.storage_connect_endpoint()}
+        <label for="{uid}-host" class="label mb-1 text-sm font-medium">
+          {m.storage_connect_host()}
         </label>
         <input
-          id="{uid}-endpoint"
-          name="endpoint"
-          type="url"
-          class="input-bordered input w-full {$errors?.endpoint ? 'input-error' : ''}"
-          placeholder={m.storage_connect_endpoint_placeholder()}
-          bind:value={$form.endpoint}
+          id="{uid}-host"
+          name="host"
+          type="text"
+          class={['input-bordered input w-full', $errors?.host && 'input-error']}
+          placeholder={m.storage_connect_host_placeholder()}
+          bind:value={$form.host}
         />
-        <p class="text-base-content/50 mt-1 text-xs">{m.storage_connect_endpoint_hint()}</p>
-        {#if $errors?.endpoint}
-          <p class="text-error mt-1 text-xs">{$errors.endpoint}</p>
+        {#if $errors?.host}
+          <p class="text-error mt-1 text-xs">{$errors.host}</p>
         {/if}
       </div>
 
-      <!-- Path-style addressing -->
+      <!-- Port -->
+      <div>
+        <label for="{uid}-port" class="label mb-1 text-sm font-medium">
+          {m.storage_connect_port()}
+        </label>
+        <input
+          id="{uid}-port"
+          name="port"
+          type="number"
+          min="1"
+          max="65535"
+          class={['input-bordered input w-full', $errors?.port && 'input-error']}
+          placeholder={m.storage_connect_port_placeholder()}
+          bind:value={$form.port}
+        />
+        <p class="text-base-content/50 mt-1 text-xs">{m.storage_connect_port_hint()}</p>
+        {#if $errors?.port}
+          <p class="text-error mt-1 text-xs">{$errors.port}</p>
+        {/if}
+      </div>
+
+      <!-- TLS -->
       <div class="flex items-start justify-between gap-4">
         <div>
-          <label for="{uid}-path-style" class="label text-sm font-medium">
-            {m.storage_connect_path_style()}
+          <label for="{uid}-tls" class="label text-sm font-medium">
+            {m.storage_connect_tls()}
           </label>
-          <p class="text-base-content/50 mt-0.5 text-xs">{m.storage_connect_path_style_hint()}</p>
+          <p class="text-base-content/50 mt-0.5 text-xs">{m.storage_connect_tls_hint()}</p>
         </div>
         <input
-          id="{uid}-path-style"
-          name="pathStyle"
+          id="{uid}-tls"
           type="checkbox"
           class="toggle toggle-primary mt-1 shrink-0"
-          bind:checked={$form.pathStyle}
+          checked={!!$form.tls}
+          onchange={(e) => {
+            $form.tls = e.currentTarget.checked ? { verification: 'Full' } : undefined;
+          }}
         />
+      </div>
+
+      <!-- TLS verification -->
+      {#if $form.tls}
+        <div class="flex items-start justify-between gap-4 pl-4">
+          <div>
+            <label for="{uid}-tls-verification" class="label text-sm font-medium">
+              {m.storage_connect_tls_verification()}
+            </label>
+            <p class="text-base-content/50 mt-0.5 text-xs">
+              {m.storage_connect_tls_verification_hint()}
+            </p>
+          </div>
+          <input
+            id="{uid}-tls-verification"
+            type="checkbox"
+            class="toggle toggle-primary mt-1 shrink-0"
+            checked={$form.tls.verification === 'Full'}
+            onchange={(e) => {
+              $form.tls = { verification: e.currentTarget.checked ? 'Full' : 'None' };
+            }}
+          />
+        </div>
+      {/if}
+
+      <!-- Access style -->
+      <div>
+        <label for="{uid}-access-style" class="label mb-1 text-sm font-medium">
+          {m.storage_connect_access_style()}
+        </label>
+        <select
+          id="{uid}-access-style"
+          name="accessStyle"
+          class="select-bordered select w-full"
+          bind:value={$form.accessStyle}
+        >
+          <option value="Path">{m.storage_connect_access_style_path()}</option>
+          <option value="VirtualHosted">{m.storage_connect_access_style_virtual_hosted()}</option>
+        </select>
       </div>
 
       <!-- Region -->
@@ -161,49 +224,49 @@
         </label>
         <input
           id="{uid}-region"
-          name="region"
+          name="region.name"
           type="text"
-          class="input-bordered input w-full {$errors?.region ? 'input-error' : ''}"
-          bind:value={$form.region}
+          class={['input-bordered input w-full', $errors?.region?.name && 'input-error']}
+          bind:value={$form.region.name}
         />
-        {#if $errors?.region}
-          <p class="text-error mt-1 text-xs">{$errors.region}</p>
+        {#if $errors?.region?.name}
+          <p class="text-error mt-1 text-xs">{$errors.region.name}</p>
         {/if}
       </div>
 
-      <!-- Access key ID -->
+      <!-- Access key -->
       <div>
         <label for="{uid}-access-key" class="label mb-1 text-sm font-medium">
           {m.storage_connect_access_key()}
         </label>
         <input
           id="{uid}-access-key"
-          name="accessKeyId"
+          name="credentials.accessKey"
           type="text"
-          class="input-bordered input w-full {$errors?.accessKeyId ? 'input-error' : ''}"
+          class={['input-bordered input w-full', $errors?.credentials?.accessKey && 'input-error']}
           autocomplete="username"
-          bind:value={$form.accessKeyId}
+          bind:value={$form.credentials.accessKey}
         />
-        {#if $errors?.accessKeyId}
-          <p class="text-error mt-1 text-xs">{$errors.accessKeyId}</p>
+        {#if $errors?.credentials?.accessKey}
+          <p class="text-error mt-1 text-xs">{$errors.credentials.accessKey}</p>
         {/if}
       </div>
 
-      <!-- Secret access key -->
+      <!-- Secret key -->
       <div>
         <label for="{uid}-secret-key" class="label mb-1 text-sm font-medium">
           {m.storage_connect_secret_key()}
         </label>
         <input
           id="{uid}-secret-key"
-          name="secretAccessKey"
+          name="credentials.secretKey"
           type="password"
-          class="input-bordered input w-full {$errors?.secretAccessKey ? 'input-error' : ''}"
+          class={['input-bordered input w-full', $errors?.credentials?.secretKey && 'input-error']}
           autocomplete="current-password"
-          bind:value={$form.secretAccessKey}
+          bind:value={$form.credentials.secretKey}
         />
-        {#if $errors?.secretAccessKey}
-          <p class="text-error mt-1 text-xs">{$errors.secretAccessKey}</p>
+        {#if $errors?.credentials?.secretKey}
+          <p class="text-error mt-1 text-xs">{$errors.credentials.secretKey}</p>
         {/if}
       </div>
 

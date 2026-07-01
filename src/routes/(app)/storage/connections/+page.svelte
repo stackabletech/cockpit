@@ -23,14 +23,7 @@
 
   function connectionLabel(conn: SavedConnection): string {
     if (conn.name) return conn.name;
-    if (conn.endpoint) {
-      try {
-        return new URL(conn.endpoint).hostname;
-      } catch {
-        return conn.endpoint;
-      }
-    }
-    return 'AWS S3';
+    return conn.port ? `${conn.host}:${conn.port}` : conn.host;
   }
 
   function requestDelete(conn: SavedConnection) {
@@ -68,7 +61,7 @@
         <thead>
           <tr>
             <th>Connection</th>
-            <th>Endpoint</th>
+            <th>{m.storage_connections_col_host()}</th>
             <th>Type</th>
             <th></th>
           </tr>
@@ -83,7 +76,7 @@
                 </div>
               </td>
               <td class="text-base-content/60 text-sm">
-                {conn.endpoint || 'AWS S3'}
+                {conn.port ? `${conn.host}:${conn.port}` : conn.host}
               </td>
               <td class="text-base-content/60 text-sm uppercase">{conn.type}</td>
               <td class="text-right">

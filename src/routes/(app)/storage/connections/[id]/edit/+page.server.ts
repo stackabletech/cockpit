@@ -7,7 +7,10 @@ import { listBuckets } from '$lib/server/storage/service.js';
 import type { S3ConnectionConfig } from '$lib/server/storage/types.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  const editForm = await superValidate(zod(StorageConnectionSchema));
+  const editForm = await superValidate(
+    { tls: { verification: 'Full' } },
+    zod(StorageConnectionSchema)
+  );
   locals.logger.debug('loading storage connection edit page');
   return { editForm };
 };
@@ -22,19 +25,23 @@ export const actions: Actions = {
       return fail(400, { form });
     }
 
-    const { type, endpoint, pathStyle, region, accessKeyId, secretAccessKey } = form.data;
+    const { type, host, port, tls, accessStyle, region, credentials } = form.data;
 
     if (type !== 's3') {
       return message(form, 'HDFS connections are not yet supported', { status: 400 });
     }
 
+    const resolvedCredentials =
+      credentials.accessKey && credentials.secretKey ? credentials : undefined;
+
     const config: S3ConnectionConfig = {
       type: 's3',
-      endpoint: endpoint || undefined,
-      pathStyle,
+      host,
+      port,
+      tls,
+      accessStyle,
       region,
-      accessKeyId: accessKeyId || undefined,
-      secretAccessKey: secretAccessKey || undefined
+      credentials: resolvedCredentials
     };
 
     try {

@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { StorageConnectionSchema } from './schemas.js';
+import { StorageConnectionSchema } from './schemas.js';
 
 /** Raw form data — `id` may be absent when creating a new connection. */
 export type StoredConnection = z.infer<typeof StorageConnectionSchema>;
@@ -20,8 +20,8 @@ export const STORAGE_CONNECTION_HEADER = 'x-storage-connection';
 const STORAGE_KEY = 'stackable_storage_connections';
 
 /**
- * Load all stored connections. Connections without an `id` field (created
- * before the UUID-identity migration) are silently dropped.
+ * Load all stored connections. Entries that do not satisfy the current schema
+ * (clean-break migration) are silently dropped.
  * Returns connections oldest-first (most recent is last).
  */
 function getConnections(): SavedConnection[] {
@@ -29,9 +29,11 @@ function getConnections(): SavedConnection[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown[];
-    return parsed.filter(
-      (c): c is SavedConnection => typeof c === 'object' && c !== null && 'id' in c
-    );
+    return parsed.flatMap((c) => {
+      const result = StorageConnectionSchema.safeParse(c);
+      if (!result.success || !result.data.id) return [];
+      return [result.data as SavedConnection];
+    });
   } catch {
     return [];
   }

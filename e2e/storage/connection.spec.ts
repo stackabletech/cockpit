@@ -27,10 +27,15 @@ test.describe('Storage S3 — Connection', () => {
     const credentials = requireGarageCredentials();
 
     await openConnectForm(page);
-    await page.getByLabel('Endpoint URL').fill(credentials.endpoint);
+    const url = new URL(credentials.endpoint);
+    await page.getByLabel('Host').fill(url.hostname);
+    if (url.port) await page.getByLabel('Port').fill(url.port);
+    const tlsToggle = page.getByLabel('Use TLS');
+    if (url.protocol !== 'https:' && (await tlsToggle.isChecked())) await tlsToggle.uncheck();
+    await page.getByLabel('Access style').selectOption('Path');
     await page.getByLabel('Region').fill(credentials.region);
-    await page.getByLabel('Access key ID').fill(credentials.accessKeyId);
-    await page.getByLabel('Secret access key').fill(`${credentials.secretAccessKey}-wrong`);
+    await page.getByLabel('Access key').fill(credentials.accessKeyId);
+    await page.getByLabel('Secret key').fill(`${credentials.secretAccessKey}-wrong`);
     await page.getByRole('button', { name: 'Connect' }).click();
 
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();

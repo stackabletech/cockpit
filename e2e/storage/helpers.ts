@@ -66,11 +66,25 @@ export async function openConnectForm(page: Page) {
 
 export async function connectToStorage(page: Page, credentials: GarageCredentials) {
   await openConnectForm(page);
-  await page.getByLabel('Endpoint URL').fill(credentials.endpoint);
+  const url = new URL(credentials.endpoint);
+  const host = url.hostname;
+  const port = url.port;
+  const useTls = url.protocol === 'https:';
+
+  await page.getByLabel('Host').fill(host);
+  if (port) {
+    await page.getByLabel('Port').fill(port);
+  }
+  // Default TLS is on — uncheck it for plain HTTP endpoints
+  const tlsToggle = page.getByLabel('Use TLS');
+  if (!useTls && (await tlsToggle.isChecked())) {
+    await tlsToggle.uncheck();
+  }
+  // Default access style is VirtualHosted — switch to Path for Garage
+  await page.getByLabel('Access style').selectOption('Path');
   await page.getByLabel('Region').fill(credentials.region);
-  await page.getByLabel('Access key ID').fill(credentials.accessKeyId);
-  await page.getByLabel('Secret access key').fill(credentials.secretAccessKey);
-  await expect(page.getByLabel('Use path-style addressing')).toBeChecked();
+  await page.getByLabel('Access key').fill(credentials.accessKeyId);
+  await page.getByLabel('Secret key').fill(credentials.secretAccessKey);
   await page.getByRole('button', { name: 'Connect' }).click();
 }
 
