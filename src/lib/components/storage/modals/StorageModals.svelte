@@ -93,8 +93,7 @@
   <RenameModal
     bind:open={renameOpen}
     currentName={keyToName(modalPayload.key)}
-    onConfirm={(newName: string) =>
-      storage.confirmRename(modalPayload.key, newName)}
+    onConfirm={(newName: string) => storage.confirmRename(modalPayload.key, newName)}
     onCancel={() => {
       storage.renameError = null;
       storage.renameLoading = false;

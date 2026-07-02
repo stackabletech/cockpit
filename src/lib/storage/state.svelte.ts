@@ -698,7 +698,10 @@ export class StorageState {
           this.loading = true;
           void invalidateAll();
         } catch (err: unknown) {
-          addToast('error', err instanceof ActionError ? getActionErrorMessage(err) : m.storage_action_paste_error());
+          addToast(
+            'error',
+            err instanceof ActionError ? getActionErrorMessage(err) : m.storage_action_paste_error()
+          );
         }
         return;
       }

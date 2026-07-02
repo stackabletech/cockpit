@@ -12,7 +12,14 @@
     error?: string | null;
   }
 
-  let { open = $bindable(false), currentName, onConfirm, onCancel, loading = false, error = null }: Props = $props();
+  let {
+    open = $bindable(false),
+    currentName,
+    onConfirm,
+    onCancel,
+    loading = false,
+    error = null
+  }: Props = $props();
 
   const uid = $props.id();
   let newName = $state(currentName);
