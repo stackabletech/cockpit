@@ -15,6 +15,8 @@
     if (selectAllEl) selectAllEl.indeterminate = storage.someSelected;
   });
 
+  import { storagePasteEnabled } from '$lib/client/feature-flags.js';
+
   function navigateUp() {
     if (storage.isInArchive) {
       storage.navigateUpFromArchive();
@@ -24,6 +26,40 @@
     const withoutTrailing = storage.prefix.slice(0, -1);
     const lastSlash = withoutTrailing.lastIndexOf('/');
     storage.navigate(lastSlash === -1 ? '' : withoutTrailing.slice(0, lastSlash + 1));
+  }
+
+  function parentPrefix(): string {
+    if (!storage.prefix) return '';
+    const withoutTrailing = storage.prefix.slice(0, -1);
+    const lastSlash = withoutTrailing.lastIndexOf('/');
+    return lastSlash === -1 ? '' : withoutTrailing.slice(0, lastSlash + 1);
+  }
+
+  let parentDragOver = $state(false);
+
+  function handleParentDragOver(e: DragEvent) {
+    if (!storagePasteEnabled || storage.isInArchive || !storage.prefix) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    parentDragOver = true;
+  }
+
+  function handleParentDragLeave() {
+    parentDragOver = false;
+  }
+
+  function handleParentDrop(e: DragEvent) {
+    parentDragOver = false;
+    if (!storagePasteEnabled || storage.isInArchive || !storage.prefix) return;
+    e.preventDefault();
+    const raw = e.dataTransfer?.getData('application/x-storage-keys');
+    if (!raw) return;
+    try {
+      const keys: string[] = JSON.parse(raw);
+      void storage.performMove(parentPrefix(), keys);
+    } catch {
+      // invalid JSON - ignore
+    }
   }
 </script>
 
@@ -63,7 +99,15 @@
     <tbody>
       <!-- Parent directory row -->
       {#if storage.prefix}
-        <tr class="hover cursor-pointer" onclick={navigateUp}>
+        <tr
+          class="hover cursor-pointer {parentDragOver
+            ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
+            : ''}"
+          onclick={navigateUp}
+          ondragover={handleParentDragOver}
+          ondragleave={handleParentDragLeave}
+          ondrop={handleParentDrop}
+        >
           <td class="pr-0"></td>
           <td colspan={3}>
             <div class="text-base-content/50 flex items-center gap-2">

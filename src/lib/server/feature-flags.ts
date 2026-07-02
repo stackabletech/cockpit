@@ -103,3 +103,22 @@ export const maxEditableFileSize: number = (() => {
   const parsed = parseInt(publicEnv.PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE ?? '', 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 5 * 1024 * 1024;
 })();
+
+// ── Storage browser: Context actions (cut, copy, paste, rename) ────────────
+
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED=true`, the context
+ *  menu shows Cut/Copy actions. Uses the PUBLIC_ key so the same env var gates
+ *  both client and server. Disabled by default. */
+export const storageCutCopyEnabled =
+  (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED ?? 'false') === 'true';
+
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED=true`, the context
+ *  menu shows Paste and the paste API endpoint is active.
+ *  Uses PUBLIC_ key. Disabled by default. */
+export const storagePasteEnabled =
+  (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED ?? 'false') === 'true';
+
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED=true`, the rename
+ *  API endpoint is active. Uses PUBLIC_ key. Disabled by default. */
+export const storageRenameEnabled =
+  (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED ?? 'false') === 'true';

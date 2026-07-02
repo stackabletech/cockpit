@@ -9,12 +9,18 @@ import type {
   ContextMenuState,
   NavigateFn,
   ActionName,
+  ClipboardState,
   ArchiveListingResponse,
   ArchiveEntry
 } from '$lib/storage/types.js';
 import { ARCHIVE_EXTENSIONS } from '$lib/storage/types.js';
 import { initPageSize, type PageSize } from '$lib/types/pagination.js';
-import { defaultPageSize } from '$lib/client/feature-flags.js';
+import {
+  defaultPageSize,
+  storageCutCopyEnabled,
+  storagePasteEnabled,
+  storageRenameEnabled
+} from '$lib/client/feature-flags.js';
 import { downloadObject, DownloadError } from '$lib/storage/download.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import { ActionError, getActionErrorMessage } from './errors.js';
@@ -98,6 +104,18 @@ export class StorageState {
 
   // ── Composed sub-state ──
   bookmarks = new BookmarksState();
+
+  // ── Clipboard (cut / copy) ──
+  clipboard = $state<ClipboardState | null>(null);
+
+  /** True when `key` is in the clipboard with action='cut' and the bucket matches. */
+  isCutKey(key: string): boolean {
+    return (
+      this.clipboard?.action === 'cut' &&
+      this.clipboard.sourceBucket === this.bucket &&
+      this.clipboard.keys.includes(key)
+    );
+  }
 
   // ── Navigation handler (injected by page component) ──
   private _onNavigate: NavigateFn = () => {};
@@ -589,6 +607,62 @@ export class StorageState {
         addToast('success', m.storage_action_copy_path_success());
         return;
       }
+
+      case 'cut': {
+        if (!storageCutCopyEnabled) return;
+        const cutKeys = [...this.selectedKeys];
+        if (cutKeys.length === 0) return;
+        this.clipboard = { action: 'cut', keys: cutKeys, sourceBucket: this.bucket };
+        addToast('info', m.storage_action_cut_success({ count: cutKeys.length }));
+        return;
+      }
+
+      case 'copy': {
+        if (!storageCutCopyEnabled) return;
+        const copyKeys = [...this.selectedKeys];
+        if (copyKeys.length === 0) return;
+        this.clipboard = { action: 'copy', keys: copyKeys, sourceBucket: this.bucket };
+        addToast('info', m.storage_action_copy_success({ count: copyKeys.length }));
+        return;
+      }
+
+      case 'paste': {
+        if (!storagePasteEnabled) return;
+        if (!this.clipboard || this.clipboard.keys.length === 0) return;
+        if (this.isInArchive) {
+          addToast('warning', m.storage_action_paste_archive_error());
+          return;
+        }
+        const wasCut = this.clipboard.action === 'cut';
+        const pasteKeys = [...this.clipboard.keys];
+        const destPrefix = this.prefix;
+        try {
+          await this.performPaste(pasteKeys, this.clipboard.sourceBucket, destPrefix);
+          addToast('success', m.storage_action_paste_success({ count: pasteKeys.length }));
+          // After first paste of cut items, switch to copy mode so they
+          // can still be pasted again (like a copy action).
+          if (wasCut) {
+            this.clipboard = { ...this.clipboard, action: 'copy' };
+          }
+          this.loading = true;
+          void invalidateAll();
+        } catch (err: unknown) {
+          let msg = m.storage_action_paste_error();
+          if (err instanceof ActionError) {
+            msg = getActionErrorMessage(err);
+          }
+          addToast('error', msg);
+        }
+        return;
+      }
+
+      case 'rename': {
+        if (!storageRenameEnabled) return;
+        const renameKey = ctxKey ?? [...this.selectedKeys][0];
+        if (!renameKey) return;
+        this.openModal('rename', { key: renameKey });
+        return;
+      }
     }
   };
 
@@ -634,19 +708,190 @@ export class StorageState {
   };
 
   // ────────────────────────────────────────────────────────────────────────────
+  // Paste implementation
+  // ────────────────────────────────────────────────────────────────────────────
+
+  private async performPaste(
+    keys: string[],
+    _sourceBucket: string,
+    destPrefix: string
+  ): Promise<void> {
+    const conn = loadConnectionLocally();
+    if (!conn) throw new ActionError('not_connected', 'No connection');
+
+    const params = new SvelteURLSearchParams({ bucket: this.bucket });
+    const res = await fetch(`/api/storage/copy?${params}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-storage-connection': getConnectionHeader(conn)
+      },
+      body: JSON.stringify({
+        sourceKeys: keys,
+        destinationPrefix: destPrefix
+      })
+    });
+
+    if (!res.ok) {
+      let code = 'server_error';
+      if (res.status === 401) code = 'not_connected';
+      else if (res.status === 403) code = 'access_denied';
+      throw new ActionError(code, `Paste failed with status ${res.status}`);
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Rename
+  // ────────────────────────────────────────────────────────────────────────────
+
+  confirmRename = async (key: string, newName: string): Promise<void> => {
+    this.closeModal();
+
+    if (!newName.trim()) return;
+
+    const parts = key.split('/');
+    parts.pop();
+    const parentPrefix = parts.length > 0 ? parts.join('/') + '/' : '';
+    const newKey = parentPrefix + newName + (key.endsWith('/') ? '/' : '');
+
+    if (newKey === key) return;
+
+    try {
+      const conn = loadConnectionLocally();
+      if (!conn) {
+        addToast('error', m.storage_rename_error_not_connected());
+        return;
+      }
+
+      const res = await fetch('/api/storage/rename', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-storage-connection': getConnectionHeader(conn)
+        },
+        body: JSON.stringify({ bucket: this.bucket, key, newKey })
+      });
+
+      if (!res.ok) {
+        let msg = m.storage_rename_error({ name: newName });
+        if (res.status === 403) msg = m.storage_rename_error_access_denied();
+        else if (res.status === 404) msg = m.storage_rename_error_not_found();
+        addToast('error', msg);
+        return;
+      }
+
+      addToast('success', m.storage_rename_success({ name: newName }));
+      this.loading = true;
+      void invalidateAll();
+    } catch {
+      addToast('error', m.storage_rename_error({ name: newName }));
+    }
+  };
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Move (used by drag-and-drop)
+  // ────────────────────────────────────────────────────────────────────────────
+
+  /** Move the currently selected items (or given keys) to a destination prefix.
+   *  The items are copied to the destination and then deleted from the source. */
+  performMove = async (destPrefix: string, keys?: string[]): Promise<void> => {
+    const moveKeys = keys ?? [...this.selectedKeys];
+    if (moveKeys.length === 0) return;
+
+    // Don't move to the same prefix
+    if (destPrefix === this.prefix) return;
+
+    // Don't move a folder into itself
+    for (const k of moveKeys) {
+      if (k.endsWith('/') && destPrefix.startsWith(k)) return;
+    }
+
+    try {
+      const conn = loadConnectionLocally();
+      if (!conn) {
+        addToast('error', m.storage_action_move_error_not_connected());
+        return;
+      }
+
+      const params = new SvelteURLSearchParams({ bucket: this.bucket });
+      const res = await fetch(`/api/storage/move?${params}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-storage-connection': getConnectionHeader(conn)
+        },
+        body: JSON.stringify({
+          sourceKeys: moveKeys,
+          destinationPrefix: destPrefix
+        })
+      });
+
+      if (!res.ok) {
+        let msg = m.storage_action_move_error();
+        if (res.status === 403) msg = m.storage_action_move_error_access_denied();
+        addToast('error', msg);
+        return;
+      }
+
+      const result = (await res.json()) as {
+        moved: Array<{ sourceKey: string; destKey: string }>;
+        failed: Array<{ sourceKey: string; error: string }>;
+      };
+
+      if (result.moved.length > 0) {
+        addToast('success', m.storage_action_move_success({ count: result.moved.length }));
+      }
+      if (result.failed.length > 0) {
+        addToast('warning', m.storage_action_move_partial({ count: result.failed.length }));
+      }
+
+      this.selectedKeys = new SvelteSet<string>();
+      this.selectionMode = false;
+      this.loading = true;
+      void invalidateAll();
+    } catch {
+      addToast('error', m.storage_action_move_error());
+    }
+  };
+
+  // ────────────────────────────────────────────────────────────────────────────
   // Keyboard shortcuts
   // ────────────────────────────────────────────────────────────────────────────
 
   handleKeydown = (e: KeyboardEvent): void => {
     if (this.activeModal?.type === 'delete') return;
-    if (this.isInArchive) return; // No destructive actions inside archives
+    if (this.isInArchive && e.key !== 'Escape') return;
+
+    const isCtrl = e.ctrlKey || e.metaKey;
+
     if (e.key === 'Delete' && this.selectedKeys.size > 0) {
       this.openModal('delete', { keys: [...this.selectedKeys] });
     } else if (e.key === 'Escape') {
       if (this.contextMenu) {
         this.closeContextMenu();
       }
-      this.clearSelection();
+      if (this.selectedKeys.size > 0) {
+        this.clearSelection();
+      }
+    } else if (isCtrl && e.key === 'x') {
+      e.preventDefault();
+      if (!this.isInArchive && this.selectedKeys.size > 0) {
+        void this.executeAction('cut');
+      }
+    } else if (isCtrl && e.key === 'c') {
+      e.preventDefault();
+      if (!this.isInArchive && this.selectedKeys.size > 0) {
+        void this.executeAction('copy');
+      }
+    } else if (isCtrl && e.key === 'v') {
+      e.preventDefault();
+      if (!this.isInArchive && this.clipboard) {
+        void this.executeAction('paste');
+      }
+    } else if (e.key === 'F2') {
+      if (!this.isInArchive && this.selectedKeys.size === 1) {
+        void this.executeAction('rename');
+      }
     }
   };
 

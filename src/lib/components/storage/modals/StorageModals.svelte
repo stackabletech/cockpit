@@ -1,8 +1,10 @@
 <script lang="ts">
   import { getStorageState } from '$lib/storage/context.js';
+  import { keyToName } from '$lib/storage/utils.js';
   import DeleteConfirmModal from './DeleteConfirmModal.svelte';
   import PreviewModal from './PreviewModal.svelte';
   import UploadModal from './upload/UploadModal.svelte';
+  import RenameModal from './RenameModal.svelte';
 
   const storage = getStorageState();
 
@@ -11,6 +13,7 @@
   let previewOpen = $state(true);
   let uploadOpen = $state(true);
   let deleteOpen = $state(true);
+  let renameOpen = $state(true);
 
   // Reset local state when modal type changes
   $effect(() => {
@@ -18,6 +21,7 @@
       previewOpen = true;
       uploadOpen = true;
       deleteOpen = true;
+      renameOpen = true;
     }
   });
 
@@ -36,6 +40,12 @@
 
   $effect(() => {
     if (!deleteOpen && storage.activeModal?.type === 'delete') {
+      storage.closeModal();
+    }
+  });
+
+  $effect(() => {
+    if (!renameOpen && storage.activeModal?.type === 'rename') {
       storage.closeModal();
     }
   });
@@ -67,5 +77,15 @@
     bucket={storage.activeModal.payload.bucket}
     prefix={storage.activeModal.payload.prefix}
     onSuccess={storage.handleUploadSuccess}
+  />
+{/if}
+
+{#if storage.activeModal?.type === 'rename'}
+  <RenameModal
+    bind:open={renameOpen}
+    currentName={keyToName(storage.activeModal.payload.key)}
+    onConfirm={(newName: string) =>
+      storage.confirmRename(storage.activeModal!.payload.key, newName)}
+    onCancel={() => storage.closeModal()}
   />
 {/if}

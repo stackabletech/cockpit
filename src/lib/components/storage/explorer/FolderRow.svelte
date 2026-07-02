@@ -4,6 +4,7 @@
   import { keyToName } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
   import { getStorageState } from '$lib/storage/context.js';
+  import { storageCutCopyEnabled, storagePasteEnabled } from '$lib/client/feature-flags.js';
 
   interface Props {
     folder: StorageObject;
@@ -15,16 +16,65 @@
 
   const selected = $derived(storage.selectedKeys.has(folder.key));
   const isCtx = $derived(storage.contextMenu?.key === folder.key);
+  const isCut = $derived(storage.isCutKey(folder.key));
+
+  let dragOver = $state(false);
+
+  function handleDragStart(e: DragEvent) {
+    if (!storageCutCopyEnabled || storage.isInArchive) return;
+    e.dataTransfer?.setData(
+      'application/x-storage-keys',
+      JSON.stringify([...storage.selectedKeys])
+    );
+    e.dataTransfer!.effectAllowed = 'move';
+  }
+
+  function handleDragOver(e: DragEvent) {
+    if (!storagePasteEnabled || storage.isInArchive) return;
+    // Don't allow dropping onto a selected folder (moving into itself)
+    if (storage.selectedKeys.has(folder.key)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    dragOver = true;
+  }
+
+  function handleDragLeave() {
+    dragOver = false;
+  }
+
+  function handleDrop(e: DragEvent) {
+    dragOver = false;
+    if (!storagePasteEnabled || storage.isInArchive) return;
+    e.preventDefault();
+    const raw = e.dataTransfer?.getData('application/x-storage-keys');
+    if (!raw) return;
+    try {
+      const keys: string[] = JSON.parse(raw);
+      // Don't drop onto a selected folder
+      if (keys.includes(folder.key)) return;
+      // Move items into this folder
+      void storage.performMove(folder.key, keys);
+    } catch {
+      // invalid JSON - ignore
+    }
+  }
 </script>
 
 <tr
   class="
     group cursor-pointer select-none
+    {isCut ? 'opacity-40' : ''}
+    {dragOver ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2' : ''}
     {isCtx
     ? 'bg-base-300 outline-base-content/30 outline -outline-offset-2'
     : selected
       ? 'bg-primary/10 hover:bg-primary/15'
       : 'hover:bg-base-200/60'}"
+  draggable={storageCutCopyEnabled && !storage.isInArchive}
+  ondragstart={handleDragStart}
+  ondragover={handleDragOver}
+  ondragleave={handleDragLeave}
+  ondrop={handleDrop}
   onclick={(e) => {
     if (storage.selectionMode || e.ctrlKey || e.metaKey) {
       storage.toggleSelect(folder.key, true);

@@ -7,6 +7,7 @@ import {
   HeadObjectCommand,
   DeleteObjectsCommand,
   PutObjectCommand,
+  CopyObjectCommand,
   type ListObjectsV2CommandOutput
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
@@ -303,5 +304,20 @@ export class S3StorageProvider implements StorageProvider {
       'recursive listing complete'
     );
     return keys;
+  }
+
+  async copyObject(sourceKey: string, destKey: string): Promise<void> {
+    log.trace({ bucket: this.bucket, source_key: sourceKey, dest_key: destKey }, 'S3 CopyObject');
+    await withS3Errors(
+      () =>
+        this.client.send(
+          new CopyObjectCommand({
+            Bucket: this.bucket,
+            CopySource: `/${this.bucket}/${encodeURIComponent(sourceKey)}`,
+            Key: destKey
+          })
+        ),
+      { bucket: this.bucket, key: sourceKey, operation: 'copyObject' }
+    );
   }
 }

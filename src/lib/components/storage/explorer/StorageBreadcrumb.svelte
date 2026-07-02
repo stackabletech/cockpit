@@ -20,6 +20,7 @@
   import { keyToName } from '$lib/storage/utils.js';
   import { invalidateAll } from '$app/navigation';
   import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+  import { storagePasteEnabled } from '$lib/client/feature-flags.js';
 
   const storage = getStorageState();
   const tabsState = getTabsState();
@@ -165,6 +166,36 @@
     }
     storage.navigate(prefix);
   }
+
+  // ── Drag-drop targets for breadcrumb parts ─────────────────────────────
+
+  let dropTargetPrefix = $state<string | null>(null);
+
+  function handleBreadcrumbDragOver(e: DragEvent, prefix: string) {
+    if (!storagePasteEnabled || storage.isInArchive) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    dropTargetPrefix = prefix;
+  }
+
+  function handleBreadcrumbDragLeave() {
+    dropTargetPrefix = null;
+  }
+
+  function handleBreadcrumbDrop(e: DragEvent, prefix: string) {
+    dropTargetPrefix = null;
+    if (!storagePasteEnabled || storage.isInArchive) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const raw = e.dataTransfer?.getData('application/x-storage-keys');
+    if (!raw) return;
+    try {
+      const keys: string[] = JSON.parse(raw);
+      void storage.performMove(prefix, keys);
+    } catch {
+      // invalid JSON - ignore
+    }
+  }
 </script>
 
 {#if breadcrumbCtx}
@@ -265,10 +296,16 @@
           class="
             text-base-content flex shrink-0 items-center gap-1.5 rounded-sm px-1.5
             py-0.5 font-medium
+            {dropTargetPrefix === ''
+            ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
+            : ''}
           "
           title={storage.bucket}
           aria-current="page"
           oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
+          ondragover={(e) => handleBreadcrumbDragOver(e, '')}
+          ondragleave={handleBreadcrumbDragLeave}
+          ondrop={(e) => handleBreadcrumbDrop(e, '')}
         >
           <IconStorage class="pointer-events-none size-4" aria-hidden="true" />
           {storage.bucket}
@@ -282,10 +319,16 @@
             text-base-content/70 hover:bg-base-200 hover:text-base-content flex shrink-0 items-center gap-1.5
             rounded-sm px-1.5
             py-0.5 transition-colors hover:cursor-pointer
+            {dropTargetPrefix === ''
+            ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
+            : ''}
           "
           title={storage.bucket}
           onclick={() => navigateS3('')}
           oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
+          ondragover={(e) => handleBreadcrumbDragOver(e, '')}
+          ondragleave={handleBreadcrumbDragLeave}
+          ondrop={(e) => handleBreadcrumbDrop(e, '')}
         >
           <IconStorage class="size-4" aria-hidden="true" />
           {storage.bucket}
@@ -324,9 +367,15 @@
             <li>
               <div class="group flex items-center justify-between gap-2">
                 <button
-                  class="flex-1 text-left text-sm hover:cursor-pointer"
+                  class="flex-1 text-left text-sm hover:cursor-pointer {dropTargetPrefix ===
+                  part.prefix
+                    ? 'text-primary'
+                    : ''}"
                   onclick={() => navigateS3(part.prefix)}
                   oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, part.prefix)}
+                  ondragover={(e) => handleBreadcrumbDragOver(e, part.prefix)}
+                  ondragleave={handleBreadcrumbDragLeave}
+                  ondrop={(e) => handleBreadcrumbDrop(e, part.prefix)}
                 >
                   {part.label}
                 </button>
@@ -350,10 +399,16 @@
             class="
               text-base-content min-w-0 truncate rounded-sm px-1.5 py-0.5
               font-medium
+              {dropTargetPrefix === part.prefix
+              ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
+              : ''}
             "
             title={part.label}
             aria-current="page"
             oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, part.prefix)}
+            ondragover={(e) => handleBreadcrumbDragOver(e, part.prefix)}
+            ondragleave={handleBreadcrumbDragLeave}
+            ondrop={(e) => handleBreadcrumbDrop(e, part.prefix)}
           >
             {part.label}
           </span>
@@ -362,10 +417,16 @@
             class="
               hover:bg-base-200 hover:text-base-content min-w-0 truncate rounded-sm px-1.5
               py-0.5 transition-colors hover:cursor-pointer
+              {dropTargetPrefix === part.prefix
+              ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
+              : ''}
             "
             title={part.label}
             onclick={() => navigateS3(part.prefix)}
             oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, part.prefix)}
+            ondragover={(e) => handleBreadcrumbDragOver(e, part.prefix)}
+            ondragleave={handleBreadcrumbDragLeave}
+            ondrop={(e) => handleBreadcrumbDrop(e, part.prefix)}
           >
             {part.label}
           </button>

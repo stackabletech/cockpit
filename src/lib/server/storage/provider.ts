@@ -45,4 +45,10 @@ export interface StorageProvider {
    * Used to expand directory prefixes before deletion.
    */
   listAllKeys(prefix: string): Promise<string[]>;
+  /**
+   * Copy an object from `sourceKey` to `destKey` within the same bucket.
+   * Uses S3 CopyObject internally. Throws if the source does not exist or
+   * access is denied. Existing destination objects are silently overwritten.
+   */
+  copyObject(sourceKey: string, destKey: string): Promise<void>;
 }

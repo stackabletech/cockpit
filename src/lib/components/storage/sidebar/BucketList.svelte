@@ -13,6 +13,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
+  import { storagePasteEnabled } from '$lib/client/feature-flags.js';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
   import { pinnedLabel, pinnedHref } from '$lib/storage/display-helpers.js';
 
@@ -178,6 +179,35 @@
   function hideTooltip() {
     tooltipText = null;
   }
+
+  // ── Drag-drop targets for sidebar items ────────────────────────────────
+  let dropSidebarTarget = $state<string | null>(null);
+
+  function handleSidebarDragOver(e: DragEvent, prefix: string) {
+    if (!storagePasteEnabled || storage.isInArchive) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    dropSidebarTarget = prefix;
+  }
+
+  function handleSidebarDragLeave() {
+    dropSidebarTarget = null;
+  }
+
+  function handleSidebarDrop(e: DragEvent, _bucket: string, prefix: string) {
+    dropSidebarTarget = null;
+    if (!storagePasteEnabled || storage.isInArchive) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const raw = e.dataTransfer?.getData('application/x-storage-keys');
+    if (!raw) return;
+    try {
+      const keys: string[] = JSON.parse(raw);
+      void storage.performMove(prefix, keys);
+    } catch {
+      // invalid JSON - ignore
+    }
+  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -245,14 +275,18 @@
               href={pinnedHref(pin)}
               data-sveltekit-preload-data="off"
               class="
-              hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
-              pr-7 text-sm
-              {active ? 'bg-primary/10 text-primary font-medium' : 'text-base-content'}"
+                hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
+                pr-7 text-sm
+                {active ? 'bg-primary/10 text-primary font-medium' : 'text-base-content'}
+                {dropSidebarTarget === pin.prefix ? 'bg-primary/20' : ''}"
               aria-current={active ? 'page' : undefined}
               onmouseenter={(e) => showTooltip(e, pinnedLabel(pin))}
               onmouseleave={hideTooltip}
               onfocus={(e) => showTooltip(e, pinnedLabel(pin))}
               onblur={hideTooltip}
+              ondragover={(e) => handleSidebarDragOver(e, pin.prefix)}
+              ondragleave={handleSidebarDragLeave}
+              ondrop={(e) => handleSidebarDrop(e, pin.bucket, pin.prefix)}
             >
               <!-- eslint-enable svelte/no-navigation-without-resolve -->
               {#if pin.prefix === ''}
@@ -264,10 +298,10 @@
             </a>
             <button
               class="
-                btn btn-ghost btn-xs absolute top-1/2 right-1 z-60 -translate-y-1/2
-                p-0 opacity-0 transition-opacity
-                group-hover:opacity-100 focus:opacity-100
-              "
+                  btn btn-ghost btn-xs absolute top-1/2 right-1 z-60 -translate-y-1/2
+                  p-0 opacity-0 transition-opacity
+                  group-hover:opacity-100 focus:opacity-100
+                "
               onclick={(e) => openUnpinMenuFromButton(e, pin)}
               aria-label={m.storage_more_options()}
               title={m.storage_more_options()}
@@ -322,16 +356,20 @@
               })}
               data-sveltekit-preload-data="off"
               class="
-                hover:bg-base-200 flex items-center gap-2
-                px-3 py-1.5 text-sm
-                {activeBucket === bucket
+                  hover:bg-base-200 flex items-center gap-2
+                  px-3 py-1.5 text-sm
+                  {activeBucket === bucket
                 ? 'bg-primary/10 text-primary font-medium'
-                : 'text-base-content'}"
+                : 'text-base-content'}
+                  {dropSidebarTarget === '' && activeBucket === bucket ? 'bg-primary/20' : ''}"
               aria-current={activeBucket === bucket && !page.params.prefix ? 'page' : undefined}
               onmouseenter={(e) => showTooltip(e, bucket)}
               onmouseleave={hideTooltip}
               onfocus={(e) => showTooltip(e, bucket)}
               onblur={hideTooltip}
+              ondragover={(e) => handleSidebarDragOver(e, '')}
+              ondragleave={handleSidebarDragLeave}
+              ondrop={(e) => handleSidebarDrop(e, bucket, '')}
             >
               <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
               <span class="truncate">{bucket}</span>

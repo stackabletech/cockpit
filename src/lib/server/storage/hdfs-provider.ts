@@ -54,4 +54,8 @@ export class HDFSStorageProvider implements StorageProvider {
   listAllKeys(_prefix: string): Promise<string[]> {
     throw new Error('HDFS not implemented');
   }
+
+  copyObject(_sourceKey: string, _destKey: string): Promise<void> {
+    throw new Error('HDFS not implemented');
+  }
 }
