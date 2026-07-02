@@ -111,7 +111,9 @@ test.describe('Storage S3 — Context Menu', () => {
         'copy name test'
       );
 
-      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      // Only clipboard-read is needed — writes are permitted via user-gesture context in all
+      // browsers. Firefox does not recognise 'clipboard-write' as a grantable permission.
+      await context.grantPermissions(['clipboard-read']);
       await connectAndOpenPrefix(page, credentials, prefix);
 
       await rowByName(page, 'copy-name-test.txt').click({ button: 'right' });
@@ -143,7 +145,9 @@ test.describe('Storage S3 — Context Menu', () => {
         'copy path test'
       );
 
-      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      // Only clipboard-read is needed — writes are permitted via user-gesture context in all
+      // browsers. Firefox does not recognise 'clipboard-write' as a grantable permission.
+      await context.grantPermissions(['clipboard-read']);
       await connectAndOpenPrefix(page, credentials, prefix);
 
       await rowByName(page, 'copy-path-test.txt').click({ button: 'right' });
