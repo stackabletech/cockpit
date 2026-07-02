@@ -21,6 +21,12 @@ export const POST: RequestHandler = async ({ locals, request, url }) => {
 
   const provider = getProvider(locals.storageConfig!, bucket);
 
+  // Conflict check: reject if destination already exists
+  const exists = await provider.exists(body.newKey);
+  if (exists) {
+    throw error(409, `Destination "${body.newKey}" already exists`);
+  }
+
   // If renaming a directory (key ends with /), we need to rename all children
   if (body.key.endsWith('/')) {
     const children = await provider.listAllKeys(body.key);

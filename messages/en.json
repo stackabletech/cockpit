@@ -409,6 +409,7 @@
   "storage_rename_error_not_connected": "No storage connection configured. Please connect first.",
   "storage_rename_error_access_denied": "Access denied. You do not have permission to rename.",
   "storage_rename_error_not_found": "The item could not be found. It may have been moved or deleted.",
+  "storage_rename_error_conflict": "A file or folder named \"{name}\" already exists in this location.",
   "timestamp_just_now": "just now",
   "timestamp_minutes_ago": [
     {

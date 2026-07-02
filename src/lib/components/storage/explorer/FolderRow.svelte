@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SvelteSet } from 'svelte/reactivity';
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
   import IconFolder from 'virtual:icons/material-symbols/folder';
   import { keyToName } from '$lib/storage/utils.js';
@@ -22,6 +23,10 @@
 
   function handleDragStart(e: DragEvent) {
     if (!storageCutCopyEnabled || storage.isInArchive) return;
+    // Auto-select the dragged item if not already selected
+    if (!storage.selectedKeys.has(folder.key)) {
+      storage.selectedKeys = new SvelteSet<string>([folder.key]);
+    }
     e.dataTransfer?.setData(
       'application/x-storage-keys',
       JSON.stringify([...storage.selectedKeys])

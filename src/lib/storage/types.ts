@@ -23,7 +23,8 @@ export type ActiveModal = {
 export interface ContextMenuState {
   x: number;
   y: number;
-  key: string;
+  /** The item key that was right-clicked, or undefined for empty-space context menu. */
+  key?: string;
 }
 
 // ── Navigation ───────────────────────────────────────────────────────────────

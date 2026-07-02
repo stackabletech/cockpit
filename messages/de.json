@@ -409,6 +409,7 @@
   "storage_rename_error_not_connected": "Keine Speicherverbindung konfiguriert. Bitte verbinden Sie sich zuerst.",
   "storage_rename_error_access_denied": "Zugriff verweigert. Sie haben keine Berechtigung zum Umbenennen.",
   "storage_rename_error_not_found": "Das Element wurde nicht gefunden. Es wurde möglicherweise verschoben oder gelöscht.",
+  "storage_rename_error_conflict": "Eine Datei oder ein Ordner namens „{name}“ ist an diesem Ort bereits vorhanden.",
   "timestamp_just_now": "gerade eben",
   "timestamp_minutes_ago": [
     {

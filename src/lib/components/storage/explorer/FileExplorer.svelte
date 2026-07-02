@@ -80,8 +80,9 @@
   });
 
   // Clicking anywhere inside the object-list container that is not a table row
-  // clears the current selection. Keyboard users already have Escape via the
-  // svelte:window handler below, so no key handler is needed here.
+  // clears the current selection (left-click) or opens the empty-space context
+  // menu (right-click). Keyboard users already have Escape via the svelte:window
+  // handler below, so no key handler is needed here.
   let objectListEl: HTMLDivElement;
   $effect(() => {
     function handleClick(e: MouseEvent) {
@@ -89,8 +90,17 @@
         storage.clearSelection();
       }
     }
+    function handleContextMenu(e: MouseEvent) {
+      if (objectListEl.contains(e.target as Node) && !(e.target as HTMLElement).closest('tr')) {
+        storage.openEmptyContextMenu(e);
+      }
+    }
     document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
+    document.addEventListener('contextmenu', handleContextMenu);
+    return () => {
+      document.removeEventListener('click', handleClick);
+      document.removeEventListener('contextmenu', handleContextMenu);
+    };
   });
 </script>
 

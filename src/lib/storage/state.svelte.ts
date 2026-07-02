@@ -67,17 +67,17 @@ export class StorageState {
   contextMenu = $state<ContextMenuState | null>(null);
 
   get ctxFileObj(): StorageObject | null {
-    if (!this.contextMenu) return null;
+    if (!this.contextMenu?.key) return null;
     return this.files.find((f: StorageObject) => f.key === this.contextMenu!.key) ?? null;
   }
   get ctxIsFile(): boolean {
     return this.ctxFileObj !== null;
   }
   get canPin(): boolean {
-    return this.contextMenu !== null && !this.ctxIsFile;
+    return this.contextMenu !== null && !!this.contextMenu.key && !this.ctxIsFile;
   }
   get ctxIsPinned(): boolean {
-    if (!this.contextMenu || this.ctxIsFile) return false;
+    if (!this.contextMenu?.key || this.ctxIsFile) return false;
     return this.bookmarks.isPinned(this.bucket, this.contextMenu.key);
   }
 
@@ -500,8 +500,16 @@ export class StorageState {
     this.contextMenu = { x: e.clientX, y: e.clientY, key };
   };
 
+  /** Open the context menu for the empty space (no specific item). */
+  openEmptyContextMenu = (e: MouseEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.selectedKeys = new SvelteSet<string>();
+    this.contextMenu = { x: e.clientX, y: e.clientY };
+  };
+
   closeContextMenu = (): void => {
-    if (this.contextMenu) {
+    if (this.contextMenu?.key) {
       this.selectedKeys.delete(this.contextMenu.key);
     }
     this.contextMenu = null;
@@ -637,7 +645,7 @@ export class StorageState {
         const pasteKeys = [...this.clipboard.keys];
         const destPrefix = this.prefix;
         try {
-          await this.performPaste(pasteKeys, this.clipboard.sourceBucket, destPrefix);
+          await this.performPaste(pasteKeys, this.clipboard.sourceBucket, destPrefix, wasCut);
           addToast('success', m.storage_action_paste_success({ count: pasteKeys.length }));
           // After first paste of cut items, switch to copy mode so they
           // can still be pasted again (like a copy action).
@@ -714,13 +722,15 @@ export class StorageState {
   private async performPaste(
     keys: string[],
     _sourceBucket: string,
-    destPrefix: string
+    destPrefix: string,
+    deleteOriginals = false
   ): Promise<void> {
     const conn = loadConnectionLocally();
     if (!conn) throw new ActionError('not_connected', 'No connection');
 
+    const endpoint = deleteOriginals ? '/api/storage/move' : '/api/storage/copy';
     const params = new SvelteURLSearchParams({ bucket: this.bucket });
-    const res = await fetch(`/api/storage/copy?${params}`, {
+    const res = await fetch(`${endpoint}?${params}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -763,19 +773,21 @@ export class StorageState {
         return;
       }
 
-      const res = await fetch('/api/storage/rename', {
+      const renameParams = new SvelteURLSearchParams({ bucket: this.bucket });
+      const res = await fetch(`/api/storage/rename?${renameParams}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-storage-connection': getConnectionHeader(conn)
         },
-        body: JSON.stringify({ bucket: this.bucket, key, newKey })
+        body: JSON.stringify({ key, newKey })
       });
 
       if (!res.ok) {
         let msg = m.storage_rename_error({ name: newName });
         if (res.status === 403) msg = m.storage_rename_error_access_denied();
         else if (res.status === 404) msg = m.storage_rename_error_not_found();
+        else if (res.status === 409) msg = m.storage_rename_error_conflict({ name: newName });
         addToast('error', msg);
         return;
       }

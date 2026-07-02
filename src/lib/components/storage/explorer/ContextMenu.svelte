@@ -28,6 +28,7 @@
   const x = $derived(storage.contextMenu?.x ?? 0);
   const y = $derived(storage.contextMenu?.y ?? 0);
   const selectionCount = $derived(storage.selectedKeys.size);
+  const hasCtxKey = $derived(!!storage.contextMenu?.key);
   const canPreview = $derived(
     (storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0) ||
       (storage.contextMenu !== null && storage.ctxIsFile)
@@ -65,81 +66,109 @@
     return () => document.removeEventListener('click', handleOutsideClick, true);
   });
 
-  const actions = $derived([
-    {
-      key: 'preview' as ActionName,
-      icon: IconVisibility as Component,
-      label: m.storage_action_preview(),
-      disabled: !canPreview,
-      hidden: false
-    },
-    {
-      key: 'download' as ActionName,
-      icon: IconDownload as Component,
-      label: m.storage_action_download(),
-      disabled: !canDownload,
-      hidden: false
-    },
-    {
-      key: 'cut' as ActionName,
-      icon: IconCut as Component,
-      label: m.storage_action_cut(),
-      disabled: selectionCount === 0 || storage.isInArchive,
-      hidden: !storageCutCopyEnabled || storage.isInArchive
-    },
-    {
-      key: 'copy' as ActionName,
-      icon: IconCopy as Component,
-      label: m.storage_action_copy(),
-      disabled: selectionCount === 0 || storage.isInArchive,
-      hidden: !storageCutCopyEnabled || storage.isInArchive
-    },
-    {
-      key: 'paste' as ActionName,
-      icon: IconPaste as Component,
-      label: m.storage_action_paste(),
-      disabled: storage.clipboard === null || storage.isInArchive,
-      hidden: !storagePasteEnabled || storage.isInArchive
-    },
-    {
-      key: 'rename' as ActionName,
-      icon: IconDriveFileRenameOutline as Component,
-      label: m.storage_action_rename(),
-      disabled: selectionCount !== 1 || storage.isInArchive,
-      hidden: !storageRenameEnabled || storage.isInArchive
-    },
-    {
-      key: 'copy-filename' as ActionName,
-      icon: IconFileCopy as Component,
-      label: m.storage_action_copy_filename(),
-      disabled: storage.contextMenu === null,
-      hidden: false
-    },
-    {
-      key: 'copy-path' as ActionName,
-      icon: IconContentCopy as Component,
-      label: m.storage_action_copy_path(),
-      disabled: storage.contextMenu === null,
-      hidden: false
-    },
-    {
-      key: 'pin' as ActionName,
-      icon: IconPushPinOutline as Component,
-      label: m.storage_action_pin(),
-      disabled: !storage.canPin || storage.isInArchive,
-      hidden: !storage.canPin || storage.ctxIsPinned || storage.isInArchive
-    },
-    {
-      key: 'unpin' as ActionName,
-      icon: IconPushPin as Component,
-      label: m.storage_action_unpin(),
-      disabled: !storage.ctxIsPinned || storage.isInArchive,
-      hidden: !storage.ctxIsPinned || storage.isInArchive
+  const actions = $derived.by<
+    Array<{
+      key: ActionName;
+      icon: Component;
+      label: string;
+      disabled: boolean;
+      hidden: boolean;
+      class?: string;
+    }>
+  >(() => {
+    const items: ReturnType<typeof this> = [];
+
+    // Empty-space: show only paste
+    if (!hasCtxKey) {
+      items.push({
+        key: 'paste' as ActionName,
+        icon: IconPaste as Component,
+        label: m.storage_action_paste(),
+        disabled: storage.clipboard === null || storage.isInArchive,
+        hidden: !storagePasteEnabled || storage.isInArchive
+      });
+      return items;
     }
-  ]);
+
+    // Item-specific actions
+    items.push(
+      {
+        key: 'preview' as ActionName,
+        icon: IconVisibility as Component,
+        label: m.storage_action_preview(),
+        disabled: !canPreview,
+        hidden: false
+      },
+      {
+        key: 'download' as ActionName,
+        icon: IconDownload as Component,
+        label: m.storage_action_download(),
+        disabled: !canDownload,
+        hidden: false
+      },
+      {
+        key: 'cut' as ActionName,
+        icon: IconCut as Component,
+        label: m.storage_action_cut(),
+        disabled: selectionCount === 0 || storage.isInArchive,
+        hidden: !storageCutCopyEnabled || storage.isInArchive
+      },
+      {
+        key: 'copy' as ActionName,
+        icon: IconCopy as Component,
+        label: m.storage_action_copy(),
+        disabled: selectionCount === 0 || storage.isInArchive,
+        hidden: !storageCutCopyEnabled || storage.isInArchive
+      },
+      {
+        key: 'paste' as ActionName,
+        icon: IconPaste as Component,
+        label: m.storage_action_paste(),
+        disabled: storage.clipboard === null || storage.isInArchive,
+        hidden: !storagePasteEnabled || storage.isInArchive
+      },
+      {
+        key: 'rename' as ActionName,
+        icon: IconDriveFileRenameOutline as Component,
+        label: m.storage_action_rename(),
+        disabled: selectionCount !== 1 || storage.isInArchive,
+        hidden: !storageRenameEnabled || storage.isInArchive
+      },
+      {
+        key: 'copy-filename' as ActionName,
+        icon: IconFileCopy as Component,
+        label: m.storage_action_copy_filename(),
+        disabled: !hasCtxKey,
+        hidden: false
+      },
+      {
+        key: 'copy-path' as ActionName,
+        icon: IconContentCopy as Component,
+        label: m.storage_action_copy_path(),
+        disabled: !hasCtxKey,
+        hidden: false
+      },
+      {
+        key: 'pin' as ActionName,
+        icon: IconPushPinOutline as Component,
+        label: m.storage_action_pin(),
+        disabled: !storage.canPin || storage.isInArchive,
+        hidden: !storage.canPin || storage.ctxIsPinned || storage.isInArchive
+      },
+      {
+        key: 'unpin' as ActionName,
+        icon: IconPushPin as Component,
+        label: m.storage_action_unpin(),
+        disabled: !storage.ctxIsPinned || storage.isInArchive,
+        hidden: !storage.ctxIsPinned || storage.isInArchive
+      }
+    );
+
+    return items;
+  });
 
   const dangerActions = $derived(
-    storage.isInArchive
+    storage.isInArchive || !hasCtxKey
       ? []
       : [
           {
