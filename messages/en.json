@@ -396,6 +396,8 @@
   "storage_action_copy_success": "{count} item(s) copied",
   "storage_action_paste_success": "{count} item(s) pasted",
   "storage_action_paste_error": "Could not paste items. Please try again.",
+  "storage_action_paste_partial": "{count} item(s) could not be pasted.",
+  "storage_action_paste_error_source_not_found": "Could not paste — the source items may have been deleted or moved.",
   "storage_action_paste_archive_error": "Cannot paste inside an archive.",
   "storage_action_move_success": "{count} item(s) moved",
   "storage_action_move_partial": "{count} item(s) could not be moved.",

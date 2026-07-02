@@ -396,6 +396,8 @@
   "storage_action_copy_success": "{count} Element(e) kopiert",
   "storage_action_paste_success": "{count} Element(e) eingefügt",
   "storage_action_paste_error": "Elemente konnten nicht eingefügt werden. Bitte versuchen Sie es erneut.",
+  "storage_action_paste_partial": "{count} Element(e) konnten nicht eingefügt werden.",
+  "storage_action_paste_error_source_not_found": "Einfügen fehlgeschlagen — die Quell-Elemente wurden möglicherweise gelöscht oder verschoben.",
   "storage_action_paste_archive_error": "Einfügen innerhalb eines Archivs nicht möglich.",
   "storage_action_move_success": "{count} Element(e) verschoben",
   "storage_action_move_partial": "{count} Element(e) konnten nicht verschoben werden.",

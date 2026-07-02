@@ -661,12 +661,16 @@ export class StorageState {
         const pasteKeys = [...this.clipboard.keys];
         const destPrefix = this.prefix;
         try {
-          const results = await this.performPaste(
+          const { results, failed } = await this.performPaste(
             pasteKeys,
             this.clipboard.sourceBucket,
             destPrefix,
             wasCut
           );
+          if (results.length === 0) {
+            addToast('error', m.storage_action_paste_error_source_not_found());
+            return;
+          }
           // Record destination files as recent visits
           const newFileSizes: Record<string, number> = {};
           for (const r of results) {
@@ -675,10 +679,14 @@ export class StorageState {
             newFileSizes[r.destKey] = size;
             this.bookmarks.recordFileVisit(this.bucket, r.destKey, size);
           }
-          addToast('success', m.storage_action_paste_success({ count: pasteKeys.length }));
+          if (failed > 0) {
+            addToast('warning', m.storage_action_paste_partial({ count: failed }));
+          } else {
+            addToast('success', m.storage_action_paste_success({ count: results.length }));
+          }
           // After a cut paste (move), update clipboard keys to the destination
           // keys so subsequent pastes copy from the newly created files.
-          if (wasCut) {
+          if (wasCut && results.length > 0) {
             const destKeys = results.map((r) => r.destKey);
             this.clipboard = {
               action: 'copy',
@@ -761,7 +769,10 @@ export class StorageState {
     _sourceBucket: string,
     destPrefix: string,
     deleteOriginals = false
-  ): Promise<Array<{ sourceKey: string; destKey: string }>> {
+  ): Promise<{
+    results: Array<{ sourceKey: string; destKey: string }>;
+    failed: number;
+  }> {
     const conn = loadConnectionLocally();
     if (!conn) throw new ActionError('not_connected', 'No connection');
 
@@ -786,9 +797,13 @@ export class StorageState {
       throw new ActionError(code, `Paste failed with status ${res.status}`);
     }
 
-    const data = (await res.json()) as { results?: Array<{ sourceKey: string; destKey: string }>; moved?: Array<{ sourceKey: string; destKey: string }> };
+    const data = (await res.json()) as {
+      results?: Array<{ sourceKey: string; destKey: string }>;
+      moved?: Array<{ sourceKey: string; destKey: string }>;
+      failed: Array<unknown>;
+    };
     const results = data.results ?? data.moved ?? [];
-    return results;
+    return { results, failed: data.failed?.length ?? 0 };
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -1025,6 +1040,24 @@ export class StorageState {
     }
     if (fileKeys.length > 0) {
       this.bookmarks.removeFiles(bucket, fileKeys);
+    }
+
+    // Remove deleted keys from clipboard if they match the current bucket
+    if (this.clipboard && this.clipboard.sourceBucket === bucket) {
+      const remainingKeys = this.clipboard.keys.filter((k) => !keys.includes(k));
+      if (remainingKeys.length !== this.clipboard.keys.length) {
+        if (remainingKeys.length === 0) {
+          this.clipboard = null;
+        } else {
+          const remainingSizes: Record<string, number> = {};
+          for (const k of remainingKeys) {
+            if (this.clipboard.fileSizes[k] !== undefined) {
+              remainingSizes[k] = this.clipboard.fileSizes[k];
+            }
+          }
+          this.clipboard = { ...this.clipboard, keys: remainingKeys, fileSizes: remainingSizes };
+        }
+      }
     }
 
     return result;
