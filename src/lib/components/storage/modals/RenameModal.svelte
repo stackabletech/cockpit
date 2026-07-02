@@ -4,7 +4,7 @@
   import Modal from '$lib/components/Modal.svelte';
 
   interface Props {
-    open: boolean;
+    open?: boolean;
     currentName: string;
     onConfirm: (newName: string) => void;
     onCancel: () => void;
@@ -12,7 +12,7 @@
     error?: string | null;
   }
 
-  let { open, currentName, onConfirm, onCancel, loading = false, error = null }: Props = $props();
+  let { open = $bindable(false), currentName, onConfirm, onCancel, loading = false, error = null }: Props = $props();
 
   const uid = $props.id();
   let newName = $state(currentName);

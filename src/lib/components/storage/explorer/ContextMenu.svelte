@@ -76,7 +76,14 @@
       class?: string;
     }>
   >(() => {
-    const items: ReturnType<typeof this> = [];
+    const items: Array<{
+      key: ActionName;
+      icon: Component;
+      label: string;
+      disabled: boolean;
+      hidden: boolean;
+      class?: string;
+    }> = [];
 
     // Empty-space: show only paste
     if (!hasCtxKey) {

@@ -18,6 +18,7 @@ function makeProvider(overrides: Partial<StorageProvider> = {}): StorageProvider
     putObject: vi.fn(),
     deleteObjects: vi.fn(),
     listAllKeys: vi.fn(),
+    copyObject: vi.fn(),
     ...overrides
   };
 }

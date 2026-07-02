@@ -89,11 +89,12 @@
 {/if}
 
 {#if storage.activeModal?.type === 'rename'}
+  {@const modalPayload = storage.activeModal.payload}
   <RenameModal
     bind:open={renameOpen}
-    currentName={keyToName(storage.activeModal.payload.key)}
+    currentName={keyToName(modalPayload.key)}
     onConfirm={(newName: string) =>
-      storage.confirmRename(storage.activeModal!.payload.key, newName)}
+      storage.confirmRename(modalPayload.key, newName)}
     onCancel={() => {
       storage.renameError = null;
       storage.renameLoading = false;
