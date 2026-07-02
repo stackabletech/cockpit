@@ -61,6 +61,8 @@ export interface ClipboardState {
   keys: string[];
   /** Bucket the items belong to. */
   sourceBucket: string;
+  /** File sizes keyed by S3 key (for recent files tracking). */
+  fileSizes: Record<string, number>;
 }
 
 // ── Storage locations ────────────────────────────────────────────────────────

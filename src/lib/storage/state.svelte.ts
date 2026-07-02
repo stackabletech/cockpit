@@ -85,6 +85,10 @@ export class StorageState {
   loading = $state(false);
   deleting = $state(false);
 
+  // ── Rename inline ──
+  renameLoading = $state(false);
+  renameError = $state<string | null>(null);
+
   // ── Connection identity ──
   connectionId = $state<string | null>(null);
 
@@ -620,7 +624,13 @@ export class StorageState {
         if (!storageCutCopyEnabled) return;
         const cutKeys = [...this.selectedKeys];
         if (cutKeys.length === 0) return;
-        this.clipboard = { action: 'cut', keys: cutKeys, sourceBucket: this.bucket };
+        const fileSizes: Record<string, number> = {};
+        for (const obj of this.objects.objects) {
+          if (cutKeys.includes(obj.key) && !obj.isDirectory) {
+            fileSizes[obj.key] = obj.size;
+          }
+        }
+        this.clipboard = { action: 'cut', keys: cutKeys, sourceBucket: this.bucket, fileSizes };
         addToast('info', m.storage_action_cut_success({ count: cutKeys.length }));
         return;
       }
@@ -629,7 +639,13 @@ export class StorageState {
         if (!storageCutCopyEnabled) return;
         const copyKeys = [...this.selectedKeys];
         if (copyKeys.length === 0) return;
-        this.clipboard = { action: 'copy', keys: copyKeys, sourceBucket: this.bucket };
+        const fileSizes: Record<string, number> = {};
+        for (const obj of this.objects.objects) {
+          if (copyKeys.includes(obj.key) && !obj.isDirectory) {
+            fileSizes[obj.key] = obj.size;
+          }
+        }
+        this.clipboard = { action: 'copy', keys: copyKeys, sourceBucket: this.bucket, fileSizes };
         addToast('info', m.storage_action_copy_success({ count: copyKeys.length }));
         return;
       }
@@ -645,12 +661,31 @@ export class StorageState {
         const pasteKeys = [...this.clipboard.keys];
         const destPrefix = this.prefix;
         try {
-          await this.performPaste(pasteKeys, this.clipboard.sourceBucket, destPrefix, wasCut);
+          const results = await this.performPaste(
+            pasteKeys,
+            this.clipboard.sourceBucket,
+            destPrefix,
+            wasCut
+          );
+          // Record destination files as recent visits
+          const newFileSizes: Record<string, number> = {};
+          for (const r of results) {
+            if (r.destKey.endsWith('/')) continue;
+            const size = this.clipboard.fileSizes?.[r.sourceKey] ?? 0;
+            newFileSizes[r.destKey] = size;
+            this.bookmarks.recordFileVisit(this.bucket, r.destKey, size);
+          }
           addToast('success', m.storage_action_paste_success({ count: pasteKeys.length }));
-          // After first paste of cut items, switch to copy mode so they
-          // can still be pasted again (like a copy action).
+          // After a cut paste (move), update clipboard keys to the destination
+          // keys so subsequent pastes copy from the newly created files.
           if (wasCut) {
-            this.clipboard = { ...this.clipboard, action: 'copy' };
+            const destKeys = results.map((r) => r.destKey);
+            this.clipboard = {
+              action: 'copy',
+              keys: destKeys,
+              sourceBucket: this.bucket,
+              fileSizes: newFileSizes
+            };
           }
           this.loading = true;
           void invalidateAll();
@@ -668,6 +703,8 @@ export class StorageState {
         if (!storageRenameEnabled) return;
         const renameKey = ctxKey ?? [...this.selectedKeys][0];
         if (!renameKey) return;
+        this.renameError = null;
+        this.renameLoading = false;
         this.openModal('rename', { key: renameKey });
         return;
       }
@@ -724,7 +761,7 @@ export class StorageState {
     _sourceBucket: string,
     destPrefix: string,
     deleteOriginals = false
-  ): Promise<void> {
+  ): Promise<Array<{ sourceKey: string; destKey: string }>> {
     const conn = loadConnectionLocally();
     if (!conn) throw new ActionError('not_connected', 'No connection');
 
@@ -748,6 +785,10 @@ export class StorageState {
       else if (res.status === 403) code = 'access_denied';
       throw new ActionError(code, `Paste failed with status ${res.status}`);
     }
+
+    const data = (await res.json()) as { results?: Array<{ sourceKey: string; destKey: string }>; moved?: Array<{ sourceKey: string; destKey: string }> };
+    const results = data.results ?? data.moved ?? [];
+    return results;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -755,20 +796,29 @@ export class StorageState {
   // ────────────────────────────────────────────────────────────────────────────
 
   confirmRename = async (key: string, newName: string): Promise<void> => {
-    this.closeModal();
+    this.renameLoading = true;
+    this.renameError = null;
 
-    if (!newName.trim()) return;
+    if (!newName.trim()) {
+      this.renameLoading = false;
+      return;
+    }
 
     const parts = key.split('/');
     parts.pop();
     const parentPrefix = parts.length > 0 ? parts.join('/') + '/' : '';
     const newKey = parentPrefix + newName + (key.endsWith('/') ? '/' : '');
 
-    if (newKey === key) return;
+    if (newKey === key) {
+      this.renameLoading = false;
+      this.closeModal();
+      return;
+    }
 
     try {
       const conn = loadConnectionLocally();
       if (!conn) {
+        this.renameLoading = false;
         addToast('error', m.storage_rename_error_not_connected());
         return;
       }
@@ -784,18 +834,36 @@ export class StorageState {
       });
 
       if (!res.ok) {
+        this.renameLoading = false;
+        if (res.status === 409) {
+          this.renameError = m.storage_rename_error_conflict({ name: newName });
+          return;
+        }
+        this.closeModal();
         let msg = m.storage_rename_error({ name: newName });
         if (res.status === 403) msg = m.storage_rename_error_access_denied();
         else if (res.status === 404) msg = m.storage_rename_error_not_found();
-        else if (res.status === 409) msg = m.storage_rename_error_conflict({ name: newName });
         addToast('error', msg);
         return;
       }
 
+      // Update recent files
+      if (!key.endsWith('/')) {
+        this.bookmarks.removeFiles(this.bucket, [key]);
+        const obj = this.files.find((f) => f.key === key);
+        if (obj) {
+          this.bookmarks.recordFileVisit(this.bucket, newKey, obj.size);
+        }
+      }
+
+      this.renameLoading = false;
+      this.closeModal();
       addToast('success', m.storage_rename_success({ name: newName }));
       this.loading = true;
       void invalidateAll();
     } catch {
+      this.renameLoading = false;
+      this.closeModal();
       addToast('error', m.storage_rename_error({ name: newName }));
     }
   };
@@ -852,6 +920,19 @@ export class StorageState {
 
       if (result.moved.length > 0) {
         addToast('success', m.storage_action_move_success({ count: result.moved.length }));
+        // Update recent files: remove source keys, record new dest keys
+        const movedKeys = result.moved.map((m) => m.sourceKey).filter((k) => !k.endsWith('/'));
+        if (movedKeys.length > 0) {
+          this.bookmarks.removeFiles(this.bucket, movedKeys);
+        }
+        for (const m of result.moved) {
+          if (!m.destKey.endsWith('/')) {
+            const obj = this.files.find((f) => f.key === m.sourceKey);
+            if (obj) {
+              this.bookmarks.recordFileVisit(this.bucket, m.destKey, obj.size);
+            }
+          }
+        }
       }
       if (result.failed.length > 0) {
         addToast('warning', m.storage_action_move_partial({ count: result.failed.length }));

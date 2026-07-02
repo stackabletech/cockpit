@@ -45,8 +45,16 @@
   });
 
   $effect(() => {
-    if (!renameOpen && storage.activeModal?.type === 'rename') {
+    if (!renameOpen && storage.activeModal?.type === 'rename' && !storage.renameLoading) {
       storage.closeModal();
+    }
+  });
+
+  // Clear inline errors when the rename modal is dismissed via closeModal
+  $effect(() => {
+    if (!renameOpen) {
+      storage.renameError = null;
+      storage.renameLoading = false;
     }
   });
 </script>
@@ -86,6 +94,12 @@
     currentName={keyToName(storage.activeModal.payload.key)}
     onConfirm={(newName: string) =>
       storage.confirmRename(storage.activeModal!.payload.key, newName)}
-    onCancel={() => storage.closeModal()}
+    onCancel={() => {
+      storage.renameError = null;
+      storage.renameLoading = false;
+      storage.closeModal();
+    }}
+    loading={storage.renameLoading}
+    error={storage.renameError}
   />
 {/if}

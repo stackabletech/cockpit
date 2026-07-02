@@ -8,9 +8,11 @@
     currentName: string;
     onConfirm: (newName: string) => void;
     onCancel: () => void;
+    loading?: boolean;
+    error?: string | null;
   }
 
-  let { open, currentName, onConfirm, onCancel }: Props = $props();
+  let { open, currentName, onConfirm, onCancel, loading = false, error = null }: Props = $props();
 
   const uid = $props.id();
   let newName = $state(currentName);
@@ -45,7 +47,7 @@
   });
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open class="modal" closeguard={() => !loading}>
   <div class="modal-box max-w-sm">
     <h3 class="mb-1 flex items-center gap-2 text-lg font-bold">
       <IconDriveFileRenameOutline class="size-5 shrink-0" aria-hidden="true" />
@@ -61,17 +63,25 @@
       class="input input-bordered input-sm w-full"
       bind:value={newName}
       onkeydown={handleKeydown}
+      disabled={loading}
     />
 
+    {#if error}
+      <p class="text-error mt-2 text-sm">{error}</p>
+    {/if}
+
     <div class="modal-action mt-6">
-      <button class="btn btn-ghost btn-sm" onclick={onCancel}>
+      <button class="btn btn-ghost btn-sm" disabled={loading} onclick={onCancel}>
         {m.storage_action_rename_inline_cancel()}
       </button>
       <button
         class="btn btn-primary btn-sm"
-        disabled={!newName.trim() || newName.trim() === currentName}
+        disabled={!newName.trim() || newName.trim() === currentName || loading}
         onclick={handleConfirm}
       >
+        {#if loading}
+          <span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
+        {/if}
         {m.storage_action_rename()}
       </button>
     </div>
