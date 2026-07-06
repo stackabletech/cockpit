@@ -71,30 +71,43 @@ vi.mock('$lib/paraglide/messages.js', () => ({
     `Forget connection to ${endpoint}?`,
   storage_connect_forget_cancel: () => 'Cancel',
   storage_connect_forget: () => 'Forget',
-  storage_connect_manage: () => 'Manage connections'
+  storage_connect_manage: () => 'Manage connections',
+  storage_connect_edit: () => 'Edit',
+  storage_more_options: () => 'More options',
+  storage_sidebar_resize_handle: () => 'Resize sidebar',
+  storage_connections_delete_confirm: ({ label }: { label: string }) =>
+    `Delete connection to ${label}?`,
+  storage_connections_delete_cancel: () => 'Cancel',
+  storage_connections_delete_confirm_button: () => 'Delete',
+  storage_connect_copy: () => 'Copy',
+  storage_connect_copied: () => 'Copied',
+  storage_connect_copy_all: () => 'Copy all'
 }));
 
+const defaultFormData = {
+  id: '00000000-0000-0000-0000-000000000001',
+  type: 's3' as const,
+  host: '',
+  port: undefined,
+  tls: { verification: 'Full' as const },
+  accessStyle: 'VirtualHosted' as const,
+  region: { name: 'us-east-1' },
+  credentials: { accessKey: '', secretKey: '' }
+};
+
 function createMockForm(overrides: Record<string, unknown> = {}): ConnectionFormProp {
+  const { data: dataOverride, ...restOverrides } = overrides;
   return {
     valid: true,
     posted: false,
     errors: {},
-    data: {
-      id: '00000000-0000-0000-0000-000000000001',
-      type: 's3' as const,
-      host: '',
-      port: undefined,
-      tls: { verification: 'Full' as const },
-      accessStyle: 'VirtualHosted' as const,
-      region: { name: 'us-east-1' },
-      credentials: { accessKey: '', secretKey: '' }
-    },
+    data: { ...defaultFormData, ...((dataOverride as object) ?? {}) },
     id: 'test-form',
     constraints: {},
     shape: {},
     message: undefined,
     tainted: undefined,
-    ...overrides
+    ...restOverrides
   } as unknown as ConnectionFormProp;
 }
 
@@ -201,7 +214,7 @@ describe('StorageConnectForm', () => {
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
 
-    await expect.element(page.getByText('minio.example.com:9000')).toBeInTheDocument();
+    await expect.element(page.getByText('minio.example.com:9000').first()).toBeInTheDocument();
   });
 
   it('should show forget button for saved connections', async () => {
@@ -236,10 +249,12 @@ describe('StorageConnectForm', () => {
     const forgetBtn = page.getByRole('button', { name: 'Forget s3.remove.io' });
     await forgetBtn.click();
 
-    await expect.element(page.getByText('Forget connection to s3.remove.io?')).toBeInTheDocument();
+    await expect
+      .element(page.getByText('Delete connection to s3.remove.io?').first())
+      .toBeInTheDocument();
     await expect.element(page.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     await expect
-      .element(page.getByRole('button', { name: 'Forget', exact: true }))
+      .element(page.getByRole('button', { name: 'Delete', exact: true }))
       .toBeInTheDocument();
   });
 
@@ -269,9 +284,9 @@ describe('StorageConnectForm', () => {
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
 
-    await expect.element(page.getByText('first.example.com')).toBeInTheDocument();
-    await expect.element(page.getByText('second.example.com:9000')).toBeInTheDocument();
-    await expect.element(page.getByText('Production', { exact: true })).toBeInTheDocument();
+    await expect.element(page.getByText('first.example.com').first()).toBeInTheDocument();
+    await expect.element(page.getByText('second.example.com:9000').first()).toBeInTheDocument();
+    await expect.element(page.getByText('Production', { exact: true }).first()).toBeInTheDocument();
   });
 
   it('should render saved connections in a list role', async () => {
@@ -286,8 +301,8 @@ describe('StorageConnectForm', () => {
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
 
-    await expect.element(page.getByRole('list')).toBeInTheDocument();
-    await expect.element(page.getByRole('listitem')).toBeInTheDocument();
+    await expect.element(page.getByRole('list').first()).toBeInTheDocument();
+    await expect.element(page.getByRole('listitem').first()).toBeInTheDocument();
   });
 
   it('should render port hint text', async () => {
@@ -316,11 +331,13 @@ describe('StorageConnectForm', () => {
     render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await page.getByRole('button', { name: 'Forget s3.cancel.io' }).click();
-    await expect.element(page.getByText('Forget connection to s3.cancel.io?')).toBeInTheDocument();
+    await expect
+      .element(page.getByText('Delete connection to s3.cancel.io?').first())
+      .toBeInTheDocument();
 
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect
-      .element(page.getByText('Forget connection to s3.cancel.io?'))
+      .element(page.getByText('Delete connection to s3.cancel.io?'))
       .not.toBeInTheDocument();
   });
 
@@ -339,7 +356,7 @@ describe('StorageConnectForm', () => {
     await page.getByRole('button', { name: 'Forget s3.forget.io' }).click();
     // After clicking forget, mock returns empty list
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([]);
-    await page.getByRole('button', { name: 'Forget', exact: true }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
 
     expect(removeConnectionLocally).toHaveBeenCalledWith(conn);
     await expect.element(page.getByText('No saved connections yet')).toBeInTheDocument();
@@ -429,8 +446,8 @@ describe('StorageConnectForm', () => {
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
 
-    // Click the saved connection button
-    await page.getByRole('button', { name: 's3.select.io:9000', exact: true }).click();
+    // Click the saved connection button (first match — mobile card)
+    await page.getByRole('button', { name: 's3.select.io:9000', exact: true }).first().click();
 
     // Verify form fields are filled
     await expect.element(page.getByLabelText('Host')).toHaveValue('s3.select.io');
@@ -451,7 +468,7 @@ describe('StorageConnectForm', () => {
 
     render(StorageConnectForm, { connectionForm: createMockForm() });
 
-    await expect.element(page.getByText('Saved connections')).toBeInTheDocument();
+    await expect.element(page.getByText('Saved connections').first()).toBeInTheDocument();
   });
 
   it('should display multiple field errors simultaneously', async () => {
@@ -476,7 +493,7 @@ describe('StorageConnectForm', () => {
     await expect.element(page.getByText('Validation failed')).toBeInTheDocument();
   });
 
-  it('should close forget dialog via backdrop button', async () => {
+  it('should close forget dialog via cancel button', async () => {
     const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([
       makeConn({
@@ -490,13 +507,13 @@ describe('StorageConnectForm', () => {
 
     await page.getByRole('button', { name: 'Forget s3.backdrop.io' }).click();
     await expect
-      .element(page.getByText('Forget connection to s3.backdrop.io?'))
+      .element(page.getByText('Delete connection to s3.backdrop.io?').first())
       .toBeInTheDocument();
 
-    // Click the backdrop close button
-    await page.getByRole('button', { name: 'close' }).click();
+    // Close the dialog by clicking Cancel
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect
-      .element(page.getByText('Forget connection to s3.backdrop.io?'))
+      .element(page.getByText('Delete connection to s3.backdrop.io?'))
       .not.toBeInTheDocument();
   });
 });

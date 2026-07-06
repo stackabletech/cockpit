@@ -9,7 +9,8 @@ import type { S3ConnectionConfig } from '$lib/server/storage/types.js';
 export const load: PageServerLoad = async ({ locals }) => {
   const connectionForm = await superValidate(
     { tls: { verification: 'Full' } },
-    zod(StorageConnectionSchema)
+    zod(StorageConnectionSchema),
+    { errors: false }
   );
   locals.logger.debug('loading storage page');
   return { connectionForm };

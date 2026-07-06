@@ -100,6 +100,30 @@ describe('connection-storage', () => {
       expect(stored).toHaveLength(1);
       expect(stored[0].region.name).toBe('eu-west-1');
     });
+
+    it('deduplicates by host+port+accessKey when no id is supplied', () => {
+      // First save — assigns a UUID
+      const connWithoutId = {
+        type: 's3' as const,
+        host: 'minio.example.com',
+        port: 9000,
+        tls: { verification: 'Full' as const },
+        accessStyle: 'Path' as const,
+        region: { name: 'us-east-1' },
+        credentials: { accessKey: 'AKIA123', secretKey: 'secret' }
+      };
+      saveConnectionLocally(connWithoutId);
+      const afterFirst = loadAllConnectionsLocally();
+      expect(afterFirst).toHaveLength(1);
+      const assignedId = afterFirst[0].id;
+
+      // Second save with same identity but no id — should reuse the existing entry
+      saveConnectionLocally({ ...connWithoutId, region: { name: 'eu-west-1' } });
+      const afterSecond = loadAllConnectionsLocally();
+      expect(afterSecond).toHaveLength(1);
+      expect(afterSecond[0].id).toBe(assignedId);
+      expect(afterSecond[0].region.name).toBe('eu-west-1');
+    });
   });
 
   describe('updateConnectionLocally', () => {

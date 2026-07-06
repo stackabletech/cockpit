@@ -272,8 +272,8 @@ describe('BucketList', () => {
       await moreButton.click();
       await expect.element(page.getByRole('menuitem', { name: /unpin/i })).toBeInTheDocument();
 
-      const nav = page.getByRole('navigation');
-      await nav.first().click();
+      // Click on a non-link part of the nav (the heading) to trigger the outside-click handler
+      await page.getByText('Buckets').click();
 
       await expect.element(page.getByRole('menuitem', { name: /unpin/i })).not.toBeInTheDocument();
     });

@@ -45,12 +45,22 @@ function getConnections(): SavedConnection[] {
  */
 export function saveConnectionLocally(data: StoredConnection): void {
   try {
-    const connection: SavedConnection = {
-      ...data,
-      id: data.id ?? crypto.randomUUID()
-    };
     const all = getConnections();
-    const filtered = all.filter((c) => c.id !== connection.id);
+    // If a caller-supplied id is present, look up by id first (edit / reconnect
+    // with a known id). Only fall back to content-matching when no id is given,
+    // so that reconnecting with the same credentials (host+port+accessKey) after
+    // a page reload does not create a duplicate entry.
+    const existing = data.id
+      ? all.find((c) => c.id === data.id)
+      : all.find(
+          (c) =>
+            c.host === data.host &&
+            c.port === data.port &&
+            c.credentials?.accessKey === data.credentials?.accessKey
+        );
+    const id = existing?.id ?? data.id ?? crypto.randomUUID();
+    const connection: SavedConnection = { ...data, id };
+    const filtered = all.filter((c) => c.id !== id);
     filtered.push(connection);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
   } catch {
