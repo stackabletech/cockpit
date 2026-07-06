@@ -59,6 +59,11 @@ export async function openConnectForm(page: Page) {
     (await disconnectButton.isVisible().catch(() => false))
   ) {
     await disconnectButton.click();
+    // A confirmation modal was added — confirm the disconnection if the modal appears.
+    const confirmButton = page.locator('.modal-box').getByRole('button', { name: 'Disconnect' });
+    if (await confirmButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await confirmButton.click();
+    }
   }
 
   await expect(connectHeading).toBeVisible();

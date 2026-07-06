@@ -115,7 +115,13 @@ test.describe('Storage S3 — Context Menu', () => {
         'copy name test'
       );
 
-      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      // Playwright's grantPermissions for clipboard names only works in Chromium.
+      // Firefox rejects both 'clipboard-read' and 'clipboard-write' with "Unknown permission".
+      // In Firefox the clipboard write succeeds via user-gesture context without an explicit
+      // grant, but reading back via navigator.clipboard.readText() is not possible in tests.
+      if (browserName === 'chromium') {
+        await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      }
       await connectAndOpenPrefix(page, credentials, prefix);
 
       await rowByName(page, 'copy-name-test.txt').click({ button: 'right' });
@@ -123,8 +129,12 @@ test.describe('Storage S3 — Context Menu', () => {
 
       await expect(page.getByText('Filename copied to clipboard')).toBeVisible();
 
-      const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-      expect(clipboardText).toBe('copy-name-test.txt');
+      // clipboard.readText() requires the 'clipboard-read' permission which can only be granted
+      // in Chromium via Playwright — skip the read-back check in Firefox.
+      if (browserName === 'chromium') {
+        const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+        expect(clipboardText).toBe('copy-name-test.txt');
+      }
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -151,7 +161,10 @@ test.describe('Storage S3 — Context Menu', () => {
         'copy path test'
       );
 
-      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      // See 'Copy filename' test above for explanation of the Chromium-only permission grant.
+      if (browserName === 'chromium') {
+        await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      }
       await connectAndOpenPrefix(page, credentials, prefix);
 
       await rowByName(page, 'copy-path-test.txt').click({ button: 'right' });
@@ -159,8 +172,11 @@ test.describe('Storage S3 — Context Menu', () => {
 
       await expect(page.getByText('Path copied to clipboard')).toBeVisible();
 
-      const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-      expect(clipboardText).toBe(`s3://${credentials.bucket}/${prefix}copy-path-test.txt`);
+      // Skip clipboard read-back in Firefox — see 'Copy filename' test above.
+      if (browserName === 'chromium') {
+        const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+        expect(clipboardText).toBe(`s3://${credentials.bucket}/${prefix}copy-path-test.txt`);
+      }
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
