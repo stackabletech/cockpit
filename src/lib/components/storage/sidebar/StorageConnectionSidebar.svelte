@@ -198,7 +198,7 @@
 <!-- Desktop: sidebar -->
 <aside
   class="
-    border-base-300 bg-base-100 relative top-0
+    border-base-300 bg-base-100 sticky top-0
     hidden h-[calc(100dvh-7rem)] shrink-0 flex-col rounded-lg border md:flex
   "
   style="width: {resize.width}px"
@@ -210,7 +210,7 @@
     </span>
   </div>
 
-  <ul class="flex-1 overflow-y-auto py-1" role="list">
+  <ul class="flex-1 overflow-y-auto py-1" role="list" aria-label={m.storage_connect_saved()}>
     {#if !connectionsLoaded}
       <li class="flex justify-center px-3 py-4">
         <span class="loading loading-spinner loading-sm text-base-content/40"></span>
@@ -221,7 +221,7 @@
       </li>
     {:else}
       {#each allConnections as conn (conn.id)}
-        <li role="none" class="group relative">
+        <li class="group relative">
           <div class="relative z-150 w-full">
             <button
               type="button"

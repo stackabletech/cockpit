@@ -7,7 +7,15 @@ const baseStorageConnectionObject = z.object({
   host: z
     .string()
     .min(1, 'Host is required')
-    .refine((v) => !v.includes('://'), 'Host must be a plain hostname, not a URL'),
+    .transform((v) => {
+      if (!v.includes('://')) return v;
+      try {
+        return new URL(v).hostname;
+      } catch {
+        // Fallback: strip scheme manually, take just the host part
+        return v.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split(/[/:?#]/)[0];
+      }
+    }),
   port: z.coerce
     .number()
     .int()

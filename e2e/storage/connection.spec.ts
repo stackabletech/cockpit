@@ -90,12 +90,15 @@ test.describe('Storage S3 — Connection', () => {
     const savedList = page.getByRole('list', { name: 'Saved connections' });
     await expect(savedList).toBeVisible();
 
+    // Open the "More options" context menu for the first saved connection
     await savedList.getByRole('listitem').first().getByRole('button').last().click();
 
-    await expect(page.getByRole('button', { name: 'Forget', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Forget', exact: true }).click();
+    // Click Delete in the context menu (rendered as a menuitem)
+    await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
 
-    await expect(savedList).not.toBeVisible();
+    // Confirm deletion in the modal
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+
     await expect(page.getByText('No saved connections yet')).toBeVisible();
   });
 

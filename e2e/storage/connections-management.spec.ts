@@ -71,7 +71,9 @@ test.describe('Storage — Connections management', () => {
     await expect(page.getByLabel('Access key')).toHaveValue(credentials.accessKeyId);
   });
 
-  test('edit page shows success message after saving valid credentials', async ({ page }) => {
+  test('edit page redirects to connections list after saving valid credentials', async ({
+    page
+  }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);
     await page.goto('/storage/connections');
@@ -82,7 +84,9 @@ test.describe('Storage — Connections management', () => {
 
     await page.getByRole('button', { name: 'Save changes' }).click();
 
-    await expect(page.getByText('Connection updated successfully.')).toBeVisible();
+    await waitForHydration(page);
+    await expect(page).toHaveURL('/storage/connections');
+    await expect(page.getByRole('heading', { name: 'Manage connections' })).toBeVisible();
   });
 
   test('edit page shows error for invalid credentials', async ({ page }) => {
@@ -143,5 +147,63 @@ test.describe('Storage — Connections management', () => {
     await waitForHydration(page);
 
     await expect(page.getByText('You are currently connected with this connection.')).toBeVisible();
+  });
+
+  test('edit page shows unsaved-changes modal when navigating away with dirty form', async ({
+    page
+  }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+    await page.goto('/storage/connections');
+    await waitForHydration(page);
+
+    await page.getByRole('link', { name: /edit/i }).first().click();
+    await waitForHydration(page);
+
+    // Make a change to mark the form dirty
+    await page.getByLabel('Connection name').fill('Changed name');
+
+    // Try to navigate away via the back link
+    await page.getByRole('link', { name: /Manage connections/i }).click();
+
+    // Modal should appear
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Unsaved changes' })).toBeVisible();
+  });
+
+  test('unsaved-changes modal: Stay keeps user on edit page', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+    await page.goto('/storage/connections');
+    await waitForHydration(page);
+
+    await page.getByRole('link', { name: /edit/i }).first().click();
+    await waitForHydration(page);
+
+    await page.getByLabel('Connection name').fill('Changed name');
+    await page.getByRole('link', { name: /Manage connections/i }).click();
+
+    await page.getByRole('dialog').getByRole('button', { name: 'Stay on page' }).click();
+
+    await expect(page).toHaveURL(/\/edit$/);
+    await expect(page.getByRole('heading', { name: 'Edit connection' })).toBeVisible();
+  });
+
+  test('unsaved-changes modal: Leave navigates away', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+    await page.goto('/storage/connections');
+    await waitForHydration(page);
+
+    await page.getByRole('link', { name: /edit/i }).first().click();
+    await waitForHydration(page);
+
+    await page.getByLabel('Connection name').fill('Changed name');
+    await page.getByRole('link', { name: /Manage connections/i }).click();
+
+    await page.getByRole('dialog').getByRole('button', { name: 'Leave' }).click();
+
+    await waitForHydration(page);
+    await expect(page).toHaveURL('/storage/connections');
   });
 });

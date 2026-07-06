@@ -25,6 +25,11 @@ test.describe('Storage S3 (Garage)', () => {
     const disconnectButton = page.getByRole('button', { name: 'Disconnect' });
     if (await disconnectButton.isVisible().catch(() => false)) {
       await disconnectButton.click();
+      // Disconnect now opens a confirmation modal — confirm it if it appears.
+      const confirmButton = page.getByRole('dialog').getByRole('button', { name: 'Disconnect' });
+      if (await confirmButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
+        await confirmButton.click();
+      }
     }
 
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
@@ -62,8 +67,10 @@ test.describe('Storage S3 (Garage)', () => {
     const main = page.locator('main');
     await expect(main.getByRole('heading', { name: 'Buckets' })).toBeVisible();
 
-    // The bucket created during Garage setup must appear in the list
-    await expect(main.getByRole('link', { name: bucket, exact: true })).toBeVisible();
+    // The bucket created during Garage setup must appear in the list.
+    // Both the sidebar nav and the bucket grid render a link — use first() to
+    // avoid a strict-mode violation.
+    await expect(main.getByRole('link', { name: bucket, exact: true }).first()).toBeVisible();
   });
 
   test('disconnects from Garage S3', async ({ page }) => {
@@ -91,8 +98,9 @@ test.describe('Storage S3 (Garage)', () => {
     await page.getByRole('button', { name: 'Connect' }).click();
     await expect(page.locator('main').getByRole('heading', { name: 'Buckets' })).toBeVisible();
 
-    // Then disconnect
+    // Then disconnect — clicking Disconnect opens a confirmation modal.
     await page.getByRole('button', { name: 'Disconnect' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
 
     // Should return to the connect form
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();

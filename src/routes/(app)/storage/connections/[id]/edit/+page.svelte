@@ -1,14 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
+  import { goto, beforeNavigate } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { superForm } from 'sveltekit-superforms';
   import { zod4 as zod } from 'sveltekit-superforms/adapters';
   import { untrack } from 'svelte';
   import IconInfo from 'virtual:icons/material-symbols/info';
-  import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
+  import Modal from '$lib/components/Modal.svelte';
   import { EditStorageConnectionSchema } from '$lib/storage/schemas.js';
   import {
     loadConnectionById,
@@ -25,7 +25,13 @@
   let connection = $state<SavedConnection | null>(null);
   let loaded = $state(false);
   let isActiveConnection = $state(false);
-  let saved = $state(false);
+
+  // Unsaved-changes guard
+  let initialSnapshot = $state.raw('');
+  let confirmLeaveOpen = $state(false);
+  let pendingNavigation = $state<string | null>(null);
+  // Set to true just before a programmatic goto so beforeNavigate doesn't re-intercept it.
+  let bypassDirtyCheck = false;
 
   // Extract the id from the URL via SvelteKit's page state
   const connectionId = page.params.id;
@@ -35,7 +41,7 @@
     {
       dataType: 'json',
       validators: zod(EditStorageConnectionSchema),
-      onResult: ({ result }) => {
+      onResult: ({ result, cancel }) => {
         if (result.type === 'success' && result.data?.form?.message === 'ok') {
           if (connection) {
             // If credentials were left blank, preserve the existing stored credentials.
@@ -45,11 +51,18 @@
                 : (connection.credentials ?? { accessKey: '', secretKey: '' });
             updateConnectionLocally(connection.id, { ...$form, credentials: savedCredentials });
           }
-          saved = true;
+          // Prevent superforms from resetting the form and calling invalidateAll(),
+          // which would race with the navigation.
+          cancel();
+          // Bypass the dirty-check guard so the post-save redirect isn't intercepted.
+          bypassDirtyCheck = true;
+          goto(resolve('/storage/connections'));
         }
       }
     }
   );
+
+  let isDirty = $derived(loaded && !!initialSnapshot && JSON.stringify($form) !== initialSnapshot);
 
   onMount(() => {
     if (!connectionId) {
@@ -79,9 +92,68 @@
     const active = loadConnectionLocally();
     isActiveConnection = active?.id === found.id;
 
+    // Snapshot the pre-filled form so we can detect unsaved changes.
+    initialSnapshot = JSON.stringify($form);
     loaded = true;
   });
+
+  beforeNavigate(({ cancel: cancelNav, to }) => {
+    if (!bypassDirtyCheck && isDirty && to?.url) {
+      cancelNav();
+      pendingNavigation = to.url.pathname + to.url.search + to.url.hash;
+      confirmLeaveOpen = true;
+    }
+  });
+
+  function confirmLeave() {
+    const dest = pendingNavigation!;
+    confirmLeaveOpen = false;
+    pendingNavigation = null;
+    bypassDirtyCheck = true;
+    goto(dest);
+  }
+
+  function cancelLeave() {
+    confirmLeaveOpen = false;
+    pendingNavigation = null;
+  }
+
+  function handleBeforeUnload(e: BeforeUnloadEvent) {
+    if (isDirty) {
+      e.preventDefault();
+    }
+  }
+
+  function parseHostInput() {
+    const v = $form.host?.trim();
+    if (!v?.includes('://')) return;
+    try {
+      const url = new URL(v);
+      $form.host = url.hostname;
+      if (url.port) $form.port = Number(url.port);
+      $form.tls = url.protocol === 'https:' ? { verification: 'Full' } : undefined;
+    } catch {
+      // Not a parseable URL — leave unchanged
+    }
+  }
 </script>
+
+<svelte:window onbeforeunload={handleBeforeUnload} />
+
+<Modal bind:open={confirmLeaveOpen} class="modal">
+  <div class="modal-box">
+    <h3 class="text-lg font-semibold">{m.storage_connection_edit_unsaved_title()}</h3>
+    <p class="text-base-content/70 mt-2 text-sm">{m.storage_connection_edit_unsaved_body()}</p>
+    <div class="modal-action">
+      <button type="button" class="btn btn-ghost" onclick={cancelLeave}>
+        {m.storage_connection_edit_unsaved_stay()}
+      </button>
+      <button type="button" class="btn btn-error" onclick={confirmLeave}>
+        {m.storage_connection_edit_unsaved_leave()}
+      </button>
+    </div>
+  </div>
+</Modal>
 
 <h1 class="mb-1 text-xl font-semibold">{m.storage_connection_edit_title()}</h1>
 
@@ -91,16 +163,9 @@
   </div>
 {:else}
   {#if isActiveConnection}
-    <div role="note" class="alert mb-4 flex gap-2">
+    <div role="note" class="alert alert-info mb-4 flex gap-2">
       <IconInfo class="size-5 shrink-0" aria-hidden="true" />
       <span class="text-sm">{m.storage_connection_edit_active_notice()}</span>
-    </div>
-  {/if}
-
-  {#if saved}
-    <div role="status" class="alert alert-success mb-4 flex gap-2">
-      <IconCheckCircle class="size-5 shrink-0" aria-hidden="true" />
-      <span class="text-sm">{m.storage_connection_edit_success()}</span>
     </div>
   {/if}
 
@@ -138,6 +203,7 @@
         class={['input-bordered input w-full', $errors?.host && 'input-error']}
         placeholder={m.storage_connect_host_placeholder()}
         bind:value={$form.host}
+        onblur={parseHostInput}
       />
       {#if $errors?.host}
         <p class="text-error mt-1 text-xs">{$errors.host}</p>

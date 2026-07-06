@@ -53,6 +53,19 @@
     tick().then(() => formRef?.requestSubmit());
   }
 
+  function parseHostInput() {
+    const v = $form.host?.trim();
+    if (!v?.includes('://')) return;
+    try {
+      const url = new URL(v);
+      $form.host = url.hostname;
+      if (url.port) $form.port = Number(url.port);
+      $form.tls = url.protocol === 'https:' ? { verification: 'Full' } : undefined;
+    } catch {
+      // Not a parseable URL — leave unchanged
+    }
+  }
+
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
     if (!storageAutoConnectEnabled || params.has('disconnected')) return;
@@ -118,6 +131,7 @@
             class={['input-bordered input w-full', $errors?.host && 'input-error']}
             placeholder={m.storage_connect_host_placeholder()}
             bind:value={$form.host}
+            onblur={parseHostInput}
           />
           {#if $errors?.host}
             <p class="text-error mt-1 text-xs">{$errors.host}</p>
