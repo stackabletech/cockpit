@@ -187,6 +187,8 @@ jobs:
       image: oci.stackable.tech/sdp/cockpit
       digest: ${{ needs.publish-index-manifest.outputs.oci-index-digest }}
       registry-username: robot$sdp+github-action-build
+      # The following can be removed once this repository is public
+      private-repository: true
     secrets:
       registry-password: ${{ secrets.HARBOR_ROBOT_SDP_GITHUB_ACTION_BUILD_SECRET }}
 
