@@ -1,5 +1,6 @@
 import { SvelteMap, SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
 import { tick } from 'svelte';
+import { browser } from '$app/environment';
 import { invalidateAll } from '$app/navigation';
 import * as m from '$lib/paraglide/messages.js';
 import type { StoragePage, StorageObject } from '$lib/storage/types.js';
@@ -30,6 +31,43 @@ import { ActionError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
 import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
 import { keyToName } from '$lib/storage/utils.js';
+
+// ── Operations history localStorage helpers ───────────────────────────────────
+
+const OPERATIONS_HISTORY_KEY = 'storage_operations_history';
+const MAX_HISTORY_ENTRIES = 30;
+
+function loadPersistedOperations(): StorageOperation[] {
+  if (!browser) return [];
+  try {
+    const raw = localStorage.getItem(OPERATIONS_HISTORY_KEY);
+    if (!raw) return [];
+    const ops = JSON.parse(raw) as StorageOperation[];
+    if (!Array.isArray(ops)) return [];
+    // Any operation that was still running when the page was last closed is now interrupted.
+    return ops.map((op) =>
+      op.status === 'running'
+        ? { ...op, status: 'interrupted' as const, completedAt: op.completedAt ?? Date.now() }
+        : op
+    );
+  } catch {
+    return [];
+  }
+}
+
+function saveOperationsToStorage(ops: StorageOperation[]): void {
+  if (!browser) return;
+  try {
+    // Persist only non-running entries (capped); running ones are saved on _startOp.
+    const history = ops.filter((op) => op.status !== 'running').slice(-MAX_HISTORY_ENTRIES);
+    // Merge with any running ops so they appear as interrupted after a refresh.
+    const running = ops.filter((op) => op.status === 'running');
+    const toSave = [...running, ...history].slice(-MAX_HISTORY_ENTRIES);
+    localStorage.setItem(OPERATIONS_HISTORY_KEY, JSON.stringify(toSave));
+  } catch {
+    // Best effort.
+  }
+}
 
 export class StorageState {
   // ── Core data (synced from server load) ──
@@ -151,6 +189,8 @@ export class StorageState {
     if (options?.connected !== undefined) this.connected = options.connected;
     if (options?.buckets) this.buckets = options.buckets;
     if (options?.connectionId !== undefined) this.connectionId = options.connectionId;
+    // Restore persisted operation history (interrupted ops appear from previous sessions).
+    this.operations = loadPersistedOperations();
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -1421,6 +1461,8 @@ export class StorageState {
     if (abortController) {
       this._abortControllers.set(id, abortController);
     }
+    // Persist immediately so a refresh shows the op as interrupted.
+    saveOperationsToStorage(this.operations);
   }
 
   private _updateOpProgress(
@@ -1443,11 +1485,14 @@ export class StorageState {
       op.id === id ? { ...op, status, errorMessage, completedAt: Date.now() } : op
     );
     this._abortControllers.delete(id);
-    // Auto-remove completed operations after 30 s
-    setTimeout(() => {
-      this.operations = this.operations.filter((op) => op.id !== id);
-    }, 30_000);
+    saveOperationsToStorage(this.operations);
   }
+
+  /** Remove all completed/failed/cancelled/interrupted operations from history. */
+  clearOperationHistory = (): void => {
+    this.operations = this.operations.filter((op) => op.status === 'running');
+    saveOperationsToStorage(this.operations);
+  };
 
   cancelOp = (id: string): void => {
     const controller = this._abortControllers.get(id);

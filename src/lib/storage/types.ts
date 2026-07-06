@@ -75,7 +75,7 @@ export interface ClipboardState {
 
 // ── Operations (paste / move / rename progress tracking) ─────────────────────
 
-export type OperationStatus = 'running' | 'done' | 'error' | 'cancelled';
+export type OperationStatus = 'running' | 'done' | 'error' | 'cancelled' | 'interrupted';
 
 export type OperationType = 'paste' | 'move' | 'rename' | 'delete';
 
