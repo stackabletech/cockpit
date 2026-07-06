@@ -5,7 +5,6 @@ import {
   requireGarageCredentials
 } from '../support/garage.js';
 import {
-  bucketRoute,
   connectAndOpenPrefix,
   deleteKnownKeys,
   objectExists,
@@ -30,7 +29,7 @@ test.describe('Storage S3 — File Operations', () => {
   // Cut + Paste
   // ──────────────────────────────────────────────────────────────────────────
 
-  test('cut via context menu and paste copies file (originals remain)', async ({
+  test('cut via context menu and paste moves file (original deleted)', async ({
     page
   }, testInfo) => {
     const credentials = requireGarageCredentials();
@@ -38,7 +37,7 @@ test.describe('Storage S3 — File Operations', () => {
     const prefix = uniquePrefix(testInfo, 'cut-paste');
     const srcKey = `${prefix}source/`;
     const srcFile = `${srcKey}cut-me.txt`;
-    const cleanupKeys = [srcFile, `${prefix}dest/`];
+    const cleanupKeys = [srcFile, `${prefix}cut-me.txt`];
 
     try {
       await putDirectoryMarker(client, credentials.bucket, srcKey);
@@ -50,8 +49,9 @@ test.describe('Storage S3 — File Operations', () => {
       await rowByName(page, 'cut-me.txt').click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'Cut' }).click();
 
-      // Navigate to dest prefix
-      await page.goto(bucketRoute(credentials.bucket, prefix));
+      // Navigate to parent prefix in-app (preserves clipboard)
+      await page.locator('tbody tr').first().click();
+      await page.waitForTimeout(500);
 
       // Right-click empty space → Paste
       await page.locator('tbody').click({ button: 'right' });
@@ -60,10 +60,10 @@ test.describe('Storage S3 — File Operations', () => {
       // Wait for paste to complete
       await page.waitForTimeout(1000);
 
-      // File should exist at dest (pasted/copied)
+      // File should exist at dest (moved)
       expect(await objectExists(client, credentials.bucket, `${prefix}cut-me.txt`)).toBe(true);
-      // Original should still exist (cut does not delete on first paste)
-      expect(await objectExists(client, credentials.bucket, srcFile)).toBe(true);
+      // Original should be deleted (cut = move)
+      expect(await objectExists(client, credentials.bucket, srcFile)).toBe(false);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -85,15 +85,16 @@ test.describe('Storage S3 — File Operations', () => {
 
       // Copy file
       await rowByName(page, 'nested-src.txt').click({ button: 'right' });
-      await page.getByRole('menuitem', { name: 'Copy' }).click();
+      await page.getByRole('menuitem', { name: 'Copy', exact: true }).click();
 
       // Navigate into dest folder
       await rowByName(page, 'target').dblclick();
       await page.waitForTimeout(500);
 
-      // Paste
-      await page.locator('tbody').click({ button: 'right' });
-      await page.getByRole('menuitem', { name: 'Paste' }).click();
+      // Paste (use keyboard shortcut — right-click in an empty folder
+      // lands on the ".." row which has no context menu handler)
+      await page.locator('table').click();
+      await page.keyboard.press('Control+v');
 
       await page.waitForTimeout(1000);
 
@@ -117,13 +118,13 @@ test.describe('Storage S3 — File Operations', () => {
 
       // Copy the file
       await rowByName(page, 'gone.txt').click({ button: 'right' });
-      await page.getByRole('menuitem', { name: 'Copy' }).click();
+      await page.getByRole('menuitem', { name: 'Copy', exact: true }).click();
 
       // Delete the file via S3 directly (simulate race condition / out-of-band delete)
       await deleteKnownKeys(client, credentials.bucket, [srcFile]);
 
-      // Navigate to root and try to paste
-      await page.goto(bucketRoute(credentials.bucket, ''));
+      // Navigate to bucket root via ".." row (preserves clipboard)
+      await page.locator('tbody tr').first().click();
       await page.waitForTimeout(500);
 
       await page.locator('tbody').click({ button: 'right' });
@@ -153,27 +154,31 @@ test.describe('Storage S3 — File Operations', () => {
 
     try {
       await putTextObject(client, credentials.bucket, srcFile, 'multi paste');
+      await putDirectoryMarker(client, credentials.bucket, dest1);
+      await putDirectoryMarker(client, credentials.bucket, dest2);
 
       await connectAndOpenPrefix(page, credentials, prefix);
 
       // Copy file
       await rowByName(page, 'multi.txt').click({ button: 'right' });
-      await page.getByRole('menuitem', { name: 'Copy' }).click();
+      await page.getByRole('menuitem', { name: 'Copy', exact: true }).click();
 
-      // Paste to first destination
-      await page.goto(bucketRoute(credentials.bucket, dest1));
+      // Navigate into first destination and paste
+      await rowByName(page, 'd1').dblclick();
       await page.waitForTimeout(500);
-      await page.locator('tbody').click({ button: 'right' });
-      await page.getByRole('menuitem', { name: 'Paste' }).click();
+      await page.locator('table').click();
+      await page.keyboard.press('Control+v');
       await page.waitForTimeout(1000);
 
       expect(await objectExists(client, credentials.bucket, `${dest1}multi.txt`)).toBe(true);
 
-      // Paste to second destination
-      await page.goto(bucketRoute(credentials.bucket, dest2));
+      // Navigate back to prefix then into second destination
+      await page.locator('tbody tr').first().click();
       await page.waitForTimeout(500);
-      await page.locator('tbody').click({ button: 'right' });
-      await page.getByRole('menuitem', { name: 'Paste' }).click();
+      await rowByName(page, 'd2').dblclick();
+      await page.waitForTimeout(500);
+      await page.locator('table').click();
+      await page.keyboard.press('Control+v');
       await page.waitForTimeout(1000);
 
       expect(await objectExists(client, credentials.bucket, `${dest2}multi.txt`)).toBe(true);
@@ -284,8 +289,8 @@ test.describe('Storage S3 — File Operations', () => {
       await page.keyboard.press('Control+c');
       await page.waitForTimeout(300);
 
-      // Navigate to root of prefix and paste
-      await page.goto(bucketRoute(credentials.bucket, prefix));
+      // Navigate to parent prefix in-app (preserves clipboard)
+      await page.locator('tbody tr').first().click();
       await page.waitForTimeout(500);
 
       // Select somewhere to focus the page, then Ctrl+V
@@ -355,8 +360,8 @@ test.describe('Storage S3 — File Operations', () => {
       await page.keyboard.press('Control+x');
       await page.waitForTimeout(300);
 
-      // Navigate to root prefix
-      await page.goto(bucketRoute(credentials.bucket, prefix));
+      // Navigate to parent prefix in-app (preserves clipboard)
+      await page.locator('tbody tr').first().click();
       await page.waitForTimeout(500);
 
       // Paste
