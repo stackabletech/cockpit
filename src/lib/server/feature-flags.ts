@@ -122,3 +122,8 @@ export const storagePasteEnabled =
  *  API endpoint is active. Uses PUBLIC_ key. Disabled by default. */
 export const storageRenameEnabled =
   (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED ?? 'false') === 'true';
+
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED=true`, the move
+ *  API endpoint (drag-and-drop) is active. Uses PUBLIC_ key. Disabled by default. */
+export const storageMoveEnabled =
+  (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED ?? 'false') === 'true';

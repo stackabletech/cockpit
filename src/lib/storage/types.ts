@@ -1,6 +1,6 @@
 // ── Modal types ─────────────────────────────────────────────────────────────
 
-export type ModalType = 'delete' | 'preview' | 'upload' | 'rename';
+export type ModalType = 'delete' | 'preview' | 'upload' | 'rename' | 'confirm-move';
 
 export interface ModalPayloads {
   delete: { keys: string[] };
@@ -12,6 +12,12 @@ export interface ModalPayloads {
   };
   upload: { bucket: string; prefix: string };
   rename: { key: string };
+  'confirm-move': {
+    keys: string[];
+    destPrefix: string;
+    /** Per-item metadata for display in the confirmation dialog. */
+    items: Array<{ key: string; name: string; isDirectory: boolean; size?: number }>;
+  };
 }
 
 export type ActiveModal = {
@@ -61,8 +67,20 @@ export interface ClipboardState {
   keys: string[];
   /** Bucket the items belong to. */
   sourceBucket: string;
+  /** Prefix where the items were cut from (used to invalidate source tabs). */
+  sourcePrefix: string;
   /** File sizes keyed by S3 key (for recent files tracking). */
   fileSizes: Record<string, number>;
+}
+
+// ── Operations (paste / move / rename progress tracking) ─────────────────────
+
+export type OperationStatus = 'running' | 'done' | 'error';
+
+export interface StorageOperation {
+  id: string;
+  label: string;
+  status: OperationStatus;
 }
 
 // ── Storage locations ────────────────────────────────────────────────────────

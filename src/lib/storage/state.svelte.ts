@@ -11,7 +11,8 @@ import type {
   ActionName,
   ClipboardState,
   ArchiveListingResponse,
-  ArchiveEntry
+  ArchiveEntry,
+  StorageOperation
 } from '$lib/storage/types.js';
 import { ARCHIVE_EXTENSIONS } from '$lib/storage/types.js';
 import { initPageSize, type PageSize } from '$lib/types/pagination.js';
@@ -19,7 +20,8 @@ import {
   defaultPageSize,
   storageCutCopyEnabled,
   storagePasteEnabled,
-  storageRenameEnabled
+  storageRenameEnabled,
+  storageMoveEnabled
 } from '$lib/client/feature-flags.js';
 import { downloadObject, DownloadError } from '$lib/storage/download.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
@@ -112,6 +114,10 @@ export class StorageState {
   // ── Clipboard (cut / copy) ──
   clipboard = $state<ClipboardState | null>(null);
 
+  // ── Operations (paste / move / rename progress) ──
+  operations = $state<StorageOperation[]>([]);
+  hasRunningOps = $derived(this.operations.some((op) => op.status === 'running'));
+
   /** True when `key` is in the clipboard with action='cut' and the bucket matches. */
   isCutKey(key: string): boolean {
     return (
@@ -128,6 +134,11 @@ export class StorageState {
   // refresh does not add an extra browser history entry. Falls back to
   // invalidateAll when no handler has been set (e.g. in tests).
   private _onRefreshNavigate: (() => void) | null = null;
+  // ── Tabs invalidation callback (injected by FileExplorer) ──
+  // Called after file operations to mark source tabs as stale so they refetch
+  // when the user switches back to them.
+  private _onInvalidateSourceTabs: ((prefix: string) => void) | null = null;
+  private _pendingSourcePrefix: string | null = null;
 
   // ────────────────────────────────────────────────────────────────────────────
   // Constructor
@@ -165,6 +176,10 @@ export class StorageState {
 
   setRefreshHandler(fn: () => void): void {
     this._onRefreshNavigate = fn;
+  }
+
+  setTabsInvalidationHandler(fn: (prefix: string) => void): void {
+    this._onInvalidateSourceTabs = fn;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -630,7 +645,13 @@ export class StorageState {
             fileSizes[obj.key] = obj.size;
           }
         }
-        this.clipboard = { action: 'cut', keys: cutKeys, sourceBucket: this.bucket, fileSizes };
+        this.clipboard = {
+          action: 'cut',
+          keys: cutKeys,
+          sourceBucket: this.bucket,
+          sourcePrefix: this.prefix,
+          fileSizes
+        };
         addToast('info', m.storage_action_cut_success({ count: cutKeys.length }));
         return;
       }
@@ -645,7 +666,13 @@ export class StorageState {
             fileSizes[obj.key] = obj.size;
           }
         }
-        this.clipboard = { action: 'copy', keys: copyKeys, sourceBucket: this.bucket, fileSizes };
+        this.clipboard = {
+          action: 'copy',
+          keys: copyKeys,
+          sourceBucket: this.bucket,
+          sourcePrefix: this.prefix,
+          fileSizes
+        };
         addToast('info', m.storage_action_copy_success({ count: copyKeys.length }));
         return;
       }
@@ -660,6 +687,8 @@ export class StorageState {
         const wasCut = this.clipboard.action === 'cut';
         const pasteKeys = [...this.clipboard.keys];
         const destPrefix = this.prefix;
+        const opId = crypto.randomUUID();
+        this._startOp(opId, m.storage_operation_paste({ count: pasteKeys.length }));
         try {
           const { results, failed } = await this.performPaste(
             pasteKeys,
@@ -668,9 +697,11 @@ export class StorageState {
             wasCut
           );
           if (results.length === 0) {
+            this._finishOp(opId, 'error');
             addToast('error', m.storage_action_paste_error_source_not_found());
             return;
           }
+          this._finishOp(opId, failed > 0 ? 'error' : 'done');
           // Record destination files as recent visits
           const newFileSizes: Record<string, number> = {};
           for (const r of results) {
@@ -688,16 +719,21 @@ export class StorageState {
           // keys so subsequent pastes copy from the newly created files.
           if (wasCut && results.length > 0) {
             const destKeys = results.map((r) => r.destKey);
+            // Invalidate source tabs so they refetch (items moved out)
+            if (this.clipboard.sourcePrefix && this._onInvalidateSourceTabs) {
+              this._onInvalidateSourceTabs(this.clipboard.sourcePrefix);
+            }
             this.clipboard = {
               action: 'copy',
               keys: destKeys,
               sourceBucket: this.bucket,
+              sourcePrefix: this.prefix,
               fileSizes: newFileSizes
             };
           }
-          this.loading = true;
-          void invalidateAll();
+          this.refresh();
         } catch (err: unknown) {
+          this._finishOp(opId, 'error');
           addToast(
             'error',
             err instanceof ActionError ? getActionErrorMessage(err) : m.storage_action_paste_error()
@@ -733,8 +769,7 @@ export class StorageState {
       }
       this.selectedKeys = new SvelteSet<string>();
       this.selectionMode = false;
-      this.loading = true;
-      await invalidateAll();
+      this.refresh();
     } catch (err: unknown) {
       this.loading = false;
       let msg = m.storage_delete_error_unknown();
@@ -755,8 +790,7 @@ export class StorageState {
 
   handleUploadSuccess = (): void => {
     this.closeModal();
-    this.loading = true;
-    void invalidateAll();
+    this.refresh();
   };
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -829,9 +863,13 @@ export class StorageState {
       return;
     }
 
+    const opId = crypto.randomUUID();
+    this._startOp(opId, m.storage_operation_rename());
+
     try {
       const conn = loadConnectionLocally();
       if (!conn) {
+        this._finishOp(opId, 'error');
         this.renameLoading = false;
         addToast('error', m.storage_rename_error_not_connected());
         return;
@@ -848,6 +886,7 @@ export class StorageState {
       });
 
       if (!res.ok) {
+        this._finishOp(opId, 'error');
         this.renameLoading = false;
         if (res.status === 409) {
           this.renameError = m.storage_rename_error_conflict({ name: newName });
@@ -870,12 +909,13 @@ export class StorageState {
         }
       }
 
+      this._finishOp(opId, 'done');
       this.renameLoading = false;
       this.closeModal();
       addToast('success', m.storage_rename_success({ name: newName }));
-      this.loading = true;
-      void invalidateAll();
+      this.refresh();
     } catch {
+      this._finishOp(opId, 'error');
       this.renameLoading = false;
       this.closeModal();
       addToast('error', m.storage_rename_error({ name: newName }));
@@ -886,23 +926,75 @@ export class StorageState {
   // Move (used by drag-and-drop)
   // ────────────────────────────────────────────────────────────────────────────
 
-  /** Move the currently selected items (or given keys) to a destination prefix.
-   *  The items are copied to the destination and then deleted from the source. */
-  performMove = async (destPrefix: string, keys?: string[]): Promise<void> => {
+  /** Validate a drag-and-drop move and open the confirmation dialog.
+   *  The actual API call happens in `confirmMove` after the user confirms. */
+  performMove = (destPrefix: string, keys?: string[]): void => {
+    if (!storageMoveEnabled) return;
     const moveKeys = keys ?? [...this.selectedKeys];
     if (moveKeys.length === 0) return;
 
-    // Don't move to the same prefix
-    if (destPrefix === this.prefix) return;
+    // Don't move items that are already directly inside destPrefix (no-op).
+    // This is more precise than comparing destPrefix to this.prefix, which
+    // would incorrectly block cross-tab drops onto the destination directory.
+    const isAlreadyThere = (key: string): boolean => {
+      if (key.endsWith('/')) return key === destPrefix;
+      const parentPrefix = key.substring(0, key.lastIndexOf('/') + 1);
+      return parentPrefix === destPrefix;
+    };
+    if (moveKeys.every(isAlreadyThere)) return;
 
     // Don't move a folder into itself
     for (const k of moveKeys) {
       if (k.endsWith('/') && destPrefix.startsWith(k)) return;
     }
 
+    // Collect per-item metadata for the confirmation dialog
+    const items = moveKeys.map((key) => {
+      const obj = this.objects.objects.find((o) => o.key === key);
+      return {
+        key,
+        name: keyToName(key),
+        isDirectory: key.endsWith('/'),
+        size: obj && !obj.isDirectory ? obj.size : undefined
+      };
+    });
+
+    this.openModal('confirm-move', { keys: moveKeys, destPrefix, items });
+    // Derive source prefix from the keys being moved (common parent directory).
+    // Cannot use this.prefix because after a cross-tab drop the active tab is
+    // already the destination, so this.prefix equals destPrefix.
+    this._pendingSourcePrefix = this._commonPrefix(moveKeys);
+  };
+
+  /** Returns the longest common directory prefix of the given keys. */
+  private _commonPrefix(keys: string[]): string {
+    if (keys.length === 0) return '';
+    const parts = keys[0].split('/');
+    parts.pop(); // remove filename
+    let prefix = parts.join('/') ? parts.join('/') + '/' : '';
+    for (let i = 1; i < keys.length; i++) {
+      while (prefix && !keys[i].startsWith(prefix)) {
+        const idx = prefix.lastIndexOf('/', prefix.length - 2);
+        prefix = idx >= 0 ? prefix.substring(0, idx + 1) : '';
+      }
+    }
+    return prefix;
+  }
+
+  confirmMove = async (): Promise<void> => {
+    const modal = this.activeModal;
+    if (!modal || modal.type !== 'confirm-move') return;
+    const { keys: moveKeys, destPrefix } = modal.payload;
+    this.closeModal();
+
+    const opId = crypto.randomUUID();
+    this._startOp(opId, m.storage_operation_move({ count: moveKeys.length }));
+
     try {
       const conn = loadConnectionLocally();
       if (!conn) {
+        this._finishOp(opId, 'error');
+        this._pendingSourcePrefix = null;
         addToast('error', m.storage_action_move_error_not_connected());
         return;
       }
@@ -921,6 +1013,8 @@ export class StorageState {
       });
 
       if (!res.ok) {
+        this._finishOp(opId, 'error');
+        this._pendingSourcePrefix = null;
         let msg = m.storage_action_move_error();
         if (res.status === 403) msg = m.storage_action_move_error_access_denied();
         addToast('error', msg);
@@ -932,18 +1026,20 @@ export class StorageState {
         failed: Array<{ sourceKey: string; error: string }>;
       };
 
+      this._finishOp(opId, result.failed.length === 0 ? 'done' : 'error');
+
       if (result.moved.length > 0) {
         addToast('success', m.storage_action_move_success({ count: result.moved.length }));
         // Update recent files: remove source keys, record new dest keys
-        const movedKeys = result.moved.map((m) => m.sourceKey).filter((k) => !k.endsWith('/'));
+        const movedKeys = result.moved.map((r) => r.sourceKey).filter((k) => !k.endsWith('/'));
         if (movedKeys.length > 0) {
           this.bookmarks.removeFiles(this.bucket, movedKeys);
         }
-        for (const m of result.moved) {
-          if (!m.destKey.endsWith('/')) {
-            const obj = this.files.find((f) => f.key === m.sourceKey);
+        for (const r of result.moved) {
+          if (!r.destKey.endsWith('/')) {
+            const obj = this.files.find((f) => f.key === r.sourceKey);
             if (obj) {
-              this.bookmarks.recordFileVisit(this.bucket, m.destKey, obj.size);
+              this.bookmarks.recordFileVisit(this.bucket, r.destKey, obj.size);
             }
           }
         }
@@ -954,11 +1050,21 @@ export class StorageState {
 
       this.selectedKeys = new SvelteSet<string>();
       this.selectionMode = false;
-      this.loading = true;
-      void invalidateAll();
+      // Mark source tabs as stale so they refetch when switched to
+      if (this._pendingSourcePrefix !== null && this._onInvalidateSourceTabs) {
+        this._onInvalidateSourceTabs(this._pendingSourcePrefix);
+        this._pendingSourcePrefix = null;
+      }
+      this.refresh();
     } catch {
+      this._finishOp(opId, 'error');
+      this._pendingSourcePrefix = null;
       addToast('error', m.storage_action_move_error());
     }
+  };
+
+  cancelMove = (): void => {
+    this.closeModal();
   };
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -1001,6 +1107,22 @@ export class StorageState {
       }
     }
   };
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Private: Operations tracking helpers
+  // ────────────────────────────────────────────────────────────────────────────
+
+  private _startOp(id: string, label: string): void {
+    this.operations = [...this.operations, { id, label, status: 'running' }];
+  }
+
+  private _finishOp(id: string, status: 'done' | 'error'): void {
+    this.operations = this.operations.map((op) => (op.id === id ? { ...op, status } : op));
+    // Auto-remove completed operations after 5 s
+    setTimeout(() => {
+      this.operations = this.operations.filter((op) => op.id !== id);
+    }, 5_000);
+  }
 
   // ────────────────────────────────────────────────────────────────────────────
   // Private: Delete implementation

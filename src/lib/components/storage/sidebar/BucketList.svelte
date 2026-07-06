@@ -13,7 +13,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { storagePasteEnabled } from '$lib/client/feature-flags.js';
+  import { storageMoveEnabled } from '$lib/client/feature-flags.js';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
   import { pinnedLabel, pinnedHref } from '$lib/storage/display-helpers.js';
 
@@ -184,7 +184,7 @@
   let dropSidebarTarget = $state<string | null>(null);
 
   function handleSidebarDragOver(e: DragEvent, prefix: string) {
-    if (!storagePasteEnabled || storage.isInArchive) return;
+    if (!storageMoveEnabled || storage.isInArchive) return;
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     dropSidebarTarget = prefix;
@@ -196,7 +196,7 @@
 
   function handleSidebarDrop(e: DragEvent, _bucket: string, prefix: string) {
     dropSidebarTarget = null;
-    if (!storagePasteEnabled || storage.isInArchive) return;
+    if (!storageMoveEnabled || storage.isInArchive) return;
     e.preventDefault();
     e.stopPropagation();
     const raw = e.dataTransfer?.getData('application/x-storage-keys');

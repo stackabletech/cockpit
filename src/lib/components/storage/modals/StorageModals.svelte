@@ -5,6 +5,7 @@
   import PreviewModal from './PreviewModal.svelte';
   import UploadModal from './upload/UploadModal.svelte';
   import RenameModal from './RenameModal.svelte';
+  import MoveConfirmModal from './MoveConfirmModal.svelte';
 
   const storage = getStorageState();
 
@@ -14,6 +15,7 @@
   let uploadOpen = $state(true);
   let deleteOpen = $state(true);
   let renameOpen = $state(true);
+  let moveConfirmOpen = $state(true);
 
   // Reset local state when modal type changes
   $effect(() => {
@@ -22,6 +24,7 @@
       uploadOpen = true;
       deleteOpen = true;
       renameOpen = true;
+      moveConfirmOpen = true;
     }
   });
 
@@ -46,6 +49,12 @@
 
   $effect(() => {
     if (!renameOpen && storage.activeModal?.type === 'rename' && !storage.renameLoading) {
+      storage.closeModal();
+    }
+  });
+
+  $effect(() => {
+    if (!moveConfirmOpen && storage.activeModal?.type === 'confirm-move') {
       storage.closeModal();
     }
   });
@@ -101,5 +110,17 @@
     }}
     loading={storage.renameLoading}
     error={storage.renameError}
+  />
+{/if}
+
+{#if storage.activeModal?.type === 'confirm-move'}
+  {@const modalPayload = storage.activeModal.payload}
+  <MoveConfirmModal
+    bind:open={moveConfirmOpen}
+    keys={modalPayload.keys}
+    destPrefix={modalPayload.destPrefix}
+    items={modalPayload.items}
+    onConfirm={storage.confirmMove}
+    onCancel={storage.cancelMove}
   />
 {/if}

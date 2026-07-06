@@ -397,6 +397,9 @@ test.describe('Storage S3 — File Operations', () => {
 
       await sourceRow.dragTo(destRow);
 
+      // Confirm the move in the dialog
+      await page.getByRole('button', { name: 'Move' }).click();
+
       await page.waitForTimeout(2000);
 
       // File should be moved to destination folder
@@ -427,10 +430,41 @@ test.describe('Storage S3 — File Operations', () => {
 
       await sourceRow.dragTo(parentRow);
 
+      // Confirm the move in the dialog
+      await page.getByRole('button', { name: 'Move' }).click();
+
       await page.waitForTimeout(2000);
 
       // File should be at parent prefix
       expect(await objectExists(client, credentials.bucket, `${prefix}up.txt`)).toBe(true);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('cancels drag-and-drop move via confirmation dialog', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'drag-cancel');
+    const destFolder = `${prefix}dest/`;
+    const srcFile = `${prefix}stay-here.txt`;
+    const cleanupKeys = [srcFile, destFolder];
+
+    try {
+      await putTextObject(client, credentials.bucket, srcFile, 'should not move');
+      await putDirectoryMarker(client, credentials.bucket, destFolder);
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      const sourceRow = rowByName(page, 'stay-here.txt');
+      const destRow = rowByName(page, 'dest');
+      await sourceRow.dragTo(destRow);
+
+      // Cancel the move
+      await page.getByRole('button', { name: 'Cancel' }).click();
+
+      // File should still be at original location
+      expect(await objectExists(client, credentials.bucket, srcFile)).toBe(true);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

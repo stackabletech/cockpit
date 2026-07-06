@@ -53,6 +53,11 @@
   });
   setTabsState(tabsState);
 
+  // Wire up source-tab invalidation so that after a move, source tabs refetch.
+  storage.setTabsInvalidationHandler((prefix: string) => {
+    tabsState.setStalePrefix(prefix);
+  });
+
   // Initialise tabs once storage has bucket data.
   $effect(() => {
     if (storage.bucket) {

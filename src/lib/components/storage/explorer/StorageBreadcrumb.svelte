@@ -20,7 +20,8 @@
   import { keyToName } from '$lib/storage/utils.js';
   import { invalidateAll } from '$app/navigation';
   import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
-  import { storagePasteEnabled } from '$lib/client/feature-flags.js';
+  import { storageMoveEnabled } from '$lib/client/feature-flags.js';
+  import OperationsButton from './OperationsButton.svelte';
 
   const storage = getStorageState();
   const tabsState = getTabsState();
@@ -171,8 +172,14 @@
 
   let dropTargetPrefix = $state<string | null>(null);
 
+  // ── Collapsed "..." dropdown drag-over to open ──────────────────────────
+  // Track whether the cursor is inside the collapsed-parts dropdown container
+  // (the button + the dropdown list).  Use a single boolean instead of a
+  // counter so that child-to-child moves (button → ul) don't cause flicker.
+  let collapsedDropdownOpen = $state(false);
+
   function handleBreadcrumbDragOver(e: DragEvent, prefix: string) {
-    if (!storagePasteEnabled || storage.isInArchive) return;
+    if (!storageMoveEnabled || storage.isInArchive) return;
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     dropTargetPrefix = prefix;
@@ -184,7 +191,8 @@
 
   function handleBreadcrumbDrop(e: DragEvent, prefix: string) {
     dropTargetPrefix = null;
-    if (!storagePasteEnabled || storage.isInArchive) return;
+    collapsedDropdownOpen = false;
+    if (!storageMoveEnabled || storage.isInArchive) return;
     e.preventDefault();
     e.stopPropagation();
     const raw = e.dataTransfer?.getData('application/x-storage-keys');
@@ -341,7 +349,26 @@
         class="text-base-content/30 pointer-events-none size-4 shrink-0"
         aria-hidden="true"
       />
-      <div class="dropdown">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="dropdown"
+        class:dropdown-open={collapsedDropdownOpen}
+        ondragover={(e) => {
+          if (!storageMoveEnabled) return;
+          e.preventDefault();
+        }}
+        ondragenter={() => {
+          collapsedDropdownOpen = true;
+        }}
+        ondragleave={(e) => {
+          const related = e.relatedTarget as HTMLElement | null;
+          if (related && e.currentTarget.contains(related)) return;
+          collapsedDropdownOpen = false;
+        }}
+        ondrop={() => {
+          collapsedDropdownOpen = false;
+        }}
+      >
         <button
           tabindex="0"
           class="
@@ -641,6 +668,9 @@
       {m.storage_action_upload()}
     </button>
   {/if}
+
+  <!-- Operations progress indicator -->
+  <OperationsButton />
 
   <!-- More options (pin current location) — hidden in archive mode -->
   <div class="dropdown dropdown-end">

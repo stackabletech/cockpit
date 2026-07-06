@@ -118,3 +118,11 @@ export const storagePasteEnabled =
  *  Disabled by default. */
 export const storageRenameEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED ?? 'false') === 'true';
+
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED=true`, drag-and-drop
+ *  move is active (folder-row, breadcrumb, sidebar, and tab drop targets).
+ *  This is a separate flag from paste because move is a costly S3 operation
+ *  (list + copy + delete per directory level) and may be undesirable in
+ *  high-egress-cost environments. Disabled by default. */
+export const storageMoveEnabled =
+  (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED ?? 'false') === 'true';

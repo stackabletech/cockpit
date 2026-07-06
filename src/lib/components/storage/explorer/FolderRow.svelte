@@ -5,7 +5,7 @@
   import { keyToName } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { storageCutCopyEnabled, storagePasteEnabled } from '$lib/client/feature-flags.js';
+  import { storageCutCopyEnabled, storageMoveEnabled } from '$lib/client/feature-flags.js';
 
   interface Props {
     folder: StorageObject;
@@ -35,10 +35,11 @@
   }
 
   function handleDragOver(e: DragEvent) {
-    if (!storagePasteEnabled || storage.isInArchive) return;
+    if (!storageMoveEnabled || storage.isInArchive) return;
     // Don't allow dropping onto a selected folder (moving into itself)
     if (storage.selectedKeys.has(folder.key)) return;
     e.preventDefault();
+    e.stopPropagation();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     dragOver = true;
   }
@@ -49,8 +50,9 @@
 
   function handleDrop(e: DragEvent) {
     dragOver = false;
-    if (!storagePasteEnabled || storage.isInArchive) return;
+    if (!storageMoveEnabled || storage.isInArchive) return;
     e.preventDefault();
+    e.stopPropagation();
     const raw = e.dataTransfer?.getData('application/x-storage-keys');
     if (!raw) return;
     try {

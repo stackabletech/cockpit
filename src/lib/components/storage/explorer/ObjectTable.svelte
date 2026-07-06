@@ -15,7 +15,7 @@
     if (selectAllEl) selectAllEl.indeterminate = storage.someSelected;
   });
 
-  import { storagePasteEnabled } from '$lib/client/feature-flags.js';
+  import { storageMoveEnabled } from '$lib/client/feature-flags.js';
 
   function navigateUp() {
     if (storage.isInArchive) {
@@ -35,10 +35,41 @@
     return lastSlash === -1 ? '' : withoutTrailing.slice(0, lastSlash + 1);
   }
 
+  let tableDragOver = $state(false);
   let parentDragOver = $state(false);
+  let emptyDragOver = $state(false);
+
+  function handleTableDragOver(e: DragEvent) {
+    if (!storageMoveEnabled || storage.isInArchive) return;
+    if (!e.dataTransfer?.types.includes('application/x-storage-keys')) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    tableDragOver = true;
+  }
+
+  function handleTableDragLeave(e: DragEvent) {
+    // Only clear if we're leaving the table container entirely
+    const related = e.relatedTarget as Node | null;
+    if (related && (e.currentTarget as HTMLElement).contains(related)) return;
+    tableDragOver = false;
+  }
+
+  function handleTableDrop(e: DragEvent) {
+    tableDragOver = false;
+    if (!storageMoveEnabled || storage.isInArchive) return;
+    e.preventDefault();
+    const raw = e.dataTransfer?.getData('application/x-storage-keys');
+    if (!raw) return;
+    try {
+      const keys: string[] = JSON.parse(raw);
+      void storage.performMove(storage.prefix, keys);
+    } catch {
+      // invalid JSON - ignore
+    }
+  }
 
   function handleParentDragOver(e: DragEvent) {
-    if (!storagePasteEnabled || storage.isInArchive || !storage.prefix) return;
+    if (!storageMoveEnabled || storage.isInArchive || !storage.prefix) return;
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     parentDragOver = true;
@@ -50,7 +81,7 @@
 
   function handleParentDrop(e: DragEvent) {
     parentDragOver = false;
-    if (!storagePasteEnabled || storage.isInArchive || !storage.prefix) return;
+    if (!storageMoveEnabled || storage.isInArchive || !storage.prefix) return;
     e.preventDefault();
     const raw = e.dataTransfer?.getData('application/x-storage-keys');
     if (!raw) return;
@@ -61,9 +92,44 @@
       // invalid JSON - ignore
     }
   }
+
+  function handleEmptyDragOver(e: DragEvent) {
+    if (!storageMoveEnabled || storage.isInArchive) return;
+    if (!e.dataTransfer?.types.includes('application/x-storage-keys')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    emptyDragOver = true;
+  }
+
+  function handleEmptyDragLeave() {
+    emptyDragOver = false;
+  }
+
+  function handleEmptyDrop(e: DragEvent) {
+    emptyDragOver = false;
+    if (!storageMoveEnabled || storage.isInArchive) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const raw = e.dataTransfer?.getData('application/x-storage-keys');
+    if (!raw) return;
+    try {
+      const keys: string[] = JSON.parse(raw);
+      void storage.performMove(storage.prefix, keys);
+    } catch {
+      // invalid JSON - ignore
+    }
+  }
 </script>
 
-<div class="preview-scroll h-full overflow-x-auto overflow-y-auto">
+<div
+  class="preview-scroll h-full overflow-x-auto overflow-y-auto {tableDragOver
+    ? 'outline-primary/40 outline -outline-offset-2 outline-dashed'
+    : ''}"
+  ondragover={handleTableDragOver}
+  ondragleave={handleTableDragLeave}
+  ondrop={handleTableDrop}
+>
   <table class="table-sm table">
     <thead class="bg-base-100 sticky top-0 z-10">
       <!-- Selection action toolbar -->
@@ -140,7 +206,14 @@
 
         <!-- Empty folder -->
         {#if storage.folders.length === 0 && storage.files.length === 0}
-          <tr>
+          <tr
+            class={emptyDragOver
+              ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
+              : ''}
+            ondragover={handleEmptyDragOver}
+            ondragleave={handleEmptyDragLeave}
+            ondrop={handleEmptyDrop}
+          >
             <td colspan={5} class="text-base-content/40 py-16 text-center">
               <IconFolderOpen class="mx-auto mb-3 size-10 opacity-30" aria-hidden="true" />
               {m.storage_bucket_empty()}
