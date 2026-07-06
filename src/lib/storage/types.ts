@@ -75,12 +75,30 @@ export interface ClipboardState {
 
 // ── Operations (paste / move / rename progress tracking) ─────────────────────
 
-export type OperationStatus = 'running' | 'done' | 'error';
+export type OperationStatus = 'running' | 'done' | 'error' | 'cancelled';
+
+export type OperationType = 'paste' | 'move' | 'rename' | 'delete';
 
 export interface StorageOperation {
   id: string;
   label: string;
   status: OperationStatus;
+  type: OperationType;
+  itemCount: number;
+  completedCount: number;
+  errorMessage?: string;
+  startedAt: number;
+  completedAt?: number;
+  /** Destination bucket/path for paste, move, and rename operations. */
+  destPath?: string;
+  /** Source file names being processed (shown while running). */
+  sourceNames?: string[];
+  /** Total bytes across all items in this operation. */
+  totalBytes: number;
+  /** Bytes transferred so far (sum of completed items). */
+  completedBytes: number;
+  /** Name of the file currently being transferred. */
+  currentFileName?: string;
 }
 
 // ── Storage locations ────────────────────────────────────────────────────────

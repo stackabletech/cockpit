@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { S3ServiceException, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3ServiceException, PutObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
 
 vi.mock('$lib/server/logging', () => ({
   logger: { child: () => ({ trace: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }) }
@@ -504,6 +504,90 @@ describe('S3StorageProvider.listAllKeys', () => {
     await provider.listAllKeys('p/');
     const sentCommand = send.mock.calls[0][0];
     expect(sentCommand.input.Delimiter).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// copyObject
+// ---------------------------------------------------------------------------
+
+describe('S3StorageProvider.copyObject', () => {
+  let provider: S3StorageProvider;
+  let send: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    ({ provider, send } = makeProvider());
+    mockUploadDone.mockResolvedValue(undefined);
+    MockUpload.mockClear();
+  });
+
+  it('uses CopyObjectCommand for files under 5 GB', async () => {
+    // HeadObject returns ContentLength = 1000
+    send.mockResolvedValueOnce({ ContentLength: 1000 });
+    // CopyObject succeeds
+    send.mockResolvedValueOnce({});
+
+    await provider.copyObject('src/file.txt', 'dst/file.txt');
+
+    expect(send).toHaveBeenCalledTimes(2);
+    const copyCmd = send.mock.calls[1][0];
+    expect(copyCmd).toBeInstanceOf(CopyObjectCommand);
+    expect(copyCmd.input).toMatchObject({
+      Bucket: 'test-bucket',
+      CopySource: '/test-bucket/src%2Ffile.txt',
+      Key: 'dst/file.txt'
+    });
+    expect(MockUpload).not.toHaveBeenCalled();
+  });
+
+  it('streams via multipart upload for files over 5 GB', async () => {
+    const fiveGB = 5 * 1024 * 1024 * 1024;
+    const largeSize = fiveGB + 1;
+    const fakeStream = new ReadableStream();
+
+    // HeadObject returns ContentLength > 5 GB
+    send.mockResolvedValueOnce({
+      ContentLength: largeSize,
+      ContentType: 'application/octet-stream'
+    });
+    // GetObject returns the stream
+    send.mockResolvedValueOnce({
+      Body: { transformToWebStream: () => fakeStream },
+      ContentType: 'application/octet-stream',
+      ContentLength: largeSize
+    });
+
+    await provider.copyObject('src/large.parquet', 'dst/large.parquet');
+
+    expect(send).toHaveBeenCalledTimes(2);
+    const getObjectCmd = send.mock.calls[1][0];
+    expect(getObjectCmd.input.Key).toBe('src/large.parquet');
+    expect(MockUpload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({
+          Bucket: 'test-bucket',
+          Key: 'dst/large.parquet',
+          Body: fakeStream,
+          ContentLength: largeSize
+        })
+      })
+    );
+    expect(mockUploadDone).toHaveBeenCalled();
+  });
+
+  it('uses ContentLength from HeadObject for streaming copy', async () => {
+    const size = 6 * 1024 * 1024 * 1024;
+    send.mockResolvedValueOnce({ ContentLength: size, ContentType: 'video/mp4' });
+    send.mockResolvedValueOnce({
+      Body: { transformToWebStream: () => new ReadableStream() },
+      ContentType: 'video/mp4',
+      ContentLength: size
+    });
+
+    await provider.copyObject('src/video.mp4', 'dst/video.mp4');
+
+    const uploadParams = MockUpload.mock.calls[0][0] as { params: Record<string, unknown> };
+    expect(uploadParams.params.ContentLength).toBe(size);
   });
 });
 

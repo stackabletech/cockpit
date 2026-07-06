@@ -179,7 +179,8 @@ export class S3StorageProvider implements StorageProvider {
     key: string,
     body: ReadableStream | Buffer,
     contentType: string,
-    contentLength?: number
+    contentLength?: number,
+    onProgress?: (loaded: number, total: number) => void
   ): Promise<void> {
     log.trace(
       { bucket: this.bucket, key, content_type: contentType, content_length: contentLength },
@@ -213,6 +214,11 @@ export class S3StorageProvider implements StorageProvider {
         ...(contentLength !== undefined ? { ContentLength: contentLength } : {})
       }
     });
+    if (onProgress && contentLength) {
+      upload.on('httpUploadProgress', (progress) => {
+        onProgress(progress.loaded ?? 0, contentLength);
+      });
+    }
     await withS3Errors(() => upload.done(), { bucket: this.bucket, key, operation: 'putObject' });
   }
 
@@ -306,18 +312,44 @@ export class S3StorageProvider implements StorageProvider {
     return keys;
   }
 
-  async copyObject(sourceKey: string, destKey: string): Promise<void> {
+  async copyObject(
+    sourceKey: string,
+    destKey: string,
+    onProgress?: (loaded: number, total: number) => void
+  ): Promise<void> {
     log.trace({ bucket: this.bucket, source_key: sourceKey, dest_key: destKey }, 'S3 CopyObject');
-    await withS3Errors(
-      () =>
-        this.client.send(
-          new CopyObjectCommand({
-            Bucket: this.bucket,
-            CopySource: `/${this.bucket}/${encodeURIComponent(sourceKey)}`,
-            Key: destKey
-          })
-        ),
-      { bucket: this.bucket, key: sourceKey, operation: 'copyObject' }
+
+    // S3 CopyObject has a 5 GB limit. For larger objects we stream the data
+    // through the server using multipart upload (the same path used by putObject).
+    const HEAD_LIMIT = 5 * 1024 * 1024 * 1024;
+    const metadata = await this.getMetadata(sourceKey);
+
+    if (metadata.size <= HEAD_LIMIT) {
+      await withS3Errors(
+        () =>
+          this.client.send(
+            new CopyObjectCommand({
+              Bucket: this.bucket,
+              CopySource: `/${this.bucket}/${encodeURIComponent(sourceKey)}`,
+              Key: destKey
+            })
+          ),
+        { bucket: this.bucket, key: sourceKey, operation: 'copyObject' }
+      );
+      return;
+    }
+
+    log.info(
+      { bucket: this.bucket, source_key: sourceKey, size: metadata.size },
+      'object exceeds CopyObject limit, streaming via multipart upload'
+    );
+    const { stream } = await this.getObject(sourceKey);
+    await this.putObject(
+      destKey,
+      stream,
+      metadata.contentType ?? 'application/octet-stream',
+      metadata.size,
+      onProgress
     );
   }
 }

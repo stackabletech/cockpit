@@ -28,8 +28,16 @@ async function uniqueDestKey(provider: StorageProvider, baseKey: string): Promis
   }
 }
 
+/**
+ * Encode a value as a single NDJSON line (newline-delimited JSON).
+ */
+function ndjsonLine(data: Record<string, unknown>): string {
+  return JSON.stringify(data) + '\n';
+}
+
 export const POST: RequestHandler = async ({ locals, request, url }) => {
   const bucket = requireBucket(url);
+  const streamProgress = url.searchParams.get('progress') === 'true';
 
   const body = (await request.json()) as {
     sourceKeys: string[];
@@ -46,37 +54,122 @@ export const POST: RequestHandler = async ({ locals, request, url }) => {
     {
       bucket,
       source_key_count: body.sourceKeys.length,
-      destination_prefix: body.destinationPrefix
+      destination_prefix: body.destinationPrefix,
+      stream_progress: streamProgress
     },
     'copy request received'
   );
 
   const provider = getProvider(locals.storageConfig!, bucket);
 
-  const results: Array<{ sourceKey: string; destKey: string }> = [];
-  const failed: Array<{ sourceKey: string; error: string }> = [];
+  // ── Non-streaming path (original behaviour) ──────────────────────────────
+  if (!streamProgress) {
+    const results: Array<{ sourceKey: string; destKey: string }> = [];
+    const failed: Array<{ sourceKey: string; error: string }> = [];
 
-  for (const sourceKey of body.sourceKeys) {
-    const name = sourceKey.endsWith('/')
-      ? sourceKey.split('/').slice(-2, -1)[0] + '/'
-      : sourceKey.split('/').pop();
-    const baseDestKey = body.destinationPrefix + name;
+    for (const sourceKey of body.sourceKeys) {
+      const name = sourceKey.endsWith('/')
+        ? sourceKey.split('/').slice(-2, -1)[0] + '/'
+        : sourceKey.split('/').pop();
+      const baseDestKey = body.destinationPrefix + name;
 
-    try {
-      const destKey = await uniqueDestKey(provider, baseDestKey);
-      await provider.copyObject(sourceKey, destKey);
-      results.push({ sourceKey, destKey });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      failed.push({ sourceKey, error: message });
-      locals.logger.warn(
-        { bucket, source_key: sourceKey, dest_key: baseDestKey, error: message },
-        'copy failed for key'
-      );
+      try {
+        const destKey = await uniqueDestKey(provider, baseDestKey);
+        await provider.copyObject(sourceKey, destKey);
+        results.push({ sourceKey, destKey });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        failed.push({ sourceKey, error: message });
+        locals.logger.warn(
+          { bucket, source_key: sourceKey, dest_key: baseDestKey, error: message },
+          'copy failed for key'
+        );
+      }
     }
+
+    locals.logger.info({ bucket, copied: results.length, failed: failed.length }, 'copy completed');
+    return json({ results, failed });
   }
 
-  locals.logger.info({ bucket, copied: results.length, failed: failed.length }, 'copy completed');
+  // ── Streaming progress path ──────────────────────────────────────────────
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const results: Array<{ sourceKey: string; destKey: string }> = [];
+      const failed: Array<{ sourceKey: string; error: string }> = [];
 
-  return json({ results, failed });
+      for (const sourceKey of body.sourceKeys) {
+        const name = sourceKey.endsWith('/')
+          ? sourceKey.split('/').slice(-2, -1)[0] + '/'
+          : sourceKey.split('/').pop();
+        const baseDestKey = body.destinationPrefix + name;
+
+        try {
+          const destKey = await uniqueDestKey(provider, baseDestKey);
+
+          // For files that might be large, we stream progress events.
+          // copyObject only calls onProgress for >5 GB files (multipart upload).
+          let reportedAnyProgress = false;
+          await provider.copyObject(sourceKey, destKey, (loaded, total) => {
+            reportedAnyProgress = true;
+            controller.enqueue(
+              encoder.encode(ndjsonLine({ type: 'progress', sourceKey, destKey, loaded, total }))
+            );
+          });
+
+          // If copyObject used S3 CopyObject (small file), no onProgress was
+          // fired. Emit a synthetic 100% event so the client knows it's done.
+          if (!reportedAnyProgress) {
+            // Fetch the size for a useful event
+            try {
+              const meta = await provider.getMetadata(sourceKey);
+              controller.enqueue(
+                encoder.encode(
+                  ndjsonLine({
+                    type: 'progress',
+                    sourceKey,
+                    destKey,
+                    loaded: meta.size,
+                    total: meta.size
+                  })
+                )
+              );
+            } catch {
+              // Metadata fetch failed — emit without size info
+            }
+          }
+
+          results.push({ sourceKey, destKey });
+          controller.enqueue(encoder.encode(ndjsonLine({ type: 'done', sourceKey, destKey })));
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Unknown error';
+          failed.push({ sourceKey, error: message });
+          locals.logger.warn(
+            { bucket, source_key: sourceKey, dest_key: baseDestKey, error: message },
+            'copy failed for key'
+          );
+          controller.enqueue(
+            encoder.encode(ndjsonLine({ type: 'failed', sourceKey, error: message }))
+          );
+        }
+      }
+
+      locals.logger.info(
+        { bucket, copied: results.length, failed: failed.length },
+        'copy completed'
+      );
+
+      // Final summary line
+      controller.enqueue(encoder.encode(ndjsonLine({ type: 'complete', results, failed })));
+      controller.close();
+    }
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'application/x-ndjson',
+      'Cache-Control': 'no-cache',
+      'X-Accel-Buffering': 'no'
+    }
+  });
 };

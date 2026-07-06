@@ -89,6 +89,50 @@ function makeState(overrides?: Partial<StorageState>): StorageState {
   return state;
 }
 
+/**
+ * Build a mock Response that streams NDJSON events matching what the
+ * copy/move endpoints return when `?progress=true` is set.
+ */
+function makeNdjsonResponse(
+  data: Record<string, unknown>,
+  opts?: { ok?: boolean; status?: number }
+): Response {
+  const ok = opts?.ok ?? true;
+  const encoder = new TextEncoder();
+  const lines =
+    [
+      // Simulate a synthetic 100% progress event (as the server does for small files)
+      ...((data.results ?? data.moved) as Array<{ sourceKey: string; destKey: string }>).flatMap(
+        (r) => [
+          JSON.stringify({
+            type: 'progress',
+            sourceKey: r.sourceKey,
+            destKey: r.destKey,
+            loaded: 100,
+            total: 100
+          }),
+          JSON.stringify({ type: 'done', sourceKey: r.sourceKey, destKey: r.destKey })
+        ]
+      ),
+      ...((data.failed ?? []) as Array<unknown>).map((f) =>
+        JSON.stringify({ type: 'failed', ...(f as Record<string, unknown>) })
+      ),
+      JSON.stringify({ type: 'complete', ...data })
+    ].join('\n') + '\n';
+
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(lines));
+      controller.close();
+    }
+  });
+
+  return new Response(stream, {
+    status: ok ? 200 : (opts?.status ?? 500),
+    headers: { 'Content-Type': 'application/x-ndjson' }
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -269,14 +313,12 @@ describe('executeAction("paste")', () => {
         sourcePrefix: '',
         fileSizes: { 'file.txt': 100 }
       };
-      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-            failed: []
-          })
-      } as Response);
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        makeNdjsonResponse({
+          results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
+          failed: []
+        })
+      );
 
       await state.executeAction('paste');
 
@@ -300,11 +342,9 @@ describe('executeAction("paste")', () => {
         sourcePrefix: '',
         fileSizes: {}
       };
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({ results: [], failed: [{ sourceKey: 'file.txt', error: 'Not found' }] })
-      } as Response);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        makeNdjsonResponse({ results: [], failed: [{ sourceKey: 'file.txt', error: 'Not found' }] })
+      );
 
       await state.executeAction('paste');
 
@@ -324,14 +364,12 @@ describe('executeAction("paste")', () => {
         sourcePrefix: '',
         fileSizes: { 'file.txt': 100, 'photo.jpg': 500 }
       };
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-            failed: [{ sourceKey: 'photo.jpg', error: 'Not found' }]
-          })
-      } as Response);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        makeNdjsonResponse({
+          results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
+          failed: [{ sourceKey: 'photo.jpg', error: 'Not found' }]
+        })
+      );
 
       await state.executeAction('paste');
 
@@ -352,14 +390,12 @@ describe('executeAction("paste")', () => {
         sourcePrefix: '',
         fileSizes: { 'file.txt': 100 }
       };
-      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            moved: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-            failed: []
-          })
-      } as Response);
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        makeNdjsonResponse({
+          moved: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
+          failed: []
+        })
+      );
 
       await state.executeAction('paste');
 
@@ -383,11 +419,9 @@ describe('executeAction("paste")', () => {
         sourcePrefix: '',
         fileSizes: { 'file.txt': 100 }
       };
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({ moved: [], failed: [{ sourceKey: 'file.txt', error: 'Not found' }] })
-      } as Response);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        makeNdjsonResponse({ moved: [], failed: [{ sourceKey: 'file.txt', error: 'Not found' }] })
+      );
 
       await state.executeAction('paste');
 
@@ -552,14 +586,12 @@ describe('confirmMove', () => {
     state.selectedKeys = new SvelteSet<string>(['file.txt']);
     state.performMove('dest/');
 
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          moved: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-          failed: []
-        })
-    } as Response);
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      makeNdjsonResponse({
+        moved: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
+        failed: []
+      })
+    );
 
     await state.confirmMove();
 
@@ -579,14 +611,12 @@ describe('confirmMove', () => {
     state.selectedKeys = new SvelteSet<string>(['file.txt', 'photo.jpg']);
     state.performMove('dest/');
 
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          moved: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-          failed: [{ sourceKey: 'photo.jpg', error: 'Access denied' }]
-        })
-    } as Response);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      makeNdjsonResponse({
+        moved: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
+        failed: [{ sourceKey: 'photo.jpg', error: 'Access denied' }]
+      })
+    );
 
     await state.confirmMove();
 
@@ -651,14 +681,12 @@ describe('handleKeydown', () => {
       fileSizes: {}
     };
 
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          results: [{ sourceKey: 'file.txt', destKey: 'paste/file.txt' }],
-          failed: []
-        })
-    } as Response);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      makeNdjsonResponse({
+        results: [{ sourceKey: 'file.txt', destKey: 'paste/file.txt' }],
+        failed: []
+      })
+    );
 
     await state.executeAction('paste');
 

@@ -1,4 +1,5 @@
-import { SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
+import { tick } from 'svelte';
 import { invalidateAll } from '$app/navigation';
 import * as m from '$lib/paraglide/messages.js';
 import type { StoragePage, StorageObject } from '$lib/storage/types.js';
@@ -117,6 +118,8 @@ export class StorageState {
   // ── Operations (paste / move / rename progress) ──
   operations = $state<StorageOperation[]>([]);
   hasRunningOps = $derived(this.operations.some((op) => op.status === 'running'));
+  /** AbortControllers keyed by operation ID, used to cancel in-flight requests. */
+  private _abortControllers = new SvelteMap<string, AbortController>();
 
   /** True when `key` is in the clipboard with action='cut' and the bucket matches. */
   isCutKey(key: string): boolean {
@@ -688,14 +691,62 @@ export class StorageState {
         const pasteKeys = [...this.clipboard.keys];
         const destPrefix = this.prefix;
         const opId = crypto.randomUUID();
-        this._startOp(opId, m.storage_operation_paste({ count: pasteKeys.length }));
+        const abortController = new AbortController();
+        const sourceNames = pasteKeys.map((k) => keyToName(k));
+        const isSinglePaste = sourceNames.length === 1;
+        const pasteLabel = isSinglePaste
+          ? `${m.storage_operation_paste_one({ count: 1 })}: ${sourceNames[0]}`
+          : `${m.storage_operation_paste_other({ count: sourceNames.length })}: ${sourceNames[0]} + ${sourceNames.length - 1} more`;
+        // Sum total bytes from clipboard file sizes
+        const totalBytes = pasteKeys.reduce(
+          (sum, k) => sum + (this.clipboard!.fileSizes[k] ?? 0),
+          0
+        );
+        this._startOp(
+          opId,
+          pasteLabel,
+          'paste',
+          pasteKeys.length,
+          abortController,
+          `${this.bucket}/${destPrefix}`,
+          sourceNames,
+          totalBytes
+        );
         try {
-          const { results, failed } = await this.performPaste(
+          let completedBytes = 0;
+          const fileSizes = this.clipboard?.fileSizes ?? {};
+          const pasteSourceNames = pasteKeys.map((k) => keyToName(k));
+          const { results, failed } = await this.performPasteSequential(
             pasteKeys,
             this.clipboard.sourceBucket,
             destPrefix,
-            wasCut
+            wasCut,
+            abortController.signal,
+            (index, key) => {
+              // File-level progress: use the known file size from clipboard.
+              completedBytes += fileSizes[key] ?? 0;
+              this._updateOpProgress(opId, index, completedBytes, keyToName(key));
+            },
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            (loaded, _total) => {
+              // Byte-level progress during a large file's streaming upload.
+              // loaded comes from the server's onUploadProgress for the current
+              // file. We compute the absolute position by adding the sizes of
+              // all previously completed files.
+              const prevFiles = this.operations.find((op) => op.id === opId)?.completedCount ?? 0;
+              let prevBytes = 0;
+              for (let j = 0; j < prevFiles && j < pasteKeys.length; j++) {
+                prevBytes += fileSizes[pasteKeys[j]] ?? 0;
+              }
+              this._updateOpProgress(
+                opId,
+                prevFiles,
+                prevBytes + loaded,
+                pasteSourceNames[prevFiles] ?? ''
+              );
+            }
           );
+          await tick();
           if (results.length === 0) {
             this._finishOp(opId, 'error');
             addToast('error', m.storage_action_paste_error_source_not_found());
@@ -733,6 +784,10 @@ export class StorageState {
           }
           this.refresh();
         } catch (err: unknown) {
+          if (err instanceof DOMException && err.name === 'AbortError') {
+            this._finishOp(opId, 'cancelled');
+            return;
+          }
           this._finishOp(opId, 'error');
           addToast(
             'error',
@@ -801,7 +856,8 @@ export class StorageState {
     keys: string[],
     _sourceBucket: string,
     destPrefix: string,
-    deleteOriginals = false
+    deleteOriginals = false,
+    signal?: AbortSignal
   ): Promise<{
     results: Array<{ sourceKey: string; destKey: string }>;
     failed: number;
@@ -820,7 +876,8 @@ export class StorageState {
       body: JSON.stringify({
         sourceKeys: keys,
         destinationPrefix: destPrefix
-      })
+      }),
+      signal
     });
 
     if (!res.ok) {
@@ -837,6 +894,120 @@ export class StorageState {
     };
     const results = data.results ?? data.moved ?? [];
     return { results, failed: data.failed?.length ?? 0 };
+  }
+
+  /**
+   * Process paste/move keys one at a time, calling `onFileComplete` after
+   * each file so the caller can update byte-level progress.
+   *
+   * Uses `?progress=true` to stream NDJSON progress events from the server,
+   * allowing real-time byte-level updates for large files (> 5 GB) that go
+   * through multipart streaming upload.
+   */
+  private async performPasteSequential(
+    keys: string[],
+    _sourceBucket: string,
+    destPrefix: string,
+    deleteOriginals = false,
+    signal?: AbortSignal,
+    onFileComplete?: (index: number, key: string) => void,
+    onFileProgress?: (loaded: number, total: number) => void
+  ): Promise<{
+    results: Array<{ sourceKey: string; destKey: string }>;
+    failed: number;
+  }> {
+    const conn = loadConnectionLocally();
+    if (!conn) throw new ActionError('not_connected', 'No connection');
+
+    const endpoint = deleteOriginals ? '/api/storage/move' : '/api/storage/copy';
+    const results: Array<{ sourceKey: string; destKey: string }> = [];
+    let failed = 0;
+
+    for (let i = 0; i < keys.length; i++) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
+      const sourceKey = keys[i];
+      const params = new SvelteURLSearchParams({ bucket: this.bucket });
+      params.set('progress', 'true');
+      const res = await fetch(`${endpoint}?${params}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-storage-connection': getConnectionHeader(conn)
+        },
+        body: JSON.stringify({
+          sourceKeys: [sourceKey],
+          destinationPrefix: destPrefix
+        }),
+        signal
+      });
+
+      if (!res.ok) {
+        failed++;
+        continue;
+      }
+
+      // Read the NDJSON stream
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      if (reader) {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            // Keep the last (potentially incomplete) line in the buffer
+            buffer = lines.pop() ?? '';
+
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              const event = JSON.parse(line) as {
+                type: string;
+                sourceKey?: string;
+                destKey?: string;
+                loaded?: number;
+                total?: number;
+                error?: string;
+                results?: Array<{ sourceKey: string; destKey: string }>;
+                moved?: Array<{ sourceKey: string; destKey: string }>;
+                failed?: Array<{ sourceKey: string; error: string }>;
+              };
+
+              if (
+                event.type === 'progress' &&
+                event.loaded !== undefined &&
+                event.total !== undefined
+              ) {
+                onFileProgress?.(event.loaded, event.total);
+              } else if (event.type === 'done' && event.sourceKey && event.destKey) {
+                results.push({ sourceKey: event.sourceKey, destKey: event.destKey });
+              } else if (event.type === 'failed' && event.sourceKey) {
+                failed++;
+              } else if (event.type === 'complete') {
+                // Final summary — use its results/failed as the canonical source
+                if (event.results) {
+                  results.length = 0;
+                  results.push(...event.results);
+                }
+                if (event.failed) {
+                  failed = event.failed.length;
+                }
+              }
+            }
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      }
+
+      onFileComplete?.(i + 1, sourceKey);
+    }
+
+    return { results, failed };
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -864,7 +1035,17 @@ export class StorageState {
     }
 
     const opId = crypto.randomUUID();
-    this._startOp(opId, m.storage_operation_rename());
+    const renameObj = this.files.find((f) => f.key === key);
+    this._startOp(
+      opId,
+      `${m.storage_operation_rename()}: ${keyToName(key)} → ${newName}`,
+      'rename',
+      1,
+      undefined,
+      `${this.bucket}/${newKey}`,
+      [keyToName(key)],
+      renameObj?.size ?? 0
+    );
 
     try {
       const conn = loadConnectionLocally();
@@ -909,6 +1090,8 @@ export class StorageState {
         }
       }
 
+      this._updateOpProgress(opId, 1, renameObj?.size ?? 0);
+      await tick();
       this._finishOp(opId, 'done');
       this.renameLoading = false;
       this.closeModal();
@@ -984,11 +1167,27 @@ export class StorageState {
   confirmMove = async (): Promise<void> => {
     const modal = this.activeModal;
     if (!modal || modal.type !== 'confirm-move') return;
-    const { keys: moveKeys, destPrefix } = modal.payload;
+    const { keys: moveKeys, destPrefix, items } = modal.payload;
     this.closeModal();
 
     const opId = crypto.randomUUID();
-    this._startOp(opId, m.storage_operation_move({ count: moveKeys.length }));
+    const abortController = new AbortController();
+    const sourceNames = moveKeys.map((k) => keyToName(k));
+    const totalBytes = items.reduce((sum, item) => sum + (item.size ?? 0), 0);
+    const isSingleMove = sourceNames.length === 1;
+    const moveLabel = isSingleMove
+      ? `${m.storage_operation_move_one({ count: 1 })}: ${sourceNames[0]}`
+      : `${m.storage_operation_move_other({ count: sourceNames.length })}: ${sourceNames[0]} + ${sourceNames.length - 1} more`;
+    this._startOp(
+      opId,
+      moveLabel,
+      'move',
+      moveKeys.length,
+      abortController,
+      `${this.bucket}/${destPrefix}`,
+      sourceNames,
+      totalBytes
+    );
 
     try {
       const conn = loadConnectionLocally();
@@ -999,43 +1198,120 @@ export class StorageState {
         return;
       }
 
-      const params = new SvelteURLSearchParams({ bucket: this.bucket });
-      const res = await fetch(`/api/storage/move?${params}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-storage-connection': getConnectionHeader(conn)
-        },
-        body: JSON.stringify({
-          sourceKeys: moveKeys,
-          destinationPrefix: destPrefix
-        })
-      });
+      const endpoint = '/api/storage/move';
+      const results: Array<{ sourceKey: string; destKey: string }> = [];
+      let failed = 0;
 
-      if (!res.ok) {
-        this._finishOp(opId, 'error');
-        this._pendingSourcePrefix = null;
-        let msg = m.storage_action_move_error();
-        if (res.status === 403) msg = m.storage_action_move_error_access_denied();
-        addToast('error', msg);
-        return;
+      for (let i = 0; i < moveKeys.length; i++) {
+        if (abortController.signal.aborted) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
+
+        const sourceKey = moveKeys[i];
+        const params = new SvelteURLSearchParams({ bucket: this.bucket });
+        params.set('progress', 'true');
+        const res = await fetch(`${endpoint}?${params}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-storage-connection': getConnectionHeader(conn)
+          },
+          body: JSON.stringify({
+            sourceKeys: [sourceKey],
+            destinationPrefix: destPrefix
+          }),
+          signal: abortController.signal
+        });
+
+        if (!res.ok) {
+          failed++;
+          continue;
+        }
+
+        // Read the NDJSON stream
+        const reader = res.body?.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let completedBytes = results.reduce((sum, r) => {
+          const item = items.find((it) => it.key === r.sourceKey);
+          return sum + (item?.size ?? 0);
+        }, 0);
+
+        if (reader) {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() ?? '';
+
+              for (const line of lines) {
+                if (!line.trim()) continue;
+                const event = JSON.parse(line) as {
+                  type: string;
+                  sourceKey?: string;
+                  destKey?: string;
+                  loaded?: number;
+                  total?: number;
+                  error?: string;
+                  moved?: Array<{ sourceKey: string; destKey: string }>;
+                  failed?: Array<{ sourceKey: string; error: string }>;
+                };
+
+                if (
+                  event.type === 'progress' &&
+                  event.loaded !== undefined &&
+                  event.total !== undefined
+                ) {
+                  // Byte-level progress during large file streaming
+                  const prevBytes = results.reduce((sum, r) => {
+                    const item = items.find((it) => it.key === r.sourceKey);
+                    return sum + (item?.size ?? 0);
+                  }, 0);
+                  this._updateOpProgress(
+                    opId,
+                    i + 1,
+                    prevBytes + event.loaded,
+                    keyToName(sourceKey)
+                  );
+                } else if (event.type === 'done' && event.sourceKey && event.destKey) {
+                  results.push({ sourceKey: event.sourceKey, destKey: event.destKey });
+                  completedBytes = results.reduce((sum, r) => {
+                    const item = items.find((it) => it.key === r.sourceKey);
+                    return sum + (item?.size ?? 0);
+                  }, 0);
+                  this._updateOpProgress(opId, i + 1, completedBytes, keyToName(sourceKey));
+                } else if (event.type === 'failed' && event.sourceKey) {
+                  failed++;
+                } else if (event.type === 'complete') {
+                  if (event.moved) {
+                    results.length = 0;
+                    results.push(...event.moved);
+                  }
+                  if (event.failed) {
+                    failed = event.failed.length;
+                  }
+                }
+              }
+            }
+          } finally {
+            reader.releaseLock();
+          }
+        }
       }
 
-      const result = (await res.json()) as {
-        moved: Array<{ sourceKey: string; destKey: string }>;
-        failed: Array<{ sourceKey: string; error: string }>;
-      };
+      await tick();
+      this._finishOp(opId, failed === 0 ? 'done' : 'error');
 
-      this._finishOp(opId, result.failed.length === 0 ? 'done' : 'error');
-
-      if (result.moved.length > 0) {
-        addToast('success', m.storage_action_move_success({ count: result.moved.length }));
-        // Update recent files: remove source keys, record new dest keys
-        const movedKeys = result.moved.map((r) => r.sourceKey).filter((k) => !k.endsWith('/'));
+      if (results.length > 0) {
+        addToast('success', m.storage_action_move_success({ count: results.length }));
+        const movedKeys = results.map((r) => r.sourceKey).filter((k) => !k.endsWith('/'));
         if (movedKeys.length > 0) {
           this.bookmarks.removeFiles(this.bucket, movedKeys);
         }
-        for (const r of result.moved) {
+        for (const r of results) {
           if (!r.destKey.endsWith('/')) {
             const obj = this.files.find((f) => f.key === r.sourceKey);
             if (obj) {
@@ -1044,19 +1320,23 @@ export class StorageState {
           }
         }
       }
-      if (result.failed.length > 0) {
-        addToast('warning', m.storage_action_move_partial({ count: result.failed.length }));
+      if (failed > 0) {
+        addToast('warning', m.storage_action_move_partial({ count: failed }));
       }
 
       this.selectedKeys = new SvelteSet<string>();
       this.selectionMode = false;
-      // Mark source tabs as stale so they refetch when switched to
       if (this._pendingSourcePrefix !== null && this._onInvalidateSourceTabs) {
         this._onInvalidateSourceTabs(this._pendingSourcePrefix);
         this._pendingSourcePrefix = null;
       }
       this.refresh();
-    } catch {
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        this._finishOp(opId, 'cancelled');
+        this._pendingSourcePrefix = null;
+        return;
+      }
       this._finishOp(opId, 'error');
       this._pendingSourcePrefix = null;
       addToast('error', m.storage_action_move_error());
@@ -1112,17 +1392,70 @@ export class StorageState {
   // Private: Operations tracking helpers
   // ────────────────────────────────────────────────────────────────────────────
 
-  private _startOp(id: string, label: string): void {
-    this.operations = [...this.operations, { id, label, status: 'running' }];
+  private _startOp(
+    id: string,
+    label: string,
+    type: StorageOperation['type'],
+    itemCount: number,
+    abortController?: AbortController,
+    destPath?: string,
+    sourceNames?: string[],
+    totalBytes = 0
+  ): void {
+    this.operations = [
+      ...this.operations,
+      {
+        id,
+        label,
+        status: 'running',
+        type,
+        itemCount,
+        completedCount: 0,
+        startedAt: Date.now(),
+        destPath,
+        sourceNames,
+        totalBytes,
+        completedBytes: 0
+      }
+    ];
+    if (abortController) {
+      this._abortControllers.set(id, abortController);
+    }
   }
 
-  private _finishOp(id: string, status: 'done' | 'error'): void {
-    this.operations = this.operations.map((op) => (op.id === id ? { ...op, status } : op));
-    // Auto-remove completed operations after 5 s
+  private _updateOpProgress(
+    id: string,
+    completedCount: number,
+    completedBytes: number,
+    currentFileName?: string
+  ): void {
+    this.operations = this.operations.map((op) =>
+      op.id === id ? { ...op, completedCount, completedBytes, currentFileName } : op
+    );
+  }
+
+  private _finishOp(
+    id: string,
+    status: 'done' | 'error' | 'cancelled',
+    errorMessage?: string
+  ): void {
+    this.operations = this.operations.map((op) =>
+      op.id === id ? { ...op, status, errorMessage, completedAt: Date.now() } : op
+    );
+    this._abortControllers.delete(id);
+    // Auto-remove completed operations after 30 s
     setTimeout(() => {
       this.operations = this.operations.filter((op) => op.id !== id);
-    }, 5_000);
+    }, 30_000);
   }
+
+  cancelOp = (id: string): void => {
+    const controller = this._abortControllers.get(id);
+    if (controller) {
+      controller.abort();
+    }
+    this._finishOp(id, 'cancelled');
+  };
 
   // ────────────────────────────────────────────────────────────────────────────
   // Private: Delete implementation
