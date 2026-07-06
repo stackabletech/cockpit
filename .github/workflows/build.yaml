@@ -165,7 +165,10 @@ jobs:
   # attestation next to the image.
   provenance-oci:
     name: Generate Provenance for ${{ needs.build-container-image.outputs.image-version }} (oci.stackable.tech)
-    if: (github.event_name != 'merge_group') && needs.detect-changes.outputs.detected == 'true'
+    # The SLSA container generator explicitly does not support the pull_request
+    # event (it fails checking out the merge ref), so provenance is only
+    # generated for images published on push, tags and the scheduled build.
+    if: (github.event_name != 'merge_group') && (github.event_name != 'pull_request') && needs.detect-changes.outputs.detected == 'true'
     needs:
       - detect-changes
       - build-container-image
