@@ -3,9 +3,9 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 export async function startPostgres(): Promise<StartedPostgreSqlContainer> {
   const pgStart = Date.now();
   console.log('Starting PostgreSQL testcontainer...');
-  const pgContainerBuilder = new PostgreSqlContainer('postgres:18.4-alpine3.23').withStartupTimeout(
-    120_000
-  );
+  const pgContainerBuilder = new PostgreSqlContainer(
+    'oci.stackable.tech/stackable/library/postgres:18.4-alpine3.24'
+  ).withStartupTimeout(120_000);
   if (process.env.DOCKER_NETWORK) {
     pgContainerBuilder.withNetworkMode(process.env.DOCKER_NETWORK);
   }
