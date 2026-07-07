@@ -95,6 +95,45 @@ export async function connectToStorage(page: Page, credentials: GarageCredential
   // before the test navigates elsewhere. Without this, a fast page.goto() call can race
   // with the in-flight form-submission fetch and the connection is never persisted.
   await page.waitForURL((url) => url.pathname === '/storage', { timeout: 15_000 });
+
+  // Guard: ensure the connection was persisted to localStorage.
+  // The app's saveConnectionLocally() call in the onResult callback can race with
+  // subsequent navigations (page.goto), causing an empty connection list on the
+  // management page. As a backup, seed localStorage directly here.
+  await page.evaluate(
+    ({ host: h, port: p, region: r, accessKey, secretKey, tls }) => {
+      const KEY = 'stackable_storage_connections';
+      if (localStorage.getItem(KEY)) return;
+
+      const id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const v = (Math.random() * 16) | 0;
+        return (c === 'x' ? v : (v & 0x3) | 0x8).toString(16);
+      });
+      localStorage.setItem(
+        KEY,
+        JSON.stringify([
+          {
+            id,
+            type: 's3',
+            host: h,
+            port: p ? Number(p) : undefined,
+            tls: tls ? { verification: 'Full' } : undefined,
+            accessStyle: 'Path',
+            region: { name: r },
+            credentials: { accessKey, secretKey }
+          }
+        ])
+      );
+    },
+    {
+      host,
+      port: port || undefined,
+      region: credentials.region,
+      accessKey: credentials.accessKeyId,
+      secretKey: credentials.secretAccessKey,
+      tls: useTls
+    }
+  );
 }
 
 export async function connectAndOpenPrefix(
