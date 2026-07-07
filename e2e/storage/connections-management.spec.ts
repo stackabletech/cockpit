@@ -7,7 +7,10 @@ import { waitForHydration } from '../support/helpers.js';
 async function openFirstConnectionEditPage(page: Page) {
   // Wait for at least one connection row to be rendered before trying to interact
   await page.getByRole('table').getByRole('row').nth(1).waitFor({ timeout: 10_000 });
-  await page.getByRole('button', { name: /Options for/i }).first().click({ force: true });
+  await page
+    .getByRole('button', { name: /Options for/i })
+    .first()
+    .click({ force: true });
   await page.getByRole('menuitem', { name: 'Edit' }).click();
   await waitForHydration(page);
 }
@@ -123,7 +126,10 @@ test.describe('Storage — Connections management', () => {
     const dataRows = page.locator('table tbody tr');
     const initialItems = await dataRows.count();
 
-    await page.getByRole('button', { name: /Options for/i }).first().click({ force: true });
+    await page
+      .getByRole('button', { name: /Options for/i })
+      .first()
+      .click({ force: true });
     await page.getByRole('menuitem', { name: 'Delete' }).click();
 
     // Confirm deletion in the modal
@@ -165,8 +171,8 @@ test.describe('Storage — Connections management', () => {
     // Make a change to mark the form dirty
     await page.getByLabel('Connection name').fill('Changed name');
 
-    // Try to navigate away via the back link (scope to main to avoid matching sidebar link too)
-    await page.getByRole('main').getByRole('link', { name: /Manage connections/i }).click();
+    // Try to navigate away via the back link
+    await page.getByRole('link', { name: '← Manage connections', exact: true }).click();
 
     // Modal should appear
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -182,7 +188,7 @@ test.describe('Storage — Connections management', () => {
     await openFirstConnectionEditPage(page);
 
     await page.getByLabel('Connection name').fill('Changed name');
-    await page.getByRole('main').getByRole('link', { name: /Manage connections/i }).click();
+    await page.getByRole('link', { name: '← Manage connections', exact: true }).click();
 
     await page.getByRole('dialog').getByRole('button', { name: 'Stay on page' }).click();
 
@@ -199,7 +205,7 @@ test.describe('Storage — Connections management', () => {
     await openFirstConnectionEditPage(page);
 
     await page.getByLabel('Connection name').fill('Changed name');
-    await page.getByRole('main').getByRole('link', { name: /Manage connections/i }).click();
+    await page.getByRole('link', { name: '← Manage connections', exact: true }).click();
 
     await page.getByRole('dialog').getByRole('button', { name: 'Leave' }).click();
 
