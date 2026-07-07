@@ -147,6 +147,7 @@
     return containerStrokes[depth % containerStrokes.length] + ' stroke-1';
   }
 
+  let menuEl = $state<HTMLDivElement | null>(null);
   let menuX = $state(0);
   let menuY = $state(0);
   let menuTarget = $state<LayoutRect | null>(null);
@@ -154,17 +155,24 @@
   function openContextMenu(e: MouseEvent, rect: LayoutRect) {
     e.preventDefault();
     e.stopPropagation();
-    const modalBox = (e.currentTarget as Element).closest('.modal-box');
-    if (modalBox) {
-      const mb = modalBox.getBoundingClientRect();
-      menuX = e.clientX - mb.left;
-      menuY = e.clientY - mb.top + modalBox.scrollTop;
-    } else {
-      menuX = e.clientX;
-      menuY = e.clientY;
-    }
+    menuX = e.clientX;
+    menuY = e.clientY;
     menuTarget = rect;
   }
+
+  // Teleport menu to dialog to escape modal-box containing block and overflow clipping
+  $effect(() => {
+    const el = menuEl;
+    if (el) {
+      const dialog = el.closest('dialog');
+      if (dialog && el.parentElement !== dialog) {
+        dialog.appendChild(el);
+      }
+      return () => {
+        el.remove();
+      };
+    }
+  });
 
   function closeContextMenu() {
     menuTarget = null;
@@ -284,8 +292,9 @@
   ></div>
 {/if}
 
-<!-- menu: positioned fixed inside the modal; coordinates adjusted for modal-box containing block -->
+<!-- menu: teleported into dialog to escape modal-box containing block and overflow clipping -->
 <div
+  bind:this={menuEl}
   class="border-base-300 bg-base-100 fixed z-[1000] w-56 rounded-lg border p-1 shadow-lg"
   style="left: {menuX}px; top: {menuY}px; display: {menuTarget ? 'block' : 'none'}"
   oncontextmenu={(e) => {
