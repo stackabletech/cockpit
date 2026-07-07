@@ -33,9 +33,7 @@
         : m.storage_details_bucket_title()
   );
 
-  const iconColor = $derived(
-    type === 'file' ? 'text-info' : 'text-warning'
-  );
+  const iconColor = $derived(type === 'file' ? 'text-info' : 'text-warning');
 
   async function loadFileDetails() {
     if (type !== 'file' || !key) return;
@@ -87,7 +85,7 @@
         <div class="min-w-0">
           <h3 class="text-lg font-bold">{title}</h3>
           <p class="text-base-content/50 truncate text-sm">
-            {type === 'bucket' ? bucket : key ?? prefix ?? ''}
+            {type === 'bucket' ? bucket : (key ?? prefix ?? '')}
           </p>
         </div>
       </div>

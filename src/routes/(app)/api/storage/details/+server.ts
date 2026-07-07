@@ -1,4 +1,3 @@
-import { error } from '@sveltejs/kit';
 import { getProvider } from '$lib/server/storage/utils.js';
 import { requireBucketKey } from '../params.js';
 import type { FileDetails } from '$lib/storage/details-types.js';

@@ -414,6 +414,8 @@
   "storage_details_calculating": "Wird berechnet…",
   "storage_details_calculating_desc": "Alle Objekte in diesem Verzeichnis werden aufgelistet…",
   "storage_details_keys_found": "{count} Objekte gefunden",
+  "storage_details_file_count": "{count} Dateien",
+  "storage_details_folder_count": "{count} Ordner",
   "storage_details_total_size": "Gesamtgröße",
   "storage_details_tree_visualization": "Größenverteilung",
   "storage_details_versioning": "Versionierung",

@@ -50,7 +50,9 @@
   });
 
   function versioningLabel(status: boolean): string {
-    return status ? m.storage_details_versioning_enabled() : m.storage_details_versioning_disabled();
+    return status
+      ? m.storage_details_versioning_enabled()
+      : m.storage_details_versioning_disabled();
   }
 </script>
 
@@ -69,7 +71,10 @@
   {/if}
 
   {#if error}
-    <div class="border-error/40 bg-error/10 flex items-center gap-3 rounded-lg border p-4" role="alert">
+    <div
+      class="border-error/40 bg-error/10 flex items-center gap-3 rounded-lg border p-4"
+      role="alert"
+    >
       <IconWarning class="text-error size-5 shrink-0" aria-hidden="true" />
       <p class="text-sm">{error}</p>
     </div>
@@ -95,12 +100,14 @@
           {m.storage_details_lifecycle_rules()}
         </h4>
         <div class="flex flex-col gap-3">
-          {#each details.lifecycleRules as rule}
+          {#each details.lifecycleRules as rule (rule.id)}
             <div class="border-base-300 rounded-box border p-3">
               <div class="mb-2 flex items-center gap-2">
-                <span class="font-medium text-sm">{rule.id || '(unnamed)'}</span>
+                <span class="text-sm font-medium">{rule.id || '(unnamed)'}</span>
                 <span
-                  class="badge badge-xs {rule.status === 'Enabled' ? 'badge-success' : 'badge-ghost'}"
+                  class="badge badge-xs {rule.status === 'Enabled'
+                    ? 'badge-success'
+                    : 'badge-ghost'}"
                 >
                   {rule.status}
                 </span>
@@ -110,7 +117,7 @@
                 <div class="text-base-content/70 mb-1 text-xs">
                   <IconInfo class="inline size-3 align-text-bottom" aria-hidden="true" />
                   {m.storage_details_lifecycle_expiration()}:
-                  {#each rule.expirations as exp}
+                  {#each rule.expirations as exp (exp.days ?? exp.date ?? '')}
                     <span class="text-base-content font-mono text-xs">
                       {#if exp.days !== undefined}
                         {m.storage_details_lifecycle_days({ days: exp.days })}
@@ -128,7 +135,7 @@
                 <div class="text-base-content/70 text-xs">
                   <IconInfo class="inline size-3 align-text-bottom" aria-hidden="true" />
                   {m.storage_details_lifecycle_noncurrent_expiration()}:
-                  {#each rule.noncurrentVersionExpirations as nve}
+                  {#each rule.noncurrentVersionExpirations as nve (nve.noncurrentDays)}
                     <span class="text-base-content font-mono text-xs">
                       {m.storage_details_lifecycle_days({ days: nve.noncurrentDays })}
                     </span>
@@ -152,7 +159,7 @@
           {m.storage_details_tags()}
         </h4>
         <div class="flex flex-wrap gap-2">
-          {#each Object.entries(details.tags) as [key, value]}
+          {#each Object.entries(details.tags) as [key, value] (key)}
             <span class="badge badge-outline badge-sm gap-1">
               <span class="font-medium">{key}</span>: {value}
             </span>

@@ -392,10 +392,7 @@
       "
       style="left: {bucketCtx.x}px; top: {bucketCtx.y}px;"
     >
-      <button
-        class="btn btn-ghost btn-sm w-full justify-start gap-2"
-        onclick={openBucketDetails}
-      >
+      <button class="btn btn-ghost btn-sm w-full justify-start gap-2" onclick={openBucketDetails}>
         <IconInfo class="size-4" aria-hidden="true" />
         {m.storage_action_details()}
       </button>

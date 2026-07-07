@@ -26,7 +26,8 @@
   );
   const canDownload = $derived(storage.selectedFiles.length > 0 || storage.ctxIsFile);
   const canShowDetails = $derived(
-    storage.contextMenu !== null || (storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0)
+    storage.contextMenu !== null ||
+      (storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0)
   );
 
   let menuEl = $state<HTMLUListElement | null>(null);

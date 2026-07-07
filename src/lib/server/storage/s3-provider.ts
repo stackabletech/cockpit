@@ -343,9 +343,7 @@ export class S3StorageProvider implements StorageProvider {
 
   async getBucketTags(): Promise<Record<string, string>> {
     try {
-      const output = await this.client.send(
-        new GetBucketTaggingCommand({ Bucket: this.bucket })
-      );
+      const output = await this.client.send(new GetBucketTaggingCommand({ Bucket: this.bucket }));
       const tags: Record<string, string> = {};
       for (const tag of output.TagSet ?? []) {
         if (tag.Key) tags[tag.Key] = tag.Value ?? '';
@@ -383,10 +381,7 @@ export class S3StorageProvider implements StorageProvider {
       continuationToken = output.IsTruncated ? output.NextContinuationToken : undefined;
     } while (continuationToken);
 
-    log.trace(
-      { bucket: this.bucket, prefix },
-      'progressive listing complete'
-    );
+    log.trace({ bucket: this.bucket, prefix }, 'progressive listing complete');
   }
 
   async listAllKeys(prefix: string): Promise<string[]> {

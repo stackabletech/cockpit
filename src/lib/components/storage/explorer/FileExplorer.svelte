@@ -134,5 +134,3 @@
 {#if storage.contextMenu}
   <ContextMenu />
 {/if}
-
-

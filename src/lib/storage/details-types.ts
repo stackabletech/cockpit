@@ -17,6 +17,8 @@ export interface TreemapNode {
   name: string;
   size: number;
   children?: TreemapNode[];
+  /** Parent directory path relative to the analyzed prefix (leaf nodes only). */
+  path?: string;
 }
 
 /** Progress event from the directory-size SSE endpoint. */
@@ -32,6 +34,8 @@ export interface DirectorySizeResult {
   type: 'complete';
   totalSize: number;
   totalKeys: number;
+  totalFiles: number;
+  totalDirectories: number;
   tree: TreemapNode;
   durationMs: number;
 }

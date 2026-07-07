@@ -16,45 +16,65 @@
   <table class="table-sm table">
     <tbody>
       <tr>
-        <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_name()}</td>
+        <td class="text-base-content/60 font-medium whitespace-nowrap"
+          >{m.storage_details_name()}</td
+        >
         <td class="font-mono text-sm">{keyToName(details.key)}</td>
       </tr>
       <tr>
-        <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_file_path()}</td>
+        <td class="text-base-content/60 font-medium whitespace-nowrap"
+          >{m.storage_details_file_path()}</td
+        >
         <td class="font-mono text-sm break-all">s3://{bucket}/{details.key}</td>
       </tr>
       <tr>
-        <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_size()}</td>
-        <td class="font-mono text-sm">{formatFileSize(details.size)} ({details.size.toLocaleString()} bytes)</td>
+        <td class="text-base-content/60 font-medium whitespace-nowrap"
+          >{m.storage_details_size()}</td
+        >
+        <td class="font-mono text-sm"
+          >{formatFileSize(details.size)} ({details.size.toLocaleString()} bytes)</td
+        >
       </tr>
       <tr>
-        <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_last_modified()}</td>
+        <td class="text-base-content/60 font-medium whitespace-nowrap"
+          >{m.storage_details_last_modified()}</td
+        >
         <td><TimestampDisplay date={details.lastModified} /></td>
       </tr>
       {#if details.contentType}
         <tr>
-          <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_content_type()}</td>
+          <td class="text-base-content/60 font-medium whitespace-nowrap"
+            >{m.storage_details_content_type()}</td
+          >
           <td class="font-mono text-sm">{details.contentType}</td>
         </tr>
       {/if}
       {#if details.etag}
         <tr>
-          <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_etag()}</td>
-          <td class="font-mono text-sm truncate max-w-xs" title={details.etag}>{details.etag}</td>
+          <td class="text-base-content/60 font-medium whitespace-nowrap"
+            >{m.storage_details_etag()}</td
+          >
+          <td class="max-w-xs truncate font-mono text-sm" title={details.etag}>{details.etag}</td>
         </tr>
       {/if}
       <tr>
-        <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_version_id()}</td>
-        <td class="font-mono text-sm truncate max-w-xs" title={details.versionId ?? ''}>
+        <td class="text-base-content/60 font-medium whitespace-nowrap"
+          >{m.storage_details_version_id()}</td
+        >
+        <td class="max-w-xs truncate font-mono text-sm" title={details.versionId ?? ''}>
           {details.versionId ?? '—'}
         </td>
       </tr>
       <tr>
-        <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_storage_class()}</td>
+        <td class="text-base-content/60 font-medium whitespace-nowrap"
+          >{m.storage_details_storage_class()}</td
+        >
         <td class="font-mono text-sm">{details.storageClass ?? '—'}</td>
       </tr>
       <tr>
-        <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_is_delete_marker()}</td>
+        <td class="text-base-content/60 font-medium whitespace-nowrap"
+          >{m.storage_details_is_delete_marker()}</td
+        >
         <td>{details.isDeleteMarker ? m.storage_details_yes() : m.storage_details_no()}</td>
       </tr>
     </tbody>
@@ -66,9 +86,9 @@
     </h4>
     <table class="table-sm table">
       <tbody>
-        {#each Object.entries(details.customMetadata) as [key, value]}
+        {#each Object.entries(details.customMetadata) as [key, value] (key)}
           <tr>
-            <td class="text-base-content/60 font-medium font-mono text-xs">{key}</td>
+            <td class="text-base-content/60 font-mono text-xs font-medium">{key}</td>
             <td class="font-mono text-xs break-all">{value}</td>
           </tr>
         {/each}

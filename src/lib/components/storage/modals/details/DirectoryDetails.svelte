@@ -5,10 +5,7 @@
   import IconWarning from 'virtual:icons/material-symbols/warning';
   import { formatFileSize } from '$lib/storage/utils.js';
   import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
-  import type {
-    DirectorySizeEvent,
-    TreemapNode
-  } from '$lib/storage/details-types.js';
+  import type { DirectorySizeEvent, TreemapNode } from '$lib/storage/details-types.js';
   import Treemap from './Treemap.svelte';
 
   interface Props {
@@ -24,7 +21,14 @@
   let calculating = $state(false);
   let error = $state<string | null>(null);
   let progress = $state<{ keysFound: number; totalSize: number } | null>(null);
-  let result = $state<{ totalSize: number; totalKeys: number; tree: TreemapNode; durationMs: number } | null>(null);
+  let result = $state<{
+    totalSize: number;
+    totalKeys: number;
+    totalFiles: number;
+    totalDirectories: number;
+    tree: TreemapNode;
+    durationMs: number;
+  } | null>(null);
 
   async function calculateSize() {
     calculating = true;
@@ -79,6 +83,8 @@
               result = {
                 totalSize: event.totalSize,
                 totalKeys: event.totalKeys,
+                totalFiles: event.totalFiles,
+                totalDirectories: event.totalDirectories,
                 tree: event.tree,
                 durationMs: event.durationMs
               };
@@ -121,7 +127,9 @@
       <p class="text-base-content/60 text-sm">{m.storage_details_calculating_desc()}</p>
       {#if progress}
         <div class="text-center text-sm">
-          <p class="text-base-content/80">{m.storage_details_keys_found({ count: progress.keysFound })}</p>
+          <p class="text-base-content/80">
+            {m.storage_details_keys_found({ count: progress.keysFound })}
+          </p>
           <p class="text-base-content/60 font-mono">{formatFileSize(progress.totalSize)}</p>
         </div>
       {/if}
@@ -129,23 +137,34 @@
   {/if}
 
   {#if error}
-    <div class="border-error/40 bg-error/10 flex items-center gap-3 rounded-lg border p-4" role="alert">
+    <div
+      class="border-error/40 bg-error/10 flex items-center gap-3 rounded-lg border p-4"
+      role="alert"
+    >
       <IconWarning class="text-error size-5 shrink-0" aria-hidden="true" />
       <p class="text-sm">{error}</p>
     </div>
   {/if}
 
   {#if result}
-    <div class="flex gap-6">
+    <div class="flex flex-wrap gap-6">
       <div class="stats">
         <div class="stat">
           <div class="stat-title">{m.storage_details_total_size()}</div>
           <div class="stat-value text-lg">{formatFileSize(result.totalSize)}</div>
         </div>
         <div class="stat">
-          <div class="stat-title">{m.storage_details_keys_found({ count: result.totalKeys })}</div>
-          <div class="stat-value text-lg">{result.totalKeys.toLocaleString()}</div>
+          <div class="stat-title">{m.storage_details_file_count({ count: result.totalFiles })}</div>
+          <div class="stat-value text-lg">{result.totalFiles.toLocaleString()}</div>
         </div>
+        {#if result.totalDirectories > 0}
+          <div class="stat">
+            <div class="stat-title">
+              {m.storage_details_folder_count({ count: result.totalDirectories })}
+            </div>
+            <div class="stat-value text-lg">{result.totalDirectories.toLocaleString()}</div>
+          </div>
+        {/if}
       </div>
     </div>
 

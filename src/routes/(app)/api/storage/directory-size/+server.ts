@@ -5,32 +5,52 @@ import type { DirectorySizeEvent, TreemapNode } from '$lib/storage/details-types
 import type { RequestHandler } from './$types';
 
 function buildTree(prefix: string, keys: Array<{ key: string; size: number }>): TreemapNode {
-  const root: TreemapNode = {
-    name: prefix.split('/').filter(Boolean).pop() || '(root)',
-    size: 0,
-    children: []
-  };
+  const rootName = prefix.split('/').filter(Boolean).pop() || '(root)';
 
-  const childMap = new Map<string, TreemapNode>();
+  interface TrieNode {
+    name: string;
+    size: number;
+    children: Map<string, TrieNode>;
+  }
+
+  const rootTrie: TrieNode = { name: rootName, size: 0, children: new Map() };
 
   for (const { key, size } of keys) {
     const relative = key.slice(prefix.length);
     const parts = relative.split('/').filter(Boolean);
-
     if (parts.length === 0) continue;
 
-    const topName = parts[0];
-    const existing = childMap.get(topName) ?? { name: topName, size: 0, children: [] };
-    existing.size += size;
-    childMap.set(topName, existing);
-    root.size += size;
+    rootTrie.size += size;
+    let current = rootTrie;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (!current.children.has(part)) {
+        current.children.set(part, { name: part, size: 0, children: new Map() });
+      }
+      current = current.children.get(part)!;
+      current.size += size;
+    }
   }
 
-  root.children = [...childMap.entries()]
-    .map(([, v]) => v)
-    .sort((a, b) => b.size - a.size);
+  function trieToTreemap(node: TrieNode): TreemapNode {
+    function convert(n: TrieNode, parentPrefix: string, isRoot: boolean): TreemapNode {
+      const result: TreemapNode = {
+        name: n.name,
+        size: n.size
+      };
+      if (n.children.size > 0) {
+        result.children = [...n.children.entries()]
+          .map(([, v]) => convert(v, isRoot ? '' : parentPrefix + n.name + '/', false))
+          .sort((a, b) => b.size - a.size);
+      } else {
+        result.path = parentPrefix || undefined;
+      }
+      return result;
+    }
+    return convert(node, '', true);
+  }
 
-  return root;
+  return trieToTreemap(rootTrie);
 }
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -75,10 +95,21 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         });
 
         const tree = buildTree(prefix, allKeys);
+        let totalFiles = 0;
+        let totalDirectories = 0;
+        for (const { key } of allKeys) {
+          if (key.endsWith('/')) {
+            totalDirectories++;
+          } else {
+            totalFiles++;
+          }
+        }
         const result: DirectorySizeEvent = {
           type: 'complete',
           totalSize: allKeys.reduce((sum, k) => sum + k.size, 0),
           totalKeys: allKeys.length,
+          totalFiles,
+          totalDirectories,
           tree,
           durationMs: Date.now() - startTime
         };
