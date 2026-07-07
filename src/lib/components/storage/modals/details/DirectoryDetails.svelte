@@ -107,7 +107,7 @@
     </div>
   </div>
 
-  {#if !result && !calculating && !error}
+  {#if !result && !calculating}
     <button class="btn btn-outline btn-primary gap-2" onclick={calculateSize}>
       <IconCalculate class="size-4" aria-hidden="true" />
       {m.storage_details_calculate_size()}

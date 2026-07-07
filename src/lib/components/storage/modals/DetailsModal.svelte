@@ -22,7 +22,7 @@
   let { open = $bindable(), type, bucket, key, prefix }: Props = $props();
 
   let fileDetails = $state<FileDetailsType | null>(null);
-  let loading = $state(true);
+  let loading = $state(false);
   let loadError = $state<string | null>(null);
 
   const title = $derived(

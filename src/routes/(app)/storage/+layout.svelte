@@ -3,6 +3,7 @@
   import BucketList from '$lib/components/storage/sidebar/BucketList.svelte';
   import { StorageState } from '$lib/storage/state.svelte.js';
   import { setStorageState } from '$lib/storage/context.js';
+  import StorageModals from '$lib/components/storage/modals/StorageModals.svelte';
 
   let { children, data } = $props();
 
@@ -32,3 +33,6 @@
 {:else}
   {@render children()}
 {/if}
+
+<!-- Global modals — always mounted so bucket details work from sidebar/landing page -->
+<StorageModals />

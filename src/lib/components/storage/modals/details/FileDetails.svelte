@@ -43,18 +43,16 @@
           <td class="font-mono text-sm truncate max-w-xs" title={details.etag}>{details.etag}</td>
         </tr>
       {/if}
-      {#if details.versionId}
-        <tr>
-          <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_version_id()}</td>
-          <td class="font-mono text-sm truncate max-w-xs" title={details.versionId}>{details.versionId}</td>
-        </tr>
-      {/if}
-      {#if details.storageClass}
-        <tr>
-          <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_storage_class()}</td>
-          <td class="font-mono text-sm">{details.storageClass}</td>
-        </tr>
-      {/if}
+      <tr>
+        <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_version_id()}</td>
+        <td class="font-mono text-sm truncate max-w-xs" title={details.versionId ?? ''}>
+          {details.versionId ?? '—'}
+        </td>
+      </tr>
+      <tr>
+        <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_storage_class()}</td>
+        <td class="font-mono text-sm">{details.storageClass ?? '—'}</td>
+      </tr>
       <tr>
         <td class="text-base-content/60 font-medium whitespace-nowrap">{m.storage_details_is_delete_marker()}</td>
         <td>{details.isDeleteMarker ? m.storage_details_yes() : m.storage_details_no()}</td>
