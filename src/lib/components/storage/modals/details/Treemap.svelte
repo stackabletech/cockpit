@@ -72,7 +72,15 @@
     depth: number,
     rects: LayoutRect[]
   ) {
-    const isContainer = !!(node.children && node.children.length > 0);
+    const children = node.children;
+    const isContainer = !!(children && children.length > 0);
+
+    // Collapse single-child containers to avoid padding exhaustion from deep nesting
+    if (isContainer && children!.length === 1) {
+      layoutNode(children![0], x, y, w, h, depth + 1, rects);
+      return;
+    }
+
     rects.push({
       x,
       y,
@@ -101,7 +109,7 @@
     let remH = ih;
     let horizontal = remW >= remH;
 
-    for (const child of node.children!) {
+    for (const child of children!) {
       const area = (child.size / total) * iw * ih;
       let cw: number;
       let ch: number;
@@ -146,8 +154,15 @@
   function openContextMenu(e: MouseEvent, rect: LayoutRect) {
     e.preventDefault();
     e.stopPropagation();
-    menuX = e.clientX;
-    menuY = e.clientY;
+    const modalBox = (e.currentTarget as Element).closest('.modal-box');
+    if (modalBox) {
+      const mb = modalBox.getBoundingClientRect();
+      menuX = e.clientX - mb.left;
+      menuY = e.clientY - mb.top + modalBox.scrollTop;
+    } else {
+      menuX = e.clientX;
+      menuY = e.clientY;
+    }
     menuTarget = rect;
   }
 
@@ -159,7 +174,6 @@
     try {
       await navigator.clipboard.writeText(text);
     } catch {
-      // fallback
       const ta = document.createElement('textarea');
       ta.value = text;
       document.body.appendChild(ta);
@@ -249,6 +263,7 @@
   </svg>
 </div>
 
+<!-- backdrop: rendered in-place inside the modal (just needs to cover modal-box) -->
 {#if menuTarget}
   <div
     class="fixed inset-0 z-40"
@@ -258,14 +273,18 @@
       closeContextMenu();
     }}
   ></div>
-  <div
-    class="border-base-300 bg-base-100 fixed z-50 w-56 rounded-lg border p-1 shadow-lg"
-    style="left: {menuX}px; top: {menuY}px;"
-    oncontextmenu={(e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    }}
-  >
+{/if}
+
+<!-- menu: positioned fixed inside the modal; coordinates adjusted for modal-box containing block -->
+<div
+  class="border-base-300 bg-base-100 fixed z-[1000] w-56 rounded-lg border p-1 shadow-lg"
+  style="left: {menuX}px; top: {menuY}px; display: {menuTarget ? 'block' : 'none'}"
+  oncontextmenu={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }}
+>
+  {#if menuTarget}
     <button
       class="btn btn-ghost btn-sm w-full justify-start gap-2"
       onclick={() => {
@@ -292,5 +311,5 @@
         Copy full path
       </button>
     {/if}
-  </div>
-{/if}
+  {/if}
+</div>
