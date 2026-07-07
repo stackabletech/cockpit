@@ -192,6 +192,25 @@
     role="img"
     aria-label="Treemap visualization of directory size composition"
   >
+    <defs>
+      {#each rects as rect (rect.x + '-' + rect.y + '-' + rect.w + '-' + rect.h)}
+        {#if !rect.isContainer && rect.w > 40 && rect.h > 20}
+          <linearGradient id="fg-{rect.x}-{rect.y}" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="60%" stop-color="#fff" />
+            <stop offset="100%" stop-color="#fff" stop-opacity="0" />
+          </linearGradient>
+          <mask id="fm-{rect.x}-{rect.y}">
+            <rect
+              x={rect.x + 4}
+              y={rect.y + 10}
+              width={Math.max(rect.w - 8, 1)}
+              height={Math.max(rect.h - 14, 1)}
+              fill="url(#fg-{rect.x}-{rect.y})"
+            />
+          </mask>
+        {/if}
+      {/each}
+    </defs>
     {#each rects as rect (rect.x + '-' + rect.y + '-' + rect.w + '-' + rect.h)}
       <g class="group cursor-pointer" oncontextmenu={(e) => openContextMenu(e, rect)}>
         <rect
@@ -207,51 +226,41 @@
         />
         {#if !rect.isContainer && rect.w > 40}
           {#if rect.h > 34}
-            <text
-              x={rect.x + 4}
-              y={rect.y + 12}
-              class="fill-base-content text-[11px] font-medium"
-              dominant-baseline="hanging"
-            >
-              {rect.name.length > 22 ? rect.name.slice(0, 20) + '...' : rect.name}
-            </text>
-            <text
-              x={rect.x + 4}
-              y={rect.y + 24}
-              class="fill-base-content/45 text-[9px]"
-              dominant-baseline="hanging"
-            >
-              {#if rect.path}
-                {rect.path.length > 28 ? rect.path.slice(0, 26) + '...' : rect.path}
-              {:else}
-                ./
-              {/if}
-            </text>
-            <text
-              x={rect.x + 4}
-              y={rect.y + 36}
-              class="fill-base-content/70 text-[10px]"
-              dominant-baseline="hanging"
-            >
-              {formatFileSize(rect.size)}
-            </text>
+            <g mask="url(#fm-{rect.x}-{rect.y})">
+              <text
+                x={rect.x + 4}
+                y={rect.y + 12}
+                class="fill-base-content text-[11px] font-medium"
+                dominant-baseline="hanging">{rect.name}</text
+              >
+              <text
+                x={rect.x + 4}
+                y={rect.y + 24}
+                class="fill-base-content/45 text-[9px]"
+                dominant-baseline="hanging">{rect.path || './'}</text
+              >
+              <text
+                x={rect.x + 4}
+                y={rect.y + 36}
+                class="fill-base-content/70 text-[10px]"
+                dominant-baseline="hanging">{formatFileSize(rect.size)}</text
+              >
+            </g>
           {:else if rect.h > 20}
-            <text
-              x={rect.x + 4}
-              y={rect.y + 14}
-              class="fill-base-content text-[11px] font-medium"
-              dominant-baseline="hanging"
-            >
-              {rect.name.length > 20 ? rect.name.slice(0, 18) + '...' : rect.name}
-            </text>
-            <text
-              x={rect.x + 4}
-              y={rect.y + 28}
-              class="fill-base-content/70 text-[10px]"
-              dominant-baseline="hanging"
-            >
-              {formatFileSize(rect.size)}
-            </text>
+            <g mask="url(#fm-{rect.x}-{rect.y})">
+              <text
+                x={rect.x + 4}
+                y={rect.y + 14}
+                class="fill-base-content text-[11px] font-medium"
+                dominant-baseline="hanging">{rect.name}</text
+              >
+              <text
+                x={rect.x + 4}
+                y={rect.y + 28}
+                class="fill-base-content/70 text-[10px]"
+                dominant-baseline="hanging">{formatFileSize(rect.size)}</text
+              >
+            </g>
           {/if}
         {/if}
         <title>
