@@ -3,25 +3,24 @@
   import DeleteConfirmModal from './DeleteConfirmModal.svelte';
   import PreviewModal from './PreviewModal.svelte';
   import UploadModal from './upload/UploadModal.svelte';
+  import DetailsModal from './DetailsModal.svelte';
 
   const storage = getStorageState();
 
-  // Local open state for modals that can close themselves (click-outside, etc.)
-  // These start as true when mounted and sync back to storage state when closed.
   let previewOpen = $state(true);
   let uploadOpen = $state(true);
   let deleteOpen = $state(true);
+  let detailsOpen = $state(true);
 
-  // Reset local state when modal type changes
   $effect(() => {
     if (storage.activeModal) {
       previewOpen = true;
       uploadOpen = true;
       deleteOpen = true;
+      detailsOpen = true;
     }
   });
 
-  // Sync modal close-via-UI back to state
   $effect(() => {
     if (!previewOpen && storage.activeModal?.type === 'preview') {
       storage.closeModal();
@@ -36,6 +35,12 @@
 
   $effect(() => {
     if (!deleteOpen && storage.activeModal?.type === 'delete') {
+      storage.closeModal();
+    }
+  });
+
+  $effect(() => {
+    if (!detailsOpen && storage.activeModal?.type === 'details') {
       storage.closeModal();
     }
   });
@@ -67,5 +72,15 @@
     bucket={storage.activeModal.payload.bucket}
     prefix={storage.activeModal.payload.prefix}
     onSuccess={storage.handleUploadSuccess}
+  />
+{/if}
+
+{#if storage.activeModal?.type === 'details'}
+  <DetailsModal
+    bind:open={detailsOpen}
+    type={storage.activeModal.payload.type}
+    bucket={storage.activeModal.payload.bucket}
+    key={storage.activeModal.payload.key}
+    prefix={storage.activeModal.payload.prefix}
   />
 {/if}

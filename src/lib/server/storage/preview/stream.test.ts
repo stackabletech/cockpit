@@ -18,6 +18,10 @@ function makeProvider(overrides: Partial<StorageProvider> = {}): StorageProvider
     putObject: vi.fn(),
     deleteObjects: vi.fn(),
     listAllKeys: vi.fn(),
+    listAllKeysProgressively: vi.fn(),
+    getBucketVersioning: vi.fn(),
+    getBucketLifecycleRules: vi.fn(),
+    getBucketTags: vi.fn(),
     ...overrides
   };
 }

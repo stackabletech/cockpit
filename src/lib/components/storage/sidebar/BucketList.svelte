@@ -6,6 +6,7 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
+  import IconInfo from 'virtual:icons/material-symbols/info';
   import IconBucket from '../shared/BucketIcon.svelte';
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import IconGridView from 'virtual:icons/material-symbols/grid-view';
@@ -150,8 +151,28 @@
   }
   beforeNavigate(closeUnpinMenu);
 
+  // ── Bucket details context menu ───────────────────────────────────────────
+  let bucketCtx = $state<{ x: number; y: number; bucket: string } | null>(null);
+
+  function openBucketContextMenu(e: MouseEvent, bucket: string) {
+    e.preventDefault();
+    bucketCtx = { x: e.clientX, y: e.clientY, bucket };
+  }
+
+  function closeBucketContextMenu() {
+    bucketCtx = null;
+  }
+
+  function openBucketDetails() {
+    if (bucketCtx) {
+      storage.openModal('details', { type: 'bucket', bucket: bucketCtx.bucket });
+      bucketCtx = null;
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if (unpinCtx && e.key === 'Escape') closeUnpinMenu();
+    if (bucketCtx && e.key === 'Escape') closeBucketContextMenu();
   }
 
   function handleUnpin() {
@@ -332,6 +353,7 @@
               onmouseleave={hideTooltip}
               onfocus={(e) => showTooltip(e, bucket)}
               onblur={hideTooltip}
+              oncontextmenu={(e) => openBucketContextMenu(e, bucket)}
             >
               <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
               <span class="truncate">{bucket}</span>
@@ -354,6 +376,31 @@
       </button>
     </form>
   </div>
+
+  {#if bucketCtx}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="fixed inset-0 z-70"
+      onclick={closeBucketContextMenu}
+      oncontextmenu={(e) => e.preventDefault()}
+    ></div>
+    <div
+      class="
+        border-base-300 bg-base-100 fixed z-80 w-48 rounded-lg
+        border p-1 shadow-lg
+      "
+      style="left: {bucketCtx.x}px; top: {bucketCtx.y}px;"
+    >
+      <button
+        class="btn btn-ghost btn-sm w-full justify-start gap-2"
+        onclick={openBucketDetails}
+      >
+        <IconInfo class="size-4" aria-hidden="true" />
+        {m.storage_action_details()}
+      </button>
+    </div>
+  {/if}
 
   <!-- Disconnect confirmation modal -->
   <Modal bind:open={disconnectConfirmOpen} class="modal">
