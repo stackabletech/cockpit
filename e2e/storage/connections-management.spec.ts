@@ -5,8 +5,6 @@ import { waitForHydration } from '../support/helpers.js';
 
 /** Open the Options context menu for the first connection row and click Edit. */
 async function openFirstConnectionEditPage(page: Page) {
-  // Wait for at least one connection row to be rendered before trying to interact
-  await page.getByRole('table').getByRole('row').nth(1).waitFor({ timeout: 10_000 });
   await page
     .getByRole('button', { name: /Options for/i })
     .first()
@@ -76,9 +74,13 @@ test.describe('Storage — Connections management', () => {
 
     await openFirstConnectionEditPage(page);
 
-    await expect(page.getByLabel('Host')).toHaveValue(new URL(credentials.endpoint).hostname);
-    await expect(page.getByLabel('Region')).toHaveValue(credentials.region);
-    await expect(page.getByLabel('Access key')).toHaveValue(credentials.accessKeyId);
+    await expect(page.getByRole('textbox', { name: 'Host' })).toHaveValue(
+      new URL(credentials.endpoint).hostname
+    );
+    await expect(page.getByRole('textbox', { name: 'Region' })).toHaveValue(credentials.region);
+    await expect(page.getByRole('textbox', { name: 'Access key' })).toHaveValue(
+      credentials.accessKeyId
+    );
   });
 
   test('edit page redirects to connections list after saving valid credentials', async ({
