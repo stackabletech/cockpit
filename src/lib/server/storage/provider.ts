@@ -1,5 +1,5 @@
 import type { StoragePage, StorageMetadata, DeleteObjectsResult } from '$lib/storage/types.js';
-import type { LifecycleRule } from '$lib/storage/details-types.js';
+import type { LifecycleRule, BucketAcl } from '$lib/storage/details-types.js';
 
 export type { DeleteObjectsResult };
 
@@ -53,4 +53,5 @@ export interface StorageProvider {
   getBucketVersioning(): Promise<string>;
   getBucketLifecycleRules(): Promise<LifecycleRule[]>;
   getBucketTags(): Promise<Record<string, string>>;
+  getBucketAcl(): Promise<BucketAcl>;
 }

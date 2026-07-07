@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { TreemapNode } from '$lib/storage/details-types.js';
   import { formatFileSize } from '$lib/storage/utils.js';
+  import IconContentCopy from 'virtual:icons/material-symbols/content-copy';
+  import IconFolderOpen from 'virtual:icons/material-symbols/folder-open';
 
   interface Props {
     data: TreemapNode;
@@ -33,13 +35,13 @@
   ];
 
   const containerStrokes = [
-    'stroke-primary/25',
-    'stroke-secondary/25',
-    'stroke-accent/25',
-    'stroke-info/25',
-    'stroke-success/25',
-    'stroke-warning/25',
-    'stroke-error/25'
+    'stroke-primary/30',
+    'stroke-secondary/30',
+    'stroke-accent/30',
+    'stroke-info/30',
+    'stroke-success/30',
+    'stroke-warning/30',
+    'stroke-error/30'
   ];
 
   interface LayoutRect {
@@ -52,6 +54,7 @@
     depth: number;
     isContainer: boolean;
     path: string | undefined;
+    fullKey: string | undefined;
   }
 
   const rects = $derived.by(() => {
@@ -79,7 +82,8 @@
       size: node.size,
       depth,
       isContainer,
-      path: node.path
+      path: node.path,
+      fullKey: node.fullKey
     });
 
     if (!isContainer) return;
@@ -131,8 +135,39 @@
   }
 
   function strokeClass(depth: number, isContainer: boolean): string {
-    if (!isContainer) return '';
-    return containerStrokes[depth % containerStrokes.length];
+    if (!isContainer) return 'stroke-base-300/25 stroke-1';
+    return containerStrokes[depth % containerStrokes.length] + ' stroke-1';
+  }
+
+  let menuX = $state(0);
+  let menuY = $state(0);
+  let menuTarget = $state<LayoutRect | null>(null);
+
+  function openContextMenu(e: MouseEvent, rect: LayoutRect) {
+    e.preventDefault();
+    e.stopPropagation();
+    menuX = e.clientX;
+    menuY = e.clientY;
+    menuTarget = rect;
+  }
+
+  function closeContextMenu() {
+    menuTarget = null;
+  }
+
+  async function copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    closeContextMenu();
   }
 </script>
 
@@ -144,7 +179,7 @@
     aria-label="Treemap visualization of directory size composition"
   >
     {#each rects as rect (rect.x + '-' + rect.y + '-' + rect.w + '-' + rect.h)}
-      <g class="group">
+      <g class="group cursor-pointer" oncontextmenu={(e) => openContextMenu(e, rect)}>
         <rect
           x={rect.x}
           y={rect.y}
@@ -213,3 +248,49 @@
     {/each}
   </svg>
 </div>
+
+{#if menuTarget}
+  <div
+    class="fixed inset-0 z-40"
+    onclick={closeContextMenu}
+    oncontextmenu={(e) => {
+      e.preventDefault();
+      closeContextMenu();
+    }}
+  ></div>
+  <div
+    class="border-base-300 bg-base-100 fixed z-50 w-56 rounded-lg border p-1 shadow-lg"
+    style="left: {menuX}px; top: {menuY}px;"
+    oncontextmenu={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }}
+  >
+    <button
+      class="btn btn-ghost btn-sm w-full justify-start gap-2"
+      onclick={() => {
+        const t = menuTarget;
+        if (t) copy(t.name);
+      }}
+    >
+      <IconContentCopy class="size-4 shrink-0" aria-hidden="true" />
+      {#if menuTarget.isContainer}
+        Copy directory name
+      {:else}
+        Copy file name
+      {/if}
+    </button>
+    {#if menuTarget.fullKey}
+      <button
+        class="btn btn-ghost btn-sm w-full justify-start gap-2"
+        onclick={() => {
+          const t = menuTarget;
+          if (t?.fullKey) copy(t.fullKey);
+        }}
+      >
+        <IconFolderOpen class="size-4 shrink-0" aria-hidden="true" />
+        Copy full path
+      </button>
+    {/if}
+  </div>
+{/if}

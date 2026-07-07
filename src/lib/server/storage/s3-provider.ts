@@ -10,13 +10,14 @@ import {
   GetBucketVersioningCommand,
   GetBucketLifecycleConfigurationCommand,
   GetBucketTaggingCommand,
+  GetBucketAclCommand,
   type ListObjectsV2CommandOutput
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import type { StorageProvider, ObjectDownload, DeleteObjectsResult } from './provider.js';
 import type { S3Config } from './types.js';
 import type { StoragePage, StorageObject, StorageMetadata } from '$lib/storage/types.js';
-import type { LifecycleRule } from '$lib/storage/details-types.js';
+import type { LifecycleRule, BucketAcl } from '$lib/storage/details-types.js';
 import { logger } from '$lib/server/logging';
 import { createS3Client } from './s3-client.js';
 import { mapS3ErrorToHttp } from './s3-errors.js';
@@ -338,6 +339,26 @@ export class S3StorageProvider implements StorageProvider {
       });
     } catch {
       return [];
+    }
+  }
+
+  async getBucketAcl(): Promise<BucketAcl> {
+    try {
+      const output = await this.client.send(new GetBucketAclCommand({ Bucket: this.bucket }));
+      const owner = [output.Owner?.DisplayName, output.Owner?.ID].filter(Boolean).join(' / ');
+      const grants = (output.Grants ?? []).map((g) => ({
+        grantee:
+          g.Grantee?.DisplayName ??
+          g.Grantee?.EmailAddress ??
+          g.Grantee?.ID ??
+          g.Grantee?.URI ??
+          g.Grantee?.Type ??
+          'Unknown',
+        permission: g.Permission ?? 'Unknown'
+      }));
+      return { owner: owner || 'Unknown', grants };
+    } catch {
+      return { owner: 'Unknown', grants: [] };
     }
   }
 

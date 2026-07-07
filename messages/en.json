@@ -438,6 +438,14 @@
   "storage_details_tab_lifecycle": "Lifecycle",
   "storage_details_file_path": "Path",
   "storage_details_bucket_name": "Bucket",
+  "storage_details_owner": "Owner",
+  "storage_details_permissions": "Permissions",
+  "storage_details_marker_exists": "Folder marker",
+  "storage_details_marker_none": "No folder marker object",
+  "storage_details_encryption": "Encryption",
+  "storage_details_object_lock": "Object lock",
+  "storage_details_object_lock_mode": "Lock mode",
+  "storage_details_object_lock_until": "Retain until",
   "timestamp_just_now": "just now",
   "timestamp_minutes_ago": [
     {

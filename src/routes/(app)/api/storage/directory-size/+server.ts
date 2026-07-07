@@ -44,6 +44,7 @@ function buildTree(prefix: string, keys: Array<{ key: string; size: number }>): 
           .sort((a, b) => b.size - a.size);
       } else {
         result.path = parentPrefix || undefined;
+        result.fullKey = prefix + (parentPrefix || '') + n.name;
       }
       return result;
     }
@@ -104,6 +105,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             totalFiles++;
           }
         }
+
         const result: DirectorySizeEvent = {
           type: 'complete',
           totalSize: allKeys.reduce((sum, k) => sum + k.size, 0),

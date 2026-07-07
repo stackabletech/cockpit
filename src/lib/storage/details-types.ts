@@ -19,6 +19,8 @@ export interface TreemapNode {
   children?: TreemapNode[];
   /** Parent directory path relative to the analyzed prefix (leaf nodes only). */
   path?: string;
+  /** Full S3 key including the prefix (leaf nodes only). */
+  fullKey?: string;
 }
 
 /** Progress event from the directory-size SSE endpoint. */
@@ -40,6 +42,25 @@ export interface DirectorySizeResult {
   durationMs: number;
 }
 
+/** Metadata about an S3 directory/folder (bucket ACL + optional directory marker object). */
+export interface DirectoryMetadata {
+  bucketOwner: string;
+  bucketGrants: Array<{ grantee: string; permission: string }>;
+  markerExists: boolean;
+  markerLastModified?: string;
+  markerContentType?: string;
+  markerETag?: string;
+  markerContentLength?: number;
+  markerVersionId?: string;
+  markerStorageClass?: string;
+  markerServerSideEncryption?: string;
+  markerCustomMetadata?: Record<string, string>;
+  markerObjectLockMode?: string;
+  markerObjectLockRetainUntilDate?: string;
+  markerObjectLockLegalHoldStatus?: string;
+  markerIsDeleteMarker?: boolean;
+}
+
 /** Error event from the directory-size SSE endpoint. */
 export interface DirectorySizeError {
   type: 'error';
@@ -58,6 +79,12 @@ export interface LifecycleRule {
   noncurrentVersionTransitions: Array<{ noncurrentDays: number; storageClass: string }>;
   noncurrentVersionExpirations: Array<{ noncurrentDays: number }>;
   abortIncompleteMultipartUploads: Array<{ daysAfterInitiation: number }>;
+}
+
+/** Bucket ACL information. */
+export interface BucketAcl {
+  owner: string;
+  grants: Array<{ grantee: string; permission: string }>;
 }
 
 /** Bucket configuration details. */

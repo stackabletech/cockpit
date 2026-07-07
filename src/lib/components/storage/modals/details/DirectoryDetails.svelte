@@ -3,9 +3,13 @@
   import IconCalculate from 'virtual:icons/material-symbols/calculate';
   import IconFolderOpen from 'virtual:icons/material-symbols/folder-open';
   import IconWarning from 'virtual:icons/material-symbols/warning';
-  import { formatFileSize } from '$lib/storage/utils.js';
+  import { formatFileSize, keyToName } from '$lib/storage/utils.js';
   import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
-  import type { DirectorySizeEvent, TreemapNode } from '$lib/storage/details-types.js';
+  import type {
+    DirectorySizeEvent,
+    DirectoryMetadata,
+    TreemapNode
+  } from '$lib/storage/details-types.js';
   import Treemap from './Treemap.svelte';
 
   interface Props {
@@ -29,6 +33,32 @@
     tree: TreemapNode;
     durationMs: number;
   } | null>(null);
+
+  let meta = $state<DirectoryMetadata | null>(null);
+  let metaError = $state<string | null>(null);
+
+  async function fetchMetadata() {
+    try {
+      const conn = loadConnectionLocally();
+      if (!conn) return;
+      const connHeader = getConnectionHeader(conn);
+      const params = new URLSearchParams({ bucket, prefix });
+      const res = await fetch(`/api/storage/directory-metadata?${params}`, {
+        headers: { 'x-storage-connection': connHeader }
+      });
+      if (!res.ok) {
+        metaError = `Failed to fetch directory metadata (${res.status})`;
+        return;
+      }
+      meta = await res.json();
+    } catch (err) {
+      metaError = err instanceof Error ? err.message : 'Unknown error';
+    }
+  }
+
+  $effect(() => {
+    void fetchMetadata();
+  });
 
   async function calculateSize() {
     calculating = true;
@@ -112,6 +142,95 @@
       <p class="text-base-content/50 text-xs">s3://{bucket}/{prefix}</p>
     </div>
   </div>
+
+  {#if meta}
+    {#if meta.markerExists || meta.bucketOwner || (meta.bucketGrants && meta.bucketGrants.length > 0)}
+      <div class="border-base-300 rounded-box border p-3">
+        {#if meta.markerExists}
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-base-content/60 font-medium"
+              >{m.storage_details_marker_exists()}:</span
+            >
+            <span class="font-mono text-xs">{keyToName(prefix)}</span>
+          </div>
+          <div class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            {#if meta.markerLastModified}
+              <span class="text-base-content/60">{m.storage_details_last_modified()}</span>
+              <span class="font-mono">{new Date(meta.markerLastModified).toLocaleString()}</span>
+            {/if}
+            {#if meta.markerContentType}
+              <span class="text-base-content/60">{m.storage_details_content_type()}</span>
+              <span class="truncate font-mono">{meta.markerContentType}</span>
+            {/if}
+            {#if meta.markerETag}
+              <span class="text-base-content/60">{m.storage_details_etag()}</span>
+              <span class="truncate font-mono" title={meta.markerETag}
+                >{meta.markerETag.slice(0, 20)}...</span
+              >
+            {/if}
+            {#if meta.markerStorageClass}
+              <span class="text-base-content/60">{m.storage_details_storage_class()}</span>
+              <span class="font-mono">{meta.markerStorageClass}</span>
+            {/if}
+            {#if meta.markerVersionId}
+              <span class="text-base-content/60">{m.storage_details_version_id()}</span>
+              <span class="truncate font-mono" title={meta.markerVersionId}
+                >{meta.markerVersionId.slice(0, 20)}...</span
+              >
+            {/if}
+            {#if meta.markerServerSideEncryption}
+              <span class="text-base-content/60">{m.storage_details_encryption()}</span>
+              <span class="font-mono">{meta.markerServerSideEncryption}</span>
+            {/if}
+            {#if meta.markerObjectLockMode}
+              <span class="text-base-content/60">{m.storage_details_object_lock_mode()}</span>
+              <span class="font-mono">{meta.markerObjectLockMode}</span>
+            {/if}
+            {#if meta.markerObjectLockRetainUntilDate}
+              <span class="text-base-content/60">{m.storage_details_object_lock_until()}</span>
+              <span class="font-mono"
+                >{new Date(meta.markerObjectLockRetainUntilDate).toLocaleString()}</span
+              >
+            {/if}
+          </div>
+        {:else if !meta.markerExists}
+          <p class="text-base-content/40 text-xs italic">{m.storage_details_marker_none()}</p>
+        {/if}
+        <div class="mt-2 flex items-center gap-2 text-sm">
+          <span class="text-base-content/60 font-medium">{m.storage_details_owner()}:</span>
+          <span class="font-mono text-xs">{meta.bucketOwner}</span>
+        </div>
+        {#if meta.bucketGrants && meta.bucketGrants.length > 0}
+          <div class="mt-2">
+            <span class="text-base-content/60 text-xs font-medium"
+              >{m.storage_details_permissions()}:</span
+            >
+            <div class="mt-1 flex flex-wrap gap-1">
+              {#each meta.bucketGrants as grant (grant.grantee + '-' + grant.permission)}
+                <span class="badge badge-sm gap-1 font-mono text-[10px]">
+                  <span class="text-base-content/70">{grant.grantee}</span>
+                  <span class="text-base-content/40">|</span>
+                  <span>{grant.permission}</span>
+                </span>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </div>
+    {/if}
+  {:else if metaError}
+    <div
+      class="border-error/40 bg-error/10 flex items-center gap-3 rounded-lg border p-3"
+      role="alert"
+    >
+      <IconWarning class="text-error size-4 shrink-0" aria-hidden="true" />
+      <p class="text-xs">{metaError}</p>
+    </div>
+  {:else}
+    <div class="border-base-300 rounded-box flex items-center justify-center border p-4">
+      <span class="loading loading-spinner loading-sm text-primary" aria-hidden="true"></span>
+    </div>
+  {/if}
 
   {#if !result && !calculating}
     <button class="btn btn-outline btn-primary gap-2" onclick={calculateSize}>
