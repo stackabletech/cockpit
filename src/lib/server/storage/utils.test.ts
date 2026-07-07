@@ -12,7 +12,12 @@ vi.mock('./factory.js', () => ({
 import { getProvider } from './utils.js';
 import type { S3ConnectionConfig } from './types.js';
 
-const s3Config: S3ConnectionConfig = { type: 's3', region: 'us-east-1' };
+const s3Config: S3ConnectionConfig = {
+  type: 's3',
+  host: 'minio.example.com',
+  accessStyle: 'Path',
+  region: { name: 'us-east-1' }
+};
 
 describe('getProvider', () => {
   it('throws 400 for non-s3 connection type', () => {
