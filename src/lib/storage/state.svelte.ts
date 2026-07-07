@@ -35,7 +35,7 @@ import { keyToName } from '$lib/storage/utils.js';
 // ── Operations history localStorage helpers ───────────────────────────────────
 
 const OPERATIONS_HISTORY_KEY = 'storage_operations_history';
-const MAX_HISTORY_ENTRIES = 30;
+const MAX_HISTORY_ENTRIES = 30; // magic number: keep a reasonable number of past operations in localStorage
 
 function loadPersistedOperations(): StorageOperation[] {
   if (!browser) return [];
