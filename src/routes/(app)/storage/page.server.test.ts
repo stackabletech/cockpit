@@ -80,11 +80,10 @@ describe('storage page actions', () => {
       valid: true,
       data: {
         type: 's3',
-        endpoint: 'http://s3',
-        pathStyle: true,
-        region: 'us-east-1',
-        accessKeyId: 'ak',
-        secretAccessKey: 'sk'
+        host: 's3.example.com',
+        accessStyle: 'Path',
+        region: { name: 'us-east-1' },
+        credentials: { accessKey: 'ak', secretKey: 'sk' }
       }
     } as unknown as Awaited<ReturnType<typeof superValidate>>);
     vi.mocked(listBuckets).mockRejectedValue(new Error('connection refused'));
@@ -104,11 +103,10 @@ describe('storage page actions', () => {
       valid: true,
       data: {
         type: 's3',
-        endpoint: 'http://s3',
-        pathStyle: true,
-        region: 'us-east-1',
-        accessKeyId: 'ak',
-        secretAccessKey: 'sk'
+        host: 's3.example.com',
+        accessStyle: 'Path',
+        region: { name: 'us-east-1' },
+        credentials: { accessKey: 'ak', secretKey: 'sk' }
       }
     } as unknown as Awaited<ReturnType<typeof superValidate>>);
     vi.mocked(listBuckets).mockResolvedValue(['b1']);

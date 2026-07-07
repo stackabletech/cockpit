@@ -1,28 +1,28 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import type { Actions, PageServerLoad } from './$types';
-import { StorageConnectionSchema } from '$lib/storage/schemas.js';
+import { EditStorageConnectionSchema } from '$lib/storage/schemas.js';
 import { listBuckets } from '$lib/server/storage/service.js';
 import type { S3ConnectionConfig } from '$lib/server/storage/types.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  const connectionForm = await superValidate(
+  const editForm = await superValidate(
     { tls: { verification: 'Full' } },
-    zod(StorageConnectionSchema),
+    zod(EditStorageConnectionSchema),
     { errors: false }
   );
-  locals.logger.debug('loading storage page');
-  return { connectionForm };
+  locals.logger.debug('loading storage connection edit page');
+  return { editForm };
 };
 
 export const actions: Actions = {
-  connect: async ({ request, locals }) => {
+  update: async ({ request, locals }) => {
     const log = locals.logger;
-    const form = await superValidate(request, zod(StorageConnectionSchema));
+    const form = await superValidate(request, zod(EditStorageConnectionSchema));
 
     if (!form.valid) {
-      log.debug({ errors: form.errors }, 'storage connection form validation failed');
+      log.debug({ errors: form.errors }, 'storage connection edit form validation failed');
       return fail(400, { form });
     }
 
@@ -45,21 +45,20 @@ export const actions: Actions = {
       credentials: resolvedCredentials
     };
 
-    try {
-      await listBuckets(config);
-      log.info({ storage_type: type }, 'user storage connection verified');
-    } catch (err) {
-      log.warn({ err }, 'storage connection test failed');
-      return message(form, 'Could not connect — check the endpoint and credentials.', {
-        status: 400
-      });
+    // If no credentials were submitted the user chose to keep the existing ones,
+    // so skip the live connection test (it was already verified when first saved).
+    if (resolvedCredentials) {
+      try {
+        await listBuckets(config);
+        log.info({ storage_type: type }, 'storage connection edit verified');
+      } catch (err) {
+        log.warn({ err }, 'storage connection edit test failed');
+        return message(form, 'Could not connect — check the endpoint and credentials.', {
+          status: 400
+        });
+      }
     }
 
-    throw redirect(303, '/storage');
-  },
-
-  disconnect: async ({ locals }) => {
-    locals.logger.info('user storage connection cleared');
-    throw redirect(303, '/storage?disconnected=1');
+    return message(form, 'ok');
   }
 };

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { navigating } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
@@ -8,6 +9,11 @@
 
   let { data } = $props();
   const storage = getStorageState();
+
+  let mounted = $state(false);
+  onMount(() => {
+    mounted = true;
+  });
 </script>
 
 {#if data.connected}
@@ -26,6 +32,6 @@
     <BucketGrid buckets={storage.buckets} />
     <RecentItems />
   </div>
-{:else}
+{:else if mounted}
   <StorageConnectForm connectionForm={data.connectionForm} />
 {/if}

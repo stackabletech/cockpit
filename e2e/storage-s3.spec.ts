@@ -25,6 +25,11 @@ test.describe('Storage S3 (Garage)', () => {
     const disconnectButton = page.getByRole('button', { name: 'Disconnect' });
     if (await disconnectButton.isVisible().catch(() => false)) {
       await disconnectButton.click();
+      // Disconnect now opens a confirmation modal — confirm it if it appears.
+      const confirmButton = page.getByRole('dialog').getByRole('button', { name: 'Disconnect' });
+      if (await confirmButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
+        await confirmButton.click();
+      }
     }
 
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
@@ -44,14 +49,16 @@ test.describe('Storage S3 (Garage)', () => {
 
     await openConnectForm(page);
 
-    // Fill in the connection form
-    await page.getByLabel('Endpoint URL').fill(endpoint);
+    // Fill in the connection form — parse URL into host/port
+    const url = new URL(endpoint);
+    await page.getByLabel('Host').fill(url.hostname);
+    if (url.port) await page.getByLabel('Port').fill(url.port);
+    const tlsToggle = page.getByLabel('Use TLS');
+    if (url.protocol !== 'https:' && (await tlsToggle.isChecked())) await tlsToggle.uncheck();
+    await page.getByLabel('Access style').selectOption('Path');
     await page.getByLabel('Region').fill(region);
-    await page.getByLabel('Access key ID').fill(accessKeyId);
-    await page.getByLabel('Secret access key').fill(secretAccessKey);
-
-    // Path-style addressing is on by default (required for Garage) — verify it is checked
-    await expect(page.getByLabel('Use path-style addressing')).toBeChecked();
+    await page.getByLabel('Access key').fill(accessKeyId);
+    await page.getByLabel('Secret key').fill(secretAccessKey);
 
     await page.getByRole('button', { name: 'Connect' }).click();
 
@@ -60,8 +67,10 @@ test.describe('Storage S3 (Garage)', () => {
     const main = page.locator('main');
     await expect(main.getByRole('heading', { name: 'Buckets' })).toBeVisible();
 
-    // The bucket created during Garage setup must appear in the list
-    await expect(main.getByRole('link', { name: bucket, exact: true })).toBeVisible();
+    // The bucket created during Garage setup must appear in the list.
+    // Both the sidebar nav and the bucket grid render a link — use first() to
+    // avoid a strict-mode violation.
+    await expect(main.getByRole('link', { name: bucket, exact: true }).first()).toBeVisible();
   });
 
   test('disconnects from Garage S3', async ({ page }) => {
@@ -77,15 +86,21 @@ test.describe('Storage S3 (Garage)', () => {
 
     // First connect
     await openConnectForm(page);
-    await page.getByLabel('Endpoint URL').fill(endpoint);
+    const url2 = new URL(endpoint);
+    await page.getByLabel('Host').fill(url2.hostname);
+    if (url2.port) await page.getByLabel('Port').fill(url2.port);
+    const tlsToggle2 = page.getByLabel('Use TLS');
+    if (url2.protocol !== 'https:' && (await tlsToggle2.isChecked())) await tlsToggle2.uncheck();
+    await page.getByLabel('Access style').selectOption('Path');
     await page.getByLabel('Region').fill(region);
-    await page.getByLabel('Access key ID').fill(accessKeyId);
-    await page.getByLabel('Secret access key').fill(secretAccessKey);
+    await page.getByLabel('Access key').fill(accessKeyId);
+    await page.getByLabel('Secret key').fill(secretAccessKey);
     await page.getByRole('button', { name: 'Connect' }).click();
     await expect(page.locator('main').getByRole('heading', { name: 'Buckets' })).toBeVisible();
 
-    // Then disconnect
+    // Then disconnect — clicking Disconnect opens a confirmation modal.
     await page.getByRole('button', { name: 'Disconnect' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
 
     // Should return to the connect form
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();

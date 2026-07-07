@@ -82,7 +82,7 @@ export class StorageState {
   currentPage = $derived(this.prevTokens.length + 1);
 
   // ── Composed sub-state ──
-  bookmarks = new BookmarksState();
+  bookmarks: BookmarksState;
 
   // ── Navigation handler (injected by page component) ──
   private _onNavigate: NavigateFn = () => {};
@@ -91,9 +91,10 @@ export class StorageState {
   // Constructor
   // ────────────────────────────────────────────────────────────────────────────
 
-  constructor(options?: { connected?: boolean; buckets?: string[] }) {
+  constructor(options?: { connected?: boolean; buckets?: string[]; connectionId?: string }) {
     if (options?.connected !== undefined) this.connected = options.connected;
     if (options?.buckets) this.buckets = options.buckets;
+    this.bookmarks = new BookmarksState(options?.connectionId ?? '');
   }
 
   // ────────────────────────────────────────────────────────────────────────────

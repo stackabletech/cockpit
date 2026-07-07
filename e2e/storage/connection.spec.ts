@@ -31,10 +31,15 @@ test.describe('Storage S3 — Connection', () => {
     const credentials = requireGarageCredentials();
 
     await openConnectForm(page);
-    await page.getByLabel('Endpoint URL').fill(credentials.endpoint);
+    const url = new URL(credentials.endpoint);
+    await page.getByLabel('Host').fill(url.hostname);
+    if (url.port) await page.getByLabel('Port').fill(url.port);
+    const tlsToggle = page.getByLabel('Use TLS');
+    if (url.protocol !== 'https:' && (await tlsToggle.isChecked())) await tlsToggle.uncheck();
+    await page.getByLabel('Access style').selectOption('Path');
     await page.getByLabel('Region').fill(credentials.region);
-    await page.getByLabel('Access key ID').fill(credentials.accessKeyId);
-    await page.getByLabel('Secret access key').fill(`${credentials.secretAccessKey}-wrong`);
+    await page.getByLabel('Access key').fill(credentials.accessKeyId);
+    await page.getByLabel('Secret key').fill(`${credentials.secretAccessKey}-wrong`);
     await page.getByRole('button', { name: 'Connect' }).click();
 
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
@@ -51,8 +56,9 @@ test.describe('Storage S3 — Connection', () => {
 
     // Click the sidebar Disconnect button — this opens a confirmation modal.
     await page.getByRole('button', { name: 'Disconnect' }).click();
-    // Confirm disconnection in the modal.
-    await page.locator('.modal-box').getByRole('button', { name: 'Disconnect' }).click();
+    // Clicking Disconnect opens a confirmation modal; confirm by clicking the
+    // Disconnect button inside the dialog.
+    await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
   });
 
@@ -84,12 +90,15 @@ test.describe('Storage S3 — Connection', () => {
     const savedList = page.getByRole('list', { name: 'Saved connections' });
     await expect(savedList).toBeVisible();
 
+    // Open the "More options" context menu for the first saved connection
     await savedList.getByRole('listitem').first().getByRole('button').last().click();
 
-    await expect(page.getByRole('button', { name: 'Forget', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Forget', exact: true }).click();
+    // Click Delete in the context menu (rendered as a menuitem)
+    await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
 
-    await expect(savedList).not.toBeVisible();
+    // Confirm deletion in the modal
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+
     await expect(page.getByText('No saved connections yet')).toBeVisible();
   });
 

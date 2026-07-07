@@ -22,6 +22,14 @@ Trino error messages are stored verbatim in `query.error` and surfaced through `
 
 ---
 
+### TLS certificate verification can be disabled without a custom CA
+
+**File:** `src/lib/server/storage/s3-client.ts`
+
+When `tls.verification` is set to `'None'`, the S3 client is created with `rejectUnauthorized: false`, disabling certificate validation entirely. This is a blunt instrument: it silences errors from self-signed or expired certificates but also makes the connection vulnerable to MITM attacks. The correct long-term fix is to allow users to provide their own CA bundle (a PEM file) which is then used to create a custom TLS context, so the server certificate is still validated — just against a trusted private CA instead of the public root store.
+
+---
+
 ### S3 connection credentials stored in localStorage
 
 **File:** `src/lib/storage/connection-storage.ts`, `src/lib/components/storage/StorageConnectForm.svelte`
