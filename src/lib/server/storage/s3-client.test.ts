@@ -47,23 +47,41 @@ describe('createS3Client', () => {
   it('includes port in the endpoint URL when port is set', () => {
     createS3Client(baseConfig({ port: 9000, tls: undefined }));
     expect(mockS3Client).toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint: 'http://minio.example.com:9000' })
+      expect.objectContaining({
+        endpoint: 'http://minio.example.com:9000',
+        requestChecksumCalculation: 'WHEN_REQUIRED'
+      })
     );
   });
 
   it('sets forcePathStyle=true for Path access style', () => {
     createS3Client(baseConfig({ accessStyle: 'Path' }));
-    expect(mockS3Client).toHaveBeenCalledWith(expect.objectContaining({ forcePathStyle: true }));
+    expect(mockS3Client).toHaveBeenCalledWith(
+      expect.objectContaining({
+        forcePathStyle: true,
+        requestChecksumCalculation: 'WHEN_REQUIRED'
+      })
+    );
   });
 
   it('sets forcePathStyle=false for VirtualHosted access style', () => {
     createS3Client(baseConfig({ accessStyle: 'VirtualHosted' }));
-    expect(mockS3Client).toHaveBeenCalledWith(expect.objectContaining({ forcePathStyle: false }));
+    expect(mockS3Client).toHaveBeenCalledWith(
+      expect.objectContaining({
+        forcePathStyle: false,
+        requestChecksumCalculation: 'WHEN_REQUIRED'
+      })
+    );
   });
 
   it('passes region name to the SDK', () => {
     createS3Client(baseConfig({ region: { name: 'eu-west-1' } }));
-    expect(mockS3Client).toHaveBeenCalledWith(expect.objectContaining({ region: 'eu-west-1' }));
+    expect(mockS3Client).toHaveBeenCalledWith(
+      expect.objectContaining({
+        region: 'eu-west-1',
+        requestChecksumCalculation: 'WHEN_REQUIRED'
+      })
+    );
   });
 
   it('sets credentials when accessKey and secretKey are provided', () => {
