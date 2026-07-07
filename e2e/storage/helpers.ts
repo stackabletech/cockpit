@@ -91,6 +91,10 @@ export async function connectToStorage(page: Page, credentials: GarageCredential
   await page.getByLabel('Access key').fill(credentials.accessKeyId);
   await page.getByLabel('Secret key').fill(credentials.secretAccessKey);
   await page.getByRole('button', { name: 'Connect' }).click();
+  // Wait for the redirect to /storage so that saveConnectionLocally() has been called
+  // before the test navigates elsewhere. Without this, a fast page.goto() call can race
+  // with the in-flight form-submission fetch and the connection is never persisted.
+  await page.waitForURL((url) => url.pathname === '/storage', { timeout: 15_000 });
 }
 
 export async function connectAndOpenPrefix(

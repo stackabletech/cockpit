@@ -62,7 +62,9 @@
     }
   );
 
-  let isDirty = $derived(loaded && !!initialSnapshot && JSON.stringify($form) !== initialSnapshot);
+  function isFormDirty(): boolean {
+    return loaded && !!initialSnapshot && JSON.stringify($form) !== initialSnapshot;
+  }
 
   onMount(() => {
     if (!connectionId) {
@@ -98,7 +100,7 @@
   });
 
   beforeNavigate(({ cancel: cancelNav, to }) => {
-    if (!bypassDirtyCheck && isDirty && to?.url) {
+    if (!bypassDirtyCheck && isFormDirty() && to?.url) {
       cancelNav();
       pendingNavigation = to.url.pathname + to.url.search + to.url.hash;
       confirmLeaveOpen = true;
@@ -119,7 +121,7 @@
   }
 
   function handleBeforeUnload(e: BeforeUnloadEvent) {
-    if (isDirty) {
+    if (isFormDirty()) {
       e.preventDefault();
     }
   }

@@ -1,7 +1,16 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { hasGarageCredentials, requireGarageCredentials } from '../support/garage.js';
 import { connectToStorage, openConnectForm } from './helpers.js';
 import { waitForHydration } from '../support/helpers.js';
+
+/** Open the Options context menu for the first connection row and click Edit. */
+async function openFirstConnectionEditPage(page: Page) {
+  // Wait for at least one connection row to be rendered before trying to interact
+  await page.getByRole('table').getByRole('row').nth(1).waitFor({ timeout: 10_000 });
+  await page.getByRole('button', { name: /Options for/i }).first().click({ force: true });
+  await page.getByRole('menuitem', { name: 'Edit' }).click();
+  await waitForHydration(page);
+}
 
 test.describe('Storage — Connections management', () => {
   test.use({ locale: 'en-US' });
@@ -41,8 +50,8 @@ test.describe('Storage — Connections management', () => {
     await page.goto('/storage/connections');
     await waitForHydration(page);
 
-    // At least one connection should be listed (the one we just connected with)
-    await expect(page.getByRole('list').getByRole('listitem').first()).toBeVisible();
+    // Connections are displayed in a table; at least one data row should be visible.
+    await expect(page.getByRole('table').getByRole('row').nth(1)).toBeVisible();
   });
 
   test('Edit link on management page navigates to edit page', async ({ page }) => {
@@ -51,8 +60,7 @@ test.describe('Storage — Connections management', () => {
     await page.goto('/storage/connections');
     await waitForHydration(page);
 
-    await page.getByRole('link', { name: /edit/i }).first().click();
-    await waitForHydration(page);
+    await openFirstConnectionEditPage(page);
 
     await expect(page.getByRole('heading', { name: 'Edit connection' })).toBeVisible();
   });
@@ -63,8 +71,7 @@ test.describe('Storage — Connections management', () => {
     await page.goto('/storage/connections');
     await waitForHydration(page);
 
-    await page.getByRole('link', { name: /edit/i }).first().click();
-    await waitForHydration(page);
+    await openFirstConnectionEditPage(page);
 
     await expect(page.getByLabel('Host')).toHaveValue(new URL(credentials.endpoint).hostname);
     await expect(page.getByLabel('Region')).toHaveValue(credentials.region);
@@ -79,8 +86,7 @@ test.describe('Storage — Connections management', () => {
     await page.goto('/storage/connections');
     await waitForHydration(page);
 
-    await page.getByRole('link', { name: /edit/i }).first().click();
-    await waitForHydration(page);
+    await openFirstConnectionEditPage(page);
 
     await page.getByRole('button', { name: 'Save changes' }).click();
 
@@ -95,8 +101,7 @@ test.describe('Storage — Connections management', () => {
     await page.goto('/storage/connections');
     await waitForHydration(page);
 
-    await page.getByRole('link', { name: /edit/i }).first().click();
-    await waitForHydration(page);
+    await openFirstConnectionEditPage(page);
 
     await page.getByLabel('Secret key').fill('wrong-secret');
     await page.getByRole('button', { name: 'Save changes' }).click();
@@ -114,18 +119,17 @@ test.describe('Storage — Connections management', () => {
     await page.goto('/storage/connections');
     await waitForHydration(page);
 
-    const initialItems = await page.getByRole('list').getByRole('listitem').count();
+    // Connections are displayed in a table; count data rows (excluding header).
+    const dataRows = page.locator('table tbody tr');
+    const initialItems = await dataRows.count();
 
-    await page
-      .getByRole('button', { name: /delete/i })
-      .first()
-      .click();
+    await page.getByRole('button', { name: /Options for/i }).first().click({ force: true });
+    await page.getByRole('menuitem', { name: 'Delete' }).click();
 
     // Confirm deletion in the modal
     await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
 
-    const finalItems = await page.getByRole('list').getByRole('listitem').count();
-    expect(finalItems).toBe(initialItems - 1);
+    await expect(dataRows).toHaveCount(initialItems - 1);
   });
 
   test('redirects to /storage/connections when editing a non-existent id', async ({ page }) => {
@@ -143,8 +147,7 @@ test.describe('Storage — Connections management', () => {
     await page.goto('/storage/connections');
     await waitForHydration(page);
 
-    await page.getByRole('link', { name: /edit/i }).first().click();
-    await waitForHydration(page);
+    await openFirstConnectionEditPage(page);
 
     await expect(page.getByText('You are currently connected with this connection.')).toBeVisible();
   });
@@ -157,14 +160,13 @@ test.describe('Storage — Connections management', () => {
     await page.goto('/storage/connections');
     await waitForHydration(page);
 
-    await page.getByRole('link', { name: /edit/i }).first().click();
-    await waitForHydration(page);
+    await openFirstConnectionEditPage(page);
 
     // Make a change to mark the form dirty
     await page.getByLabel('Connection name').fill('Changed name');
 
-    // Try to navigate away via the back link
-    await page.getByRole('link', { name: /Manage connections/i }).click();
+    // Try to navigate away via the back link (scope to main to avoid matching sidebar link too)
+    await page.getByRole('main').getByRole('link', { name: /Manage connections/i }).click();
 
     // Modal should appear
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -177,11 +179,10 @@ test.describe('Storage — Connections management', () => {
     await page.goto('/storage/connections');
     await waitForHydration(page);
 
-    await page.getByRole('link', { name: /edit/i }).first().click();
-    await waitForHydration(page);
+    await openFirstConnectionEditPage(page);
 
     await page.getByLabel('Connection name').fill('Changed name');
-    await page.getByRole('link', { name: /Manage connections/i }).click();
+    await page.getByRole('main').getByRole('link', { name: /Manage connections/i }).click();
 
     await page.getByRole('dialog').getByRole('button', { name: 'Stay on page' }).click();
 
@@ -195,11 +196,10 @@ test.describe('Storage — Connections management', () => {
     await page.goto('/storage/connections');
     await waitForHydration(page);
 
-    await page.getByRole('link', { name: /edit/i }).first().click();
-    await waitForHydration(page);
+    await openFirstConnectionEditPage(page);
 
     await page.getByLabel('Connection name').fill('Changed name');
-    await page.getByRole('link', { name: /Manage connections/i }).click();
+    await page.getByRole('main').getByRole('link', { name: /Manage connections/i }).click();
 
     await page.getByRole('dialog').getByRole('button', { name: 'Leave' }).click();
 
