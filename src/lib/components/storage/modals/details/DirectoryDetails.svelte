@@ -11,6 +11,7 @@
     TreemapNode
   } from '$lib/storage/details-types.js';
   import Treemap from './Treemap.svelte';
+  import { getLocale } from '$lib/paraglide/runtime';
 
   interface Props {
     key: string;
@@ -156,16 +157,8 @@
           <div class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
             {#if meta.markerLastModified}
               <span class="text-base-content/60">{m.storage_details_last_modified()}</span>
-              <span class="font-mono">{new Date(meta.markerLastModified).toLocaleString()}</span>
-            {/if}
-            {#if meta.markerContentType}
-              <span class="text-base-content/60">{m.storage_details_content_type()}</span>
-              <span class="truncate font-mono">{meta.markerContentType}</span>
-            {/if}
-            {#if meta.markerETag}
-              <span class="text-base-content/60">{m.storage_details_etag()}</span>
-              <span class="truncate font-mono" title={meta.markerETag}
-                >{meta.markerETag.slice(0, 20)}...</span
+              <span class="font-mono"
+                >{new Date(meta.markerLastModified).toLocaleString(getLocale())}</span
               >
             {/if}
             {#if meta.markerStorageClass}
@@ -189,7 +182,7 @@
             {#if meta.markerObjectLockRetainUntilDate}
               <span class="text-base-content/60">{m.storage_details_object_lock_until()}</span>
               <span class="font-mono"
-                >{new Date(meta.markerObjectLockRetainUntilDate).toLocaleString()}</span
+                >{new Date(meta.markerObjectLockRetainUntilDate).toLocaleString(getLocale())}</span
               >
             {/if}
           </div>
@@ -249,7 +242,9 @@
           <p class="text-base-content/80">
             {m.storage_details_keys_found({ count: progress.keysFound })}
           </p>
-          <p class="text-base-content/60 font-mono">{formatFileSize(progress.totalSize)}</p>
+          <p class="text-base-content/60 font-mono">
+            {formatFileSize(progress.totalSize)}
+          </p>
         </div>
       {/if}
     </div>
@@ -274,14 +269,16 @@
         </div>
         <div class="stat">
           <div class="stat-title">{m.storage_details_file_count({ count: result.totalFiles })}</div>
-          <div class="stat-value text-lg">{result.totalFiles.toLocaleString()}</div>
+          <div class="stat-value text-lg">{result.totalFiles.toLocaleString(getLocale())}</div>
         </div>
         {#if result.totalDirectories > 0}
           <div class="stat">
             <div class="stat-title">
               {m.storage_details_folder_count({ count: result.totalDirectories })}
             </div>
-            <div class="stat-value text-lg">{result.totalDirectories.toLocaleString()}</div>
+            <div class="stat-value text-lg">
+              {result.totalDirectories.toLocaleString(getLocale())}
+            </div>
           </div>
         {/if}
       </div>

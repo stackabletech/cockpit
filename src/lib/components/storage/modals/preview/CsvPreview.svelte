@@ -1,6 +1,7 @@
 <script lang="ts">
   import Papa from 'papaparse';
   import * as m from '$lib/paraglide/messages.js';
+  import { getLocale } from '$lib/paraglide/runtime';
 
   const MAX_ROWS = 250;
 
@@ -46,7 +47,7 @@
         {#each rows as row, i (i)}
           <tr class="hover:bg-base-200 transition-colors">
             <td class="text-base-content/30 w-10 pr-1 text-right text-xs select-none"
-              >{(i + 1).toLocaleString()}</td
+              >{(i + 1).toLocaleString(getLocale())}</td
             >
             <!--eslint-disable-next-line @typescript-eslint/no-unused-vars-->
             {#each headers as _h, j (j)}
@@ -58,7 +59,7 @@
     </table>
     {#if truncated}
       <p class="text-base-content/50 px-4 py-2 text-xs italic">
-        {m.storage_preview_csv_rows({ count: rows.length })}
+        {m.storage_preview_csv_rows({ count: rows.length.toLocaleString(getLocale()) })}
       </p>
     {/if}
   {/if}

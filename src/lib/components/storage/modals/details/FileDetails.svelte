@@ -3,6 +3,7 @@
   import { formatFileSize, keyToName } from '$lib/storage/utils.js';
   import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
   import type { FileDetails as FileDetailsType } from '$lib/storage/details-types.js';
+  import { getLocale } from '$lib/paraglide/runtime';
 
   interface Props {
     details: FileDetailsType;
@@ -32,7 +33,7 @@
           >{m.storage_details_size()}</td
         >
         <td class="font-mono text-sm"
-          >{formatFileSize(details.size)} ({details.size.toLocaleString()} bytes)</td
+          >{formatFileSize(details.size)} ({details.size.toLocaleString(getLocale())} bytes)</td
         >
       </tr>
       <tr>
