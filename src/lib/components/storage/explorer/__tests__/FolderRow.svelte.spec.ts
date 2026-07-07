@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import { SvelteSet } from 'svelte/reactivity';
-import FolderRowWrapper from './__tests__/FolderRowWrapper.svelte';
+import FolderRowWrapper from './FolderRowWrapper.svelte';
 import type { StorageObject } from '$lib/storage/types.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
 
