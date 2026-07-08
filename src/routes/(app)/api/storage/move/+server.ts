@@ -5,20 +5,40 @@ import type { StorageProvider } from '$lib/server/storage/provider.js';
 import { requireBucket } from '../params.js';
 
 /**
- * Expand source keys so that directory prefixes are replaced by their
- * full recursive listing (including the directory marker).
+ * Compute move destinations for each source key, expanding directories
+ * to their full recursive listing while preserving the relative path
+ * structure under the destination prefix.
  */
-async function expandKeys(provider: StorageProvider, keys: string[]): Promise<string[]> {
-  const expanded: string[] = [];
-  for (const key of keys) {
-    if (key.endsWith('/')) {
-      const children = await provider.listAllKeys(key);
-      expanded.push(key, ...children);
+async function computeMoveDestinations(
+  provider: StorageProvider,
+  sourceKeys: string[],
+  destinationPrefix: string
+): Promise<Array<{ sourceKey: string; baseDestKey: string }>> {
+  const destinations: Array<{ sourceKey: string; baseDestKey: string }> = [];
+
+  for (const key of sourceKeys) {
+    const name = key.endsWith('/')
+      ? key.split('/').filter(Boolean).pop() + '/'
+      : key.split('/').pop();
+
+    if (!key.endsWith('/')) {
+      destinations.push({ sourceKey: key, baseDestKey: destinationPrefix + name });
     } else {
-      expanded.push(key);
+      const children = await provider.listAllKeys(key);
+      // listAllKeys returns ALL keys starting with the prefix, which
+      // includes the directory marker itself. We add it explicitly and
+      // skip it when iterating children to avoid a duplicate that would
+      // cause uniqueDestKey to append a "(1)" suffix.
+      destinations.push({ sourceKey: key, baseDestKey: destinationPrefix + name });
+      for (const child of children) {
+        if (child === key) continue;
+        const relPath = child.slice(key.length);
+        destinations.push({ sourceKey: child, baseDestKey: destinationPrefix + name + relPath });
+      }
     }
   }
-  return expanded;
+
+  return destinations;
 }
 
 /**
@@ -73,20 +93,17 @@ export const POST: RequestHandler = async ({ locals, request, url }) => {
 
   const provider = getProvider(locals.storageConfig!, bucket);
 
-  // Expand directories to their full recursive listing
-  const expanded = await expandKeys(provider, body.sourceKeys);
-
   // ── Non-streaming path ───────────────────────────────────────────────────
   if (!streamProgress) {
+    const destinations = await computeMoveDestinations(
+      provider,
+      body.sourceKeys,
+      body.destinationPrefix
+    );
     const moved: Array<{ sourceKey: string; destKey: string }> = [];
     const failed: Array<{ sourceKey: string; error: string }> = [];
 
-    for (const sourceKey of expanded) {
-      const name = sourceKey.endsWith('/')
-        ? sourceKey.split('/').slice(-2, -1)[0] + '/'
-        : sourceKey.split('/').pop();
-      const baseDestKey = body.destinationPrefix + name;
-
+    for (const { sourceKey, baseDestKey } of destinations) {
       try {
         const destKey = await uniqueDestKey(provider, baseDestKey);
         await provider.copyObject(sourceKey, destKey);
@@ -116,18 +133,18 @@ export const POST: RequestHandler = async ({ locals, request, url }) => {
   }
 
   // ── Streaming progress path ──────────────────────────────────────────────
+  const destinations = await computeMoveDestinations(
+    provider,
+    body.sourceKeys,
+    body.destinationPrefix
+  );
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       const moved: Array<{ sourceKey: string; destKey: string }> = [];
       const failed: Array<{ sourceKey: string; error: string }> = [];
 
-      for (const sourceKey of expanded) {
-        const name = sourceKey.endsWith('/')
-          ? sourceKey.split('/').slice(-2, -1)[0] + '/'
-          : sourceKey.split('/').pop();
-        const baseDestKey = body.destinationPrefix + name;
-
+      for (const { sourceKey, baseDestKey } of destinations) {
         try {
           const destKey = await uniqueDestKey(provider, baseDestKey);
           let reportedAnyProgress = false;
