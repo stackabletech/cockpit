@@ -763,7 +763,8 @@ export class StorageState {
         }
         const wasCut = this.clipboard.action === 'cut';
         const pasteKeys = [...this.clipboard.keys];
-        const destPrefix = this.prefix;
+        // If the context menu was opened on a folder, paste inside it
+        const destPrefix = ctxKey && ctxKey.endsWith('/') ? ctxKey : this.prefix;
 
         // ── Check for name conflicts at destination ──────────────────────
         const conflictEntries = await this._checkDestinationConflicts(pasteKeys, destPrefix);
