@@ -227,17 +227,10 @@
             </a>
             <button
               class="
-<<<<<<< HEAD
-                  btn btn-ghost btn-xs absolute top-1/2 right-1 z-60 -translate-y-1/2
-                  p-0 opacity-0 transition-opacity
-                  group-hover:opacity-100 focus:opacity-100
-                "
-=======
                 btn btn-ghost btn-xs absolute top-1/2 right-1 z-150 -translate-y-1/2
                 p-0 opacity-0 transition-opacity
                 group-hover:opacity-100 focus:opacity-100
               "
->>>>>>> origin/feat/s3-file-browser-v1
               onclick={(e) => openUnpinMenuFromButton(e, pin)}
               aria-label={m.storage_more_options()}
               title={m.storage_more_options()}

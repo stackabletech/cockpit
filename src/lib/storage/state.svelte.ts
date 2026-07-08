@@ -189,12 +189,9 @@ export class StorageState {
     if (options?.connected !== undefined) this.connected = options.connected;
     if (options?.buckets) this.buckets = options.buckets;
     if (options?.connectionId !== undefined) this.connectionId = options.connectionId;
-<<<<<<< HEAD
+    this.bookmarks = new BookmarksState(options?.connectionId ?? '');
     // Restore persisted operation history (interrupted ops appear from previous sessions).
     this.operations = loadPersistedOperations();
-=======
-    this.bookmarks = new BookmarksState(options?.connectionId ?? '');
->>>>>>> origin/feat/s3-file-browser-v1
   }
 
   // ────────────────────────────────────────────────────────────────────────────
