@@ -213,6 +213,7 @@
             ondragover={handleEmptyDragOver}
             ondragleave={handleEmptyDragLeave}
             ondrop={handleEmptyDrop}
+            oncontextmenu={(e) => storage.openEmptyContextMenu(e)}
           >
             <td colspan={5} class="text-base-content/40 py-16 text-center">
               <IconFolderOpen class="mx-auto mb-3 size-10 opacity-30" aria-hidden="true" />

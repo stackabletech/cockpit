@@ -13,6 +13,8 @@
   import IconCopy from 'virtual:icons/material-symbols/content-copy';
   import IconPaste from 'virtual:icons/material-symbols/content-paste';
   import IconDriveFileRenameOutline from 'virtual:icons/material-symbols/drive-file-rename-outline';
+  import IconDescriptionOutline from 'virtual:icons/material-symbols/description-outline';
+  import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import type { ActionName } from '$lib/storage/types.js';
@@ -85,15 +87,31 @@
       class?: string;
     }> = [];
 
-    // Empty-space: show only paste
+    // Empty-space: show create options and paste
     if (!hasCtxKey) {
-      items.push({
-        key: 'paste' as ActionName,
-        icon: IconPaste as Component,
-        label: m.storage_action_paste(),
-        disabled: storage.clipboard === null || storage.isInArchive,
-        hidden: !storagePasteEnabled || storage.isInArchive
-      });
+      items.push(
+        {
+          key: 'create-file' as ActionName,
+          icon: IconDescriptionOutline as Component,
+          label: m.storage_create_file(),
+          disabled: false,
+          hidden: storage.isInArchive
+        },
+        {
+          key: 'create-folder' as ActionName,
+          icon: IconFolderOutline as Component,
+          label: m.storage_create_folder(),
+          disabled: false,
+          hidden: storage.isInArchive
+        },
+        {
+          key: 'paste' as ActionName,
+          icon: IconPaste as Component,
+          label: m.storage_action_paste(),
+          disabled: storage.clipboard === null || storage.isInArchive,
+          hidden: !storagePasteEnabled || storage.isInArchive
+        }
+      );
       return items;
     }
 

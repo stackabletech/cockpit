@@ -6,7 +6,8 @@ export type ModalType =
   | 'upload'
   | 'rename'
   | 'confirm-move'
-  | 'resolve-conflicts';
+  | 'resolve-conflicts'
+  | 'create';
 
 export interface ModalPayloads {
   delete: { keys: string[] };
@@ -40,6 +41,7 @@ export interface ModalPayloads {
     /** Optional: label for the confirm button (e.g. "Paste" or "Move"). */
     confirmLabel?: string;
   };
+  create: { type: 'file' | 'folder' };
 }
 
 export type ActiveModal = {
@@ -77,7 +79,9 @@ export type ActionName =
   | 'cut'
   | 'copy'
   | 'paste'
-  | 'rename';
+  | 'rename'
+  | 'create-file'
+  | 'create-folder';
 
 // ── Clipboard state (cut / copy) ────────────────────────────────────────────
 

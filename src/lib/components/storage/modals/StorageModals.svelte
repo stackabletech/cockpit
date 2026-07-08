@@ -5,6 +5,7 @@
   import PreviewModal from './PreviewModal.svelte';
   import UploadModal from './upload/UploadModal.svelte';
   import RenameModal from './RenameModal.svelte';
+  import CreateModal from './CreateModal.svelte';
   import MoveConfirmModal from './MoveConfirmModal.svelte';
   import ConflictResolutionDialog from './shared/ConflictResolutionDialog.svelte';
   import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
@@ -19,6 +20,7 @@
   let deleteOpen = $state(true);
   let renameOpen = $state(true);
   let moveConfirmOpen = $state(true);
+  let createOpen = $state(true);
   let resolveConflictsOpen = $state(true);
 
   // Reset local state when modal type changes
@@ -29,6 +31,7 @@
       deleteOpen = true;
       renameOpen = true;
       moveConfirmOpen = true;
+      createOpen = true;
     }
   });
 
@@ -65,6 +68,12 @@
 
   $effect(() => {
     if (!resolveConflictsOpen && storage.activeModal?.type === 'resolve-conflicts') {
+      storage.closeModal();
+    }
+  });
+
+  $effect(() => {
+    if (!createOpen && storage.activeModal?.type === 'create') {
       storage.closeModal();
     }
   });
@@ -132,6 +141,16 @@
     items={modalPayload.items}
     onConfirm={storage.confirmMove}
     onCancel={storage.cancelMove}
+  />
+{/if}
+
+{#if storage.activeModal?.type === 'create'}
+  {@const modalPayload = storage.activeModal.payload}
+  <CreateModal
+    bind:open={createOpen}
+    type={modalPayload.type}
+    onConfirm={(name: string) => storage.confirmCreate(name, modalPayload.type)}
+    onCancel={storage.cancelCreate}
   />
 {/if}
 

@@ -908,7 +908,55 @@ export class StorageState {
         this.openModal('rename', { key: renameKey });
         return;
       }
+
+      case 'create-file':
+        this.openModal('create', { type: 'file' });
+        return;
+
+      case 'create-folder':
+        this.openModal('create', { type: 'folder' });
+        return;
     }
+  };
+
+  confirmCreate = async (name: string, type: 'file' | 'folder'): Promise<void> => {
+    const sanitized = name.trim();
+    if (!sanitized || sanitized === '.' || sanitized === '..') return;
+
+    this.closeModal();
+    this.loading = true;
+
+    try {
+      const conn = loadConnectionLocally();
+      const headers: HeadersInit = conn
+        ? { 'x-storage-connection': getConnectionHeader(conn) }
+        : {};
+      const isFolder = type === 'folder';
+      const parts = sanitized.split('/');
+
+      // Create intermediate directory markers
+      for (let i = 0; i < parts.length - 1; i++) {
+        const dirKey = this.prefix + parts.slice(0, i + 1).join('/') + '/';
+        const params = new SvelteURLSearchParams({ bucket: this.bucket, key: dirKey });
+        const res = await fetch(`/api/storage/create?${params}`, { method: 'POST', headers });
+        if (!res.ok) throw new Error(`Create failed with status ${res.status}`);
+      }
+
+      // Create the final object (file or directory)
+      const finalKey = this.prefix + sanitized + (isFolder ? '/' : '');
+      const params = new SvelteURLSearchParams({ bucket: this.bucket, key: finalKey });
+      const res = await fetch(`/api/storage/create?${params}`, { method: 'POST', headers });
+      if (!res.ok) throw new Error(`Create failed with status ${res.status}`);
+
+      void invalidateAll();
+    } catch {
+      addToast('error', m.storage_create_error({ name: sanitized }));
+      this.loading = false;
+    }
+  };
+
+  cancelCreate = (): void => {
+    this.closeModal();
   };
 
   confirmDelete = async (): Promise<void> => {
