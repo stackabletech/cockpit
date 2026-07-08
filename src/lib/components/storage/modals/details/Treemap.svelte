@@ -220,7 +220,16 @@
       {/each}
     </defs>
     {#each rects as rect (rect.x + '-' + rect.y + '-' + rect.w + '-' + rect.h)}
-      <g class="group cursor-pointer" oncontextmenu={(e) => openContextMenu(e, rect)}>
+      <g
+        class="group cursor-pointer"
+        role="treeitem"
+        tabindex="0"
+        aria-selected="false"
+        oncontextmenu={(e) => openContextMenu(e, rect)}
+        onkeydown={(e) => {
+          if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) openContextMenu(e, rect);
+        }}
+      >
         <rect
           x={rect.x}
           y={rect.y}
@@ -283,6 +292,7 @@
 <!-- backdrop: rendered in-place inside the modal (just needs to cover modal-box) -->
 {#if menuTarget}
   <div
+    role="presentation"
     class="fixed inset-0 z-40"
     onclick={closeContextMenu}
     oncontextmenu={(e) => {
@@ -295,6 +305,8 @@
 <!-- menu: teleported into dialog to escape modal-box containing block and overflow clipping -->
 <div
   bind:this={menuEl}
+  role="menu"
+  tabindex="-1"
   class="border-base-300 bg-base-100 fixed z-[1000] w-56 rounded-lg border p-1 shadow-lg"
   style="left: {menuX}px; top: {menuY}px; display: {menuTarget ? 'block' : 'none'}"
   oncontextmenu={(e) => {
@@ -304,6 +316,7 @@
 >
   {#if menuTarget}
     <button
+      role="menuitem"
       class="btn btn-ghost btn-sm w-full justify-start gap-2"
       onclick={() => {
         const t = menuTarget;
@@ -319,6 +332,7 @@
     </button>
     {#if menuTarget.fullKey}
       <button
+        role="menuitem"
         class="btn btn-ghost btn-sm w-full justify-start gap-2"
         onclick={() => {
           const t = menuTarget;
