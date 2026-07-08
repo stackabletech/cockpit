@@ -97,7 +97,7 @@ export class StorageState {
   isInArchive = $derived(this.archiveKey !== null);
 
   // ── Composed sub-state ──
-  bookmarks = new BookmarksState();
+  bookmarks: BookmarksState;
 
   // ── Navigation handler (injected by page component) ──
   private _onNavigate: NavigateFn = () => {};
@@ -115,6 +115,7 @@ export class StorageState {
     if (options?.connected !== undefined) this.connected = options.connected;
     if (options?.buckets) this.buckets = options.buckets;
     if (options?.connectionId !== undefined) this.connectionId = options.connectionId;
+    this.bookmarks = new BookmarksState(options?.connectionId ?? '');
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -575,8 +576,12 @@ export class StorageState {
       case 'copy-filename': {
         const nameKey = ctxKey ?? this.selectedFiles[0]?.key;
         if (!nameKey) return;
-        await navigator.clipboard.writeText(keyToName(nameKey));
-        addToast('success', m.storage_action_copy_filename_success());
+        try {
+          await navigator.clipboard.writeText(keyToName(nameKey));
+          addToast('success', m.storage_action_copy_filename_success());
+        } catch {
+          addToast('error', m.storage_action_copy_filename_error());
+        }
         return;
       }
 
@@ -601,8 +606,12 @@ export class StorageState {
         if (!pathKey) return;
         // Strip trailing slash for folders so the URI is canonical.
         const cleanKey = pathKey.endsWith('/') ? pathKey.slice(0, -1) : pathKey;
-        await navigator.clipboard.writeText(`s3://${this.bucket}/${cleanKey}`);
-        addToast('success', m.storage_action_copy_path_success());
+        try {
+          await navigator.clipboard.writeText(`s3://${this.bucket}/${cleanKey}`);
+          addToast('success', m.storage_action_copy_path_success());
+        } catch {
+          addToast('error', m.storage_action_copy_path_error());
+        }
         return;
       }
     }

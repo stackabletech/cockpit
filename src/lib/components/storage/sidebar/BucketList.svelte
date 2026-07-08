@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { browser } from '$app/environment';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { beforeNavigate } from '$app/navigation';
@@ -16,89 +15,19 @@
   import { getStorageState } from '$lib/storage/context.js';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
   import { pinnedLabel, pinnedHref } from '$lib/storage/display-helpers.js';
+  import { createResizablePanel } from './resizable-panel.svelte.js';
+  import ResizeHandle from './ResizeHandle.svelte';
 
   const storage = getStorageState();
 
-  // ── Resizable sidebar ─────────────────────────────────────────────────────
-  const SIDEBAR_WIDTH_KEY = 'storage_sidebar_width';
-  const DEFAULT_WIDTH = 192; // matches previous w-48
-  const MIN_WIDTH = 120;
-  const MAX_WIDTH = 480;
-
-  function getInitialWidth(): number {
-    if (!browser) return DEFAULT_WIDTH;
-    try {
-      const stored = localStorage.getItem(SIDEBAR_WIDTH_KEY);
-      if (stored) {
-        const parsed = parseInt(stored, 10);
-        if (!isNaN(parsed) && parsed >= MIN_WIDTH && parsed <= MAX_WIDTH) return parsed;
-      }
-    } catch {
-      /* ignore storage errors */
-    }
-    return DEFAULT_WIDTH;
-  }
-
-  function saveWidth(width: number) {
-    try {
-      localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width));
-    } catch {
-      /* ignore storage errors */
-    }
-  }
-
-  let sidebarWidth = $state(getInitialWidth());
-  let isDragging = $state(false);
-  let dragStartX = 0;
-  let dragStartWidth = 0;
-
-  function onResizeStart(e: PointerEvent) {
-    isDragging = true;
-    dragStartX = e.clientX;
-    dragStartWidth = sidebarWidth;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    e.preventDefault();
-  }
-
-  function onResizeMove(e: PointerEvent) {
-    if (!isDragging) return;
-    const delta = e.clientX - dragStartX;
-    sidebarWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, dragStartWidth + delta));
-  }
-
-  function onResizeEnd() {
-    if (!isDragging) return;
-    isDragging = false;
-    saveWidth(sidebarWidth);
-  }
-
-  function onResizeKeydown(e: KeyboardEvent) {
-    const step = e.shiftKey ? 20 : 4;
-    if (e.key === 'ArrowRight') {
-      sidebarWidth = Math.min(MAX_WIDTH, sidebarWidth + step);
-      saveWidth(sidebarWidth);
-      e.preventDefault();
-    } else if (e.key === 'ArrowLeft') {
-      sidebarWidth = Math.max(MIN_WIDTH, sidebarWidth - step);
-      saveWidth(sidebarWidth);
-      e.preventDefault();
-    }
-  }
-
-  // Keep the col-resize cursor active across the whole page while dragging so
-  // it doesn't flicker when the pointer moves faster than the DOM updates.
-  $effect(() => {
-    if (!browser) return;
-    if (isDragging) {
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    } else {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }
+  const resize = createResizablePanel({
+    storageKey: 'storage_sidebar_width',
+    defaultWidth: 192,
+    minWidth: 120,
+    maxWidth: 480
   });
 
-  // ── Disconnect confirmation ───────────────────────────────────────────────
+  // ── Disconnect confirmation ──────────────────────────────────────────────
   let disconnectConfirmOpen = $state(false);
   let disconnectForm = $state<HTMLFormElement | null>(null);
 
@@ -246,7 +175,7 @@
     border-base-300 bg-base-100 relative flex shrink-0 flex-col
     rounded-lg border
   "
-  style="width: {sidebarWidth}px"
+  style="width: {resize.width}px"
   aria-label={m.storage_buckets_label()}
 >
   <!-- Pinned Access section -->
@@ -285,7 +214,7 @@
             </a>
             <button
               class="
-                btn btn-ghost btn-xs absolute top-1/2 right-1 z-60 -translate-y-1/2
+                btn btn-ghost btn-xs absolute top-1/2 right-1 z-150 -translate-y-1/2
                 p-0 opacity-0 transition-opacity
                 group-hover:opacity-100 focus:opacity-100
               "
@@ -316,7 +245,7 @@
     <a
       href={resolve('/storage')}
       data-sveltekit-preload-data="off"
-      class="btn btn-ghost btn-xs group tooltip tooltip-right z-60"
+      class="btn btn-ghost btn-xs group tooltip tooltip-right z-150 before:z-200"
       title={m.storage_view_all_buckets()}
       data-tip={m.storage_view_all_buckets()}
     >
@@ -421,36 +350,7 @@
     </div>
   </Modal>
 
-  <!-- Drag-to-resize handle -->
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-  <div
-    role="separator"
-    aria-orientation="vertical"
-    aria-label={m.storage_sidebar_resize_handle()}
-    aria-valuenow={sidebarWidth}
-    aria-valuemin={MIN_WIDTH}
-    aria-valuemax={MAX_WIDTH}
-    tabindex="0"
-    class="
-      focus-visible:outline-primary/50 absolute inset-y-0 -right-2 z-10 w-4 cursor-col-resize
-      touch-none rounded-r-lg
-      select-none focus-visible:outline-2 focus-visible:outline-offset-0
-    "
-    onpointerdown={onResizeStart}
-    onpointermove={onResizeMove}
-    onpointerup={onResizeEnd}
-    onpointercancel={onResizeEnd}
-    onkeydown={onResizeKeydown}
-  >
-    <div
-      class="
-        absolute inset-y-2 left-1/2 w-0.5 -translate-x-1/2 rounded-full
-        transition-colors duration-100
-        {isDragging ? 'bg-primary' : 'bg-base-300 hover:bg-primary/50'}
-      "
-    ></div>
-  </div>
+  <ResizeHandle panel={resize} />
 </nav>
 
 {#if tooltipText}

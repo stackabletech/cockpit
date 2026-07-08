@@ -1,12 +1,12 @@
 /** Per-user S3 connection config — no bucket, stored server-side. */
 export interface S3ConnectionConfig {
   type: 's3';
-  endpoint?: string;
-  /** Use path-style addressing (true) or virtual-hosted style (false). Defaults to true. */
-  pathStyle?: boolean;
-  region: string;
-  accessKeyId?: string;
-  secretAccessKey?: string;
+  host: string;
+  port?: number;
+  tls?: { verification: 'Full' | 'None' };
+  accessStyle: 'Path' | 'VirtualHosted';
+  region: { name: string };
+  credentials?: { accessKey: string; secretKey: string };
 }
 
 /** Full S3 config for creating a bucket-scoped provider. */
