@@ -17,7 +17,7 @@
   );
 </script>
 
-<tr class="border-primary/20 bg-primary/5 border-t">
+<tr class="border-primary/20 bg-primary/5 z-30 border-t">
   <th colspan={5} class="px-4 py-1.5 font-normal">
     <div class="flex items-center gap-1">
       <span class="text-base-content/50 mr-1 text-xs">

@@ -36,7 +36,7 @@
       <!-- Column headers -->
       <tr
         class="
-          bg-base-200 text-base-content/50 text-xs tracking-wide uppercase
+          bg-base-200 text-base-content/50 z-10 text-xs tracking-wide uppercase
         "
       >
         <th class="w-8 pr-0">

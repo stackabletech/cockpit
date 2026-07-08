@@ -2,7 +2,7 @@ import { page } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
-import StorageBreadcrumbWrapper from './__tests__/StorageBreadcrumbWrapper.svelte';
+import StorageBreadcrumbWrapper from './StorageBreadcrumbWrapper.svelte';
 import { StorageState } from '$lib/storage/state.svelte.js';
 import { TabsState } from '$lib/storage/tabs.svelte.js';
 import type { StorageObject } from '$lib/storage/types.js';
