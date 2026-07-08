@@ -11,8 +11,9 @@
   import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
   import { uploadConcurrency } from '$lib/client/feature-flags.js';
   import UploadDropzone from './UploadDropzone.svelte';
-  import UploadConflictEntry from './UploadConflictEntry.svelte';
   import UploadEntryStatus from './UploadEntryStatus.svelte';
+  import ConflictEntry from '../shared/ConflictEntry.svelte';
+  import type { ConflictEntry as ConflictEntryType } from '../shared/conflict-types.js';
   import type { FileEntry, Phase, Resolution, RenameState } from './types.js';
 
   interface Props {
@@ -421,8 +422,16 @@
         aria-label={m.storage_upload_conflicts_title()}
       >
         {#each conflictEntries as entry (entry.id)}
-          <UploadConflictEntry
-            {entry}
+          {@const mappedEntry: ConflictEntryType = {
+            id: entry.id,
+            originalName: entry.targetKey.split('/').at(-1) ?? entry.file.name,
+            conflict: entry.conflict,
+            resolution: entry.resolution,
+            customName: entry.customName,
+            renameState: entry.renameState
+          }}
+          <ConflictEntry
+            entry={mappedEntry}
             onSetResolution={(res) => setResolution(entry.id, res)}
             onSetCustomName={(name) => setCustomName(entry.id, name)}
             onRenameButtonClick={() => handleRenameButtonClick(entry.id)}

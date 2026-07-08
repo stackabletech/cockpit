@@ -25,7 +25,9 @@ import {
   storageRenameEnabled,
   storageMoveEnabled
 } from '$lib/client/feature-flags.js';
+import { checkObjectExists } from '$lib/storage/upload.js';
 import { downloadObject, DownloadError } from '$lib/storage/download.js';
+import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import { ActionError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
@@ -152,6 +154,29 @@ export class StorageState {
 
   // ── Clipboard (cut / copy) ──
   clipboard = $state<ClipboardState | null>(null);
+
+  // ── Pending conflict resolution (paste / move) ──
+  _pendingConflictOp = $state<
+    | {
+        type: 'paste';
+        keys: string[];
+        sourceBucket: string;
+        destPrefix: string;
+        wasCut: boolean;
+        fileSizes: Record<string, number>;
+        sourcePrefix: string;
+        totalBytes: number;
+      }
+    | {
+        type: 'move';
+        keys: string[];
+        destPrefix: string;
+        items: Array<{ key: string; name: string; isDirectory: boolean; size?: number }>;
+        sourcePrefix: string | null;
+        totalBytes: number;
+      }
+    | null
+  >(null);
 
   // ── Operations (paste / move / rename progress) ──
   operations = $state<StorageOperation[]>([]);
@@ -739,6 +764,34 @@ export class StorageState {
         const wasCut = this.clipboard.action === 'cut';
         const pasteKeys = [...this.clipboard.keys];
         const destPrefix = this.prefix;
+
+        // ── Check for name conflicts at destination ──────────────────────
+        const conflictEntries = await this._checkDestinationConflicts(pasteKeys, destPrefix);
+        const hasConflicts = conflictEntries.some((e) => e.conflict);
+        if (hasConflicts) {
+          const totalBytes = pasteKeys.reduce(
+            (sum, k) => sum + (this.clipboard!.fileSizes[k] ?? 0),
+            0
+          );
+          this._pendingConflictOp = {
+            type: 'paste',
+            keys: pasteKeys,
+            sourceBucket: this.clipboard.sourceBucket,
+            destPrefix,
+            wasCut,
+            fileSizes: this.clipboard.fileSizes,
+            sourcePrefix: this.clipboard.sourcePrefix,
+            totalBytes
+          };
+          this.openModal('resolve-conflicts', {
+            entries: conflictEntries,
+            bucket: this.bucket,
+            destPrefix,
+            confirmLabel: m.storage_action_paste()
+          });
+          return;
+        }
+
         const opId = crypto.randomUUID();
         const abortController = new AbortController();
         const sourceNames = pasteKeys.map((k) => keyToName(k));
@@ -1219,6 +1272,28 @@ export class StorageState {
     const { keys: moveKeys, destPrefix, items } = modal.payload;
     this.closeModal();
 
+    // ── Check for name conflicts at destination ──────────────────────────
+    const conflictEntries = await this._checkDestinationConflicts(moveKeys, destPrefix);
+    const hasConflicts = conflictEntries.some((e) => e.conflict);
+    if (hasConflicts) {
+      const totalBytes = items.reduce((sum, item) => sum + (item.size ?? 0), 0);
+      this._pendingConflictOp = {
+        type: 'move',
+        keys: moveKeys,
+        destPrefix,
+        items,
+        sourcePrefix: this._pendingSourcePrefix,
+        totalBytes
+      };
+      this.openModal('resolve-conflicts', {
+        entries: conflictEntries,
+        bucket: this.bucket,
+        destPrefix,
+        confirmLabel: m.storage_action_move()
+      });
+      return;
+    }
+
     const opId = crypto.randomUUID();
     const abortController = new AbortController();
     const sourceNames = moveKeys.map((k) => keyToName(k));
@@ -1395,6 +1470,443 @@ export class StorageState {
   cancelMove = (): void => {
     this.closeModal();
   };
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Conflict resolution (paste / move)
+  // ────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Check which destination keys already exist, returning ConflictEntry[]
+   * with conflict=true for existing keys.
+   */
+  private async _checkDestinationConflicts(
+    keys: string[],
+    destPrefix: string
+  ): Promise<ConflictEntry[]> {
+    const conn = loadConnectionLocally();
+    const connHeader = conn ? getConnectionHeader(conn) : '';
+    const results: ConflictEntry[] = [];
+
+    for (const key of keys) {
+      const origName = keyToName(key);
+      const destKey = destPrefix + origName;
+      let conflict = false;
+      try {
+        conflict = await checkObjectExists(this.bucket, destKey, connHeader);
+      } catch {
+        // If the check fails, assume no conflict and proceed
+      }
+      results.push({
+        id: crypto.randomUUID(),
+        originalName: origName,
+        conflict,
+        resolution: conflict ? null : 'replace',
+        customName: origName,
+        renameState: 'idle',
+        sourceKey: key
+      });
+    }
+
+    return results;
+  }
+
+  confirmConflictResolution = async (resolvedEntries: ConflictEntry[]): Promise<void> => {
+    const pending = this._pendingConflictOp;
+    if (!pending) return;
+    this._pendingConflictOp = null;
+    this.closeModal();
+
+    if (pending.type === 'paste') {
+      await this._executePasteWithConflicts(pending, resolvedEntries);
+    } else {
+      await this._executeMoveWithConflicts(pending, resolvedEntries);
+    }
+  };
+
+  cancelConflictResolution = (): void => {
+    this._pendingConflictOp = null;
+    this.closeModal();
+  };
+
+  /**
+   * Delete conflicting destination files before copy/move to prevent
+   * the server from auto-renaming them with " (2)" suffix.
+   */
+  private async _deleteConflictingDests(
+    destPrefix: string,
+    resolvedEntries: ConflictEntry[]
+  ): Promise<void> {
+    const conn = loadConnectionLocally();
+    if (!conn) return;
+
+    const keysToDelete: string[] = [];
+    for (const entry of resolvedEntries) {
+      if (entry.resolution === 'skip' || entry.resolution === 'rename') continue;
+      if (entry.conflict) {
+        keysToDelete.push(destPrefix + entry.originalName);
+      }
+    }
+
+    if (keysToDelete.length === 0) return;
+
+    const params = new SvelteURLSearchParams({ bucket: this.bucket });
+    for (const key of keysToDelete) {
+      params.append('keys', key);
+    }
+
+    try {
+      await fetch(`/api/storage/delete?${params}`, {
+        method: 'DELETE',
+        headers: { 'x-storage-connection': getConnectionHeader(conn) }
+      });
+    } catch {
+      // Best-effort - if deletion fails, the server may auto-rename
+    }
+  }
+
+  /**
+   * Execute a paste operation with conflict resolutions.
+   * Renamed entries are first pasted with their original name, then renamed.
+   */
+  private async _executePasteWithConflicts(
+    pending: {
+      keys: string[];
+      sourceBucket: string;
+      destPrefix: string;
+      wasCut: boolean;
+      fileSizes: Record<string, number>;
+      sourcePrefix: string;
+      totalBytes: number;
+    },
+    resolvedEntries: ConflictEntry[]
+  ): Promise<void> {
+    const resolvedMap = new SvelteMap(
+      resolvedEntries.map((e) => [e.sourceKey ?? e.originalName, e])
+    );
+
+    // Split keys by resolution
+    const replaceKeys: string[] = [];
+    const renameKeys: Array<{ sourceKey: string; newName: string }> = [];
+
+    for (const key of pending.keys) {
+      const entry = resolvedMap.get(key) ?? resolvedMap.get(keyToName(key));
+      if (!entry || entry.resolution === 'skip') continue;
+      if (entry.resolution === 'rename') {
+        renameKeys.push({ sourceKey: key, newName: entry.customName.trim() });
+      }
+      replaceKeys.push(key);
+    }
+
+    if (replaceKeys.length === 0 && renameKeys.length === 0) return;
+
+    const opId = crypto.randomUUID();
+    const abortController = new AbortController();
+    const sourceNames = pending.keys.map((k) => keyToName(k));
+    const isSinglePaste = pending.keys.length === 1;
+    const pasteLabel = isSinglePaste
+      ? `${m.storage_operation_paste_one({ count: 1 })}: ${sourceNames[0]}`
+      : `${m.storage_operation_paste_other({ count: sourceNames.length })}: ${sourceNames[0]} + ${sourceNames.length - 1} more`;
+
+    this._startOp(
+      opId,
+      pasteLabel,
+      'paste',
+      replaceKeys.length + renameKeys.length,
+      abortController,
+      `${this.bucket}/${pending.destPrefix}`,
+      sourceNames,
+      pending.totalBytes
+    );
+
+    await this._deleteConflictingDests(pending.destPrefix, resolvedEntries);
+
+    try {
+      const { results, failed } = await this.performPasteSequential(
+        replaceKeys,
+        pending.sourceBucket,
+        pending.destPrefix,
+        pending.wasCut,
+        abortController.signal,
+        (index, key) => {
+          this._updateOpProgress(opId, index, 0, keyToName(key));
+        },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        (loaded, _total) => {
+          const prevFiles = this.operations.find((op) => op.id === opId)?.completedCount ?? 0;
+          this._updateOpProgress(opId, prevFiles, loaded, '');
+        }
+      );
+
+      // Handle renamed files: rename the already-pasted destination file
+      const destKeyMap = new SvelteMap(results.map((r) => [r.sourceKey, r.destKey]));
+      let renameFailed = 0;
+      for (const rename of renameKeys) {
+        if (abortController.signal.aborted) break;
+        const destKey = destKeyMap.get(rename.sourceKey);
+        if (!destKey) {
+          renameFailed++;
+          continue;
+        }
+        const conn = loadConnectionLocally();
+        if (!conn) {
+          renameFailed++;
+          continue;
+        }
+        const newKey = pending.destPrefix + rename.newName;
+        const renameParams = new SvelteURLSearchParams({ bucket: this.bucket });
+        try {
+          const res = await fetch(`/api/storage/rename?${renameParams}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-storage-connection': getConnectionHeader(conn)
+            },
+            body: JSON.stringify({ key: destKey, newKey })
+          });
+          if (!res.ok) renameFailed++;
+          this._updateOpProgress(
+            opId,
+            replaceKeys.length + renameKeys.indexOf(rename) + 1,
+            0,
+            rename.newName
+          );
+        } catch {
+          renameFailed++;
+        }
+      }
+
+      await tick();
+      const totalFailed = failed + renameFailed;
+      this._finishOp(opId, totalFailed > 0 ? 'error' : 'done');
+
+      if (totalFailed > 0) {
+        addToast('warning', m.storage_action_paste_partial({ count: totalFailed }));
+      } else {
+        addToast(
+          'success',
+          m.storage_action_paste_success({ count: replaceKeys.length + renameKeys.length })
+        );
+      }
+      this.refresh();
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        this._finishOp(opId, 'cancelled');
+        return;
+      }
+      this._finishOp(opId, 'error');
+      addToast('error', m.storage_action_paste_error());
+    }
+  }
+
+  /**
+   * Execute a move operation with conflict resolutions.
+   * For "replace" entries: delete the conflicting destination first, then move.
+   * For "rename" entries: rename the source at its current location first,
+   * then move the renamed source to the destination — the file never appears
+   * at the original name in the destination.
+   */
+  private async _executeMoveWithConflicts(
+    pending: {
+      keys: string[];
+      destPrefix: string;
+      items: Array<{ key: string; name: string; isDirectory: boolean; size?: number }>;
+      sourcePrefix: string | null;
+      totalBytes: number;
+    },
+    resolvedEntries: ConflictEntry[]
+  ): Promise<void> {
+    const resolvedMap = new SvelteMap(
+      resolvedEntries.map((e) => [e.sourceKey ?? e.originalName, e])
+    );
+
+    // Split keys by resolution — rename entries are NOT added to replaceKeys here.
+    // They will be renamed at source first, then added to replaceKeys before the move loop.
+    const replaceKeys: string[] = [];
+    const renameKeys: Array<{ sourceKey: string; newName: string }> = [];
+
+    for (const key of pending.keys) {
+      const entry = resolvedMap.get(key) ?? resolvedMap.get(keyToName(key));
+      if (!entry || entry.resolution === 'skip') continue;
+      if (entry.resolution === 'rename') {
+        renameKeys.push({ sourceKey: key, newName: entry.customName.trim() });
+      } else {
+        replaceKeys.push(key);
+      }
+    }
+
+    if (replaceKeys.length === 0 && renameKeys.length === 0) return;
+
+    const opId = crypto.randomUUID();
+    const abortController = new AbortController();
+    const sourceNames = pending.keys.map((k) => keyToName(k));
+    const totalCount = replaceKeys.length + renameKeys.length;
+    const isSingleMove = totalCount === 1;
+    const moveLabel = isSingleMove
+      ? `${m.storage_operation_move_one({ count: 1 })}: ${sourceNames[0]}`
+      : `${m.storage_operation_move_other({ count: sourceNames.length })}: ${sourceNames[0]} + ${sourceNames.length - 1} more`;
+
+    this._startOp(
+      opId,
+      moveLabel,
+      'move',
+      totalCount,
+      abortController,
+      `${this.bucket}/${pending.destPrefix}`,
+      sourceNames,
+      pending.totalBytes
+    );
+
+    const conn = loadConnectionLocally();
+    if (!conn) {
+      this._finishOp(opId, 'error');
+      addToast('error', m.storage_action_move_error_not_connected());
+      return;
+    }
+
+    // Only delete conflicting destinations for "replace" entries
+    await this._deleteConflictingDests(pending.destPrefix, resolvedEntries);
+
+    try {
+      const results: Array<{ sourceKey: string; destKey: string }> = [];
+      let renameFailed = 0;
+      let failed = 0;
+
+      // ── Pre-processing: rename rename entries at source before moving ─────
+      for (const rename of renameKeys) {
+        if (abortController.signal.aborted) break;
+
+        const parts = rename.sourceKey.split('/');
+        parts.pop();
+        const parentPrefix = parts.length > 0 ? parts.join('/') + '/' : '';
+        const renamedSourceKey =
+          parentPrefix + rename.newName + (rename.sourceKey.endsWith('/') ? '/' : '');
+
+        const renameParams = new SvelteURLSearchParams({ bucket: this.bucket });
+        try {
+          const renameRes = await fetch(`/api/storage/rename?${renameParams}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-storage-connection': getConnectionHeader(conn)
+            },
+            body: JSON.stringify({ key: rename.sourceKey, newKey: renamedSourceKey })
+          });
+          if (renameRes.ok) {
+            replaceKeys.push(renamedSourceKey);
+          } else {
+            renameFailed++;
+          }
+        } catch {
+          renameFailed++;
+        }
+      }
+
+      failed = renameFailed;
+
+      // ── Move all entries ────────────────────────────────────────────────────
+      const endpoint = '/api/storage/move';
+
+      for (const key of replaceKeys) {
+        if (abortController.signal.aborted) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
+
+        const params = new SvelteURLSearchParams({ bucket: this.bucket });
+        params.set('progress', 'true');
+        const res = await fetch(`${endpoint}?${params}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-storage-connection': getConnectionHeader(conn)
+          },
+          body: JSON.stringify({
+            sourceKeys: [key],
+            destinationPrefix: pending.destPrefix
+          }),
+          signal: abortController.signal
+        });
+
+        if (!res.ok) {
+          failed++;
+          continue;
+        }
+
+        // Read the NDJSON stream (the endpoint returns NDJSON when progress=true)
+        const reader = res.body?.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        if (reader) {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() ?? '';
+              for (const line of lines) {
+                if (!line.trim()) continue;
+                const event = JSON.parse(line) as {
+                  type: string;
+                  sourceKey?: string;
+                  destKey?: string;
+                  loaded?: number;
+                  total?: number;
+                  moved?: Array<{ sourceKey: string; destKey: string }>;
+                  failed?: Array<{ sourceKey: string; error: string }>;
+                };
+                if (event.type === 'done' && event.sourceKey && event.destKey) {
+                  results.push({ sourceKey: event.sourceKey, destKey: event.destKey });
+                } else if (event.type === 'failed' && event.sourceKey) {
+                  failed++;
+                } else if (event.type === 'complete') {
+                  if (event.moved) {
+                    results.length = 0;
+                    results.push(...event.moved);
+                  }
+                  if (event.failed) {
+                    failed = event.failed.length;
+                  }
+                }
+              }
+            }
+          } finally {
+            reader.releaseLock();
+          }
+        }
+        this._updateOpProgress(opId, results.length, 0, keyToName(key));
+      }
+
+      await tick();
+      const totalFailed = renameFailed + failed;
+      this._finishOp(opId, totalFailed === 0 ? 'done' : 'error');
+
+      if (results.length > 0) {
+        addToast('success', m.storage_action_move_success({ count: results.length }));
+        const movedKeys = results.map((r) => r.sourceKey).filter((k) => !k.endsWith('/'));
+        if (movedKeys.length > 0) {
+          this.bookmarks.removeFiles(this.bucket, movedKeys);
+        }
+      }
+      if (totalFailed > 0) {
+        addToast('warning', m.storage_action_move_partial({ count: totalFailed }));
+      }
+
+      this.selectedKeys = new SvelteSet<string>();
+      this.selectionMode = false;
+      if (pending.sourcePrefix !== null && this._onInvalidateSourceTabs) {
+        this._onInvalidateSourceTabs(pending.sourcePrefix);
+      }
+      this.refresh();
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        this._finishOp(opId, 'cancelled');
+        return;
+      }
+      this._finishOp(opId, 'error');
+      addToast('error', m.storage_action_move_error());
+    }
+  }
 
   // ────────────────────────────────────────────────────────────────────────────
   // Keyboard shortcuts

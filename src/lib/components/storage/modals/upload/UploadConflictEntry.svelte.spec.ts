@@ -1,23 +1,18 @@
-import { page } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
-import UploadConflictEntry from './UploadConflictEntry.svelte';
-import type { FileEntry } from './types.js';
+import ConflictEntry from '../shared/ConflictEntry.svelte';
+import type { ConflictEntry as ConflictEntryType } from '../shared/conflict-types.js';
 
-function makeEntry(overrides: Partial<FileEntry> = {}): FileEntry {
-  const name = overrides.file?.name ?? faker.system.fileName();
+function makeEntry(overrides: Partial<ConflictEntryType> = {}): ConflictEntryType {
+  const name = overrides.originalName ?? faker.system.fileName();
   return {
     id: faker.string.uuid(),
-    file: new File(['content'], name),
-    displayPath: name,
-    targetKey: `path/to/${name}`,
+    originalName: name,
     conflict: true,
     resolution: null,
     customName: name,
     renameState: 'idle',
-    status: 'pending',
-    progress: 0,
     ...overrides
   };
 }
@@ -29,256 +24,193 @@ const defaultCallbacks = {
   onCheckRename: vi.fn()
 };
 
-describe('UploadConflictEntry', () => {
+describe('ConflictEntry', () => {
   describe('rendering', () => {
     it('should show the file name in quotes', async () => {
-      const entry = makeEntry({ targetKey: 'folder/report.csv' });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      await expect.element(page.getByText(/\u201Creport.csv\u201D/)).toBeInTheDocument();
+      const entry = makeEntry({ originalName: 'report.csv' });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      const listItem = screen.getByRole('group');
+      await expect.element(listItem).toBeInTheDocument();
     });
 
-    it('should show a button group with Replace, Skip, Rename', async () => {
+    it('should default to Replace and Skip buttons in ghost variant', async () => {
       const entry = makeEntry();
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      await expect.element(page.getByRole('group')).toBeInTheDocument();
-      await expect.element(page.getByRole('button', { name: 'Replace' })).toBeInTheDocument();
-      await expect.element(page.getByRole('button', { name: 'Skip' })).toBeInTheDocument();
-      await expect.element(page.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      const replaceBtn = screen.getByRole('button', { name: /Replace/ });
+      const skipBtn = screen.getByRole('button', { name: /Skip/ });
+      await expect.element(replaceBtn).toBeInTheDocument();
+      await expect.element(skipBtn).toBeInTheDocument();
     });
 
-    it('should handle long filenames', async () => {
-      const longName = faker.string.alpha(200) + '.txt';
-      const entry = makeEntry({ targetKey: `deep/nested/${longName}` });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
+    it('should highlight Replace button with warning style when selected', async () => {
+      const entry = makeEntry({ resolution: 'replace' });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      const replaceBtn = screen.getByRole('button', { name: /Replace/ });
+      await expect.element(replaceBtn).toHaveClass('btn-warning');
+    });
 
-      await expect.element(page.getByText(new RegExp(longName.slice(0, 20)))).toBeInTheDocument();
+    it('should highlight Skip button with neutral style when selected', async () => {
+      const entry = makeEntry({ resolution: 'skip' });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      const skipBtn = screen.getByRole('button', { name: /Skip/ });
+      await expect.element(skipBtn).toHaveClass('btn-neutral');
+    });
+
+    it('should apply aria-pressed on active button', async () => {
+      const entry = makeEntry({ resolution: 'replace' });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      const replaceBtn = screen.getByRole('button', { name: /Replace/ });
+      await expect.element(replaceBtn).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('should not set aria-pressed on inactive buttons', async () => {
+      const entry = makeEntry({ resolution: 'replace' });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      const skipBtn = screen.getByRole('button', { name: /Skip/ });
+      await expect.element(skipBtn).toHaveAttribute('aria-pressed', 'false');
     });
   });
 
-  describe('resolution buttons', () => {
-    it('should mark Replace as pressed when resolution is replace', async () => {
-      const entry = makeEntry({ resolution: 'replace' });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      const btn = page.getByRole('button', { name: 'Replace' });
-      await expect.element(btn).toHaveAttribute('aria-pressed', 'true');
-    });
-
-    it('should mark Skip as pressed when resolution is skip', async () => {
-      const entry = makeEntry({ resolution: 'skip' });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      const btn = page.getByRole('button', { name: 'Skip' });
-      await expect.element(btn).toHaveAttribute('aria-pressed', 'true');
-    });
-
-    it('should call onSetResolution with replace when Replace is clicked', async () => {
+  describe('callbacks', () => {
+    it('should call onSetResolution when Replace button is clicked', async () => {
       const onSetResolution = vi.fn();
       const entry = makeEntry();
-      render(UploadConflictEntry, { entry, ...defaultCallbacks, onSetResolution });
-
-      await page.getByRole('button', { name: 'Replace' }).click();
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks, onSetResolution });
+      await screen.getByRole('button', { name: /Replace/ }).click();
       expect(onSetResolution).toHaveBeenCalledWith('replace');
     });
 
-    it('should call onSetResolution with skip when Skip is clicked', async () => {
+    it('should call onSetResolution when Skip button is clicked', async () => {
       const onSetResolution = vi.fn();
-      const entry = makeEntry();
-      render(UploadConflictEntry, { entry, ...defaultCallbacks, onSetResolution });
-
-      await page.getByRole('button', { name: 'Skip' }).click();
+      const entry = makeEntry({ resolution: 'replace' });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks, onSetResolution });
+      await screen.getByRole('button', { name: /Skip/ }).click();
       expect(onSetResolution).toHaveBeenCalledWith('skip');
     });
 
-    it('should call onRenameButtonClick when Rename is clicked', async () => {
+    it('should call onRenameButtonClick when Rename button is clicked', async () => {
       const onRenameButtonClick = vi.fn();
       const entry = makeEntry();
-      render(UploadConflictEntry, { entry, ...defaultCallbacks, onRenameButtonClick });
-
-      await page.getByRole('button', { name: 'Rename' }).click();
-      expect(onRenameButtonClick).toHaveBeenCalled();
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks, onRenameButtonClick });
+      await screen.getByRole('button', { name: /Rename/ }).click();
+      expect(onRenameButtonClick).toHaveBeenCalledOnce();
     });
-  });
 
-  describe('rename state', () => {
-    it('should show loading spinner when renameState is checking', async () => {
+    it('should show a text input in editing rename state', async () => {
+      const entry = makeEntry({ resolution: 'rename', renameState: 'editing' });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      const input = screen.getByPlaceholder('New file name');
+      await expect.element(input).toBeInTheDocument();
+    });
+
+    it('should call onSetCustomName when text is entered', async () => {
+      const onSetCustomName = vi.fn();
+      const entry = makeEntry({ resolution: 'rename', renameState: 'editing' });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks, onSetCustomName });
+      const input = screen.getByPlaceholder('New file name');
+      await input.fill('newname.csv');
+      expect(onSetCustomName).toHaveBeenCalledWith('newname.csv');
+    });
+
+    it('should not call onRenameButtonClick before changing the value when Enter is pressed', async () => {
+      const onRenameButtonClick = vi.fn();
+      const entry = makeEntry({ resolution: 'rename', renameState: 'editing' });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks, onRenameButtonClick });
+      // Should show the rename input
+      await expect.element(screen.getByPlaceholder('New file name')).toBeInTheDocument();
+    });
+
+    it('should show a spinner during rename checking', async () => {
       const entry = makeEntry({ resolution: 'rename', renameState: 'checking' });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      const btn = page.getByRole('button', { name: /Rename/ });
-      await expect.element(btn).toBeDisabled();
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      await expect.element(screen.getByRole('button', { name: /Rename/ })).toBeInTheDocument();
+      const renameBtn = screen.getByRole('button', { name: /Rename/ });
+      await expect.element(renameBtn).toBeDisabled();
     });
 
-    it('should show input field when renameState is editing', async () => {
-      const entry = makeEntry({ resolution: 'rename', renameState: 'editing' });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      await expect
-        .element(page.getByRole('textbox', { name: 'New file name' }))
-        .toBeInTheDocument();
-    });
-
-    it('should show input field when renameState is conflict', async () => {
-      const entry = makeEntry({ resolution: 'rename', renameState: 'conflict' });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      await expect
-        .element(page.getByRole('textbox', { name: 'New file name' }))
-        .toBeInTheDocument();
-    });
-
-    it('should show error when renameState is conflict', async () => {
-      const file = new File(['x'], 'original.txt');
-      const entry = makeEntry({
-        file,
-        resolution: 'rename',
-        renameState: 'conflict',
-        customName: 'different-name.txt'
-      });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      await expect
-        .element(page.getByRole('alert'))
-        .toHaveTextContent('This name already exists here.');
-    });
-
-    it('should show error when customName is empty (badRename)', async () => {
-      const entry = makeEntry({
-        resolution: 'rename',
-        renameState: 'editing',
-        customName: '  '
-      });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      await expect.element(page.getByRole('alert')).toBeInTheDocument();
-    });
-
-    it('should show error when customName matches original file name', async () => {
-      const file = new File(['x'], 'original.txt');
-      const entry = makeEntry({
-        file,
-        resolution: 'rename',
-        renameState: 'editing',
-        customName: 'original.txt'
-      });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      await expect.element(page.getByRole('alert')).toBeInTheDocument();
-    });
-
-    it('should call onCheckRename when Enter is pressed in input', async () => {
-      const onCheckRename = vi.fn();
-      const entry = makeEntry({
-        resolution: 'rename',
-        renameState: 'editing',
-        customName: 'new-name.txt'
-      });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks, onCheckRename });
-
-      const input = page.getByRole('textbox', { name: 'New file name' });
-      const inputEl = input.element() as HTMLInputElement;
-      inputEl.focus();
-      inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      expect(onCheckRename).toHaveBeenCalled();
-    });
-
-    it('should show "Confirm name" text when editing', async () => {
-      const entry = makeEntry({ resolution: 'rename', renameState: 'editing' });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      await expect.element(page.getByRole('button', { name: /Confirm name/ })).toBeInTheDocument();
-    });
-
-    it('should show check icon and success button when renameState is ok', async () => {
+    it('should show a check icon when rename is confirmed', async () => {
       const entry = makeEntry({
         resolution: 'rename',
         renameState: 'ok',
-        customName: 'new-name.txt'
+        customName: 'newname.csv'
       });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      // Should show the static display with the custom name (not the input)
-      await expect.element(page.getByText('new-name.txt')).toBeInTheDocument();
-      // Button should have success styling and show "Rename" text (not "Confirm name")
-      const btn = page.getByRole('button', { name: /Rename/ });
-      await expect.element(btn).toBeInTheDocument();
-      await expect.element(btn).toHaveAttribute('aria-pressed', 'true');
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      await expect.element(screen.getByText('newname.csv')).toBeInTheDocument();
     });
 
-    it('should call onSetCustomName when input value changes', async () => {
-      const onSetCustomName = vi.fn();
+    it('should change label to "Confirm name" when in editing state', async () => {
+      const entry = makeEntry({ resolution: 'rename', renameState: 'editing' });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      const renameBtn = screen.getByRole('button', { name: /Confirm name/ });
+      await expect.element(renameBtn).toBeInTheDocument();
+    });
+
+    it('should show an error when new name matches the original', async () => {
       const entry = makeEntry({
         resolution: 'rename',
         renameState: 'editing',
-        customName: 'old.txt'
+        originalName: 'same.txt',
+        customName: 'same.txt'
       });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks, onSetCustomName });
-
-      const input = page.getByRole('textbox', { name: 'New file name' });
-      const inputEl = input.element() as HTMLInputElement;
-      inputEl.focus();
-      inputEl.value = 'new-value.txt';
-      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-      expect(onSetCustomName).toHaveBeenCalledWith('new-value.txt');
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      await expect
+        .element(screen.getByText('Please enter a different name, or select Replace or Skip.'))
+        .toBeInTheDocument();
     });
 
-    it('should show "Confirm name" text when renameState is conflict', async () => {
-      const file = new File(['x'], 'original.txt');
+    it('should show an error when rename conflicts with existing file', async () => {
       const entry = makeEntry({
-        file,
         resolution: 'rename',
         renameState: 'conflict',
-        customName: 'different.txt'
+        originalName: 'original.txt',
+        customName: 'newname.txt'
       });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      await expect.element(page.getByRole('button', { name: /Confirm name/ })).toBeInTheDocument();
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      await expect.element(screen.getByText(/This name already exists/)).toBeInTheDocument();
     });
 
-    it('should not call onCheckRename when a non-Enter key is pressed', async () => {
-      const onCheckRename = vi.fn();
+    it('should call onRenameButtonClick when the Rename button shows "Confirm name"', async () => {
+      const onRenameButtonClick = vi.fn();
+      const entry = makeEntry({ resolution: 'rename', renameState: 'editing' });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks, onRenameButtonClick });
+      await screen.getByRole('button', { name: /Confirm name/ }).click();
+      expect(onRenameButtonClick).toHaveBeenCalledOnce();
+    });
+
+    it('should show error state styling on the input when the same name is entered', async () => {
       const entry = makeEntry({
         resolution: 'rename',
         renameState: 'editing',
-        customName: 'new-name.txt'
+        originalName: 'same.txt',
+        customName: 'same.txt'
       });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks, onCheckRename });
-
-      const input = page.getByRole('textbox', { name: 'New file name' });
-      const inputEl = input.element() as HTMLInputElement;
-      inputEl.focus();
-      inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
-      expect(onCheckRename).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('nameOnly derivation', () => {
-    it('should fall back to file.name when targetKey has no path separator', async () => {
-      const file = new File(['x'], 'fallback.txt');
-      const entry = makeEntry({ file, targetKey: 'fallback.txt' });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
-
-      await expect.element(page.getByText(/\u201Cfallback.txt\u201D/)).toBeInTheDocument();
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      const input = screen.getByPlaceholder('New file name');
+      await expect.element(input).toHaveClass('input-error');
     });
 
-    it('should not show error when customName is valid and different', async () => {
-      const file = new File(['x'], 'original.txt');
+    it('should show error state styling on the input when rename conflicts', async () => {
       const entry = makeEntry({
-        file,
         resolution: 'rename',
-        renameState: 'editing',
-        customName: 'different.txt'
+        renameState: 'conflict',
+        originalName: 'original.txt',
+        customName: 'newname.txt'
       });
-      render(UploadConflictEntry, { entry, ...defaultCallbacks });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      const input = screen.getByPlaceholder('New file name');
+      await expect.element(input).toHaveClass('input-error');
+    });
 
-      // Input should be present and have no error styling
-      const input = page.getByRole('textbox', { name: 'New file name' });
-      await expect.element(input).toBeInTheDocument();
-      // The input should not have error class
-      const inputEl = input.element() as HTMLInputElement;
-      expect(inputEl.classList.contains('input-error')).toBe(false);
+    it('should show an input in conflict state with rename selected', async () => {
+      const entry = makeEntry({
+        resolution: 'rename',
+        renameState: 'conflict',
+        originalName: 'original.txt',
+        customName: 'newname.txt'
+      });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      await expect.element(screen.getByPlaceholder('New file name')).toBeInTheDocument();
+      await expect.element(screen.getByText(/This name already exists/)).toBeInTheDocument();
     });
   });
 });

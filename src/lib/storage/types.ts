@@ -1,6 +1,12 @@
 // ── Modal types ─────────────────────────────────────────────────────────────
 
-export type ModalType = 'delete' | 'preview' | 'upload' | 'rename' | 'confirm-move';
+export type ModalType =
+  | 'delete'
+  | 'preview'
+  | 'upload'
+  | 'rename'
+  | 'confirm-move'
+  | 'resolve-conflicts';
 
 export interface ModalPayloads {
   delete: { keys: string[] };
@@ -17,6 +23,22 @@ export interface ModalPayloads {
     destPrefix: string;
     /** Per-item metadata for display in the confirmation dialog. */
     items: Array<{ key: string; name: string; isDirectory: boolean; size?: number }>;
+  };
+  'resolve-conflicts': {
+    /** Conflict entries to resolve. */
+    entries: Array<{
+      id: string;
+      originalName: string;
+      conflict: boolean;
+      resolution: 'replace' | 'skip' | 'rename' | null;
+      customName: string;
+      renameState: 'idle' | 'editing' | 'checking' | 'ok' | 'conflict';
+    }>;
+    bucket: string;
+    /** Destination prefix for rename-conflict checking. */
+    destPrefix: string;
+    /** Optional: label for the confirm button (e.g. "Paste" or "Move"). */
+    confirmLabel?: string;
   };
 }
 
