@@ -108,7 +108,9 @@ export interface StorageLocation {
   prefix: string;
 }
 
-export type PinnedLocation = StorageLocation;
+export interface PinnedLocation extends StorageLocation {
+  connectionId: string;
+}
 
 // ── Recent items ─────────────────────────────────────────────────────────────
 
@@ -117,12 +119,14 @@ export interface RecentFile {
   bucket: string;
   size: number;
   visitedAt: string;
+  connectionId: string;
 }
 
 export interface RecentLocation {
   bucket: string;
   prefix: string;
   visitedAt: string;
+  connectionId: string;
 }
 
 // ── Storage objects ──────────────────────────────────────────────────────────

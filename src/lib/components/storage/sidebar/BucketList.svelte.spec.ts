@@ -6,16 +6,16 @@ import { userEvent } from 'vitest/browser';
 import BucketListWrapper from './__tests__/BucketListWrapper.svelte';
 import { setPageState, resetPageState } from './__tests__/page-helper.svelte.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
-import type { PinnedLocation } from '$lib/storage/types.js';
+import type { StorageLocation } from '$lib/storage/types.js';
 
 function createState(
   opts: {
     buckets?: string[];
-    pinned?: PinnedLocation[];
+    pinned?: StorageLocation[];
   } = {}
 ): StorageState {
   const buckets = opts.buckets ?? [];
-  const state = new StorageState({ connected: true, buckets });
+  const state = new StorageState({ connected: true, buckets, connectionId: 'test-conn-id' });
   state.bucket = buckets[0] ?? '';
   state.prefix = '';
   if (opts.pinned) {
@@ -272,10 +272,8 @@ describe('BucketList', () => {
       await moreButton.click();
       await expect.element(page.getByRole('menuitem', { name: /unpin/i })).toBeInTheDocument();
 
-      // Click on the "Buckets" section header — a non-interactive span that is
-      // outside the context menu but does not trigger browser navigation.
-      const bucketsHeader = page.getByRole('navigation').getByText('Buckets', { exact: true });
-      await bucketsHeader.click();
+      // Click on a non-link part of the nav (the heading) to trigger the outside-click handler
+      await page.getByText('Buckets').click();
 
       await expect.element(page.getByRole('menuitem', { name: /unpin/i })).not.toBeInTheDocument();
     });

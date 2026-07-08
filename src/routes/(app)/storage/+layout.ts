@@ -2,7 +2,11 @@ import { browser } from '$app/environment';
 import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
 import type { LayoutLoad } from './$types';
 
-const DISCONNECTED = { connected: false, buckets: [] as string[], connectionType: null };
+const DISCONNECTED = {
+  connected: false,
+  buckets: [] as string[],
+  connectionType: null
+};
 
 /**
  * Client-side load: reads the connection from localStorage and fetches the bucket
@@ -28,7 +32,12 @@ export const load: LayoutLoad = async ({ fetch, url }) => {
     if (!res.ok) return DISCONNECTED;
 
     const buckets = (await res.json()) as string[];
-    return { connected: true, buckets, connectionType: connection.type };
+    return {
+      connected: true,
+      buckets,
+      connectionType: connection.type,
+      connectionId: connection.id
+    };
   } catch {
     return DISCONNECTED;
   }

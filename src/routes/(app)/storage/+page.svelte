@@ -2,6 +2,7 @@
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { onMount } from 'svelte';
   import { navigating } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
@@ -65,6 +66,11 @@
   function handleDismiss() {
     savedTabs = null;
   }
+
+  let mounted = $state(false);
+  onMount(() => {
+    mounted = true;
+  });
 </script>
 
 {#if data.connected}
@@ -109,6 +115,6 @@
   <div class="relative flex h-full min-h-0 flex-col overflow-y-auto p-2">
     <RecentItems />
   </div>
-{:else}
+{:else if mounted}
   <StorageConnectForm connectionForm={data.connectionForm} />
 {/if}

@@ -34,7 +34,7 @@ jobs:
 
       - name: Check for changed files
         id: check
-        uses: stackabletech/actions/detect-changes@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
+        uses: stackabletech/actions/detect-changes@a8af17a19bdcc3b5da0065f76e73827ba0c072ce # v0.16.0
         with:
           patterns: |
             - '.github/workflows/build.yaml'
@@ -112,7 +112,7 @@ jobs:
 
       - name: Build Container Image
         id: build
-        uses: stackabletech/actions/build-container-image@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
+        uses: stackabletech/actions/build-container-image@a8af17a19bdcc3b5da0065f76e73827ba0c072ce # v0.16.0
         with:
           image-name: ${{ env.IMAGE_NAME }}
           image-index-manifest-tag: ${{ steps.version.outputs.IMAGE_VERSION }}
@@ -122,7 +122,7 @@ jobs:
           container-file: docker/Dockerfile
 
       - name: Publish Container Image
-        uses: stackabletech/actions/publish-image@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
+        uses: stackabletech/actions/publish-image@a8af17a19bdcc3b5da0065f76e73827ba0c072ce # v0.16.0
         with:
           image-registry-uri: oci.stackable.tech
           image-registry-username: robot$sdp+github-action-build
@@ -141,6 +141,8 @@ jobs:
       contents: read
       id-token: write
     runs-on: ubuntu-latest
+    outputs:
+      oci-index-digest: ${{ steps.publish-oci.outputs.image-index-manifest-digest }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -148,13 +150,47 @@ jobs:
           persist-credentials: false
 
       - name: Publish and Sign Image Index
-        uses: stackabletech/actions/publish-image-index-manifest@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
+        id: publish-oci
+        uses: stackabletech/actions/publish-image-index-manifest@a8af17a19bdcc3b5da0065f76e73827ba0c072ce # v0.16.0
         with:
           image-registry-uri: oci.stackable.tech
           image-registry-username: robot$sdp+github-action-build
           image-registry-password: ${{ secrets.HARBOR_ROBOT_SDP_GITHUB_ACTION_BUILD_SECRET }}
           image-repository: sdp/${{ env.IMAGE_NAME }}
           image-index-manifest-tag: ${{ needs.build-container-image.outputs.image-version }}
+
+  # Generate SLSA build provenance for the multi-arch image index and attach it
+  # to the published image. The reusable workflow signs the provenance with
+  # keyless signing (GitHub Actions as the OIDC identity) and pushes the
+  # attestation next to the image.
+  provenance-oci:
+    name: Generate Provenance for ${{ needs.build-container-image.outputs.image-version }} (oci.stackable.tech)
+    # The SLSA container generator explicitly does not support the pull_request
+    # event (it fails checking out the merge ref), so provenance is only
+    # generated for images published on push, tags and the scheduled build.
+    if: (github.event_name != 'merge_group') && (github.event_name != 'pull_request') && needs.detect-changes.outputs.detected == 'true'
+    needs:
+      - detect-changes
+      - build-container-image
+      - publish-index-manifest
+    permissions:
+      actions: read # detect the build workflow that generated the image
+      id-token: write # mint the OIDC token for keyless signing
+      packages: write # needed until https://github.com/slsa-framework/slsa-github-generator/issues/1257 is resolved
+    # MUST be referenced by a @vX.Y.Z tag (not a SHA), otherwise the reusable
+    # workflow cannot verify its own provenance.
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
+    with:
+      # The 'env' context is not available in job-level 'with' inputs of
+      # reusable workflow calls (unlike step-level 'with'), so IMAGE_NAME
+      # can't be used here and the image name is set directly.
+      image: oci.stackable.tech/sdp/cockpit
+      digest: ${{ needs.publish-index-manifest.outputs.oci-index-digest }}
+      registry-username: robot$sdp+github-action-build
+      # The following can be removed once this repository is public
+      private-repository: true
+    secrets:
+      registry-password: ${{ secrets.HARBOR_ROBOT_SDP_GITHUB_ACTION_BUILD_SECRET }}
 
   publish-helm-chart:
     name: Package/Publish ${{ needs.build-container-image.outputs.image-version }} Helm Chart
@@ -174,7 +210,7 @@ jobs:
           persist-credentials: false
 
       - name: Package, Publish, and Sign Helm Chart
-        uses: stackabletech/actions/publish-helm-chart@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
+        uses: stackabletech/actions/publish-helm-chart@a8af17a19bdcc3b5da0065f76e73827ba0c072ce # v0.16.0
         with:
           chart-registry-uri: oci.stackable.tech
           chart-registry-username: robot$sdp-charts+github-action-build
@@ -200,7 +236,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run OpenShift Preflight Check
-        uses: stackabletech/actions/run-openshift-preflight@bafed9c1dd77fb30fe6bb92b4c5f3459dac357e3 # v0.12.0
+        uses: stackabletech/actions/run-openshift-preflight@a8af17a19bdcc3b5da0065f76e73827ba0c072ce # v0.16.0
         with:
           image-index-uri: oci.stackable.tech/sdp/${{ env.IMAGE_NAME }}:${{ needs.build-container-image.outputs.image-version }}
           image-architecture: ${{ matrix.arch }}
@@ -214,12 +250,13 @@ jobs:
     needs:
       - openshift-preflight-check
       - publish-helm-chart
+      - provenance-oci
     runs-on: ubuntu-latest
     steps:
       - name: Check results
         run: |
           set -euo pipefail
-          if [[ "${{ needs.openshift-preflight-check.result }}" == "failure" || "${{ needs.publish-helm-chart.result }}" == "failure" ]]; then
+          if [[ "${{ needs.openshift-preflight-check.result }}" == "failure" || "${{ needs.publish-helm-chart.result }}" == "failure" || "${{ needs.provenance-oci.result }}" == "failure" ]]; then
             echo "One or more required jobs failed"
             exit 1
           fi

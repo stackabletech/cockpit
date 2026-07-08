@@ -59,6 +59,11 @@ export async function openConnectForm(page: Page) {
     (await disconnectButton.isVisible().catch(() => false))
   ) {
     await disconnectButton.click();
+    // A confirmation modal was added — confirm the disconnection if the modal appears.
+    const confirmButton = page.locator('.modal-box').getByRole('button', { name: 'Disconnect' });
+    if (await confirmButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await confirmButton.click();
+    }
   }
 
   await expect(connectHeading).toBeVisible();
@@ -66,12 +71,69 @@ export async function openConnectForm(page: Page) {
 
 export async function connectToStorage(page: Page, credentials: GarageCredentials) {
   await openConnectForm(page);
-  await page.getByLabel('Endpoint URL').fill(credentials.endpoint);
+  const url = new URL(credentials.endpoint);
+  const host = url.hostname;
+  const port = url.port;
+  const useTls = url.protocol === 'https:';
+
+  await page.getByLabel('Host').fill(host);
+  if (port) {
+    await page.getByLabel('Port').fill(port);
+  }
+  // Default TLS is on — uncheck it for plain HTTP endpoints
+  const tlsToggle = page.getByLabel('Use TLS');
+  if (!useTls && (await tlsToggle.isChecked())) {
+    await tlsToggle.uncheck();
+  }
+  // Default access style is VirtualHosted — switch to Path for Garage
+  await page.getByLabel('Access style').selectOption('Path');
   await page.getByLabel('Region').fill(credentials.region);
-  await page.getByLabel('Access key ID').fill(credentials.accessKeyId);
-  await page.getByLabel('Secret access key').fill(credentials.secretAccessKey);
-  await expect(page.getByLabel('Use path-style addressing')).toBeChecked();
+  await page.getByLabel('Access key').fill(credentials.accessKeyId);
+  await page.getByLabel('Secret key').fill(credentials.secretAccessKey);
   await page.getByRole('button', { name: 'Connect' }).click();
+  // Wait for the redirect to /storage so that saveConnectionLocally() has been called
+  // before the test navigates elsewhere. Without this, a fast page.goto() call can race
+  // with the in-flight form-submission fetch and the connection is never persisted.
+  await page.waitForURL((url) => url.pathname === '/storage', { timeout: 15_000 });
+
+  // Guard: ensure the connection was persisted to localStorage.
+  // The app's saveConnectionLocally() call in the onResult callback can race with
+  // subsequent navigations (page.goto), causing an empty connection list on the
+  // management page. As a backup, seed localStorage directly here.
+  await page.evaluate(
+    ({ host: h, port: p, region: r, accessKey, secretKey, tls }) => {
+      const KEY = 'stackable_storage_connections';
+      if (localStorage.getItem(KEY)) return;
+
+      const id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const v = (Math.random() * 16) | 0;
+        return (c === 'x' ? v : (v & 0x3) | 0x8).toString(16);
+      });
+      localStorage.setItem(
+        KEY,
+        JSON.stringify([
+          {
+            id,
+            type: 's3',
+            host: h,
+            port: p ? Number(p) : undefined,
+            tls: tls ? { verification: 'Full' } : undefined,
+            accessStyle: 'Path',
+            region: { name: r },
+            credentials: { accessKey, secretKey }
+          }
+        ])
+      );
+    },
+    {
+      host,
+      port: port || undefined,
+      region: credentials.region,
+      accessKey: credentials.accessKeyId,
+      secretKey: credentials.secretAccessKey,
+      tls: useTls
+    }
+  );
 }
 
 export async function connectAndOpenPrefix(

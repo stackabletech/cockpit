@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import { SvelteSet } from 'svelte/reactivity';
-import ObjectTableWrapper from './__tests__/ObjectTableWrapper.svelte';
+import ObjectTableWrapper from './ObjectTableWrapper.svelte';
 import type { StorageObject } from '$lib/storage/types.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
 
