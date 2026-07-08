@@ -1,3 +1,7 @@
+vi.mock('$lib/storage/upload.js', () => ({
+  checkObjectExists: vi.fn().mockResolvedValue(false)
+}));
+
 vi.mock('$lib/client/feature-flags.js', () => ({
   storageAutoConnectEnabled: false,
   storageRestoreTabsEnabled: false,
