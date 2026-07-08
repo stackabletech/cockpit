@@ -1125,7 +1125,7 @@ export class StorageState {
       return;
     }
 
-    const parts = key.split('/');
+    const parts = key.split('/').filter(Boolean);
     parts.pop();
     const parentPrefix = parts.length > 0 ? parts.join('/') + '/' : '';
     const newKey = parentPrefix + newName + (key.endsWith('/') ? '/' : '');
