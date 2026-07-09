@@ -152,11 +152,18 @@
   let menuY = $state(0);
   let menuTarget = $state<LayoutRect | null>(null);
 
-  function openContextMenu(e: MouseEvent, rect: LayoutRect) {
+  function openContextMenu(e: MouseEvent | KeyboardEvent, rect: LayoutRect) {
     e.preventDefault();
     e.stopPropagation();
-    menuX = e.clientX;
-    menuY = e.clientY;
+    if (e instanceof MouseEvent) {
+      menuX = e.clientX;
+      menuY = e.clientY;
+    } else {
+      const target = e.currentTarget as SVGGElement;
+      const rect = target.getBoundingClientRect();
+      menuX = rect.right;
+      menuY = rect.top;
+    }
     menuTarget = rect;
   }
 
