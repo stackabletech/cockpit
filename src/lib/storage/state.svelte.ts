@@ -2169,7 +2169,15 @@ export class StorageState {
     // progress display shows live data instead of a static "interrupted" message.
     if (anyRunning) {
       this.operations = this.operations.map((o) =>
-        o.id === op.id ? { ...o, status: 'running' as const, completedCount, completedBytes } : o
+        o.id === op.id
+          ? {
+              ...o,
+              status: 'running' as const,
+              completedCount,
+              completedBytes,
+              completedAt: undefined
+            }
+          : o
       );
       // Poll again in 2 seconds
       const timer = setTimeout(() => void this._pollJobStatus(op), 2000);
