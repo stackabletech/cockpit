@@ -466,6 +466,8 @@
   "storage_operations_history": "History",
   "storage_operations_clear_history": "Clear history",
   "storage_operations_interrupted_tooltip": "This operation was interrupted by a page reload",
+  "storage_operations_speed": "Speed",
+  "storage_operations_remaining": "remaining",
   "storage_action_rename_inline_label": "New name",
   "storage_action_rename_inline_cancel": "Cancel",
   "storage_rename_success": "Renamed to \"{name}\".",

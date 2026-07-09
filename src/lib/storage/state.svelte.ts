@@ -903,6 +903,10 @@ export class StorageState {
             };
           }
           this.refresh();
+          // Invalidate background tabs viewing the destination
+          if (this._onInvalidateSourceTabs) {
+            this._onInvalidateSourceTabs(destPrefix);
+          }
         } catch (err: unknown) {
           if (err instanceof DOMException && err.name === 'AbortError') {
             this._finishOp(opId, 'cancelled');
@@ -1538,6 +1542,10 @@ export class StorageState {
         this._onInvalidateSourceTabs(this._pendingSourcePrefix);
         this._pendingSourcePrefix = null;
       }
+      // Invalidate background tabs viewing the destination
+      if (this._onInvalidateSourceTabs) {
+        this._onInvalidateSourceTabs(destPrefix);
+      }
       this.refresh();
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -1987,6 +1995,10 @@ export class StorageState {
       if (pending.sourcePrefix !== null && this._onInvalidateSourceTabs) {
         this._onInvalidateSourceTabs(pending.sourcePrefix);
       }
+      // Invalidate background tabs viewing the destination
+      if (this._onInvalidateSourceTabs) {
+        this._onInvalidateSourceTabs(pending.destPrefix);
+      }
       this.refresh();
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -2182,6 +2194,21 @@ export class StorageState {
       if (existing) {
         clearTimeout(existing);
         this._pollTimers.delete(op.id);
+      }
+
+      // Refresh the current view if the operation was writing to the
+      // directory the user is currently browsing (or a parent of it).
+      if (op.destPath && `${this.bucket}/${this.prefix}`.startsWith(op.destPath)) {
+        this.refresh();
+      }
+
+      // Invalidate background tabs whose prefix matches the destination
+      if (op.destPath && this._onInvalidateSourceTabs) {
+        const slashIdx = op.destPath.indexOf('/');
+        if (slashIdx !== -1) {
+          const prefix = op.destPath.slice(slashIdx + 1);
+          this._onInvalidateSourceTabs(prefix.endsWith('/') ? prefix : prefix + '/');
+        }
       }
     }
   }

@@ -466,6 +466,8 @@
   "storage_operations_history": "Verlauf",
   "storage_operations_clear_history": "Verlauf löschen",
   "storage_operations_interrupted_tooltip": "Dieser Vorgang wurde durch ein Neuladen der Seite unterbrochen",
+  "storage_operations_speed": "Geschwindigkeit",
+  "storage_operations_remaining": "verbleibend",
   "storage_action_rename_inline_label": "Neuer Name",
   "storage_action_rename_inline_cancel": "Abbrechen",
   "storage_rename_success": "In „{name}“ umbenannt.",

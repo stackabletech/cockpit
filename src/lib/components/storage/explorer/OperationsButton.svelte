@@ -13,27 +13,64 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconDeleteSweep from 'virtual:icons/material-symbols/delete-sweep-outline';
   import IconHistory from 'virtual:icons/material-symbols/history';
+  import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
 
   const storage = getStorageState();
 
   let dropdownOpen = $state(false);
-  // Ticks every second so the elapsed timer updates reactively.
   let tick = $state(0);
+  let expandedOps: Record<string, boolean> = $state({});
+  let dropdownEl: HTMLDivElement | undefined = $state();
+
+  interface ChunkTrack {
+    prevBytes: number;
+    chunkStart: number;
+    chunkBytes: number;
+  }
+  let chunkTracks: Record<string, ChunkTrack> = {};
 
   $effect(() => {
     if (!storage.hasRunningOps) return;
+    const hasByteProgress = storage.operations.some(
+      (op) => op.status === 'running' && op.totalBytes > 0
+    );
+    const intervalMs = hasByteProgress ? 100 : 1000;
     const id = setInterval(() => {
       tick++;
-    }, 1000);
+      for (const op of storage.operations) {
+        if (op.status !== 'running' || op.totalBytes <= 0) continue;
+        const track = chunkTracks[op.id];
+        if (!track) {
+          chunkTracks[op.id] = {
+            prevBytes: op.completedBytes,
+            chunkStart: Date.now(),
+            chunkBytes: 0
+          };
+        } else if (op.completedBytes !== track.prevBytes) {
+          const diff = op.completedBytes - track.prevBytes;
+          track.prevBytes = op.completedBytes;
+          track.chunkBytes = diff;
+          track.chunkStart = Date.now();
+        }
+      }
+    }, intervalMs);
     return () => clearInterval(id);
   });
+
+  function handleGlobalClick(e: MouseEvent) {
+    if (!dropdownEl) return;
+    const target = e.target as Node;
+    if (!dropdownEl.contains(target)) {
+      dropdownOpen = false;
+    }
+  }
 
   function toggleDropdown() {
     dropdownOpen = !dropdownOpen;
   }
 
-  function closeDropdown() {
-    dropdownOpen = false;
+  function toggleExpand(opId: string) {
+    expandedOps = { ...expandedOps, [opId]: !expandedOps[opId] };
   }
 
   const activeOps = $derived(storage.operations.filter((op) => op.status === 'running'));
@@ -107,34 +144,86 @@
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
   }
 
+  /**
+   * Return an interpolated completedBytes that smooths over chunk boundaries.
+   * When a new chunk completes (a jump in completedBytes), this converges
+   * smoothly from the previous value to the new one over ~1.5s instead of
+   * snapping, giving a smoother visual for multipart S3 copy operations
+   * where each part is 256 MB.
+   */
+  function displayBytes(op: StorageOperation): number {
+    if (op.status !== 'running' || op.totalBytes <= 0) return op.completedBytes;
+    void tick;
+    const track = chunkTracks[op.id];
+    if (!track || track.chunkBytes <= 0) return op.completedBytes;
+    const elapsed = (Date.now() - track.chunkStart) / 1000;
+    const expectedDuration = 1.5;
+    const progress = Math.min(1, elapsed / expectedDuration);
+    const chunkProgress = track.chunkBytes * progress;
+    return Math.min(track.prevBytes, track.prevBytes - track.chunkBytes + chunkProgress);
+  }
+
   function percent(op: StorageOperation): number {
     if (op.totalBytes <= 0) return 0;
-    return Math.min(100, Math.round((op.completedBytes / op.totalBytes) * 100));
+    const bytes = displayBytes(op);
+    return Math.min(100, Math.round((bytes / op.totalBytes) * 100));
   }
 
   function progressLabel(op: StorageOperation): string {
     if (op.totalBytes > 0) {
-      return `${formatBytes(op.completedBytes)} / ${formatBytes(op.totalBytes)}`;
+      return `${formatBytes(displayBytes(op))} / ${formatBytes(op.totalBytes)}`;
     }
     if (op.itemCount > 1) {
       return `${op.completedCount} / ${op.itemCount}`;
     }
     return '';
   }
+
+  function speedLabel(op: StorageOperation): string {
+    void tick;
+    const elapsed = (Date.now() - op.startedAt) / 1000;
+    if (elapsed <= 0 || op.completedBytes <= 0) return '';
+    const bytesPerSec = op.completedBytes / elapsed;
+    return `${formatBytes(Math.round(bytesPerSec))}/s`;
+  }
+
+  function etaLabel(op: StorageOperation): string {
+    void tick;
+    const elapsed = (Date.now() - op.startedAt) / 1000;
+    if (elapsed <= 0 || op.completedBytes <= 0 || op.totalBytes <= 0) return '';
+    const bytesPerSec = op.completedBytes / elapsed;
+    const remaining = op.totalBytes - op.completedBytes;
+    if (remaining <= 0) return '';
+    const secs = remaining / bytesPerSec;
+    if (secs < 60) return `${Math.round(secs)}s`;
+    return `${Math.floor(secs / 60)}m ${Math.round(secs % 60)}s`;
+  }
+
+  function speedEtaLabel(op: StorageOperation): string {
+    const s = speedLabel(op);
+    const e = etaLabel(op);
+    if (!s && !e) return '';
+    if (s && e)
+      return `${m.storage_operations_speed()}: ${s} | ${e} ${m.storage_operations_remaining()}`;
+    if (s) return `${m.storage_operations_speed()}: ${s}`;
+    return `${e} ${m.storage_operations_remaining()}`;
+  }
 </script>
 
-{#if storage.operations.length > 0}
-  <div class="dropdown dropdown-end inline-flex" class:dropdown-open={dropdownOpen}>
-    <!-- Backdrop to close dropdown -->
-    {#if dropdownOpen}
-      <div
-        class="fixed inset-0 z-40"
-        onmousedown={closeDropdown}
-        onkeydown={(e) => e.key === 'Escape' && closeDropdown()}
-        role="presentation"
-      ></div>
-    {/if}
+<svelte:window
+  onclick={handleGlobalClick}
+  onkeydown={(e) => e.key === 'Escape' && (dropdownOpen = false)}
+/>
 
+{#if storage.operations.length > 0}
+  <div
+    bind:this={dropdownEl}
+    class="dropdown dropdown-end inline-flex"
+    class:dropdown-open={dropdownOpen}
+    role="group"
+    aria-label={m.storage_operations_label()}
+    onkeydown={(e) => e.key === 'Escape' && (dropdownOpen = false)}
+  >
     <!-- Trigger button -->
     <button
       class="
@@ -168,7 +257,7 @@
     <div
       role="menu"
       aria-label={m.storage_operations_label()}
-      class="dropdown-content rounded-box border-base-300 bg-base-100 z-60 w-80 border shadow-xl"
+      class="dropdown-content rounded-box border-base-300 bg-base-100 z-60 w-96 border shadow-xl"
     >
       <!-- Active operations section -->
       {#if activeOps.length > 0}
@@ -179,24 +268,54 @@
           <ul class="flex flex-col gap-2">
             {#each activeOps as op (op.id)}
               <li role="none" class="bg-base-200 rounded-lg px-3 py-2.5">
-                <!-- Row 1: type icon + label + cancel -->
-                <div class="flex items-start gap-2">
-                  <span class="text-primary mt-0.5 shrink-0" aria-hidden="true">
-                    {#if op.type === 'paste'}
-                      <IconContentPaste class="size-3.5" />
-                    {:else if op.type === 'move'}
-                      <IconDriveFileMove class="size-3.5" />
-                    {:else if op.type === 'rename'}
-                      <IconEdit class="size-3.5" />
-                    {:else}
-                      <IconDelete class="size-3.5" />
-                    {/if}
-                  </span>
-                  <span
-                    class="text-base-content min-w-0 flex-1 truncate text-xs leading-tight font-medium"
+                <!-- Collapsible header row -->
+                <div class="flex items-center gap-2">
+                  <div
+                    class="flex min-w-0 flex-1 cursor-pointer items-center gap-2"
+                    role="button"
+                    tabindex="0"
+                    onclick={() => toggleExpand(op.id)}
+                    onkeydown={(e) => e.key === 'Enter' && toggleExpand(op.id)}
+                    aria-expanded={expandedOps[op.id]}
                   >
-                    {op.label}
-                  </span>
+                    <!-- Chevron -->
+                    <span
+                      class="text-base-content/30 shrink-0 transition-transform duration-200"
+                      class:rotate-90={expandedOps[op.id]}
+                      aria-hidden="true"
+                    >
+                      <IconChevronRight class="size-3" />
+                    </span>
+
+                    <!-- Type icon -->
+                    <span class="text-primary shrink-0" aria-hidden="true">
+                      {#if op.type === 'paste'}
+                        <IconContentPaste class="size-3.5" />
+                      {:else if op.type === 'move'}
+                        <IconDriveFileMove class="size-3.5" />
+                      {:else if op.type === 'rename'}
+                        <IconEdit class="size-3.5" />
+                      {:else}
+                        <IconDelete class="size-3.5" />
+                      {/if}
+                    </span>
+
+                    <!-- Label -->
+                    <span
+                      class="text-base-content min-w-0 flex-1 truncate text-xs leading-tight font-medium"
+                    >
+                      {op.label}
+                    </span>
+
+                    <!-- Speed + ETA (collapsed, right-aligned) -->
+                    {#if op.totalBytes > 0}
+                      <span class="text-base-content/40 shrink-0 text-[9px] tabular-nums">
+                        {speedEtaLabel(op)}
+                      </span>
+                    {/if}
+                  </div>
+
+                  <!-- Cancel -->
                   <button
                     class="btn btn-ghost btn-xs text-error/70 hover:text-error size-5 shrink-0 p-0"
                     title={m.storage_operations_cancel()}
@@ -207,44 +326,87 @@
                   </button>
                 </div>
 
-                <!-- Current file name -->
-                {#if op.currentFileName}
-                  <div class="text-base-content/50 mt-1.5 truncate pl-5 text-[11px]">
-                    {op.currentFileName}
-                  </div>
-                {/if}
+                <!-- Expanded detail -->
+                {#if expandedOps[op.id]}
+                  <div class="mt-2 space-y-1.5">
+                    <!-- Current file -->
+                    {#if op.currentFileName}
+                      <div class="text-base-content/50 truncate pl-5 text-[11px]">
+                        {op.currentFileName}
+                      </div>
+                    {/if}
 
-                <!-- Progress bar + stats -->
-                {#if op.totalBytes > 0 || op.itemCount > 1}
-                  <div class="mt-2 pl-5">
-                    <div class="mb-1 flex items-center justify-between">
-                      <span class="text-base-content/50 text-[10px] tabular-nums">
-                        {progressLabel(op)}
-                      </span>
-                      <span class="text-primary text-[10px] font-semibold tabular-nums">
-                        {#if op.totalBytes > 0}
-                          {percent(op)}%
-                        {:else}
-                          {op.completedCount}/{op.itemCount}
-                        {/if}
-                      </span>
+                    <!-- Progress bar -->
+                    {#if op.totalBytes > 0 || op.itemCount > 1}
+                      <div
+                        class="pl-5"
+                        role="progressbar"
+                        aria-valuenow={displayBytes(op)}
+                        aria-valuemin={0}
+                        aria-valuemax={op.totalBytes}
+                        aria-label={op.label}
+                      >
+                        <div class="mb-1 flex items-center justify-between">
+                          <span class="text-base-content/50 text-[10px] tabular-nums">
+                            {progressLabel(op)}
+                          </span>
+                          <span class="text-primary text-[10px] font-semibold tabular-nums">
+                            {#if op.totalBytes > 0}
+                              {percent(op)}%
+                            {:else}
+                              {op.completedCount}/{op.itemCount}
+                            {/if}
+                          </span>
+                        </div>
+                        <div class="bg-base-300 h-1.5 w-full overflow-hidden rounded-full">
+                          <div
+                            class="bg-primary h-full rounded-full"
+                            style="width: {percent(op)}%"
+                          ></div>
+                        </div>
+                      </div>
+                    {/if}
+
+                    <!-- File list -->
+                    {#if op.sourceNames && op.sourceNames.length > 0}
+                      <div class="mt-1.5 space-y-0.5 pl-5">
+                        {#each op.sourceNames as name, i (i)}
+                          <div class="flex items-center gap-1.5 text-[10px] tabular-nums">
+                            {#if name === op.currentFileName}
+                              <span
+                                class="loading loading-spinner loading-xs text-primary"
+                                aria-hidden="true"
+                              ></span>
+                            {:else if i < op.completedCount}
+                              <span
+                                class="text-success inline-block size-2 rounded-full bg-current"
+                                aria-hidden="true"
+                              ></span>
+                            {:else}
+                              <span
+                                class="text-base-content/20 inline-block size-2 rounded-full border border-current"
+                                aria-hidden="true"
+                              ></span>
+                            {/if}
+                            <span class="text-base-content/70 truncate">{name}</span>
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
+
+                    <!-- Elapsed time -->
+                    <div class="text-base-content/35 mt-1.5 pl-5 text-[10px] tabular-nums">
+                      {formatElapsed(op.startedAt, op.completedAt)}
                     </div>
-                    <progress
-                      class="progress progress-primary progress-smooth h-1.5 w-full"
-                      value={op.totalBytes > 0 ? op.completedBytes : op.completedCount}
-                      max={op.totalBytes > 0 ? op.totalBytes : op.itemCount}
-                      aria-valuenow={op.totalBytes > 0 ? op.completedBytes : op.completedCount}
-                      aria-valuemin={0}
-                      aria-valuemax={op.totalBytes > 0 ? op.totalBytes : op.itemCount}
-                      aria-label={op.label}
-                    ></progress>
                   </div>
+                {:else}
+                  <!-- Collapsed: current file name on single line -->
+                  {#if op.currentFileName}
+                    <div class="text-base-content/40 mt-1 truncate pl-5 text-[10px]">
+                      {op.currentFileName}
+                    </div>
+                  {/if}
                 {/if}
-
-                <!-- Elapsed time -->
-                <div class="text-base-content/35 mt-1.5 pl-5 text-[10px] tabular-nums">
-                  {formatElapsed(op.startedAt, op.completedAt)}
-                </div>
               </li>
             {/each}
           </ul>
@@ -322,14 +484,14 @@
                 <!-- Partial progress for interrupted / error -->
                 {#if (op.status === 'interrupted' || op.status === 'error') && op.totalBytes > 0}
                   <div class="mt-1.5 pl-5">
-                    <progress
-                      class="progress h-1 w-full {op.status === 'interrupted'
-                        ? 'progress-warning'
-                        : 'progress-error'}"
-                      value={op.completedBytes}
-                      max={op.totalBytes}
-                      aria-label={op.label}
-                    ></progress>
+                    <div class="bg-base-300 h-1 w-full overflow-hidden rounded-full">
+                      <div
+                        class="h-full rounded-full {op.status === 'interrupted'
+                          ? 'bg-warning'
+                          : 'bg-error'}"
+                        style="width: {percent(op)}%"
+                      ></div>
+                    </div>
                     <span class="text-base-content/35 text-[9px] tabular-nums">
                       {formatBytes(op.completedBytes)} / {formatBytes(op.totalBytes)}
                     </span>
