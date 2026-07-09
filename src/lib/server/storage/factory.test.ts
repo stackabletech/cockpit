@@ -18,7 +18,13 @@ import type { S3Config, HDFSConfig } from './types.js';
 
 describe('StorageProviderFactory', () => {
   it('creates S3StorageProvider for type s3', () => {
-    const config: S3Config = { type: 's3', region: 'us-east-1', bucket: 'test' };
+    const config: S3Config = {
+      type: 's3',
+      host: 'minio.example.com',
+      accessStyle: 'Path',
+      region: { name: 'us-east-1' },
+      bucket: 'test'
+    };
     const provider = StorageProviderFactory.create(config);
     expect((provider as unknown as { config: S3Config }).config).toEqual(config);
   });

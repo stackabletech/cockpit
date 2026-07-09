@@ -12,11 +12,12 @@ const log = logger.child({ module: 'storage-connection' });
 
 /** The shape of the JSON stored inside encrypted_payload. */
 interface StoredPayload {
-  endpoint?: string;
-  pathStyle?: boolean;
-  region: string;
-  accessKeyId?: string;
-  secretAccessKey?: string;
+  host: string;
+  port?: number;
+  tls?: { verification: 'Full' | 'None' };
+  accessStyle: 'Path' | 'VirtualHosted';
+  region: { name: string };
+  credentials?: { accessKey: string; secretKey: string };
 }
 
 /**
@@ -68,13 +69,19 @@ export async function getConnectionFromHeader(
       log.warn({ err, connection_id: connectionId }, 'failed to update connection updated_at')
     );
 
+  const resolvedCredentials =
+    payload.credentials?.accessKey && payload.credentials?.secretKey
+      ? payload.credentials
+      : undefined;
+
   return {
     type: 's3',
-    endpoint: payload.endpoint || undefined,
-    pathStyle: payload.pathStyle ?? true,
+    host: payload.host,
+    port: payload.port,
+    tls: payload.tls,
+    accessStyle: payload.accessStyle,
     region: payload.region,
-    accessKeyId: payload.accessKeyId || undefined,
-    secretAccessKey: payload.secretAccessKey || undefined,
+    credentials: resolvedCredentials,
     additionalBuckets: (row.additionalBuckets as string[]) ?? []
   };
 }

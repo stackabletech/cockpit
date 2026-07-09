@@ -11,10 +11,8 @@
   }
 
   let { state, tabsState: tabsStateProp }: Props = $props();
-  const effectiveTabsState = $derived(tabsStateProp ?? new TabsState(state));
-
   setStorageState(state);
-  setTabsState(effectiveTabsState);
+  setTabsState(tabsStateProp ?? new TabsState(state));
 </script>
 
 <StorageBreadcrumb />

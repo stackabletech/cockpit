@@ -10,17 +10,18 @@ const log = logger.child({ module: 'connections-db' });
 
 /** Stored payload shape inside encrypted_payload. */
 interface StoredPayload {
-  endpoint?: string;
-  pathStyle?: boolean;
-  region: string;
-  accessKeyId?: string;
-  secretAccessKey?: string;
+  host: string;
+  port?: number;
+  tls?: { verification: 'Full' | 'None' };
+  accessStyle: 'Path' | 'VirtualHosted';
+  region: { name: string };
+  credentials?: { accessKey: string; secretKey: string };
 }
 
 /**
  * Save an S3 connection for a user. If a connection with identical credentials
  * already exists (same fingerprint), return its existing ID without inserting.
- * The connection name is auto-generated from the endpoint hostname.
+ * The connection name is auto-generated from the hostname.
  * Returns the connection ID.
  */
 export async function saveConnection(userId: string, config: S3ConnectionConfig): Promise<string> {
@@ -28,10 +29,10 @@ export async function saveConnection(userId: string, config: S3ConnectionConfig)
 
   const fp = fingerprint(
     {
-      endpoint: config.endpoint || '',
-      region: config.region,
-      accessKeyId: config.accessKeyId || '',
-      secretAccessKey: config.secretAccessKey || ''
+      endpoint: config.host,
+      region: config.region.name,
+      accessKeyId: config.credentials?.accessKey || '',
+      secretAccessKey: config.credentials?.secretKey || ''
     },
     key
   );
@@ -49,25 +50,18 @@ export async function saveConnection(userId: string, config: S3ConnectionConfig)
   }
 
   const payload: StoredPayload = {
-    endpoint: config.endpoint,
-    pathStyle: config.pathStyle,
+    host: config.host,
+    port: config.port,
+    tls: config.tls,
+    accessStyle: config.accessStyle,
     region: config.region,
-    accessKeyId: config.accessKeyId,
-    secretAccessKey: config.secretAccessKey
+    credentials: config.credentials
   };
   const encryptedPayload = encrypt(JSON.stringify(payload), key);
 
-  // Auto-generate name from endpoint hostname.
-  let baseName: string;
-  if (config.endpoint) {
-    try {
-      baseName = new URL(config.endpoint).hostname;
-    } catch {
-      baseName = config.endpoint;
-    }
-  } else {
-    baseName = 'AWS S3';
-  }
+  // Auto-generate name from hostname.
+  let baseName = config.host;
+  if (!baseName) baseName = 'S3';
 
   // Insert, appending a numeric suffix on name collisions.
   let name = baseName;
@@ -116,11 +110,12 @@ export async function getConnectionForUser(
     ) as StoredPayload;
     return {
       type: 's3',
-      endpoint: payload.endpoint,
-      pathStyle: payload.pathStyle,
+      host: payload.host,
+      port: payload.port,
+      tls: payload.tls,
+      accessStyle: payload.accessStyle,
       region: payload.region,
-      accessKeyId: payload.accessKeyId,
-      secretAccessKey: payload.secretAccessKey
+      credentials: payload.credentials?.accessKey ? payload.credentials : undefined
     };
   } catch (err) {
     log.error({ err, connection_id: connectionId }, 'failed to decrypt storage connection');

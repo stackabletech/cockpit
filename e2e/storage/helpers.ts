@@ -41,16 +41,30 @@ export function bucketRoute(bucket: string, prefix = ''): string {
 }
 
 export async function clearSavedConnections(page: Page) {
-  // The "Forget connection" buttons only appear on the disconnected connect form.
-  // Call this after openConnectForm (which ensures the connect form is visible).
   const savedList = page.getByRole('list', { name: 'Saved connections' });
   while (await savedList.isVisible().catch(() => false)) {
     const items = savedList.getByRole('listitem');
     if ((await items.count()) === 0) break;
-    // Click the trash/forget icon on the first saved connection
-    await items.first().getByRole('button').last().click();
-    // Confirm the forget modal
-    await page.getByRole('button', { name: 'Forget', exact: true }).click();
+    if (
+      await items
+        .first()
+        .filter({ hasText: 'No saved connections yet' })
+        .isVisible()
+        .catch(() => false)
+    )
+      break;
+    // Click the last button in the first list item. On desktop this is the
+    // "more options" button (opacity-0, so use force). On mobile it's the
+    // X delete button which submits the form directly.
+    await items.first().getByRole('button').last().click({ force: true });
+    // Desktop: a context menu appears — click Delete to open the modal.
+    // Mobile: the form submitted directly (no context menu), skip to hydration.
+    const deleteMenuItem = page.getByRole('menuitem', { name: 'Delete', exact: true });
+    if (await deleteMenuItem.isVisible().catch(() => false)) {
+      await deleteMenuItem.click();
+      // Confirm in the modal
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    }
     // The form action POSTs and the server redirects back to /storage;
     // wait for the page to re-hydrate before checking the list again.
     await waitForHydration(page);
@@ -91,11 +105,25 @@ export async function openConnectForm(page: Page, { clearSaved = true } = {}) {
 
 export async function connectToStorage(page: Page, credentials: GarageCredentials) {
   await openConnectForm(page);
-  await page.getByLabel('Endpoint URL').fill(credentials.endpoint);
+  const url = new URL(credentials.endpoint);
+  const host = url.hostname;
+  const port = url.port;
+  const useTls = url.protocol === 'https:';
+
+  await page.getByLabel('Host').fill(host);
+  if (port) {
+    await page.getByLabel('Port').fill(port);
+  }
+  // Default TLS is on — uncheck it for plain HTTP endpoints
+  const tlsToggle = page.getByLabel('Use TLS');
+  if (!useTls && (await tlsToggle.isChecked())) {
+    await tlsToggle.uncheck();
+  }
+  // Default access style is VirtualHosted — switch to Path for Garage
+  await page.getByLabel('Access style').selectOption('Path');
   await page.getByLabel('Region').fill(credentials.region);
-  await page.getByLabel('Access key ID').fill(credentials.accessKeyId);
-  await page.getByLabel('Secret access key').fill(credentials.secretAccessKey);
-  await expect(page.getByLabel('Use path-style addressing')).toBeChecked();
+  await page.getByLabel('Access key').fill(credentials.accessKeyId);
+  await page.getByLabel('Secret key').fill(credentials.secretAccessKey);
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
   // Wait for the client-side connected state to be established before returning.
   // This confirms the session's activeStorageConnectionId is set and the layout

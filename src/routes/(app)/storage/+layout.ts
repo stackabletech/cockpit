@@ -6,8 +6,7 @@ import type { LayoutLoad } from './$types';
 const DISCONNECTED = {
   connected: false,
   buckets: [] as string[],
-  connectionType: null,
-  connections: [] as import('$lib/storage/connection-store.svelte.js').ConnectionListItem[]
+  connectionType: null
 };
 
 /**
@@ -19,7 +18,9 @@ const DISCONNECTED = {
  * During SSR returns the disconnected default; the layout re-runs after hydration.
  */
 export const load: LayoutLoad = async ({ fetch, data }) => {
-  if (!browser) return DISCONNECTED;
+  if (!browser) {
+    return { ...DISCONNECTED, connections: data.connections ?? [] };
+  }
 
   const connections = data.connections ?? [];
   connectionStore.connections = connections;
@@ -29,14 +30,14 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
   const targetId = data.activeConnectionId ?? null;
   if (!targetId) {
     connectionStore.activeConnectionId = null;
-    return DISCONNECTED;
+    return { ...DISCONNECTED, connections };
   }
 
   const target = connections.find((c) => c.id === targetId);
   if (!target) {
     // Session refers to a connection that has since been deleted.
     connectionStore.activeConnectionId = null;
-    return DISCONNECTED;
+    return { ...DISCONNECTED, connections };
   }
 
   connectionStore.activeConnectionId = target.id;
@@ -46,11 +47,11 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
       headers: { [STORAGE_CONNECTION_ID_HEADER]: target.id }
     });
 
-    if (!res.ok) return DISCONNECTED;
+    if (!res.ok) return { ...DISCONNECTED, connections };
 
     const buckets = (await res.json()) as string[];
     return { connected: true, buckets, connectionType: 's3', connections };
   } catch {
-    return DISCONNECTED;
+    return { ...DISCONNECTED, connections };
   }
 };

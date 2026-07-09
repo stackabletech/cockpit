@@ -121,7 +121,13 @@ describe('storage page actions', () => {
   it('connect: returns error message on connection test failure', async () => {
     vi.mocked(superValidate).mockResolvedValue({
       valid: true,
-      data: validFormData
+      data: {
+        type: 's3',
+        host: 's3.example.com',
+        accessStyle: 'Path',
+        region: { name: 'us-east-1' },
+        credentials: { accessKey: 'ak', secretKey: 'sk' }
+      }
     } as unknown as Awaited<ReturnType<typeof superValidate>>);
     mockConnectionProvider.listContainers.mockRejectedValue(new Error('connection refused'));
 
@@ -138,7 +144,13 @@ describe('storage page actions', () => {
   it('connect: redirects on success', async () => {
     vi.mocked(superValidate).mockResolvedValue({
       valid: true,
-      data: validFormData
+      data: {
+        type: 's3',
+        host: 's3.example.com',
+        accessStyle: 'Path',
+        region: { name: 'us-east-1' },
+        credentials: { accessKey: 'ak', secretKey: 'sk' }
+      }
     } as unknown as Awaited<ReturnType<typeof superValidate>>);
     mockConnectionProvider.listContainers.mockResolvedValue(['b1']);
     mockSaveConnection.mockResolvedValue('new-conn-id');

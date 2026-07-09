@@ -35,8 +35,20 @@ test.describe('Storage S3 (Garage)', () => {
     while (await savedList.isVisible().catch(() => false)) {
       const items = savedList.getByRole('listitem');
       if ((await items.count()) === 0) break;
-      await items.first().getByRole('button').last().click();
-      await page.getByRole('button', { name: 'Forget', exact: true }).click();
+      if (
+        await items
+          .first()
+          .filter({ hasText: 'No saved connections yet' })
+          .isVisible()
+          .catch(() => false)
+      )
+        break;
+      await items.first().getByRole('button').last().click({ force: true });
+      const deleteMenuItem = page.getByRole('menuitem', { name: 'Delete', exact: true });
+      if (await deleteMenuItem.isVisible().catch(() => false)) {
+        await deleteMenuItem.click();
+        await page.getByRole('button', { name: 'Delete', exact: true }).click();
+      }
       await waitForHydration(page);
     }
   }
@@ -55,14 +67,16 @@ test.describe('Storage S3 (Garage)', () => {
 
     await openConnectForm(page);
 
-    // Fill in the connection form
-    await page.getByLabel('Endpoint URL').fill(endpoint);
+    // Fill in the connection form — parse URL into host/port
+    const url = new URL(endpoint);
+    await page.getByLabel('Host').fill(url.hostname);
+    if (url.port) await page.getByLabel('Port').fill(url.port);
+    const tlsToggle = page.getByLabel('Use TLS');
+    if (url.protocol !== 'https:' && (await tlsToggle.isChecked())) await tlsToggle.uncheck();
+    await page.getByLabel('Access style').selectOption('Path');
     await page.getByLabel('Region').fill(region);
-    await page.getByLabel('Access key ID').fill(accessKeyId);
-    await page.getByLabel('Secret access key').fill(secretAccessKey);
-
-    // Path-style addressing is on by default (required for Garage) — verify it is checked
-    await expect(page.getByLabel('Use path-style addressing')).toBeChecked();
+    await page.getByLabel('Access key').fill(accessKeyId);
+    await page.getByLabel('Secret key').fill(secretAccessKey);
 
     await page.getByRole('button', { name: 'Connect', exact: true }).click();
 
@@ -89,14 +103,19 @@ test.describe('Storage S3 (Garage)', () => {
 
     // First connect
     await openConnectForm(page);
-    await page.getByLabel('Endpoint URL').fill(endpoint);
+    const url2 = new URL(endpoint);
+    await page.getByLabel('Host').fill(url2.hostname);
+    if (url2.port) await page.getByLabel('Port').fill(url2.port);
+    const tlsToggle2 = page.getByLabel('Use TLS');
+    if (url2.protocol !== 'https:' && (await tlsToggle2.isChecked())) await tlsToggle2.uncheck();
+    await page.getByLabel('Access style').selectOption('Path');
     await page.getByLabel('Region').fill(region);
-    await page.getByLabel('Access key ID').fill(accessKeyId);
-    await page.getByLabel('Secret access key').fill(secretAccessKey);
+    await page.getByLabel('Access key').fill(accessKeyId);
+    await page.getByLabel('Secret key').fill(secretAccessKey);
     await page.getByRole('button', { name: 'Connect', exact: true }).click();
     await expect(page.locator('main').getByRole('heading', { name: 'Buckets' })).toBeVisible();
 
-    // Then disconnect
+    // Then disconnect — clicking Disconnect opens a confirmation modal.
     await page.getByRole('button', { name: 'Disconnect' }).click();
     // Disconnect now shows a confirmation modal; confirm it
     await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();

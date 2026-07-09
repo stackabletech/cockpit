@@ -222,6 +222,7 @@
             {#if tabsState.tabs.length > 1}
               <span
                 class="text-base-content/40 hover:text-error shrink-0 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+                title={m.storage_tab_close()}
                 role="button"
                 tabindex="-1"
                 aria-label={m.storage_tab_close()}

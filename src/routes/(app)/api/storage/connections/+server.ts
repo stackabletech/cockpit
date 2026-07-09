@@ -34,9 +34,11 @@ export const GET: RequestHandler = async ({ locals }) => {
     let endpoint: string | null = null;
     try {
       const payload = JSON.parse(decrypt(row.encryptedPayload, getKey())) as {
-        endpoint?: string;
+        host?: string;
+        port?: number;
       };
-      endpoint = payload.endpoint ?? null;
+      endpoint =
+        payload.host && payload.port ? `${payload.host}:${payload.port}` : (payload.host ?? null);
     } catch {
       // If decryption fails for a row, we still return the entry without the endpoint.
     }

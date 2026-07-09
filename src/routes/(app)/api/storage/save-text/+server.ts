@@ -6,7 +6,7 @@ import { maxEditableFileSize } from '$lib/server/feature-flags.js';
 import type { RequestHandler } from '@sveltejs/kit';
 
 /**
- * POST /storage/api/save-text?bucket=<bucket>&key=<key>&contentType=<type>&originalSize=<number>&previewBytes=<number>
+ * POST /api/storage/save-text?bucket=<bucket>&key=<key>&contentType=<type>&originalSize=<number>&previewBytes=<number>
  *
  * Saves edited text content back to S3. When the original file was truncated
  * during preview (previewBytes < originalSize), the endpoint fetches the
@@ -69,6 +69,10 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
     if (done) break;
     editChunks.push(value);
     totalEditBytes += value.length;
+    if (totalEditBytes > maxEditableFileSize) {
+      editReader.cancel();
+      throw error(413, 'File exceeds the maximum editable size and is read-only');
+    }
   }
 
   let mergedBuffer: Buffer;

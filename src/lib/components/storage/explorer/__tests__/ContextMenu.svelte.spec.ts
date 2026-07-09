@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import { SvelteSet } from 'svelte/reactivity';
-import ContextMenuWrapper from './__tests__/ContextMenuWrapper.svelte';
+import ContextMenuWrapper from './ContextMenuWrapper.svelte';
 import type { StorageObject } from '$lib/storage/types.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
 

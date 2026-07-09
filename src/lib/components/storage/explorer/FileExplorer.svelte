@@ -102,7 +102,7 @@
   <StorageBreadcrumb />
 
   <div bind:this={objectListEl} class="relative min-h-0 flex-1 overflow-hidden">
-    {#if storage.loading || storage.deleting || navigating.to}
+    {#if storage.loading || storage.deleting || storage.archiveLoading || navigating.to}
       <div
         class="bg-base-100/70 absolute inset-0 z-20 flex items-center justify-center"
         aria-live="polite"

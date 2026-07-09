@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import { SvelteSet } from 'svelte/reactivity';
-import FileRowWrapper from './__tests__/FileRowWrapper.svelte';
+import FileRowWrapper from './FileRowWrapper.svelte';
 import type { StorageObject } from '$lib/storage/types.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
 
@@ -127,6 +127,50 @@ describe('FileRow', () => {
   it('should call executeAction preview on double click', async () => {
     const file = makeFile({ key: 'dbl.txt', contentType: 'text/plain' });
     const state = createState([file]);
+    const spy = vi.spyOn(state, 'executeAction');
+    render(FileRowWrapper, { state, file });
+
+    await page.getByRole('row').dblClick();
+    expect(spy).toHaveBeenCalledWith('preview');
+  });
+
+  it('should call enterArchive on double click for zip files', async () => {
+    const file = makeFile({ key: 'archive.zip', contentType: 'application/zip' });
+    const state = createState([file]);
+    const spy = vi.spyOn(state, 'enterArchive');
+    render(FileRowWrapper, { state, file });
+
+    await page.getByRole('row').dblClick();
+    expect(spy).toHaveBeenCalledWith('archive.zip');
+  });
+
+  it('should call enterArchive on double click for tar.gz files', async () => {
+    const file = makeFile({ key: 'bundle.tar.gz', contentType: 'application/gzip' });
+    const state = createState([file]);
+    const spy = vi.spyOn(state, 'enterArchive');
+    render(FileRowWrapper, { state, file });
+
+    await page.getByRole('row').dblClick();
+    expect(spy).toHaveBeenCalledWith('bundle.tar.gz');
+  });
+
+  it('should call enterArchive on double click for nested archive inside an archive', async () => {
+    const file = makeFile({ key: 'nested.zip', contentType: undefined });
+    const state = createState([file]);
+    state.archiveKey = 'outer.zip';
+    state.archivePrefix = '';
+    const spy = vi.spyOn(state, 'enterArchive');
+    render(FileRowWrapper, { state, file });
+
+    await page.getByRole('row').dblClick();
+    expect(spy).toHaveBeenCalledWith('nested.zip');
+  });
+
+  it('should call executeAction preview on double click for non-archive file inside archive', async () => {
+    const file = makeFile({ key: 'readme.txt', contentType: 'text/plain' });
+    const state = createState([file]);
+    state.archiveKey = 'outer.zip';
+    state.archivePrefix = '';
     const spy = vi.spyOn(state, 'executeAction');
     render(FileRowWrapper, { state, file });
 

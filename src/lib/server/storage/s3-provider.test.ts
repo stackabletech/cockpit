@@ -44,7 +44,13 @@ function makeS3Error(name: string, httpStatusCode?: number): S3ServiceException 
 function makeProvider() {
   const send = vi.fn();
   const client = { send } as unknown as import('@aws-sdk/client-s3').S3Client;
-  const config = { type: 's3' as const, region: 'us-east-1', bucket: 'test-bucket' };
+  const config = {
+    type: 's3' as const,
+    host: 'minio.example.com',
+    accessStyle: 'Path' as const,
+    region: { name: 'us-east-1' },
+    bucket: 'test-bucket'
+  };
   const provider = new S3StorageProvider(config, client);
   return { provider, send };
 }
@@ -368,7 +374,13 @@ describe('S3StorageProvider.putObject', () => {
     const { send } = makeProvider();
     // Re-create provider with the send mock we can inspect
     const client = { send } as unknown as import('@aws-sdk/client-s3').S3Client;
-    const config = { type: 's3' as const, region: 'us-east-1', bucket: 'test-bucket' };
+    const config = {
+      type: 's3' as const,
+      host: 'localhost',
+      accessStyle: 'Path' as const,
+      region: { name: 'us-east-1' },
+      bucket: 'test-bucket'
+    };
     const emptyProvider = new S3StorageProvider(config, client);
     send.mockResolvedValue({});
 
@@ -516,7 +528,13 @@ describe('S3StorageProvider constructor', () => {
     const send = vi.fn();
     const fakeClient = { send } as unknown as import('@aws-sdk/client-s3').S3Client;
     const provider = new S3StorageProvider(
-      { type: 's3', region: 'us-east-1', bucket: 'b' },
+      {
+        type: 's3',
+        host: 'minio.example.com',
+        accessStyle: 'Path',
+        region: { name: 'us-east-1' },
+        bucket: 'b'
+      },
       fakeClient
     );
     expect(provider).toBeDefined();
@@ -527,9 +545,15 @@ describe('S3StorageProvider constructor', () => {
     const mockCreate = vi.mocked(createS3Client);
     mockCreate.mockClear();
 
-    new S3StorageProvider({ type: 's3', region: 'us-east-1', bucket: 'b' });
+    new S3StorageProvider({
+      type: 's3',
+      host: 'minio.example.com',
+      accessStyle: 'Path',
+      region: { name: 'us-east-1' },
+      bucket: 'b'
+    });
     expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ region: 'us-east-1', bucket: 'b' })
+      expect.objectContaining({ region: { name: 'us-east-1' }, bucket: 'b' })
     );
   });
 });

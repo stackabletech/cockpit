@@ -89,27 +89,31 @@
       key: 'pin' as ActionName,
       icon: IconPushPinOutline as Component,
       label: m.storage_action_pin(),
-      disabled: !storage.canPin,
-      hidden: !storage.canPin || storage.ctxIsPinned
+      disabled: !storage.canPin || storage.isInArchive,
+      hidden: !storage.canPin || storage.ctxIsPinned || storage.isInArchive
     },
     {
       key: 'unpin' as ActionName,
       icon: IconPushPin as Component,
       label: m.storage_action_unpin(),
-      disabled: !storage.ctxIsPinned,
-      hidden: !storage.ctxIsPinned
+      disabled: !storage.ctxIsPinned || storage.isInArchive,
+      hidden: !storage.ctxIsPinned || storage.isInArchive
     }
   ]);
 
-  const dangerActions = $derived([
-    {
-      key: 'delete' as ActionName,
-      icon: IconDelete as Component,
-      label: m.storage_action_delete(),
-      disabled: selectionCount === 0,
-      class: 'text-error'
-    }
-  ]);
+  const dangerActions = $derived(
+    storage.isInArchive
+      ? []
+      : [
+          {
+            key: 'delete' as ActionName,
+            icon: IconDelete as Component,
+            label: m.storage_action_delete(),
+            disabled: selectionCount === 0,
+            class: 'text-error'
+          }
+        ]
+  );
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

@@ -2,7 +2,7 @@ import { page } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
-import StorageBreadcrumbWrapper from './__tests__/StorageBreadcrumbWrapper.svelte';
+import StorageBreadcrumbWrapper from './StorageBreadcrumbWrapper.svelte';
 import { StorageState } from '$lib/storage/state.svelte.js';
 import { TabsState } from '$lib/storage/tabs.svelte.js';
 import type { StorageObject } from '$lib/storage/types.js';
@@ -455,6 +455,63 @@ describe('StorageBreadcrumb', () => {
       const nav = page.getByRole('navigation', { name: 'breadcrumb' });
       const moreBtn = nav.getByRole('button', { name: /more/i });
       await expect.element(moreBtn).not.toBeInTheDocument();
+    });
+  });
+
+  describe('archive mode', () => {
+    it('should show archive name when inside an archive', async () => {
+      const state = createState();
+      state.archiveKey = 'data.zip';
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      await expect.element(nav.getByText('data.zip')).toBeInTheDocument();
+    });
+
+    it('should show internal path parts when navigating within archive', async () => {
+      const state = createState();
+      state.archiveKey = 'data.zip';
+      state.archivePrefix = 'music/videos/';
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      await expect
+        .element(nav.getByRole('button', { name: 'music', exact: true }))
+        .toBeInTheDocument();
+      await expect.element(nav.getByText('videos')).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('should show nested archive entry when browsing nested archive', async () => {
+      const state = createState();
+      state.archiveKey = 'outer.zip';
+      state.archiveNestedPath = 'inner.tar';
+      state.archivePrefix = 'subdir/';
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      await expect.element(nav.getByText('outer.zip')).toBeInTheDocument();
+      await expect.element(nav.getByText('inner.tar')).toBeInTheDocument();
+      await expect.element(nav.getByText('subdir')).toBeInTheDocument();
+    });
+
+    it('should call navigateInArchive when clicking breadcrumb folder inside archive', async () => {
+      const state = createState();
+      state.archiveKey = 'data.zip';
+      state.archivePrefix = 'music/videos/';
+      const spy = vi.spyOn(state, 'navigateInArchive');
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      await nav.getByRole('button', { name: 'music', exact: true }).click();
+      expect(spy).toHaveBeenCalledWith('music/');
+    });
+
+    it('should hide upload button when in archive mode', async () => {
+      const state = createState();
+      state.archiveKey = 'data.zip';
+      render(StorageBreadcrumbWrapper, { state });
+
+      await expect.element(page.getByRole('button', { name: /upload/i })).not.toBeInTheDocument();
     });
   });
 

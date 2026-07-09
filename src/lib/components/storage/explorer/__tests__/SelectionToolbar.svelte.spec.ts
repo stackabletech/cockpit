@@ -2,7 +2,7 @@ import { page } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { SvelteSet } from 'svelte/reactivity';
-import SelectionToolbarWrapper from './__tests__/SelectionToolbarWrapper.svelte';
+import SelectionToolbarWrapper from './SelectionToolbarWrapper.svelte';
 import type { StorageObject } from '$lib/storage/types.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
 

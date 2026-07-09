@@ -1,6 +1,6 @@
 <script lang="ts">
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
-  import { keyToName, formatFileSize } from '$lib/storage/utils.js';
+  import { keyToName, formatFileSize, isArchiveExtension } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
   import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
   import FileIconAndName from './file-icon/FileIconAndName.svelte';
@@ -16,6 +16,7 @@
 
   const selected = $derived(storage.selectedKeys.has(file.key));
   const isCtx = $derived(storage.contextMenu?.key === file.key);
+  const isArchive = $derived(isArchiveExtension(file.key));
 </script>
 
 <tr
@@ -27,7 +28,13 @@
       ? 'bg-primary/10 hover:bg-primary/15'
       : 'hover:bg-base-200/60'}"
   onclick={(e) => storage.toggleSelect(file.key, e.ctrlKey || e.metaKey)}
-  ondblclick={() => storage.executeAction('preview')}
+  ondblclick={() => {
+    if (isArchive) {
+      void storage.enterArchive(file.key);
+    } else {
+      storage.executeAction('preview');
+    }
+  }}
   oncontextmenu={(e) => storage.openContextMenu(e, file.key)}
 >
   <td class="pr-0">

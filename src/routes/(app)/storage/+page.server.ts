@@ -19,7 +19,11 @@ import type { ConnectionMetadata, S3ConnectionConfig } from '$lib/server/storage
 
 export const load: PageServerLoad = async ({ locals }) => {
   const log = locals.logger;
-  const connectionForm = await superValidate(zod(StorageConnectionSchema));
+  const connectionForm = await superValidate(
+    { tls: { verification: 'Full' } },
+    zod(StorageConnectionSchema),
+    { errors: false }
+  );
   log.debug('loading storage page');
 
   const userId = locals.user?.id;
@@ -36,9 +40,11 @@ export const load: PageServerLoad = async ({ locals }) => {
       let endpoint: string | null = null;
       try {
         const payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey())) as {
-          endpoint?: string;
+          host?: string;
+          port?: number;
         };
-        endpoint = payload.endpoint ?? null;
+        endpoint =
+          payload.host && payload.port ? `${payload.host}:${payload.port}` : (payload.host ?? null);
       } catch {
         // Return entry without endpoint if decryption fails.
       }
@@ -59,19 +65,23 @@ export const actions: Actions = {
       return fail(400, { form });
     }
 
-    const { type, endpoint, pathStyle, region, accessKeyId, secretAccessKey } = form.data;
+    const { type, host, port, tls, accessStyle, region, credentials } = form.data;
 
     if (type !== 's3') {
       return message(form, 'HDFS connections are not yet supported', { status: 400 });
     }
 
+    const resolvedCredentials =
+      credentials.accessKey && credentials.secretKey ? credentials : undefined;
+
     const config: S3ConnectionConfig = {
       type: 's3',
-      endpoint: endpoint || undefined,
-      pathStyle,
+      host,
+      port,
+      tls,
+      accessStyle,
       region,
-      accessKeyId: accessKeyId || undefined,
-      secretAccessKey: secretAccessKey || undefined
+      credentials: resolvedCredentials
     };
 
     try {

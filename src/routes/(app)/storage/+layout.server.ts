@@ -30,9 +30,11 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     let endpoint: string | null = null;
     try {
       const payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey())) as {
-        endpoint?: string;
+        host?: string;
+        port?: number;
       };
-      endpoint = payload.endpoint ?? null;
+      endpoint =
+        payload.host && payload.port ? `${payload.host}:${payload.port}` : (payload.host ?? null);
     } catch {
       // Return entry without endpoint if decryption fails.
     }

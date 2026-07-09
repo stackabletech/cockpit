@@ -61,6 +61,8 @@
 
   // Sync server data into state whenever SvelteKit load runs
   $effect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    page.url.href;
     storage.syncFromServer(data.bucket, data.prefix, data.objects);
   });
 </script>

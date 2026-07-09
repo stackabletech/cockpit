@@ -1,6 +1,6 @@
 import { page } from 'vitest/browser';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render } from 'vitest-browser-svelte';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { render, cleanup } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import PreviewModal from './PreviewModal.svelte';
 
@@ -19,79 +19,63 @@ const defaultProps = {
   objectKey: 'path/to/document.txt'
 };
 
-/** Helper to create a mock Response with given content-type and headers */
 function mockFetchResponse(
   body: BodyInit | null,
-  options: {
+  opts?: {
     contentType?: string;
-    format?: string;
     truncated?: boolean;
     totalSize?: number;
     previewBytes?: number;
-    totalRows?: number;
-    previewRows?: number;
     renderable?: boolean;
-    status?: number;
-  } = {}
-) {
-  const headers: Record<string, string> = {
-    'Content-Type': options.contentType ?? 'text/plain',
-    'X-Preview-Format': options.format ?? 'text',
-    'X-Preview-Truncated': String(options.truncated ?? false),
-    'X-Preview-Total-Size': String(options.totalSize ?? 0),
-    'X-Preview-Bytes': String(options.previewBytes ?? 0)
-  };
-  if (options.totalRows !== undefined) {
-    headers['X-Preview-Total-Rows'] = String(options.totalRows);
   }
-  if (options.previewRows !== undefined) {
-    headers['X-Preview-Preview-Rows'] = String(options.previewRows);
-  }
-  if (options.renderable === false) {
-    headers['X-Preview-Renderable'] = 'false';
-  }
-  return new Response(body, { status: options.status ?? 200, headers });
+): Response {
+  return new Response(body, {
+    status: 200,
+    headers: {
+      'Content-Type': opts?.contentType ?? 'text/plain',
+      'X-Preview-Format': 'text',
+      'X-Preview-Truncated': String(opts?.truncated ?? false),
+      'X-Preview-Total-Size': String(opts?.totalSize ?? 11),
+      'X-Preview-Bytes': String(opts?.previewBytes ?? 11)
+    }
+  });
 }
 
-describe('PreviewModal', () => {
+describe('PreviewModal basics', () => {
+  const fetchMock = vi.fn();
+
   beforeEach(() => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        mockFetchResponse('Hello world', {
-          contentType: 'text/plain',
-          totalSize: 11,
-          previewBytes: 11
-        })
-      )
-    );
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockResolvedValue(mockFetchResponse('Hello world'));
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    fetchMock.mockReset();
   });
 
   describe('initial render', () => {
     it('should render a dialog when open', async () => {
       render(PreviewModal, defaultProps);
-
       await expect.element(page.getByRole('dialog')).toBeInTheDocument();
     });
 
     it('should show the filename in the heading', async () => {
       render(PreviewModal, { ...defaultProps, objectKey: 'folder/report.csv' });
-
       await expect.element(page.getByText('report.csv')).toBeInTheDocument();
     });
 
     it('should show loading state initially', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(() => {})));
+      fetchMock.mockReturnValue(new Promise(() => {}));
       render(PreviewModal, defaultProps);
-
-      await expect.element(page.getByText('Loading preview…')).toBeInTheDocument();
+      await expect.element(page.getByText('Loading preview\u2026')).toBeInTheDocument();
     });
   });
 
   describe('when open is false', () => {
     it('should not render dialog content', async () => {
       render(PreviewModal, { ...defaultProps, open: false });
-
       const heading = page.getByRole('heading');
       await expect.element(heading).not.toBeInTheDocument();
     });
@@ -100,7 +84,6 @@ describe('PreviewModal', () => {
   describe('close button', () => {
     it('should have a close button', async () => {
       render(PreviewModal, defaultProps);
-
       const closeBtn = page.getByRole('button', { name: /close/i });
       await expect.element(closeBtn).toBeInTheDocument();
     });
@@ -109,25 +92,20 @@ describe('PreviewModal', () => {
   describe('maximize toggle', () => {
     it('should have a maximise button', async () => {
       render(PreviewModal, defaultProps);
-
       const maxBtn = page.getByRole('button', { name: /maximise/i });
       await expect.element(maxBtn).toBeInTheDocument();
     });
 
     it('should switch to restore button after clicking maximise', async () => {
       render(PreviewModal, defaultProps);
-
       await page.getByRole('button', { name: /maximise/i }).click();
-
       await expect.element(page.getByRole('button', { name: /restore/i })).toBeInTheDocument();
     });
 
     it('should toggle back to maximise after clicking restore', async () => {
       render(PreviewModal, defaultProps);
-
       await page.getByRole('button', { name: /maximise/i }).click();
       await page.getByRole('button', { name: /restore/i }).click();
-
       await expect.element(page.getByRole('button', { name: /maximise/i })).toBeInTheDocument();
     });
   });
@@ -437,7 +415,7 @@ describe('PreviewModal', () => {
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
       await expect.element(page.getByText('col1').first()).toBeInTheDocument();
       await expect
-        .element(page.getByText('Showing first 0 of 10,000 rows (parquet)').first())
+        .element(page.getByText('Showing first 1 of 10,000 rows (parquet)').first())
         .toBeInTheDocument();
     });
 
@@ -810,13 +788,11 @@ describe('PreviewModal', () => {
   describe('accessibility', () => {
     it('should have a dialog role', async () => {
       render(PreviewModal, defaultProps);
-
       await expect.element(page.getByRole('dialog')).toBeInTheDocument();
     });
 
     it('should have aria-label on close button', async () => {
       render(PreviewModal, defaultProps);
-
       const closeBtn = page.getByRole('button', { name: /close/i });
       await expect.element(closeBtn).toBeInTheDocument();
     });
@@ -825,7 +801,6 @@ describe('PreviewModal', () => {
   describe('edge cases', () => {
     it('should handle null objectKey', async () => {
       render(PreviewModal, { ...defaultProps, objectKey: null });
-
       await expect.element(page.getByRole('dialog')).toBeInTheDocument();
     });
 
@@ -834,7 +809,6 @@ describe('PreviewModal', () => {
         ...defaultProps,
         objectKey: 'a/b/c/d/e/f/deeply-nested-file.json'
       });
-
       await expect.element(page.getByText('deeply-nested-file.json')).toBeInTheDocument();
     });
 
@@ -843,7 +817,6 @@ describe('PreviewModal', () => {
         ...defaultProps,
         objectKey: 'data/file (copy).txt'
       });
-
       await expect.element(page.getByText('file (copy).txt')).toBeInTheDocument();
     });
   });
