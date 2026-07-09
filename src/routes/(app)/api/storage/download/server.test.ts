@@ -15,7 +15,7 @@ function mockEvent(params: string) {
   const url = new URL(`http://localhost/api/storage/download?${params}`);
   return {
     url,
-    request: { headers: new Headers(CONNECTION_HEADER) },
+    request: { headers: new Headers(CONNECTION_HEADER), signal: new AbortController().signal },
     locals: {
       logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
       user: { id: 'test-user' },
