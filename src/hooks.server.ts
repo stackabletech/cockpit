@@ -61,7 +61,11 @@ const handleAuthGuard: Handle = async ({ event, resolve }) => {
 };
 
 /** Routes under /api/storage/ that do NOT need a storage connection header. */
-const STORAGE_ROUTES_WITHOUT_CONNECTION = new Set(['/(app)/api/storage/copy/job/[jobId]']);
+const STORAGE_ROUTES_WITHOUT_CONNECTION = new Set([
+  '/(app)/api/storage/copy/job/[jobId]',
+  '/(app)/api/storage/download',
+  '/(app)/api/storage/download/token'
+]);
 
 const handleStorageConnection: Handle = async ({ event, resolve }) => {
   if (

@@ -11,7 +11,7 @@ const log = logger.child({ module: 'storage-connection' });
  * Throws a 400 HTTP error if the payload is malformed or fails schema validation.
  * Throws a 400 HTTP error if the connection type is not 's3'.
  */
-function parseConnectionPayload(raw: string): S3ConnectionConfig {
+export function parseConnectionPayload(raw: string): S3ConnectionConfig {
   let data: unknown;
   try {
     data = JSON.parse(atob(raw));

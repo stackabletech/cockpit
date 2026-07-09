@@ -38,11 +38,13 @@ S3 connection credentials (access key ID and secret access key) are persisted in
 
 ---
 
-### Download endpoint buffers entire object in browser memory
+### Download token store is in-memory only
 
-**File:** `src/lib/storage/download.ts`
+**File:** `src/lib/server/storage/download-tokens.ts`
 
-`downloadObject` fetches the full S3 object body via the `/api/storage/download` endpoint, buffers it as a `Blob` in browser memory, then triggers a programmatic anchor click. This is simpler than streaming directly to disk but means the entire object must fit in browser memory before the save dialog appears. Acceptable for the current object sizes; for very large files (multiple GiB) this will cause memory pressure. Long-term fix: use the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) `createWritable()` to stream bytes directly to disk without buffering, with a fallback to the current Blob approach for Firefox (which does not support `showSaveFilePicker`).
+The `downloadObject` function no longer buffers objects in browser memory. It now uses a token exchange flow: a HEAD pre-flight validates access, the client exchanges the connection header for a short-lived token via `POST /api/storage/download/token`, then navigates to the download URL with that token. The browser streams the object directly to disk — no JavaScript-side buffering.
+
+The token store is an in-memory `Map<string, TokenEntry>`. Tokens expire after 60 seconds and are single-use. In a multi-process or serverless deployment, the in-memory store would not be shared across instances. The long-term fix is to use a shared store (Redis or signed JWTs that need no server-side state).
 
 ---
 
