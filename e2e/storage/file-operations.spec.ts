@@ -53,9 +53,9 @@ test.describe('Storage S3 — File Operations', () => {
       await page.locator('tbody tr').first().click();
       await page.waitForTimeout(500);
 
-      // Right-click empty space → Paste
-      await page.locator('tbody').click({ button: 'right' });
-      await page.getByRole('menuitem', { name: 'Paste' }).click();
+      // Click on table to focus it, then Ctrl+V to paste
+      await page.locator('table').click();
+      await page.keyboard.press('Control+v');
 
       // Wait for paste to complete
       await page.waitForTimeout(1000);
