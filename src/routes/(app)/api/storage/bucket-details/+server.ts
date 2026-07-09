@@ -10,17 +10,19 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
   const provider = getProvider(locals.storageConfig!, bucket);
 
-  const [versioning, lifecycleRules, tags] = await Promise.all([
+  const [versioning, lifecycleRules, tags, acl] = await Promise.all([
     provider.getBucketVersioning(),
     provider.getBucketLifecycleRules(),
-    provider.getBucketTags()
+    provider.getBucketTags(),
+    provider.getBucketAcl()
   ]);
 
   const details: BucketDetails = {
     name: bucket,
     versioningEnabled: versioning === 'Enabled',
     lifecycleRules,
-    tags
+    tags,
+    acl
   };
 
   return Response.json(details);

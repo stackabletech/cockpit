@@ -93,4 +93,5 @@ export interface BucketDetails {
   versioningEnabled: boolean;
   lifecycleRules: LifecycleRule[];
   tags: Record<string, string>;
+  acl: BucketAcl;
 }
