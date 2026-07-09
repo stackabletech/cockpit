@@ -125,6 +125,8 @@ export interface StorageOperation {
   completedBytes: number;
   /** Name of the file currently being transferred. */
   currentFileName?: string;
+  /** Server-side job IDs per file for recovering results after reload. */
+  fileJobIds?: string[];
 }
 
 // ── Storage locations ────────────────────────────────────────────────────────

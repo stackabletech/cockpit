@@ -552,54 +552,97 @@ describe('S3StorageProvider.copyObject', () => {
     expect(MockUpload).not.toHaveBeenCalled();
   });
 
-  it('streams via multipart upload for files over 5 GB', async () => {
+  it('uses server-side multipart copy for files over 5 GB', async () => {
     const fiveGB = 5 * 1024 * 1024 * 1024;
     const largeSize = fiveGB + 1;
-    const fakeStream = new ReadableStream();
+    // PART_SIZE = 256 MiB → 21 parts for (5GB + 1)
+    const numParts = 21;
+    const partSize = 256 * 1024 * 1024;
 
-    // HeadObject returns ContentLength > 5 GB
+    // HeadObject
     send.mockResolvedValueOnce({
       ContentLength: largeSize,
       ContentType: 'application/octet-stream'
     });
-    // GetObject returns the stream
-    send.mockResolvedValueOnce({
-      Body: { transformToWebStream: () => fakeStream },
-      ContentType: 'application/octet-stream',
-      ContentLength: largeSize
-    });
+    // CreateMultipartUpload
+    send.mockResolvedValueOnce({ UploadId: 'test-upload-id' });
+    // UploadPartCopy × numParts
+    for (let i = 0; i < numParts; i++) {
+      send.mockResolvedValueOnce({ CopyPartResult: { ETag: `etag-${i + 1}` } });
+    }
+    // CompleteMultipartUpload
+    send.mockResolvedValueOnce({});
 
     await provider.copyObject('src/large.parquet', 'dst/large.parquet');
 
-    expect(send).toHaveBeenCalledTimes(2);
-    const getObjectCmd = send.mock.calls[1][0];
-    expect(getObjectCmd.input.Key).toBe('src/large.parquet');
-    expect(MockUpload).toHaveBeenCalledWith(
-      expect.objectContaining({
-        params: expect.objectContaining({
-          Bucket: 'test-bucket',
-          Key: 'dst/large.parquet',
-          Body: fakeStream,
-          ContentLength: largeSize
-        })
-      })
-    );
-    expect(mockUploadDone).toHaveBeenCalled();
-  });
+    // Total calls: 1 Head + 1 Create + numParts UploadPartCopy + 1 Complete = 24
+    expect(send).toHaveBeenCalledTimes(1 + 1 + numParts + 1);
 
-  it('uses ContentLength from HeadObject for streaming copy', async () => {
-    const size = 6 * 1024 * 1024 * 1024;
-    send.mockResolvedValueOnce({ ContentLength: size, ContentType: 'video/mp4' });
-    send.mockResolvedValueOnce({
-      Body: { transformToWebStream: () => new ReadableStream() },
-      ContentType: 'video/mp4',
-      ContentLength: size
+    const createCmd = send.mock.calls[1][0];
+    expect(createCmd.constructor.name).toBe('CreateMultipartUploadCommand');
+    expect(createCmd.input).toMatchObject({
+      Bucket: 'test-bucket',
+      Key: 'dst/large.parquet',
+      ContentType: 'application/octet-stream'
     });
 
-    await provider.copyObject('src/video.mp4', 'dst/video.mp4');
+    for (let i = 0; i < numParts; i++) {
+      const partCmd = send.mock.calls[2 + i][0];
+      expect(partCmd.constructor.name).toBe('UploadPartCopyCommand');
+      const startByte = i * partSize;
+      const endByte = Math.min(startByte + partSize - 1, largeSize - 1);
+      expect(partCmd.input).toMatchObject({
+        Bucket: 'test-bucket',
+        Key: 'dst/large.parquet',
+        UploadId: 'test-upload-id',
+        PartNumber: i + 1,
+        CopySource: '/test-bucket/src%2Flarge.parquet',
+        CopySourceRange: `bytes=${startByte}-${endByte}`
+      });
+    }
 
-    const uploadParams = MockUpload.mock.calls[0][0] as { params: Record<string, unknown> };
-    expect(uploadParams.params.ContentLength).toBe(size);
+    const completeCmd = send.mock.calls[1 + 1 + numParts][0];
+    expect(completeCmd.constructor.name).toBe('CompleteMultipartUploadCommand');
+    expect(completeCmd.input).toMatchObject({
+      Bucket: 'test-bucket',
+      Key: 'dst/large.parquet',
+      UploadId: 'test-upload-id',
+      MultipartUpload: {
+        Parts: Array.from({ length: numParts }, (_, i) => ({
+          PartNumber: i + 1,
+          ETag: `etag-${i + 1}`
+        }))
+      }
+    });
+  });
+
+  it('reports progress during server-side multipart copy', async () => {
+    const size = 6 * 1024 * 1024 * 1024; // exactly 24 parts of 256 MiB
+    const partSize = 256 * 1024 * 1024;
+    const numParts = Math.ceil(size / partSize); // 24
+
+    const onProgress = vi.fn();
+
+    // HeadObject
+    send.mockResolvedValueOnce({ ContentLength: size, ContentType: 'video/mp4' });
+    // CreateMultipartUpload
+    send.mockResolvedValueOnce({ UploadId: 'upload-2' });
+    // UploadPartCopy × numParts
+    for (let i = 0; i < numParts; i++) {
+      send.mockResolvedValueOnce({ CopyPartResult: { ETag: `e${i}` } });
+    }
+    // CompleteMultipartUpload
+    send.mockResolvedValueOnce({});
+
+    await provider.copyObject('src/video.mp4', 'dst/video.mp4', onProgress);
+
+    expect(onProgress).toHaveBeenCalledTimes(numParts);
+    // Each call reports cumulative progress
+    for (let i = 0; i < numParts; i++) {
+      expect(onProgress).toHaveBeenNthCalledWith(i + 1, (i + 1) * partSize, size);
+    }
+    // Last call reports total size
+    expect(onProgress).toHaveBeenLastCalledWith(size, size);
   });
 });
 

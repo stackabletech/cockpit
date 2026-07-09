@@ -3,6 +3,12 @@ import { error, json } from '@sveltejs/kit';
 import { getProvider } from '$lib/server/storage/utils.js';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
 import { requireBucket } from '../params.js';
+import {
+  createJob,
+  completeJob,
+  failJob,
+  updateJobProgress
+} from '$lib/server/storage/job-store.js';
 
 /**
  * Compute move destinations for each source key, expanding directories
@@ -73,6 +79,7 @@ export const POST: RequestHandler = async ({ locals, request, url }) => {
   const body = (await request.json()) as {
     sourceKeys: string[];
     destinationPrefix: string;
+    jobId?: string;
   };
   if (!body.sourceKeys?.length) {
     throw error(400, 'Missing required body field: sourceKeys');
@@ -139,78 +146,113 @@ export const POST: RequestHandler = async ({ locals, request, url }) => {
     body.destinationPrefix
   );
   const encoder = new TextEncoder();
+
+  type ProgressEvent =
+    | { type: 'progress'; sourceKey: string; destKey: string; loaded: number; total: number }
+    | { type: 'done'; sourceKey: string; destKey: string }
+    | { type: 'failed'; sourceKey: string; error: string }
+    | { type: 'status'; message: string };
+
+  let emitEvent: (event: ProgressEvent) => void = () => {};
+
+  const movePromise = (async (): Promise<{
+    moved: Array<{ sourceKey: string; destKey: string }>;
+    failed: Array<{ sourceKey: string; error: string }>;
+  }> => {
+    const moved: Array<{ sourceKey: string; destKey: string }> = [];
+    const failed: Array<{ sourceKey: string; error: string }> = [];
+
+    for (const { sourceKey, baseDestKey } of destinations) {
+      try {
+        const destKey = await uniqueDestKey(provider, baseDestKey);
+        let reportedAnyProgress = false;
+        await provider.copyObject(sourceKey, destKey, (loaded, total) => {
+          reportedAnyProgress = true;
+          emitEvent({ type: 'progress', sourceKey, destKey, loaded, total });
+        });
+
+        if (!reportedAnyProgress) {
+          try {
+            const meta = await provider.getMetadata(sourceKey);
+            emitEvent({
+              type: 'progress',
+              sourceKey,
+              destKey,
+              loaded: meta.size,
+              total: meta.size
+            });
+          } catch {
+            // Metadata fetch failed
+          }
+        }
+
+        moved.push({ sourceKey, destKey });
+        emitEvent({ type: 'done', sourceKey, destKey });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        failed.push({ sourceKey, error: message });
+        locals.logger.warn(
+          { bucket, source_key: sourceKey, dest_key: baseDestKey, error: message },
+          'move copy failed for key'
+        );
+        emitEvent({ type: 'failed', sourceKey, error: message });
+      }
+    }
+
+    // Delete originals for successfully moved items
+    const keysToDelete = [...new Set(moved.map((m) => m.sourceKey))];
+    if (keysToDelete.length > 0) {
+      emitEvent({ type: 'status', message: `Deleting ${keysToDelete.length} original(s)` });
+      const deleteResult = await provider.deleteObjects(keysToDelete);
+      for (const f of deleteResult.failed) {
+        failed.push({ sourceKey: f.key, error: f.message ?? 'Delete failed' });
+        locals.logger.warn({ bucket, key: f.key }, 'move delete failed for key');
+      }
+    }
+
+    locals.logger.info({ bucket, moved: moved.length, failed: failed.length }, 'move completed');
+    return { moved, failed };
+  })();
+
+  if (body.jobId) {
+    createJob(body.jobId);
+  }
+
   const stream = new ReadableStream({
     async start(controller) {
-      const moved: Array<{ sourceKey: string; destKey: string }> = [];
-      const failed: Array<{ sourceKey: string; error: string }> = [];
+      const jobId = body.jobId;
 
-      for (const { sourceKey, baseDestKey } of destinations) {
-        try {
-          const destKey = await uniqueDestKey(provider, baseDestKey);
-          let reportedAnyProgress = false;
-          await provider.copyObject(sourceKey, destKey, (loaded, total) => {
-            reportedAnyProgress = true;
-            controller.enqueue(
-              encoder.encode(ndjsonLine({ type: 'progress', sourceKey, destKey, loaded, total }))
-            );
-          });
-
-          if (!reportedAnyProgress) {
-            try {
-              const meta = await provider.getMetadata(sourceKey);
-              controller.enqueue(
-                encoder.encode(
-                  ndjsonLine({
-                    type: 'progress',
-                    sourceKey,
-                    destKey,
-                    loaded: meta.size,
-                    total: meta.size
-                  })
-                )
-              );
-            } catch {
-              // Metadata fetch failed
-            }
+      emitEvent = (event) => {
+        if (jobId) {
+          if (event.type === 'progress') {
+            updateJobProgress(jobId, { completedBytes: event.loaded });
           }
+        }
 
-          moved.push({ sourceKey, destKey });
-          controller.enqueue(encoder.encode(ndjsonLine({ type: 'done', sourceKey, destKey })));
-        } catch (err) {
-          const message = err instanceof Error ? err.message : 'Unknown error';
-          failed.push({ sourceKey, error: message });
-          locals.logger.warn(
-            { bucket, source_key: sourceKey, dest_key: baseDestKey, error: message },
-            'move copy failed for key'
-          );
-          controller.enqueue(
-            encoder.encode(ndjsonLine({ type: 'failed', sourceKey, error: message }))
-          );
+        try {
+          controller.enqueue(encoder.encode(ndjsonLine(event)));
+        } catch {
+          // Controller closed (client disconnected) — move continues
+          // in the background unaffected.
+        }
+      };
+
+      const { moved, failed } = await movePromise;
+
+      if (jobId) {
+        if (failed.length > 0) {
+          failJob(jobId, `Failed to move ${failed.length} item(s)`);
+        } else {
+          completeJob(jobId, { moved, failed });
         }
       }
 
-      // Delete originals for successfully moved items
-      const keysToDelete = [...new Set(moved.map((m) => m.sourceKey))];
-      if (keysToDelete.length > 0) {
-        controller.enqueue(
-          encoder.encode(
-            ndjsonLine({
-              type: 'status',
-              message: `Deleting ${keysToDelete.length} original(s)`
-            })
-          )
-        );
-        const deleteResult = await provider.deleteObjects(keysToDelete);
-        for (const f of deleteResult.failed) {
-          failed.push({ sourceKey: f.key, error: f.message ?? 'Delete failed' });
-          locals.logger.warn({ bucket, key: f.key }, 'move delete failed for key');
-        }
+      try {
+        controller.enqueue(encoder.encode(ndjsonLine({ type: 'complete', moved, failed })));
+        controller.close();
+      } catch {
+        // Client already disconnected
       }
-
-      locals.logger.info({ bucket, moved: moved.length, failed: failed.length }, 'move completed');
-
-      controller.enqueue(encoder.encode(ndjsonLine({ type: 'complete', moved, failed })));
-      controller.close();
     }
   });
 

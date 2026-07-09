@@ -3,6 +3,12 @@ import { error, json } from '@sveltejs/kit';
 import { getProvider } from '$lib/server/storage/utils.js';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
 import { requireBucket } from '../params.js';
+import {
+  createJob,
+  completeJob,
+  failJob,
+  updateJobProgress
+} from '$lib/server/storage/job-store.js';
 
 /**
  * Compute copy destinations for each source key, expanding directories
@@ -79,6 +85,7 @@ export const POST: RequestHandler = async ({ locals, request, url }) => {
   const body = (await request.json()) as {
     sourceKeys: string[];
     destinationPrefix: string;
+    jobId?: string;
   };
   if (!body.sourceKeys?.length) {
     throw error(400, 'Missing required body field: sourceKeys');
@@ -135,70 +142,120 @@ export const POST: RequestHandler = async ({ locals, request, url }) => {
     body.destinationPrefix
   );
   const encoder = new TextEncoder();
+
+  // Run the copy operations as an independent background task. It calls
+  // onEvent() for progress/done/failed — it never touches the stream
+  // controller. When the client disconnects, the stream is cancelled but
+  // the copy continues unaffected.
+  type ProgressEvent =
+    | { type: 'progress'; sourceKey: string; destKey: string; loaded: number; total: number }
+    | { type: 'done'; sourceKey: string; destKey: string }
+    | { type: 'failed'; sourceKey: string; error: string };
+
+  let emitEvent: (event: ProgressEvent) => void = () => {};
+
+  const copyPromise = (async (): Promise<{
+    results: Array<{ sourceKey: string; destKey: string }>;
+    failed: Array<{ sourceKey: string; error: string }>;
+  }> => {
+    const results: Array<{ sourceKey: string; destKey: string }> = [];
+    const failed: Array<{ sourceKey: string; error: string }> = [];
+
+    for (const { sourceKey, baseDestKey } of destinations) {
+      try {
+        const destKey = await uniqueDestKey(provider, baseDestKey);
+
+        let reportedAnyProgress = false;
+        await provider.copyObject(sourceKey, destKey, (loaded, total) => {
+          reportedAnyProgress = true;
+          emitEvent({ type: 'progress', sourceKey, destKey, loaded, total });
+        });
+
+        if (!reportedAnyProgress) {
+          try {
+            const meta = await provider.getMetadata(sourceKey);
+            emitEvent({
+              type: 'progress',
+              sourceKey,
+              destKey,
+              loaded: meta.size,
+              total: meta.size
+            });
+          } catch {
+            // Metadata fetch failed — emit without size info
+          }
+        }
+
+        results.push({ sourceKey, destKey });
+        emitEvent({ type: 'done', sourceKey, destKey });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        const errorName = err instanceof Error ? err.constructor.name : typeof err;
+        const stack =
+          err instanceof Error ? (err.stack ?? '').split('\n').slice(0, 3).join(' | ') : '';
+        failed.push({ sourceKey, error: message });
+        locals.logger.warn(
+          {
+            bucket,
+            source_key: sourceKey,
+            dest_key: baseDestKey,
+            error: message,
+            error_name: errorName,
+            stack
+          },
+          'copy failed for key'
+        );
+        emitEvent({ type: 'failed', sourceKey, error: message });
+      }
+    }
+
+    locals.logger.info({ bucket, copied: results.length, failed: failed.length }, 'copy completed');
+
+    return { results, failed };
+  })();
+
+  if (body.jobId) {
+    createJob(body.jobId);
+  }
+
   const stream = new ReadableStream({
     async start(controller) {
-      const results: Array<{ sourceKey: string; destKey: string }> = [];
-      const failed: Array<{ sourceKey: string; error: string }> = [];
+      const jobId = body.jobId;
 
-      for (const { sourceKey, baseDestKey } of destinations) {
-        try {
-          const destKey = await uniqueDestKey(provider, baseDestKey);
-
-          // For files that might be large, we stream progress events.
-          // copyObject only calls onProgress for >5 GB files (multipart upload).
-          let reportedAnyProgress = false;
-          await provider.copyObject(sourceKey, destKey, (loaded, total) => {
-            reportedAnyProgress = true;
-            controller.enqueue(
-              encoder.encode(ndjsonLine({ type: 'progress', sourceKey, destKey, loaded, total }))
-            );
-          });
-
-          // If copyObject used S3 CopyObject (small file), no onProgress was
-          // fired. Emit a synthetic 100% event so the client knows it's done.
-          if (!reportedAnyProgress) {
-            // Fetch the size for a useful event
-            try {
-              const meta = await provider.getMetadata(sourceKey);
-              controller.enqueue(
-                encoder.encode(
-                  ndjsonLine({
-                    type: 'progress',
-                    sourceKey,
-                    destKey,
-                    loaded: meta.size,
-                    total: meta.size
-                  })
-                )
-              );
-            } catch {
-              // Metadata fetch failed — emit without size info
-            }
+      emitEvent = (event) => {
+        // Update job store so the client can poll progress after a reconnect
+        if (jobId) {
+          if (event.type === 'progress') {
+            updateJobProgress(jobId, { completedBytes: event.loaded });
           }
+        }
 
-          results.push({ sourceKey, destKey });
-          controller.enqueue(encoder.encode(ndjsonLine({ type: 'done', sourceKey, destKey })));
-        } catch (err) {
-          const message = err instanceof Error ? err.message : 'Unknown error';
-          failed.push({ sourceKey, error: message });
-          locals.logger.warn(
-            { bucket, source_key: sourceKey, dest_key: baseDestKey, error: message },
-            'copy failed for key'
-          );
-          controller.enqueue(
-            encoder.encode(ndjsonLine({ type: 'failed', sourceKey, error: message }))
-          );
+        try {
+          controller.enqueue(encoder.encode(ndjsonLine(event)));
+        } catch {
+          // Controller closed (client disconnected) — copy continues
+          // in the background unaffected.
+        }
+      };
+
+      const { results, failed } = await copyPromise;
+
+      // Store results in job store for retrieval after client reconnect
+      if (jobId) {
+        if (failed.length > 0) {
+          failJob(jobId, `Failed to copy ${failed.length} item(s)`);
+        } else {
+          completeJob(jobId, { results, failed });
         }
       }
 
-      locals.logger.info(
-        { bucket, copied: results.length, failed: failed.length },
-        'copy completed'
-      );
-
-      // Final summary line
-      controller.enqueue(encoder.encode(ndjsonLine({ type: 'complete', results, failed })));
-      controller.close();
+      // Final summary
+      try {
+        controller.enqueue(encoder.encode(ndjsonLine({ type: 'complete', results, failed })));
+        controller.close();
+      } catch {
+        // Client already disconnected
+      }
     }
   });
 

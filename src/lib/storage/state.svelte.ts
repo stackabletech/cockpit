@@ -34,6 +34,16 @@ import { BookmarksState } from './bookmarks.svelte.js';
 import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
 import { keyToName } from '$lib/storage/utils.js';
 
+// Set to true when the page starts unloading (reload, tab close, navigate away).
+// Used to suppress misleading error toasts for in-flight operations that the
+// browser cancelled — the server-side copies continue regardless.
+let pageUnloading = false;
+if (browser) {
+  window.addEventListener('beforeunload', () => {
+    pageUnloading = true;
+  });
+}
+
 // ── Operations history localStorage helpers ───────────────────────────────────
 
 const OPERATIONS_HISTORY_KEY = 'storage_operations_history';
@@ -217,6 +227,8 @@ export class StorageState {
     this.bookmarks = new BookmarksState(options?.connectionId ?? '');
     // Restore persisted operation history (interrupted ops appear from previous sessions).
     this.operations = loadPersistedOperations();
+    // Reconcile interrupted operations that have a server-side job store entry.
+    void this.reconcileInterruptedOps();
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -819,6 +831,7 @@ export class StorageState {
           let completedBytes = 0;
           const fileSizes = this.clipboard?.fileSizes ?? {};
           const pasteSourceNames = pasteKeys.map((k) => keyToName(k));
+          const fileJobIdsAccum: string[] = [];
           const { results, failed } = await this.performPasteSequential(
             pasteKeys,
             this.clipboard.sourceBucket,
@@ -847,6 +860,10 @@ export class StorageState {
                 prevBytes + loaded,
                 pasteSourceNames[prevFiles] ?? ''
               );
+            },
+            (index, jobId) => {
+              fileJobIdsAccum[index] = jobId;
+              this._updateOpJobIds(opId, [...fileJobIdsAccum]);
             }
           );
           await tick();
@@ -889,6 +906,12 @@ export class StorageState {
         } catch (err: unknown) {
           if (err instanceof DOMException && err.name === 'AbortError') {
             this._finishOp(opId, 'cancelled');
+            return;
+          }
+          if (pageUnloading) {
+            // Page is unloading — server-side copies continue regardless.
+            // The operation persists as 'running' in localStorage and will
+            // appear as 'interrupted' on the next page load.
             return;
           }
           this._finishOp(opId, 'error');
@@ -1062,10 +1085,12 @@ export class StorageState {
     deleteOriginals = false,
     signal?: AbortSignal,
     onFileComplete?: (index: number, key: string) => void,
-    onFileProgress?: (loaded: number, total: number) => void
+    onFileProgress?: (loaded: number, total: number) => void,
+    onFileJobId?: (index: number, jobId: string) => void
   ): Promise<{
     results: Array<{ sourceKey: string; destKey: string }>;
     failed: number;
+    fileJobIds: string[];
   }> {
     const conn = loadConnectionLocally();
     if (!conn) throw new ActionError('not_connected', 'No connection');
@@ -1073,11 +1098,15 @@ export class StorageState {
     const endpoint = deleteOriginals ? '/api/storage/move' : '/api/storage/copy';
     const results: Array<{ sourceKey: string; destKey: string }> = [];
     let failed = 0;
+    const fileJobIds: string[] = [];
 
     for (let i = 0; i < keys.length; i++) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
       const sourceKey = keys[i];
+      const fileJobId = crypto.randomUUID();
+      fileJobIds.push(fileJobId);
+      onFileJobId?.(i, fileJobId);
       const params = new SvelteURLSearchParams({ bucket: this.bucket });
       params.set('progress', 'true');
       const res = await fetch(`${endpoint}?${params}`, {
@@ -1088,7 +1117,8 @@ export class StorageState {
         },
         body: JSON.stringify({
           sourceKeys: [sourceKey],
-          destinationPrefix: destPrefix
+          destinationPrefix: destPrefix,
+          jobId: fileJobId
         }),
         signal
       });
@@ -1158,7 +1188,7 @@ export class StorageState {
       onFileComplete?.(i + 1, sourceKey);
     }
 
-    return { results, failed };
+    return { results, failed, fileJobIds };
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -1374,6 +1404,7 @@ export class StorageState {
       const endpoint = '/api/storage/move';
       const results: Array<{ sourceKey: string; destKey: string }> = [];
       let failed = 0;
+      const fileJobIds: string[] = [];
 
       for (let i = 0; i < moveKeys.length; i++) {
         if (abortController.signal.aborted) {
@@ -1381,6 +1412,9 @@ export class StorageState {
         }
 
         const sourceKey = moveKeys[i];
+        const fileJobId = crypto.randomUUID();
+        fileJobIds.push(fileJobId);
+        this._updateOpJobIds(opId, [...fileJobIds]);
         const params = new SvelteURLSearchParams({ bucket: this.bucket });
         params.set('progress', 'true');
         const res = await fetch(`${endpoint}?${params}`, {
@@ -1391,7 +1425,8 @@ export class StorageState {
           },
           body: JSON.stringify({
             sourceKeys: [sourceKey],
-            destinationPrefix: destPrefix
+            destinationPrefix: destPrefix,
+            jobId: fileJobId
           }),
           signal: abortController.signal
         });
@@ -1508,6 +1543,9 @@ export class StorageState {
       if (err instanceof DOMException && err.name === 'AbortError') {
         this._finishOp(opId, 'cancelled');
         this._pendingSourcePrefix = null;
+        return;
+      }
+      if (pageUnloading) {
         return;
       }
       this._finishOp(opId, 'error');
@@ -1742,6 +1780,9 @@ export class StorageState {
         this._finishOp(opId, 'cancelled');
         return;
       }
+      if (pageUnloading) {
+        return;
+      }
       this._finishOp(opId, 'error');
       addToast('error', m.storage_action_paste_error());
     }
@@ -1952,6 +1993,9 @@ export class StorageState {
         this._finishOp(opId, 'cancelled');
         return;
       }
+      if (pageUnloading) {
+        return;
+      }
       this._finishOp(opId, 'error');
       addToast('error', m.storage_action_move_error());
     }
@@ -2046,6 +2090,11 @@ export class StorageState {
     );
   }
 
+  private _updateOpJobIds(id: string, fileJobIds: string[]): void {
+    this.operations = this.operations.map((op) => (op.id === id ? { ...op, fileJobIds } : op));
+    saveOperationsToStorage(this.operations);
+  }
+
   private _finishOp(
     id: string,
     status: 'done' | 'error' | 'cancelled',
@@ -2056,6 +2105,85 @@ export class StorageState {
     );
     this._abortControllers.delete(id);
     saveOperationsToStorage(this.operations);
+  }
+
+  /**
+   * For interrupted operations that have fileJobIds, poll the server job store
+   * to recover actual results. Updates operations in place.
+   * For jobs still running, polls periodically to show live progress.
+   */
+  private async reconcileInterruptedOps(): Promise<void> {
+    const interrupted = this.operations.filter(
+      (op) => op.status === 'interrupted' && op.fileJobIds && op.fileJobIds.length > 0
+    );
+    if (interrupted.length === 0) return;
+
+    for (const op of interrupted) {
+      void this._pollJobStatus(op);
+    }
+  }
+
+  /**
+   * Poll the server job store for a single operation's status.
+   * Updates the operation's progress and status in real-time.
+   */
+  private _pollTimers = new SvelteMap<string, ReturnType<typeof setTimeout>>();
+
+  private async _pollJobStatus(op: StorageOperation): Promise<void> {
+    let completedCount = 0;
+    let completedBytes = 0;
+    let anyRunning = false;
+
+    for (const jobId of op.fileJobIds!) {
+      try {
+        const res = await fetch(`/api/storage/copy/job/${jobId}`);
+        if (!res.ok) continue;
+        const job = (await res.json()) as {
+          status: string;
+          progress?: { completedCount?: number; completedBytes?: number; currentFileName?: string };
+        };
+        if (job.status === 'done') {
+          completedCount++;
+        } else if (job.status === 'running') {
+          anyRunning = true;
+          completedBytes += job.progress?.completedBytes ?? 0;
+        }
+      } catch {
+        // Job may have expired
+      }
+    }
+
+    // Update the operation — switch to 'running' if still in progress so the
+    // progress display shows live data instead of a static "interrupted" message.
+    if (anyRunning) {
+      this.operations = this.operations.map((o) =>
+        o.id === op.id ? { ...o, status: 'running' as const, completedCount, completedBytes } : o
+      );
+      // Poll again in 2 seconds
+      const timer = setTimeout(() => void this._pollJobStatus(op), 2000);
+      this._pollTimers.set(op.id, timer);
+    } else {
+      // All jobs resolved — mark operation as done (or partially failed)
+      this.operations = this.operations.map((o) =>
+        o.id === op.id
+          ? {
+              ...o,
+              status: (completedCount === op.itemCount ? 'done' : 'error') as 'done' | 'error',
+              completedCount,
+              completedBytes,
+              completedAt: Date.now()
+            }
+          : o
+      );
+      saveOperationsToStorage(this.operations);
+
+      // Clean up any lingering timer
+      const existing = this._pollTimers.get(op.id);
+      if (existing) {
+        clearTimeout(existing);
+        this._pollTimers.delete(op.id);
+      }
+    }
   }
 
   /** Remove all completed/failed/cancelled/interrupted operations from history. */
