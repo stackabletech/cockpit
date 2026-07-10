@@ -214,18 +214,13 @@ export class StorageState {
     e.stopPropagation();
 
     if (!this.selectedKeys.has(key)) {
-      this.selectedKeys = new SvelteSet<string>([...this.selectedKeys, key]);
+      this.selectedKeys = new SvelteSet<string>([key]);
     }
 
     this.contextMenu = { x: e.clientX, y: e.clientY, key };
   };
 
   closeContextMenu = (): void => {
-    if (this.contextMenu) {
-      const next = new SvelteSet<string>(this.selectedKeys);
-      next.delete(this.contextMenu.key);
-      this.selectedKeys = next;
-    }
     this.contextMenu = null;
   };
 
@@ -375,8 +370,9 @@ export class StorageState {
     } else if (e.key === 'Escape') {
       if (this.contextMenu) {
         this.closeContextMenu();
+      } else {
+        this.clearSelection();
       }
-      this.clearSelection();
     }
   };
 

@@ -319,6 +319,8 @@
   "storage_preview_csv_rows": "Erste {count} Zeilen werden angezeigt",
   "storage_preview_parquet_rows": "Erste {count} von {total} Zeilen werden angezeigt (Parquet)",
   "storage_preview_pdf_too_large": "PDF ist zu groß für die Inline-Vorschau.",
+  "storage_preview_image_too_large": "Bild ist zu groß für die Anzeige.",
+  "storage_preview_image_too_large_desc": "Die Datei überschreitet die maximale Vorschaugröße. Laden Sie die vollständige Datei herunter, um sie anzuzeigen.",
   "storage_preview_maximise": "Maximieren",
   "storage_preview_restore": "Wiederherstellen",
   "storage_context_menu_actions": "Aktionen",

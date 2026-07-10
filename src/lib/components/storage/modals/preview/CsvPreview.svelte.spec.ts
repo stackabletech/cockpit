@@ -72,7 +72,7 @@ describe('CsvPreview', () => {
     const text = [header, ...rows].join('\n');
     render(CsvPreview, { text, maxRows: 10 });
 
-    const notice = page.getByText(/10/);
+    const notice = page.getByText('Showing first 10 rows');
     await expect.element(notice).toBeInTheDocument();
   });
 

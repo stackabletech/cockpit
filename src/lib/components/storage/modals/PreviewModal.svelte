@@ -55,7 +55,7 @@
       }
     | { kind: 'image'; blobUrl: string; contentType: string; totalSize: number }
     | { kind: 'pdf'; blobUrl: string; totalSize: number }
-    | { kind: 'fallback'; contentType: string; isBinary: boolean }
+    | { kind: 'fallback'; contentType: string; isBinary: boolean; imageTooLarge?: boolean }
     | { kind: 'error'; message: string };
 
   let preview: PreviewKind = $state({ kind: 'idle' });
@@ -135,8 +135,13 @@
         return;
       }
 
-      // Images — render as blob URL
+      // Images — render as blob URL, or fallback if truncated
       if (contentType.startsWith('image/')) {
+        if (truncated) {
+          await res.body?.cancel();
+          preview = { kind: 'fallback', contentType, isBinary: false, imageTooLarge: true };
+          return;
+        }
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         blobUrls = [url];
@@ -370,6 +375,7 @@
           contentType={preview.contentType}
           onDownload={triggerDownload}
           isBinary={preview.isBinary}
+          imageTooLarge={preview.imageTooLarge}
         />
       {/if}
     </div>
