@@ -316,6 +316,7 @@
   "storage_preview_access_denied": "Sie haben keine Berechtigung, diese Datei in der Vorschau anzuzeigen.",
   "storage_preview_not_found": "Die Datei konnte nicht gefunden werden.",
   "storage_preview_image_alt": "Vorschau von {name}",
+  "storage_preview_csv_columns": "{count} weitere Spalten",
   "storage_preview_csv_rows": "Erste {count} Zeilen werden angezeigt",
   "storage_preview_parquet_rows": "Erste {count} von {total} Zeilen werden angezeigt (Parquet)",
   "storage_preview_pdf_too_large": "PDF ist zu groß für die Inline-Vorschau.",
