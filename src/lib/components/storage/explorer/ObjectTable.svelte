@@ -39,22 +39,93 @@
   let parentDragOver = $state(false);
   let emptyDragOver = $state(false);
 
+  let scrollContainer = $state<HTMLElement | null>(null);
+  let autoScrollAnimFrame = $state<number | null>(null);
+
+  const EDGE_THICKNESS = 40;
+  const BASE_SCROLL_SPEED = 3;
+  const MAX_SCROLL_SPEED = 8;
+
+  let headerEl = $state<HTMLElement | null>(null);
+
+  function stopAutoScroll() {
+    if (autoScrollAnimFrame !== null) {
+      cancelAnimationFrame(autoScrollAnimFrame);
+      autoScrollAnimFrame = null;
+    }
+  }
+
+  function contentEdgeY(clientY: number): number | null {
+    const container = scrollContainer;
+    if (!container) return null;
+    const bodyTop = headerEl
+      ? headerEl.getBoundingClientRect().bottom
+      : container.getBoundingClientRect().top;
+    return clientY - bodyTop;
+  }
+
   function handleTableDragOver(e: DragEvent) {
     if (!storageMoveEnabled || storage.isInArchive) return;
     if (!e.dataTransfer?.types.includes('application/x-storage-keys')) return;
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     tableDragOver = true;
+
+    const container = scrollContainer;
+    if (!container) return;
+    const edgeY = contentEdgeY(e.clientY);
+    if (edgeY === null) return;
+    const el = container as HTMLElement;
+    if (edgeY < EDGE_THICKNESS && el.scrollTop > 0) {
+      const factor = 1 - edgeY / EDGE_THICKNESS;
+      const speed = BASE_SCROLL_SPEED + (MAX_SCROLL_SPEED - BASE_SCROLL_SPEED) * factor;
+      stopAutoScroll();
+      function tick() {
+        const newTop = el.scrollTop - speed;
+        if (newTop <= 0) {
+          el.scrollTop = 0;
+          stopAutoScroll();
+          return;
+        }
+        el.scrollTop = newTop;
+        autoScrollAnimFrame = requestAnimationFrame(tick);
+      }
+      autoScrollAnimFrame = requestAnimationFrame(tick);
+    } else {
+      const rect = el.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      if (y > rect.height - EDGE_THICKNESS && el.scrollTop < el.scrollHeight - el.clientHeight) {
+        const factor = (y - (rect.height - EDGE_THICKNESS)) / EDGE_THICKNESS;
+        const speed = BASE_SCROLL_SPEED + (MAX_SCROLL_SPEED - BASE_SCROLL_SPEED) * factor;
+        stopAutoScroll();
+        function tick() {
+          const newTop = el.scrollTop + speed;
+          const maxScroll = el.scrollHeight - el.clientHeight;
+          if (newTop >= maxScroll) {
+            el.scrollTop = maxScroll;
+            stopAutoScroll();
+            return;
+          }
+          el.scrollTop = newTop;
+          autoScrollAnimFrame = requestAnimationFrame(tick);
+        }
+        autoScrollAnimFrame = requestAnimationFrame(tick);
+      } else {
+        stopAutoScroll();
+      }
+    }
   }
 
   function handleTableDragLeave(e: DragEvent) {
     // Only clear if we're leaving the table container entirely
     const related = e.relatedTarget as Node | null;
     if (related && (e.currentTarget as HTMLElement).contains(related)) return;
+    stopAutoScroll();
     tableDragOver = false;
   }
 
   function handleTableDrop(e: DragEvent) {
+    stopAutoScroll();
     tableDragOver = false;
     if (!storageMoveEnabled || storage.isInArchive) return;
     e.preventDefault();
@@ -123,6 +194,7 @@
 </script>
 
 <div
+  bind:this={scrollContainer}
   class="preview-scroll h-full overflow-x-auto overflow-y-auto {tableDragOver
     ? 'outline-primary/40 outline -outline-offset-2 outline-dashed'
     : ''}"
@@ -131,7 +203,7 @@
   ondrop={handleTableDrop}
 >
   <table class="table-sm table">
-    <thead class="bg-base-100 sticky top-0 z-10">
+    <thead bind:this={headerEl} class="bg-base-100 sticky top-0 z-10">
       <!-- Selection action toolbar -->
       <SelectionToolbar />
 
