@@ -377,7 +377,7 @@ export class S3StorageProvider implements StorageProvider {
 
   async listAllKeysProgressively(
     prefix: string,
-    onBatch: (keys: Array<{ key: string; size: number }>) => void
+    onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void
   ): Promise<void> {
     log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (progressive)');
     let continuationToken: string | undefined;
@@ -390,10 +390,10 @@ export class S3StorageProvider implements StorageProvider {
           ContinuationToken: continuationToken
         })
       );
-      const batch: Array<{ key: string; size: number }> = [];
+      const batch: Array<{ key: string; size: number; lastModified?: Date }> = [];
       for (const obj of output.Contents ?? []) {
         if (obj.Key) {
-          batch.push({ key: obj.Key, size: obj.Size ?? 0 });
+          batch.push({ key: obj.Key, size: obj.Size ?? 0, lastModified: obj.LastModified });
         }
       }
       if (batch.length > 0) {

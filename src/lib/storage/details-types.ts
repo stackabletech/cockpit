@@ -39,6 +39,7 @@ export interface DirectorySizeResult {
   totalFiles: number;
   totalDirectories: number;
   tree: TreemapNode;
+  childrenByDepth: Record<number, DirectoryChildItem[]>;
   durationMs: number;
 }
 
@@ -59,6 +60,14 @@ export interface DirectoryMetadata {
   markerObjectLockRetainUntilDate?: string;
   markerObjectLockLegalHoldStatus?: string;
   markerIsDeleteMarker?: boolean;
+}
+
+/** A single child item (file or folder) in the first level of a directory listing. */
+export interface DirectoryChildItem {
+  name: string;
+  size: number;
+  lastModified: string | undefined;
+  isDirectory: boolean;
 }
 
 /** Error event from the directory-size SSE endpoint. */

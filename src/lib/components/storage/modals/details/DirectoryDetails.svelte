@@ -8,9 +8,12 @@
   import type {
     DirectorySizeEvent,
     DirectoryMetadata,
+    DirectoryChildItem,
     TreemapNode
   } from '$lib/storage/details-types.js';
   import Treemap from './Treemap.svelte';
+  import DirectorySizeList from './DirectorySizeList.svelte';
+  import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
   import { getLocale } from '$lib/paraglide/runtime';
 
   interface Props {
@@ -23,6 +26,8 @@
   const prefix = $derived(objectKey.endsWith('/') ? objectKey : objectKey + '/');
   const name = $derived(objectKey.split('/').filter(Boolean).pop() ?? objectKey);
 
+  let tab: 'composition' | 'contents' = $state('composition');
+  let depth = $state(1);
   let calculating = $state(false);
   let error = $state<string | null>(null);
   let progress = $state<{ keysFound: number; totalSize: number } | null>(null);
@@ -32,6 +37,7 @@
     totalFiles: number;
     totalDirectories: number;
     tree: TreemapNode;
+    childrenByDepth: Record<number, DirectoryChildItem[]>;
     durationMs: number;
   } | null>(null);
 
@@ -117,6 +123,7 @@
                 totalFiles: event.totalFiles,
                 totalDirectories: event.totalDirectories,
                 tree: event.tree,
+                childrenByDepth: event.childrenByDepth,
                 durationMs: event.durationMs
               };
             } else if (event.type === 'error') {
@@ -145,72 +152,101 @@
   </div>
 
   {#if meta}
-    {#if meta.markerExists || meta.bucketOwner || (meta.bucketGrants && meta.bucketGrants.length > 0)}
-      <div class="border-base-300 rounded-box border p-3">
-        {#if meta.markerExists}
-          <div class="flex items-center gap-2 text-sm">
-            <span class="text-base-content/60 font-medium"
-              >{m.storage_details_marker_exists()}:</span
+    <div class="overflow-x-auto">
+      <table class="table-sm table">
+        <tbody>
+          {#if meta.markerExists}
+            <tr>
+              <td class="text-base-content/60 font-medium whitespace-nowrap"
+                >{m.storage_details_marker_exists()}</td
+              >
+              <td class="font-mono text-sm">{keyToName(prefix)}</td>
+            </tr>
+          {:else}
+            <tr>
+              <td class="text-base-content/60 font-medium whitespace-nowrap"
+                >{m.storage_details_marker_exists()}</td
+              >
+              <td class="text-base-content/40 text-sm italic">{m.storage_details_marker_none()}</td>
+            </tr>
+          {/if}
+          {#if meta.markerLastModified}
+            <tr>
+              <td class="text-base-content/60 font-medium whitespace-nowrap"
+                >{m.storage_details_last_modified()}</td
+              >
+              <td><TimestampDisplay date={meta.markerLastModified} /></td>
+            </tr>
+          {/if}
+          {#if meta.markerStorageClass}
+            <tr>
+              <td class="text-base-content/60 font-medium whitespace-nowrap"
+                >{m.storage_details_storage_class()}</td
+              >
+              <td class="font-mono text-sm">{meta.markerStorageClass}</td>
+            </tr>
+          {/if}
+          {#if meta.markerVersionId}
+            <tr>
+              <td class="text-base-content/60 font-medium whitespace-nowrap"
+                >{m.storage_details_version_id()}</td
+              >
+              <td class="max-w-xs truncate font-mono text-sm" title={meta.markerVersionId}
+                >{meta.markerVersionId.slice(0, 20)}...</td
+              >
+            </tr>
+          {/if}
+          {#if meta.markerServerSideEncryption}
+            <tr>
+              <td class="text-base-content/60 font-medium whitespace-nowrap"
+                >{m.storage_details_encryption()}</td
+              >
+              <td class="font-mono text-sm">{meta.markerServerSideEncryption}</td>
+            </tr>
+          {/if}
+          {#if meta.markerObjectLockMode}
+            <tr>
+              <td class="text-base-content/60 font-medium whitespace-nowrap"
+                >{m.storage_details_object_lock_mode()}</td
+              >
+              <td class="font-mono text-sm">{meta.markerObjectLockMode}</td>
+            </tr>
+          {/if}
+          {#if meta.markerObjectLockRetainUntilDate}
+            <tr>
+              <td class="text-base-content/60 font-medium whitespace-nowrap"
+                >{m.storage_details_object_lock_until()}</td
+              >
+              <td><TimestampDisplay date={meta.markerObjectLockRetainUntilDate} /></td>
+            </tr>
+          {/if}
+          <tr>
+            <td class="text-base-content/60 font-medium whitespace-nowrap"
+              >{m.storage_details_owner()}</td
             >
-            <span class="font-mono text-xs">{keyToName(prefix)}</span>
-          </div>
-          <div class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-            {#if meta.markerLastModified}
-              <span class="text-base-content/60">{m.storage_details_last_modified()}</span>
-              <span class="font-mono"
-                >{new Date(meta.markerLastModified).toLocaleString(getLocale())}</span
+            <td class="font-mono text-sm">{meta.bucketOwner}</td>
+          </tr>
+          {#if meta.bucketGrants && meta.bucketGrants.length > 0}
+            <tr>
+              <td class="text-base-content/60 font-medium whitespace-nowrap"
+                >{m.storage_details_permissions()}</td
               >
-            {/if}
-            {#if meta.markerStorageClass}
-              <span class="text-base-content/60">{m.storage_details_storage_class()}</span>
-              <span class="font-mono">{meta.markerStorageClass}</span>
-            {/if}
-            {#if meta.markerVersionId}
-              <span class="text-base-content/60">{m.storage_details_version_id()}</span>
-              <span class="truncate font-mono" title={meta.markerVersionId}
-                >{meta.markerVersionId.slice(0, 20)}...</span
-              >
-            {/if}
-            {#if meta.markerServerSideEncryption}
-              <span class="text-base-content/60">{m.storage_details_encryption()}</span>
-              <span class="font-mono">{meta.markerServerSideEncryption}</span>
-            {/if}
-            {#if meta.markerObjectLockMode}
-              <span class="text-base-content/60">{m.storage_details_object_lock_mode()}</span>
-              <span class="font-mono">{meta.markerObjectLockMode}</span>
-            {/if}
-            {#if meta.markerObjectLockRetainUntilDate}
-              <span class="text-base-content/60">{m.storage_details_object_lock_until()}</span>
-              <span class="font-mono"
-                >{new Date(meta.markerObjectLockRetainUntilDate).toLocaleString(getLocale())}</span
-              >
-            {/if}
-          </div>
-        {:else if !meta.markerExists}
-          <p class="text-base-content/40 text-xs italic">{m.storage_details_marker_none()}</p>
-        {/if}
-        <div class="mt-2 flex items-center gap-2 text-sm">
-          <span class="text-base-content/60 font-medium">{m.storage_details_owner()}:</span>
-          <span class="font-mono text-xs">{meta.bucketOwner}</span>
-        </div>
-        {#if meta.bucketGrants && meta.bucketGrants.length > 0}
-          <div class="mt-2">
-            <span class="text-base-content/60 text-xs font-medium"
-              >{m.storage_details_permissions()}:</span
-            >
-            <div class="mt-1 flex flex-wrap gap-1">
-              {#each meta.bucketGrants as grant (grant.grantee + '-' + grant.permission)}
-                <span class="badge badge-sm gap-1 font-mono text-[10px]">
-                  <span class="text-base-content/70">{grant.grantee}</span>
-                  <span class="text-base-content/40">|</span>
-                  <span>{grant.permission}</span>
-                </span>
-              {/each}
-            </div>
-          </div>
-        {/if}
-      </div>
-    {/if}
+              <td>
+                <div class="flex flex-wrap gap-1">
+                  {#each meta.bucketGrants as grant (grant.grantee + '-' + grant.permission)}
+                    <span class="badge badge-sm gap-1 font-mono text-[10px]">
+                      <span class="text-base-content/70">{grant.grantee}</span>
+                      <span class="text-base-content/40">|</span>
+                      <span>{grant.permission}</span>
+                    </span>
+                  {/each}
+                </div>
+              </td>
+            </tr>
+          {/if}
+        </tbody>
+      </table>
+    </div>
   {:else if metaError}
     <div
       class="border-error/40 bg-error/10 flex items-center gap-3 rounded-lg border p-3"
@@ -285,11 +321,51 @@
     </div>
 
     {#if result.tree.children && result.tree.children.length > 0}
-      <div>
-        <h4 class="text-base-content/70 mb-2 text-xs font-semibold tracking-wide uppercase">
-          {m.storage_details_tree_visualization()}
-        </h4>
+      <div class="bg-base-200 border-base-300 rounded-t-box flex gap-0 border-b" role="tablist">
+        <button
+          class="rounded-ss-box relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {tab ===
+          'composition'
+            ? 'bg-base-100 text-primary'
+            : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
+          role="tab"
+          aria-selected={tab === 'composition'}
+          onclick={() => (tab = 'composition')}
+        >
+          {m.storage_details_tab_composition()}
+          {#if tab === 'composition'}
+            <span class="bg-primary absolute inset-x-0 bottom-0 h-0.5" aria-hidden="true"></span>
+          {/if}
+        </button>
+        <button
+          class="rounded-se-box relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {tab ===
+          'contents'
+            ? 'bg-base-100 text-primary'
+            : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
+          role="tab"
+          aria-selected={tab === 'contents'}
+          onclick={() => (tab = 'contents')}
+        >
+          {m.storage_details_tab_contents()}
+          {#if tab === 'contents'}
+            <span class="bg-primary absolute inset-x-0 bottom-0 h-0.5" aria-hidden="true"></span>
+          {/if}
+        </button>
+      </div>
+      <div class={tab === 'composition' ? 'block' : 'hidden'}>
         <Treemap data={result.tree} />
+      </div>
+      <div class={tab === 'contents' ? 'block' : 'hidden'}>
+        <div class="border-base-300 flex items-center gap-2 border-b px-3 py-2">
+          <label for="depth-select" class="text-base-content/60 text-xs font-medium"
+            >{m.storage_details_depth()}:
+          </label>
+          <select id="depth-select" class="select select-xs w-20" bind:value={depth}>
+            {#each [1, 2, 3, 4, 5] as d (d)}
+              <option value={d}>{d}</option>
+            {/each}
+          </select>
+        </div>
+        <DirectorySizeList items={result.childrenByDepth[depth] ?? []} />
       </div>
     {/if}
   {/if}

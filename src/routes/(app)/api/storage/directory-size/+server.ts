@@ -1,8 +1,14 @@
 import { error } from '@sveltejs/kit';
 import { getProvider } from '$lib/server/storage/utils.js';
 import { requireBucket } from '../params.js';
-import type { DirectorySizeEvent, TreemapNode } from '$lib/storage/details-types.js';
+import type {
+  DirectorySizeEvent,
+  DirectoryChildItem,
+  TreemapNode
+} from '$lib/storage/details-types.js';
 import type { RequestHandler } from './$types';
+
+const MAX_DEPTH = 5;
 
 function buildTree(prefix: string, keys: Array<{ key: string; size: number }>): TreemapNode {
   const rootName = prefix.split('/').filter(Boolean).pop() || '(root)';
@@ -54,6 +60,57 @@ function buildTree(prefix: string, keys: Array<{ key: string; size: number }>): 
   return trieToTreemap(rootTrie);
 }
 
+function buildChildrenByDepth(
+  prefix: string,
+  keys: Array<{ key: string; size: number; lastModified?: Date }>,
+  maxDepth: number
+): Record<number, DirectoryChildItem[]> {
+  const depthMaps: Map<string, { size: number; lastModified: Date | undefined }>[] = [];
+  for (let d = 1; d <= maxDepth; d++) {
+    depthMaps.push(new Map());
+  }
+
+  for (const { key, size, lastModified } of keys) {
+    const relative = key.slice(prefix.length);
+    const parts = relative.split('/').filter(Boolean);
+    if (parts.length === 0) continue;
+
+    for (let d = 1; d <= maxDepth; d++) {
+      if (parts.length < d) continue;
+
+      const nameParts = parts.slice(0, d);
+      const index = d - 1;
+      const isDir = index < parts.length - 1 || relative.endsWith('/');
+      const childName = isDir ? nameParts.join('/') + '/' : nameParts.join('/');
+
+      const map = depthMaps[d - 1];
+      const existing = map.get(childName);
+      if (existing) {
+        existing.size += size;
+        if (lastModified && (!existing.lastModified || lastModified > existing.lastModified)) {
+          existing.lastModified = lastModified;
+        }
+      } else {
+        map.set(childName, { size, lastModified });
+      }
+    }
+  }
+
+  const result: Record<number, DirectoryChildItem[]> = {};
+  for (let d = 1; d <= maxDepth; d++) {
+    result[d] = [...depthMaps[d - 1].entries()]
+      .map(([name, entry]) => ({
+        name,
+        size: entry.size,
+        lastModified: entry.lastModified?.toISOString(),
+        isDirectory: name.endsWith('/')
+      }))
+      .sort((a, b) => b.size - a.size);
+  }
+
+  return result;
+}
+
 export const GET: RequestHandler = async ({ url, locals }) => {
   const bucket = requireBucket(url);
   const prefix = url.searchParams.get('prefix') ?? '';
@@ -65,7 +122,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   locals.logger.debug({ bucket, prefix }, 'calculating directory size');
 
   const provider = getProvider(locals.storageConfig!, bucket);
-  const allKeys: Array<{ key: string; size: number }> = [];
+  const allKeys: Array<{ key: string; size: number; lastModified?: Date }> = [];
   const startTime = Date.now();
   const encoder = new TextEncoder();
 
@@ -96,6 +153,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         });
 
         const tree = buildTree(prefix, allKeys);
+        const childrenByDepth = buildChildrenByDepth(prefix, allKeys, MAX_DEPTH);
         let totalFiles = 0;
         let totalDirectories = 0;
         for (const { key } of allKeys) {
@@ -113,6 +171,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
           totalFiles,
           totalDirectories,
           tree,
+          childrenByDepth,
           durationMs: Date.now() - startTime
         };
 

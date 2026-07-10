@@ -48,7 +48,7 @@ export interface StorageProvider {
   listAllKeys(prefix: string): Promise<string[]>;
   listAllKeysProgressively(
     prefix: string,
-    onBatch: (keys: Array<{ key: string; size: number }>) => void
+    onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void
   ): Promise<void>;
   getBucketVersioning(): Promise<string>;
   getBucketLifecycleRules(): Promise<LifecycleRule[]>;
