@@ -201,6 +201,7 @@
     try {
       const buf = await res.arrayBuffer();
       const bytes = new Uint8Array(buf);
+      const truncated = res.headers.get('X-Preview-Truncated') === 'true';
 
       // Detect UTF-16 BOM (common in Excel "Save as CSV (UTF-16)")
       if (bytes.length >= 2) {
@@ -214,8 +215,16 @@
 
       // Try strict UTF-8 (handles UTF-8 with or without BOM)
       try {
-        return new TextDecoder('utf-8').decode(buf);
+        return new TextDecoder('utf-8', { fatal: true }).decode(buf);
       } catch {
+        // If the content was truncated, the invalid bytes might be at the
+        // truncation boundary (a multi-byte character cut in half). Decode
+        // without fatal and strip trailing replacement characters.
+        if (truncated) {
+          const text = new TextDecoder('utf-8').decode(buf);
+          return text.replace(/\uFFFD+$/, '');
+        }
+
         // For CSV/TSV files try Windows-1252 — the default encoding used by
         // Excel on Windows when exporting to CSV.
         const lowerKey = key.toLowerCase();
