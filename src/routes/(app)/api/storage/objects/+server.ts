@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { listObjects } from '$lib/server/storage/service.js';
+import { allowedPageSizes } from '$lib/client/feature-flags.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -17,7 +18,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   const prefix = url.searchParams.get('prefix') ?? '';
   const continuationToken = url.searchParams.get('continuationToken');
   const pageSizeParam = url.searchParams.get('pageSize');
-  const pageSize = pageSizeParam ? parseInt(pageSizeParam, 10) : 25;
+  const parsed = pageSizeParam ? parseInt(pageSizeParam, 10) : NaN;
+  const pageSize = allowedPageSizes.includes(parsed) ? parsed : allowedPageSizes[0];
 
   locals.logger.debug(
     { bucket, prefix, continuation_token: continuationToken, page_size: pageSize },

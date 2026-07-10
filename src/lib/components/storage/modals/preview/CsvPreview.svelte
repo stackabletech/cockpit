@@ -1,13 +1,12 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
 
-  const MAX_ROWS = 250;
-
   interface Props {
     text: string;
+    maxRows?: number;
   }
 
-  let { text }: Props = $props();
+  let { text, maxRows = 250 }: Props = $props();
 
   const { headers, rows } = $derived.by(() => {
     // Split into lines, strip trailing newline
@@ -41,13 +40,13 @@
 
     const [headerLine, ...dataLines] = lines;
     const hdrs = parseLine(headerLine);
-    const rws = dataLines.slice(0, MAX_ROWS).map(parseLine);
+    const rws = dataLines.slice(0, maxRows).map(parseLine);
     return { headers: hdrs, rows: rws };
   });
 
   const truncated = $derived.by(() => {
     const lines = text.split('\n').filter((l) => l.trim() !== '');
-    return lines.length > MAX_ROWS + 1;
+    return lines.length > maxRows + 1;
   });
 </script>
 

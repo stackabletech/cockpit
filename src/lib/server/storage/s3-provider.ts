@@ -143,6 +143,7 @@ export class S3StorageProvider implements StorageProvider {
         Key: key,
         Body: body,
         ContentType: contentType,
+        IfNoneMatch: '*',
         ...(contentLength !== undefined ? { ContentLength: contentLength } : {})
       }
     });

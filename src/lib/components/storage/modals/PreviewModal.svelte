@@ -37,7 +37,14 @@
         totalSize: number;
         previewBytes: number;
       }
-    | { kind: 'csv'; text: string; truncated: boolean; totalSize: number; previewBytes: number }
+    | {
+        kind: 'csv';
+        text: string;
+        truncated: boolean;
+        totalSize: number;
+        previewBytes: number;
+        previewRows: number;
+      }
     | {
         kind: 'parquet';
         text: string;
@@ -168,7 +175,7 @@
         contentType === 'application/vnd.ms-excel' ||
         key.toLowerCase().endsWith('.csv')
       ) {
-        preview = { kind: 'csv', text, truncated, totalSize, previewBytes };
+        preview = { kind: 'csv', text, truncated, totalSize, previewBytes, previewRows };
         return;
       }
 
@@ -202,7 +209,7 @@
 
       // Try strict UTF-8 (handles UTF-8 with or without BOM)
       try {
-        return new TextDecoder('utf-8', { fatal: true }).decode(buf);
+        return new TextDecoder('utf-8').decode(buf);
       } catch {
         // For CSV/TSV files try Windows-1252 — the default encoding used by
         // Excel on Windows when exporting to CSV.
@@ -346,9 +353,9 @@
       {:else if preview.kind === 'text'}
         <TextPreview text={preview.text} contentType={preview.contentType} />
       {:else if preview.kind === 'csv'}
-        <CsvPreview text={preview.text} />
+        <CsvPreview text={preview.text} maxRows={preview.previewRows || 250} />
       {:else if preview.kind === 'parquet'}
-        <CsvPreview text={preview.text} />
+        <CsvPreview text={preview.text} maxRows={preview.previewRows || 250} />
       {:else if preview.kind === 'image'}
         <ImagePreview
           src={preview.blobUrl}

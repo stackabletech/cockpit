@@ -49,7 +49,7 @@ describe('CsvPreview', () => {
     await expect.element(page.getByText('3')).toBeInTheDocument();
   });
 
-  it('should truncate at 250 rows and show notice', async () => {
+  it('should truncate at default 250 rows and show notice', async () => {
     const header = 'Name,Email';
     const rows = Array.from(
       { length: 300 },
@@ -60,6 +60,19 @@ describe('CsvPreview', () => {
 
     // Should show truncation notice
     const notice = page.getByText(/250/);
+    await expect.element(notice).toBeInTheDocument();
+  });
+
+  it('should respect maxRows prop', async () => {
+    const header = 'Name,Email';
+    const rows = Array.from(
+      { length: 50 },
+      () => `${faker.person.firstName()},${faker.internet.email()}`
+    );
+    const text = [header, ...rows].join('\n');
+    render(CsvPreview, { text, maxRows: 10 });
+
+    const notice = page.getByText(/10/);
     await expect.element(notice).toBeInTheDocument();
   });
 

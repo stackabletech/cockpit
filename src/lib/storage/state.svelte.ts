@@ -214,11 +214,7 @@ export class StorageState {
     e.stopPropagation();
 
     if (!this.selectedKeys.has(key)) {
-      if (this.selectedKeys.size === 0) {
-        this.selectedKeys = new SvelteSet<string>([key]);
-      } else {
-        this.selectedKeys.add(key);
-      }
+      this.selectedKeys = new SvelteSet<string>([...this.selectedKeys, key]);
     }
 
     this.contextMenu = { x: e.clientX, y: e.clientY, key };
@@ -226,7 +222,9 @@ export class StorageState {
 
   closeContextMenu = (): void => {
     if (this.contextMenu) {
-      this.selectedKeys.delete(this.contextMenu.key);
+      const next = new SvelteSet<string>(this.selectedKeys);
+      next.delete(this.contextMenu.key);
+      this.selectedKeys = next;
     }
     this.contextMenu = null;
   };
