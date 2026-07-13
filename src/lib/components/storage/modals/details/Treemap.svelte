@@ -1,8 +1,10 @@
 <script lang="ts">
   import type { TreemapNode } from '$lib/storage/details-types.js';
   import { formatFileSize } from '$lib/storage/utils.js';
+  import * as m from '$lib/paraglide/messages.js';
   import IconContentCopy from 'virtual:icons/material-symbols/content-copy';
   import IconFolderOpen from 'virtual:icons/material-symbols/folder-open';
+  import FloatingMenu from '$lib/components/storage/shared/FloatingMenu.svelte';
 
   interface Props {
     data: TreemapNode;
@@ -147,42 +149,22 @@
     return containerStrokes[depth % containerStrokes.length] + ' stroke-1';
   }
 
-  let menuEl = $state<HTMLDivElement | null>(null);
-  let menuX = $state(0);
-  let menuY = $state(0);
-  let menuTarget = $state<LayoutRect | null>(null);
+  let ctxMenu = $state<{ x: number; y: number; target: LayoutRect } | null>(null);
 
   function openContextMenu(e: MouseEvent | KeyboardEvent, rect: LayoutRect) {
     e.preventDefault();
     e.stopPropagation();
     if (e instanceof MouseEvent) {
-      menuX = e.clientX;
-      menuY = e.clientY;
+      ctxMenu = { x: e.clientX, y: e.clientY, target: rect };
     } else {
-      const target = e.currentTarget as SVGGElement;
-      const rect = target.getBoundingClientRect();
-      menuX = rect.right;
-      menuY = rect.top;
+      const el = e.currentTarget as SVGGElement;
+      const r = el.getBoundingClientRect();
+      ctxMenu = { x: r.right, y: r.top, target: rect };
     }
-    menuTarget = rect;
   }
 
-  // Teleport menu to dialog to escape modal-box containing block and overflow clipping
-  $effect(() => {
-    const el = menuEl;
-    if (el) {
-      const dialog = el.closest('dialog');
-      if (dialog && el.parentElement !== dialog) {
-        dialog.appendChild(el);
-      }
-      return () => {
-        el.remove();
-      };
-    }
-  });
-
   function closeContextMenu() {
-    menuTarget = null;
+    ctxMenu = null;
   }
 
   async function copy(text: string) {
@@ -205,7 +187,7 @@
     viewBox="0 0 {W} {H}"
     class="w-full max-w-[600px]"
     role="img"
-    aria-label="Treemap visualization of directory size composition"
+    aria-label={m.storage_details_treemap_aria()}
   >
     <defs>
       {#each rects as rect (rect.x + '-' + rect.y + '-' + rect.w + '-' + rect.h)}
@@ -296,59 +278,40 @@
   </svg>
 </div>
 
-<!-- backdrop: rendered in-place inside the modal (just needs to cover modal-box) -->
-{#if menuTarget}
-  <div
-    role="presentation"
-    class="fixed inset-0 z-40"
-    onclick={closeContextMenu}
-    oncontextmenu={(e) => {
-      e.preventDefault();
-      closeContextMenu();
-    }}
-  ></div>
-{/if}
-
-<!-- menu: teleported into dialog to escape modal-box containing block and overflow clipping -->
-<div
-  bind:this={menuEl}
-  role="menu"
-  tabindex="-1"
-  class="border-base-300 bg-base-100 fixed z-[1000] w-56 rounded-lg border p-1 shadow-lg"
-  style="left: {menuX}px; top: {menuY}px; display: {menuTarget ? 'block' : 'none'}"
-  oncontextmenu={(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }}
+<FloatingMenu
+  x={ctxMenu?.x ?? 0}
+  y={ctxMenu?.y ?? 0}
+  open={ctxMenu !== null}
+  onclose={closeContextMenu}
 >
-  {#if menuTarget}
+  {#if ctxMenu}
     <button
       role="menuitem"
       class="btn btn-ghost btn-sm w-full justify-start gap-2"
       onclick={() => {
-        const t = menuTarget;
-        if (t) copy(t.name);
+        const t = ctxMenu!.target;
+        copy(t.name);
       }}
     >
       <IconContentCopy class="size-4 shrink-0" aria-hidden="true" />
-      {#if menuTarget.isContainer}
-        Copy directory name
+      {#if ctxMenu.target.isContainer}
+        {m.storage_details_copy_dir_name()}
       {:else}
-        Copy file name
+        {m.storage_details_copy_file_name()}
       {/if}
     </button>
-    {#if menuTarget.fullKey}
+    {#if ctxMenu.target.fullKey}
       <button
         role="menuitem"
         class="btn btn-ghost btn-sm w-full justify-start gap-2"
         onclick={() => {
-          const t = menuTarget;
-          if (t?.fullKey) copy(t.fullKey);
+          const t = ctxMenu!.target;
+          if (t.fullKey) copy(t.fullKey);
         }}
       >
         <IconFolderOpen class="size-4 shrink-0" aria-hidden="true" />
-        Copy full path
+        {m.storage_details_copy_full_path()}
       </button>
     {/if}
   {/if}
-</div>
+</FloatingMenu>

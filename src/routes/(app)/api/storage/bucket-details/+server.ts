@@ -19,7 +19,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
   const details: BucketDetails = {
     name: bucket,
-    versioningEnabled: versioning === 'Enabled',
+    versioning: versioning as 'Enabled' | 'Suspended' | 'Disabled',
     lifecycleRules,
     tags,
     acl

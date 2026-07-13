@@ -42,7 +42,7 @@
     try {
       const conn = loadConnectionLocally();
       if (!conn) {
-        loadError = 'No storage connection configured';
+        loadError = m.storage_details_error_not_connected();
         return;
       }
       const connHeader = getConnectionHeader(conn);
@@ -51,12 +51,12 @@
         headers: { 'x-storage-connection': connHeader }
       });
       if (!res.ok) {
-        loadError = `Failed to fetch file details (${res.status})`;
+        loadError = m.storage_details_error_fetch_file({ status: res.status });
         return;
       }
       fileDetails = (await res.json()) as FileDetailsType;
     } catch (err) {
-      loadError = err instanceof Error ? err.message : 'Unknown error';
+      loadError = err instanceof Error ? err.message : m.storage_details_error_unknown();
     } finally {
       loading = false;
     }

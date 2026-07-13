@@ -13,6 +13,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
+  import FloatingMenu from '../shared/FloatingMenu.svelte';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
   import { pinnedLabel, pinnedHref } from '$lib/storage/display-helpers.js';
   import { createResizablePanel } from './resizable-panel.svelte.js';
@@ -306,27 +307,17 @@
     </form>
   </div>
 
-  {#if bucketCtx}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-70"
-      onclick={closeBucketContextMenu}
-      oncontextmenu={(e) => e.preventDefault()}
-    ></div>
-    <div
-      class="
-        border-base-300 bg-base-100 fixed z-80 w-48 rounded-lg
-        border p-1 shadow-lg
-      "
-      style="left: {bucketCtx.x}px; top: {bucketCtx.y}px;"
-    >
-      <button class="btn btn-ghost btn-sm w-full justify-start gap-2" onclick={openBucketDetails}>
-        <IconInfo class="size-4" aria-hidden="true" />
-        {m.storage_action_details()}
-      </button>
-    </div>
-  {/if}
+  <FloatingMenu
+    x={bucketCtx?.x ?? 0}
+    y={bucketCtx?.y ?? 0}
+    open={bucketCtx !== null}
+    onclose={closeBucketContextMenu}
+  >
+    <button class="btn btn-ghost btn-sm w-full justify-start gap-2" onclick={openBucketDetails}>
+      <IconInfo class="size-4" aria-hidden="true" />
+      {m.storage_action_details()}
+    </button>
+  </FloatingMenu>
 
   <!-- Disconnect confirmation modal -->
   <Modal bind:open={disconnectConfirmOpen} class="modal">

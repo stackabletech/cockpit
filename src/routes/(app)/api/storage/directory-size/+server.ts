@@ -132,21 +132,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         await provider.listAllKeysProgressively(prefix, (batch) => {
           allKeys.push(...batch);
 
-          const subdirs: Record<string, number> = {};
-          for (const { key } of batch) {
-            const relative = key.slice(prefix.length);
-            const parts = relative.split('/').filter(Boolean);
-            if (parts.length > 1) {
-              const dir = prefix + parts[0] + '/';
-              subdirs[dir] = (subdirs[dir] ?? 0) + 1;
-            }
-          }
-
           const progress: DirectorySizeEvent = {
             type: 'progress',
             keysFound: allKeys.length,
-            totalSize: allKeys.reduce((sum, k) => sum + k.size, 0),
-            subdirs
+            totalSize: allKeys.reduce((sum, k) => sum + k.size, 0)
           };
 
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));

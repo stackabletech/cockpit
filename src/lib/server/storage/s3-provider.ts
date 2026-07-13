@@ -287,12 +287,14 @@ export class S3StorageProvider implements StorageProvider {
     );
   }
 
-  async getBucketVersioning(): Promise<string> {
+  async getBucketVersioning(): Promise<'Enabled' | 'Suspended' | 'Disabled'> {
     try {
       const output = await this.client.send(
         new GetBucketVersioningCommand({ Bucket: this.bucket })
       );
-      return output.Status ?? 'Disabled';
+      if (output.Status === 'Enabled') return 'Enabled';
+      if (output.Status === 'Suspended') return 'Suspended';
+      return 'Disabled';
     } catch {
       return 'Disabled';
     }
@@ -379,17 +381,28 @@ export class S3StorageProvider implements StorageProvider {
     prefix: string,
     onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void
   ): Promise<void> {
-    log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (progressive)');
-    let continuationToken: string | undefined;
+    log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (progressive, concurrent)');
 
-    do {
-      const output: ListObjectsV2CommandOutput = await this.client.send(
+    // Pipeline: while processing each page's results, the next page is already being
+    // fetched.  Each page's continuation token is only known after its predecessor
+    // completes, so we chain through `.then()` to keep one lookahead fetch in-flight.
+    const inFlight: Array<Promise<ListObjectsV2CommandOutput>> = [];
+
+    const fetchPage = (token?: string): Promise<ListObjectsV2CommandOutput> =>
+      this.client.send(
         new ListObjectsV2Command({
           Bucket: this.bucket,
           Prefix: prefix,
-          ContinuationToken: continuationToken
+          ContinuationToken: token
         })
       );
+
+    // Seed the first fetch
+    inFlight.push(fetchPage());
+
+    while (inFlight.length > 0) {
+      const output = await inFlight.shift()!;
+
       const batch: Array<{ key: string; size: number; lastModified?: Date }> = [];
       for (const obj of output.Contents ?? []) {
         if (obj.Key) {
@@ -399,8 +412,14 @@ export class S3StorageProvider implements StorageProvider {
       if (batch.length > 0) {
         onBatch(batch);
       }
-      continuationToken = output.IsTruncated ? output.NextContinuationToken : undefined;
-    } while (continuationToken);
+
+      // If truncated, chain the next fetch so it starts while we process the
+      // current page's results (or already completes by the time we loop back).
+      if (output.IsTruncated && output.NextContinuationToken) {
+        const token = output.NextContinuationToken;
+        inFlight.push(fetchPage(token));
+      }
+    }
 
     log.trace({ bucket: this.bucket, prefix }, 'progressive listing complete');
   }

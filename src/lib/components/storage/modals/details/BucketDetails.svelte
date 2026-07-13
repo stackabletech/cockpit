@@ -26,7 +26,7 @@
       try {
         const conn = loadConnectionLocally();
         if (!conn) {
-          error = 'No storage connection configured';
+          error = m.storage_details_error_not_connected();
           loading = false;
           return;
         }
@@ -36,13 +36,13 @@
           headers: { 'x-storage-connection': connHeader }
         });
         if (!res.ok) {
-          error = `Failed to fetch bucket details (${res.status})`;
+          error = m.storage_details_error_fetch_bucket({ status: res.status });
           loading = false;
           return;
         }
         details = (await res.json()) as BucketDetailsType;
       } catch (err) {
-        error = err instanceof Error ? err.message : 'Unknown error';
+        error = err instanceof Error ? err.message : m.storage_details_error_unknown();
       } finally {
         loading = false;
       }
@@ -51,10 +51,15 @@
     void fetchDetails();
   });
 
-  function versioningLabel(status: boolean): string {
-    return status
-      ? m.storage_details_versioning_enabled()
-      : m.storage_details_versioning_disabled();
+  function versioningLabel(status: 'Enabled' | 'Suspended' | 'Disabled'): string {
+    switch (status) {
+      case 'Enabled':
+        return m.storage_details_versioning_enabled();
+      case 'Suspended':
+        return m.storage_details_versioning_suspended();
+      default:
+        return m.storage_details_versioning_disabled();
+    }
   }
 </script>
 
@@ -88,10 +93,12 @@
         {m.storage_details_versioning()}
       </h4>
       <div class="flex items-center gap-2">
-        {#if details.versioningEnabled}
-          <span class="badge badge-success badge-sm">{versioningLabel(true)}</span>
+        {#if details.versioning === 'Enabled'}
+          <span class="badge badge-success badge-sm">{versioningLabel(details.versioning)}</span>
+        {:else if details.versioning === 'Suspended'}
+          <span class="badge badge-warning badge-sm">{versioningLabel(details.versioning)}</span>
         {:else}
-          <span class="badge badge-sm">{versioningLabel(false)}</span>
+          <span class="badge badge-sm">{versioningLabel(details.versioning)}</span>
         {/if}
       </div>
     </div>
@@ -136,7 +143,9 @@
           {#each details.lifecycleRules as rule (rule.id)}
             <div class="border-base-300 rounded-box border p-3">
               <div class="mb-2 flex items-center gap-2">
-                <span class="text-sm font-medium">{rule.id || '(unnamed)'}</span>
+                <span class="text-sm font-medium"
+                  >{rule.id || m.storage_details_unnamed_rule()}</span
+                >
                 <span
                   class="badge badge-xs {rule.status === 'Enabled'
                     ? 'badge-success'

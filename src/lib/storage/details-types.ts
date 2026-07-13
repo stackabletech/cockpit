@@ -28,7 +28,6 @@ export interface DirectorySizeProgress {
   type: 'progress';
   keysFound: number;
   totalSize: number;
-  subdirs: Record<string, number>;
 }
 
 /** Final result from the directory-size SSE endpoint. */
@@ -99,7 +98,7 @@ export interface BucketAcl {
 /** Bucket configuration details. */
 export interface BucketDetails {
   name: string;
-  versioningEnabled: boolean;
+  versioning: 'Enabled' | 'Suspended' | 'Disabled';
   lifecycleRules: LifecycleRule[];
   tags: Record<string, string>;
   acl: BucketAcl;

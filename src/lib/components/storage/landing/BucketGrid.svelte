@@ -4,6 +4,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import { resolve } from '$app/paths';
   import { getStorageState } from '$lib/storage/context.js';
+  import FloatingMenu from '../shared/FloatingMenu.svelte';
 
   interface Props {
     buckets?: string[];
@@ -12,51 +13,37 @@
   let { buckets = [] }: Props = $props();
   const storage = getStorageState();
 
-  let ctxBucket = $state<string | null>(null);
-  let ctxX = $state(0);
-  let ctxY = $state(0);
+  let ctxMenu = $state<{ x: number; y: number; bucket: string } | null>(null);
 
   function openDetails(bucket: string) {
     storage.openModal('details', { type: 'bucket', bucket });
-    ctxBucket = null;
+    ctxMenu = null;
   }
 
   function handleContextMenu(e: MouseEvent, bucket: string) {
     e.preventDefault();
-    ctxBucket = bucket;
-    ctxX = e.clientX;
-    ctxY = e.clientY;
+    ctxMenu = { x: e.clientX, y: e.clientY, bucket };
   }
 
   function closeContextMenu() {
-    ctxBucket = null;
+    ctxMenu = null;
   }
 </script>
 
-{#if ctxBucket}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="fixed inset-0 z-70"
-    onclick={closeContextMenu}
-    oncontextmenu={(e) => e.preventDefault()}
-  ></div>
-  <div
-    class="
-      border-base-300 bg-base-100 fixed z-80 w-48 rounded-lg
-      border p-1 shadow-lg
-    "
-    style="left: {ctxX}px; top: {ctxY}px;"
+<FloatingMenu
+  x={ctxMenu?.x ?? 0}
+  y={ctxMenu?.y ?? 0}
+  open={ctxMenu !== null}
+  onclose={closeContextMenu}
+>
+  <button
+    class="btn btn-ghost btn-sm w-full justify-start gap-2"
+    onclick={() => ctxMenu && openDetails(ctxMenu.bucket)}
   >
-    <button
-      class="btn btn-ghost btn-sm w-full justify-start gap-2"
-      onclick={() => openDetails(ctxBucket!)}
-    >
-      <IconInfo class="size-4" aria-hidden="true" />
-      {m.storage_action_details()}
-    </button>
-  </div>
-{/if}
+    <IconInfo class="size-4" aria-hidden="true" />
+    {m.storage_action_details()}
+  </button>
+</FloatingMenu>
 
 {#if buckets.length > 0}
   <div

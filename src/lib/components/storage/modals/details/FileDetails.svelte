@@ -83,7 +83,7 @@
 
   {#if details.customMetadata && Object.keys(details.customMetadata).length > 0}
     <h4 class="text-base-content/70 mt-4 mb-2 text-xs font-semibold tracking-wide uppercase">
-      Custom Metadata
+      {m.storage_details_custom_metadata()}
     </h4>
     <table class="table-sm table">
       <tbody>

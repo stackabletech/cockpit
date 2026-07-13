@@ -54,12 +54,12 @@
         headers: { 'x-storage-connection': connHeader }
       });
       if (!res.ok) {
-        metaError = `Failed to fetch directory metadata (${res.status})`;
+        metaError = m.storage_details_error_fetch_dir_meta({ status: res.status });
         return;
       }
       meta = await res.json();
     } catch (err) {
-      metaError = err instanceof Error ? err.message : 'Unknown error';
+      metaError = err instanceof Error ? err.message : m.storage_details_error_unknown();
     }
   }
 
@@ -76,7 +76,7 @@
     try {
       const conn = loadConnectionLocally();
       if (!conn) {
-        error = 'No storage connection configured';
+        error = m.storage_details_error_not_connected();
         calculating = false;
         return;
       }
@@ -87,14 +87,14 @@
       });
 
       if (!res.ok) {
-        error = `Failed to calculate directory size (${res.status})`;
+        error = m.storage_details_error_calc_size({ status: res.status });
         calculating = false;
         return;
       }
 
       const reader = res.body?.getReader();
       if (!reader) {
-        error = 'No response body';
+        error = m.storage_details_error_no_body();
         calculating = false;
         return;
       }
@@ -135,7 +135,7 @@
         }
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Unknown error';
+      error = err instanceof Error ? err.message : m.storage_details_error_unknown();
     } finally {
       calculating = false;
     }
