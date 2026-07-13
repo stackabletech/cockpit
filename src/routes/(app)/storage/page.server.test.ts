@@ -115,7 +115,7 @@ describe('storage page actions', () => {
       request: new Request('http://localhost', { method: 'POST' }),
       locals: mockLocals()
     } as unknown as Parameters<typeof actions.connect>[0]);
-    expect(result).toHaveProperty('message', 'HDFS connections are not yet supported.');
+    expect(result).toHaveProperty('message', 'HDFS connections are not yet supported');
   });
 
   it('connect: returns error message on connection test failure', async () => {

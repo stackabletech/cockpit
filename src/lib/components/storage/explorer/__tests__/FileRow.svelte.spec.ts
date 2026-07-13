@@ -140,7 +140,7 @@ describe('FileRow', () => {
     const spy = vi.spyOn(state, 'enterArchive');
     render(FileRowWrapper, { state, file });
 
-    await page.getByRole('row').dblClick();
+    await page.getByRole('row').dblClick({ force: true });
     expect(spy).toHaveBeenCalledWith('archive.zip');
   });
 
@@ -150,7 +150,7 @@ describe('FileRow', () => {
     const spy = vi.spyOn(state, 'enterArchive');
     render(FileRowWrapper, { state, file });
 
-    await page.getByRole('row').dblClick();
+    await page.getByRole('row').dblClick({ force: true });
     expect(spy).toHaveBeenCalledWith('bundle.tar.gz');
   });
 
@@ -162,7 +162,7 @@ describe('FileRow', () => {
     const spy = vi.spyOn(state, 'enterArchive');
     render(FileRowWrapper, { state, file });
 
-    await page.getByRole('row').dblClick();
+    await page.getByRole('row').dblClick({ force: true });
     expect(spy).toHaveBeenCalledWith('nested.zip');
   });
 
