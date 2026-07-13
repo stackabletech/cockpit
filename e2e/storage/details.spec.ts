@@ -79,7 +79,7 @@ test.describe('Storage S3 — Details Modal', () => {
       const sidebar = page.getByRole('navigation', { name: 'Buckets' });
       await sidebar.getByText(bucket).click({ button: 'right' });
 
-      await page.getByRole('button', { name: 'Details' }).click();
+      await page.getByRole('menuitem', { name: 'Details' }).click();
       await expect(page.getByRole('heading', { name: 'Bucket Details' })).toBeVisible();
     } finally {
       // no cleanup needed — using the shared test bucket
