@@ -77,10 +77,8 @@ test.describe('Storage — Connections management', () => {
     await expect(page.getByRole('textbox', { name: 'Host' })).toHaveValue(
       new URL(credentials.endpoint).hostname
     );
-    await expect(page.getByRole('textbox', { name: 'Region' })).toHaveValue(credentials.region);
-    await expect(page.getByRole('textbox', { name: 'Access key' })).toHaveValue(
-      credentials.accessKeyId
-    );
+    await expect(page.getByLabel('Region')).toHaveValue(credentials.region);
+    await expect(page.getByLabel('Access key')).toHaveValue(credentials.accessKeyId);
   });
 
   test('edit page redirects to connections list after saving valid credentials', async ({
@@ -174,7 +172,7 @@ test.describe('Storage — Connections management', () => {
     await page.getByLabel('Connection name').fill('Changed name');
 
     // Try to navigate away via the back link
-    await page.getByRole('link', { name: '← Manage connections', exact: true }).click();
+    await page.getByRole('link', { name: '← Manage connections' }).click();
 
     // Modal should appear
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -190,7 +188,7 @@ test.describe('Storage — Connections management', () => {
     await openFirstConnectionEditPage(page);
 
     await page.getByLabel('Connection name').fill('Changed name');
-    await page.getByRole('link', { name: '← Manage connections', exact: true }).click();
+    await page.getByRole('link', { name: '← Manage connections' }).click();
 
     await page.getByRole('dialog').getByRole('button', { name: 'Stay on page' }).click();
 
@@ -207,7 +205,7 @@ test.describe('Storage — Connections management', () => {
     await openFirstConnectionEditPage(page);
 
     await page.getByLabel('Connection name').fill('Changed name');
-    await page.getByRole('link', { name: '← Manage connections', exact: true }).click();
+    await page.getByRole('link', { name: '← Manage connections' }).click();
 
     await page.getByRole('dialog').getByRole('button', { name: 'Leave' }).click();
 

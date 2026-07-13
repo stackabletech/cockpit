@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { browser } from '$app/environment';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
   import IconCloseFullscreen from 'virtual:icons/material-symbols/close-fullscreen';
   import IconOpenInFull from 'virtual:icons/material-symbols/open-in-full';
@@ -153,11 +152,6 @@
     if (open && objectKey) {
       editorReady = false;
       void loadPreview(objectKey, bucket);
-      // Start loading Monaco in parallel with data fetching
-      if (browser) {
-        import('monaco-editor/esm/vs/editor/editor.worker?worker');
-        import('monaco-editor');
-      }
     }
 
     if (!open) {

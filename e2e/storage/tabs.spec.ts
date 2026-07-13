@@ -357,6 +357,7 @@ test.describe('Storage — Restore tabs banner', () => {
   });
 
   test('Restore tabs navigates to the active-tab bucket and loads all tabs', async ({ page }) => {
+    test.slow(); // page.goto('/storage') in Firefox is slow
     const credentials = requireGarageCredentials();
 
     // Step 1: navigate to bucket and add a second tab via natural interaction
