@@ -5,6 +5,7 @@
   import IconEdit from 'virtual:icons/material-symbols/edit';
   import IconClose from 'virtual:icons/material-symbols/close';
   import DeleteConnectionModal from '$lib/components/storage/DeleteConnectionModal.svelte';
+  import Tooltip from '$lib/components/Tooltip.svelte';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
   import { resolve } from '$app/paths';
@@ -53,6 +54,23 @@
           : menuRawPos.top
     };
   });
+
+  // ── Tooltip ──────────────────────────────────────────────────────────────
+  let tooltipText = $state<string | null>(null);
+  let tooltipX = $state(0);
+  let tooltipY = $state(0);
+
+  function showTooltip(e: MouseEvent | FocusEvent, text: string) {
+    const el = e.currentTarget as HTMLElement;
+    const rect = el.getBoundingClientRect();
+    tooltipX = rect.right;
+    tooltipY = rect.top + rect.height / 2;
+    tooltipText = text;
+  }
+
+  function hideTooltip() {
+    tooltipText = null;
+  }
 
   function connectionLabel(conn: SavedConnection): string {
     if (conn.name) return conn.name;
@@ -233,6 +251,10 @@
                 ? 'bg-primary/10 text-primary font-medium'
                 : 'text-base-content'}
             "
+              onmouseenter={(e) => showTooltip(e, connectionLabel(conn))}
+              onmouseleave={hideTooltip}
+              onfocus={(e) => showTooltip(e, connectionLabel(conn))}
+              onblur={hideTooltip}
             >
               <IconStorage
                 class="text-primary size-3.5 shrink-0 {activeId === conn.id ? '' : 'opacity-60'}"
@@ -279,3 +301,5 @@
   onconfirm={forgetConnection}
   oncancel={() => (forgetOpen = false)}
 />
+
+<Tooltip text={tooltipText} x={tooltipX} y={tooltipY} orientation="right" />
