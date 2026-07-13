@@ -15,7 +15,7 @@
     if (selectAllEl) selectAllEl.indeterminate = storage.someSelected;
   });
 
-  import { storageMoveEnabled } from '$lib/client/feature-flags.js';
+  import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
 
   function navigateUp() {
     if (storage.isInArchive) {
@@ -65,7 +65,7 @@
   }
 
   function handleTableDragOver(e: DragEvent) {
-    if (!storageMoveEnabled || storage.isInArchive) return;
+    if (!canStorageDrop(storage)) return;
     if (!e.dataTransfer?.types.includes('application/x-storage-keys')) return;
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
@@ -127,20 +127,15 @@
   function handleTableDrop(e: DragEvent) {
     stopAutoScroll();
     tableDragOver = false;
-    if (!storageMoveEnabled || storage.isInArchive) return;
+    if (!canStorageDrop(storage)) return;
     e.preventDefault();
-    const raw = e.dataTransfer?.getData('application/x-storage-keys');
-    if (!raw) return;
-    try {
-      const keys: string[] = JSON.parse(raw);
-      void storage.performMove(storage.prefix, keys);
-    } catch {
-      // invalid JSON - ignore
-    }
+    const keys = parseStorageDropKeys(e);
+    if (!keys) return;
+    void storage.performMove(storage.prefix, keys);
   }
 
   function handleParentDragOver(e: DragEvent) {
-    if (!storageMoveEnabled || storage.isInArchive || !storage.prefix) return;
+    if (!canStorageDrop(storage) || !storage.prefix) return;
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     parentDragOver = true;
@@ -152,20 +147,15 @@
 
   function handleParentDrop(e: DragEvent) {
     parentDragOver = false;
-    if (!storageMoveEnabled || storage.isInArchive || !storage.prefix) return;
+    if (!canStorageDrop(storage) || !storage.prefix) return;
     e.preventDefault();
-    const raw = e.dataTransfer?.getData('application/x-storage-keys');
-    if (!raw) return;
-    try {
-      const keys: string[] = JSON.parse(raw);
-      void storage.performMove(parentPrefix(), keys);
-    } catch {
-      // invalid JSON - ignore
-    }
+    const keys = parseStorageDropKeys(e);
+    if (!keys) return;
+    void storage.performMove(parentPrefix(), keys);
   }
 
   function handleEmptyDragOver(e: DragEvent) {
-    if (!storageMoveEnabled || storage.isInArchive) return;
+    if (!canStorageDrop(storage)) return;
     if (!e.dataTransfer?.types.includes('application/x-storage-keys')) return;
     e.preventDefault();
     e.stopPropagation();
@@ -179,17 +169,12 @@
 
   function handleEmptyDrop(e: DragEvent) {
     emptyDragOver = false;
-    if (!storageMoveEnabled || storage.isInArchive) return;
+    if (!canStorageDrop(storage)) return;
     e.preventDefault();
     e.stopPropagation();
-    const raw = e.dataTransfer?.getData('application/x-storage-keys');
-    if (!raw) return;
-    try {
-      const keys: string[] = JSON.parse(raw);
-      void storage.performMove(storage.prefix, keys);
-    } catch {
-      // invalid JSON - ignore
-    }
+    const keys = parseStorageDropKeys(e);
+    if (!keys) return;
+    void storage.performMove(storage.prefix, keys);
   }
 </script>
 

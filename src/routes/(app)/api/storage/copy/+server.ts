@@ -1,82 +1,10 @@
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 import { getProvider } from '$lib/server/storage/utils.js';
-import type { StorageProvider } from '$lib/server/storage/provider.js';
 import { requireBucket } from '../params.js';
-import {
-  createJob,
-  completeJob,
-  failJob,
-  updateJobProgress
-} from '$lib/server/storage/job-store.js';
-
-/**
- * Compute copy destinations for each source key, expanding directories
- * to their full recursive listing while preserving the relative path
- * structure under the destination prefix.
- */
-async function computeCopyDestinations(
-  provider: StorageProvider,
-  sourceKeys: string[],
-  destinationPrefix: string
-): Promise<Array<{ sourceKey: string; baseDestKey: string }>> {
-  const destinations: Array<{ sourceKey: string; baseDestKey: string }> = [];
-
-  for (const key of sourceKeys) {
-    const name = key.endsWith('/')
-      ? key.split('/').filter(Boolean).pop() + '/'
-      : key.split('/').pop();
-
-    if (!key.endsWith('/')) {
-      destinations.push({ sourceKey: key, baseDestKey: destinationPrefix + name });
-    } else {
-      const children = await provider.listAllKeys(key);
-      // listAllKeys returns ALL keys starting with the prefix, which
-      // includes the directory marker itself. We add it explicitly and
-      // skip it when iterating children to avoid a duplicate that would
-      // cause uniqueDestKey to append a "(1)" suffix.
-      destinations.push({ sourceKey: key, baseDestKey: destinationPrefix + name });
-      for (const child of children) {
-        if (child === key) continue;
-        const relPath = child.slice(key.length);
-        destinations.push({ sourceKey: child, baseDestKey: destinationPrefix + name + relPath });
-      }
-    }
-  }
-
-  return destinations;
-}
-
-/**
- * Given a desired destination key, check if it already exists and generate
- * a unique name by appending ` (1)`, ` (2)`, etc. before the extension.
- * Returns the first key that does not exist.
- */
-async function uniqueDestKey(provider: StorageProvider, baseKey: string): Promise<string> {
-  if (!(await provider.exists(baseKey))) return baseKey;
-
-  // Split name and extension
-  const name = baseKey.endsWith('/') ? baseKey.slice(0, -1) : baseKey;
-  const lastDot = name.lastIndexOf('.');
-  const stem = lastDot > 0 ? name.slice(0, lastDot) : name;
-  const ext = lastDot > 0 && !baseKey.endsWith('/') ? name.slice(lastDot) : '';
-
-  const suffix = baseKey.endsWith('/') ? '/' : '';
-
-  let counter = 1;
-  while (true) {
-    const candidate = `${stem} (${counter})${ext}${suffix}`;
-    if (!(await provider.exists(candidate))) return candidate;
-    counter++;
-  }
-}
-
-/**
- * Encode a value as a single NDJSON line (newline-delimited JSON).
- */
-function ndjsonLine(data: Record<string, unknown>): string {
-  return JSON.stringify(data) + '\n';
-}
+import { computeDestinations, uniqueDestKey } from '$lib/server/storage/operations.js';
+import { createProgressStream } from '$lib/server/storage/streaming.js';
+import { createJob } from '$lib/server/storage/job-store.js';
 
 export const POST: RequestHandler = async ({ locals, request, url }) => {
   const bucket = requireBucket(url);
@@ -106,9 +34,8 @@ export const POST: RequestHandler = async ({ locals, request, url }) => {
 
   const provider = getProvider(locals.storageConfig!, bucket);
 
-  // ── Non-streaming path (original behaviour) ──────────────────────────────
   if (!streamProgress) {
-    const destinations = await computeCopyDestinations(
+    const destinations = await computeDestinations(
       provider,
       body.sourceKeys,
       body.destinationPrefix
@@ -135,135 +62,84 @@ export const POST: RequestHandler = async ({ locals, request, url }) => {
     return json({ results, failed });
   }
 
-  // ── Streaming progress path ──────────────────────────────────────────────
-  const destinations = await computeCopyDestinations(
-    provider,
-    body.sourceKeys,
-    body.destinationPrefix
-  );
-  const encoder = new TextEncoder();
-
-  // Run the copy operations as an independent background task. It calls
-  // onEvent() for progress/done/failed — it never touches the stream
-  // controller. When the client disconnects, the stream is cancelled but
-  // the copy continues unaffected.
-  type ProgressEvent =
-    | { type: 'progress'; sourceKey: string; destKey: string; loaded: number; total: number }
-    | { type: 'done'; sourceKey: string; destKey: string }
-    | { type: 'failed'; sourceKey: string; error: string };
-
-  let emitEvent: (event: ProgressEvent) => void = () => {};
-
-  const copyPromise = (async (): Promise<{
-    results: Array<{ sourceKey: string; destKey: string }>;
-    failed: Array<{ sourceKey: string; error: string }>;
-  }> => {
-    const results: Array<{ sourceKey: string; destKey: string }> = [];
-    const failed: Array<{ sourceKey: string; error: string }> = [];
-
-    for (const { sourceKey, baseDestKey } of destinations) {
-      try {
-        const destKey = await uniqueDestKey(provider, baseDestKey);
-
-        let reportedAnyProgress = false;
-        await provider.copyObject(sourceKey, destKey, (loaded, total) => {
-          reportedAnyProgress = true;
-          emitEvent({ type: 'progress', sourceKey, destKey, loaded, total });
-        });
-
-        if (!reportedAnyProgress) {
-          try {
-            const meta = await provider.getMetadata(sourceKey);
-            emitEvent({
-              type: 'progress',
-              sourceKey,
-              destKey,
-              loaded: meta.size,
-              total: meta.size
-            });
-          } catch {
-            // Metadata fetch failed — emit without size info
-          }
-        }
-
-        results.push({ sourceKey, destKey });
-        emitEvent({ type: 'done', sourceKey, destKey });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        const errorName = err instanceof Error ? err.constructor.name : typeof err;
-        const stack =
-          err instanceof Error ? (err.stack ?? '').split('\n').slice(0, 3).join(' | ') : '';
-        failed.push({ sourceKey, error: message });
-        locals.logger.warn(
-          {
-            bucket,
-            source_key: sourceKey,
-            dest_key: baseDestKey,
-            error: message,
-            error_name: errorName,
-            stack
-          },
-          'copy failed for key'
-        );
-        emitEvent({ type: 'failed', sourceKey, error: message });
-      }
-    }
-
-    locals.logger.info({ bucket, copied: results.length, failed: failed.length }, 'copy completed');
-
-    return { results, failed };
-  })();
-
   if (body.jobId) {
     createJob(body.jobId);
   }
 
-  const stream = new ReadableStream({
-    async start(controller) {
-      const jobId = body.jobId;
+  return createProgressStream(
+    (emit) => {
+      const run = async () => {
+        const destinations = await computeDestinations(
+          provider,
+          body.sourceKeys,
+          body.destinationPrefix
+        );
+        const results: Array<{ sourceKey: string; destKey: string }> = [];
+        const failed: Array<{ sourceKey: string; error: string }> = [];
 
-      emitEvent = (event) => {
-        // Update job store so the client can poll progress after a reconnect
-        if (jobId) {
-          if (event.type === 'progress') {
-            updateJobProgress(jobId, { completedBytes: event.loaded });
+        for (const { sourceKey, baseDestKey } of destinations) {
+          try {
+            const destKey = await uniqueDestKey(provider, baseDestKey);
+
+            let reportedAnyProgress = false;
+            await provider.copyObject(sourceKey, destKey, (loaded, total) => {
+              reportedAnyProgress = true;
+              emit({ type: 'progress', sourceKey, destKey, loaded, total });
+            });
+
+            if (!reportedAnyProgress) {
+              try {
+                const meta = await provider.getMetadata(sourceKey);
+                emit({
+                  type: 'progress',
+                  sourceKey,
+                  destKey,
+                  loaded: meta.size,
+                  total: meta.size
+                });
+              } catch {
+                // Metadata fetch failed
+              }
+            }
+
+            results.push({ sourceKey, destKey });
+            emit({ type: 'done', sourceKey, destKey });
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'Unknown error';
+            const errorName = err instanceof Error ? err.constructor.name : typeof err;
+            const stack =
+              err instanceof Error ? (err.stack ?? '').split('\n').slice(0, 3).join(' | ') : '';
+            failed.push({ sourceKey, error: message });
+            locals.logger.warn(
+              {
+                bucket,
+                source_key: sourceKey,
+                dest_key: baseDestKey,
+                error: message,
+                error_name: errorName,
+                stack
+              },
+              'copy failed for key'
+            );
+            emit({ type: 'failed', sourceKey, error: message });
           }
         }
 
-        try {
-          controller.enqueue(encoder.encode(ndjsonLine(event)));
-        } catch {
-          // Controller closed (client disconnected) — copy continues
-          // in the background unaffected.
-        }
+        locals.logger.info(
+          { bucket, copied: results.length, failed: failed.length },
+          'copy completed'
+        );
+
+        return { results, failed };
       };
 
-      const { results, failed } = await copyPromise;
-
-      // Store results in job store for retrieval after client reconnect
-      if (jobId) {
-        if (failed.length > 0) {
-          failJob(jobId, `Failed to copy ${failed.length} item(s)`);
-        } else {
-          completeJob(jobId, { results, failed });
-        }
-      }
-
-      // Final summary
-      try {
-        controller.enqueue(encoder.encode(ndjsonLine({ type: 'complete', results, failed })));
-        controller.close();
-      } catch {
-        // Client already disconnected
-      }
+      return run();
+    },
+    {
+      jobId: body.jobId,
+      operationName: 'copy',
+      logger: locals.logger,
+      bucket
     }
-  });
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'application/x-ndjson',
-      'Cache-Control': 'no-cache',
-      'X-Accel-Buffering': 'no'
-    }
-  });
+  );
 };

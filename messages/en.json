@@ -448,6 +448,7 @@
   "storage_move_confirm_body": "Move {count} item(s) to \"{destination}\"?",
   "storage_move_confirm_label": "Move",
   "storage_move_confirm_cancel": "Cancel",
+  "storage_move_confirm_more": "+{count} more",
   "storage_move_confirm_total_size": "Total: {size}",
   "storage_operation_move_one": "Move {count} file",
   "storage_operation_move_other": "Move {count} files",

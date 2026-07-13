@@ -72,7 +72,7 @@
       {/each}
       {#if hiddenCount > 0}
         <li class="text-base-content/40 py-0.5 pl-6 text-xs">
-          +{hiddenCount} more
+          {m.storage_move_confirm_more({ count: hiddenCount })}
         </li>
       {/if}
     </ul>

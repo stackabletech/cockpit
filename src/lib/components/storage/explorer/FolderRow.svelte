@@ -1,11 +1,15 @@
 <script lang="ts">
-  import { SvelteSet } from 'svelte/reactivity';
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
   import IconFolder from 'virtual:icons/material-symbols/folder';
   import { keyToName } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { storageCutCopyEnabled, storageMoveEnabled } from '$lib/client/feature-flags.js';
+  import { storageCutCopyEnabled } from '$lib/client/feature-flags.js';
+  import {
+    handleRowDragStart,
+    parseStorageDropKeys,
+    canStorageDrop
+  } from '$lib/storage/drag-handlers.js';
 
   interface Props {
     folder: StorageObject;
@@ -22,20 +26,11 @@
   let dragOver = $state(false);
 
   function handleDragStart(e: DragEvent) {
-    if (!storageCutCopyEnabled || storage.isInArchive) return;
-    // Auto-select the dragged item if not already selected
-    if (!storage.selectedKeys.has(folder.key)) {
-      storage.selectedKeys = new SvelteSet<string>([folder.key]);
-    }
-    e.dataTransfer?.setData(
-      'application/x-storage-keys',
-      JSON.stringify([...storage.selectedKeys])
-    );
-    e.dataTransfer!.effectAllowed = 'move';
+    handleRowDragStart(e, folder.key, storage);
   }
 
   function handleDragOver(e: DragEvent) {
-    if (!storageMoveEnabled || storage.isInArchive) return;
+    if (!canStorageDrop(storage)) return;
     // Don't allow dropping onto a selected folder (moving into itself)
     if (storage.selectedKeys.has(folder.key)) return;
     e.preventDefault();
@@ -50,20 +45,15 @@
 
   function handleDrop(e: DragEvent) {
     dragOver = false;
-    if (!storageMoveEnabled || storage.isInArchive) return;
+    if (!canStorageDrop(storage)) return;
     e.preventDefault();
     e.stopPropagation();
-    const raw = e.dataTransfer?.getData('application/x-storage-keys');
-    if (!raw) return;
-    try {
-      const keys: string[] = JSON.parse(raw);
-      // Don't drop onto a selected folder
-      if (keys.includes(folder.key)) return;
-      // Move items into this folder
-      void storage.performMove(folder.key, keys);
-    } catch {
-      // invalid JSON - ignore
-    }
+    const keys = parseStorageDropKeys(e);
+    if (!keys) return;
+    // Don't drop onto a selected folder
+    if (keys.includes(folder.key)) return;
+    // Move items into this folder
+    void storage.performMove(folder.key, keys);
   }
 </script>
 

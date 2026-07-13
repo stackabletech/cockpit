@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { SvelteSet } from 'svelte/reactivity';
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
   import { keyToName, formatFileSize, isArchiveExtension } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
@@ -7,6 +6,7 @@
   import FileIconAndName from './file-icon/FileIconAndName.svelte';
   import { getStorageState } from '$lib/storage/context.js';
   import { storageCutCopyEnabled } from '$lib/client/feature-flags.js';
+  import { handleRowDragStart } from '$lib/storage/drag-handlers.js';
 
   interface Props {
     file: StorageObject;
@@ -22,16 +22,7 @@
   const isCut = $derived(storage.isCutKey(file.key));
 
   function handleDragStart(e: DragEvent) {
-    if (!storageCutCopyEnabled) return;
-    // Auto-select the dragged item if not already selected
-    if (!storage.selectedKeys.has(file.key)) {
-      storage.selectedKeys = new SvelteSet<string>([file.key]);
-    }
-    e.dataTransfer?.setData(
-      'application/x-storage-keys',
-      JSON.stringify([...storage.selectedKeys])
-    );
-    e.dataTransfer!.effectAllowed = 'move';
+    handleRowDragStart(e, file.key, storage);
   }
 </script>
 

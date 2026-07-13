@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import type { StorageOperation } from '$lib/storage/types.js';
+  import type { StorageOperation, OperationType } from '$lib/storage/types.js';
   import IconContentPaste from 'virtual:icons/material-symbols/content-paste';
   import IconDriveFileMove from 'virtual:icons/material-symbols/drive-file-move-outline';
   import IconEdit from 'virtual:icons/material-symbols/edit-outline';
@@ -16,6 +16,13 @@
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
 
   const storage = getStorageState();
+
+  const typeIconMap: Record<OperationType, typeof IconDelete> = {
+    paste: IconContentPaste,
+    move: IconDriveFileMove,
+    rename: IconEdit,
+    delete: IconDelete
+  };
 
   let dropdownOpen = $state(false);
   let tick = $state(0);
@@ -260,6 +267,7 @@
             </p>
             <ul class="flex flex-col gap-2">
               {#each activeOps as op (op.id)}
+                {@const TypeIcon = typeIconMap[op.type]}
                 <li role="none" class="bg-base-200 rounded-lg px-3 py-2.5">
                   <!-- Collapsible header row -->
                   <div class="flex items-center gap-2">
@@ -282,15 +290,7 @@
 
                       <!-- Type icon -->
                       <span class="text-primary shrink-0" aria-hidden="true">
-                        {#if op.type === 'paste'}
-                          <IconContentPaste class="size-3.5" />
-                        {:else if op.type === 'move'}
-                          <IconDriveFileMove class="size-3.5" />
-                        {:else if op.type === 'rename'}
-                          <IconEdit class="size-3.5" />
-                        {:else}
-                          <IconDelete class="size-3.5" />
-                        {/if}
+                        <TypeIcon class="size-3.5" />
                       </span>
 
                       <!-- Label -->
@@ -424,6 +424,7 @@
             </div>
             <ul class="flex flex-col gap-1">
               {#each historyOps as op (op.id)}
+                {@const TypeIcon = typeIconMap[op.type]}
                 <li role="none" class="rounded-md px-2.5 py-2 {statusBgColor(op)}">
                   <div class="flex items-center gap-2">
                     <!-- Status icon -->
@@ -440,15 +441,7 @@
                     </span>
                     <!-- Operation type icon -->
                     <span class="text-base-content/50 shrink-0" aria-hidden="true">
-                      {#if op.type === 'paste'}
-                        <IconContentPaste class="size-3" />
-                      {:else if op.type === 'move'}
-                        <IconDriveFileMove class="size-3" />
-                      {:else if op.type === 'rename'}
-                        <IconEdit class="size-3" />
-                      {:else}
-                        <IconDelete class="size-3" />
-                      {/if}
+                      <TypeIcon class="size-3" />
                     </span>
                     <span class="text-base-content/80 min-w-0 flex-1 truncate text-[11px]">
                       {op.label}

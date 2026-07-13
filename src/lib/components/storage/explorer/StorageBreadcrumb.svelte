@@ -21,6 +21,7 @@
   import { invalidateAll } from '$app/navigation';
   import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
   import { storageMoveEnabled } from '$lib/client/feature-flags.js';
+  import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import OperationsButton from './OperationsButton.svelte';
 
   const storage = getStorageState();
@@ -179,7 +180,7 @@
   let collapsedDropdownOpen = $state(false);
 
   function handleBreadcrumbDragOver(e: DragEvent, prefix: string) {
-    if (!storageMoveEnabled || storage.isInArchive) return;
+    if (!canStorageDrop(storage)) return;
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     dropTargetPrefix = prefix;
@@ -192,17 +193,12 @@
   function handleBreadcrumbDrop(e: DragEvent, prefix: string) {
     dropTargetPrefix = null;
     collapsedDropdownOpen = false;
-    if (!storageMoveEnabled || storage.isInArchive) return;
+    if (!canStorageDrop(storage)) return;
     e.preventDefault();
     e.stopPropagation();
-    const raw = e.dataTransfer?.getData('application/x-storage-keys');
-    if (!raw) return;
-    try {
-      const keys: string[] = JSON.parse(raw);
-      void storage.performMove(prefix, keys);
-    } catch {
-      // invalid JSON - ignore
-    }
+    const keys = parseStorageDropKeys(e);
+    if (!keys) return;
+    void storage.performMove(prefix, keys);
   }
 </script>
 

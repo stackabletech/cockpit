@@ -2098,7 +2098,9 @@ export class StorageState {
     currentFileName?: string
   ): void {
     this.operations = this.operations.map((op) =>
-      op.id === id ? { ...op, completedCount, completedBytes, currentFileName } : op
+      op.id === id && op.status !== 'cancelled'
+        ? { ...op, completedCount, completedBytes, currentFileName }
+        : op
     );
   }
 
@@ -2113,7 +2115,9 @@ export class StorageState {
     errorMessage?: string
   ): void {
     this.operations = this.operations.map((op) =>
-      op.id === id ? { ...op, status, errorMessage, completedAt: Date.now() } : op
+      op.id === id && op.status !== 'cancelled'
+        ? { ...op, status, errorMessage, completedAt: Date.now() }
+        : op
     );
     this._abortControllers.delete(id);
     saveOperationsToStorage(this.operations);
@@ -2142,6 +2146,9 @@ export class StorageState {
   private _pollTimers = new SvelteMap<string, ReturnType<typeof setTimeout>>();
 
   private async _pollJobStatus(op: StorageOperation): Promise<void> {
+    // If the operation was cancelled while we were waiting to poll, stop.
+    if (this.operations.find((o) => o.id === op.id)?.status === 'cancelled') return;
+
     let completedCount = 0;
     let completedBytes = 0;
     let anyRunning = false;
@@ -2231,6 +2238,13 @@ export class StorageState {
     const controller = this._abortControllers.get(id);
     if (controller) {
       controller.abort();
+    }
+    // Stop polling for re-acquired operations (restored from localStorage
+    // after a page refresh — these have no AbortController to cancel).
+    const timer = this._pollTimers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      this._pollTimers.delete(id);
     }
     this._finishOp(id, 'cancelled');
   };

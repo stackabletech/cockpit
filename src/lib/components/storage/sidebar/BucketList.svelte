@@ -12,8 +12,8 @@
   import Modal from '$lib/components/Modal.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { storageMoveEnabled } from '$lib/client/feature-flags.js';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
+  import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import { pinnedLabel, pinnedHref } from '$lib/storage/display-helpers.js';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
@@ -113,7 +113,7 @@
   let dropSidebarTarget = $state<string | null>(null);
 
   function handleSidebarDragOver(e: DragEvent, prefix: string) {
-    if (!storageMoveEnabled || storage.isInArchive) return;
+    if (!canStorageDrop(storage)) return;
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     dropSidebarTarget = prefix;
@@ -125,17 +125,12 @@
 
   function handleSidebarDrop(e: DragEvent, _bucket: string, prefix: string) {
     dropSidebarTarget = null;
-    if (!storageMoveEnabled || storage.isInArchive) return;
+    if (!canStorageDrop(storage)) return;
     e.preventDefault();
     e.stopPropagation();
-    const raw = e.dataTransfer?.getData('application/x-storage-keys');
-    if (!raw) return;
-    try {
-      const keys: string[] = JSON.parse(raw);
-      void storage.performMove(prefix, keys);
-    } catch {
-      // invalid JSON - ignore
-    }
+    const keys = parseStorageDropKeys(e);
+    if (!keys) return;
+    void storage.performMove(prefix, keys);
   }
 </script>
 

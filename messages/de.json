@@ -448,6 +448,7 @@
   "storage_move_confirm_body": "{count} Element(e) nach \"{destination}\" verschieben?",
   "storage_move_confirm_label": "Verschieben",
   "storage_move_confirm_cancel": "Abbrechen",
+  "storage_move_confirm_more": "+{count} mehr",
   "storage_move_confirm_total_size": "Gesamt: {size}",
   "storage_operation_move_one": "{count} Datei verschieben",
   "storage_operation_move_other": "{count} Dateien verschieben",

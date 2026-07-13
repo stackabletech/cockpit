@@ -13,7 +13,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const config = parseConnectionPayload(encoded);
   const token = createDownloadToken(config);
 
-  locals.logger?.debug({ token: token.slice(0, 8) + '…' }, 'created download token');
+  locals.logger.debug({ token_length: token.length }, 'created download token');
 
   return json({ token });
 };
