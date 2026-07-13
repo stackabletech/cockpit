@@ -150,7 +150,7 @@
   "storage_connect_error_not_found": "Speicher-Backend nicht gefunden — Endpunkt prüfen.",
   "storage_connect_error_server_error": "Das Speicher-Backend hat einen Fehler gemeldet — Endpunkt und Zugangsdaten prüfen.",
   "storage_connect_error_network": "Speicher-Backend nicht erreichbar — Host und Port prüfen.",
-  "storage_connect_error_hdfs": "HDFS-Verbindungen werden noch nicht unterstützt.",
+  "storage_connect_error_hdfs": "HDFS-Verbindungen werden noch nicht unterstützt",
   "storage_connect_saved": "Gespeicherte Verbindungen",
   "storage_connect_no_saved": "Noch keine gespeicherten Verbindungen",
   "storage_connect_forget": "Löschen",
