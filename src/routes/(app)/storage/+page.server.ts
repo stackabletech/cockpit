@@ -1,10 +1,11 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, redirect, isHttpError } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import type { Actions, PageServerLoad } from './$types';
 import { StorageConnectionSchema } from '$lib/storage/schemas.js';
 import { getConnectionProvider } from '$lib/server/storage/utils.js';
 import type { S3ConnectionConfig } from '$lib/server/storage/types.js';
+import * as m from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const connectionForm = await superValidate(
@@ -29,7 +30,7 @@ export const actions: Actions = {
     const { type, host, port, tls, accessStyle, region, credentials } = form.data;
 
     if (type !== 's3') {
-      return message(form, 'HDFS connections are not yet supported', { status: 400 });
+      return message(form, m.storage_connect_error_hdfs(), { status: 400 });
     }
 
     const resolvedCredentials =
@@ -50,9 +51,30 @@ export const actions: Actions = {
       log.info({ storage_type: type }, 'user storage connection verified');
     } catch (err) {
       log.warn({ err }, 'storage connection test failed');
-      return message(form, 'Could not connect — check the endpoint and credentials.', {
-        status: 400
-      });
+
+      let msg: string;
+      if (isHttpError(err)) {
+        if (err.status === 403) {
+          msg = m.storage_connect_error_access_denied();
+        } else if (err.status === 404) {
+          msg = m.storage_connect_error_not_found();
+        } else if (err.status === 502) {
+          msg = m.storage_connect_error_server_error();
+        } else {
+          msg = m.storage_connect_error();
+        }
+      } else if (err instanceof Error) {
+        const e = (err.message ?? '').toLowerCase();
+        if (/econnrefused|enotfound|eai_again|etimedout|network/.test(e)) {
+          msg = m.storage_connect_error_network();
+        } else {
+          msg = m.storage_connect_error();
+        }
+      } else {
+        msg = m.storage_connect_error();
+      }
+
+      return message(form, msg, { status: 400 });
     }
 
     throw redirect(303, '/storage');

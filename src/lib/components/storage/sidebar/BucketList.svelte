@@ -10,6 +10,7 @@
   import IconGridView from 'virtual:icons/material-symbols/grid-view';
   import IconPowerOff from 'virtual:icons/material-symbols/power-settings-new';
   import Modal from '$lib/components/Modal.svelte';
+  import Tooltip from '$lib/components/Tooltip.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
@@ -100,7 +101,7 @@
   function showTooltip(e: MouseEvent | FocusEvent, text: string) {
     const el = e.currentTarget as HTMLElement;
     const rect = el.getBoundingClientRect();
-    tooltipX = rect.right + 8;
+    tooltipX = rect.right;
     tooltipY = rect.top + rect.height / 2;
     tooltipText = text;
   }
@@ -342,12 +343,4 @@
   <ResizeHandle panel={resize} />
 </nav>
 
-{#if tooltipText}
-  <div
-    class="bg-neutral text-neutral-content pointer-events-none fixed z-150 rounded px-2 py-1 text-sm whitespace-nowrap shadow-lg"
-    style="left: {tooltipX}px; top: {tooltipY}px; transform: translateY(-50%)"
-    role="tooltip"
-  >
-    {tooltipText}
-  </div>
-{/if}
+<Tooltip text={tooltipText} x={tooltipX} y={tooltipY} orientation="right" />
