@@ -112,6 +112,8 @@ test.describe('Trino editor tabs', () => {
     await setTabState(page, [{ sql: 'SELECT id, name FROM users' }, { sql: 'SELECT 2' }]);
     await page.goto('/trino');
     await waitForHydration(page);
+    // Wait for Monaco editor to be fully initialised.
+    await page.locator('[data-ready]').first().waitFor({ timeout: 15_000 });
 
     // Focus editor and run query on first tab.
     await page.locator('.monaco-editor').first().click();
