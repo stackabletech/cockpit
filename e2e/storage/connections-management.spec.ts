@@ -109,9 +109,7 @@ test.describe('Storage — Connections management', () => {
     await page.getByLabel('Secret key').fill('wrong-secret');
     await page.getByRole('button', { name: 'Save changes' }).click();
 
-    await expect(
-      page.getByText('Could not connect — check the endpoint and credentials.')
-    ).toBeVisible();
+    await expect(page.getByText('Access denied — check your credentials.')).toBeVisible();
   });
 
   test('delete button on management page removes the connection after confirmation', async ({
