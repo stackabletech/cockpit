@@ -4,11 +4,10 @@
   interface Props {
     text: string;
     maxRows?: number;
+    maxColumns?: number;
   }
 
-  let { text, maxRows = 250 }: Props = $props();
-
-  const maxColumns = 50; // TODO: magic number
+  let { text, maxRows = 250, maxColumns = 50 }: Props = $props();
 
   const { headers, rows, displayHeaders, extraColumns } = $derived.by(() => {
     // Split into lines, strip trailing newline

@@ -44,3 +44,10 @@ export const pdfPreviewBytes =
  *  Higher values give more data context but increase server-side S3 reads
  *  and the size of the payload sent to the browser. */
 export const filePreviewRows = parseInt(env.STACKABLE_COCKPIT_FILE_PREVIEW_ROWS ?? '', 10) || 250;
+
+/** Maximum number of columns included in a file preview that is rendered as a
+ *  table (currently: used by CSV).
+ *  Controlled by `STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS`. Default: 50.
+ *  Values only affect client side rendering and not payload size. */
+export const filePreviewColumns =
+  parseInt(env.STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS ?? '', 10) || 50;

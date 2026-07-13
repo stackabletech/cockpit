@@ -44,6 +44,7 @@
         totalSize: number;
         previewBytes: number;
         previewRows: number;
+        previewColumns: number;
       }
     | {
         kind: 'parquet';
@@ -127,6 +128,7 @@
       const previewBytes = Number(res.headers.get('X-Preview-Bytes') ?? '0');
       const totalRows = Number(res.headers.get('X-Preview-Total-Rows') ?? '0');
       const previewRows = Number(res.headers.get('X-Preview-Preview-Rows') ?? '0');
+      const previewColumns = Number(res.headers.get('X-Preview-Preview-Columns') ?? '0');
 
       // Server flagged this as a known-binary type — skip body fetch entirely.
       if (res.headers.get('X-Preview-Renderable') === 'false') {
@@ -180,7 +182,15 @@
         contentType === 'application/vnd.ms-excel' ||
         key.toLowerCase().endsWith('.csv')
       ) {
-        preview = { kind: 'csv', text, truncated, totalSize, previewBytes, previewRows };
+        preview = {
+          kind: 'csv',
+          text,
+          truncated,
+          totalSize,
+          previewBytes,
+          previewRows,
+          previewColumns
+        };
         return;
       }
 
@@ -383,7 +393,11 @@
       {:else if preview.kind === 'text'}
         <TextPreview text={preview.text} contentType={preview.contentType} />
       {:else if preview.kind === 'csv'}
-        <CsvPreview text={preview.text} maxRows={preview.previewRows || 250} />
+        <CsvPreview
+          text={preview.text}
+          maxRows={preview.previewRows || 250}
+          maxColumns={preview.previewColumns || 50}
+        />
       {:else if preview.kind === 'parquet'}
         <CsvPreview text={preview.text} maxRows={preview.previewRows || 250} />
       {:else if preview.kind === 'image'}

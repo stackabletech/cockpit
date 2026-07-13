@@ -4,7 +4,8 @@ import {
   textPreviewBytes,
   imagePreviewBytes,
   pdfPreviewBytes,
-  filePreviewRows
+  filePreviewRows,
+  filePreviewColumns
 } from '$lib/server/feature-flags.js';
 
 export async function streamPreview(
@@ -51,6 +52,7 @@ export async function streamPreview(
       'X-Preview-Total-Size': String(totalSize),
       'X-Preview-Bytes': String(previewBytes),
       'X-Preview-Preview-Rows': String(filePreviewRows),
+      'X-Preview-Preview-Columns': String(filePreviewColumns),
       'Cache-Control': 'no-store'
     }
   });
