@@ -161,7 +161,7 @@
       // For everything else (text/*, application/json, application/octet-stream,
       // application/yaml, etc.) attempt UTF-8 decode. Success → text view;
       // failure → the file is genuinely binary.
-      const text = await readTextSafely(res, key);
+      const text = await readTextSafely(res, key, contentType);
       if (text === null) {
         preview = { kind: 'fallback', contentType, isBinary: true };
         return;
@@ -197,7 +197,21 @@
    * Returns null if the content cannot be decoded as any recognised encoding
    * (indicating genuinely binary content).
    */
-  async function readTextSafely(res: Response, key: string): Promise<string | null> {
+  function isTextContentType(contentType: string): boolean {
+    if (contentType.startsWith('text/')) return true;
+    if (contentType === 'application/json') return true;
+    if (contentType === 'application/yaml') return true;
+    if (contentType === 'application/xml') return true;
+    if (contentType === 'application/csv') return true;
+    if (contentType === 'application/x-ndjson') return true;
+    return false;
+  }
+
+  async function readTextSafely(
+    res: Response,
+    key: string,
+    contentType: string
+  ): Promise<string | null> {
     try {
       const buf = await res.arrayBuffer();
       const bytes = new Uint8Array(buf);
@@ -220,7 +234,9 @@
         // If the content was truncated, the invalid bytes might be at the
         // truncation boundary (a multi-byte character cut in half). Decode
         // without fatal and strip trailing replacement characters.
-        if (truncated) {
+        // Only do this for text-like content types — binary files should
+        // fall through to the FallbackPreview.
+        if (truncated && isTextContentType(contentType)) {
           const text = new TextDecoder('utf-8').decode(buf);
           return text.replace(/\uFFFD+$/, '');
         }
