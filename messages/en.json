@@ -150,7 +150,7 @@
   "storage_connect_error_not_found": "Could not find the storage backend — check the endpoint.",
   "storage_connect_error_server_error": "The storage backend returned an error — check the endpoint and credentials.",
   "storage_connect_error_network": "Could not reach the storage backend — check the host and port.",
-  "storage_connect_error_hdfs": "HDFS connections are not yet supported.",
+  "storage_connect_error_hdfs": "HDFS connections are not yet supported",
   "storage_connect_saved": "Saved connections",
   "storage_connect_no_saved": "No saved connections yet",
   "storage_connect_forget": "Delete",
