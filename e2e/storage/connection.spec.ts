@@ -43,9 +43,7 @@ test.describe('Storage S3 — Connection', () => {
     await page.getByRole('button', { name: 'Connect' }).click();
 
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
-    await expect(
-      page.getByText('Access denied — check your credentials.')
-    ).toBeVisible();
+    await expect(page.getByText('Access denied — check your credentials.')).toBeVisible();
   });
 
   test('disconnects from Garage S3', async ({ page }) => {
