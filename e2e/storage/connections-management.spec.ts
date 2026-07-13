@@ -112,7 +112,7 @@ test.describe('Storage — Connections management', () => {
     await page.getByRole('button', { name: 'Save changes' }).click();
 
     await expect(
-      page.getByText('Could not connect — check the endpoint and credentials.')
+      page.getByText('Access denied — check your credentials.')
     ).toBeVisible();
   });
 

@@ -44,7 +44,7 @@ test.describe('Storage S3 — Connection', () => {
 
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
     await expect(
-      page.getByText('Could not connect — check the endpoint and credentials.')
+      page.getByText('Access denied — check your credentials.')
     ).toBeVisible();
   });
 
