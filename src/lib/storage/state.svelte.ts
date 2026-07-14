@@ -32,6 +32,7 @@ import { addToast } from '$lib/stores/toast.svelte.js';
 import { ActionError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
 import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { keyToName } from '$lib/storage/utils.js';
 
 // Set to true when the page starts unloading (reload, tab close, navigate away).
@@ -952,9 +953,9 @@ export class StorageState {
     this.loading = true;
 
     try {
-      const conn = loadConnectionLocally();
-      const headers: HeadersInit = conn
-        ? { 'x-storage-connection': getConnectionHeader(conn) }
+      const connectionId = connectionStore.activeConnectionId;
+      const headers: HeadersInit = connectionId
+        ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
         : {};
       const isFolder = type === 'folder';
       const parts = sanitized.split('/');
@@ -1037,8 +1038,8 @@ export class StorageState {
     results: Array<{ sourceKey: string; destKey: string }>;
     failed: number;
   }> {
-    const conn = loadConnectionLocally();
-    if (!conn) throw new ActionError('not_connected', 'No connection');
+    const connectionId = connectionStore.activeConnectionId;
+    if (!connectionId) throw new ActionError('not_connected', 'No connection');
 
     const endpoint = deleteOriginals ? '/api/storage/move' : '/api/storage/copy';
     const params = new SvelteURLSearchParams({ bucket: this.bucket });
@@ -1046,7 +1047,7 @@ export class StorageState {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-storage-connection': getConnectionHeader(conn)
+        [STORAGE_CONNECTION_ID_HEADER]: connectionId
       },
       body: JSON.stringify({
         sourceKeys: keys,
@@ -1093,8 +1094,8 @@ export class StorageState {
     failed: number;
     fileJobIds: string[];
   }> {
-    const conn = loadConnectionLocally();
-    if (!conn) throw new ActionError('not_connected', 'No connection');
+    const connectionId = connectionStore.activeConnectionId;
+    if (!connectionId) throw new ActionError('not_connected', 'No connection');
 
     const endpoint = deleteOriginals ? '/api/storage/move' : '/api/storage/copy';
     const results: Array<{ sourceKey: string; destKey: string }> = [];
@@ -1114,7 +1115,7 @@ export class StorageState {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-storage-connection': getConnectionHeader(conn)
+          [STORAGE_CONNECTION_ID_HEADER]: connectionId
         },
         body: JSON.stringify({
           sourceKeys: [sourceKey],
@@ -1230,8 +1231,8 @@ export class StorageState {
     );
 
     try {
-      const conn = loadConnectionLocally();
-      if (!conn) {
+      const connectionId = connectionStore.activeConnectionId;
+      if (!connectionId) {
         this._finishOp(opId, 'error');
         this.renameLoading = false;
         addToast('error', m.storage_rename_error_not_connected());
@@ -1243,7 +1244,7 @@ export class StorageState {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-storage-connection': getConnectionHeader(conn)
+          [STORAGE_CONNECTION_ID_HEADER]: connectionId
         },
         body: JSON.stringify({ key, newKey })
       });
@@ -1394,8 +1395,8 @@ export class StorageState {
     );
 
     try {
-      const conn = loadConnectionLocally();
-      if (!conn) {
+      const connectionId = connectionStore.activeConnectionId;
+      if (!connectionId) {
         this._finishOp(opId, 'error');
         this._pendingSourcePrefix = null;
         addToast('error', m.storage_action_move_error_not_connected());
@@ -1422,7 +1423,7 @@ export class StorageState {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-storage-connection': getConnectionHeader(conn)
+            [STORAGE_CONNECTION_ID_HEADER]: connectionId
           },
           body: JSON.stringify({
             sourceKeys: [sourceKey],
@@ -1575,8 +1576,7 @@ export class StorageState {
     keys: string[],
     destPrefix: string
   ): Promise<ConflictEntry[]> {
-    const conn = loadConnectionLocally();
-    const connHeader = conn ? getConnectionHeader(conn) : '';
+    const connectionId = connectionStore.activeConnectionId ?? '';
     const results: ConflictEntry[] = [];
 
     for (const key of keys) {
@@ -1584,7 +1584,7 @@ export class StorageState {
       const destKey = destPrefix + origName;
       let conflict = false;
       try {
-        conflict = await checkObjectExists(this.bucket, destKey, connHeader);
+        conflict = await checkObjectExists(this.bucket, destKey, connectionId);
       } catch {
         // If the check fails, assume no conflict and proceed
       }
@@ -1628,8 +1628,8 @@ export class StorageState {
     destPrefix: string,
     resolvedEntries: ConflictEntry[]
   ): Promise<void> {
-    const conn = loadConnectionLocally();
-    if (!conn) return;
+    const connectionId = connectionStore.activeConnectionId;
+    if (!connectionId) return;
 
     const keysToDelete: string[] = [];
     for (const entry of resolvedEntries) {
@@ -1649,7 +1649,7 @@ export class StorageState {
     try {
       await fetch(`/api/storage/delete?${params}`, {
         method: 'DELETE',
-        headers: { 'x-storage-connection': getConnectionHeader(conn) }
+        headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
       });
     } catch {
       // Best-effort - if deletion fails, the server may auto-rename
@@ -1739,8 +1739,8 @@ export class StorageState {
           renameFailed++;
           continue;
         }
-        const conn = loadConnectionLocally();
-        if (!conn) {
+        const connectionId = connectionStore.activeConnectionId;
+        if (!connectionId) {
           renameFailed++;
           continue;
         }
@@ -1751,7 +1751,7 @@ export class StorageState {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'x-storage-connection': getConnectionHeader(conn)
+              [STORAGE_CONNECTION_ID_HEADER]: connectionId
             },
             body: JSON.stringify({ key: destKey, newKey })
           });
@@ -1851,8 +1851,8 @@ export class StorageState {
       pending.totalBytes
     );
 
-    const conn = loadConnectionLocally();
-    if (!conn) {
+    const connectionId = connectionStore.activeConnectionId;
+    if (!connectionId) {
       this._finishOp(opId, 'error');
       addToast('error', m.storage_action_move_error_not_connected());
       return;
@@ -1882,7 +1882,7 @@ export class StorageState {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'x-storage-connection': getConnectionHeader(conn)
+              [STORAGE_CONNECTION_ID_HEADER]: connectionId
             },
             body: JSON.stringify({ key: rename.sourceKey, newKey: renamedSourceKey })
           });
@@ -1912,7 +1912,7 @@ export class StorageState {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-storage-connection': getConnectionHeader(conn)
+            [STORAGE_CONNECTION_ID_HEADER]: connectionId
           },
           body: JSON.stringify({
             sourceKeys: [key],

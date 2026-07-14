@@ -12,9 +12,8 @@
 
   let { tabsState }: Props = $props();
 
-<<<<<<< HEAD
   const storage = getStorageState();
-=======
+
   let renameInput = $state<HTMLInputElement | null>(null);
 
   $effect(() => {
@@ -23,7 +22,6 @@
       renameInput.select();
     }
   });
->>>>>>> origin/feat/s3-file-browser-v1
 
   // ── Overflow detection ──
   let containerEl = $state<HTMLElement | null>(null);

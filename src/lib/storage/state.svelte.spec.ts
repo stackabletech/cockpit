@@ -25,6 +25,10 @@ vi.mock('$lib/storage/connection-storage.js', () => ({
   removeConnectionLocally: vi.fn()
 }));
 
+vi.mock('$lib/storage/connection-store.svelte.js', () => ({
+  connectionStore: { activeConnectionId: 'test-connection-id' }
+}));
+
 vi.mock('$lib/stores/toast.svelte.js', () => ({
   addToast: vi.fn()
 }));

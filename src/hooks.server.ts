@@ -67,15 +67,6 @@ const handleAuthGuard: Handle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
-<<<<<<< HEAD
-/** Routes under /api/storage/ that do NOT need a storage connection header. */
-const STORAGE_ROUTES_WITHOUT_CONNECTION = new Set([
-  '/(app)/api/storage/copy/job/[jobId]',
-  '/(app)/api/storage/download',
-  '/(app)/api/storage/download/token'
-]);
-
-=======
 /**
  * Parse the `x-storage-connection-id` header for every request and look up the
  * connection from the database. The decrypted config is stored in
@@ -83,7 +74,6 @@ const STORAGE_ROUTES_WITHOUT_CONNECTION = new Set([
  * header is mandatory — the middleware throws 401 before the handler runs if it
  * is absent, so handlers can rely on `locals.storageConfig` being non-null.
  */
->>>>>>> origin/feat/s3-file-browser-v1
 const handleStorageConnection: Handle = async ({ event, resolve }) => {
   if (
     (event.route.id?.startsWith('/(app)/storage/') ||
@@ -92,14 +82,6 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
   ) {
     throw error(404, 'Storage browser is not enabled');
   }
-<<<<<<< HEAD
-  event.locals.storageConfig = getConnectionFromHeader(event.request);
-  if (
-    event.locals.storageConfig === null &&
-    event.route.id?.startsWith('/(app)/api/storage/') &&
-    !STORAGE_ROUTES_WITHOUT_CONNECTION.has(event.route.id)
-  ) {
-=======
   const userId = event.locals.user?.id ?? null;
   if (userId && event.route.id?.startsWith('/(app)/api/storage/')) {
     event.locals.storageConfig = await getConnectionFromHeader(event.request, userId);
@@ -108,11 +90,13 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
   }
   // The connections management endpoint itself does not require a connection header —
   // it is used to list/create connections before one is selected.
+  // The copy/job polling endpoint also does not require a connection header —
+  // it reads job status from the server-side job store.
   const requiresConnectionHeader =
     event.route.id?.startsWith('/(app)/api/storage/') &&
-    !event.route.id?.startsWith('/(app)/api/storage/connections');
+    !event.route.id?.startsWith('/(app)/api/storage/connections') &&
+    !event.route.id?.startsWith('/(app)/api/storage/copy/job/');
   if (event.locals.storageConfig === null && requiresConnectionHeader) {
->>>>>>> origin/feat/s3-file-browser-v1
     throw error(401, 'No storage connection configured');
   }
   return resolve(event);

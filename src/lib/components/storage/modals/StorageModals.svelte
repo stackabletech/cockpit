@@ -8,7 +8,8 @@
   import CreateModal from './CreateModal.svelte';
   import MoveConfirmModal from './MoveConfirmModal.svelte';
   import ConflictResolutionDialog from './shared/ConflictResolutionDialog.svelte';
-  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
   import { checkObjectExists } from '$lib/storage/upload.js';
 
   const storage = getStorageState();
@@ -161,12 +162,11 @@
     entries={modalPayload.entries}
     confirmLabel={modalPayload.confirmLabel}
     onCheckRename={async (entry) => {
-      const conn = loadConnectionLocally();
-      if (!conn) return true;
-      const connHeader = getConnectionHeader(conn);
+      const connectionId = connectionStore.activeConnectionId;
+      if (!connectionId) return true;
       try {
         const fullKey = modalPayload.destPrefix + entry.customName.trim();
-        return !(await checkObjectExists(modalPayload.bucket, fullKey, connHeader));
+        return !(await checkObjectExists(modalPayload.bucket, fullKey, connectionId));
       } catch {
         return true;
       }

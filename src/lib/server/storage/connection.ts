@@ -31,10 +31,6 @@ interface StoredPayload {
  * Throws 401 if the connection is not found or does not belong to the user.
  * Throws 500 if decryption fails.
  */
-<<<<<<< HEAD
-export function parseConnectionPayload(raw: string): S3ConnectionConfig {
-  let data: unknown;
-=======
 export async function getConnectionFromHeader(
   request: Request,
   userId: string
@@ -58,7 +54,6 @@ export async function getConnectionFromHeader(
   const row = rows[0];
 
   let payload: StoredPayload;
->>>>>>> origin/feat/s3-file-browser-v1
   try {
     payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey())) as StoredPayload;
   } catch (err) {

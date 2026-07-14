@@ -2,7 +2,6 @@ import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { getProvider } from '$lib/server/storage/utils.js';
 import { requireBucketKey } from '../params.js';
-import { consumeDownloadToken } from '$lib/server/storage/download-tokens.js';
 
 /** Derive the bare filename from a (possibly path-prefixed) object key. */
 function filenameFromKey(key: string): string {
@@ -17,21 +16,16 @@ function filenameFromKey(key: string): string {
  * The S3 body stream is piped straight to the HTTP response — no server-side
  * buffering occurs.
  *
- * The connection config is resolved via one of:
- *   1. `locals.storageConfig` (set by handleStorageConnection middleware from
- *      the X-Storage-Connection header — used for HEAD pre-flight checks).
- *   2. A short-lived `token` query parameter obtained from the
- *      /api/storage/download/token endpoint — used for the actual GET so the
- *      browser can stream the download natively without custom headers.
+ * The connection config is resolved from `locals.storageConfig` which is set
+ * by the handleStorageConnection middleware using the x-storage-connection-id
+ * header and a database lookup.
  */
 export const GET: RequestHandler = async ({ locals, request, url }) => {
   const { bucket, key } = requireBucketKey(url);
 
   locals.logger.debug({ bucket, key }, 'download request received');
 
-  const config =
-    locals.storageConfig ??
-    (url.searchParams.has('token') ? consumeDownloadToken(url.searchParams.get('token')!) : null);
+  const config = locals.storageConfig;
 
   if (!config) {
     throw error(401, 'No storage connection configured');

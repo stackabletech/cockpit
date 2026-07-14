@@ -19,15 +19,11 @@
   import type { StorageLocation } from '$lib/storage/types.js';
   import { keyToName } from '$lib/storage/utils.js';
   import { invalidateAll } from '$app/navigation';
-<<<<<<< HEAD
-  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
   import { storageMoveEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import OperationsButton from './OperationsButton.svelte';
-=======
-  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
-  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
->>>>>>> origin/feat/s3-file-browser-v1
 
   const storage = getStorageState();
   const tabsState = getTabsState();
