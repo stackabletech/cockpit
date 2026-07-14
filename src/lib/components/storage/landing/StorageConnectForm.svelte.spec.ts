@@ -3,42 +3,16 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { ComponentProps } from 'svelte';
 import StorageConnectForm from './StorageConnectForm.svelte';
-import type { SavedConnection } from '$lib/storage/connection-storage.js';
+import type { ConnectionMetadata } from '$lib/server/storage/types.js';
 
 type ConnectionFormProp = ComponentProps<typeof StorageConnectForm>['connectionForm'];
 
-/** Build a minimal StoredConnection fixture with a stable UUID. */
-function makeConn(
-  overrides: Partial<Omit<SavedConnection, 'id'>> & { id?: string } = {}
-): SavedConnection {
-  return {
-    id: overrides.id ?? '00000000-0000-0000-0000-000000000001',
-    type: 's3',
-    host: 'minio.example.com',
-    port: undefined,
-    tls: { verification: 'Full' },
-    accessStyle: 'Path',
-    region: { name: 'us-east-1' },
-    credentials: { accessKey: '', secretKey: '' },
-    ...overrides
-  } as SavedConnection;
-}
+// Note: $app/navigation is not mocked; invalidateAll is a no-op in test environments.
 
 // Mock feature flags to disable auto-connect
 vi.mock('$lib/client/feature-flags.js', () => ({
   storageAutoConnectEnabled: false,
   storageAutoConnectTimeoutMs: 15_000
-}));
-
-// Mock connection-storage module
-vi.mock('$lib/storage/connection-storage.js', () => ({
-  saveConnectionLocally: vi.fn(),
-  loadConnectionLocally: vi.fn(() => null),
-  loadAllConnectionsLocally: vi.fn(() => []),
-  removeConnectionLocally: vi.fn(),
-  updateConnectionLocally: vi.fn(),
-  removeConnectionById: vi.fn(),
-  loadConnectionById: vi.fn(() => null)
 }));
 
 // Mock paraglide messages
@@ -67,11 +41,16 @@ vi.mock('$lib/paraglide/messages.js', () => ({
   storage_connect_access_key: () => 'Access key',
   storage_connect_secret_key: () => 'Secret key',
   storage_connect_submit: () => 'Connect',
-  storage_connect_forget_label: ({ endpoint }: { endpoint: string }) => `Forget ${endpoint}`,
-  storage_connect_forget_confirm: ({ endpoint }: { endpoint: string }) =>
-    `Forget connection to ${endpoint}?`,
+  storage_connect_testing: () => 'Testing connection...',
+  storage_connect_additional_buckets: () => 'Additional buckets',
+  storage_connect_additional_buckets_hint: () => 'One per line',
   storage_connect_forget_cancel: () => 'Cancel',
   storage_connect_forget: () => 'Forget',
+  storage_connect_forget_label: ({ endpoint }: { endpoint: string }) =>
+    `Forget connection to ${endpoint}`,
+  storage_connect_forget_confirm: ({ endpoint }: { endpoint: string }) =>
+    `Remove ${endpoint} from saved connections?`,
+  storage_connect_error_unreachable: () => 'Could not connect',
   storage_connect_manage: () => 'Manage connections',
   storage_connect_edit: () => 'Edit',
   storage_more_options: () => 'More options',
@@ -112,20 +91,83 @@ function createMockForm(overrides: Record<string, unknown> = {}): ConnectionForm
   } as unknown as ConnectionFormProp;
 }
 
+function makeConnection(overrides: Partial<ConnectionMetadata> = {}): ConnectionMetadata {
+  return {
+    id: 'conn-1',
+    name: 'My Connection',
+    endpoint: 'https://example.com',
+    ...overrides
+  };
+}
+
+function renderForm(
+  formOverrides: Record<string, unknown> = {},
+  connections: ConnectionMetadata[] = [],
+  connectError: string | null = null
+) {
+  return render(StorageConnectForm, {
+    connectionForm: createMockForm(formOverrides),
+    connections,
+    connectError
+  });
+}
+
 describe('StorageConnectForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('should render the form title and subtitle', async () => {
-    render(StorageConnectForm, { connectionForm: createMockForm() });
+    renderForm();
 
     await expect.element(page.getByText('Connect to Storage')).toBeInTheDocument();
     await expect.element(page.getByText('Enter your connection details')).toBeInTheDocument();
   });
 
-  it('should render all form fields with labels', async () => {
-    render(StorageConnectForm, { connectionForm: createMockForm() });
+  it('should show "No saved connections" when the store is empty', async () => {
+    renderForm();
+
+    await expect.element(page.getByText('No saved connections yet')).toBeInTheDocument();
+  });
+
+  it('should show saved connections from the connection store', async () => {
+    renderForm({}, [
+      makeConnection({ id: 'conn-1', name: 'My MinIO', endpoint: 'https://minio.example.com' })
+    ]);
+
+    await expect.element(page.getByText('My MinIO').first()).toBeInTheDocument();
+  });
+
+  it('should show delete buttons for saved connections', async () => {
+    renderForm({}, [
+      makeConnection({ id: 'conn-1', name: 'Test S3', endpoint: 'https://s3.test.io' })
+    ]);
+
+    await expect
+      .element(page.getByRole('button', { name: 'Forget connection to Test S3' }))
+      .toBeInTheDocument();
+  });
+
+  it('should render multiple saved connections', async () => {
+    renderForm({}, [
+      makeConnection({ id: 'conn-1', name: 'First', endpoint: 'https://first.example.com' }),
+      makeConnection({ id: 'conn-2', name: 'Second', endpoint: 'https://second.example.com' })
+    ]);
+
+    // Use .first() to avoid strict-mode violation: the name appears in both the
+    // <span> label and the containing <button> (which inherits its text content).
+    await expect.element(page.getByText('First').first()).toBeInTheDocument();
+    await expect.element(page.getByText('Second').first()).toBeInTheDocument();
+  });
+
+  it('should show connection name for null endpoint', async () => {
+    renderForm({}, [makeConnection({ id: 'conn-1', name: 'AWS Connection', endpoint: null })]);
+
+    await expect.element(page.getByText('AWS Connection').first()).toBeInTheDocument();
+  });
+
+  it('should render the connection form fields', async () => {
+    renderForm();
 
     await expect.element(page.getByLabelText('Backend type')).toBeInTheDocument();
     await expect.element(page.getByLabelText('Host')).toBeInTheDocument();
@@ -137,31 +179,44 @@ describe('StorageConnectForm', () => {
     await expect.element(page.getByLabelText('Secret key')).toBeInTheDocument();
   });
 
-  it('should render backend type as a select with S3 option', async () => {
-    render(StorageConnectForm, { connectionForm: createMockForm() });
+  it('should render the form with POST method to ?/connect', async () => {
+    renderForm();
 
-    const select = page.getByLabelText('Backend type');
-    await expect.element(select).toBeInTheDocument();
-    await expect.element(page.getByText('Amazon S3')).toBeInTheDocument();
-    await expect.element(page.getByText('HDFS')).toBeInTheDocument();
+    const connectBtn = page.getByRole('button', { name: 'Connect' });
+    await expect.element(connectBtn).toBeInTheDocument();
+    const form = connectBtn.element().closest('form');
+    expect(form?.getAttribute('method')).toBe('POST');
+    expect(form?.getAttribute('action')).toContain('/connect');
   });
 
   it('should render host as text input', async () => {
-    render(StorageConnectForm, { connectionForm: createMockForm() });
+    render(StorageConnectForm, {
+      connectionForm: createMockForm(),
+      connections: [],
+      connectError: null
+    });
 
     const input = page.getByLabelText('Host');
     await expect.element(input).toHaveAttribute('type', 'text');
   });
 
   it('should render port as number input', async () => {
-    render(StorageConnectForm, { connectionForm: createMockForm() });
+    render(StorageConnectForm, {
+      connectionForm: createMockForm(),
+      connections: [],
+      connectError: null
+    });
 
     const input = page.getByLabelText('Port');
     await expect.element(input).toHaveAttribute('type', 'number');
   });
 
   it('should render TLS as a checkbox toggle', async () => {
-    render(StorageConnectForm, { connectionForm: createMockForm() });
+    render(StorageConnectForm, {
+      connectionForm: createMockForm(),
+      connections: [],
+      connectError: null
+    });
 
     const toggle = page.getByLabelText('Use TLS');
     await expect.element(toggle).toHaveAttribute('type', 'checkbox');
@@ -169,7 +224,9 @@ describe('StorageConnectForm', () => {
 
   it('should show verify certificate toggle when TLS is enabled', async () => {
     render(StorageConnectForm, {
-      connectionForm: createMockForm({ data: { tls: { verification: 'Full' } } })
+      connectionForm: createMockForm({ data: { tls: { verification: 'Full' } } }),
+      connections: [],
+      connectError: null
     });
 
     await expect.element(page.getByLabelText('Verify certificate')).toBeInTheDocument();
@@ -177,197 +234,84 @@ describe('StorageConnectForm', () => {
 
   it('should hide verify certificate toggle when TLS is disabled', async () => {
     render(StorageConnectForm, {
-      connectionForm: createMockForm({ data: { tls: undefined } })
+      connectionForm: createMockForm({ data: { tls: undefined } }),
+      connections: [],
+      connectError: null
     });
 
     await expect.element(page.getByLabelText('Verify certificate')).not.toBeInTheDocument();
   });
 
   it('should render secret key as password input', async () => {
-    render(StorageConnectForm, { connectionForm: createMockForm() });
+    render(StorageConnectForm, {
+      connectionForm: createMockForm(),
+      connections: [],
+      connectError: null
+    });
 
     const input = page.getByLabelText('Secret key');
     await expect.element(input).toHaveAttribute('type', 'password');
   });
 
   it('should render connect button', async () => {
-    render(StorageConnectForm, { connectionForm: createMockForm() });
+    render(StorageConnectForm, {
+      connectionForm: createMockForm(),
+      connections: [],
+      connectError: null
+    });
 
     await expect.element(page.getByRole('button', { name: 'Connect' })).toBeInTheDocument();
   });
 
   it('should show no saved connections message when none exist', async () => {
-    render(StorageConnectForm, { connectionForm: createMockForm() });
+    render(StorageConnectForm, {
+      connectionForm: createMockForm(),
+      connections: [],
+      connectError: null
+    });
 
     await expect.element(page.getByText('No saved connections yet')).toBeInTheDocument();
   });
 
-  it('should show saved connections when present', async () => {
-    const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
-    vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      makeConn({
-        host: 'minio.example.com',
-        port: 9000,
-        region: { name: 'us-east-1' },
-        credentials: { accessKey: 'AKIA123', secretKey: 'secret' }
-      })
+  it('should render connections in a list role', async () => {
+    renderForm({}, [
+      makeConnection({ id: 'conn-1', name: 'Listed', endpoint: 'https://listed.example.com' })
     ]);
-
-    render(StorageConnectForm, { connectionForm: createMockForm() });
-
-    await expect.element(page.getByText('minio.example.com:9000').first()).toBeInTheDocument();
-  });
-
-  it('should show forget button for saved connections', async () => {
-    const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
-    vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      makeConn({
-        id: '00000000-0000-0000-0000-000000000011',
-        host: 's3.test.io',
-        region: { name: 'eu-west-1' }
-      })
-    ]);
-
-    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await expect
-      .element(page.getByRole('button', { name: 'Forget s3.test.io' }))
+      .element(page.getByRole('list', { name: 'Saved connections' }).first())
       .toBeInTheDocument();
-  });
-
-  it('should open forget confirmation dialog when forget button clicked', async () => {
-    const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
-    vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      makeConn({
-        id: '00000000-0000-0000-0000-000000000012',
-        host: 's3.remove.io',
-        region: { name: 'eu-west-1' }
-      })
-    ]);
-
-    render(StorageConnectForm, { connectionForm: createMockForm() });
-
-    const forgetBtn = page.getByRole('button', { name: 'Forget s3.remove.io' });
-    await forgetBtn.click();
-
-    await expect
-      .element(page.getByText('Delete connection to s3.remove.io?').first())
-      .toBeInTheDocument();
-    await expect.element(page.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
-    await expect
-      .element(page.getByRole('button', { name: 'Delete', exact: true }))
-      .toBeInTheDocument();
-  });
-
-  it('should show multiple saved connections', async () => {
-    const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
-    vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      makeConn({
-        id: '00000000-0000-0000-0000-000000000013',
-        host: 'first.example.com',
-        region: { name: 'us-east-1' }
-      }),
-      makeConn({
-        id: '00000000-0000-0000-0000-000000000014',
-        host: 'second.example.com',
-        port: 9000,
-        accessStyle: 'VirtualHosted',
-        region: { name: 'eu-west-1' },
-        credentials: { accessKey: 'KEY', secretKey: 'SECRET' }
-      }),
-      makeConn({
-        id: '00000000-0000-0000-0000-000000000015',
-        name: 'Production',
-        host: 'prod.example.com',
-        region: { name: 'us-west-2' }
-      })
-    ]);
-
-    render(StorageConnectForm, { connectionForm: createMockForm() });
-
-    await expect.element(page.getByText('first.example.com').first()).toBeInTheDocument();
-    await expect.element(page.getByText('second.example.com:9000').first()).toBeInTheDocument();
-    await expect.element(page.getByText('Production', { exact: true }).first()).toBeInTheDocument();
-  });
-
-  it('should render saved connections in a list role', async () => {
-    const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
-    vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      makeConn({
-        id: '00000000-0000-0000-0000-000000000016',
-        host: 'listed.example.com',
-        region: { name: 'us-east-1' }
-      })
-    ]);
-
-    render(StorageConnectForm, { connectionForm: createMockForm() });
-
-    await expect.element(page.getByRole('list').first()).toBeInTheDocument();
     await expect.element(page.getByRole('listitem').first()).toBeInTheDocument();
   });
 
   it('should render port hint text', async () => {
-    render(StorageConnectForm, { connectionForm: createMockForm() });
+    render(StorageConnectForm, {
+      connectionForm: createMockForm(),
+      connections: [],
+      connectError: null
+    });
 
     await expect.element(page.getByText('Leave blank for default port')).toBeInTheDocument();
   });
 
   it('should render form with POST method', async () => {
-    render(StorageConnectForm, { connectionForm: createMockForm() });
+    render(StorageConnectForm, {
+      connectionForm: createMockForm(),
+      connections: [],
+      connectError: null
+    });
 
     const form = page.getByRole('button', { name: 'Connect' }).element().closest('form');
     expect(form?.getAttribute('method')).toBe('POST');
-  });
-
-  it('should close forget dialog when cancel is clicked', async () => {
-    const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
-    vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      makeConn({
-        id: '00000000-0000-0000-0000-000000000017',
-        host: 's3.cancel.io',
-        region: { name: 'eu-west-1' }
-      })
-    ]);
-
-    render(StorageConnectForm, { connectionForm: createMockForm() });
-
-    await page.getByRole('button', { name: 'Forget s3.cancel.io' }).click();
-    await expect
-      .element(page.getByText('Delete connection to s3.cancel.io?').first())
-      .toBeInTheDocument();
-
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await expect
-      .element(page.getByText('Delete connection to s3.cancel.io?'))
-      .not.toBeInTheDocument();
-  });
-
-  it('should remove connection when forget is confirmed', async () => {
-    const { loadAllConnectionsLocally, removeConnectionLocally } =
-      await import('$lib/storage/connection-storage.js');
-    const conn = makeConn({
-      id: '00000000-0000-0000-0000-000000000018',
-      host: 's3.forget.io',
-      region: { name: 'eu-west-1' }
-    });
-    vi.mocked(loadAllConnectionsLocally).mockReturnValue([conn]);
-
-    render(StorageConnectForm, { connectionForm: createMockForm() });
-
-    await page.getByRole('button', { name: 'Forget s3.forget.io' }).click();
-    // After clicking forget, mock returns empty list
-    vi.mocked(loadAllConnectionsLocally).mockReturnValue([]);
-    await page.getByRole('button', { name: 'Delete', exact: true }).click();
-
-    expect(removeConnectionLocally).toHaveBeenCalledWith(conn);
-    await expect.element(page.getByText('No saved connections yet')).toBeInTheDocument();
   });
 
   it('should display host error when form has host errors', async () => {
     render(StorageConnectForm, {
       connectionForm: createMockForm({
         errors: { host: ['Host is required'] }
-      })
+      }),
+      connections: [],
+      connectError: null
     });
 
     await expect.element(page.getByText('Host is required')).toBeInTheDocument();
@@ -380,7 +324,9 @@ describe('StorageConnectForm', () => {
     render(StorageConnectForm, {
       connectionForm: createMockForm({
         errors: { region: { name: ['Region name is required'] } }
-      })
+      }),
+      connections: [],
+      connectError: null
     });
 
     await expect.element(page.getByText('Region name is required')).toBeInTheDocument();
@@ -394,7 +340,9 @@ describe('StorageConnectForm', () => {
         errors: {
           credentials: { accessKey: ['Access key is required when secret key is provided'] }
         }
-      })
+      }),
+      connections: [],
+      connectError: null
     });
 
     await expect
@@ -410,7 +358,9 @@ describe('StorageConnectForm', () => {
         errors: {
           credentials: { secretKey: ['Secret key is required when access key is provided'] }
         }
-      })
+      }),
+      connections: [],
+      connectError: null
     });
 
     await expect
@@ -424,7 +374,9 @@ describe('StorageConnectForm', () => {
     render(StorageConnectForm, {
       connectionForm: createMockForm({
         message: 'Connection refused: unable to reach endpoint'
-      })
+      }),
+      connections: [],
+      connectError: null
     });
 
     await expect
@@ -432,42 +384,10 @@ describe('StorageConnectForm', () => {
       .toBeInTheDocument();
   });
 
-  it('should fill form fields when a saved connection is clicked', async () => {
-    const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
-    vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      makeConn({
-        id: '00000000-0000-0000-0000-000000000021',
-        host: 's3.select.io',
-        port: 9000,
-        accessStyle: 'VirtualHosted',
-        region: { name: 'ap-southeast-1' },
-        credentials: { accessKey: 'AKIASELECT', secretKey: 'secretselect' }
-      })
-    ]);
-
-    render(StorageConnectForm, { connectionForm: createMockForm() });
-
-    // Click the saved connection button (first match — mobile card)
-    await page.getByRole('button', { name: 's3.select.io:9000', exact: true }).first().click();
-
-    // Verify form fields are filled
-    await expect.element(page.getByLabelText('Host')).toHaveValue('s3.select.io');
-    await expect.element(page.getByLabelText('Region')).toHaveValue('ap-southeast-1');
-    await expect.element(page.getByLabelText('Access key')).toHaveValue('AKIASELECT');
-    await expect.element(page.getByLabelText('Secret key')).toHaveValue('secretselect');
-  });
-
   it('should show saved connections heading when connections exist', async () => {
-    const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
-    vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      makeConn({
-        id: '00000000-0000-0000-0000-000000000022',
-        host: 'heading.example.com',
-        region: { name: 'us-east-1' }
-      })
+    renderForm({}, [
+      makeConnection({ id: 'conn-1', name: 'Heading', endpoint: 'https://heading.example.com' })
     ]);
-
-    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await expect.element(page.getByText('Saved connections').first()).toBeInTheDocument();
   });
@@ -484,7 +404,9 @@ describe('StorageConnectForm', () => {
           }
         },
         message: 'Validation failed'
-      })
+      }),
+      connections: [],
+      connectError: null
     });
 
     await expect.element(page.getByText('Host is required')).toBeInTheDocument();
@@ -492,29 +414,5 @@ describe('StorageConnectForm', () => {
     await expect.element(page.getByText('Access key required')).toBeInTheDocument();
     await expect.element(page.getByText('Secret key required')).toBeInTheDocument();
     await expect.element(page.getByText('Validation failed')).toBeInTheDocument();
-  });
-
-  it('should close forget dialog via cancel button', async () => {
-    const { loadAllConnectionsLocally } = await import('$lib/storage/connection-storage.js');
-    vi.mocked(loadAllConnectionsLocally).mockReturnValue([
-      makeConn({
-        id: '00000000-0000-0000-0000-000000000023',
-        host: 's3.backdrop.io',
-        region: { name: 'eu-west-1' }
-      })
-    ]);
-
-    render(StorageConnectForm, { connectionForm: createMockForm() });
-
-    await page.getByRole('button', { name: 'Forget s3.backdrop.io' }).click();
-    await expect
-      .element(page.getByText('Delete connection to s3.backdrop.io?').first())
-      .toBeInTheDocument();
-
-    // Close the dialog by clicking Cancel
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await expect
-      .element(page.getByText('Delete connection to s3.backdrop.io?'))
-      .not.toBeInTheDocument();
   });
 });

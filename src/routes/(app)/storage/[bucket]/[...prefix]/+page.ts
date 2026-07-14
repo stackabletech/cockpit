@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import { error, redirect } from '@sveltejs/kit';
-import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import type { PageLoad } from './$types';
 import type { StoragePage } from '$lib/storage/types.js';
 
@@ -22,8 +23,8 @@ export const load: PageLoad = async ({ fetch, url, data }) => {
 
   if (!browser) return { bucket, prefix, objects: EMPTY_PAGE };
 
-  const connection = loadConnectionLocally();
-  if (!connection) throw redirect(303, '/storage');
+  const connectionId = connectionStore.activeConnectionId;
+  if (!connectionId) throw redirect(303, '/storage');
 
   const continuationToken = url.searchParams.get('continuationToken');
   const pageSizeParam = url.searchParams.get('pageSize');
@@ -33,7 +34,7 @@ export const load: PageLoad = async ({ fetch, url, data }) => {
   if (pageSizeParam) query.set('pageSize', pageSizeParam);
 
   const res = await fetch(`/api/storage/objects?${query}`, {
-    headers: { 'x-storage-connection': getConnectionHeader(connection) }
+    headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
   });
 
   if (!res.ok) {

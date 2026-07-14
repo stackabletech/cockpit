@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { goto, beforeNavigate } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { page } from '$app/state';
   import { superForm } from 'sveltekit-superforms';
   import { zod4 as zod } from 'sveltekit-superforms/adapters';
   import { untrack } from 'svelte';
@@ -10,31 +9,20 @@
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
   import { EditStorageConnectionSchema } from '$lib/storage/schemas.js';
-  import {
-    loadConnectionById,
-    loadConnectionLocally,
-    updateConnectionLocally,
-    type SavedConnection
-  } from '$lib/storage/connection-storage.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
 
   let { data } = $props();
 
   const uid = $props.id();
 
-  // Loaded client-side from localStorage
-  let connection = $state<SavedConnection | null>(null);
   let loaded = $state(false);
-  let isActiveConnection = $state(false);
+  let isActiveConnection = $derived(connectionStore.activeConnectionId === data.connectionId);
 
   // Unsaved-changes guard
   let initialSnapshot = $state.raw('');
   let confirmLeaveOpen = $state(false);
   let pendingNavigation = $state<string | null>(null);
-  // Set to true just before a programmatic goto so beforeNavigate doesn't re-intercept it.
   let bypassDirtyCheck = false;
-
-  // Extract the id from the URL via SvelteKit's page state
-  const connectionId = page.params.id;
 
   const { form, errors, enhance, submitting, message } = superForm(
     untrack(() => data.editForm),
@@ -43,18 +31,7 @@
       validators: zod(EditStorageConnectionSchema),
       onResult: ({ result, cancel }) => {
         if (result.type === 'success' && result.data?.form?.message === 'ok') {
-          if (connection) {
-            // If credentials were left blank, preserve the existing stored credentials.
-            const savedCredentials =
-              $form.credentials.accessKey && $form.credentials.secretKey
-                ? $form.credentials
-                : (connection.credentials ?? { accessKey: '', secretKey: '' });
-            updateConnectionLocally(connection.id, { ...$form, credentials: savedCredentials });
-          }
-          // Prevent superforms from resetting the form and calling invalidateAll(),
-          // which would race with the navigation.
           cancel();
-          // Bypass the dirty-check guard so the post-save redirect isn't intercepted.
           bypassDirtyCheck = true;
           goto(resolve('/storage/connections'));
         }
@@ -67,34 +44,19 @@
   }
 
   onMount(() => {
-    if (!connectionId) {
-      goto(resolve('/storage/connections'));
-      return;
-    }
-    const found = loadConnectionById(connectionId);
-    if (!found) {
-      goto(resolve('/storage/connections'));
-      return;
-    }
-    connection = found;
+    // Pre-fill form explicitly (mirroring the server data) to ensure the $state
+    // proxy is fully settled before snapshotting for dirty detection.
+    const d = data.editForm.data;
+    $form.id = d.id;
+    $form.name = d.name ?? '';
+    $form.type = d.type;
+    $form.host = d.host;
+    $form.port = d.port;
+    $form.tls = d.tls;
+    $form.accessStyle = d.accessStyle;
+    $form.region = d.region;
+    $form.credentials = { accessKey: d.credentials?.accessKey ?? '', secretKey: '' };
 
-    // Pre-fill form with current values
-    $form.id = found.id;
-    $form.name = found.name ?? '';
-    $form.type = found.type;
-    $form.host = found.host;
-    $form.port = found.port;
-    $form.tls = found.tls;
-    $form.accessStyle = found.accessStyle;
-    $form.region = found.region;
-    // Pre-fill access key but never expose the stored secret key.
-    $form.credentials = { accessKey: found.credentials?.accessKey ?? '', secretKey: '' };
-
-    // Check if this is the currently active connection
-    const active = loadConnectionLocally();
-    isActiveConnection = active?.id === found.id;
-
-    // Snapshot the pre-filled form so we can detect unsaved changes.
     initialSnapshot = JSON.stringify($form);
     loaded = true;
   });
@@ -190,7 +152,6 @@
       <p class="text-base-content/50 mt-1 text-xs">{m.storage_connection_edit_name_hint()}</p>
     </div>
 
-    <!-- Backend type (hidden — editing type not supported) -->
     <input type="hidden" name="type" value={$form.type} />
 
     <!-- Host -->
@@ -252,7 +213,6 @@
       />
     </div>
 
-    <!-- TLS verification -->
     {#if $form.tls}
       <div class="flex items-start justify-between gap-4 pl-4">
         <div>
@@ -351,16 +311,17 @@
       <p class="text-error text-sm">{$message}</p>
     {/if}
 
-    <div class="flex items-center gap-3">
-      <button type="submit" class="btn btn-primary" disabled={$submitting}>
-        {#if $submitting}
-          <span class="loading loading-sm loading-spinner"></span>
-        {/if}
-        {m.storage_connection_edit_save()}
-      </button>
-      <a href={resolve('/storage/connections')} class="btn btn-ghost">
-        ← {m.storage_connections_title()}
-      </a>
-    </div>
+    <button type="submit" class="btn btn-primary self-start" disabled={$submitting}>
+      {#if $submitting}
+        <span class="loading loading-sm loading-spinner"></span>
+      {/if}
+      {m.storage_connection_edit_save()}
+    </button>
   </form>
+
+  <div class="mt-3 flex items-center gap-3">
+    <a href={resolve('/storage/connections')} class="btn btn-ghost">
+      ← {m.storage_connections_title()}
+    </a>
+  </div>
 {/if}

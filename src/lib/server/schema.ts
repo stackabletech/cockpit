@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, jsonb, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, jsonb, index, unique } from 'drizzle-orm/pg-core';
 
 /**
  * User storage connections table.
@@ -20,5 +20,8 @@ export const userStorageConnections = pgTable(
     createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull()
   },
-  (table) => [index('user_id_idx').on(table.userId)]
+  (table) => [
+    index('user_id_idx').on(table.userId),
+    unique('user_storage_connections_user_id_name_unique').on(table.userId, table.name)
+  ]
 );

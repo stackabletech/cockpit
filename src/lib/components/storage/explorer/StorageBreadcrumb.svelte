@@ -19,7 +19,8 @@
   import type { StorageLocation } from '$lib/storage/types.js';
   import { keyToName } from '$lib/storage/utils.js';
   import { invalidateAll } from '$app/navigation';
-  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 
   const storage = getStorageState();
   const tabsState = getTabsState();
@@ -103,8 +104,10 @@
 
   async function createObject(bucket: string, key: string): Promise<void> {
     const params = new URLSearchParams({ bucket, key });
-    const conn = loadConnectionLocally();
-    const headers: HeadersInit = conn ? { 'x-storage-connection': getConnectionHeader(conn) } : {};
+    const connectionId = connectionStore.activeConnectionId;
+    const headers: HeadersInit = connectionId
+      ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
+      : {};
     const res = await fetch(`/api/storage/create?${params}`, { method: 'POST', headers });
     if (!res.ok) throw new Error(`Create failed with status ${res.status}`);
   }

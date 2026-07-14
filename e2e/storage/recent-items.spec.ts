@@ -112,6 +112,7 @@ test.describe('Storage S3 — Recent Items', () => {
   test('removes files and location from recent lists when a directory is deleted', async ({
     page
   }, testInfo) => {
+    test.slow(); // multiple navigations + directory deletion; Firefox is slow
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'recent-delete-dir');

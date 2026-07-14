@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
   import { setStorageState } from '$lib/storage/context.js';
   import { setTabsState } from '$lib/storage/tabs-context.js';
   import { TabsState } from '$lib/storage/tabs.svelte.js';
@@ -12,11 +11,8 @@
   }
 
   let { state, tabsState: tabsStateProp }: Props = $props();
-  const effectiveTabsState = tabsStateProp ?? new TabsState(state);
-  untrack(() => {
-    setStorageState(state);
-    setTabsState(effectiveTabsState);
-  });
+  setStorageState(state);
+  setTabsState(tabsStateProp ?? new TabsState(state));
 </script>
 
 <StorageBreadcrumb />

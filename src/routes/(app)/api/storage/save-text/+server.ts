@@ -25,8 +25,14 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
   const rawOriginalSize = url.searchParams.get('originalSize');
   const rawPreviewBytes = url.searchParams.get('previewBytes');
 
-  const originalSize = rawOriginalSize ? parseInt(rawOriginalSize, 10) : 0;
-  const previewBytes = rawPreviewBytes ? parseInt(rawPreviewBytes, 10) : originalSize;
+  const originalSize = parseInt(rawOriginalSize ?? '0', 10);
+  if (!Number.isFinite(originalSize) || originalSize < 0) {
+    throw error(400, 'Invalid originalSize: must be a non-negative integer');
+  }
+  const previewBytes = parseInt(rawPreviewBytes ?? String(originalSize), 10);
+  if (!Number.isFinite(previewBytes) || previewBytes < 0) {
+    throw error(400, 'Invalid previewBytes: must be a non-negative integer');
+  }
 
   if (!request.body) {
     throw error(400, 'Missing request body');
