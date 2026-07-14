@@ -19,7 +19,7 @@ import { downloadObject, DownloadError } from '$lib/storage/download.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import { ActionError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
-import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+import { connectionStore } from '$lib/storage/connection-store.svelte.js';
 import { keyToName } from '$lib/storage/utils.js';
 
 export class StorageState {
@@ -312,19 +312,18 @@ export class StorageState {
   /** Manually fetch S3 objects for the given prefix (used when exiting archive). */
   private async _fetchS3Objects(prefix: string): Promise<void> {
     try {
-      const conn = loadConnectionLocally();
-      if (!conn) {
+      const connectionId = connectionStore.activeConnectionId;
+      if (!connectionId) {
         this.loading = false;
         return;
       }
-      const connHeader = getConnectionHeader(conn);
       const params = new SvelteURLSearchParams({
         bucket: this.bucket,
         prefix: prefix ?? '',
         pageSize: String(this.pageSize)
       });
       const res = await fetch(`/api/storage/objects?${params}`, {
-        headers: { 'x-storage-connection': connHeader }
+        headers: { 'x-storage-connection-id': connectionId }
       });
       if (res.ok) {
         const objects = (await res.json()) as StoragePage;
@@ -343,12 +342,11 @@ export class StorageState {
   downloadFromArchive = async (internalPath: string): Promise<void> => {
     if (!this.archiveKey) return;
     try {
-      const conn = loadConnectionLocally();
-      if (!conn) {
+      const connectionId = connectionStore.activeConnectionId;
+      if (!connectionId) {
         addToast('error', m.storage_download_error_unknown());
         return;
       }
-      const connHeader = getConnectionHeader(conn);
       const params = new SvelteURLSearchParams({
         bucket: this.bucket,
         key: this.archiveKey,
@@ -358,7 +356,7 @@ export class StorageState {
         params.set('nestedArchivePath', this.archiveNestedPath);
       }
       const res = await fetch(`/api/storage/archive/extract?${params}`, {
-        headers: { 'x-storage-connection': connHeader }
+        headers: { 'x-storage-connection-id': connectionId }
       });
       if (!res.ok) {
         const code =
@@ -387,12 +385,11 @@ export class StorageState {
 
   /** Fetch archive listing from the server API. */
   private async _fetchArchiveListing(): Promise<void> {
-    const conn = loadConnectionLocally();
-    if (!conn || !this.archiveKey) {
+    const connectionId = connectionStore.activeConnectionId;
+    if (!connectionId || !this.archiveKey) {
       this.archiveLoading = false;
       return;
     }
-    const connHeader = getConnectionHeader(conn);
     const params = new SvelteURLSearchParams({
       bucket: this.bucket,
       key: this.archiveKey,
@@ -402,7 +399,7 @@ export class StorageState {
       params.set('nestedArchivePath', this.archiveNestedPath);
     }
     const res = await fetch(`/api/storage/archive/listing?${params}`, {
-      headers: { 'x-storage-connection': connHeader }
+      headers: { 'x-storage-connection-id': connectionId }
     });
     if (!res.ok) {
       throw new Error(m.storage_archive_open_error());
@@ -550,12 +547,12 @@ export class StorageState {
           this.bookmarks.recordFileVisit(this.bucket, f.key, f.size);
         }
         try {
-          const conn = loadConnectionLocally();
-          if (!conn) {
+          const connectionId = connectionStore.activeConnectionId;
+          if (!connectionId) {
             addToast('error', m.storage_download_error_unknown());
             return;
           }
-          await downloadObject(this.bucket, key, getConnectionHeader(conn));
+          await downloadObject(this.bucket, key, connectionId);
         } catch (err: unknown) {
           if (err instanceof DownloadError) {
             addToast('error', getActionErrorMessage(new ActionError(err.code, err.message)));
@@ -686,8 +683,8 @@ export class StorageState {
     const params = new SvelteURLSearchParams({ bucket });
     for (const key of keys) params.append('keys', key);
 
-    const conn = loadConnectionLocally();
-    const headers: HeadersInit = conn ? { 'x-storage-connection': getConnectionHeader(conn) } : {};
+    const connectionId = connectionStore.activeConnectionId;
+    const headers: HeadersInit = connectionId ? { 'x-storage-connection-id': connectionId } : {};
 
     const res = await fetch(`/api/storage/delete?${params}`, { method: 'DELETE', headers });
     if (!res.ok) {

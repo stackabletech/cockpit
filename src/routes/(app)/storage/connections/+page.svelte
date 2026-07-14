@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import IconStorage from 'virtual:icons/material-symbols/storage';
   import IconEdit from 'virtual:icons/material-symbols/edit';
@@ -7,20 +7,18 @@
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
   import IconArrowBack from 'virtual:icons/material-symbols/arrow-back';
   import * as m from '$lib/paraglide/messages.js';
-  import {
-    loadAllConnectionsLocally,
-    removeConnectionById,
-    type SavedConnection
-  } from '$lib/storage/connection-storage.js';
-  import DeleteConnectionModal from '$lib/components/storage/DeleteConnectionModal.svelte';
+  import type { ConnectionListItem } from '$lib/storage/connection-store.svelte.js';
+  import DeleteConnectionModal from '$lib/components/storage/modals/DeleteConnectionModal.svelte';
+  import type { SavedConnection } from '$lib/storage/connection-storage.js';
 
-  let connections = $state<SavedConnection[]>([]);
-  let loaded = $state(false);
-  let deleteCandidate = $state<SavedConnection | null>(null);
-  let deleteModalOpen = $state(false);
+  const connections = $derived<ConnectionListItem[]>(page.data.connections ?? []);
 
-  // Context menu
-  let menuConn: SavedConnection | null = $state(null);
+  function connectionLabel(conn: ConnectionListItem): string {
+    return conn.name || conn.endpoint || 'S3';
+  }
+
+  // Context menu state
+  let menuConn: ConnectionListItem | null = $state(null);
   let menuEl: HTMLUListElement | null = $state(null);
   let menuRawPos = $state({ left: 0, top: 0 });
 
@@ -40,17 +38,7 @@
     };
   });
 
-  onMount(() => {
-    connections = loadAllConnectionsLocally();
-    loaded = true;
-  });
-
-  function connectionLabel(conn: SavedConnection): string {
-    if (conn.name) return conn.name;
-    return conn.port ? `${conn.host}:${conn.port}` : conn.host;
-  }
-
-  function openContextMenu(e: MouseEvent, conn: SavedConnection) {
+  function openContextMenu(e: MouseEvent, conn: ConnectionListItem) {
     e.preventDefault();
     e.stopPropagation();
     menuRawPos = { left: e.clientX, top: e.clientY };
@@ -62,6 +50,7 @@
   }
 
   function handleOutsideClick(e: MouseEvent) {
+    if (deleteConfirmOpen) return;
     if (menuConn && menuEl && !menuEl.contains(e.target as Node)) closeContextMenu();
   }
 
@@ -69,23 +58,26 @@
     if (menuConn && e.key === 'Escape') closeContextMenu();
   }
 
-  function requestDelete(conn: SavedConnection) {
-    closeContextMenu();
-    deleteCandidate = conn;
-    deleteModalOpen = true;
-  }
+  // Delete confirmation
+  let deleteConfirmOpen = $state(false);
+  let deleteFormEl = $state<HTMLFormElement | null>(null);
+
+  const deleteConn = $derived.by<SavedConnection | null>(() => {
+    if (!menuConn) return null;
+    const ep = menuConn.endpoint ?? '';
+    const colonIdx = ep.lastIndexOf(':');
+    const host = colonIdx > 0 ? ep.slice(0, colonIdx) : ep;
+    const port = colonIdx > 0 ? parseInt(ep.slice(colonIdx + 1), 10) || null : null;
+    return { id: menuConn.id, name: menuConn.name, host, port, type: 's3', region: { name: '' } };
+  });
 
   function confirmDelete() {
-    if (!deleteCandidate) return;
-    removeConnectionById(deleteCandidate.id);
-    connections = loadAllConnectionsLocally();
-    deleteModalOpen = false;
-    deleteCandidate = null;
+    deleteFormEl?.requestSubmit();
   }
 
   function cancelDelete() {
-    deleteModalOpen = false;
-    deleteCandidate = null;
+    deleteConfirmOpen = false;
+    closeContextMenu();
   }
 </script>
 
@@ -93,7 +85,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div class="mx-auto max-w-4xl p-6">
-  <a href={resolve('/storage') + '?disconnected=1'} class="btn btn-ghost btn-sm mb-4 -ml-2">
+  <a href={resolve('/storage')} class="btn btn-ghost btn-sm mb-4 -ml-2">
     <IconArrowBack class="size-4" aria-hidden="true" />
     {m.storage_connections_back()}
   </a>
@@ -101,11 +93,7 @@
   <h1 class="mb-1 text-xl font-semibold">{m.storage_connections_title()}</h1>
   <p class="text-base-content/60 mb-6 text-sm">{m.storage_connections_subtitle()}</p>
 
-  {#if !loaded}
-    <div class="flex items-center justify-center py-12">
-      <span class="loading loading-spinner loading-md text-base-content/40"></span>
-    </div>
-  {:else if connections.length === 0}
+  {#if connections.length === 0}
     <p class="text-base-content/50 text-sm">{m.storage_connections_empty()}</p>
   {:else}
     <div class="overflow-x-auto">
@@ -122,7 +110,6 @@
           {#each connections as conn (conn.id)}
             <tr
               class="group hover:bg-base-300 cursor-default select-none"
-              class:outline={menuConn?.id === conn.id}
               class:bg-base-200={menuConn?.id === conn.id}
               oncontextmenu={(e) => openContextMenu(e, conn)}
             >
@@ -133,9 +120,9 @@
                 </div>
               </td>
               <td class="text-base-content/60 font-mono text-xs">
-                {conn.port ? `${conn.host}:${conn.port}` : conn.host}
+                {conn.endpoint ?? '-'}
               </td>
-              <td class="text-base-content/60 text-xs uppercase">{conn.type}</td>
+              <td class="text-base-content/60 text-xs uppercase">s3</td>
               <td>
                 <button
                   type="button"
@@ -154,8 +141,11 @@
   {/if}
 </div>
 
-<!-- Context menu (right-click or \u22ef button) -->
+<!-- Context menu (right-click or button) -->
 {#if menuConn}
+  <form method="POST" action="?/deleteConnection" bind:this={deleteFormEl} class="contents">
+    <input type="hidden" name="connectionId" value={menuConn.id} />
+  </form>
   <ul
     bind:this={menuEl}
     class="menu menu-sm border-base-300 bg-base-100 fixed z-50 w-36 rounded-lg border p-1 shadow-lg"
@@ -177,19 +167,19 @@
       <button
         type="button"
         role="menuitem"
-        class="text-error"
-        onclick={() => requestDelete(menuConn!)}
+        class="text-error w-full justify-start"
+        onclick={() => (deleteConfirmOpen = true)}
       >
         <IconDelete class="size-4 shrink-0" aria-hidden="true" />
         {m.storage_connections_delete()}
       </button>
     </li>
   </ul>
-{/if}
 
-<DeleteConnectionModal
-  bind:open={deleteModalOpen}
-  connection={deleteCandidate}
-  onconfirm={confirmDelete}
-  oncancel={cancelDelete}
-/>
+  <DeleteConnectionModal
+    open={deleteConfirmOpen}
+    connection={deleteConn}
+    onconfirm={confirmDelete}
+    oncancel={cancelDelete}
+  />
+{/if}

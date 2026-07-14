@@ -1,13 +1,20 @@
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { httpRequestDuration } from '$lib/server/metrics';
 import { building, dev } from '$app/environment';
-import { error, redirect, type Handle, type HandleServerError } from '@sveltejs/kit';
+import {
+  error,
+  redirect,
+  type Handle,
+  type HandleServerError,
+  type ServerInit
+} from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { auth, oidcEnabled } from '$lib/server/auth';
 import { requestLogger, logger } from '$lib/server/logging';
 import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
 import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
+import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
 if (dev) {
@@ -61,12 +68,11 @@ const handleAuthGuard: Handle = async ({ event, resolve }) => {
 };
 
 /**
- * Parse the `x-storage-connection` header (base64 JSON) for every request and
- * store the result in `event.locals.storageConfig`. For routes under
- * `/(app)/api/storage/` the header is mandatory — the middleware throws 401
- * before the handler runs if it is absent, so handlers can rely on
- * `locals.storageConfig` being non-null. Throws 400 for a present but
- * malformed / invalid header on any route.
+ * Parse the `x-storage-connection-id` header for every request and look up the
+ * connection from the database. The decrypted config is stored in
+ * `event.locals.storageConfig`. For routes under `/(app)/api/storage/` the
+ * header is mandatory — the middleware throws 401 before the handler runs if it
+ * is absent, so handlers can rely on `locals.storageConfig` being non-null.
  */
 const handleStorageConnection: Handle = async ({ event, resolve }) => {
   if (
@@ -76,8 +82,18 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
   ) {
     throw error(404, 'Storage browser is not enabled');
   }
-  event.locals.storageConfig = getConnectionFromHeader(event.request);
-  if (event.locals.storageConfig === null && event.route.id?.startsWith('/(app)/api/storage/')) {
+  const userId = event.locals.user?.id ?? null;
+  if (userId && event.route.id?.startsWith('/(app)/api/storage/')) {
+    event.locals.storageConfig = await getConnectionFromHeader(event.request, userId);
+  } else {
+    event.locals.storageConfig = null;
+  }
+  // The connections management endpoint itself does not require a connection header —
+  // it is used to list/create connections before one is selected.
+  const requiresConnectionHeader =
+    event.route.id?.startsWith('/(app)/api/storage/') &&
+    !event.route.id?.startsWith('/(app)/api/storage/connections');
+  if (event.locals.storageConfig === null && requiresConnectionHeader) {
     throw error(401, 'No storage connection configured');
   }
   return resolve(event);
@@ -90,6 +106,17 @@ export const handle = sequence(
   ...(oidcEnabled ? [handleAuth, handleAuthGuard] : []),
   handleStorageConnection
 );
+
+/**
+ * Validate required environment variables at server startup (fail-fast).
+ * This runs once before any requests are handled, so misconfiguration is
+ * detected immediately rather than on the first request that uses the key.
+ */
+export const init: ServerInit = async () => {
+  if (storageBrowserEnabled) {
+    storageEncryptionKey(); // throws immediately if the env var is missing/invalid
+  }
+};
 
 export const handleError: HandleServerError = ({ error, event, status, message }) => {
   const requestId = event.locals.requestId;

@@ -5,6 +5,7 @@
   import { StorageState } from '$lib/storage/state.svelte.js';
   import { setStorageState } from '$lib/storage/context.js';
   import StorageModals from '$lib/components/storage/modals/StorageModals.svelte';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
 
   let { children, data } = $props();
 
@@ -13,7 +14,7 @@
       new StorageState({
         connected: data.connected,
         buckets: data.buckets,
-        connectionId: data.connectionId
+        connectionId: connectionStore.activeConnectionId
       })
   );
   setStorageState(storage);
@@ -22,6 +23,11 @@
   $effect(() => {
     storage.connected = data.connected;
     storage.buckets = data.buckets;
+    connectionStore.connections = data.connections;
+  });
+
+  $effect(() => {
+    storage.connectionId = connectionStore.activeConnectionId;
   });
 
   // Connections management pages have their own full-page layout — no sidebar.

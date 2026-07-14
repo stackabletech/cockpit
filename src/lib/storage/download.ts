@@ -2,8 +2,8 @@
  * Client-side utility for downloading a single S3 object via the server proxy.
  *
  * Strategy:
- *  1. Fetch the object with the `X-Storage-Connection` header carrying the
- *     connection config from localStorage.
+ *  1. Fetch the object with the `x-storage-connection-id` header carrying the
+ *     active connection UUID from the connection store.
  *  2. On error: throw a `DownloadError` with a typed `code` so the caller can
  *     display a localised message.
  *  3. On success: create a Blob URL and trigger a native browser download via a
@@ -15,7 +15,7 @@
  * proportional browser memory — see TECH_DEBT.md for the long-term fix.
  */
 
-import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
+import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 
 export type DownloadErrorCode =
   | 'not_connected'
@@ -49,7 +49,7 @@ function mapStatusToCode(status: number): DownloadErrorCode {
 /**
  * Download a single S3 object.
  *
- * Fetches the object with the connection config header, buffers it as a Blob,
+ * Fetches the object with the connection ID header, buffers it as a Blob,
  * then triggers a native browser download via a programmatic anchor click.
  *
  * @throws {DownloadError} when the server returns a non-2xx response.
@@ -57,12 +57,12 @@ function mapStatusToCode(status: number): DownloadErrorCode {
 export async function downloadObject(
   bucket: string,
   key: string,
-  connectionHeader: string
+  connectionId: string
 ): Promise<void> {
   const url = buildDownloadUrl(bucket, key);
 
   const response = await fetch(url, {
-    headers: { [STORAGE_CONNECTION_HEADER]: connectionHeader }
+    headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
   });
 
   if (!response.ok) {

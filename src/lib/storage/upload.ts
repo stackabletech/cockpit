@@ -9,11 +9,10 @@
  *   supported in Firefox.
  * - The file is sent as the raw request body — no base64 or multipart encoding.
  *   The server streams it directly to S3, preserving binary integrity.
- * - The connection config is passed via the `X-Storage-Connection` header
- *   (base64-encoded JSON), read by the server from the client's localStorage.
+ * - The active connection UUID is passed via the `x-storage-connection-id` header.
  */
 
-import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
+import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 
 export type UploadErrorCode =
   | 'not_connected'
@@ -60,12 +59,12 @@ function mapStatusToUploadCode(status: number): UploadErrorCode {
 export async function checkObjectExists(
   bucket: string,
   key: string,
-  connectionHeader: string
+  connectionId: string
 ): Promise<boolean> {
   const url = buildDownloadUrl(bucket, key);
   const res = await fetch(url, {
     method: 'HEAD',
-    headers: { [STORAGE_CONNECTION_HEADER]: connectionHeader }
+    headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
   });
   if (res.status === 200) return true;
   if (res.status === 404) return false;
@@ -89,7 +88,7 @@ export function uploadFile(
   key: string,
   file: File,
   onProgress: (pct: number) => void,
-  connectionHeader: string
+  connectionId: string
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -121,7 +120,7 @@ export function uploadFile(
 
     xhr.open('POST', url);
     xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-    xhr.setRequestHeader(STORAGE_CONNECTION_HEADER, connectionHeader);
+    xhr.setRequestHeader(STORAGE_CONNECTION_ID_HEADER, connectionId);
     xhr.send(file);
   });
 }
