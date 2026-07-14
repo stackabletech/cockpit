@@ -27,6 +27,16 @@ export const storageAutoConnectTimeoutMs: number = (() => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 15_000;
 })();
 
+// ── Infinite scroll preview ───────────────────────────────────────────────────
+
+/** When `PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED=false`, the CSV and
+ *  Parquet file previews load a fixed number of rows without virtual scrolling /
+ *  infinite loading. Enabled by default — the previews fetch row chunks lazily
+ *  as the user scrolls, reducing S3 costs and browser memory for large files.
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED`. Default: `true`. */
+export const infiniteScrollEnabled =
+  (env.PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED ?? 'true') === 'true';
+
 // ── Pagination ───────────────────────────────────────────────────────────────
 
 /** Parse a comma-separated page-sizes string into a deduplicated, sorted list
