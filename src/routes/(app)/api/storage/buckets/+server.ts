@@ -5,12 +5,18 @@ import type { RequestHandler } from './$types';
  * GET /api/storage/buckets
  *
  * Returns the list of buckets accessible with the connection config supplied in
- * the `X-Storage-Connection` request header (base64-encoded JSON).
- * The config is parsed and validated by the `handleStorageConnection` middleware
- * in hooks.server.ts before this handler runs.
+ * the `x-storage-connection-id` request header. The config is resolved and
+ * decrypted by the `handleStorageConnection` middleware in hooks.server.ts
+ * before this handler runs.
+ *
+ * Additional buckets stored with the connection (not returned by ListBuckets)
+ * are merged into the response.
  */
 export const GET: RequestHandler = async ({ locals }) => {
-  const buckets = await getConnectionProvider(locals.storageConfig!).listContainers();
-  locals.logger.debug({ bucket_count: buckets.length }, 'bucket list returned');
-  return Response.json(buckets);
+  const config = locals.storageConfig!;
+  const listedBuckets = await getConnectionProvider(config).listContainers();
+  const additional = config.additionalBuckets ?? [];
+  const allBuckets = [...new Set([...listedBuckets, ...additional])];
+  locals.logger.debug({ bucket_count: allBuckets.length }, 'bucket list returned');
+  return Response.json(allBuckets);
 };

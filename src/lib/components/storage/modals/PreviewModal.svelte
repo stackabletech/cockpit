@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { browser } from '$app/environment';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
   import IconCloseFullscreen from 'virtual:icons/material-symbols/close-fullscreen';
   import IconOpenInFull from 'virtual:icons/material-symbols/open-in-full';
@@ -23,9 +22,9 @@
   import FallbackPreview from './preview/FallbackPreview.svelte';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
   import { downloadObject, DownloadError } from '$lib/storage/download.js';
-  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
-  import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
   import { maxEditableFileSize } from '$lib/client/feature-flags.js';
 
   interface Props {
@@ -153,11 +152,6 @@
     if (open && objectKey) {
       editorReady = false;
       void loadPreview(objectKey, bucket);
-      // Start loading Monaco in parallel with data fetching
-      if (browser) {
-        import('monaco-editor/esm/vs/editor/editor.worker?worker');
-        import('monaco-editor');
-      }
     }
 
     if (!open) {
@@ -176,9 +170,9 @@
     preview = { kind: 'loading' };
     revokeBlobUrls();
 
-    const conn = loadConnectionLocally();
-    const headers: HeadersInit = conn
-      ? { [STORAGE_CONNECTION_HEADER]: getConnectionHeader(conn) }
+    const connectionId = connectionStore.activeConnectionId;
+    const headers: HeadersInit = connectionId
+      ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
       : {};
 
     try {
@@ -450,15 +444,14 @@
 
   async function triggerDownload() {
     if (!objectKey) return;
-
-    const conn = loadConnectionLocally();
-    if (!conn) {
+    const connectionId = connectionStore.activeConnectionId;
+    if (!connectionId) {
       addToast('error', m.storage_download_error_unknown());
       return;
     }
 
     try {
-      await downloadObject(bucket, objectKey, getConnectionHeader(conn));
+      await downloadObject(bucket, objectKey, connectionId);
     } catch (err) {
       if (err instanceof DownloadError) {
         addToast('error', err.message);
@@ -488,11 +481,10 @@
 
     saving = true;
     try {
-      const conn = loadConnectionLocally();
-      const headers: HeadersInit = {};
-      if (conn) {
-        (headers as Record<string, string>)[STORAGE_CONNECTION_HEADER] = getConnectionHeader(conn);
-      }
+      const connectionId = connectionStore.activeConnectionId;
+      const headers: HeadersInit = connectionId
+        ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
+        : {};
 
       const res = await fetch(`/api/storage/save-text?${params}`, {
         method: 'POST',
@@ -578,9 +570,9 @@
   ): Promise<unknown[][]> {
     if (!objectKey) return [];
 
-    const conn = loadConnectionLocally();
-    const fetchHeaders: HeadersInit = conn
-      ? { [STORAGE_CONNECTION_HEADER]: getConnectionHeader(conn) }
+    const connectionId = connectionStore.activeConnectionId;
+    const fetchHeaders: HeadersInit = connectionId
+      ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
       : {};
 
     const params = new URLSearchParams({
