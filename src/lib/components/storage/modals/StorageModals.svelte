@@ -9,7 +9,6 @@
   import MoveConfirmModal from './MoveConfirmModal.svelte';
   import ConflictResolutionDialog from './shared/ConflictResolutionDialog.svelte';
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
-  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
   import { checkObjectExists } from '$lib/storage/upload.js';
 
   const storage = getStorageState();
