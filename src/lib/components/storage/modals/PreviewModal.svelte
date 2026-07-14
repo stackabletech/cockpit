@@ -25,7 +25,7 @@
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
-  import { maxEditableFileSize } from '$lib/client/feature-flags.js';
+  import { maxEditableFileSize, infiniteScrollEnabled } from '$lib/client/feature-flags.js';
 
   interface Props {
     open?: boolean;
@@ -76,6 +76,14 @@
       }
     | { kind: 'csv'; text: string; truncated: boolean; totalSize: number; previewBytes: number }
     | {
+        kind: 'csv_scroll';
+        headers: string[];
+        rows: unknown[][];
+        truncated: boolean;
+        totalSize: number;
+        totalRows: number;
+      }
+    | {
         kind: 'parquet';
         headers: string[];
         columnTypes: ColumnTypeInfo[];
@@ -106,7 +114,10 @@
   let imageNaturalWidth = $state(0);
   let imageNaturalHeight = $state(0);
   let parquetShowingRowsCount = $state(0);
+  let csvShowingRowsCount = $state(0);
+  let csvTotalRows = $state(0);
   let parquetTab: 'metadata' | 'data' = $state('metadata');
+  let parquetDataLoading = $state(false);
 
   // ── Text editor state ──
   let editorText = $state('');
@@ -160,6 +171,10 @@
       imageNaturalWidth = 0;
       imageNaturalHeight = 0;
       parquetTab = 'metadata';
+      parquetDataLoading = false;
+      parquetShowingRowsCount = 0;
+      csvShowingRowsCount = 0;
+      csvTotalRows = 0;
       editorReady = false;
       editorText = '';
       originalText = '';
@@ -188,7 +203,7 @@
         }
         res = await fetch(`/api/storage/archive/extract?${params}`, { headers });
       } else {
-        const params = new URLSearchParams({ bucket: activeBucket, key });
+        const params = new SvelteURLSearchParams({ bucket: activeBucket, key });
         res = await fetch(`/api/storage/preview?${params}`, { headers });
       }
 
@@ -282,6 +297,37 @@
           totalSize,
           totalRows: parquetTotalRows
         };
+        return;
+      }
+
+      if (res.headers.get('X-Preview-Format') === 'csv') {
+        const {
+          headers: csvHeaders,
+          rows: csvRows,
+          totalRows: initialTotal
+        } = await readCsvNdjsonStream(res);
+        csvTotalRows = initialTotal;
+
+        if (csvRows.length > 0 || infiniteScrollEnabled || !objectKey) {
+          preview = {
+            kind: 'csv_scroll',
+            headers: csvHeaders,
+            rows: csvRows,
+            totalRows: initialTotal,
+            truncated: initialTotal > csvRows.length,
+            totalSize
+          };
+        } else {
+          const data = await fetchCsvRows(0, 250).catch(() => []);
+          preview = {
+            kind: 'csv_scroll',
+            headers: csvHeaders,
+            rows: data,
+            totalRows: csvTotalRows,
+            truncated: csvTotalRows > data.length,
+            totalSize
+          };
+        }
         return;
       }
 
@@ -442,6 +488,43 @@
     return { headers: resultHeaders, rows, totalRows: resultTotalRows };
   }
 
+  /** Read an NDJSON streaming response for CSV row data. */
+  async function readCsvNdjsonStream(
+    res: Response
+  ): Promise<{ headers: string[]; rows: unknown[][]; totalRows: number }> {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let resultHeaders: string[] = [];
+    let rows: unknown[][] = [];
+    let resultTotalRows = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const msg = JSON.parse(line);
+
+        if (msg.t === 'h') {
+          resultHeaders = msg.h;
+          resultTotalRows = msg.tr ?? 0;
+        } else if (msg.t === 'r') {
+          rows = msg.v as unknown[][];
+        } else if (msg.t === 'e') {
+          throw new Error('Server error reading CSV data');
+        }
+      }
+    }
+
+    return { headers: resultHeaders, rows, totalRows: resultTotalRows };
+  }
+
   async function triggerDownload() {
     if (!objectKey) return;
     const connectionId = connectionStore.activeConnectionId;
@@ -558,6 +641,57 @@
     }
   });
 
+  // When infinite scroll is disabled and user clicks the data tab,
+  // fetch the first page of parquet data on demand.
+  $effect(() => {
+    if (
+      preview.kind === 'parquet' &&
+      parquetTab === 'data' &&
+      preview.rows.length === 0 &&
+      !infiniteScrollEnabled &&
+      !parquetDataLoading &&
+      objectKey
+    ) {
+      parquetDataLoading = true;
+      const hdrs = preview.headers;
+      const rowCount = Math.min(250, preview.totalRows);
+      const rows: unknown[][] = Array.from({ length: rowCount }, () =>
+        new Array(hdrs.length).fill(undefined)
+      );
+      preview = { ...preview, rows: rows.map((r) => [...r]) };
+      const colPos: Record<string, number> = {};
+      fetchParquetRows(0, rowCount, (name, values) => {
+        const colIdx = hdrs.indexOf(name);
+        if (colIdx < 0) return;
+        let pos = colPos[name] ?? 0;
+        for (let i = 0; i < values.length; i++) {
+          while (rows.length <= pos) {
+            rows.push(new Array(hdrs.length).fill(undefined));
+          }
+          rows[pos][colIdx] = values[i];
+          pos++;
+        }
+        colPos[name] = pos;
+        if (preview.kind === 'parquet') {
+          preview = { ...preview, rows: rows.map((r) => [...r]) };
+        }
+      })
+        .then((finalRows) => {
+          parquetDataLoading = false;
+          if (preview.kind === 'parquet') {
+            preview = {
+              ...preview,
+              rows: finalRows,
+              truncated: finalRows.length < preview.totalRows
+            };
+          }
+        })
+        .catch(() => {
+          parquetDataLoading = false;
+        });
+    }
+  });
+
   function toggleMaximized() {
     maximized = !maximized;
   }
@@ -592,6 +726,34 @@
     const { rows } = await readNdjsonStream(res, onColumn);
     return rows;
   }
+
+  // Function to fetch additional CSV chunks during infinite scroll
+  async function fetchCsvRows(offset: number, limit: number): Promise<unknown[][]> {
+    if (!objectKey) return [];
+
+    const connectionId = connectionStore.activeConnectionId;
+    const fetchHeaders: HeadersInit = connectionId
+      ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
+      : {};
+
+    const params = new URLSearchParams({
+      bucket,
+      key: objectKey,
+      offset: String(offset),
+      limit: String(limit),
+      data: 'true'
+    });
+
+    const res = await fetch(`/api/storage/preview?${params}`, { headers: fetchHeaders });
+
+    if (!res.ok) {
+      throw new Error('Failed to fetch CSV chunk');
+    }
+
+    const { rows, totalRows } = await readCsvNdjsonStream(res);
+    csvTotalRows = totalRows;
+    return rows;
+  }
 </script>
 
 <Modal bind:open {closeguard} class="modal">
@@ -614,6 +776,20 @@
             {#if preview.truncated}
               <span class="badge badge-soft badge-warning badge-sm">
                 {m.storage_preview_truncated({ size: formatFileSize(preview.previewBytes) })}
+              </span>
+            {/if}
+          </div>
+        {:else if preview.kind === 'csv_scroll'}
+          <div class="mt-1 flex flex-wrap items-center gap-1">
+            <span class="badge badge-neutral badge-sm font-mono"
+              >{formatFileSize(preview.totalSize)}</span
+            >
+            {#if preview.truncated}
+              <span class="badge badge-soft badge-warning badge-sm">
+                {m.storage_preview_parquet_rows({
+                  count: csvShowingRowsCount.toLocaleString(getLocale()),
+                  total: preview.totalRows.toLocaleString(getLocale())
+                })}
               </span>
             {/if}
           </div>
@@ -764,7 +940,7 @@
               headers={preview.headers}
               initialRows={preview.rows}
               totalRows={preview.totalRows}
-              fetchRows={fetchParquetRows}
+              fetchRows={infiniteScrollEnabled ? fetchParquetRows : undefined}
               bind:showingRowsCount={parquetShowingRowsCount}
               hidden={parquetTab !== 'data'}
             />
@@ -806,6 +982,14 @@
         </div>
       {:else if preview.kind === 'csv'}
         <CsvPreview text={preview.text} />
+      {:else if preview.kind === 'csv_scroll'}
+        <CsvPreview
+          headers={preview.headers}
+          initialRows={preview.rows}
+          totalRows={csvTotalRows}
+          fetchRows={infiniteScrollEnabled ? fetchCsvRows : undefined}
+          bind:showingRowsCount={csvShowingRowsCount}
+        />
       {:else if preview.kind === 'image'}
         <div class="preview-scroll h-full overflow-scroll">
           <ImagePreview
@@ -830,14 +1014,14 @@
       {/if}
     </div>
 
-    {#if preview.kind === 'text' || preview.kind === 'csv' || preview.kind === 'parquet' || preview.kind === 'image' || preview.kind === 'pdf'}
+    {#if preview.kind === 'text' || preview.kind === 'csv' || preview.kind === 'csv_scroll' || preview.kind === 'parquet' || preview.kind === 'image' || preview.kind === 'pdf'}
       <div class="border-base-300 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-2">
         {#if preview.kind === 'parquet' && preview.dataBlocked}
           <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
             <IconDownload class="size-4" aria-hidden="true" />
             {m.storage_preview_download_full()}
           </button>
-        {:else if !archiveKey && (preview.kind === 'text' || preview.kind === 'csv') && preview.truncated}
+        {:else if !archiveKey && (preview.kind === 'text' || preview.kind === 'csv' || preview.kind === 'csv_scroll') && preview.truncated}
           <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick={triggerDownload}>
             <IconDownload class="size-4" aria-hidden="true" />
             {m.storage_preview_download_full()}

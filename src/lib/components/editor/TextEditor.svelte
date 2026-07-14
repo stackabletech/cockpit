@@ -3,6 +3,7 @@
   import { browser } from '$app/environment';
   import { theme } from '$lib/theme.svelte';
   import { getLocale } from '$lib/paraglide/runtime.js';
+  import { prettifyJson } from '$lib/editor/format-json';
 
   let {
     value = $bindable(),
@@ -25,6 +26,22 @@
   let monaco = $state<typeof import('monaco-editor') | undefined>(undefined);
 
   const extension = $derived(filename.split('.').pop()?.toLowerCase() ?? '');
+
+  const isJson = $derived(
+    contentType === 'application/json' ||
+      contentType === 'text/json' ||
+      contentType.includes('+json') ||
+      extension === 'json' ||
+      extension === 'jsonc'
+  );
+
+  const displayValue = $derived.by(() => {
+    if (!isJson) return value;
+    const raw = value ?? '';
+    return prettifyJson(raw);
+  });
+
+  const isReadonly = $derived(readonly || isJson);
 
   const extLanguageMap: Record<string, string> = {
     ts: 'typescript',
@@ -151,9 +168,9 @@
     if (!container.isConnected) return;
 
     editor = monaco.editor.create(container, {
-      value,
+      value: displayValue,
       language,
-      readOnly: readonly,
+      readOnly: isReadonly,
       theme: toMonacoTheme(theme.current),
       minimap: { enabled: false },
       fontSize: 13,
@@ -204,7 +221,7 @@
   {#if !browser || !ready}
     <pre
       class="text-base-content/90 bg-base-200/50 h-full overflow-auto p-4 font-mono text-xs whitespace-pre-wrap"
-      class:opacity-60={readonly}
-      aria-readonly={readonly || undefined}>{value}</pre>
+      class:opacity-60={isReadonly}
+      aria-readonly={isReadonly || undefined}>{displayValue}</pre>
   {/if}
 </div>
