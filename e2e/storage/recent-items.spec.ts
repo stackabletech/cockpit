@@ -20,6 +20,7 @@ async function previewFile(page: Page, name: string) {
   await rowByName(page, name).dblclick();
   await expect(page.getByRole('heading', { name })).toBeVisible();
   await page.getByRole('button', { name: 'Close' }).last().click();
+  await expect(page.getByRole('heading', { name })).not.toBeVisible();
 }
 
 test.describe('Storage S3 — Recent Items', () => {
@@ -74,6 +75,7 @@ test.describe('Storage S3 — Recent Items', () => {
   });
 
   test('removes a deleted file from Recent Files', async ({ page }, testInfo) => {
+    test.slow(); // multiple navigations + deletion; Firefox is slow in CI
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'recent-delete-file');

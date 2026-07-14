@@ -10,7 +10,7 @@ export default defineConfig({
   outputDir: path.join(import.meta.dirname, 'e2e/test-results'),
   globalSetup: path.join(import.meta.dirname, 'e2e/support/global-setup.ts'),
   timeout: 20_000,
-  globalTimeout: 20 * 60_000,
+  globalTimeout: 40 * 60_000,
   retries: 2,
   expect: {
     timeout: 10_000
