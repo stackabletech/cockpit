@@ -5,7 +5,8 @@
   import IconInfo from 'virtual:icons/material-symbols/info';
   import IconPerson from 'virtual:icons/material-symbols/person';
   import IconKey from 'virtual:icons/material-symbols/key';
-  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
   import type { BucketDetails as BucketDetailsType } from '$lib/storage/details-types.js';
 
   interface Props {
@@ -24,16 +25,15 @@
 
     async function fetchDetails() {
       try {
-        const conn = loadConnectionLocally();
-        if (!conn) {
+        const connectionId = connectionStore.activeConnectionId;
+        if (!connectionId) {
           error = m.storage_details_error_not_connected();
           loading = false;
           return;
         }
-        const connHeader = getConnectionHeader(conn);
         const params = new URLSearchParams({ bucket });
         const res = await fetch(`/api/storage/bucket-details?${params}`, {
-          headers: { 'x-storage-connection': connHeader }
+          headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
         });
         if (!res.ok) {
           error = m.storage_details_error_fetch_bucket({ status: res.status });

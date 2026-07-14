@@ -187,6 +187,7 @@
             <!-- svelte-ignore a11y_autofocus -->
             <input
               type="text"
+              autofocus
               class="border-base-300 focus:border-primary h-4 w-24 rounded border bg-transparent px-1 py-0 text-xs focus:outline-none"
               bind:value={renameValue}
               bind:this={renameInput}

@@ -4,7 +4,8 @@
   import IconFolderOpen from 'virtual:icons/material-symbols/folder-open';
   import IconWarning from 'virtual:icons/material-symbols/warning';
   import { formatFileSize, keyToName } from '$lib/storage/utils.js';
-  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
   import type {
     DirectorySizeEvent,
     DirectoryMetadata,
@@ -46,12 +47,11 @@
 
   async function fetchMetadata() {
     try {
-      const conn = loadConnectionLocally();
-      if (!conn) return;
-      const connHeader = getConnectionHeader(conn);
+      const connectionId = connectionStore.activeConnectionId;
+      if (!connectionId) return;
       const params = new URLSearchParams({ bucket, prefix });
       const res = await fetch(`/api/storage/directory-metadata?${params}`, {
-        headers: { 'x-storage-connection': connHeader }
+        headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
       });
       if (!res.ok) {
         metaError = m.storage_details_error_fetch_dir_meta({ status: res.status });
@@ -74,16 +74,15 @@
     result = null;
 
     try {
-      const conn = loadConnectionLocally();
-      if (!conn) {
+      const connectionId = connectionStore.activeConnectionId;
+      if (!connectionId) {
         error = m.storage_details_error_not_connected();
         calculating = false;
         return;
       }
-      const connHeader = getConnectionHeader(conn);
       const params = new URLSearchParams({ bucket, prefix });
       const res = await fetch(`/api/storage/directory-size?${params}`, {
-        headers: { 'x-storage-connection': connHeader }
+        headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
       });
 
       if (!res.ok) {
