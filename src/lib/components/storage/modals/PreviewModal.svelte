@@ -731,9 +731,9 @@
   async function fetchCsvRows(offset: number, limit: number): Promise<unknown[][]> {
     if (!objectKey) return [];
 
-    const conn = loadConnectionLocally();
-    const fetchHeaders: HeadersInit = conn
-      ? { [STORAGE_CONNECTION_HEADER]: getConnectionHeader(conn) }
+    const connectionId = connectionStore.activeConnectionId;
+    const fetchHeaders: HeadersInit = connectionId
+      ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
       : {};
 
     const params = new URLSearchParams({
