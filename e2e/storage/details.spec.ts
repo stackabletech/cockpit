@@ -39,7 +39,7 @@ test.describe('Storage S3 — Details Modal', () => {
       await page.getByRole('menuitem', { name: 'Details' }).click();
       await expect(page.getByRole('heading', { name: 'File Details' })).toBeVisible();
 
-      await expect(page.getByText('test.txt')).toBeVisible();
+      await expect(page.getByText('test.txt').first()).toBeVisible();
       await expect(
         page.getByText('s3://' + credentials.bucket + '/' + prefix + 'test.txt')
       ).toBeVisible();
@@ -79,7 +79,7 @@ test.describe('Storage S3 — Details Modal', () => {
       const sidebar = page.getByRole('navigation', { name: 'Buckets' });
       await sidebar.getByText(bucket).click({ button: 'right' });
 
-      await page.getByRole('menuitem', { name: 'Details' }).click();
+      await page.getByRole('button', { name: 'Details' }).click();
       await expect(page.getByRole('heading', { name: 'Bucket Details' })).toBeVisible();
     } finally {
       // no cleanup needed — using the shared test bucket

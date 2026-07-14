@@ -314,7 +314,7 @@
     open={bucketCtx !== null}
     onclose={closeBucketContextMenu}
   >
-    <button class="btn btn-ghost btn-sm w-full justify-start gap-2" onclick={openBucketDetails}>
+    <button role="menuitem" class="btn btn-ghost btn-sm w-full justify-start gap-2" onclick={openBucketDetails}>
       <IconInfo class="size-4" aria-hidden="true" />
       {m.storage_action_details()}
     </button>
