@@ -148,6 +148,8 @@
 
     monaco = await import('monaco-editor');
 
+    if (!container.isConnected) return;
+
     editor = monaco.editor.create(container, {
       value,
       language,

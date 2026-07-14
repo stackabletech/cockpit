@@ -3,7 +3,7 @@ import { defineConfig } from 'drizzle-kit';
 const isDev = process.env.NODE_ENV !== 'production';
 
 export default defineConfig({
-  schema: './src/lib/server/schema.ts',
+  schema: ['./src/lib/server/schema.ts', './src/lib/server/auth-schema.ts'],
   out: './src/lib/server/migrations',
   dialect: 'postgresql',
   dbCredentials: {

@@ -17,8 +17,7 @@
   let copiedField: string | null = $state(null);
 
   function connectionLabel(conn: SavedConnection): string {
-    if (conn.name) return conn.name;
-    return conn.port ? `${conn.host}:${conn.port}` : conn.host;
+    return conn.name || conn.host || 'S3';
   }
 
   function copyField(value: string, field: string) {
@@ -33,7 +32,6 @@
     const host = conn.port ? `${conn.host}:${conn.port}` : conn.host;
     const lines = [
       `Host:        ${host}`,
-      `Type:        ${m.storage_connect_type_s3()}`,
       ...(conn.credentials?.accessKey ? [`Access key:  ${conn.credentials.accessKey}`] : []),
       `Region:      ${conn.region.name}`
     ];
@@ -104,15 +102,17 @@
                 </td>
               </tr>
             {/if}
-            <tr>
-              <th>{m.storage_connect_region()}</th>
-              <td class="border-base-content/10 border-l">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="font-mono">{connection.region.name}</span>
-                  {@render copyBtn(connection.region.name, 'region')}
-                </div>
-              </td>
-            </tr>
+            {#if connection.region?.name}
+              <tr>
+                <th>{m.storage_connect_region()}</th>
+                <td class="border-base-content/10 border-l">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="font-mono">{connection.region.name}</span>
+                    {@render copyBtn(connection.region.name, 'region')}
+                  </div>
+                </td>
+              </tr>
+            {/if}
           </tbody>
         </table>
       </div>

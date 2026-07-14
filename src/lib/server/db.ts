@@ -9,11 +9,10 @@ const dbHost = process.env.DATABASE_HOST || 'localhost';
 const dbPort = parseInt(process.env.DATABASE_PORT || '31432', 10);
 const dbName = process.env.DATABASE_NAME || 'cockpit';
 const dbUser = process.env.DATABASE_USER || 'cockpit';
-const dbPassword = process.env.DATABASE_PASSWORD || 'cockpit-dev-password';
-
-if (!dbPassword) {
-  log.warn('DATABASE_PASSWORD not set, connection may fail');
+if (!process.env.DATABASE_PASSWORD) {
+  log.warn('DATABASE_PASSWORD not set, using default development password');
 }
+const dbPassword = process.env.DATABASE_PASSWORD || 'cockpit-dev-password';
 
 // SSL is disabled in development (local k8s), enabled in production
 const isDev = process.env.NODE_ENV !== 'production';

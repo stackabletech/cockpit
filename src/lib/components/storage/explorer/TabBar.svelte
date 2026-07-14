@@ -12,7 +12,18 @@
 
   let { tabsState }: Props = $props();
 
+<<<<<<< HEAD
   const storage = getStorageState();
+=======
+  let renameInput = $state<HTMLInputElement | null>(null);
+
+  $effect(() => {
+    if (renamingId && renameInput) {
+      renameInput.focus();
+      renameInput.select();
+    }
+  });
+>>>>>>> origin/feat/s3-file-browser-v1
 
   // ── Overflow detection ──
   let containerEl = $state<HTMLElement | null>(null);
@@ -256,9 +267,9 @@
               type="text"
               class="border-base-300 focus:border-primary h-4 w-24 rounded border bg-transparent px-1 py-0 text-xs focus:outline-none"
               bind:value={renameValue}
+              bind:this={renameInput}
               onblur={commitRename}
               onkeydown={handleRenameKeydown}
-              autofocus
               aria-label={m.storage_tab_rename()}
             />
           </div>

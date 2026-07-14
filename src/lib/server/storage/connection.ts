@@ -1,58 +1,92 @@
 import { error } from '@sveltejs/kit';
-import { StorageConnectionSchema } from '$lib/storage/schemas.js';
-import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
+import { eq, and } from 'drizzle-orm';
+import { db } from '$lib/server/db.js';
+import { userStorageConnections } from '$lib/server/schema.js';
+import { decrypt } from './encryption.js';
+import { storageEncryptionKey } from './encryption-key.js';
 import type { S3ConnectionConfig } from './types.js';
 import { logger } from '$lib/server/logging';
+import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 
 const log = logger.child({ module: 'storage-connection' });
 
-/**
- * Parse and validate a base64-encoded JSON connection payload from a request header value.
- * Throws a 400 HTTP error if the payload is malformed or fails schema validation.
- * Throws a 400 HTTP error if the connection type is not 's3'.
- */
-export function parseConnectionPayload(raw: string): S3ConnectionConfig {
-  let data: unknown;
-  try {
-    data = JSON.parse(atob(raw));
-  } catch {
-    throw error(400, 'Invalid storage connection header');
-  }
-
-  const parsed = StorageConnectionSchema.safeParse(data);
-  if (!parsed.success) {
-    log.debug({ issues: parsed.error.issues }, 'storage connection header validation failed');
-    throw error(400, 'Invalid storage connection configuration');
-  }
-
-  if (parsed.data.type !== 's3') {
-    throw error(400, 'Storage backend not supported');
-  }
-
-  const { host, port, tls, accessStyle, region, credentials } = parsed.data;
-  const resolvedCredentials =
-    credentials.accessKey && credentials.secretKey ? credentials : undefined;
-
-  return {
-    type: 's3',
-    host,
-    port,
-    tls,
-    accessStyle,
-    region,
-    credentials: resolvedCredentials
-  };
+/** The shape of the JSON stored inside encrypted_payload. */
+interface StoredPayload {
+  host: string;
+  port?: number;
+  tls?: { verification: 'Full' | 'None' };
+  accessStyle: 'Path' | 'VirtualHosted';
+  region: { name: string };
+  credentials?: { accessKey: string; secretKey: string };
 }
 
 /**
- * Extract the storage connection config from the `X-Storage-Connection` request header.
- * Returns `null` if the header is absent. Throws 400 on malformed or invalid payloads.
+ * Look up a storage connection by UUID and authenticated user ID, decrypt the
+ * payload, and return the {@link S3ConnectionConfig}.
  *
- * Used by the `handleStorageConnection` middleware in `hooks.server.ts` to populate
- * `event.locals.storageConfig` before any storage API handler runs.
+ * Also updates `updated_at` on the connection row (fire-and-forget) so that
+ * auto-connect picks the most-recently-used connection on the next page load.
+ *
+ * Returns `null` if the header is absent.
+ * Throws 401 if the connection is not found or does not belong to the user.
+ * Throws 500 if decryption fails.
  */
-export function getConnectionFromHeader(request: Request): S3ConnectionConfig | null {
-  const header = request.headers.get(STORAGE_CONNECTION_HEADER);
-  if (!header) return null;
-  return parseConnectionPayload(header);
+<<<<<<< HEAD
+export function parseConnectionPayload(raw: string): S3ConnectionConfig {
+  let data: unknown;
+=======
+export async function getConnectionFromHeader(
+  request: Request,
+  userId: string
+): Promise<S3ConnectionConfig | null> {
+  const connectionId = request.headers.get(STORAGE_CONNECTION_ID_HEADER);
+  if (!connectionId) return null;
+
+  const rows = await db
+    .select()
+    .from(userStorageConnections)
+    .where(
+      and(eq(userStorageConnections.id, connectionId), eq(userStorageConnections.userId, userId))
+    )
+    .limit(1);
+
+  if (rows.length === 0) {
+    log.warn({ connection_id: connectionId }, 'storage connection not found or unauthorised');
+    throw error(401, 'Storage connection not found');
+  }
+
+  const row = rows[0];
+
+  let payload: StoredPayload;
+>>>>>>> origin/feat/s3-file-browser-v1
+  try {
+    payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey())) as StoredPayload;
+  } catch (err) {
+    log.error({ err, connection_id: connectionId }, 'failed to decrypt storage connection payload');
+    throw error(500, 'Failed to decrypt storage connection');
+  }
+
+  // Update updated_at asynchronously — do not block the request on this.
+  db.update(userStorageConnections)
+    .set({ updatedAt: new Date() })
+    .where(eq(userStorageConnections.id, connectionId))
+    .catch((err) =>
+      log.warn({ err, connection_id: connectionId }, 'failed to update connection updated_at')
+    );
+
+  const resolvedCredentials =
+    payload.credentials?.accessKey && payload.credentials?.secretKey
+      ? payload.credentials
+      : undefined;
+
+  return {
+    type: 's3',
+    host: payload.host,
+    port: payload.port,
+    tls: payload.tls,
+    accessStyle: payload.accessStyle,
+    region: payload.region,
+    credentials: resolvedCredentials,
+    additionalBuckets: (row.additionalBuckets as string[]) ?? []
+  };
 }
