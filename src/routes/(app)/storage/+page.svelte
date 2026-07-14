@@ -2,6 +2,7 @@
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
   import { onMount } from 'svelte';
   import { navigating } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
@@ -17,6 +18,10 @@
 
   let { data } = $props();
   const storage = getStorageState();
+
+  const connectError = $derived<string | null>(
+    (page.form as { error?: string } | null)?.error ?? null
+  );
 
   // ── Restore-tabs banner ───────────────────────────────────────────────────
 
@@ -116,5 +121,9 @@
     <RecentItems />
   </div>
 {:else if mounted}
-  <StorageConnectForm connectionForm={data.connectionForm} />
+  <StorageConnectForm
+    connectionForm={data.connectionForm}
+    connections={data.connections ?? []}
+    {connectError}
+  />
 {/if}

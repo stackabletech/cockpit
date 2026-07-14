@@ -40,6 +40,7 @@ coverage/*
 # Playwright
 e2e/test-results
 e2e/.auth
+.playwright/
 # Paraglide
 src/lib/paraglide
 project.inlang/cache/
