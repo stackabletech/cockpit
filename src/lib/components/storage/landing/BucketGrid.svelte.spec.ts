@@ -63,7 +63,7 @@ describe('BucketGrid', () => {
     const buckets = ['tooltip-bucket'];
     render(BucketGridWrapper, { state: createState(), buckets });
 
-    await page.getByText('tooltip-bucket').hover();
+    await page.getByRole('link', { name: 'tooltip-bucket' }).hover();
 
     const tooltip = page.getByRole('tooltip');
     await expect.element(tooltip).toHaveTextContent('tooltip-bucket');
