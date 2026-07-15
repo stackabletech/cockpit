@@ -1,6 +1,6 @@
 import path from 'path';
 import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainers';
-import { createGarageBucketCredentials } from '../garage.js';
+import { createGarageBucketCredentials, createGarageHiddenBucket } from '../garage.js';
 
 export async function startGarage(): Promise<StartedTestContainer> {
   const garageStart = Date.now();
@@ -66,4 +66,18 @@ async function setupGarageBucket(garageContainer: StartedTestContainer): Promise
   process.env.S3_TEST_ACCESS_KEY_ID = credentials.accessKeyId;
   process.env.S3_TEST_SECRET_ACCESS_KEY = credentials.secretAccessKey;
   process.env.S3_TEST_BUCKET = 'test-bucket';
+
+  // Hidden bucket: no global alias so it does not appear in S3 ListBuckets,
+  // but the test key has read and write access.
+  const hiddenBucketId = await createGarageHiddenBucket(
+    {
+      endpoint: garageS3Endpoint,
+      region: 'garage',
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+      bucket: 'test-bucket'
+    },
+    credentials.accessKeyId
+  );
+  process.env.S3_TEST_HIDDEN_BUCKET_ID = hiddenBucketId;
 }
