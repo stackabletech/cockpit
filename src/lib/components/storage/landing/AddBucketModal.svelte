@@ -4,6 +4,8 @@
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
   import { getStorageState } from '$lib/storage/context.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 
   interface Props {
     open: boolean;
@@ -42,9 +44,35 @@
     error = null;
 
     try {
-      const res = await fetch(`/api/storage/check-bucket?bucket=${encodeURIComponent(name)}`);
+      const res = await fetch(`/api/storage/check-bucket?bucket=${encodeURIComponent(name)}`, {
+        headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionStore.activeConnectionId ?? '' }
+      });
 
       if (res.ok) {
+        // Persist the bucket to the connection's additionalBuckets
+        await fetch(`/api/storage/connections`, {
+          method: 'PATCH',
+          headers: {
+            [STORAGE_CONNECTION_ID_HEADER]: connectionStore.activeConnectionId ?? '',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ bucket: name })
+        });
+
+        // Update local store so the grid reflects the change
+        const activeId = connectionStore.activeConnectionId;
+        if (activeId) {
+          const idx = connectionStore.connections.findIndex((c) => c.id === activeId);
+          if (idx !== -1) {
+            const updated = [...connectionStore.connections];
+            updated[idx] = {
+              ...updated[idx],
+              additionalBuckets: [...updated[idx].additionalBuckets, name]
+            };
+            connectionStore.connections = updated;
+          }
+        }
+
         storage.addBucket(name);
         open = false;
         reset();

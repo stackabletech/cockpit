@@ -19,6 +19,15 @@ vi.mock('$lib/storage/context.js', () => ({
   getStorageState: () => ({ addBucket: mockAddBucket })
 }));
 
+// Mock connection store
+vi.mock('$lib/storage/connection-store.svelte.js', () => ({
+  connectionStore: { activeConnectionId: 'mock-connection-id', connections: [] }
+}));
+
+vi.mock('$lib/storage/connection-id-header.js', () => ({
+  STORAGE_CONNECTION_ID_HEADER: 'x-storage-connection-id'
+}));
+
 // Mock paraglide messages
 vi.mock('$lib/paraglide/messages.js', () => ({
   storage_add_bucket_title: () => 'Connect to a bucket',
@@ -90,7 +99,9 @@ describe('AddBucketModal', () => {
 
   describe('successful connection', () => {
     it('should call addBucket and navigate on 204 response', async () => {
-      vi.mocked(fetch).mockResolvedValue({ ok: true, status: 204 } as Response);
+      vi.mocked(fetch)
+        .mockResolvedValueOnce({ ok: true, status: 204 } as Response)
+        .mockResolvedValueOnce({ ok: true } as Response);
 
       render(AddBucketModal, { open: true });
 
@@ -102,7 +113,9 @@ describe('AddBucketModal', () => {
     });
 
     it('should URL-encode the bucket name in the check request', async () => {
-      vi.mocked(fetch).mockResolvedValue({ ok: true, status: 204 } as Response);
+      vi.mocked(fetch)
+        .mockResolvedValueOnce({ ok: true, status: 204 } as Response)
+        .mockResolvedValueOnce({ ok: true } as Response);
 
       render(AddBucketModal, { open: true });
 
@@ -111,7 +124,9 @@ describe('AddBucketModal', () => {
 
       await expect
         .poll(() => fetch)
-        .toHaveBeenCalledWith('/api/storage/check-bucket?bucket=my%20bucket');
+        .toHaveBeenCalledWith('/api/storage/check-bucket?bucket=my%20bucket', {
+          headers: { 'x-storage-connection-id': 'mock-connection-id' }
+        });
     });
   });
 
@@ -184,7 +199,8 @@ describe('AddBucketModal', () => {
     it('should clear error when user types a new bucket name', async () => {
       vi.mocked(fetch)
         .mockResolvedValueOnce({ ok: false, status: 404 } as Response)
-        .mockResolvedValue({ ok: true, status: 204 } as Response);
+        .mockResolvedValueOnce({ ok: true, status: 204 } as Response)
+        .mockResolvedValueOnce({ ok: true } as Response);
 
       render(AddBucketModal, { open: true });
 

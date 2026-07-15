@@ -81,8 +81,8 @@ test.describe('Storage S3 — Add bucket manually', () => {
     });
 
     // The extra bucket should not be listed — it was created after the page loaded
-    const main = page.locator('main');
-    await expect(main.getByRole('link', { name: extraBucketName, exact: true })).not.toBeVisible();
+    const bucketLink = page.getByRole('link', { name: extraBucketName, exact: true });
+    await expect(bucketLink.first()).not.toBeVisible();
 
     // Add it manually
     await openAddBucketModal(page);
@@ -94,7 +94,7 @@ test.describe('Storage S3 — Add bucket manually', () => {
 
     // Go back to the bucket grid and confirm the bucket is now shown
     await page.goto('/storage');
-    await expect(main.getByRole('link', { name: extraBucketName, exact: true })).toBeVisible();
+    await expect(bucketLink.first()).toBeVisible();
   });
 
   test('shows access denied error for a bucket without read permission', async ({
