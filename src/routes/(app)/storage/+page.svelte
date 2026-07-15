@@ -111,20 +111,20 @@
       </div>
     {/if}
 
-    <div class="mb-6 flex items-start justify-between gap-4">
-      <div>
-        <h1 class="mb-1 text-xl font-semibold">{m.storage_buckets_label()}</h1>
-        <p class="text-base-content/60 text-sm">{m.storage_buckets_subtitle()}</p>
+    <div class="mb-6">
+      <div class="mb-1 flex items-center justify-between gap-4">
+        <h1 class="text-xl font-semibold">{m.storage_buckets_label()}</h1>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm shrink-0"
+          onclick={() => (addBucketOpen = true)}
+          aria-label={m.storage_add_bucket()}
+        >
+          <IconAdd class="size-4" aria-hidden="true" />
+          {m.storage_add_bucket()}
+        </button>
       </div>
-      <button
-        type="button"
-        class="btn btn-primary btn-sm shrink-0"
-        onclick={() => (addBucketOpen = true)}
-        aria-label={m.storage_add_bucket()}
-      >
-        <IconAdd class="size-4" aria-hidden="true" />
-        {m.storage_add_bucket()}
-      </button>
+      <p class="text-base-content/60 text-sm">{m.storage_buckets_subtitle()}</p>
     </div>
     <BucketGrid buckets={storage.buckets} />
   </div>
