@@ -568,12 +568,12 @@
   "storage_operations_remaining": "verbleibend",
   "storage_action_rename_inline_label": "Neuer Name",
   "storage_action_rename_inline_cancel": "Abbrechen",
-  "storage_rename_success": "In „{name}" umbenannt.",
-  "storage_rename_error": "„{name}" konnte nicht umbenannt werden. Bitte versuchen Sie es erneut.",
+  "storage_rename_success": "In \"{name}\" umbenannt.",
+  "storage_rename_error": "\"{name}\" konnte nicht umbenannt werden. Bitte versuchen Sie es erneut.",
   "storage_rename_error_not_connected": "Keine Speicherverbindung konfiguriert. Bitte verbinden Sie sich zuerst.",
   "storage_rename_error_access_denied": "Zugriff verweigert. Sie haben keine Berechtigung zum Umbenennen.",
   "storage_rename_error_not_found": "Das Element wurde nicht gefunden. Es wurde möglicherweise verschoben oder gelöscht.",
-  "storage_rename_error_conflict": "Eine Datei oder ein Ordner namens „{name}" ist an diesem Ort bereits vorhanden.",
+  "storage_rename_error_conflict": "Eine Datei oder ein Ordner namens \"{name}\" ist an diesem Ort bereits vorhanden.",
   "timestamp_just_now": "gerade eben",
   "timestamp_minutes_ago": [
     {
