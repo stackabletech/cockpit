@@ -24,6 +24,14 @@ progress.progress::-moz-progress-bar {
   transition: none;
 }
 
+/* Smooth transition for operation progress bars where discrete chunk updates benefit from animation */
+progress.progress.progress-smooth::-webkit-progress-value {
+  transition: width 0.4s ease;
+}
+progress.progress.progress-smooth::-moz-progress-bar {
+  transition: width 0.4s ease;
+}
+
 /*
  * Visible scrollbars for preview panels. Uses DaisyUI semantic color variables
  * so the thumb adapts to both light and dark themes automatically.

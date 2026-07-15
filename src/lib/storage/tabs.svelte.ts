@@ -367,6 +367,26 @@ export class TabsState {
     this.saveToPersistence();
   }
 
+  /** Marks all non-active tabs whose snapshot prefix matches the given prefix
+   *  as stubs so that switching to them triggers a fresh server fetch. Called
+   *  after file operations (move, delete, rename) that change a directory's
+   *  contents. */
+  setStalePrefix(prefix: string): void {
+    let changed = false;
+    const next = this.tabs.map((tab) => {
+      if (tab.id === this.activeTabId) return tab;
+      if (tab.snapshot.prefix === prefix && !tab.stub) {
+        changed = true;
+        return { ...tab, stub: true };
+      }
+      return tab;
+    });
+    if (changed) {
+      this.tabs = next;
+      this.saveToPersistence();
+    }
+  }
+
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   private buildLabel(bucket: string, prefix: string): string {

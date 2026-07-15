@@ -67,6 +67,7 @@ function makeProvider(overrides: Partial<StorageProvider> = {}): StorageProvider
     getBucketLifecycleRules: vi.fn(),
     getBucketTags: vi.fn(),
     getBucketAcl: vi.fn(),
+    copyObject: vi.fn(),
     ...overrides
   };
 }

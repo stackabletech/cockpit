@@ -32,3 +32,7 @@ export function getActionErrorMessage(err: ActionError): string {
       return m.storage_download_error_unknown();
   }
 }
+
+export function getActionErrorMessageForCode(code: string): string {
+  return getActionErrorMessage(new ActionError(code, ''));
+}

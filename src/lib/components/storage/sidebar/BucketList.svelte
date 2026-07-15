@@ -16,6 +16,7 @@
   import { getStorageState } from '$lib/storage/context.js';
   import FloatingMenu from '../shared/FloatingMenu.svelte';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
+  import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import { pinnedLabel, pinnedHref } from '$lib/storage/display-helpers.js';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
@@ -130,6 +131,30 @@
   function hideTooltip() {
     tooltipText = null;
   }
+
+  // ── Drag-drop targets for sidebar items ────────────────────────────────
+  let dropSidebarTarget = $state<string | null>(null);
+
+  function handleSidebarDragOver(e: DragEvent, prefix: string) {
+    if (!canStorageDrop(storage)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    dropSidebarTarget = prefix;
+  }
+
+  function handleSidebarDragLeave() {
+    dropSidebarTarget = null;
+  }
+
+  function handleSidebarDrop(e: DragEvent, _bucket: string, prefix: string) {
+    dropSidebarTarget = null;
+    if (!canStorageDrop(storage)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const keys = parseStorageDropKeys(e);
+    if (!keys) return;
+    void storage.performMove(prefix, keys);
+  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -197,14 +222,18 @@
               href={pinnedHref(pin)}
               data-sveltekit-preload-data="off"
               class="
-              hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
-              pr-7 text-sm
-              {active ? 'bg-primary/10 text-primary font-medium' : 'text-base-content'}"
+                hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
+                pr-7 text-sm
+                {active ? 'bg-primary/10 text-primary font-medium' : 'text-base-content'}
+                {dropSidebarTarget === pin.prefix ? 'bg-primary/20' : ''}"
               aria-current={active ? 'page' : undefined}
               onmouseenter={(e) => showTooltip(e, pinnedLabel(pin))}
               onmouseleave={hideTooltip}
               onfocus={(e) => showTooltip(e, pinnedLabel(pin))}
               onblur={hideTooltip}
+              ondragover={(e) => handleSidebarDragOver(e, pin.prefix)}
+              ondragleave={handleSidebarDragLeave}
+              ondrop={(e) => handleSidebarDrop(e, pin.bucket, pin.prefix)}
             >
               <!-- eslint-enable svelte/no-navigation-without-resolve -->
               {#if pin.prefix === ''}
@@ -274,17 +303,21 @@
               })}
               data-sveltekit-preload-data="off"
               class="
-                hover:bg-base-200 flex items-center gap-2
-                px-3 py-1.5 text-sm
-                {activeBucket === bucket
+                  hover:bg-base-200 flex items-center gap-2
+                  px-3 py-1.5 text-sm
+                  {activeBucket === bucket
                 ? 'bg-primary/10 text-primary font-medium'
-                : 'text-base-content'}"
+                : 'text-base-content'}
+                  {dropSidebarTarget === '' && activeBucket === bucket ? 'bg-primary/20' : ''}"
               aria-current={activeBucket === bucket && !page.params.prefix ? 'page' : undefined}
               onmouseenter={(e) => showTooltip(e, bucket)}
               onmouseleave={hideTooltip}
               onfocus={(e) => showTooltip(e, bucket)}
               onblur={hideTooltip}
               oncontextmenu={(e) => openBucketContextMenu(e, bucket)}
+              ondragover={(e) => handleSidebarDragOver(e, '')}
+              ondragleave={handleSidebarDragLeave}
+              ondrop={(e) => handleSidebarDrop(e, bucket, '')}
             >
               <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
               <span class="truncate">{bucket}</span>

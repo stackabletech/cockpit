@@ -78,4 +78,8 @@ export class HDFSStorageProvider implements StorageProvider {
   getBucketAcl(): Promise<BucketAcl> {
     throw new Error('HDFS not implemented');
   }
+
+  copyObject(_sourceKey: string, _destKey: string): Promise<void> {
+    throw new Error('HDFS not implemented');
+  }
 }

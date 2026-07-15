@@ -11,6 +11,11 @@ import {
   GetBucketLifecycleConfigurationCommand,
   GetBucketTaggingCommand,
   GetBucketAclCommand,
+  CopyObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCopyCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
   type ListObjectsV2CommandOutput
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
@@ -186,7 +191,8 @@ export class S3StorageProvider implements StorageProvider {
     key: string,
     body: ReadableStream | Buffer,
     contentType: string,
-    contentLength?: number
+    contentLength?: number,
+    onProgress?: (loaded: number, total: number) => void
   ): Promise<void> {
     log.trace(
       { bucket: this.bucket, key, content_type: contentType, content_length: contentLength },
@@ -220,6 +226,11 @@ export class S3StorageProvider implements StorageProvider {
         ...(contentLength !== undefined ? { ContentLength: contentLength } : {})
       }
     });
+    if (onProgress && contentLength) {
+      upload.on('httpUploadProgress', (progress) => {
+        onProgress(progress.loaded ?? 0, contentLength);
+      });
+    }
     await withS3Errors(() => upload.done(), { bucket: this.bucket, key, operation: 'putObject' });
   }
 
@@ -447,5 +458,108 @@ export class S3StorageProvider implements StorageProvider {
       'recursive listing complete'
     );
     return keys;
+  }
+
+  async copyObject(
+    sourceKey: string,
+    destKey: string,
+    onProgress?: (loaded: number, total: number) => void
+  ): Promise<void> {
+    log.trace({ bucket: this.bucket, source_key: sourceKey, dest_key: destKey }, 'S3 CopyObject');
+
+    // S3 CopyObject has a 5 GB limit. For larger objects we use server-side
+    // multipart copy (UploadPartCopy) so data never streams through the server.
+    const HEAD_LIMIT = 5 * 1024 * 1024 * 1024;
+    const metadata = await this.getMetadata(sourceKey);
+
+    if (metadata.size <= HEAD_LIMIT) {
+      await withS3Errors(
+        () =>
+          this.client.send(
+            new CopyObjectCommand({
+              Bucket: this.bucket,
+              CopySource: `/${this.bucket}/${encodeURIComponent(sourceKey)}`,
+              Key: destKey
+            })
+          ),
+        { bucket: this.bucket, key: sourceKey, operation: 'copyObject' }
+      );
+      return;
+    }
+
+    log.info(
+      { bucket: this.bucket, source_key: sourceKey, size: metadata.size },
+      'object exceeds CopyObject limit, using server-side multipart copy'
+    );
+
+    await withS3Errors(
+      async () => {
+        const totalSize = metadata.size!;
+        // 256 MiB parts — well within the 10 000-part limit even for multi-TB objects
+        const PART_SIZE = 256 * 1024 * 1024;
+        const numParts = Math.ceil(totalSize / PART_SIZE);
+
+        const { UploadId } = await this.client.send(
+          new CreateMultipartUploadCommand({
+            Bucket: this.bucket,
+            Key: destKey,
+            ContentType: metadata.contentType ?? 'application/octet-stream'
+          })
+        );
+        const uploadId = UploadId!;
+
+        const parts: Array<{ PartNumber: number; ETag: string }> = [];
+        try {
+          for (let i = 0; i < numParts; i++) {
+            const partNumber = i + 1;
+            const startByte = i * PART_SIZE;
+            const endByte = Math.min(startByte + PART_SIZE - 1, totalSize - 1);
+
+            const { CopyPartResult } = await this.client.send(
+              new UploadPartCopyCommand({
+                Bucket: this.bucket,
+                Key: destKey,
+                UploadId: uploadId,
+                PartNumber: partNumber,
+                CopySource: `/${this.bucket}/${encodeURIComponent(sourceKey)}`,
+                CopySourceRange: `bytes=${startByte}-${endByte}`
+              })
+            );
+
+            parts.push({
+              PartNumber: partNumber,
+              ETag: CopyPartResult?.ETag ?? ''
+            });
+
+            if (onProgress) {
+              onProgress(Math.min((i + 1) * PART_SIZE, totalSize), totalSize);
+            }
+          }
+
+          await this.client.send(
+            new CompleteMultipartUploadCommand({
+              Bucket: this.bucket,
+              Key: destKey,
+              UploadId: uploadId,
+              MultipartUpload: { Parts: parts }
+            })
+          );
+        } catch (err) {
+          try {
+            await this.client.send(
+              new AbortMultipartUploadCommand({
+                Bucket: this.bucket,
+                Key: destKey,
+                UploadId: uploadId
+              })
+            );
+          } catch {
+            // best-effort cleanup
+          }
+          throw err;
+        }
+      },
+      { bucket: this.bucket, key: sourceKey, operation: 'copyObject' }
+    );
   }
 }
