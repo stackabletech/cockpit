@@ -39,6 +39,7 @@ export interface DirectorySizeResult {
   totalDirectories: number;
   tree: TreemapNode;
   childrenByDepth: Record<number, DirectoryChildItem[]>;
+  maxDepth: number;
   durationMs: number;
 }
 

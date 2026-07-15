@@ -19,9 +19,10 @@
   interface Props {
     key: string;
     bucket: string;
+    maximized?: boolean;
   }
 
-  let { key: objectKey, bucket }: Props = $props();
+  let { key: objectKey, bucket, maximized = false }: Props = $props();
 
   const prefix = $derived(objectKey.endsWith('/') ? objectKey : objectKey + '/');
 
@@ -37,6 +38,7 @@
     totalDirectories: number;
     tree: TreemapNode;
     childrenByDepth: Record<number, DirectoryChildItem[]>;
+    maxDepth: number;
     durationMs: number;
   } | null>(null);
 
@@ -121,6 +123,7 @@
                 totalDirectories: event.totalDirectories,
                 tree: event.tree,
                 childrenByDepth: event.childrenByDepth,
+                maxDepth: event.maxDepth,
                 durationMs: event.durationMs
               };
             } else if (event.type === 'error') {
@@ -310,52 +313,77 @@
     </div>
 
     {#if result.tree.children && result.tree.children.length > 0}
-      <div class="bg-base-200 border-base-300 rounded-t-box flex gap-0 border-b" role="tablist">
-        <button
-          class="rounded-ss-box relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {tab ===
-          'composition'
-            ? 'bg-base-100 text-primary'
-            : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
-          role="tab"
-          aria-selected={tab === 'composition'}
-          onclick={() => (tab = 'composition')}
-        >
-          {m.storage_details_tab_composition()}
-          {#if tab === 'composition'}
-            <span class="bg-primary absolute inset-x-0 bottom-0 h-0.5" aria-hidden="true"></span>
-          {/if}
-        </button>
-        <button
-          class="rounded-se-box relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {tab ===
-          'contents'
-            ? 'bg-base-100 text-primary'
-            : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
-          role="tab"
-          aria-selected={tab === 'contents'}
-          onclick={() => (tab = 'contents')}
-        >
-          {m.storage_details_tab_contents()}
-          {#if tab === 'contents'}
-            <span class="bg-primary absolute inset-x-0 bottom-0 h-0.5" aria-hidden="true"></span>
-          {/if}
-        </button>
-      </div>
-      <div class={tab === 'composition' ? 'block' : 'hidden'}>
-        <Treemap data={result.tree} />
-      </div>
-      <div class={tab === 'contents' ? 'block' : 'hidden'}>
-        <div class="border-base-300 flex items-center gap-2 border-b px-3 py-2">
-          <label for="depth-select" class="text-base-content/60 text-xs font-medium"
-            >{m.storage_details_depth()}:
-          </label>
-          <select id="depth-select" class="select select-xs w-20" bind:value={depth}>
-            {#each [1, 2, 3, 4, 5] as d (d)}
-              <option value={d}>{d}</option>
-            {/each}
-          </select>
+      {#if maximized}
+        <!-- Side-by-side layout in maximised view -->
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr]">
+          <div>
+            <Treemap data={result.tree} />
+          </div>
+          <div class="flex flex-col">
+            <div class="border-base-300 flex items-center gap-2 border-b px-3 py-2">
+              <label for="depth-select" class="text-base-content/60 text-xs font-medium"
+                >{m.storage_details_depth()}:
+              </label>
+              <select id="depth-select" class="select select-xs w-20" bind:value={depth}>
+                {#each Array.from({ length: result.maxDepth }, (_, i) => i + 1) as d (d)}
+                  <option value={d}>{d}</option>
+                {/each}
+              </select>
+            </div>
+            <div class="min-h-0 flex-1 overflow-y-auto">
+              <DirectorySizeList items={result.childrenByDepth[depth] ?? []} />
+            </div>
+          </div>
         </div>
-        <DirectorySizeList items={result.childrenByDepth[depth] ?? []} />
-      </div>
+      {:else}
+        <!-- Tab layout in normal view -->
+        <div class="bg-base-200 border-base-300 rounded-t-box flex gap-0 border-b" role="tablist">
+          <button
+            class="rounded-ss-box relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {tab ===
+            'composition'
+              ? 'bg-base-100 text-primary'
+              : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
+            role="tab"
+            aria-selected={tab === 'composition'}
+            onclick={() => (tab = 'composition')}
+          >
+            {m.storage_details_tab_composition()}
+            {#if tab === 'composition'}
+              <span class="bg-primary absolute inset-x-0 bottom-0 h-0.5" aria-hidden="true"></span>
+            {/if}
+          </button>
+          <button
+            class="rounded-se-box relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {tab ===
+            'contents'
+              ? 'bg-base-100 text-primary'
+              : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
+            role="tab"
+            aria-selected={tab === 'contents'}
+            onclick={() => (tab = 'contents')}
+          >
+            {m.storage_details_tab_contents()}
+            {#if tab === 'contents'}
+              <span class="bg-primary absolute inset-x-0 bottom-0 h-0.5" aria-hidden="true"></span>
+            {/if}
+          </button>
+        </div>
+        <div class={tab === 'composition' ? 'block' : 'hidden'}>
+          <Treemap data={result.tree} />
+        </div>
+        <div class={tab === 'contents' ? 'block' : 'hidden'}>
+          <div class="border-base-300 flex items-center gap-2 border-b px-3 py-2">
+            <label for="depth-select" class="text-base-content/60 text-xs font-medium"
+              >{m.storage_details_depth()}:
+            </label>
+            <select id="depth-select" class="select select-xs w-20" bind:value={depth}>
+              {#each Array.from({ length: result.maxDepth }, (_, i) => i + 1) as d (d)}
+                <option value={d}>{d}</option>
+              {/each}
+            </select>
+          </div>
+          <DirectorySizeList items={result.childrenByDepth[depth] ?? []} />
+        </div>
+      {/if}
     {/if}
   {/if}
 </div>

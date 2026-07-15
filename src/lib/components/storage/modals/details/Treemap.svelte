@@ -12,9 +12,16 @@
 
   let { data }: Props = $props();
 
-  const PAD = 3;
+  // 1px margin on every side of each rect creates visible gaps between neighbours
+  const MARGIN = 1;
+  // Padding from a container edge inward to where its children start
+  const PAD = 4;
   const W = 600;
   const H = 400;
+
+  // Maximum number of file (leaf) nodes to render; the smallest ones are
+  // grouped per their immediate parent directory into a single “N more” node.
+  const MAX_VISIBLE_LEAVES = 100;
 
   const containerFills = [
     'fill-primary/8',
@@ -36,16 +43,6 @@
     'fill-error/35'
   ];
 
-  const containerStrokes = [
-    'stroke-primary/30',
-    'stroke-secondary/30',
-    'stroke-accent/30',
-    'stroke-info/30',
-    'stroke-success/30',
-    'stroke-warning/30',
-    'stroke-error/30'
-  ];
-
   interface LayoutRect {
     x: number;
     y: number;
@@ -59,9 +56,70 @@
     fullKey: string | undefined;
   }
 
+  /**
+   * Prune leaf nodes to at most MAX_VISIBLE_LEAVES.
+   * Smallest leaves are grouped per their immediate parent into a single
+   * synthetic “N more” node so the treemap stays hierarchically accurate.
+   */
+  function pruneTree(root: TreemapNode, moreLabel: (count: number) => string): TreemapNode {
+    function countLeaves(node: TreemapNode): number {
+      if (!node.children || node.children.length === 0) return 1;
+      return node.children.reduce((sum, child) => sum + countLeaves(child), 0);
+    }
+
+    if (countLeaves(root) <= MAX_VISIBLE_LEAVES) return root;
+
+    const allLeaves: TreemapNode[] = [];
+    function collectLeaves(node: TreemapNode) {
+      if (!node.children || node.children.length === 0) {
+        allLeaves.push(node);
+      } else {
+        for (const child of node.children) collectLeaves(child);
+      }
+    }
+    collectLeaves(root);
+
+    const sorted = [...allLeaves].sort((a, b) => b.size - a.size);
+    const kept = new Set<TreemapNode>(sorted.slice(0, MAX_VISIBLE_LEAVES));
+
+    function rebuild(node: TreemapNode): TreemapNode {
+      if (!node.children || node.children.length === 0) return node;
+
+      const newChildren: TreemapNode[] = [];
+      let overflowSize = 0;
+      let overflowCount = 0;
+
+      for (const child of node.children) {
+        if (!child.children || child.children.length === 0) {
+          if (kept.has(child)) {
+            newChildren.push(child);
+          } else {
+            overflowSize += child.size;
+            overflowCount++;
+          }
+        } else {
+          const rebuilt = rebuild(child);
+          if (rebuilt.children && rebuilt.children.length > 0) newChildren.push(rebuilt);
+        }
+      }
+
+      if (overflowCount > 0) {
+        newChildren.push({ name: moreLabel(overflowCount), size: overflowSize });
+      }
+
+      return { ...node, children: newChildren.sort((a, b) => b.size - a.size) };
+    }
+
+    return rebuild(root);
+  }
+
+  const prunedData = $derived(
+    pruneTree(data, (count) => m.storage_details_treemap_more({ count }))
+  );
+
   const rects = $derived.by(() => {
     const result: LayoutRect[] = [];
-    layoutNode(data, 0, 0, W, H, 0, result);
+    layoutNode(prunedData, 0, 0, W, H, 0, result);
     return result;
   });
 
@@ -144,11 +202,6 @@
     return isContainer ? containerFills[idx] : leafFills[idx];
   }
 
-  function strokeClass(depth: number, isContainer: boolean): string {
-    if (!isContainer) return 'stroke-base-300/25 stroke-1';
-    return containerStrokes[depth % containerStrokes.length] + ' stroke-1';
-  }
-
   let ctxMenu = $state<{ x: number; y: number; target: LayoutRect } | null>(null);
 
   function openContextMenu(e: MouseEvent | KeyboardEvent, rect: LayoutRect) {
@@ -185,7 +238,7 @@
 <div class="w-full overflow-x-auto">
   <svg
     viewBox="0 0 {W} {H}"
-    class="w-full max-w-[600px]"
+    class="bg-base-200 w-full max-w-150 rounded"
     role="img"
     aria-label={m.storage_details_treemap_aria()}
   >
@@ -198,10 +251,10 @@
           </linearGradient>
           <mask id="fm-{rect.x}-{rect.y}">
             <rect
-              x={rect.x + 4}
-              y={rect.y + 10}
-              width={Math.max(rect.w - 8, 1)}
-              height={Math.max(rect.h - 14, 1)}
+              x={rect.x + MARGIN + 4}
+              y={rect.y + MARGIN + 10}
+              width={Math.max(rect.w - 2 * MARGIN - 8, 1)}
+              height={Math.max(rect.h - 2 * MARGIN - 14, 1)}
               fill="url(#fg-{rect.x}-{rect.y})"
             />
           </mask>
@@ -219,35 +272,33 @@
           if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) openContextMenu(e, rect);
         }}
       >
+        <!-- 1px margin on every side creates visible gaps between adjacent rects -->
         <rect
-          x={rect.x}
-          y={rect.y}
-          width={rect.w}
-          height={rect.h}
-          class="{fillClass(rect.depth, rect.isContainer)} {strokeClass(
-            rect.depth,
-            rect.isContainer
-          )} transition-opacity hover:opacity-80"
+          x={rect.x + MARGIN}
+          y={rect.y + MARGIN}
+          width={Math.max(rect.w - 2 * MARGIN, 1)}
+          height={Math.max(rect.h - 2 * MARGIN, 1)}
+          class="{fillClass(rect.depth, rect.isContainer)} transition-opacity hover:opacity-80"
           rx={rect.isContainer ? 1 : 2}
         />
         {#if !rect.isContainer && rect.w > 40}
           {#if rect.h > 34}
             <g mask="url(#fm-{rect.x}-{rect.y})">
               <text
-                x={rect.x + 4}
-                y={rect.y + 12}
+                x={rect.x + MARGIN + 4}
+                y={rect.y + MARGIN + 12}
                 class="fill-base-content text-[11px] font-medium"
                 dominant-baseline="hanging">{rect.name}</text
               >
               <text
-                x={rect.x + 4}
-                y={rect.y + 24}
+                x={rect.x + MARGIN + 4}
+                y={rect.y + MARGIN + 24}
                 class="fill-base-content/45 text-[9px]"
                 dominant-baseline="hanging">{rect.path || './'}</text
               >
               <text
-                x={rect.x + 4}
-                y={rect.y + 36}
+                x={rect.x + MARGIN + 4}
+                y={rect.y + MARGIN + 36}
                 class="fill-base-content/70 text-[10px]"
                 dominant-baseline="hanging">{formatFileSize(rect.size)}</text
               >
@@ -255,14 +306,14 @@
           {:else if rect.h > 20}
             <g mask="url(#fm-{rect.x}-{rect.y})">
               <text
-                x={rect.x + 4}
-                y={rect.y + 14}
+                x={rect.x + MARGIN + 4}
+                y={rect.y + MARGIN + 14}
                 class="fill-base-content text-[11px] font-medium"
                 dominant-baseline="hanging">{rect.name}</text
               >
               <text
-                x={rect.x + 4}
-                y={rect.y + 28}
+                x={rect.x + MARGIN + 4}
+                y={rect.y + MARGIN + 28}
                 class="fill-base-content/70 text-[10px]"
                 dominant-baseline="hanging">{formatFileSize(rect.size)}</text
               >

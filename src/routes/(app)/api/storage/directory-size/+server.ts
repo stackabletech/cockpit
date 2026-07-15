@@ -8,8 +8,6 @@ import type {
 } from '$lib/storage/details-types.js';
 import type { RequestHandler } from './$types';
 
-const MAX_DEPTH = 5;
-
 function buildTree(prefix: string, keys: Array<{ key: string; size: number }>): TreemapNode {
   const rootName = prefix.split('/').filter(Boolean).pop() || '(root)';
 
@@ -142,7 +140,17 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         });
 
         const tree = buildTree(prefix, allKeys);
-        const childrenByDepth = buildChildrenByDepth(prefix, allKeys, MAX_DEPTH);
+        const actualMaxDepth =
+          allKeys.length > 0
+            ? Math.max(
+                1,
+                ...allKeys.map(({ key }) => {
+                  const relative = key.slice(prefix.length);
+                  return relative.split('/').filter(Boolean).length;
+                })
+              )
+            : 1;
+        const childrenByDepth = buildChildrenByDepth(prefix, allKeys, actualMaxDepth);
         let totalFiles = 0;
         let totalDirectories = 0;
         for (const { key } of allKeys) {
@@ -161,6 +169,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
           totalDirectories,
           tree,
           childrenByDepth,
+          maxDepth: actualMaxDepth,
           durationMs: Date.now() - startTime
         };
 
