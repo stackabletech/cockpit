@@ -1,0 +1,195 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cockpit.fullname" . }}
+  labels:
+    {{- include "cockpit.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cockpit.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "cockpit.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cockpit.serviceAccountName" . }}
+      {{- with .Values.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: {{ include "cockpit.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          {{- with .Values.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: NODE_ENV
+              value: {{ .Values.config.nodeEnv | quote }}
+            - name: PORT
+              value: {{ .Values.service.targetPort | quote }}
+            - name: STACKABLE_COCKPIT_COMPLETION_ENABLED
+              value: {{ .Values.features.trino.completion.enabled | quote }}
+            {{- if .Values.logging.level }}
+            - name: LOG_LEVEL
+              value: {{ .Values.logging.level | quote }}
+            {{- end }}
+            - name: STACKABLE_COCKPIT_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  {{- if .Values.sessionSecret.secretKeyRef.name }}
+                  name: {{ .Values.sessionSecret.secretKeyRef.name | quote }}
+                  key: {{ .Values.sessionSecret.secretKeyRef.key | quote }}
+                  {{- else }}
+                  name: {{ include "cockpit.fullname" . }}
+                  key: session-secret
+                  {{- end }}
+            {{- if .Values.auth.oidc.enabled }}
+            - name: STACKABLE_COCKPIT_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "auth.oidc.clientSecret.secretKeyRef.name is required when OIDC is enabled" .Values.auth.oidc.clientSecret.secretKeyRef.name | quote }}
+                  key: {{ .Values.auth.oidc.clientSecret.secretKeyRef.key | quote }}
+            {{- end }}
+            - name: STACKABLE_COCKPIT_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "cockpit.fullname" . }}
+                  key: base-url
+            {{- if .Values.origin }}
+            - name: ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "cockpit.fullname" . }}
+                  key: origin
+            {{- end }}
+            {{- with .Values.proxy.protocolHeader }}
+            - name: PROTOCOL_HEADER
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.proxy.hostHeader }}
+            - name: HOST_HEADER
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.enabled }}
+            - name: STACKABLE_COCKPIT_OIDC_DISCOVERY_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "cockpit.fullname" . }}
+                  key: oidc-discovery-url
+            - name: STACKABLE_COCKPIT_OIDC_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "cockpit.fullname" . }}
+                  key: oidc-client-id
+            - name: STACKABLE_COCKPIT_OIDC_USERNAME_CLAIM
+              value: {{ .Values.auth.oidc.usernameClaim | quote }}
+            {{- end }}
+            {{- if .Values.trino.url }}
+            - name: STACKABLE_COCKPIT_TRINO_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "cockpit.fullname" . }}
+                  key: trino-url
+            {{- end }}
+            {{- if .Values.trino.auth.type }}
+            - name: STACKABLE_COCKPIT_TRINO_AUTH_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "cockpit.fullname" . }}
+                  key: trino-auth-type
+            {{- end }}
+            {{- if .Values.trino.auth.username }}
+            - name: STACKABLE_COCKPIT_TRINO_AUTH_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "cockpit.fullname" . }}
+                  key: trino-auth-username
+            {{- end }}
+            {{- if eq .Values.trino.auth.type "basic" }}
+            - name: STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "trino.auth.password.secretKeyRef.name is required for basic auth" .Values.trino.auth.password.secretKeyRef.name | quote }}
+                  key: {{ .Values.trino.auth.password.secretKeyRef.key | quote }}
+            {{- end }}
+            {{- if .Values.trino.tls.insecure }}
+            - name: STACKABLE_COCKPIT_TRINO_TLS_INSECURE
+              value: "true"
+            {{- end }}
+            {{- if .Values.trino.tls.caCert }}
+            - name: STACKABLE_COCKPIT_TRINO_TLS_CA_CERT
+              value: {{ .Values.trino.tls.caCert | quote }}
+            {{- else if .Values.trino.tls.secretClass }}
+            - name: STACKABLE_COCKPIT_TRINO_TLS_CA_CERT
+              value: /stackable/trino-tls/ca.crt
+            {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.trino.tls.secretClass }}
+            - name: trino-tls
+              mountPath: /stackable/trino-tls
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.trino.tls.secretClass }}
+        - name: trino-tls
+          ephemeral:
+            volumeClaimTemplate:
+              metadata:
+                annotations:
+                  secrets.stackable.tech/class: {{ .Values.trino.tls.secretClass | quote }}
+                  secrets.stackable.tech/scope: pod
+              spec:
+                storageClassName: secrets.stackable.tech
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

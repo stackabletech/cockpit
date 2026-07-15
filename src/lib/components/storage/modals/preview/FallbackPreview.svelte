@@ -5,13 +5,12 @@
 
   interface Props {
     contentType: string;
-    downloadUrl: string;
-    name: string;
+    onDownload: () => void;
     /** When true, the content was determined to be binary (non-displayable UTF-8). */
     isBinary?: boolean;
   }
 
-  let { contentType, downloadUrl, name, isBinary = false }: Props = $props();
+  let { contentType, onDownload, isBinary = false }: Props = $props();
 </script>
 
 <div class="flex min-h-full flex-col items-center justify-center gap-4 p-8 text-center">
@@ -27,8 +26,8 @@
       <p class="text-base-content/40 mt-1 font-mono text-xs">{contentType}</p>
     {/if}
   </div>
-  <a href={downloadUrl} download={name} rel="external" class="btn btn-primary btn-sm gap-2">
+  <button type="button" onclick={onDownload} class="btn btn-primary btn-sm gap-2">
     <IconDownload class="size-4" aria-hidden="true" />
     {m.storage_preview_download_full()}
-  </a>
+  </button>
 </div>

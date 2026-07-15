@@ -4,7 +4,7 @@ import { waitForHydration } from '../support/helpers';
 /**
  * Tests for the Trino connection form.
  *
- * The test environment has STACKABLE_UI_TRINO_URL set, so trinoConfigured=true
+ * The test environment has STACKABLE_COCKPIT_TRINO_URL set, so trinoConfigured=true
  * by default. The manual-mode tests use route interception to flip
  * trinoConfigured to false, patching both the SSR HTML (devalue.uneval format)
  * and the client-side __data.json (devalue.stringify format).

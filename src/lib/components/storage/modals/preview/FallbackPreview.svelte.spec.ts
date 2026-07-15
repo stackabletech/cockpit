@@ -1,5 +1,5 @@
 import { page } from 'vitest/browser';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import FallbackPreview from './FallbackPreview.svelte';
@@ -7,32 +7,28 @@ import FallbackPreview from './FallbackPreview.svelte';
 describe('FallbackPreview', () => {
   const baseProps = {
     contentType: 'application/octet-stream',
-    downloadUrl: '/download/file.bin',
-    name: 'file.bin'
+    onDownload: vi.fn()
   };
 
   it('should show unsupported title when isBinary is false', async () => {
     render(FallbackPreview, { ...baseProps, isBinary: false });
 
-    // Find the download link as a reliable anchor
-    const link = page.getByRole('link');
-    await expect.element(link).toBeInTheDocument();
-    await expect.element(link).toHaveAttribute('download', 'file.bin');
+    const btn = page.getByRole('button');
+    await expect.element(btn).toBeInTheDocument();
   });
 
   it('should show binary title when isBinary is true', async () => {
     render(FallbackPreview, { ...baseProps, isBinary: true });
 
-    const link = page.getByRole('link');
-    await expect.element(link).toBeInTheDocument();
+    const btn = page.getByRole('button');
+    await expect.element(btn).toBeInTheDocument();
   });
 
-  it('should render download link with correct attributes', async () => {
+  it('should render a download button', async () => {
     render(FallbackPreview, { ...baseProps });
 
-    const link = page.getByRole('link');
-    await expect.element(link).toHaveAttribute('href', '/download/file.bin');
-    await expect.element(link).toHaveAttribute('download', 'file.bin');
+    const btn = page.getByRole('button');
+    await expect.element(btn).toBeInTheDocument();
   });
 
   it('should show contentType in mono text', async () => {
@@ -49,19 +45,18 @@ describe('FallbackPreview', () => {
     await expect.element(page.getByText(mimeType)).toBeInTheDocument();
   });
 
-  it('should handle long filenames', async () => {
-    const name = `${faker.string.alphanumeric(100)}.dat`;
-    render(FallbackPreview, { ...baseProps, name });
+  it('should call onDownload when button is clicked', async () => {
+    const onDownload = vi.fn();
+    render(FallbackPreview, { ...baseProps, onDownload });
 
-    const link = page.getByRole('link');
-    await expect.element(link).toHaveAttribute('download', name);
+    await page.getByRole('button').click();
+    expect(onDownload).toHaveBeenCalledOnce();
   });
 
   it('should handle special characters in names', async () => {
-    const name = 'file (copy) [2].bin';
-    render(FallbackPreview, { ...baseProps, name });
+    render(FallbackPreview, { ...baseProps });
 
-    const link = page.getByRole('link');
-    await expect.element(link).toHaveAttribute('download', name);
+    const btn = page.getByRole('button');
+    await expect.element(btn).toBeInTheDocument();
   });
 });

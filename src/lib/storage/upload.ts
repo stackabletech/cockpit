@@ -9,7 +9,10 @@
  *   supported in Firefox.
  * - The file is sent as the raw request body — no base64 or multipart encoding.
  *   The server streams it directly to S3, preserving binary integrity.
+ * - The active connection UUID is passed via the `x-storage-connection-id` header.
  */
+
+import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 
 export type UploadErrorCode =
   | 'not_connected'
@@ -30,11 +33,11 @@ export class UploadError extends Error {
 }
 
 function buildUploadUrl(bucket: string, key: string): string {
-  return `/storage/api/upload?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
+  return `/api/storage/upload?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
 }
 
 function buildDownloadUrl(bucket: string, key: string): string {
-  return `/storage/api/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
+  return `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
 }
 
 function mapStatusToUploadCode(status: number): UploadErrorCode {
@@ -53,9 +56,16 @@ function mapStatusToUploadCode(status: number): UploadErrorCode {
  * so no object body is transferred. Returns `true` if the object exists, `false`
  * if it does not. Throws `UploadError` for auth or server errors.
  */
-export async function checkObjectExists(bucket: string, key: string): Promise<boolean> {
+export async function checkObjectExists(
+  bucket: string,
+  key: string,
+  connectionId: string
+): Promise<boolean> {
   const url = buildDownloadUrl(bucket, key);
-  const res = await fetch(url, { method: 'HEAD' });
+  const res = await fetch(url, {
+    method: 'HEAD',
+    headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
+  });
   if (res.status === 200) return true;
   if (res.status === 404) return false;
   if (res.status === 401) throw new UploadError('not_connected', 'Not connected');
@@ -77,7 +87,8 @@ export function uploadFile(
   bucket: string,
   key: string,
   file: File,
-  onProgress: (pct: number) => void
+  onProgress: (pct: number) => void,
+  connectionId: string
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -109,6 +120,7 @@ export function uploadFile(
 
     xhr.open('POST', url);
     xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    xhr.setRequestHeader(STORAGE_CONNECTION_ID_HEADER, connectionId);
     xhr.send(file);
   });
 }

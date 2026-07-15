@@ -1,0 +1,181 @@
+---
+# Default values for cockpit
+
+replicaCount: 1
+
+image:
+  registry: oci.stackable.tech
+  repository: sdp/cockpit
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 782252253
+  runAsGroup: 574654813
+  fsGroup: 782252253
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 782252253
+
+service:
+  type: ClusterIP
+  port: 3000
+  targetPort: 3000
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: cockpit.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: cockpit-tls
+  #    hosts:
+  #      - cockpit.local
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  failureThreshold: 12
+
+terminationGracePeriodSeconds: 30
+
+features:
+  trino:
+    completion:
+      enabled: true
+
+logging:
+  level: ""
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Application configuration
+config:
+  # Node.js environment
+  nodeEnv: production
+
+# Session secret for signing cookies. Chart auto-generates one if secretKeyRef.name is empty.
+sessionSecret:
+  secretKeyRef:
+    name: ""
+    key: session-secret
+
+# SvelteKit CSRF origin
+origin: "http://localhost:3000"
+
+# Forwarded-header trust (set when behind a proxy/ingress/gateway/mesh)
+proxy: {}
+  # protocolHeader: x-forwarded-proto
+  # hostHeader: x-forwarded-host
+
+# Authentication configuration
+auth:
+  # Publicly accessible base URL (used for OIDC callback URLs)
+  baseUrl: "http://localhost:3000"
+  oidc:
+    # Disable to deploy without authentication (e.g. local testing).
+    enabled: true
+    # OIDC discovery URL (the full .well-known/openid-configuration URL)
+    # Required when enabled. Example: https://your-idp.example.com/realms/your-realm/.well-known/openid-configuration
+    discoveryUrl: ""
+    # Client ID registered in the OIDC provider. Required when enabled.
+    clientId: ""
+    # Required when enabled.
+    clientSecret:
+      secretKeyRef:
+        name: ""
+        key: oidc-client-secret
+    # OIDC claim used as the username for Trino impersonation.
+    usernameClaim: preferred_username
+
+# Optional: Pre-configure the Trino connection for all users.
+# When trino.url is set, the connection form is hidden and the specified
+# Trino endpoint is used automatically.
+trino:
+  # Trino coordinator URL (e.g. https://trino.example.com:8443)
+  url: ""
+  auth:
+    # Authentication type: "none" or "basic"
+    type: ""
+    username: ""
+    # Required when type is "basic".
+    password:
+      secretKeyRef:
+        name: ""
+        key: trino-auth-password
+  tls:
+    # Skip TLS certificate verification
+    insecure: false
+    # Path to a custom CA certificate file (mounted via extraVolumes)
+    caCert: ""
+    # Stackable SecretClass name for provisioning the Trino CA certificate.
+    # The Secret Operator mounts ca.crt into /stackable/trino-tls.
+    secretClass: ""

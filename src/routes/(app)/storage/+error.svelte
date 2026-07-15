@@ -4,7 +4,14 @@
   import IconWarning from 'virtual:icons/material-symbols/warning';
   import * as m from '$lib/paraglide/messages.js';
 
-  const bucket = $derived(page.params.bucket ?? '');
+  // page.params.bucket may be absent when a client-side universal load throws an
+  // error (the error boundary sits at the parent /storage level, and SvelteKit
+  // may not populate child-route params on the page store in that case).
+  // Fall back to parsing the bucket segment directly from the URL path.
+  const bucket = $derived(
+    page.params.bucket ||
+      decodeURIComponent(page.url?.pathname?.split('/').filter(Boolean)[1] ?? '')
+  );
 
   function bucketErrorMessage(status: number, name: string): string | null {
     if (!name) return null;

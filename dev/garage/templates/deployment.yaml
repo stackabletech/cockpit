@@ -40,7 +40,7 @@ spec:
               subPath: garage.toml
               readOnly: true
             - name: data
-              mountPath: /tmp/stackable-ui
+              mountPath: /tmp/stackable-cockpit
           readinessProbe:
             tcpSocket:
               port: 3900

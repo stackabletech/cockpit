@@ -8,6 +8,8 @@
   import Modal from '$lib/components/Modal.svelte';
   import { checkObjectExists, uploadFile, UploadError } from '$lib/storage/upload.js';
   import { formatFileSize } from '$lib/storage/utils.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+  import { uploadConcurrency } from '$lib/client/feature-flags.js';
   import UploadDropzone from './UploadDropzone.svelte';
   import UploadConflictEntry from './UploadConflictEntry.svelte';
   import UploadEntryStatus from './UploadEntryStatus.svelte';
@@ -26,6 +28,8 @@
 
   let phase = $state<Phase>('idle');
   let entries = $state<FileEntry[]>([]);
+
+  let cancelRequested = $state(false);
 
   // Reset when modal closes.
   $effect(() => {
@@ -96,17 +100,36 @@
 
   async function startUploadFlow() {
     if (phase !== 'selected') return;
+    cancelRequested = false;
     phase = 'checking';
 
-    const results = await Promise.all(
-      entries.map(async (e) => {
-        try {
-          return { id: e.id, conflict: await checkObjectExists(bucket, e.targetKey) };
-        } catch {
-          return { id: e.id, conflict: false };
-        }
-      })
-    );
+    const connHeader = connectionStore.activeConnectionId ?? '';
+
+    const results: { id: string; conflict: boolean }[] = [];
+    for (let i = 0; i < entries.length; i += uploadConcurrency) {
+      if (cancelRequested) {
+        phase = 'idle';
+        entries = [];
+        return;
+      }
+      const batch = entries.slice(i, i + uploadConcurrency);
+      const batchResults = await Promise.all(
+        batch.map(async (e) => {
+          try {
+            return { id: e.id, conflict: await checkObjectExists(bucket, e.targetKey, connHeader) };
+          } catch {
+            return { id: e.id, conflict: false };
+          }
+        })
+      );
+      results.push(...batchResults);
+    }
+
+    if (cancelRequested) {
+      phase = 'idle';
+      entries = [];
+      return;
+    }
 
     const conflictMap = new Map(results.map((r) => [r.id, r.conflict]));
     entries = entries.map((e) => ({
@@ -125,6 +148,7 @@
 
   async function confirmAndUpload() {
     if (!canProceed) return;
+    cancelRequested = false;
     await doUploadAll();
   }
 
@@ -137,12 +161,20 @@
     );
 
     const toUpload = entries.filter((e) => e.status !== 'skipped');
-    const concurrency = 3;
-    for (let i = 0; i < toUpload.length; i += concurrency) {
-      await Promise.all(toUpload.slice(i, i + concurrency).map(doUploadEntry));
+    for (let i = 0; i < toUpload.length; i += uploadConcurrency) {
+      if (cancelRequested) {
+        const pending = new Set(toUpload.slice(i).map((e) => e.id));
+        entries = entries.map((e) =>
+          pending.has(e.id) ? { ...e, status: 'skipped' as const } : e
+        );
+        break;
+      }
+      await Promise.all(toUpload.slice(i, i + uploadConcurrency).map(doUploadEntry));
     }
 
-    phase = 'complete';
+    if (!cancelRequested) {
+      phase = 'complete';
+    }
   }
 
   async function doUploadEntry(entry: FileEntry) {
@@ -150,10 +182,17 @@
     entries = entries.map((e) =>
       e.id === entry.id ? { ...e, status: 'uploading' as const, progress: 0 } : e
     );
+    const connHeader = connectionStore.activeConnectionId ?? '';
     try {
-      await uploadFile(bucket, key, entry.file, (pct) => {
-        entries = entries.map((e) => (e.id === entry.id ? { ...e, progress: pct } : e));
-      });
+      await uploadFile(
+        bucket,
+        key,
+        entry.file,
+        (pct) => {
+          entries = entries.map((e) => (e.id === entry.id ? { ...e, progress: pct } : e));
+        },
+        connHeader
+      );
       entries = entries.map((e) =>
         e.id === entry.id ? { ...e, status: 'done' as const, progress: 100 } : e
       );
@@ -164,6 +203,24 @@
         e.id === entry.id ? { ...e, status: 'error' as const, errorMessage: msg } : e
       );
     }
+  }
+
+  // ── Bulk resolution ────────────────────────────────────────────────────────
+
+  function skipAll() {
+    entries = entries.map((e) =>
+      e.conflict
+        ? { ...e, resolution: 'skip' as Resolution, renameState: 'idle' as RenameState }
+        : e
+    );
+  }
+
+  function replaceAll() {
+    entries = entries.map((e) =>
+      e.conflict
+        ? { ...e, resolution: 'replace' as Resolution, renameState: 'idle' as RenameState }
+        : e
+    );
   }
 
   // ── Resolution handlers ────────────────────────────────────────────────────
@@ -215,8 +272,9 @@
 
     entries = entries.map((e) => (e.id === id ? { ...e, renameState: 'checking' as const } : e));
     const newKey = resolvedKey(entry);
+    const connHeader = connectionStore.activeConnectionId ?? '';
     try {
-      const exists = await checkObjectExists(bucket, newKey);
+      const exists = await checkObjectExists(bucket, newKey, connHeader);
       const nextState: RenameState = exists ? 'conflict' : 'ok';
       entries = entries.map((e) => (e.id === id ? { ...e, renameState: nextState } : e));
     } catch {
@@ -234,7 +292,12 @@
   }
 
   function handleCancel() {
-    if (phase === 'uploading') return;
+    if (phase === 'uploading') {
+      cancelRequested = true;
+      open = false;
+      return;
+    }
+    cancelRequested = true;
     phase = 'idle';
     entries = [];
     open = false;
@@ -270,7 +333,6 @@
       <button
         class="btn btn-ghost btn-sm btn-square"
         onclick={handleCancel}
-        disabled={phase === 'uploading'}
         aria-label={m.storage_upload_close()}
       >
         <IconClose class="size-5" aria-hidden="true" />
@@ -324,9 +386,12 @@
 
       <!-- ── checking ─────────────────────────────────────────────────────── -->
     {:else if phase === 'checking'}
-      <div class="flex items-center justify-center gap-3 py-8" aria-live="polite">
+      <div class="flex flex-col items-center justify-center gap-3 py-8" aria-live="polite">
         <span class="loading loading-spinner loading-sm text-primary" aria-hidden="true"></span>
         <span class="text-base-content/60 text-sm">{m.storage_upload_checking()}</span>
+        <button class="btn btn-ghost btn-sm mt-2" onclick={handleCancel}>
+          {m.storage_upload_overwrite_cancel()}
+        </button>
       </div>
 
       <!-- ── review: conflict resolution ──────────────────────────────────── -->
@@ -337,6 +402,15 @@
           <p class="text-base-content font-semibold">{m.storage_upload_conflicts_title()}</p>
           <p class="text-base-content/60 mt-0.5 text-sm">{m.storage_upload_conflicts_desc()}</p>
         </div>
+      </div>
+
+      <div class="mb-2 flex justify-end gap-2">
+        <button class="btn btn-ghost btn-xs" onclick={skipAll}>
+          {m.storage_upload_skip_all()}
+        </button>
+        <button class="btn btn-ghost btn-xs" onclick={replaceAll}>
+          {m.storage_upload_replace_all()}
+        </button>
       </div>
 
       <ul
@@ -380,6 +454,11 @@
           <UploadEntryStatus {entry} />
         {/each}
       </ul>
+      <div class="flex justify-end">
+        <button class="btn btn-ghost btn-sm" onclick={handleCancel}>
+          {m.storage_upload_overwrite_cancel()}
+        </button>
+      </div>
 
       <!-- ── complete ───────────────────────────────────────────────────────── -->
     {:else if phase === 'complete'}

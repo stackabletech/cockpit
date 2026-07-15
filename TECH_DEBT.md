@@ -22,19 +22,25 @@ Trino error messages are stored verbatim in `query.error` and surfaced through `
 
 ---
 
-### S3 connection credentials stored in localStorage
+### TLS certificate verification can be disabled without a custom CA
 
-**File:** `src/lib/storage/connection-storage.ts`, `src/lib/components/storage/StorageConnectForm.svelte`
+**File:** `src/lib/server/storage/s3-client.ts`
 
-S3 connection credentials (access key ID and secret access key) are persisted in plaintext `localStorage` so the browser can auto-reconnect after a page reload or server restart. `localStorage` is accessible to any JavaScript running on the page and is visible in browser DevTools, making it vulnerable to XSS. Acceptable for the current early stage where the alternative is users having to re-enter credentials after every server restart. Long-term fix: persist encrypted credentials server-side, tied to the authenticated session; send only a session token to the client.
+When `tls.verification` is set to `'None'`, the S3 client is created with `rejectUnauthorized: false`, disabling certificate validation entirely. This is a blunt instrument: it silences errors from self-signed or expired certificates but also makes the connection vulnerable to MITM attacks. The correct long-term fix is to allow users to provide their own CA bundle (a PEM file) which is then used to create a custom TLS context, so the server certificate is still validated — just against a trusted private CA instead of the public root store.
 
 ---
 
-### In-memory storage connection state
+### ~~S3 connection credentials stored in localStorage~~ — RESOLVED
 
-**File:** `src/lib/server/storage/user-connections.ts`
+Previously, S3 connection credentials were persisted in plaintext `localStorage`. This has been replaced by a server-side encrypted credential store backed by PostgreSQL. Credentials are encrypted with AES-256-GCM using a per-deployment application key (`STORAGE_ENCRYPTION_KEY`). The client now sends only a connection UUID (`x-storage-connection-id` header); the server decrypts and creates the S3 client. See `src/lib/server/storage/encryption.ts` and `src/lib/server/storage/connection.ts`.
 
-Per-user S3 connection configs (endpoint, region, credentials) are stored in a server-side `Map`. All connections are lost on server restart and cannot be shared across multiple replicas. Acceptable for the initial phase; mirrors the same pattern used by the Trino user-clients module. Long-term fix: persist encrypted connection configs server-side, tied to the authenticated session.
+---
+
+### Download endpoint buffers entire object in browser memory
+
+**File:** `src/lib/storage/download.ts`
+
+`downloadObject` fetches the full S3 object body via the `/api/storage/download` endpoint, buffers it as a `Blob` in browser memory, then triggers a programmatic anchor click. This is simpler than streaming directly to disk but means the entire object must fit in browser memory before the save dialog appears. Acceptable for the current object sizes; for very large files (multiple GiB) this will cause memory pressure. Long-term fix: use the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) `createWritable()` to stream bytes directly to disk without buffering, with a fallback to the current Blob approach for Firefox (which does not support `showSaveFilePicker`).
 
 ---
 
@@ -74,7 +80,7 @@ The Download action is intentionally restricted to a single file at a time. Mult
 
 **File:** `src/lib/server/trino/queries.ts:20`
 
-Completed query snapshots (including result rows) are cleaned up after `STACKABLE_UI_QUERY_TTL` seconds (default 1800). If a user leaves and returns later, the results will be gone. Consider persisting results to disk or a cache with configurable TTL.
+Completed query snapshots (including result rows) are cleaned up after `STACKABLE_COCKPIT_QUERY_TTL` seconds (default 1800). If a user leaves and returns later, the results will be gone. Consider persisting results to disk or a cache with configurable TTL.
 
 ---
 
@@ -128,17 +134,77 @@ The dev server accepts requests from any host. This enables DNS rebinding attack
 
 ---
 
-### Upload endpoint uses in-memory S3 credentials
+### Archive browsing downloads entire file before parsing
 
-**File:** `src/routes/(app)/storage/api/upload/+server.ts`, `src/lib/server/storage/user-connections.ts`
+**File:** `src/lib/server/storage/archive.ts`
 
-The upload endpoint reads S3 credentials from the same per-user in-memory connection map used by download and preview. This introduces no additional security risk beyond what is already documented in the "In-memory storage connection state" entry above. Long-term fix: same as that entry — persist encrypted credentials server-side.
+Archive browsing (ZIP, TAR.GZ, RAR, 7z) downloads the entire archive from S3 to a temporary file on the server before listing or extracting entries. The feasibility of partial/random-access reading depends entirely on the archive format.
+
+#### ZIP (fixable with S3 Range requests)
+
+ZIP stores a **Central Directory** (full file listing) at the end of the file, preceded by an **EOCD** (End of Central Directory) record. This allows true random access:
+
+1. **HEAD** the S3 object to get `Content-Length`
+2. **Range request for the last ~100 bytes** → parse EOCD to locate the Central Directory
+3. **Range request for the Central Directory** → get full file listing (typically <50 KB)
+4. **To extract one file**: single Range request to that file's compressed data offset
+
+Total data transferred for listing: 2 Range requests, often under 50 KB regardless of archive size. Extraction costs only what the user opens — no temp file I/O needed for ZIPs at all.
+
+Available libraries with S3 Range support:
+
+- **`unzipper`** (`ZJONSSON/node-unzipper`) — `Open.s3()` for AWS SDK v2; `Open.custom()` with S3 Range workaround for v3 (see [issue #241](https://github.com/ZJONSSON/node-unzipper/issues/241)). Most mature option.
+- **`s3-range-zip`** (`numtel/s3-range-zip`) — Purpose-built for S3 Range-based ZIP reading with `@aws-sdk/client-s3`. Smaller and simpler.
+- **`unzipit`** (`greggman/unzipit`) — `HTTPRangeReader` requires presigned S3 URLs; better suited for browser use.
+
+**Recommendation**: Replace `adm-zip` with `unzipper.Open.custom()` using the AWS SDK v3 workaround. This eliminates download latency for ZIPs entirely (the most common archive format) and naturally supports nested archives (inner ZIP's central directory read the same way). Implementation steps:
+
+1. Install `unzipper` npm package, remove `adm-zip`
+2. Implement S3 custom reader using `HeadObjectCommand` + `GetObjectCommand` with `Range` header
+3. Replace `listZip()` with central directory parsing (no extraction needed for listing)
+4. Replace `extractFromZip()` with offset-based single-file extraction
+5. Keep `extractFromZip` as fallback name but implement via `unzipper`
+6. Remove ZIP from temp-file caching (TAR.GZ/RAR/7z still need it)
+7. Remove `adm-zip` dependency
+
+#### TAR.GZ (fundamentally limited — format constraint)
+
+TAR has no central index (sequential tape format). Gzip is a streaming compressor. Together they force full sequential decompression from the start. Three tiers of mitigation exist:
+
+- **Stream + skip** (Node.js `node-tar` + `zlib.createGunzip()`): decompress everything but avoid writing to disk. This is what the current approach effectively does after download. Bandwidth + CPU cost same as full download.
+- **Index-on-first-pass** (e.g. Rust [`iluvatar`](https://docs.rs/crate/iluvatar/latest)): records decompressor checkpoints on first pass, subsequent extractions restore nearest checkpoint and seek forward. No Node.js equivalent exists.
+- **Specialised format** ([`estargz`](https://github.com/containerd/stargz-snapshotter), [`tarzan`](https://github.com/astraw/tarzan-rs)): archives must be created in these formats; existing `.tar.gz` files cannot be retrofitted.
+
+**Recommendation**: Keep current full-download + temp cache. This is unavoidable for arbitrary `.tar.gz` files.
+
+#### RAR & 7z (limited — solid compression blocks)
+
+Both use solid compression where a single file's data may be interleaved across a compressed block. Without format-level block-to-file index (which neither exposes easily), extracting one file requires decompressing the entire solid block.
+
+**Recommendation**: Keep full-download + temp cache.
+
+#### Summary
+
+| Format | Partial access | Approach                | Bandwidth per listing  |
+| ------ | -------------- | ----------------------- | ---------------------- |
+| ZIP    | ✅ Yes         | S3 Range via `unzipper` | ~50 KB (2 Range calls) |
+| TAR.GZ | ❌ No          | Full download + cache   | Full archive           |
+| RAR    | ❌ No          | Full download + cache   | Full archive           |
+| 7z     | ❌ No          | Full download + cache   | Full archive           |
+
+---
+
+### RAR and 7z archive support requires system binaries
+
+**File:** `src/lib/server/storage/archive.ts`
+
+RAR and 7z archive parsing shells out to `unrar` and `7zz`/`7z` system binaries respectively. These may not be installed in the production container image. If absent, the user sees a clear error message telling them to install the binary. ZIP and TAR.GZ work without system dependencies (pure JS). The Dockerfile should be updated to include `unrar` and `p7zip` (or similar) packages when RAR/7z support is needed in production.
 
 ---
 
 ### No server-side file size limit on uploads (v0)
 
-**File:** `src/routes/(app)/storage/api/upload/+server.ts`
+**File:** `src/routes/(app)/api/storage/upload/+server.ts`
 
 The upload endpoint imposes no maximum file size. S3's 5 TB single-object limit applies as a natural backstop. For v0 this is acceptable; large uploads will consume server-side streaming resources proportionally but do not buffer the body in memory (the stream is piped directly to the `@aws-sdk/lib-storage` Upload). Add a configurable `MAX_UPLOAD_BYTES` guard in a future iteration once typical object sizes are known.
 
@@ -146,6 +212,6 @@ The upload endpoint imposes no maximum file size. S3's 5 TB single-object limit 
 
 ### No `/readyz` endpoint — readiness uses the trivial liveness probe
 
-**File:** `src/routes/healthz/+server.ts`, `deploy/helm/stackable-ui/values.yaml`
+**File:** `src/routes/healthz/+server.ts`, `deploy/helm/cockpit/values.yaml`
 
 Both `livenessProbe` and `readinessProbe` point at `/healthz`, which always returns 200. There is currently nothing meaningful to gate readiness on (better-auth uses an in-memory session store, OIDC discovery is fetched lazily on first auth call), so a separate `/readyz` would just be a placeholder. Once one of these lands — a real session store / DB, eager OIDC discovery, or a startup-time cache warm — split into `/healthz` (liveness, trivial) and `/readyz` (readiness, checking the new dependency), and update the helm probes accordingly.

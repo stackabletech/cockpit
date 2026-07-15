@@ -1,10 +1,12 @@
 import {
   S3Client,
   S3ServiceException,
+  ListBucketsCommand,
   ListObjectsV2Command,
   GetObjectCommand,
   HeadObjectCommand,
   DeleteObjectsCommand,
+  PutObjectCommand,
   type ListObjectsV2CommandOutput
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
@@ -13,8 +15,21 @@ import type { S3Config } from './types.js';
 import type { StoragePage, StorageObject, StorageMetadata } from '$lib/storage/types.js';
 import { logger } from '$lib/server/logging';
 import { createS3Client } from './s3-client.js';
+import { mapS3ErrorToHttp } from './s3-errors.js';
 
 const log = logger.child({ module: 's3-provider' });
+
+/** Runs `fn` and maps any S3ServiceException to an HTTP error via `mapS3ErrorToHttp`. */
+async function withS3Errors<T>(
+  fn: () => Promise<T>,
+  context: Parameters<typeof mapS3ErrorToHttp>[1]
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    return mapS3ErrorToHttp(err, context);
+  }
+}
 
 export class S3StorageProvider implements StorageProvider {
   private readonly client: S3Client;
@@ -25,21 +40,37 @@ export class S3StorageProvider implements StorageProvider {
     this.client = client ?? createS3Client(config);
   }
 
+  async listContainers(): Promise<string[]> {
+    log.trace({ bucket: this.bucket }, 'S3 ListBuckets');
+    return withS3Errors(
+      async () => {
+        const output = await this.client.send(new ListBucketsCommand({}));
+        const buckets = (output.Buckets ?? []).map((b) => b.Name ?? '').filter(Boolean);
+        log.debug({ bucket_count: buckets.length }, 'listed buckets');
+        return buckets;
+      },
+      { operation: 'listBuckets' }
+    );
+  }
+
   async listObjects(
     prefix: string,
     pageSize: number,
     continuationToken?: string | null
   ): Promise<StoragePage> {
     log.trace({ bucket: this.bucket, prefix, page_size: pageSize }, 'S3 ListObjectsV2');
-
-    const output: ListObjectsV2CommandOutput = await this.client.send(
-      new ListObjectsV2Command({
-        Bucket: this.bucket,
-        Prefix: prefix || undefined,
-        Delimiter: '/',
-        MaxKeys: pageSize,
-        ContinuationToken: continuationToken ?? undefined
-      })
+    const output = await withS3Errors(
+      () =>
+        this.client.send(
+          new ListObjectsV2Command({
+            Bucket: this.bucket,
+            Prefix: prefix || undefined,
+            Delimiter: '/',
+            MaxKeys: pageSize,
+            ContinuationToken: continuationToken ?? undefined
+          })
+        ),
+      { bucket: this.bucket, operation: 'listObjects' }
     );
 
     const objects: StorageObject[] = [
@@ -74,39 +105,58 @@ export class S3StorageProvider implements StorageProvider {
 
   async getObject(key: string): Promise<ObjectDownload> {
     log.trace({ bucket: this.bucket, key }, 'S3 GetObject');
-    const output = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
-    if (!output.Body) {
-      throw new Error(`Object ${key} has no body`);
-    }
-    return {
-      stream: output.Body.transformToWebStream(),
-      contentType: output.ContentType,
-      contentLength: output.ContentLength,
-      etag: output.ETag
-    };
+    return withS3Errors(
+      async () => {
+        const output = await this.client.send(
+          new GetObjectCommand({ Bucket: this.bucket, Key: key })
+        );
+        if (!output.Body) {
+          throw new Error(`Object ${key} has no body`);
+        }
+        return {
+          stream: output.Body.transformToWebStream(),
+          contentType: output.ContentType,
+          contentLength: output.ContentLength,
+          etag: output.ETag
+        };
+      },
+      { bucket: this.bucket, key, operation: 'getObject' }
+    );
   }
 
   async getObjectRange(key: string, start: number, end: number): Promise<ReadableStream> {
     log.trace({ bucket: this.bucket, key, start, end }, 'S3 GetObject (range)');
-    const output = await this.client.send(
-      new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: `bytes=${start}-${end}` })
+    return withS3Errors(
+      async () => {
+        const output = await this.client.send(
+          new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: `bytes=${start}-${end}` })
+        );
+        if (!output.Body) {
+          throw new Error(`Object ${key} has no body`);
+        }
+        return output.Body.transformToWebStream();
+      },
+      { bucket: this.bucket, key, operation: 'getObjectRange' }
     );
-    if (!output.Body) {
-      throw new Error(`Object ${key} has no body`);
-    }
-    return output.Body.transformToWebStream();
   }
 
   async getMetadata(key: string): Promise<StorageMetadata> {
     log.trace({ bucket: this.bucket, key }, 'S3 HeadObject');
-    const output = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
-    return {
-      size: output.ContentLength ?? 0,
-      lastModified: output.LastModified ?? new Date(0),
-      contentType: output.ContentType,
-      etag: output.ETag,
-      customMetadata: output.Metadata
-    };
+    return withS3Errors(
+      async () => {
+        const output = await this.client.send(
+          new HeadObjectCommand({ Bucket: this.bucket, Key: key })
+        );
+        return {
+          size: output.ContentLength ?? 0,
+          lastModified: output.LastModified ?? new Date(0),
+          contentType: output.ContentType,
+          etag: output.ETag,
+          customMetadata: output.Metadata
+        };
+      },
+      { bucket: this.bucket, key, operation: 'getMetadata' }
+    );
   }
 
   async exists(key: string): Promise<boolean> {
@@ -134,6 +184,22 @@ export class S3StorageProvider implements StorageProvider {
       { bucket: this.bucket, key, content_type: contentType, content_length: contentLength },
       'S3 Upload'
     );
+
+    // Empty files cannot use multipart upload (S3 rejects empty parts).
+    // Use a simple PutObject request instead.
+    if (contentLength === 0) {
+      await this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: Buffer.alloc(0),
+          ContentType: contentType,
+          ContentLength: 0
+        })
+      );
+      return;
+    }
+
     const upload = new Upload({
       client: this.client,
       queueSize: 4,
@@ -146,32 +212,70 @@ export class S3StorageProvider implements StorageProvider {
         ...(contentLength !== undefined ? { ContentLength: contentLength } : {})
       }
     });
-    await upload.done();
+    await withS3Errors(() => upload.done(), { bucket: this.bucket, key, operation: 'putObject' });
   }
 
   async deleteObjects(keys: string[]): Promise<DeleteObjectsResult> {
     log.trace({ bucket: this.bucket, key_count: keys.length }, 'S3 DeleteObjects');
-    const output = await this.client.send(
-      new DeleteObjectsCommand({
-        Bucket: this.bucket,
-        Delete: {
-          Objects: keys.map((key) => ({ Key: key })),
-          Quiet: true
+
+    if (keys.length === 0) {
+      return { failed: [] };
+    }
+
+    // Expand directory prefixes to their contained keys
+    const resolvedKeys: string[] = [];
+    for (const key of keys) {
+      if (key.endsWith('/')) {
+        const children = await this.listAllKeys(key);
+        if (children.length > 0) {
+          resolvedKeys.push(...children);
+        } else {
+          resolvedKeys.push(key);
         }
-      })
-    );
-    const failed = (output.Errors ?? []).map((e) => ({
-      key: e.Key ?? '',
-      code: e.Code,
-      message: e.Message
-    }));
-    if (failed.length > 0) {
+      } else {
+        resolvedKeys.push(key);
+      }
+    }
+
+    // S3 DeleteObjects has a limit of 1000 keys per request.
+    // MinIO/Ionos return MalformedXML when exceeding this limit.
+    const MAX_KEYS = 1000;
+    const allFailed: Array<{ key: string; code?: string; message?: string }> = [];
+
+    for (let i = 0; i < resolvedKeys.length; i += MAX_KEYS) {
+      const chunk = resolvedKeys.slice(i, i + MAX_KEYS);
+      log.trace(
+        { bucket: this.bucket, chunk_offset: i, chunk_size: chunk.length },
+        'S3 DeleteObjects chunk'
+      );
+      const output = await withS3Errors(
+        () =>
+          this.client.send(
+            new DeleteObjectsCommand({
+              Bucket: this.bucket,
+              Delete: {
+                Objects: chunk.map((key) => ({ Key: key })),
+                Quiet: true
+              }
+            })
+          ),
+        { bucket: this.bucket, operation: 'deleteObjects' }
+      );
+      const failed = (output.Errors ?? []).map((e) => ({
+        key: e.Key ?? '',
+        code: e.Code,
+        message: e.Message
+      }));
+      allFailed.push(...failed);
+    }
+
+    if (allFailed.length > 0) {
       log.warn(
-        { bucket: this.bucket, failed_count: failed.length },
+        { bucket: this.bucket, failed_count: allFailed.length },
         'some objects failed to delete'
       );
     }
-    return { failed };
+    return { failed: allFailed };
   }
 
   async listAllKeys(prefix: string): Promise<string[]> {

@@ -6,16 +6,16 @@ import { userEvent } from 'vitest/browser';
 import BucketListWrapper from './__tests__/BucketListWrapper.svelte';
 import { setPageState, resetPageState } from './__tests__/page-helper.svelte.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
-import type { PinnedLocation } from '$lib/storage/types.js';
+import type { StorageLocation } from '$lib/storage/types.js';
 
 function createState(
   opts: {
     buckets?: string[];
-    pinned?: PinnedLocation[];
+    pinned?: StorageLocation[];
   } = {}
 ): StorageState {
   const buckets = opts.buckets ?? [];
-  const state = new StorageState({ connected: true, buckets });
+  const state = new StorageState({ connected: true, buckets, connectionId: 'test-conn-id' });
   state.bucket = buckets[0] ?? '';
   state.prefix = '';
   if (opts.pinned) {
@@ -272,8 +272,8 @@ describe('BucketList', () => {
       await moreButton.click();
       await expect.element(page.getByRole('menuitem', { name: /unpin/i })).toBeInTheDocument();
 
-      const nav = page.getByRole('navigation');
-      await nav.first().click();
+      // Click on a non-link part of the nav (the heading) to trigger the outside-click handler
+      await page.getByText('Buckets').click();
 
       await expect.element(page.getByRole('menuitem', { name: /unpin/i })).not.toBeInTheDocument();
     });
@@ -312,12 +312,37 @@ describe('BucketList', () => {
       await expect.element(page.getByRole('button', { name: /disconnect/i })).toBeInTheDocument();
     });
 
-    it('should be a submit button inside a form', async () => {
+    it('should be a type=button (not submit) that opens a confirmation modal', async () => {
       const state = createState({ buckets: ['b1'] });
       render(BucketListWrapper, { state });
 
-      const button = page.getByRole('button', { name: /disconnect/i });
-      await expect.element(button).toHaveAttribute('type', 'submit');
+      const button = page.getByRole('button', { name: /disconnect/i }).first();
+      await expect.element(button).toHaveAttribute('type', 'button');
+    });
+
+    it('should open confirmation modal when disconnect button is clicked', async () => {
+      const state = createState({ buckets: ['b1'] });
+      render(BucketListWrapper, { state });
+
+      const button = page.getByRole('button', { name: /disconnect/i }).first();
+      await button.click();
+
+      await expect.element(page.getByText(/disconnect from storage/i)).toBeInTheDocument();
+    });
+
+    it('should close confirmation modal when cancel button is clicked', async () => {
+      const state = createState({ buckets: ['b1'] });
+      render(BucketListWrapper, { state });
+
+      await page
+        .getByRole('button', { name: /disconnect/i })
+        .first()
+        .click();
+      await expect.element(page.getByText(/disconnect from storage/i)).toBeInTheDocument();
+
+      await page.getByRole('button', { name: /^cancel$/i }).click();
+
+      await expect.element(page.getByText(/disconnect from storage/i)).not.toBeInTheDocument();
     });
   });
 

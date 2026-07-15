@@ -1,13 +1,9 @@
 <script lang="ts">
-  import IconImage from 'virtual:icons/material-symbols/image';
-  import IconCode from 'virtual:icons/material-symbols/code';
-  import IconArchive from 'virtual:icons/material-symbols/archive';
-  import IconPictureAsPdf from 'virtual:icons/material-symbols/picture-as-pdf';
-  import IconDescription from 'virtual:icons/material-symbols/description';
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
-  import { fileIconKind, iconColors, keyToName, formatFileSize } from '$lib/storage/utils.js';
+  import { keyToName, formatFileSize, isArchiveExtension } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
   import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
+  import FileIconAndName from './file-icon/FileIconAndName.svelte';
   import { getStorageState } from '$lib/storage/context.js';
 
   interface Props {
@@ -20,8 +16,7 @@
 
   const selected = $derived(storage.selectedKeys.has(file.key));
   const isCtx = $derived(storage.contextMenu?.key === file.key);
-  const kind = $derived(fileIconKind(file.contentType));
-  const color = $derived(iconColors[kind]);
+  const isArchive = $derived(isArchiveExtension(file.key));
 </script>
 
 <tr
@@ -33,7 +28,13 @@
       ? 'bg-primary/10 hover:bg-primary/15'
       : 'hover:bg-base-200/60'}"
   onclick={(e) => storage.toggleSelect(file.key, e.ctrlKey || e.metaKey)}
-  ondblclick={() => storage.executeAction('preview')}
+  ondblclick={() => {
+    if (isArchive) {
+      void storage.enterArchive(file.key);
+    } else {
+      storage.executeAction('preview');
+    }
+  }}
   oncontextmenu={(e) => storage.openContextMenu(e, file.key)}
 >
   <td class="pr-0">
@@ -48,25 +49,7 @@
     />
   </td>
   <td>
-    <div class="flex items-center gap-2.5">
-      {#if kind === 'image'}
-        <IconImage class="size-5 shrink-0 {color}" aria-hidden="true" />
-      {:else if kind === 'code'}
-        <IconCode class="size-5 shrink-0 {color}" aria-hidden="true" />
-      {:else if kind === 'archive'}
-        <IconArchive class="size-5 shrink-0 {color}" aria-hidden="true" />
-      {:else if kind === 'pdf'}
-        <IconPictureAsPdf class="size-5 shrink-0 {color}" aria-hidden="true" />
-      {:else}
-        <IconDescription class="size-5 shrink-0 {color}" aria-hidden="true" />
-      {/if}
-      <span class="truncate">{keyToName(file.key)}</span>
-      {#if file.contentType}
-        <span class="badge badge-ghost badge-sm ml-1 shrink-0 text-[10px] opacity-50">
-          {file.contentType.split('/').at(-1) ?? ''}
-        </span>
-      {/if}
-    </div>
+    <FileIconAndName {file} />
   </td>
   <td class="text-right font-mono text-sm">{formatFileSize(file.size)}</td>
   <td class="text-base-content/60 text-sm"

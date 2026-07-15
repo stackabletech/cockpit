@@ -1,12 +1,13 @@
 /** Per-user S3 connection config — no bucket, stored server-side. */
 export interface S3ConnectionConfig {
   type: 's3';
-  endpoint?: string;
-  /** Use path-style addressing (true) or virtual-hosted style (false). Defaults to true. */
-  pathStyle?: boolean;
-  region: string;
-  accessKeyId?: string;
-  secretAccessKey?: string;
+  host: string;
+  port?: number;
+  tls?: { verification: 'Full' | 'None' };
+  accessStyle: 'Path' | 'VirtualHosted';
+  region: { name: string };
+  credentials?: { accessKey: string; secretKey: string };
+  additionalBuckets?: string[];
 }
 
 /** Full S3 config for creating a bucket-scoped provider. */
@@ -26,3 +27,10 @@ export type StorageConfig = S3Config | HDFSConfig;
 
 /** Per-user connection config stored in memory (no bucket). */
 export type StorageConnectionConfig = S3ConnectionConfig | HDFSConfig;
+
+/** Minimal connection metadata returned to the client. */
+export interface ConnectionMetadata {
+  id: string;
+  name: string;
+  endpoint: string | null;
+}

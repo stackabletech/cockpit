@@ -2,14 +2,20 @@
  * Client-side utility for downloading a single S3 object via the server proxy.
  *
  * Strategy:
- *  1. Send a HEAD request to validate credentials and access rights without
- *     transferring the object body (server uses HeadObject internally).
+ *  1. Fetch the object with the `x-storage-connection-id` header carrying the
+ *     active connection UUID from the connection store.
  *  2. On error: throw a `DownloadError` with a typed `code` so the caller can
  *     display a localised message.
- *  3. On success: trigger a native browser download via a programmatic anchor
- *     click. The browser streams the object directly to disk — no client-side
- *     buffering occurs regardless of file size.
+ *  3. On success: create a Blob URL and trigger a native browser download via a
+ *     programmatic anchor click.
+ *
+ * Note: The response body is buffered as a Blob before the download link is
+ * constructed. This avoids exposing credentials in the URL (query-param approach)
+ * while keeping the implementation simple. For very large files this will use
+ * proportional browser memory — see TECH_DEBT.md for the long-term fix.
  */
+
+import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 
 export type DownloadErrorCode =
   | 'not_connected'
@@ -29,7 +35,7 @@ export class DownloadError extends Error {
 }
 
 function buildDownloadUrl(bucket: string, key: string): string {
-  return `/storage/api/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
+  return `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
 }
 
 function mapStatusToCode(status: number): DownloadErrorCode {
@@ -43,33 +49,42 @@ function mapStatusToCode(status: number): DownloadErrorCode {
 /**
  * Download a single S3 object.
  *
- * Performs a HEAD pre-flight to surface auth and access errors as typed
- * `DownloadError` exceptions, then triggers a native browser download for
- * the actual transfer so the file streams straight to disk.
+ * Fetches the object with the connection ID header, buffers it as a Blob,
+ * then triggers a native browser download via a programmatic anchor click.
  *
- * @throws {DownloadError} when the server returns a non-2xx response on the
- *   pre-flight check.
+ * @throws {DownloadError} when the server returns a non-2xx response.
  */
-export async function downloadObject(bucket: string, key: string): Promise<void> {
+export async function downloadObject(
+  bucket: string,
+  key: string,
+  connectionId: string
+): Promise<void> {
   const url = buildDownloadUrl(bucket, key);
 
-  // Pre-flight: validate credentials and access without fetching the body.
-  const check = await fetch(url, { method: 'HEAD' });
-  if (!check.ok) {
-    const code = mapStatusToCode(check.status);
-    throw new DownloadError(code, `Download pre-flight failed with status ${check.status}`);
+  const response = await fetch(url, {
+    headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
+  });
+
+  if (!response.ok) {
+    const code = mapStatusToCode(response.status);
+    throw new DownloadError(code, `Download failed with status ${response.status}`);
   }
+
+  const blob = await response.blob();
+  const blobUrl = URL.createObjectURL(blob);
 
   // Derive filename from the key (last path segment).
   const filename = key.split('/').filter(Boolean).pop() ?? key;
 
-  // Trigger a native browser download. The browser sends the session cookie
-  // automatically and streams the response body directly to disk.
   const anchor = document.createElement('a');
-  anchor.href = url;
+  anchor.href = blobUrl;
   anchor.download = filename;
   anchor.style.display = 'none';
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
+
+  // Release the object URL after a short delay to allow the browser to initiate
+  // the download before the URL is revoked.
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
 }

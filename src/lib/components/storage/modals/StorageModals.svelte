@@ -55,6 +55,9 @@
     bind:open={previewOpen}
     bucket={storage.bucket}
     objectKey={storage.activeModal.payload.key}
+    archiveKey={storage.activeModal.payload.archiveKey}
+    archivePath={storage.activeModal.payload.archivePath}
+    nestedArchivePath={storage.activeModal.payload.nestedArchivePath}
   />
 {/if}
 

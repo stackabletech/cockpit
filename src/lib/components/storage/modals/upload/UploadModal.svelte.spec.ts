@@ -26,6 +26,12 @@ vi.mock('$lib/storage/upload.js', () => ({
   UploadError: MockUploadError
 }));
 
+// Provide a stable, isolated connection store so mutations from other test
+// files (e.g. StorageConnectForm.svelte.spec.ts) cannot bleed across.
+vi.mock('$lib/storage/connection-store.svelte.js', () => ({
+  connectionStore: { activeConnectionId: null, connections: [] }
+}));
+
 const defaultProps = {
   open: true,
   bucket: faker.word.noun(),
@@ -168,14 +174,22 @@ describe('UploadModal', () => {
       render(UploadModal, { ...defaultProps, prefix });
       await selectAndUpload([createFile('report.csv')]);
 
-      expect(mockCheckObjectExists).toHaveBeenCalledWith(expect.any(String), 'data/report.csv');
+      expect(mockCheckObjectExists).toHaveBeenCalledWith(
+        expect.any(String),
+        'data/report.csv',
+        expect.any(String)
+      );
     });
 
     it('should use filename directly when prefix is empty', async () => {
       render(UploadModal, { ...defaultProps, prefix: '' });
       await selectAndUpload([createFile('report.csv')]);
 
-      expect(mockCheckObjectExists).toHaveBeenCalledWith(expect.any(String), 'report.csv');
+      expect(mockCheckObjectExists).toHaveBeenCalledWith(
+        expect.any(String),
+        'report.csv',
+        expect.any(String)
+      );
     });
   });
 
@@ -196,7 +210,8 @@ describe('UploadModal', () => {
         defaultProps.bucket,
         'a.txt',
         expect.any(File),
-        expect.any(Function)
+        expect.any(Function),
+        expect.any(String)
       );
     });
 
@@ -251,6 +266,59 @@ describe('UploadModal', () => {
       // The conflict list should be present in review phase
       const list = page.getByRole('list');
       await expect.element(list).toBeInTheDocument();
+    });
+
+    it('should show Skip all and Replace all buttons in review phase', async () => {
+      mockCheckObjectExists.mockResolvedValue(true);
+      render(UploadModal, defaultProps);
+      await selectAndUpload([createFile('existing.txt')]);
+
+      await expect.element(page.getByRole('button', { name: /skip all/i })).toBeInTheDocument();
+      await expect.element(page.getByRole('button', { name: /replace all/i })).toBeInTheDocument();
+    });
+
+    it('should enable upload button after clicking Skip all', async () => {
+      mockCheckObjectExists.mockResolvedValue(true);
+      render(UploadModal, defaultProps);
+      await selectAndUpload([createFile('conflict.txt')]);
+
+      await page.getByRole('button', { name: /skip all/i }).click();
+
+      const uploadBtn = page.getByRole('button', { name: /upload/i });
+      await expect.element(uploadBtn).not.toBeDisabled();
+    });
+
+    it('should enable upload button after clicking Replace all', async () => {
+      mockCheckObjectExists.mockResolvedValue(true);
+      render(UploadModal, defaultProps);
+      await selectAndUpload([createFile('conflict.txt')]);
+
+      await page.getByRole('button', { name: /replace all/i }).click();
+
+      const uploadBtn = page.getByRole('button', { name: /upload/i });
+      await expect.element(uploadBtn).not.toBeDisabled();
+    });
+
+    it('should resolve all conflicts as skip when Skip all is clicked on multiple files', async () => {
+      mockCheckObjectExists.mockResolvedValue(true);
+      render(UploadModal, defaultProps);
+      await selectAndUpload([createFile('a.txt'), createFile('b.txt'), createFile('c.txt')]);
+
+      await page.getByRole('button', { name: /skip all/i }).click();
+
+      const uploadBtn = page.getByRole('button', { name: /upload/i });
+      await expect.element(uploadBtn).not.toBeDisabled();
+    });
+
+    it('should resolve all conflicts as replace when Replace all is clicked on multiple files', async () => {
+      mockCheckObjectExists.mockResolvedValue(true);
+      render(UploadModal, defaultProps);
+      await selectAndUpload([createFile('a.txt'), createFile('b.txt'), createFile('c.txt')]);
+
+      await page.getByRole('button', { name: /replace all/i }).click();
+
+      const uploadBtn = page.getByRole('button', { name: /upload/i });
+      await expect.element(uploadBtn).not.toBeDisabled();
     });
   });
 
@@ -337,7 +405,8 @@ describe('UploadModal', () => {
         expect.any(String),
         expect.any(String),
         expect.any(File),
-        expect.any(Function)
+        expect.any(Function),
+        expect.any(String)
       );
     });
 
@@ -439,7 +508,8 @@ describe('UploadModal', () => {
         expect.any(String),
         'folder/sub/data.csv',
         expect.any(File),
-        expect.any(Function)
+        expect.any(Function),
+        expect.any(String)
       );
     });
   });
@@ -463,6 +533,38 @@ describe('UploadModal', () => {
       // state updates land on an already-destroyed component after teardown.
       check.resolve(false);
       await expect.element(page.getByRole('status')).toBeInTheDocument();
+    });
+
+    it('should check at most 3 files concurrently (default uploadConcurrency)', async () => {
+      // Hold each check until we explicitly resolve it so we can inspect
+      // how many calls are in-flight at the same time.
+      // The mock setup-client.ts sets uploadConcurrency = 3 (the default).
+      const pending: Array<() => void> = [];
+      mockCheckObjectExists.mockImplementation(
+        () => new Promise<boolean>((resolve) => pending.push(() => resolve(false)))
+      );
+
+      render(UploadModal, defaultProps);
+      selectFiles(Array.from({ length: 5 }, (_, i) => createFile(`file${i}.txt`)));
+      await tick();
+
+      await page.getByRole('button', { name: /upload/i }).click();
+
+      // Wait until the checking phase is visible; by this point the first
+      // batch of checks has been fired but is still pending.
+      await expect.element(page.getByText(/checking/i)).toBeInTheDocument();
+
+      // Only the first batch (3) should have started — not all 5.
+      expect(mockCheckObjectExists).toHaveBeenCalledTimes(3);
+
+      // Unblock the first batch; the second batch (2) then fires.
+      pending.splice(0, 3).forEach((fn) => fn());
+      // Drain the second batch too so the component reaches a terminal state.
+      await vi.waitFor(() => expect(pending.length).toBe(2));
+      pending.splice(0).forEach((fn) => fn());
+
+      await expect.element(page.getByRole('status')).toBeInTheDocument();
+      expect(mockCheckObjectExists).toHaveBeenCalledTimes(5);
     });
   });
 
@@ -510,12 +612,17 @@ describe('UploadModal', () => {
       render(UploadModal, { ...defaultProps, bucket });
       await selectAndUpload([createFile('a.txt')]);
 
-      expect(mockCheckObjectExists).toHaveBeenCalledWith(bucket, expect.any(String));
+      expect(mockCheckObjectExists).toHaveBeenCalledWith(
+        bucket,
+        expect.any(String),
+        expect.any(String)
+      );
       expect(mockUploadFile).toHaveBeenCalledWith(
         bucket,
         expect.any(String),
         expect.any(File),
-        expect.any(Function)
+        expect.any(Function),
+        expect.any(String)
       );
     });
 
@@ -540,7 +647,7 @@ describe('UploadModal', () => {
       await expect.element(page.getByRole('status')).toBeInTheDocument();
     });
 
-    it('should close button be disabled during upload', async () => {
+    it('should show cancel button during upload', async () => {
       const upload = deferred<void>();
       mockUploadFile.mockReturnValue(upload.promise);
 
@@ -550,9 +657,9 @@ describe('UploadModal', () => {
 
       await page.getByRole('button', { name: /upload/i }).click();
 
-      // The close button is disabled while an upload is in progress.
-      const closeBtn = page.getByRole('button', { name: /close/i });
-      await expect.element(closeBtn).toBeDisabled();
+      // The cancel button is visible while an upload is in progress.
+      const cancelBtn = page.getByRole('button', { name: /cancel/i });
+      await expect.element(cancelBtn).toBeInTheDocument();
 
       // Resolve the upload so the component reaches 'complete' cleanly before
       // teardown, avoiding a state update on a destroyed component.

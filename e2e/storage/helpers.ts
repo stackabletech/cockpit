@@ -40,7 +40,38 @@ export function bucketRoute(bucket: string, prefix = ''): string {
   return `/storage/${encodeURIComponent(bucket)}/${encoded}`;
 }
 
-export async function openConnectForm(page: Page) {
+export async function clearSavedConnections(page: Page) {
+  const savedList = page.getByRole('list', { name: 'Saved connections' });
+  while (await savedList.isVisible().catch(() => false)) {
+    const items = savedList.getByRole('listitem');
+    if ((await items.count()) === 0) break;
+    if (
+      await items
+        .first()
+        .filter({ hasText: 'No saved connections yet' })
+        .isVisible()
+        .catch(() => false)
+    )
+      break;
+    // Click the last button in the first list item. On desktop this is the
+    // "more options" button (opacity-0, so use force). On mobile it's the
+    // X delete button which submits the form directly.
+    await items.first().getByRole('button').last().click({ force: true });
+    // Desktop: a context menu appears — click Delete to open the modal.
+    // Mobile: the form submitted directly (no context menu), skip to hydration.
+    const deleteMenuItem = page.getByRole('menuitem', { name: 'Delete', exact: true });
+    if (await deleteMenuItem.isVisible().catch(() => false)) {
+      await deleteMenuItem.click();
+      // Confirm in the modal
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    }
+    // The form action POSTs and the server redirects back to /storage;
+    // wait for the page to re-hydrate before checking the list again.
+    await waitForHydration(page);
+  }
+}
+
+export async function openConnectForm(page: Page, { clearSaved = true } = {}) {
   await page.goto('/');
   if (new URL(page.url()).pathname.startsWith('/auth/login')) {
     await waitForHydration(page);
@@ -49,7 +80,7 @@ export async function openConnectForm(page: Page) {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   }
 
-  await page.goto('/storage?disconnected=1');
+  await page.goto('/storage');
   await waitForHydration(page);
 
   const connectHeading = page.getByRole('heading', { name: 'Connect to storage' });
@@ -59,19 +90,46 @@ export async function openConnectForm(page: Page) {
     (await disconnectButton.isVisible().catch(() => false))
   ) {
     await disconnectButton.click();
+    // Confirm the disconnect dialog
+    await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
   }
 
   await expect(connectHeading).toBeVisible();
+
+  // Clear all saved connections so each test starts from a clean state and
+  // cannot be disrupted by connections left over from previous tests or retries.
+  if (clearSaved) {
+    await clearSavedConnections(page);
+  }
 }
 
 export async function connectToStorage(page: Page, credentials: GarageCredentials) {
   await openConnectForm(page);
-  await page.getByLabel('Endpoint URL').fill(credentials.endpoint);
+  const url = new URL(credentials.endpoint);
+  const host = url.hostname;
+  const port = url.port;
+  const useTls = url.protocol === 'https:';
+
+  await page.getByLabel('Host').fill(host);
+  if (port) {
+    await page.getByLabel('Port').fill(port);
+  }
+  // Default TLS is on — uncheck it for plain HTTP endpoints
+  const tlsToggle = page.getByLabel('Use TLS');
+  if (!useTls && (await tlsToggle.isChecked())) {
+    await tlsToggle.uncheck();
+  }
+  // Default access style is VirtualHosted — switch to Path for Garage
+  await page.getByLabel('Access style').selectOption('Path');
   await page.getByLabel('Region').fill(credentials.region);
-  await page.getByLabel('Access key ID').fill(credentials.accessKeyId);
-  await page.getByLabel('Secret access key').fill(credentials.secretAccessKey);
-  await expect(page.getByLabel('Use path-style addressing')).toBeChecked();
-  await page.getByRole('button', { name: 'Connect' }).click();
+  await page.getByLabel('Access key').fill(credentials.accessKeyId);
+  await page.getByLabel('Secret key').fill(credentials.secretAccessKey);
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  // Wait for the client-side connected state to be established before returning.
+  // This confirms the session's activeStorageConnectionId is set and the layout
+  // has fetched the bucket list — reducing the window for session race conditions
+  // when parallel workers share the same server-side session.
+  await waitForStorageConnected(page);
 }
 
 export async function connectAndOpenPrefix(
@@ -80,9 +138,43 @@ export async function connectAndOpenPrefix(
   prefix = ''
 ) {
   await connectToStorage(page, credentials);
-  await expect(page).toHaveURL('/storage');
   await page.goto(bucketRoute(credentials.bucket, prefix));
+  // If a parallel worker's disconnect raced with this navigation the page will
+  // have been redirected back to /storage.  Detect that and reconnect once.
   await waitForHydration(page);
+  if (!page.url().includes(encodeURIComponent(credentials.bucket))) {
+    await connectToStorage(page, credentials);
+    await page.goto(bucketRoute(credentials.bucket, prefix));
+  }
+  await waitForObjectsLoaded(page);
+}
+
+/**
+ * Wait for the bucket object listing to be ready after a client-side load.
+ * With the new architecture, `waitForHydration` alone is insufficient because
+ * the object list is fetched client-side after hydration. This waits for either
+ * a table row or the empty-state message to appear, confirming the fetch has
+ * completed and the UI has updated.
+ */
+export async function waitForObjectsLoaded(page: Page) {
+  await waitForHydration(page);
+  await page
+    .locator('tbody tr')
+    .or(page.getByText('This bucket is empty'))
+    .first()
+    .waitFor({ timeout: 15_000 });
+}
+
+/**
+ * Wait for the storage landing page to display the connected state.
+ * With the new client-side layout load, navigating to `/storage` initially
+ * renders the SSR default (disconnected) state. This waits until the
+ * client-side bucket fetch has completed and the connected UI (recent items
+ * tabs) is visible.
+ */
+export async function waitForStorageConnected(page: Page) {
+  await waitForHydration(page);
+  await expect(page.getByRole('tab', { name: 'Recent Files' })).toBeVisible({ timeout: 15_000 });
 }
 
 export async function putTextObject(
@@ -167,3 +259,19 @@ export async function headObject(client: S3Client, bucket: string, key: string) 
 
 // Re-export expect for convenience
 export { expect };
+
+/** Seeds the `storage_tabs` localStorage key before the first page load of a
+ *  test, simulating a previous session's saved tab state. Because this uses
+ *  `addInitScript` it runs on every navigation within the test context, so the
+ *  data is available regardless of which page triggers the initial load. */
+export async function seedStorageTabsState(
+  page: Page,
+  state: {
+    tabs: Array<{ id: string; label: string; bucket: string; prefix: string }>;
+    activeTabId: string;
+  }
+): Promise<void> {
+  await page.addInitScript((data) => {
+    localStorage.setItem('storage_tabs', JSON.stringify(data));
+  }, state);
+}

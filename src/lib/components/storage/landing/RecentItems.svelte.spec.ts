@@ -11,7 +11,8 @@ function makeRecentFile(overrides: Partial<RecentFile> = {}): RecentFile {
     key: overrides.key ?? `folder/${faker.system.fileName()}`,
     bucket: overrides.bucket ?? 'test-bucket',
     size: overrides.size ?? faker.number.int({ min: 100, max: 1_000_000 }),
-    visitedAt: overrides.visitedAt ?? faker.date.recent().toISOString()
+    visitedAt: overrides.visitedAt ?? faker.date.recent().toISOString(),
+    connectionId: overrides.connectionId ?? 'test-conn-id'
   };
 }
 
@@ -19,7 +20,8 @@ function makeRecentLocation(overrides: Partial<RecentLocation> = {}): RecentLoca
   return {
     bucket: overrides.bucket ?? 'test-bucket',
     prefix: overrides.prefix ?? `${faker.word.noun()}/`,
-    visitedAt: overrides.visitedAt ?? faker.date.recent().toISOString()
+    visitedAt: overrides.visitedAt ?? faker.date.recent().toISOString(),
+    connectionId: overrides.connectionId ?? 'test-conn-id'
   };
 }
 
@@ -29,7 +31,11 @@ function createState(
     recentLocations?: RecentLocation[];
   } = {}
 ): StorageState {
-  const state = new StorageState({ connected: true, buckets: ['test-bucket'] });
+  const state = new StorageState({
+    connected: true,
+    buckets: ['test-bucket'],
+    connectionId: 'test-conn-id'
+  });
   state.bucket = 'test-bucket';
   state.prefix = '';
   if (opts.recentFiles) {

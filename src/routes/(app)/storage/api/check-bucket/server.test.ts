@@ -1,22 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('$lib/server/storage/service.js', () => ({
-  listObjects: vi.fn()
-}));
+const mockListObjects = vi.fn();
 
-vi.mock('$lib/server/auth-utils.js', () => ({
-  getUserId: vi.fn(() => 'test-user')
+vi.mock('$lib/server/storage/utils.js', () => ({
+  getProvider: vi.fn(() => ({ listObjects: mockListObjects }))
 }));
 
 import { GET } from './+server.js';
-import { listObjects } from '$lib/server/storage/service.js';
 import { error } from '@sveltejs/kit';
 
 function mockEvent(params: string) {
   const url = new URL(`http://localhost/storage/api/check-bucket?${params}`);
   return {
     url,
-    locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
+    locals: {
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
+      storageConfig: { type: 's3', host: 'localhost' }
+    }
   } as unknown as Parameters<typeof GET>[0];
 }
 
@@ -28,19 +28,16 @@ describe('GET /storage/api/check-bucket', () => {
   });
 
   it('returns 204 when bucket is accessible', async () => {
-    vi.mocked(listObjects).mockResolvedValue({
-      items: [],
-      continuationToken: undefined
-    } as unknown as Awaited<ReturnType<typeof listObjects>>);
+    mockListObjects.mockResolvedValue({ items: [], continuationToken: undefined });
 
     const res = await GET(mockEvent('bucket=my-bucket'));
 
-    expect(listObjects).toHaveBeenCalledWith('test-user', 'my-bucket', '', 1);
+    expect(mockListObjects).toHaveBeenCalledWith('', 1);
     expect(res.status).toBe(204);
   });
 
   it('re-throws 404 HttpError when bucket is not found', async () => {
-    vi.mocked(listObjects).mockImplementation(() => {
+    mockListObjects.mockImplementation(() => {
       error(404, 'Bucket not found');
     });
 
@@ -48,7 +45,7 @@ describe('GET /storage/api/check-bucket', () => {
   });
 
   it('re-throws 403 HttpError when access is denied', async () => {
-    vi.mocked(listObjects).mockImplementation(() => {
+    mockListObjects.mockImplementation(() => {
       error(403, 'Access denied');
     });
 
@@ -56,7 +53,7 @@ describe('GET /storage/api/check-bucket', () => {
   });
 
   it('throws 502 for unexpected errors', async () => {
-    vi.mocked(listObjects).mockRejectedValue(new Error('network failure'));
+    mockListObjects.mockRejectedValue(new Error('network failure'));
 
     await expect(GET(mockEvent('bucket=my-bucket'))).rejects.toThrow(
       expect.objectContaining({ status: 502 })
