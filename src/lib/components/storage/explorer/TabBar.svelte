@@ -3,12 +3,16 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import * as m from '$lib/paraglide/messages.js';
   import type { TabsState } from '$lib/storage/tabs.svelte.js';
+  import { getStorageState } from '$lib/storage/context.js';
+  import { storageMoveEnabled } from '$lib/client/feature-flags.js';
 
   interface Props {
     tabsState: TabsState;
   }
 
   let { tabsState }: Props = $props();
+
+  const storage = getStorageState();
 
   let renameInput = $state<HTMLInputElement | null>(null);
 
@@ -40,6 +44,29 @@
   // ── Drag state ──
   let dragIdx = $state<number | null>(null);
   let dragOverIdx = $state<number | null>(null);
+
+  // ── File-drag hover state (for drop-to-move) ──
+  // When the user drags file(s) over a tab, we auto-switch to that tab after
+  // TAB_HOVER_MS ms so they can navigate while dragging.
+  const TAB_HOVER_MS = 600;
+  let fileDragHoverIdx = $state<number | null>(null);
+  let fileDragHoverTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function clearHoverTimer() {
+    if (fileDragHoverTimer !== null) {
+      clearTimeout(fileDragHoverTimer);
+      fileDragHoverTimer = null;
+    }
+    fileDragHoverIdx = null;
+  }
+
+  /** Returns true when the drag event is carrying storage keys (file drag),
+   *  not a tab-reorder drag (which uses text/plain). */
+  function isFileDrag(e: DragEvent): boolean {
+    return (
+      storageMoveEnabled && (e.dataTransfer?.types.includes('application/x-storage-keys') ?? false)
+    );
+  }
 
   // ── Context menu ──
   let ctxMenu = $state<{ x: number; y: number; tabId: string } | null>(null);
@@ -113,16 +140,65 @@
   }
 
   function handleDragOver(e: DragEvent, idx: number) {
-    e.preventDefault();
-    dragOverIdx = idx;
-    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    if (isFileDrag(e)) {
+      // File drag: allow drop, start hover-switch timer
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      if (fileDragHoverIdx !== idx) {
+        clearHoverTimer();
+        fileDragHoverIdx = idx;
+        fileDragHoverTimer = setTimeout(() => {
+          const tab = tabsState.tabs[idx];
+          if (tab && tab.id !== tabsState.activeTabId) {
+            tabsState.switchTo(tab.id);
+          }
+          fileDragHoverTimer = null;
+        }, TAB_HOVER_MS);
+      }
+    } else {
+      // Tab reorder drag
+      e.preventDefault();
+      dragOverIdx = idx;
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  function handleDragLeave(e: DragEvent, idx: number) {
+    if (isFileDrag(e)) {
+      if (fileDragHoverIdx === idx) {
+        clearHoverTimer();
+      }
+    } else {
+      if (dragOverIdx === idx) dragOverIdx = null;
+    }
   }
 
   function handleDrop(e: DragEvent, toIdx: number) {
     e.preventDefault();
-    if (dragIdx !== null && dragIdx !== toIdx) {
-      tabsState.reorderTabs(dragIdx, toIdx);
+    clearHoverTimer();
+
+    if (isFileDrag(e)) {
+      // Drop files onto tab → move to that tab's prefix
+      const raw = e.dataTransfer?.getData('application/x-storage-keys');
+      if (raw) {
+        try {
+          const keys: string[] = JSON.parse(raw);
+          const tab = tabsState.tabs[toIdx];
+          if (tab) {
+            const destPrefix = tab.snapshot.prefix;
+            storage.performMove(destPrefix, keys);
+          }
+        } catch {
+          // invalid JSON - ignore
+        }
+      }
+    } else {
+      // Tab reorder
+      if (dragIdx !== null && dragIdx !== toIdx) {
+        tabsState.reorderTabs(dragIdx, toIdx);
+      }
     }
+
     dragIdx = null;
     dragOverIdx = null;
   }
@@ -130,6 +206,7 @@
   function handleDragEnd() {
     dragIdx = null;
     dragOverIdx = null;
+    clearHoverTimer();
   }
 </script>
 
@@ -202,11 +279,14 @@
               transition-all select-none
               {isActive
               ? 'bg-base-100 border-base-300 text-base-content z-20 font-medium shadow-sm'
-              : 'text-base-content/60 hover:text-base-content/80 hover:bg-base-100/50 z-10 border-transparent'}"
+              : 'text-base-content/60 hover:text-base-content/80 hover:bg-base-100/50 z-10 border-transparent'}
+              {dragIdx === idx ? 'opacity-50' : ''}
+              {(dragOverIdx === idx && dragIdx !== idx) || fileDragHoverIdx === idx
+              ? '!border-primary'
+              : ''}
+              {fileDragHoverIdx === idx ? 'bg-primary/10' : ''}"
             style="margin-right: -8px;"
             draggable="true"
-            class:opacity-50={dragIdx === idx}
-            class:!border-primary={dragOverIdx === idx && dragIdx !== idx}
             onclick={() => tabsState.switchTo(tab.id)}
             ondblclick={() => startRename(tab.id)}
             onmousedown={(e) => handleMiddleClick(e, tab.id)}
@@ -214,6 +294,7 @@
             oncontextmenu={(e) => openCtxMenu(e, tab.id)}
             ondragstart={(e) => handleDragStart(e, idx)}
             ondragover={(e) => handleDragOver(e, idx)}
+            ondragleave={(e) => handleDragLeave(e, idx)}
             ondrop={(e) => handleDrop(e, idx)}
             ondragend={handleDragEnd}
             title={tab.label}

@@ -5,6 +5,8 @@
   import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
   import FileIconAndName from './file-icon/FileIconAndName.svelte';
   import { getStorageState } from '$lib/storage/context.js';
+  import { storageCutCopyEnabled } from '$lib/client/feature-flags.js';
+  import { handleRowDragStart } from '$lib/storage/drag-handlers.js';
 
   interface Props {
     file: StorageObject;
@@ -17,16 +19,24 @@
   const selected = $derived(storage.selectedKeys.has(file.key));
   const isCtx = $derived(storage.contextMenu?.key === file.key);
   const isArchive = $derived(isArchiveExtension(file.key));
+  const isCut = $derived(storage.isCutKey(file.key));
+
+  function handleDragStart(e: DragEvent) {
+    handleRowDragStart(e, file.key, storage);
+  }
 </script>
 
 <tr
   class="
     group cursor-pointer select-none
+    {isCut ? 'opacity-40' : ''}
     {isCtx
     ? 'bg-base-300 outline-base-content/30 outline -outline-offset-2'
     : selected
       ? 'bg-primary/10 hover:bg-primary/15'
       : 'hover:bg-base-200/60'}"
+  draggable={storageCutCopyEnabled && !storage.isInArchive}
+  ondragstart={handleDragStart}
   onclick={(e) => storage.toggleSelect(file.key, e.ctrlKey || e.metaKey)}
   ondblclick={() => {
     if (isArchive) {

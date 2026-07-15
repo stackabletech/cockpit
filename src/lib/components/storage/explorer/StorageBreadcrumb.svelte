@@ -21,6 +21,9 @@
   import { invalidateAll } from '$app/navigation';
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
+  import { storageMoveEnabled } from '$lib/client/feature-flags.js';
+  import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
+  import OperationsButton from './OperationsButton.svelte';
 
   const storage = getStorageState();
   const tabsState = getTabsState();
@@ -168,6 +171,38 @@
     }
     storage.navigate(prefix);
   }
+
+  // ── Drag-drop targets for breadcrumb parts ─────────────────────────────
+
+  let dropTargetPrefix = $state<string | null>(null);
+
+  // ── Collapsed "..." dropdown drag-over to open ──────────────────────────
+  // Track whether the cursor is inside the collapsed-parts dropdown container
+  // (the button + the dropdown list).  Use a single boolean instead of a
+  // counter so that child-to-child moves (button → ul) don't cause flicker.
+  let collapsedDropdownOpen = $state(false);
+
+  function handleBreadcrumbDragOver(e: DragEvent, prefix: string) {
+    if (!canStorageDrop(storage)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    dropTargetPrefix = prefix;
+  }
+
+  function handleBreadcrumbDragLeave() {
+    dropTargetPrefix = null;
+  }
+
+  function handleBreadcrumbDrop(e: DragEvent, prefix: string) {
+    dropTargetPrefix = null;
+    collapsedDropdownOpen = false;
+    if (!canStorageDrop(storage)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const keys = parseStorageDropKeys(e);
+    if (!keys) return;
+    void storage.performMove(prefix, keys);
+  }
 </script>
 
 {#if breadcrumbCtx}
@@ -268,10 +303,16 @@
           class="
             text-base-content flex shrink-0 items-center gap-1.5 rounded-sm px-1.5
             py-0.5 font-medium
+            {dropTargetPrefix === ''
+            ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
+            : ''}
           "
           title={storage.bucket}
           aria-current="page"
           oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
+          ondragover={(e) => handleBreadcrumbDragOver(e, '')}
+          ondragleave={handleBreadcrumbDragLeave}
+          ondrop={(e) => handleBreadcrumbDrop(e, '')}
         >
           <IconStorage class="pointer-events-none size-4" aria-hidden="true" />
           {storage.bucket}
@@ -285,10 +326,16 @@
             text-base-content/70 hover:bg-base-200 hover:text-base-content flex shrink-0 items-center gap-1.5
             rounded-sm px-1.5
             py-0.5 transition-colors hover:cursor-pointer
+            {dropTargetPrefix === ''
+            ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
+            : ''}
           "
           title={storage.bucket}
           onclick={() => navigateS3('')}
           oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, '')}
+          ondragover={(e) => handleBreadcrumbDragOver(e, '')}
+          ondragleave={handleBreadcrumbDragLeave}
+          ondrop={(e) => handleBreadcrumbDrop(e, '')}
         >
           <IconStorage class="size-4" aria-hidden="true" />
           {storage.bucket}
@@ -301,7 +348,26 @@
         class="text-base-content/30 pointer-events-none size-4 shrink-0"
         aria-hidden="true"
       />
-      <div class="dropdown">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="dropdown"
+        class:dropdown-open={collapsedDropdownOpen}
+        ondragover={(e) => {
+          if (!storageMoveEnabled) return;
+          e.preventDefault();
+        }}
+        ondragenter={() => {
+          collapsedDropdownOpen = true;
+        }}
+        ondragleave={(e) => {
+          const related = e.relatedTarget as HTMLElement | null;
+          if (related && e.currentTarget.contains(related)) return;
+          collapsedDropdownOpen = false;
+        }}
+        ondrop={() => {
+          collapsedDropdownOpen = false;
+        }}
+      >
         <button
           tabindex="0"
           class="
@@ -327,9 +393,15 @@
             <li>
               <div class="group flex items-center justify-between gap-2">
                 <button
-                  class="flex-1 text-left text-sm hover:cursor-pointer"
+                  class="flex-1 text-left text-sm hover:cursor-pointer {dropTargetPrefix ===
+                  part.prefix
+                    ? 'text-primary'
+                    : ''}"
                   onclick={() => navigateS3(part.prefix)}
                   oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, part.prefix)}
+                  ondragover={(e) => handleBreadcrumbDragOver(e, part.prefix)}
+                  ondragleave={handleBreadcrumbDragLeave}
+                  ondrop={(e) => handleBreadcrumbDrop(e, part.prefix)}
                 >
                   {part.label}
                 </button>
@@ -353,10 +425,16 @@
             class="
               text-base-content min-w-0 truncate rounded-sm px-1.5 py-0.5
               font-medium
+              {dropTargetPrefix === part.prefix
+              ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
+              : ''}
             "
             title={part.label}
             aria-current="page"
             oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, part.prefix)}
+            ondragover={(e) => handleBreadcrumbDragOver(e, part.prefix)}
+            ondragleave={handleBreadcrumbDragLeave}
+            ondrop={(e) => handleBreadcrumbDrop(e, part.prefix)}
           >
             {part.label}
           </span>
@@ -365,10 +443,16 @@
             class="
               hover:bg-base-200 hover:text-base-content min-w-0 truncate rounded-sm px-1.5
               py-0.5 transition-colors hover:cursor-pointer
+              {dropTargetPrefix === part.prefix
+              ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
+              : ''}
             "
             title={part.label}
             onclick={() => navigateS3(part.prefix)}
             oncontextmenu={(e) => openBreadcrumbCtx(e, storage.bucket, part.prefix)}
+            ondragover={(e) => handleBreadcrumbDragOver(e, part.prefix)}
+            ondragleave={handleBreadcrumbDragLeave}
+            ondrop={(e) => handleBreadcrumbDrop(e, part.prefix)}
           >
             {part.label}
           </button>
@@ -542,6 +626,7 @@
           <input
             id="create-name-input"
             class="input input-bordered input-sm w-full"
+            autofocus
             value={createName}
             placeholder={m.storage_create_placeholder()}
             oninput={(e) => {
@@ -583,6 +668,9 @@
       {m.storage_action_upload()}
     </button>
   {/if}
+
+  <!-- Operations progress indicator -->
+  <OperationsButton />
 
   <!-- More options (pin current location) — hidden in archive mode -->
   <div class="dropdown dropdown-end">

@@ -2,10 +2,10 @@
   import IconCheck from 'virtual:icons/material-symbols/check';
   import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
-  import type { FileEntry, Resolution } from './types.js';
+  import type { ConflictEntry, Resolution } from './conflict-types.js';
 
   interface Props {
-    entry: FileEntry;
+    entry: ConflictEntry;
     onSetResolution: (resolution: Resolution) => void;
     onSetCustomName: (name: string) => void;
     onRenameButtonClick: () => void;
@@ -17,22 +17,21 @@
 
   const uid = $props.id();
 
-  let nameOnly = $derived(entry.targetKey.split('/').at(-1) ?? entry.file.name);
   let badRename = $derived(
     entry.resolution === 'rename' &&
-      (entry.customName.trim() === '' || entry.customName.trim() === entry.file.name)
+      (entry.customName.trim() === '' || entry.customName.trim() === entry.originalName)
   );
 </script>
 
 <li class="px-4 py-3">
   <p class="text-base-content mb-2 truncate text-sm font-medium">
-    &ldquo;{nameOnly}&rdquo;
+    &ldquo;{entry.originalName}&rdquo;
   </p>
   <!-- Resolution toggle buttons -->
   <div
     class="flex flex-wrap gap-1.5"
     role="group"
-    aria-label="{m.storage_upload_conflicts_title()} — {nameOnly}"
+    aria-label="{m.storage_upload_conflicts_title()} — {entry.originalName}"
   >
     <button
       type="button"

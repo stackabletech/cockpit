@@ -90,9 +90,12 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
   }
   // The connections management endpoint itself does not require a connection header —
   // it is used to list/create connections before one is selected.
+  // The copy/job polling endpoint also does not require a connection header —
+  // it reads job status from the server-side job store.
   const requiresConnectionHeader =
     event.route.id?.startsWith('/(app)/api/storage/') &&
-    !event.route.id?.startsWith('/(app)/api/storage/connections');
+    !event.route.id?.startsWith('/(app)/api/storage/connections') &&
+    !event.route.id?.startsWith('/(app)/api/storage/copy/job/');
   if (event.locals.storageConfig === null && requiresConnectionHeader) {
     throw error(401, 'No storage connection configured');
   }

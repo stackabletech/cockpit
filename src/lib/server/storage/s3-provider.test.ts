@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { S3ServiceException, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3ServiceException, PutObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
 
 vi.mock('$lib/server/logging', () => ({
   logger: { child: () => ({ trace: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }) }
@@ -516,6 +516,133 @@ describe('S3StorageProvider.listAllKeys', () => {
     await provider.listAllKeys('p/');
     const sentCommand = send.mock.calls[0][0];
     expect(sentCommand.input.Delimiter).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// copyObject
+// ---------------------------------------------------------------------------
+
+describe('S3StorageProvider.copyObject', () => {
+  let provider: S3StorageProvider;
+  let send: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    ({ provider, send } = makeProvider());
+    mockUploadDone.mockResolvedValue(undefined);
+    MockUpload.mockClear();
+  });
+
+  it('uses CopyObjectCommand for files under 5 GB', async () => {
+    // HeadObject returns ContentLength = 1000
+    send.mockResolvedValueOnce({ ContentLength: 1000 });
+    // CopyObject succeeds
+    send.mockResolvedValueOnce({});
+
+    await provider.copyObject('src/file.txt', 'dst/file.txt');
+
+    expect(send).toHaveBeenCalledTimes(2);
+    const copyCmd = send.mock.calls[1][0];
+    expect(copyCmd).toBeInstanceOf(CopyObjectCommand);
+    expect(copyCmd.input).toMatchObject({
+      Bucket: 'test-bucket',
+      CopySource: '/test-bucket/src%2Ffile.txt',
+      Key: 'dst/file.txt'
+    });
+    expect(MockUpload).not.toHaveBeenCalled();
+  });
+
+  it('uses server-side multipart copy for files over 5 GB', async () => {
+    const fiveGB = 5 * 1024 * 1024 * 1024;
+    const largeSize = fiveGB + 1;
+    // PART_SIZE = 256 MiB → 21 parts for (5GB + 1)
+    const numParts = 21;
+    const partSize = 256 * 1024 * 1024;
+
+    // HeadObject
+    send.mockResolvedValueOnce({
+      ContentLength: largeSize,
+      ContentType: 'application/octet-stream'
+    });
+    // CreateMultipartUpload
+    send.mockResolvedValueOnce({ UploadId: 'test-upload-id' });
+    // UploadPartCopy × numParts
+    for (let i = 0; i < numParts; i++) {
+      send.mockResolvedValueOnce({ CopyPartResult: { ETag: `etag-${i + 1}` } });
+    }
+    // CompleteMultipartUpload
+    send.mockResolvedValueOnce({});
+
+    await provider.copyObject('src/large.parquet', 'dst/large.parquet');
+
+    // Total calls: 1 Head + 1 Create + numParts UploadPartCopy + 1 Complete = 24
+    expect(send).toHaveBeenCalledTimes(1 + 1 + numParts + 1);
+
+    const createCmd = send.mock.calls[1][0];
+    expect(createCmd.constructor.name).toBe('CreateMultipartUploadCommand');
+    expect(createCmd.input).toMatchObject({
+      Bucket: 'test-bucket',
+      Key: 'dst/large.parquet',
+      ContentType: 'application/octet-stream'
+    });
+
+    for (let i = 0; i < numParts; i++) {
+      const partCmd = send.mock.calls[2 + i][0];
+      expect(partCmd.constructor.name).toBe('UploadPartCopyCommand');
+      const startByte = i * partSize;
+      const endByte = Math.min(startByte + partSize - 1, largeSize - 1);
+      expect(partCmd.input).toMatchObject({
+        Bucket: 'test-bucket',
+        Key: 'dst/large.parquet',
+        UploadId: 'test-upload-id',
+        PartNumber: i + 1,
+        CopySource: '/test-bucket/src%2Flarge.parquet',
+        CopySourceRange: `bytes=${startByte}-${endByte}`
+      });
+    }
+
+    const completeCmd = send.mock.calls[1 + 1 + numParts][0];
+    expect(completeCmd.constructor.name).toBe('CompleteMultipartUploadCommand');
+    expect(completeCmd.input).toMatchObject({
+      Bucket: 'test-bucket',
+      Key: 'dst/large.parquet',
+      UploadId: 'test-upload-id',
+      MultipartUpload: {
+        Parts: Array.from({ length: numParts }, (_, i) => ({
+          PartNumber: i + 1,
+          ETag: `etag-${i + 1}`
+        }))
+      }
+    });
+  });
+
+  it('reports progress during server-side multipart copy', async () => {
+    const size = 6 * 1024 * 1024 * 1024; // exactly 24 parts of 256 MiB
+    const partSize = 256 * 1024 * 1024;
+    const numParts = Math.ceil(size / partSize); // 24
+
+    const onProgress = vi.fn();
+
+    // HeadObject
+    send.mockResolvedValueOnce({ ContentLength: size, ContentType: 'video/mp4' });
+    // CreateMultipartUpload
+    send.mockResolvedValueOnce({ UploadId: 'upload-2' });
+    // UploadPartCopy × numParts
+    for (let i = 0; i < numParts; i++) {
+      send.mockResolvedValueOnce({ CopyPartResult: { ETag: `e${i}` } });
+    }
+    // CompleteMultipartUpload
+    send.mockResolvedValueOnce({});
+
+    await provider.copyObject('src/video.mp4', 'dst/video.mp4', onProgress);
+
+    expect(onProgress).toHaveBeenCalledTimes(numParts);
+    // Each call reports cumulative progress
+    for (let i = 0; i < numParts; i++) {
+      expect(onProgress).toHaveBeenNthCalledWith(i + 1, (i + 1) * partSize, size);
+    }
+    // Last call reports total size
+    expect(onProgress).toHaveBeenLastCalledWith(size, size);
   });
 });
 

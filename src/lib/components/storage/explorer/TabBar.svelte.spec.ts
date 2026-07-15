@@ -1,7 +1,7 @@
 import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import TabBar from './TabBar.svelte';
+import TabBarWrapper from './__tests__/TabBarWrapper.svelte';
 import { TabsState } from '$lib/storage/tabs.svelte.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
 
@@ -24,6 +24,10 @@ function makeTabsState(storage: StorageState, tabCount = 2): TabsState {
   return ts;
 }
 
+function renderTabBar(storage: StorageState, tabsState: TabsState) {
+  return render(TabBarWrapper, { storage, tabsState });
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('TabBar', () => {
@@ -34,7 +38,7 @@ describe('TabBar', () => {
   it('renders a tab for each entry in tabsState.tabs', async () => {
     const storage = makeStorage('bucket-a');
     const tabsState = makeTabsState(storage, 2);
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     const tabs = page.getByRole('tab');
     // 2 tabs rendered
@@ -45,7 +49,7 @@ describe('TabBar', () => {
   it('marks the active tab with aria-selected="true"', async () => {
     const storage = makeStorage('bucket-a');
     const tabsState = makeTabsState(storage, 2);
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     const activeTab = page.getByRole('tab', { selected: true });
     await expect.element(activeTab).toBeInTheDocument();
@@ -54,7 +58,7 @@ describe('TabBar', () => {
   it('has a tablist with an accessible label', async () => {
     const storage = makeStorage();
     const tabsState = makeTabsState(storage, 2);
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     await expect.element(page.getByRole('tablist')).toBeInTheDocument();
   });
@@ -62,7 +66,7 @@ describe('TabBar', () => {
   it('renders a "New Tab" plus button', async () => {
     const storage = makeStorage();
     const tabsState = makeTabsState(storage, 2);
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     await expect.element(page.getByRole('button', { name: 'New Tab' })).toBeInTheDocument();
   });
@@ -71,7 +75,7 @@ describe('TabBar', () => {
     const storage = makeStorage();
     const tabsState = makeTabsState(storage, 2);
     const spy = vi.spyOn(tabsState, 'addTab');
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     await page.getByRole('button', { name: 'New Tab' }).click();
 
@@ -83,7 +87,7 @@ describe('TabBar', () => {
     const tabsState = makeTabsState(storage, 2);
     // After makeTabsState(2): tabs[0] is the initial tab (not active), tabs[1] is active
     const spy = vi.spyOn(tabsState, 'switchTo');
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     // Click the first tab (not the active one)
     await page.getByRole('tab').nth(0).click();
@@ -94,7 +98,7 @@ describe('TabBar', () => {
   it('shows close buttons when multiple tabs exist', async () => {
     const storage = makeStorage();
     const tabsState = makeTabsState(storage, 2);
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     // Close tab buttons have aria-label="Close tab"
     const closeButtons = page.getByRole('button', { name: 'Close tab' });
@@ -105,7 +109,7 @@ describe('TabBar', () => {
     const storage = makeStorage();
     const tabsState = makeTabsState(storage, 2);
     const spy = vi.spyOn(tabsState, 'closeTab');
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     await page.getByRole('button', { name: 'Close tab' }).first().click();
 
@@ -115,7 +119,7 @@ describe('TabBar', () => {
   it('opens a context menu on right-click of a tab', async () => {
     const storage = makeStorage();
     const tabsState = makeTabsState(storage, 2);
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     await page.getByRole('tab').first().click({ button: 'right' });
 
@@ -125,7 +129,7 @@ describe('TabBar', () => {
   it('context menu contains Rename tab and Close tab options', async () => {
     const storage = makeStorage();
     const tabsState = makeTabsState(storage, 2);
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     await page.getByRole('tab').first().click({ button: 'right' });
 
@@ -137,7 +141,7 @@ describe('TabBar', () => {
     const storage = makeStorage();
     const tabsState = makeTabsState(storage, 2);
     const spy = vi.spyOn(tabsState, 'renameTab');
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     const firstTabId = tabsState.tabs[0].id;
     await page.getByRole('tab').first().click({ button: 'right' });
@@ -155,7 +159,7 @@ describe('TabBar', () => {
   it('shows rename input on double-click of a tab', async () => {
     const storage = makeStorage();
     const tabsState = makeTabsState(storage, 2);
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     await page.getByRole('tab').first().dblClick();
 
@@ -166,7 +170,7 @@ describe('TabBar', () => {
     const storage = makeStorage();
     const tabsState = makeTabsState(storage, 2);
     const spy = vi.spyOn(tabsState, 'renameTab');
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     const firstTabId = tabsState.tabs[0].id;
     await page.getByRole('tab').first().dblClick();
@@ -181,7 +185,7 @@ describe('TabBar', () => {
     const storage = makeStorage();
     const tabsState = makeTabsState(storage, 2);
     const spy = vi.spyOn(tabsState, 'renameTab');
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     await page.getByRole('tab').first().dblClick();
 
@@ -197,7 +201,7 @@ describe('TabBar', () => {
     const tabsState = makeTabsState(storage, 2);
     const spy = vi.spyOn(tabsState, 'closeTab');
     const firstTabId = tabsState.tabs[0].id;
-    render(TabBar, { tabsState });
+    renderTabBar(storage, tabsState);
 
     await page.getByRole('tab').first().click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Close tab' }).click();

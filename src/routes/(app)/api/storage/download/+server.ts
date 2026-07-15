@@ -1,4 +1,5 @@
 import type { RequestHandler } from './$types';
+import { error } from '@sveltejs/kit';
 import { getProvider } from '$lib/server/storage/utils.js';
 import { requireBucketKey } from '../params.js';
 
@@ -15,15 +16,39 @@ function filenameFromKey(key: string): string {
  * The S3 body stream is piped straight to the HTTP response — no server-side
  * buffering occurs.
  *
- * The connection config is parsed and validated by the `handleStorageConnection`
- * middleware in hooks.server.ts before this handler runs.
+ * The connection config is resolved from `locals.storageConfig` which is set
+ * by the handleStorageConnection middleware using the x-storage-connection-id
+ * header and a database lookup.
  */
-export const GET: RequestHandler = async ({ locals, url }) => {
+export const GET: RequestHandler = async ({ locals, request, url }) => {
   const { bucket, key } = requireBucketKey(url);
 
   locals.logger.debug({ bucket, key }, 'download request received');
 
-  const download = await getProvider(locals.storageConfig!, bucket).getObject(key);
+  const config = locals.storageConfig;
+
+  if (!config) {
+    throw error(401, 'No storage connection configured');
+  }
+
+  const download = await getProvider(config, bucket).getObject(key);
+
+  // When the client cancels the download (closes the connection), abort the S3
+  // stream proactively so the backend stops fetching data from S3.
+  const abortController = new AbortController();
+  request.signal.addEventListener(
+    'abort',
+    () => {
+      locals.logger.info({ bucket, key }, 'client cancelled download — aborting S3 stream');
+      abortController.abort();
+    },
+    { once: true }
+  );
+
+  // Pipe the S3 stream through a TransformStream that honours the abort signal.
+  // This ensures the S3 SDK stops reading when the client disconnects.
+  const { readable, writable } = new TransformStream();
+  download.stream.pipeTo(writable, { signal: abortController.signal }).catch(() => {});
 
   const filename = filenameFromKey(key);
   // RFC 5987 encoding for non-ASCII filenames in Content-Disposition
@@ -46,7 +71,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
   locals.logger.info({ bucket, key, filename }, 'streaming object download');
 
-  return new Response(download.stream, { status: 200, headers });
+  return new Response(readable, { status: 200, headers });
 };
 
 /**
