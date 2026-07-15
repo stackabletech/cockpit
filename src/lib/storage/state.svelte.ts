@@ -34,6 +34,7 @@ import { BookmarksState } from './bookmarks.svelte.js';
 import { connectionStore } from '$lib/storage/connection-store.svelte.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { keyToName } from '$lib/storage/utils.js';
+import { readNdjsonStream } from '$lib/storage/ndjson-stream.js';
 
 // Set to true when the page starts unloading (reload, tab close, navigate away).
 // Used to suppress misleading error toasts for in-flight operations that the
@@ -1153,63 +1154,13 @@ export class StorageState {
         continue;
       }
 
-      // Read the NDJSON stream
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      if (reader) {
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            // Keep the last (potentially incomplete) line in the buffer
-            buffer = lines.pop() ?? '';
-
-            for (const line of lines) {
-              if (!line.trim()) continue;
-              const event = JSON.parse(line) as {
-                type: string;
-                sourceKey?: string;
-                destKey?: string;
-                loaded?: number;
-                total?: number;
-                error?: string;
-                results?: Array<{ sourceKey: string; destKey: string }>;
-                moved?: Array<{ sourceKey: string; destKey: string }>;
-                failed?: Array<{ sourceKey: string; error: string }>;
-              };
-
-              if (
-                event.type === 'progress' &&
-                event.loaded !== undefined &&
-                event.total !== undefined
-              ) {
-                onFileProgress?.(event.loaded, event.total);
-              } else if (event.type === 'done' && event.sourceKey && event.destKey) {
-                results.push({ sourceKey: event.sourceKey, destKey: event.destKey });
-              } else if (event.type === 'failed' && event.sourceKey) {
-                failed++;
-              } else if (event.type === 'complete') {
-                // Final summary — use its results/failed as the canonical source
-                if (event.results) {
-                  results.length = 0;
-                  results.push(...event.results);
-                }
-                if (event.failed) {
-                  failed = event.failed.length;
-                }
-              }
-            }
-          }
-        } finally {
-          reader.releaseLock();
-        }
-      }
-
+      const streamResult = await readNdjsonStream(res.body, {
+        onProgress: onFileProgress
+          ? (_sourceKey, _destKey, loaded, total) => onFileProgress(loaded, total)
+          : undefined
+      });
+      results.push(...streamResult.results);
+      failed += streamResult.failed.length;
       onFileComplete?.(i + 1, sourceKey);
     }
 
@@ -1461,78 +1412,35 @@ export class StorageState {
           continue;
         }
 
-        // Read the NDJSON stream
-        const reader = res.body?.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let completedBytes = results.reduce((sum, r) => {
-          const item = items.find((it) => it.key === r.sourceKey);
-          return sum + (item?.size ?? 0);
-        }, 0);
-
-        if (reader) {
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop() ?? '';
-
-              for (const line of lines) {
-                if (!line.trim()) continue;
-                const event = JSON.parse(line) as {
-                  type: string;
-                  sourceKey?: string;
-                  destKey?: string;
-                  loaded?: number;
-                  total?: number;
-                  error?: string;
-                  moved?: Array<{ sourceKey: string; destKey: string }>;
-                  failed?: Array<{ sourceKey: string; error: string }>;
-                };
-
-                if (
-                  event.type === 'progress' &&
-                  event.loaded !== undefined &&
-                  event.total !== undefined
-                ) {
-                  // Byte-level progress during large file streaming
-                  const prevBytes = results.reduce((sum, r) => {
-                    const item = items.find((it) => it.key === r.sourceKey);
-                    return sum + (item?.size ?? 0);
-                  }, 0);
-                  this._updateOpProgress(
-                    opId,
-                    i + 1,
-                    prevBytes + event.loaded,
-                    keyToName(sourceKey)
-                  );
-                } else if (event.type === 'done' && event.sourceKey && event.destKey) {
-                  results.push({ sourceKey: event.sourceKey, destKey: event.destKey });
-                  completedBytes = results.reduce((sum, r) => {
-                    const item = items.find((it) => it.key === r.sourceKey);
-                    return sum + (item?.size ?? 0);
-                  }, 0);
-                  this._updateOpProgress(opId, i + 1, completedBytes, keyToName(sourceKey));
-                } else if (event.type === 'failed' && event.sourceKey) {
-                  failed++;
-                } else if (event.type === 'complete') {
-                  if (event.moved) {
-                    results.length = 0;
-                    results.push(...event.moved);
-                  }
-                  if (event.failed) {
-                    failed = event.failed.length;
-                  }
-                }
-              }
+        await readNdjsonStream(res.body, {
+          onProgress: (_sourceKey, _destKey, loaded) => {
+            const prevBytes = results.reduce((sum, r) => {
+              const item = items.find((it) => it.key === r.sourceKey);
+              return sum + (item?.size ?? 0);
+            }, 0);
+            this._updateOpProgress(opId, i + 1, prevBytes + loaded, keyToName(sourceKey));
+          },
+          onDone: (sourceKey, destKey) => {
+            results.push({ sourceKey, destKey });
+            const completedBytes = results.reduce((sum, r) => {
+              const item = items.find((it) => it.key === r.sourceKey);
+              return sum + (item?.size ?? 0);
+            }, 0);
+            this._updateOpProgress(opId, i + 1, completedBytes, keyToName(sourceKey));
+          },
+          onFailed: () => {
+            failed++;
+          },
+          onComplete: (finalResults, finalFailed) => {
+            if (finalResults.length > 0) {
+              results.length = 0;
+              results.push(...finalResults);
             }
-          } finally {
-            reader.releaseLock();
+            if (finalFailed.length > 0) {
+              failed = finalFailed.length;
+            }
           }
-        }
+        });
       }
 
       await tick();
@@ -1949,49 +1857,23 @@ export class StorageState {
           continue;
         }
 
-        // Read the NDJSON stream (the endpoint returns NDJSON when progress=true)
-        const reader = res.body?.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        if (reader) {
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop() ?? '';
-              for (const line of lines) {
-                if (!line.trim()) continue;
-                const event = JSON.parse(line) as {
-                  type: string;
-                  sourceKey?: string;
-                  destKey?: string;
-                  loaded?: number;
-                  total?: number;
-                  moved?: Array<{ sourceKey: string; destKey: string }>;
-                  failed?: Array<{ sourceKey: string; error: string }>;
-                };
-                if (event.type === 'done' && event.sourceKey && event.destKey) {
-                  results.push({ sourceKey: event.sourceKey, destKey: event.destKey });
-                } else if (event.type === 'failed' && event.sourceKey) {
-                  failed++;
-                } else if (event.type === 'complete') {
-                  if (event.moved) {
-                    results.length = 0;
-                    results.push(...event.moved);
-                  }
-                  if (event.failed) {
-                    failed = event.failed.length;
-                  }
-                }
-              }
+        await readNdjsonStream(res.body, {
+          onDone: (sourceKey, destKey) => {
+            results.push({ sourceKey, destKey });
+          },
+          onFailed: () => {
+            failed++;
+          },
+          onComplete: (finalResults, finalFailed) => {
+            if (finalResults.length > 0) {
+              results.length = 0;
+              results.push(...finalResults);
             }
-          } finally {
-            reader.releaseLock();
+            if (finalFailed.length > 0) {
+              failed = finalFailed.length;
+            }
           }
-        }
+        });
         this._updateOpProgress(opId, results.length, 0, keyToName(key));
       }
 
