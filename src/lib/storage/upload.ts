@@ -13,24 +13,9 @@
  */
 
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
+import { StorageError, type StorageErrorCode } from '$lib/storage/errors.js';
 
-export type UploadErrorCode =
-  | 'not_connected'
-  | 'access_denied'
-  | 'no_such_bucket'
-  | 'invalid_part'
-  | 'server_error'
-  | 'unknown';
-
-export class UploadError extends Error {
-  constructor(
-    public readonly code: UploadErrorCode,
-    message: string
-  ) {
-    super(message);
-    this.name = 'UploadError';
-  }
-}
+export type UploadErrorCode = StorageErrorCode;
 
 function buildUploadUrl(bucket: string, key: string): string {
   return `/api/storage/upload?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
@@ -40,7 +25,7 @@ function buildDownloadUrl(bucket: string, key: string): string {
   return `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
 }
 
-function mapStatusToUploadCode(status: number): UploadErrorCode {
+function mapStatusToUploadCode(status: number): StorageErrorCode {
   if (status === 403) return 'access_denied';
   if (status === 404) return 'no_such_bucket';
   if (status === 400) return 'invalid_part';
@@ -68,9 +53,9 @@ export async function checkObjectExists(
   });
   if (res.status === 200) return true;
   if (res.status === 404) return false;
-  if (res.status === 401) throw new UploadError('not_connected', 'Not connected');
-  if (res.status === 403) throw new UploadError('access_denied', 'Access denied');
-  throw new UploadError('server_error', `Unexpected status ${res.status}`);
+  if (res.status === 401) throw new StorageError('not_connected', 'Not connected');
+  if (res.status === 403) throw new StorageError('access_denied', 'Access denied');
+  throw new StorageError('server_error', `Unexpected status ${res.status}`);
 }
 
 /**
@@ -107,15 +92,15 @@ export function uploadFile(
         return;
       }
       const code = mapStatusToUploadCode(xhr.status);
-      reject(new UploadError(code, `Upload failed with status ${xhr.status}`));
+      reject(new StorageError(code, `Upload failed with status ${xhr.status}`));
     });
 
     xhr.addEventListener('error', () => {
-      reject(new UploadError('server_error', 'Network error during upload'));
+      reject(new StorageError('server_error', 'Network error during upload'));
     });
 
     xhr.addEventListener('abort', () => {
-      reject(new UploadError('unknown', 'Upload aborted'));
+      reject(new StorageError('unknown', 'Upload aborted'));
     });
 
     xhr.open('POST', url);

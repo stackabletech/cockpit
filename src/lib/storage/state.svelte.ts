@@ -26,10 +26,10 @@ import {
   storageMoveEnabled
 } from '$lib/client/feature-flags.js';
 import { checkObjectExists } from '$lib/storage/upload.js';
-import { downloadObject, DownloadError } from '$lib/storage/download.js';
+import { downloadObject } from '$lib/storage/download.js';
 import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
-import { ActionError, getActionErrorMessage } from './errors.js';
+import { ActionError, StorageError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
 import { connectionStore } from '$lib/storage/connection-store.svelte.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
@@ -487,7 +487,7 @@ export class StorageState {
       if (!res.ok) {
         const code =
           res.status === 403 ? 'access_denied' : res.status === 404 ? 'not_found' : 'server_error';
-        throw new DownloadError(code, `Extract failed with status ${res.status}`);
+        throw new StorageError(code, `Extract failed with status ${res.status}`);
       }
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -501,8 +501,8 @@ export class StorageState {
       document.body.removeChild(anchor);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
     } catch (err: unknown) {
-      if (err instanceof DownloadError) {
-        addToast('error', getActionErrorMessage(new ActionError(err.code, err.message)));
+      if (err instanceof StorageError) {
+        addToast('error', getActionErrorMessage(err));
       } else {
         addToast('error', m.storage_download_error_unknown());
       }
@@ -688,8 +688,8 @@ export class StorageState {
           }
           await downloadObject(this.bucket, key, connectionId);
         } catch (err: unknown) {
-          if (err instanceof DownloadError) {
-            addToast('error', getActionErrorMessage(new ActionError(err.code, err.message)));
+          if (err instanceof StorageError) {
+            addToast('error', getActionErrorMessage(err));
           } else {
             addToast('error', m.storage_download_error_unknown());
           }

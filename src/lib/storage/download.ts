@@ -16,29 +16,15 @@
  */
 
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
+import { StorageError, type StorageErrorCode } from '$lib/storage/errors.js';
 
-export type DownloadErrorCode =
-  | 'not_connected'
-  | 'access_denied'
-  | 'not_found'
-  | 'server_error'
-  | 'unknown';
-
-export class DownloadError extends Error {
-  constructor(
-    public readonly code: DownloadErrorCode,
-    message: string
-  ) {
-    super(message);
-    this.name = 'DownloadError';
-  }
-}
+export type DownloadErrorCode = StorageErrorCode;
 
 function buildDownloadUrl(bucket: string, key: string): string {
   return `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
 }
 
-function mapStatusToCode(status: number): DownloadErrorCode {
+function mapStatusToCode(status: number): StorageErrorCode {
   if (status === 401) return 'not_connected';
   if (status === 403) return 'access_denied';
   if (status === 404) return 'not_found';
@@ -52,7 +38,7 @@ function mapStatusToCode(status: number): DownloadErrorCode {
  * Fetches the object with the connection ID header, buffers it as a Blob,
  * then triggers a native browser download via a programmatic anchor click.
  *
- * @throws {DownloadError} when the server returns a non-2xx response.
+ * @throws {StorageError} when the server returns a non-2xx response.
  */
 export async function downloadObject(
   bucket: string,
@@ -67,7 +53,7 @@ export async function downloadObject(
 
   if (!response.ok) {
     const code = mapStatusToCode(response.status);
-    throw new DownloadError(code, `Download failed with status ${response.status}`);
+    throw new StorageError(code, `Download failed with status ${response.status}`);
   }
 
   const blob = await response.blob();

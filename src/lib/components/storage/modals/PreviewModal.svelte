@@ -21,7 +21,8 @@
   import PdfPreview from './preview/PdfPreview.svelte';
   import FallbackPreview from './preview/FallbackPreview.svelte';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
-  import { downloadObject, DownloadError } from '$lib/storage/download.js';
+  import { downloadObject } from '$lib/storage/download.js';
+  import { StorageError } from '$lib/storage/errors.js';
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
@@ -536,7 +537,7 @@
     try {
       await downloadObject(bucket, objectKey, connectionId);
     } catch (err) {
-      if (err instanceof DownloadError) {
+      if (err instanceof StorageError) {
         addToast('error', err.message);
       } else {
         addToast('error', m.storage_download_error_unknown());
