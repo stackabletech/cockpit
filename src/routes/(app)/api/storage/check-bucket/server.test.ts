@@ -10,7 +10,7 @@ import { GET } from './+server.js';
 import { error } from '@sveltejs/kit';
 
 function mockEvent(params: string) {
-  const url = new URL(`http://localhost/storage/api/check-bucket?${params}`);
+  const url = new URL(`http://localhost/api/storage/check-bucket?${params}`);
   return {
     url,
     locals: {
@@ -20,7 +20,7 @@ function mockEvent(params: string) {
   } as unknown as Parameters<typeof GET>[0];
 }
 
-describe('GET /storage/api/check-bucket', () => {
+describe('GET /api/storage/check-bucket', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('throws 400 when bucket is missing', async () => {

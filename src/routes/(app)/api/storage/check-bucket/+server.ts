@@ -1,6 +1,6 @@
 import { error, isHttpError } from '@sveltejs/kit';
 import { getProvider } from '$lib/server/storage/utils.js';
-import { requireBucket } from '../../../api/storage/params.js';
+import { requireBucket } from '../params.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, locals }) => {

@@ -42,7 +42,7 @@
     error = null;
 
     try {
-      const res = await fetch(`/storage/api/check-bucket?bucket=${encodeURIComponent(name)}`);
+      const res = await fetch(`/api/storage/check-bucket?bucket=${encodeURIComponent(name)}`);
 
       if (res.ok) {
         storage.addBucket(name);
