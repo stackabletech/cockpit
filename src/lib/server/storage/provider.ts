@@ -1,4 +1,5 @@
 import type { StoragePage, StorageMetadata, DeleteObjectsResult } from '$lib/storage/types.js';
+import type { LifecycleRule, BucketAcl } from '$lib/storage/details-types.js';
 
 export type { DeleteObjectsResult };
 
@@ -45,6 +46,14 @@ export interface StorageProvider {
    * Used to expand directory prefixes before deletion.
    */
   listAllKeys(prefix: string): Promise<string[]>;
+  listAllKeysProgressively(
+    prefix: string,
+    onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void
+  ): Promise<void>;
+  getBucketVersioning(): Promise<string>;
+  getBucketLifecycleRules(): Promise<LifecycleRule[]>;
+  getBucketTags(): Promise<Record<string, string>>;
+  getBucketAcl(): Promise<BucketAcl>;
   /**
    * Copy an object from `sourceKey` to `destKey` within the same bucket.
    * For objects <= 5 GB uses S3 CopyObject; for larger objects streams the

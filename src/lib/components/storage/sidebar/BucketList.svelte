@@ -5,6 +5,7 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
+  import IconInfo from 'virtual:icons/material-symbols/info';
   import IconBucket from '../shared/BucketIcon.svelte';
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import IconGridView from 'virtual:icons/material-symbols/grid-view';
@@ -13,6 +14,7 @@
   import Tooltip from '$lib/components/Tooltip.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
+  import FloatingMenu from '../shared/FloatingMenu.svelte';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
   import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import { pinnedLabel, pinnedHref } from '$lib/storage/display-helpers.js';
@@ -81,8 +83,28 @@
   }
   beforeNavigate(closeUnpinMenu);
 
+  // ── Bucket details context menu ───────────────────────────────────────────
+  let bucketCtx = $state<{ x: number; y: number; bucket: string } | null>(null);
+
+  function openBucketContextMenu(e: MouseEvent, bucket: string) {
+    e.preventDefault();
+    bucketCtx = { x: e.clientX, y: e.clientY, bucket };
+  }
+
+  function closeBucketContextMenu() {
+    bucketCtx = null;
+  }
+
+  function openBucketDetails() {
+    if (bucketCtx) {
+      storage.openModal('details', { type: 'bucket', bucket: bucketCtx.bucket });
+      bucketCtx = null;
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if (unpinCtx && e.key === 'Escape') closeUnpinMenu();
+    if (bucketCtx && e.key === 'Escape') closeBucketContextMenu();
   }
 
   function handleUnpin() {
@@ -292,6 +314,7 @@
               onmouseleave={hideTooltip}
               onfocus={(e) => showTooltip(e, bucket)}
               onblur={hideTooltip}
+              oncontextmenu={(e) => openBucketContextMenu(e, bucket)}
               ondragover={(e) => handleSidebarDragOver(e, '')}
               ondragleave={handleSidebarDragLeave}
               ondrop={(e) => handleSidebarDrop(e, bucket, '')}
@@ -317,6 +340,22 @@
       </button>
     </form>
   </div>
+
+  <FloatingMenu
+    x={bucketCtx?.x ?? 0}
+    y={bucketCtx?.y ?? 0}
+    open={bucketCtx !== null}
+    onclose={closeBucketContextMenu}
+  >
+    <button
+      role="menuitem"
+      class="btn btn-ghost btn-sm w-full justify-start gap-2"
+      onclick={openBucketDetails}
+    >
+      <IconInfo class="size-4" aria-hidden="true" />
+      {m.storage_action_details()}
+    </button>
+  </FloatingMenu>
 
   <!-- Disconnect confirmation modal -->
   <Modal bind:open={disconnectConfirmOpen} class="modal">

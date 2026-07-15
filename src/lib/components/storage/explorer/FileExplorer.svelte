@@ -12,7 +12,6 @@
   import TabBar from './TabBar.svelte';
   import ObjectTable from './ObjectTable.svelte';
   import ContextMenu from './ContextMenu.svelte';
-  import StorageModals from '../modals/StorageModals.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
 
   const storage = getStorageState();
@@ -150,6 +149,3 @@
 {#if storage.contextMenu}
   <ContextMenu />
 {/if}
-
-<!-- Modals -->
-<StorageModals />

@@ -708,6 +708,22 @@ export class StorageState {
         return;
       }
 
+      case 'details': {
+        const targetKey = ctxKey ?? this.selectedFiles[0]?.key ?? this.selectedFolders[0]?.key;
+        if (!targetKey) {
+          addToast('warning', m.storage_action_preview_no_selection());
+          return;
+        }
+        const isDir = targetKey.endsWith('/');
+        this.openModal('details', {
+          type: isDir ? 'directory' : 'file',
+          bucket: this.bucket,
+          key: targetKey,
+          prefix: isDir ? targetKey : undefined
+        });
+        return;
+      }
+
       case 'copy-path': {
         const pathKey = ctxKey ?? this.selectedFiles[0]?.key;
         if (!pathKey) return;

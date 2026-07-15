@@ -7,6 +7,10 @@ import {
   HeadObjectCommand,
   DeleteObjectsCommand,
   PutObjectCommand,
+  GetBucketVersioningCommand,
+  GetBucketLifecycleConfigurationCommand,
+  GetBucketTaggingCommand,
+  GetBucketAclCommand,
   CopyObjectCommand,
   CreateMultipartUploadCommand,
   UploadPartCopyCommand,
@@ -18,6 +22,7 @@ import { Upload } from '@aws-sdk/lib-storage';
 import type { StorageProvider, ObjectDownload, DeleteObjectsResult } from './provider.js';
 import type { S3Config } from './types.js';
 import type { StoragePage, StorageObject, StorageMetadata } from '$lib/storage/types.js';
+import type { LifecycleRule, BucketAcl } from '$lib/storage/details-types.js';
 import { logger } from '$lib/server/logging';
 import { createS3Client } from './s3-client.js';
 import { mapS3ErrorToHttp } from './s3-errors.js';
@@ -157,7 +162,10 @@ export class S3StorageProvider implements StorageProvider {
           lastModified: output.LastModified ?? new Date(0),
           contentType: output.ContentType,
           etag: output.ETag,
-          customMetadata: output.Metadata
+          customMetadata: output.Metadata,
+          versionId: output.VersionId,
+          storageClass: output.StorageClass,
+          isDeleteMarker: output.DeleteMarker ?? false
         };
       },
       { bucket: this.bucket, key, operation: 'getMetadata' }
@@ -287,6 +295,143 @@ export class S3StorageProvider implements StorageProvider {
       );
     }
     return { failed: allFailed };
+  }
+
+  async getBucketVersioning(): Promise<'Enabled' | 'Suspended' | 'Disabled'> {
+    try {
+      const output = await this.client.send(
+        new GetBucketVersioningCommand({ Bucket: this.bucket })
+      );
+      if (output.Status === 'Enabled') return 'Enabled';
+      if (output.Status === 'Suspended') return 'Suspended';
+      return 'Disabled';
+    } catch {
+      return 'Disabled';
+    }
+  }
+
+  async getBucketLifecycleRules(): Promise<LifecycleRule[]> {
+    try {
+      const output = await this.client.send(
+        new GetBucketLifecycleConfigurationCommand({ Bucket: this.bucket })
+      );
+      return (output.Rules ?? []).map((rule) => {
+        const expiration = rule.Expiration;
+        const noncurrentExpiration = rule.NoncurrentVersionExpiration;
+        const abortMpu = rule.AbortIncompleteMultipartUpload;
+
+        return {
+          id: rule.ID ?? '',
+          status: rule.Status === 'Enabled' ? 'Enabled' : 'Disabled',
+          filter: (rule.Filter as Record<string, unknown>) ?? {},
+          transitions: (rule.Transitions ?? []).map((t) => ({
+            days: t.Days ?? 0,
+            storageClass: t.StorageClass ?? ''
+          })),
+          expirations: expiration
+            ? [
+                {
+                  days: expiration.Days,
+                  date: expiration.Date?.toISOString(),
+                  expiredObjectDeleteMarker: expiration.ExpiredObjectDeleteMarker
+                }
+              ]
+            : [],
+          noncurrentVersionTransitions: (rule.NoncurrentVersionTransitions ?? []).map((t) => ({
+            noncurrentDays: t.NoncurrentDays ?? 0,
+            storageClass: t.StorageClass ?? ''
+          })),
+          noncurrentVersionExpirations: noncurrentExpiration
+            ? [{ noncurrentDays: noncurrentExpiration.NoncurrentDays ?? 0 }]
+            : [],
+          abortIncompleteMultipartUploads: abortMpu
+            ? [{ daysAfterInitiation: abortMpu.DaysAfterInitiation ?? 0 }]
+            : []
+        };
+      });
+    } catch {
+      return [];
+    }
+  }
+
+  async getBucketAcl(): Promise<BucketAcl> {
+    try {
+      const output = await this.client.send(new GetBucketAclCommand({ Bucket: this.bucket }));
+      const owner = [output.Owner?.DisplayName, output.Owner?.ID].filter(Boolean).join(' / ');
+      const grants = (output.Grants ?? []).map((g) => ({
+        grantee:
+          g.Grantee?.DisplayName ??
+          g.Grantee?.EmailAddress ??
+          g.Grantee?.ID ??
+          g.Grantee?.URI ??
+          g.Grantee?.Type ??
+          'Unknown',
+        permission: g.Permission ?? 'Unknown'
+      }));
+      return { owner: owner || 'Unknown', grants };
+    } catch {
+      return { owner: 'Unknown', grants: [] };
+    }
+  }
+
+  async getBucketTags(): Promise<Record<string, string>> {
+    try {
+      const output = await this.client.send(new GetBucketTaggingCommand({ Bucket: this.bucket }));
+      const tags: Record<string, string> = {};
+      for (const tag of output.TagSet ?? []) {
+        if (tag.Key) tags[tag.Key] = tag.Value ?? '';
+      }
+      return tags;
+    } catch {
+      return {};
+    }
+  }
+
+  async listAllKeysProgressively(
+    prefix: string,
+    onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void
+  ): Promise<void> {
+    log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (progressive, concurrent)');
+
+    // Pipeline: while processing each page's results, the next page is already being
+    // fetched.  Each page's continuation token is only known after its predecessor
+    // completes, so we chain through `.then()` to keep one lookahead fetch in-flight.
+    const inFlight: Array<Promise<ListObjectsV2CommandOutput>> = [];
+
+    const fetchPage = (token?: string): Promise<ListObjectsV2CommandOutput> =>
+      this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          ContinuationToken: token
+        })
+      );
+
+    // Seed the first fetch
+    inFlight.push(fetchPage());
+
+    while (inFlight.length > 0) {
+      const output = await inFlight.shift()!;
+
+      const batch: Array<{ key: string; size: number; lastModified?: Date }> = [];
+      for (const obj of output.Contents ?? []) {
+        if (obj.Key) {
+          batch.push({ key: obj.Key, size: obj.Size ?? 0, lastModified: obj.LastModified });
+        }
+      }
+      if (batch.length > 0) {
+        onBatch(batch);
+      }
+
+      // If truncated, chain the next fetch so it starts while we process the
+      // current page's results (or already completes by the time we loop back).
+      if (output.IsTruncated && output.NextContinuationToken) {
+        const token = output.NextContinuationToken;
+        inFlight.push(fetchPage(token));
+      }
+    }
+
+    log.trace({ bucket: this.bucket, prefix }, 'progressive listing complete');
   }
 
   async listAllKeys(prefix: string): Promise<string[]> {

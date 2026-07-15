@@ -4,6 +4,7 @@ export type ModalType =
   | 'delete'
   | 'preview'
   | 'upload'
+  | 'details'
   | 'rename'
   | 'confirm-move'
   | 'resolve-conflicts'
@@ -18,6 +19,12 @@ export interface ModalPayloads {
     nestedArchivePath?: string;
   };
   upload: { bucket: string; prefix: string };
+  details: {
+    type: 'file' | 'directory' | 'bucket';
+    bucket: string;
+    key?: string;
+    prefix?: string;
+  };
   rename: { key: string };
   'confirm-move': {
     keys: string[];
@@ -76,6 +83,7 @@ export type ActionName =
   | 'unpin'
   | 'copy-filename'
   | 'copy-path'
+  | 'details'
   | 'cut'
   | 'copy'
   | 'paste'
@@ -175,6 +183,9 @@ export interface StorageMetadata {
   contentType: string | undefined;
   etag: string | undefined;
   customMetadata: Record<string, string> | undefined;
+  versionId?: string | undefined;
+  storageClass?: string | undefined;
+  isDeleteMarker?: boolean;
 }
 
 /** A page of listed objects from a storage provider. */

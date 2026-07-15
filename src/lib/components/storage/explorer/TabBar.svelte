@@ -261,8 +261,10 @@
             class="bg-base-100 border-base-300 relative z-30 flex shrink-0 items-center rounded-t-lg border border-b-0 px-3 py-1.5 shadow-sm"
             style="margin-right: -8px;"
           >
+            <!-- svelte-ignore a11y_autofocus -->
             <input
               type="text"
+              autofocus
               class="border-base-300 focus:border-primary h-4 w-24 rounded border bg-transparent px-1 py-0 text-xs focus:outline-none"
               bind:value={renameValue}
               bind:this={renameInput}

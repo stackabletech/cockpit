@@ -4,6 +4,7 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconVisibility from 'virtual:icons/material-symbols/visibility';
   import IconDownload from 'virtual:icons/material-symbols/download';
+  import IconInfo from 'virtual:icons/material-symbols/info';
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
   import IconPushPin from 'virtual:icons/material-symbols/push-pin';
   import IconDelete from 'virtual:icons/material-symbols/delete';
@@ -36,6 +37,10 @@
       (storage.contextMenu !== null && storage.ctxIsFile)
   );
   const canDownload = $derived(storage.selectedFiles.length > 0 || storage.ctxIsFile);
+  const canShowDetails = $derived(
+    storage.contextMenu !== null ||
+      (storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0)
+  );
 
   let menuEl = $state<HTMLUListElement | null>(null);
 
@@ -129,6 +134,13 @@
         icon: IconDownload as Component,
         label: m.storage_action_download(),
         disabled: !canDownload,
+        hidden: false
+      },
+      {
+        key: 'details' as ActionName,
+        icon: IconInfo as Component,
+        label: m.storage_action_details(),
+        disabled: !canShowDetails,
         hidden: false
       },
       {
