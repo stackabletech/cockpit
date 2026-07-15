@@ -1,8 +1,11 @@
 <script lang="ts">
   import IconBucket from '../shared/BucketIcon.svelte';
   import Tooltip from '$lib/components/Tooltip.svelte';
+  import IconInfo from 'virtual:icons/material-symbols/info';
   import * as m from '$lib/paraglide/messages.js';
   import { resolve } from '$app/paths';
+  import { getStorageState } from '$lib/storage/context.js';
+  import FloatingMenu from '../shared/FloatingMenu.svelte';
 
   interface Props {
     buckets?: string[];
@@ -13,7 +16,40 @@
   let tooltipText = $state<string | null>(null);
   let tooltipX = $state(0);
   let tooltipY = $state(0);
+  const storage = getStorageState();
+
+  let ctxMenu = $state<{ x: number; y: number; bucket: string } | null>(null);
+
+  function openDetails(bucket: string) {
+    storage.openModal('details', { type: 'bucket', bucket });
+    ctxMenu = null;
+  }
+
+  function handleContextMenu(e: MouseEvent, bucket: string) {
+    e.preventDefault();
+    ctxMenu = { x: e.clientX, y: e.clientY, bucket };
+  }
+
+  function closeContextMenu() {
+    ctxMenu = null;
+  }
 </script>
+
+<FloatingMenu
+  x={ctxMenu?.x ?? 0}
+  y={ctxMenu?.y ?? 0}
+  open={ctxMenu !== null}
+  onclose={closeContextMenu}
+>
+  <button
+    role="menuitem"
+    class="btn btn-ghost btn-sm w-full justify-start gap-2"
+    onclick={() => ctxMenu && openDetails(ctxMenu.bucket)}
+  >
+    <IconInfo class="size-4" aria-hidden="true" />
+    {m.storage_action_details()}
+  </button>
+</FloatingMenu>
 
 {#if buckets.length > 0}
   <div
@@ -36,6 +72,7 @@
             gap-2 rounded-xl border p-4
             text-center transition-colors
           "
+        oncontextmenu={(e) => handleContextMenu(e, bucket)}
         onmouseenter={(e) => {
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
           tooltipText = bucket;

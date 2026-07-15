@@ -1,6 +1,14 @@
 // ── Modal types ─────────────────────────────────────────────────────────────
 
-export type ModalType = 'delete' | 'preview' | 'upload';
+export type ModalType =
+  | 'delete'
+  | 'preview'
+  | 'upload'
+  | 'details'
+  | 'rename'
+  | 'confirm-move'
+  | 'resolve-conflicts'
+  | 'create';
 
 export interface ModalPayloads {
   delete: { keys: string[] };
@@ -11,6 +19,36 @@ export interface ModalPayloads {
     nestedArchivePath?: string;
   };
   upload: { bucket: string; prefix: string };
+  details: {
+    type: 'file' | 'directory' | 'bucket';
+    bucket: string;
+    key?: string;
+    prefix?: string;
+  };
+  rename: { key: string };
+  'confirm-move': {
+    keys: string[];
+    destPrefix: string;
+    /** Per-item metadata for display in the confirmation dialog. */
+    items: Array<{ key: string; name: string; isDirectory: boolean; size?: number }>;
+  };
+  'resolve-conflicts': {
+    /** Conflict entries to resolve. */
+    entries: Array<{
+      id: string;
+      originalName: string;
+      conflict: boolean;
+      resolution: 'replace' | 'skip' | 'rename' | null;
+      customName: string;
+      renameState: 'idle' | 'editing' | 'checking' | 'ok' | 'conflict';
+    }>;
+    bucket: string;
+    /** Destination prefix for rename-conflict checking. */
+    destPrefix: string;
+    /** Optional: label for the confirm button (e.g. "Paste" or "Move"). */
+    confirmLabel?: string;
+  };
+  create: { type: 'file' | 'folder' };
 }
 
 export type ActiveModal = {
@@ -22,7 +60,8 @@ export type ActiveModal = {
 export interface ContextMenuState {
   x: number;
   y: number;
-  key: string;
+  /** The item key that was right-clicked, or undefined for empty-space context menu. */
+  key?: string;
 }
 
 // ── Navigation ───────────────────────────────────────────────────────────────
@@ -43,7 +82,60 @@ export type ActionName =
   | 'pin'
   | 'unpin'
   | 'copy-filename'
-  | 'copy-path';
+  | 'copy-path'
+  | 'details'
+  | 'cut'
+  | 'copy'
+  | 'paste'
+  | 'rename'
+  | 'create-file'
+  | 'create-folder';
+
+// ── Clipboard state (cut / copy) ────────────────────────────────────────────
+
+/** Tracks items stored in the virtual clipboard for cut/copy + paste operations. */
+export interface ClipboardState {
+  /** 'cut' items are rendered shaded; 'copy' items are not. */
+  action: 'cut' | 'copy';
+  /** S3 keys of the items in the clipboard. */
+  keys: string[];
+  /** Bucket the items belong to. */
+  sourceBucket: string;
+  /** Prefix where the items were cut from (used to invalidate source tabs). */
+  sourcePrefix: string;
+  /** File sizes keyed by S3 key (for recent files tracking). */
+  fileSizes: Record<string, number>;
+}
+
+// ── Operations (paste / move / rename progress tracking) ─────────────────────
+
+export type OperationStatus = 'running' | 'done' | 'error' | 'cancelled' | 'interrupted';
+
+export type OperationType = 'paste' | 'move' | 'rename' | 'delete';
+
+export interface StorageOperation {
+  id: string;
+  label: string;
+  status: OperationStatus;
+  type: OperationType;
+  itemCount: number;
+  completedCount: number;
+  errorMessage?: string;
+  startedAt: number;
+  completedAt?: number;
+  /** Destination bucket/path for paste, move, and rename operations. */
+  destPath?: string;
+  /** Source file names being processed (shown while running). */
+  sourceNames?: string[];
+  /** Total bytes across all items in this operation. */
+  totalBytes: number;
+  /** Bytes transferred so far (sum of completed items). */
+  completedBytes: number;
+  /** Name of the file currently being transferred. */
+  currentFileName?: string;
+  /** Server-side job IDs per file for recovering results after reload. */
+  fileJobIds?: string[];
+}
 
 // ── Storage locations ────────────────────────────────────────────────────────
 
@@ -91,6 +183,9 @@ export interface StorageMetadata {
   contentType: string | undefined;
   etag: string | undefined;
   customMetadata: Record<string, string> | undefined;
+  versionId?: string | undefined;
+  storageClass?: string | undefined;
+  isDeleteMarker?: boolean;
 }
 
 /** A page of listed objects from a storage provider. */

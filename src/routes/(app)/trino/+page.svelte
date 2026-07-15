@@ -20,6 +20,7 @@
   } from '$lib/editor/split-statements.js';
   import type { PageData } from './$types';
   import StatementResult from '$lib/components/trino/StatementResult.svelte';
+  import { getLocale } from '$lib/paraglide/runtime.js';
 
   let { data }: { data: PageData } = $props();
 
@@ -694,7 +695,9 @@
           <span class="text-base-content/60 text-sm font-medium">{m.trino_editor_label()}</span>
           {#if charLimitReached}
             <span class="text-warning text-xs" role="status"
-              >{m.trino_editor_char_limit_reached({ limit: MAX_SQL_LENGTH.toLocaleString() })}</span
+              >{m.trino_editor_char_limit_reached({
+                limit: MAX_SQL_LENGTH.toLocaleString(getLocale())
+              })}</span
             >
           {/if}
         </div>
@@ -859,7 +862,7 @@
           {#if runner.progress.processedRows > 0 || runner.progress.elapsedTimeMillis > 0}
             <span class="text-base-content/60 text-xs">
               {m.trino_progress_info({
-                rows: runner.progress.processedRows.toLocaleString(),
+                rows: runner.progress.processedRows.toLocaleString(getLocale()),
                 elapsed: (runner.progress.elapsedTimeMillis / 1000).toFixed(1)
               })}
             </span>
