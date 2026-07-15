@@ -1,6 +1,5 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
-  import IconBucket from '$lib/components/storage/shared/BucketIcon.svelte';
   import IconWarning from 'virtual:icons/material-symbols/warning';
   import IconInfo from 'virtual:icons/material-symbols/info';
   import IconPerson from 'virtual:icons/material-symbols/person';
@@ -64,13 +63,6 @@
 </script>
 
 <div class="flex flex-col gap-4">
-  <div class="flex items-center gap-3">
-    <IconBucket class="text-warning size-8 shrink-0" aria-hidden="true" />
-    <div class="min-w-0">
-      <p class="truncate font-medium">{bucket}</p>
-    </div>
-  </div>
-
   {#if loading}
     <div class="flex items-center justify-center py-8">
       <span class="loading loading-spinner loading-md text-primary" aria-hidden="true"></span>

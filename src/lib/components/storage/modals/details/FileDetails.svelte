@@ -40,7 +40,7 @@
         <td class="text-base-content/60 font-medium whitespace-nowrap"
           >{m.storage_details_last_modified()}</td
         >
-        <td><TimestampDisplay date={details.lastModified} /></td>
+        <td><TimestampDisplay date={details.lastModified} showFullTimestamp={true} /></td>
       </tr>
       {#if details.contentType}
         <tr>

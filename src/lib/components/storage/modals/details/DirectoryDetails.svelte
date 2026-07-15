@@ -1,7 +1,6 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import IconCalculate from 'virtual:icons/material-symbols/calculate';
-  import IconFolderOpen from 'virtual:icons/material-symbols/folder-open';
   import IconWarning from 'virtual:icons/material-symbols/warning';
   import { formatFileSize, keyToName } from '$lib/storage/utils.js';
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
@@ -25,7 +24,6 @@
   let { key: objectKey, bucket }: Props = $props();
 
   const prefix = $derived(objectKey.endsWith('/') ? objectKey : objectKey + '/');
-  const name = $derived(objectKey.split('/').filter(Boolean).pop() ?? objectKey);
 
   let tab: 'composition' | 'contents' = $state('composition');
   let depth = $state(1);
@@ -142,14 +140,6 @@
 </script>
 
 <div class="flex flex-col gap-4">
-  <div class="flex items-center gap-3">
-    <IconFolderOpen class="text-warning size-8 shrink-0" aria-hidden="true" />
-    <div class="min-w-0">
-      <p class="truncate font-medium">{name}</p>
-      <p class="text-base-content/50 text-xs">s3://{bucket}/{prefix}</p>
-    </div>
-  </div>
-
   {#if meta}
     <div class="overflow-x-auto">
       <table class="table-sm table">
