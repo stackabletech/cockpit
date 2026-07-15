@@ -8,20 +8,38 @@
 
   interface Props {
     data: TreemapNode;
+    fullWidth?: boolean;
   }
 
-  let { data }: Props = $props();
+  let { data, fullWidth = false }: Props = $props();
 
   // 1px margin on every side of each rect creates visible gaps between neighbours
   const MARGIN = 1;
   // Padding from a container edge inward to where its children start
   const PAD = 4;
-  const W = 600;
+  // H is fixed; W is measured from the container so the layout recalculates
+  // for the actual rendered width rather than just scaling the SVG.
   const H = 400;
+
+  let containerEl = $state<HTMLDivElement | null>(null);
+  let containerWidth = $state(0);
+
+  // In fullWidth mode, recalculate the layout for the real container width.
+  // In normal mode the SVG is constrained to max-w-150 (600 px) so W=600.
+  const W = $derived(fullWidth && containerWidth > 4 ? containerWidth : 600);
+
+  $effect(() => {
+    if (!containerEl || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      containerWidth = Math.round(entries[0].contentRect.width);
+    });
+    ro.observe(containerEl);
+    return () => ro.disconnect();
+  });
 
   // Maximum number of file (leaf) nodes to render; the smallest ones are
   // grouped per their immediate parent directory into a single “N more” node.
-  const MAX_VISIBLE_LEAVES = 100;
+  const MAX_VISIBLE_LEAVES = 30;
 
   const containerFills = [
     'fill-primary/8',
@@ -235,26 +253,28 @@
   }
 </script>
 
-<div class="w-full overflow-x-auto">
+<div class="w-full overflow-x-auto" bind:this={containerEl}>
   <svg
     viewBox="0 0 {W} {H}"
-    class="bg-base-200 w-full max-w-150 rounded"
+    class="bg-base-200 w-full {fullWidth ? '' : 'max-w-150'} rounded"
     role="img"
     aria-label={m.storage_details_treemap_aria()}
   >
     <defs>
       {#each rects as rect (rect.x + '-' + rect.y + '-' + rect.w + '-' + rect.h)}
-        {#if !rect.isContainer && rect.w > 40 && rect.h > 20}
+        {#if !rect.isContainer && rect.w > 40 && rect.h > 14}
           <linearGradient id="fg-{rect.x}-{rect.y}" x1="0" y1="0" x2="1" y2="0">
             <stop offset="60%" stop-color="#fff" />
             <stop offset="100%" stop-color="#fff" stop-opacity="0" />
           </linearGradient>
           <mask id="fm-{rect.x}-{rect.y}">
+            <!-- Full inner-rect height so the gradient only fades horizontally,
+                 never clips text vertically. -->
             <rect
               x={rect.x + MARGIN + 4}
-              y={rect.y + MARGIN + 10}
+              y={rect.y + MARGIN}
               width={Math.max(rect.w - 2 * MARGIN - 8, 1)}
-              height={Math.max(rect.h - 2 * MARGIN - 14, 1)}
+              height={Math.max(rect.h - 2 * MARGIN, 1)}
               fill="url(#fg-{rect.x}-{rect.y})"
             />
           </mask>
@@ -282,41 +302,43 @@
           rx={rect.isContainer ? 1 : 2}
         />
         {#if !rect.isContainer && rect.w > 40}
-          {#if rect.h > 34}
+          {@const ih = rect.h - 2 * MARGIN}
+          {#if ih >= 15}
+            <!--
+              Text layout (TOP_PAD = 3, line height ≈ 13):
+                name  (11px) at y+MARGIN+3  → bottom ≈ y+MARGIN+14
+                path   (9px) at y+MARGIN+16 → bottom ≈ y+MARGIN+25  (only if ih≥38)
+                size  (10px) at y+MARGIN+27 → bottom ≈ y+MARGIN+37  (3-line)
+                  or   at y+MARGIN+16 → bottom ≈ y+MARGIN+26        (2-line, ih≥27)
+            -->
             <g mask="url(#fm-{rect.x}-{rect.y})">
               <text
                 x={rect.x + MARGIN + 4}
-                y={rect.y + MARGIN + 12}
+                y={rect.y + MARGIN + 3}
                 class="fill-base-content text-[11px] font-medium"
                 dominant-baseline="hanging">{rect.name}</text
               >
-              <text
-                x={rect.x + MARGIN + 4}
-                y={rect.y + MARGIN + 24}
-                class="fill-base-content/45 text-[9px]"
-                dominant-baseline="hanging">{rect.path || './'}</text
-              >
-              <text
-                x={rect.x + MARGIN + 4}
-                y={rect.y + MARGIN + 36}
-                class="fill-base-content/70 text-[10px]"
-                dominant-baseline="hanging">{formatFileSize(rect.size)}</text
-              >
-            </g>
-          {:else if rect.h > 20}
-            <g mask="url(#fm-{rect.x}-{rect.y})">
-              <text
-                x={rect.x + MARGIN + 4}
-                y={rect.y + MARGIN + 14}
-                class="fill-base-content text-[11px] font-medium"
-                dominant-baseline="hanging">{rect.name}</text
-              >
-              <text
-                x={rect.x + MARGIN + 4}
-                y={rect.y + MARGIN + 28}
-                class="fill-base-content/70 text-[10px]"
-                dominant-baseline="hanging">{formatFileSize(rect.size)}</text
-              >
+              {#if ih >= 38}
+                <text
+                  x={rect.x + MARGIN + 4}
+                  y={rect.y + MARGIN + 16}
+                  class="fill-base-content/45 text-[9px]"
+                  dominant-baseline="hanging">{rect.path || './'}</text
+                >
+                <text
+                  x={rect.x + MARGIN + 4}
+                  y={rect.y + MARGIN + 27}
+                  class="fill-base-content/70 text-[10px]"
+                  dominant-baseline="hanging">{formatFileSize(rect.size)}</text
+                >
+              {:else if ih >= 27}
+                <text
+                  x={rect.x + MARGIN + 4}
+                  y={rect.y + MARGIN + 16}
+                  class="fill-base-content/70 text-[10px]"
+                  dominant-baseline="hanging">{formatFileSize(rect.size)}</text
+                >
+              {/if}
             </g>
           {/if}
         {/if}

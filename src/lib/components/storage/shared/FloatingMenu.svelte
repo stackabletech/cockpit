@@ -11,11 +11,13 @@
 
   let { x, y, open, onclose, children }: Props = $props();
 
-  // Portal action: moves the element to document.body so it escapes any
-  // ancestor overflow/transform constraints (e.g. inside <dialog> or modal-box).
+  // Portal action: moves the element into the currently open <dialog> so it
+  // stays within the browser's top layer (which renders above the modal
+  // backdrop). Falling back to document.body for non-dialog usage.
   function portal(node: HTMLElement) {
     if (typeof document === 'undefined') return {};
-    document.body.appendChild(node);
+    const target = document.querySelector('dialog[open]') ?? document.body;
+    target.appendChild(node);
     return {
       destroy() {
         try {
