@@ -22,13 +22,23 @@ jobs:
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version-file: '.node-version'
-          cache: 'npm'
+
+      - name: Enable pnpm via corepack
+        run: corepack enable pnpm
+
+      - name: Cache pnpm store
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Compile Paraglide messages
-        run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
+        run: pnpm dlx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
 
       - name: Install hadolint
         run: |
@@ -74,13 +84,23 @@ jobs:
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version-file: '.node-version'
-          cache: 'npm'
+
+      - name: Enable pnpm via corepack
+        run: corepack enable pnpm
+
+      - name: Cache pnpm store
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox
+        run: pnpm dlx playwright install --with-deps chromium firefox
 
       - name: Run E2E tests
-        run: npm run test:e2e
+        run: pnpm run test:e2e

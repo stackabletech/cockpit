@@ -43,18 +43,18 @@ repos:
 
   - repo: local
     hooks:
-      - id: npm-lint
-        name: npm lint (prettier + eslint)
+      - id: pnpm-lint
+        name: pnpm lint (prettier + eslint)
         language: system
-        entry: npm run lint
+        entry: pnpm run lint
         stages: [pre-commit, pre-merge-commit]
         pass_filenames: false
         files: \.(svelte|ts|js|css|html|json|md)$
 
-      - id: npm-check
-        name: npm check (svelte-check)
+      - id: pnpm-check
+        name: pnpm check (svelte-check)
         language: system
-        entry: npm run check
+        entry: pnpm run check
         stages: [pre-commit, pre-merge-commit]
         pass_filenames: false
         files: \.(svelte|ts|js)$

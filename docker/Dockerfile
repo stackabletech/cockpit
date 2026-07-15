@@ -31,7 +31,8 @@ RUN NODEJS_VERSION=$(cat /tmp/.node-version) && \
     microdnf install -y curl tar gzip && \
     microdnf clean all && \
     curl -fsSL "https://nodejs.org/dist/v${NODEJS_VERSION}/node-v${NODEJS_VERSION}-linux-${NODEJS_ARCH}.tar.gz" \
-        | tar -xzf - --strip-components=1 -C /usr/local
+        | tar -xzf - --strip-components=1 -C /usr/local && \
+    corepack enable pnpm
 
 #
 # Build stage - compiles the SvelteKit application with full dependencies
@@ -43,13 +44,13 @@ ARG VERSION
 WORKDIR /build
 
 # Copy package files for dependency installation
-COPY package.json package-lock.json .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 
-# Copy ANTLR grammar so the prepare script can generate TypeScript files during npm ci
+# Copy ANTLR grammar so the prepare script can generate TypeScript files during pnpm install
 COPY src/lib/editor/grammar/ ./src/lib/editor/grammar/
 
 # Install all dependencies (including dev dependencies for build)
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 
 # Copy source code and configuration files
 COPY src/ ./src/
@@ -63,7 +64,7 @@ COPY svelte.config.js tsconfig.json vite.config.ts ./
 # builder stage.
 RUN STACKABLE_COCKPIT_SESSION_SECRET="build-time-placeholder" \
     STACKABLE_COCKPIT_BASE_URL="http://localhost:3000" \
-    npm run build
+    pnpm run build
 
 #
 # Production dependencies stage - clean prod-only install
@@ -72,19 +73,19 @@ FROM base AS prod-deps
 
 WORKDIR /build
 
-COPY package.json package-lock.json .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 
 # Install only production dependencies; --ignore-scripts skips the prepare script
 # (which would fail because antlr-ng is a devDependency and not available here)
-RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --ignore-scripts
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --prod --ignore-scripts
 
 #
 # SBOM stage - generate CycloneDX from the clean prod-only dependency tree
 #
 FROM prod-deps AS sbom
 
-RUN npm ls --omit=dev && \
-    npx @cyclonedx/cyclonedx-npm --omit dev --output-file /build/cockpit.cdx.json
+RUN pnpm ls --prod && \
+    pnpm dlx @cyclonedx/cdxgen -t pnpm -o /build/cockpit.cdx.json
 
 #
 # Production stage - minimal runtime image
