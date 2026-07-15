@@ -2,9 +2,11 @@ import { S3ServiceException } from '@aws-sdk/client-s3';
 import { mapS3ErrorToHttp } from '$lib/server/storage/s3-errors.js';
 import { getProvider } from '$lib/server/storage/utils.js';
 import { getParquetPreview } from '$lib/server/storage/preview/parquet';
+import { getCsvPreview } from '$lib/server/storage/preview/csv';
 import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
 import { requireBucketKey } from '../params.js';
+import { infiniteScrollEnabled, filePreviewRows } from '$lib/server/feature-flags';
 import type { RequestHandler } from './$types';
 
 /**
@@ -31,9 +33,15 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       rawContentType === 'application/x-parquet' ||
       lowerKey.endsWith('.parquet');
 
-    const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
-    const limit = parseInt(url.searchParams.get('limit') ?? '250', 10);
+    let offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
+    let limit = parseInt(url.searchParams.get('limit') ?? '250', 10);
     const includeData = url.searchParams.get('data') === 'true';
+
+    // When infinite scroll is disabled, restrict to the first page only (no chunked loading)
+    if (!infiniteScrollEnabled) {
+      offset = 0;
+      limit = Math.min(limit, filePreviewRows);
+    }
 
     if (isParquet) {
       return await getParquetPreview(provider, key, offset, limit, log, totalSize, includeData);
@@ -54,6 +62,29 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     if (rawContentType === 'application/vnd.ms-excel') {
       if (lowerKey.endsWith('.csv')) contentType = 'text/csv';
       else if (lowerKey.endsWith('.tsv')) contentType = 'text/tab-separated-values';
+    }
+
+    // CSV files — use row-based NDJSON streaming (regardless of flag, so the
+    // client always receives structured data). The offset/limit cap above
+    // restricts chunked loading when the feature is disabled.
+    const isCsv =
+      contentType === 'text/csv' ||
+      contentType === 'application/csv' ||
+      contentType === 'text/tab-separated-values' ||
+      lowerKey.endsWith('.csv') ||
+      lowerKey.endsWith('.tsv');
+
+    if (isCsv) {
+      return await getCsvPreview(
+        provider,
+        key,
+        offset,
+        limit,
+        contentType,
+        totalSize,
+        log,
+        includeData
+      );
     }
 
     // Pass a placeholder user identifier for logging purposes (no longer user-specific)

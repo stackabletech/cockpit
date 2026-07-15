@@ -13,6 +13,7 @@ import { logger } from '$lib/server/logging';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
 import {
   parquetDisallowedCompression,
+  infiniteScrollEnabled,
   type ParquetDisallowedCompression
 } from '$lib/server/feature-flags';
 
@@ -448,6 +449,7 @@ export async function getParquetPreview(
         'Content-Type': 'application/x-ndjson',
         'X-Preview-Format': 'parquet',
         'X-Preview-Renderable': 'true',
+        'X-Preview-Infinite-Scroll': String(infiniteScrollEnabled),
         'X-Preview-Data-Blocked': 'false',
         'X-Preview-Total-Size': '0',
         'X-Preview-Total-Rows': '0',
@@ -526,6 +528,7 @@ export async function getParquetPreview(
           'Content-Type': 'application/x-ndjson',
           'X-Preview-Format': 'parquet',
           'X-Preview-Renderable': 'true',
+          'X-Preview-Infinite-Scroll': String(infiniteScrollEnabled),
           ...extraHeaders,
           'X-Preview-Total-Size': String(byteLength),
           'X-Preview-Total-Rows': String(totalRows),
@@ -546,6 +549,7 @@ export async function getParquetPreview(
           'Content-Type': 'application/x-ndjson',
           'X-Preview-Format': 'parquet',
           'X-Preview-Renderable': 'true',
+          'X-Preview-Infinite-Scroll': String(infiniteScrollEnabled),
           'X-Preview-Truncated': 'false',
           'X-Preview-Total-Size': String(byteLength),
           'X-Preview-Total-Rows': String(totalRows),
@@ -714,6 +718,7 @@ export async function getParquetPreview(
       'Content-Type': 'application/x-ndjson',
       'X-Preview-Format': 'parquet',
       'X-Preview-Renderable': 'true',
+      'X-Preview-Infinite-Scroll': String(infiniteScrollEnabled),
       'X-Preview-Truncated': String(truncated),
       'X-Preview-Total-Size': String(byteLength),
       'X-Preview-Total-Rows': String(totalRows),

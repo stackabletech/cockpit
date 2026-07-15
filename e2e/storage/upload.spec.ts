@@ -83,11 +83,13 @@ test.describe('Storage S3 — Upload', () => {
       await expect(page.getByRole('heading', { name: textFixture.name })).toBeVisible();
       await expect(page.getByText(textFixture.expectedSnippet)).toBeVisible();
       await page.getByRole('button', { name: 'Close' }).first().click();
+      await expect(page.getByRole('heading', { name: textFixture.name })).not.toBeVisible();
 
       await rowByName(page, csvFixture.name).dblclick();
       await expect(page.getByRole('heading', { name: csvFixture.name })).toBeVisible();
       await expect(page.getByText(csvFixture.expectedCell)).toBeVisible();
       await page.getByRole('button', { name: 'Close' }).first().click();
+      await expect(page.getByRole('heading', { name: csvFixture.name })).not.toBeVisible();
 
       await rowByName(page, imageFixture.name).dblclick();
       await expect(page.getByRole('heading', { name: imageFixture.name })).toBeVisible();

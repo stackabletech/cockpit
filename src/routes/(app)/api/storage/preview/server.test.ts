@@ -15,6 +15,29 @@ vi.mock('$lib/server/storage/preview/stream.js', () => ({
   streamPreview: vi.fn(async () => new Response('preview content'))
 }));
 
+vi.mock('$lib/server/feature-flags', () => ({
+  infiniteScrollEnabled: false,
+  filePreviewRows: 250,
+  textPreviewBytes: 262144,
+  imagePreviewBytes: 5242880,
+  pdfPreviewBytes: 26214400,
+  archivePreviewMaxBytes: 104857600,
+  maxEditableFileSize: 5242880,
+  parquetDisallowedCompression: [],
+  completionEnabled: true,
+  storageBrowserEnabled: true
+}));
+
+vi.mock('$lib/server/storage/preview/csv.js', () => ({
+  getCsvPreview: vi.fn(async () => {
+    const body =
+      JSON.stringify({ t: 'h', h: ['a', 'b'] }) + '\n' + JSON.stringify({ t: 'd' }) + '\n';
+    return new Response(body, {
+      headers: { 'X-Preview-Format': 'csv', 'X-Preview-Renderable': 'true' }
+    });
+  })
+}));
+
 vi.mock('$lib/server/storage/preview/parquet.js', () => ({
   getParquetPreview: vi.fn(async () => {
     const body = JSON.stringify({ headers: ['a'], rows: [['1']], totalRows: 1 });
@@ -34,6 +57,7 @@ import { GET } from './+server.js';
 import { binaryPreview } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
 import { getParquetPreview } from '$lib/server/storage/preview/parquet.js';
+import { getCsvPreview } from '$lib/server/storage/preview/csv.js';
 import { mapS3ErrorToHttp } from '$lib/server/storage/s3-errors.js';
 
 const CONNECTION_HEADER = {
@@ -69,13 +93,15 @@ describe('GET /api/storage/preview', () => {
 
     await GET(mockEvent('bucket=b1&key=data.csv'));
 
-    expect(streamPreview).toHaveBeenCalledWith(
+    expect(getCsvPreview).toHaveBeenCalledWith(
       expect.anything(),
       'data.csv',
+      0,
+      250,
       'text/csv',
       100,
-      'client',
-      expect.anything()
+      expect.anything(),
+      false
     );
   });
 
@@ -84,13 +110,15 @@ describe('GET /api/storage/preview', () => {
 
     await GET(mockEvent('bucket=b1&key=data.tsv'));
 
-    expect(streamPreview).toHaveBeenCalledWith(
+    expect(getCsvPreview).toHaveBeenCalledWith(
       expect.anything(),
       'data.tsv',
+      0,
+      250,
       'text/tab-separated-values',
       200,
-      'client',
-      expect.anything()
+      expect.anything(),
+      false
     );
   });
 
@@ -117,13 +145,15 @@ describe('GET /api/storage/preview', () => {
 
     await GET(mockEvent('bucket=b1&key=data.tsv'));
 
-    expect(streamPreview).toHaveBeenCalledWith(
+    expect(getCsvPreview).toHaveBeenCalledWith(
       expect.anything(),
       'data.tsv',
+      0,
+      250,
       'text/tab-separated-values',
       150,
-      'client',
-      expect.anything()
+      expect.anything(),
+      false
     );
   });
 
@@ -135,13 +165,15 @@ describe('GET /api/storage/preview', () => {
 
     await GET(mockEvent('bucket=b1&key=report.tsv'));
 
-    expect(streamPreview).toHaveBeenCalledWith(
+    expect(getCsvPreview).toHaveBeenCalledWith(
       expect.anything(),
       'report.tsv',
+      0,
+      250,
       'application/octet-stream',
       75,
-      'client',
-      expect.anything()
+      expect.anything(),
+      false
     );
   });
 
@@ -200,7 +232,7 @@ describe('GET /api/storage/preview', () => {
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
 
-  it('passes offset and limit query params to getParquetPreview', async () => {
+  it('resets offset and caps limit when infinite scroll is disabled', async () => {
     mockGetMetadata.mockResolvedValue({
       contentType: 'application/x-parquet',
       size: 50000
@@ -211,7 +243,7 @@ describe('GET /api/storage/preview', () => {
     expect(getParquetPreview).toHaveBeenCalledWith(
       expect.anything(),
       'large.parquet',
-      500,
+      0,
       100,
       expect.anything(),
       50000,
