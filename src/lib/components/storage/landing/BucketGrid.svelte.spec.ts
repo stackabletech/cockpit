@@ -63,8 +63,10 @@ describe('BucketGrid', () => {
     const buckets = ['tooltip-bucket'];
     render(BucketGridWrapper, { state: createState(), buckets });
 
-    const tooltip = page.getByText('tooltip-bucket').element().closest('[data-tip]');
-    expect(tooltip?.getAttribute('data-tip')).toBe('tooltip-bucket');
+    await page.getByText('tooltip-bucket').hover();
+
+    const tooltip = page.getByRole('tooltip');
+    await expect.element(tooltip).toHaveTextContent('tooltip-bucket');
   });
 
   it('should render a large number of buckets', async () => {
