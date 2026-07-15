@@ -15,15 +15,17 @@
   import BucketGrid from '$lib/components/storage/landing/BucketGrid.svelte';
   import StorageConnectForm from '$lib/components/storage/landing/StorageConnectForm.svelte';
   import RecentItems from '$lib/components/storage/landing/RecentItems.svelte';
+  import AddBucketModal from '$lib/components/storage/landing/AddBucketModal.svelte';
+  import IconAdd from 'virtual:icons/material-symbols/add';
 
   let { data } = $props();
   const storage = getStorageState();
 
+  let addBucketOpen = $state(false);
+
   const connectError = $derived<string | null>(
     (page.form as { error?: string } | null)?.error ?? null
   );
-
-  // ── Restore-tabs banner ───────────────────────────────────────────────────
 
   let savedTabs = $state<PersistedTabsState | null>(null);
 
@@ -35,8 +37,6 @@
       if (!raw) return;
       const parsed = JSON.parse(raw) as PersistedTabsState;
       if (!Array.isArray(parsed?.tabs) || parsed.tabs.length <= 1) return;
-      // If the saved data carries a connectionId that differs from the current
-      // connection, do not offer restore (tabs are from a different connection).
       if (
         parsed.connectionId &&
         storage.connectionId &&
@@ -89,7 +89,6 @@
         <span class="loading loading-md loading-spinner text-primary" aria-hidden="true"></span>
       </div>
     {/if}
-
     {#if savedTabs}
       <div
         role="alert"
@@ -112,14 +111,27 @@
       </div>
     {/if}
 
-    <h1 class="mb-1 text-xl font-semibold">{m.storage_buckets_label()}</h1>
-
-    <p class="text-base-content/60 mb-6 text-sm">{m.storage_buckets_subtitle()}</p>
+    <div class="mb-6">
+      <div class="mb-1 flex items-center justify-between gap-4">
+        <h1 class="text-xl font-semibold">{m.storage_buckets_label()}</h1>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm shrink-0"
+          onclick={() => (addBucketOpen = true)}
+          aria-label={m.storage_add_bucket()}
+        >
+          <IconAdd class="size-4" aria-hidden="true" />
+          {m.storage_add_bucket()}
+        </button>
+      </div>
+      <p class="text-base-content/60 text-sm">{m.storage_buckets_subtitle()}</p>
+    </div>
     <BucketGrid buckets={storage.buckets} />
   </div>
   <div class="relative flex h-full min-h-0 flex-col overflow-y-auto p-2">
     <RecentItems />
   </div>
+  <AddBucketModal bind:open={addBucketOpen} />
 {:else if mounted}
   <StorageConnectForm
     connectionForm={data.connectionForm}

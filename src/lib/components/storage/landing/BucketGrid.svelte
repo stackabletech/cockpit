@@ -1,5 +1,6 @@
 <script lang="ts">
   import IconBucket from '../shared/BucketIcon.svelte';
+  import Tooltip from '$lib/components/Tooltip.svelte';
   import IconInfo from 'virtual:icons/material-symbols/info';
   import * as m from '$lib/paraglide/messages.js';
   import { resolve } from '$app/paths';
@@ -11,6 +12,10 @@
   }
 
   let { buckets = [] }: Props = $props();
+
+  let tooltipText = $state<string | null>(null);
+  let tooltipX = $state(0);
+  let tooltipY = $state(0);
   const storage = getStorageState();
 
   let ctxMenu = $state<{ x: number; y: number; bucket: string } | null>(null);
@@ -56,26 +61,34 @@
     "
   >
     {#each buckets as bucket (bucket)}
-      <div class="tooltip tooltip-bottom" data-tip={bucket}>
-        <a
-          href={resolve('/(app)/storage/[bucket]/[...prefix]', {
-            bucket: encodeURIComponent(bucket),
-            prefix: ''
-          })}
-          data-sveltekit-preload-data="off"
-          class="
-              border-base-300 bg-base-100 hover:border-primary hover:bg-primary/5 flex flex-col items-center
-              gap-2 rounded-xl border p-4
-              text-center transition-colors
-            "
-          oncontextmenu={(e) => handleContextMenu(e, bucket)}
-        >
-          <IconBucket class="text-warning size-10" aria-hidden="true" />
-          <span class="w-full truncate text-sm font-medium">{bucket}</span>
-        </a>
-      </div>
+      <a
+        href={resolve('/(app)/storage/[bucket]/[...prefix]', {
+          bucket: encodeURIComponent(bucket),
+          prefix: ''
+        })}
+        data-sveltekit-preload-data="off"
+        class="
+            border-base-300 bg-base-100 hover:border-primary hover:bg-primary/5 flex flex-col items-center
+            gap-2 rounded-xl border p-4
+            text-center transition-colors
+          "
+        oncontextmenu={(e) => handleContextMenu(e, bucket)}
+        onmouseenter={(e) => {
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          tooltipText = bucket;
+          tooltipX = rect.left + rect.width / 2;
+          tooltipY = rect.bottom;
+        }}
+        onmouseleave={() => {
+          tooltipText = null;
+        }}
+      >
+        <IconBucket class="text-warning size-10" aria-hidden="true" />
+        <span class="w-full truncate text-sm font-medium">{bucket}</span>
+      </a>
     {/each}
   </div>
+  <Tooltip text={tooltipText} x={tooltipX} y={tooltipY} orientation="down" />
 {:else}
   <p class="text-base-content/50 text-sm">{m.storage_buckets_empty()}</p>
 {/if}

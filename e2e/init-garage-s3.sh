@@ -43,6 +43,22 @@ json_find_bucket_id_by_alias() {
   ' "$bucket_name"
 }
 
+json_read_field_from_file() {
+  local file="$1"
+  local field="$2"
+
+  node -e '
+    const fs = require("fs");
+    try {
+      const data = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+      const value = process.argv[2].split(".").reduce((current, key) => current?.[key], data);
+      if (value !== undefined && value !== null) {
+        process.stdout.write(String(value));
+      }
+    } catch { /* file missing or invalid JSON — emit nothing */ }
+  ' "$file" "$field"
+}
+
 admin_post() {
   local path="$1"
   local payload="$2"
@@ -75,6 +91,19 @@ create_bucket() {
   admin_post '/v2/CreateBucket' "{\"globalAlias\":\"$bucket_name\"}"
 }
 
+# Creates a bucket with no global alias so it does not appear in S3 ListBuckets.
+create_hidden_bucket() {
+  admin_post '/v2/CreateBucket' '{}'
+}
+
+bucket_exists() {
+  local bucket_id="$1"
+
+  curl -fsS \
+    -H "Authorization: Bearer $GARAGE_ADMIN_TOKEN" \
+    "$GARAGE_ADMIN_URL/v2/GetBucketInfo?id=$bucket_id" >/dev/null 2>&1
+}
+
 allow_bucket_key() {
   local bucket_id="$1"
   local access_key_id="$2"
@@ -93,6 +122,18 @@ fi
 
 allow_bucket_key "$bucket_id" "$S3_ACCESS_KEY_ID" >/dev/null
 
+# Hidden bucket: no global alias so it is absent from S3 ListBuckets responses,
+# but the access key retains read and write (not owner) access.
+# Idempotent: reuse the bucket ID stored in an existing config file if the
+# bucket is still present in Garage; otherwise create a new one.
+hidden_bucket_id=$(json_read_field_from_file "$S3_CONFIG_PATH" 'hiddenBucketId')
+if [[ -z "$hidden_bucket_id" ]] || ! bucket_exists "$hidden_bucket_id"; then
+  hidden_bucket_response=$(create_hidden_bucket)
+  hidden_bucket_id=$(printf '%s' "$hidden_bucket_response" | json_get 'id')
+fi
+
+admin_post '/v2/AllowBucketKey' \
+  "{\"bucketId\":\"$hidden_bucket_id\",\"accessKeyId\":\"$S3_ACCESS_KEY_ID\",\"permissions\":{\"owner\":false,\"read\":true,\"write\":true}}" >/dev/null
 # ──────────────────────────────────────────────
 # Bucket enrichment: tags, lifecycle rules, sample data
 # ──────────────────────────────────────────────
@@ -191,6 +232,7 @@ cat > "$S3_CONFIG_PATH" <<EOF
   "awsAccessKeyId": "$S3_ACCESS_KEY_ID",
   "awsSecretAccessKey": "$S3_SECRET_ACCESS_KEY",
   "bucket": "$S3_BUCKET",
+  "hiddenBucketId": "$hidden_bucket_id",
   "garageAdminUrl": "$GARAGE_ADMIN_URL",
   "garageAdminToken": "$GARAGE_ADMIN_TOKEN"
 }

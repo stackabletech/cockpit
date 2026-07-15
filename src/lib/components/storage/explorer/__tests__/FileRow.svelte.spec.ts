@@ -124,13 +124,18 @@ describe('FileRow', () => {
     expect(spy).toHaveBeenCalledWith('click.txt', false);
   });
 
+  async function dblClickRow(): Promise<void> {
+    const row = page.getByRole('row').element();
+    row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+  }
+
   it('should call executeAction preview on double click', async () => {
     const file = makeFile({ key: 'dbl.txt', contentType: 'text/plain' });
     const state = createState([file]);
     const spy = vi.spyOn(state, 'executeAction');
     render(FileRowWrapper, { state, file });
 
-    await page.getByRole('row').dblClick();
+    await dblClickRow();
     expect(spy).toHaveBeenCalledWith('preview');
   });
 
@@ -140,7 +145,7 @@ describe('FileRow', () => {
     const spy = vi.spyOn(state, 'enterArchive');
     render(FileRowWrapper, { state, file });
 
-    await page.getByRole('row').dblClick({ force: true });
+    await dblClickRow();
     expect(spy).toHaveBeenCalledWith('archive.zip');
   });
 
@@ -150,7 +155,7 @@ describe('FileRow', () => {
     const spy = vi.spyOn(state, 'enterArchive');
     render(FileRowWrapper, { state, file });
 
-    await page.getByRole('row').dblClick({ force: true });
+    await dblClickRow();
     expect(spy).toHaveBeenCalledWith('bundle.tar.gz');
   });
 
@@ -162,7 +167,7 @@ describe('FileRow', () => {
     const spy = vi.spyOn(state, 'enterArchive');
     render(FileRowWrapper, { state, file });
 
-    await page.getByRole('row').dblClick({ force: true });
+    await dblClickRow();
     expect(spy).toHaveBeenCalledWith('nested.zip');
   });
 
@@ -174,7 +179,7 @@ describe('FileRow', () => {
     const spy = vi.spyOn(state, 'executeAction');
     render(FileRowWrapper, { state, file });
 
-    await page.getByRole('row').dblClick();
+    await dblClickRow();
     expect(spy).toHaveBeenCalledWith('preview');
   });
 
