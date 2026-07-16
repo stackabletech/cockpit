@@ -6,7 +6,7 @@
   import { navigating } from '$app/state';
   import { getStorageState } from '$lib/storage/context.js';
   import { TabsState } from '$lib/storage/tabs.svelte.js';
-  import { setTabsState } from '$lib/storage/tabs-context.js';
+  import { setTabsState } from '$lib/storage/context.js';
   import { storageRestoreTabsEnabled } from '$lib/client/feature-flags.js';
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import TabBar from './TabBar.svelte';

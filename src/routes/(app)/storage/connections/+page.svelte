@@ -9,7 +9,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import type { ConnectionListItem } from '$lib/storage/connection-store.svelte.js';
   import DeleteConnectionModal from '$lib/components/storage/modals/DeleteConnectionModal.svelte';
-  import type { SavedConnection } from '$lib/storage/connection-storage.js';
+  import type { SavedConnection } from '$lib/storage/connection-id-header.js';
 
   const connections = $derived<ConnectionListItem[]>(page.data.connections ?? []);
 

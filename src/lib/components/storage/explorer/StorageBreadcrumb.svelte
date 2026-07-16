@@ -15,7 +15,7 @@
   import IconAdd from 'virtual:icons/material-symbols/add';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { getTabsState } from '$lib/storage/tabs-context.js';
+  import { getTabsState } from '$lib/storage/context.js';
   import type { StorageLocation } from '$lib/storage/types.js';
   import { keyToName } from '$lib/storage/utils.js';
   import { invalidateAll } from '$app/navigation';

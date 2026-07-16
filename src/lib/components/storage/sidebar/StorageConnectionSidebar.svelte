@@ -10,7 +10,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import type { ConnectionMetadata } from '$lib/server/storage/types.js';
   import DeleteConnectionModal from '$lib/components/storage/modals/DeleteConnectionModal.svelte';
-  import type { SavedConnection } from '$lib/storage/connection-storage.js';
+  import type { SavedConnection } from '$lib/storage/connection-id-header.js';
 
   interface Props {
     /** List of saved connections from the server. */

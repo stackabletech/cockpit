@@ -16,7 +16,8 @@ vi.mock('$lib/client/feature-flags.js', () => ({
   storageMoveEnabled: true
 }));
 
-vi.mock('$lib/storage/connection-storage.js', () => ({
+vi.mock('$lib/storage/connection-id-header.js', () => ({
+  STORAGE_CONNECTION_ID_HEADER: 'x-storage-connection-id',
   STORAGE_CONNECTION_HEADER: 'x-storage-connection',
   loadConnectionLocally: vi.fn(() => ({ id: 'test-conn', type: 's3' })),
   getConnectionHeader: vi.fn(() => 'test-conn-header'),
