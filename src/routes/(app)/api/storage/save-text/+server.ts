@@ -1,5 +1,4 @@
 import { error } from '@sveltejs/kit';
-import { uploadObject } from '$lib/server/storage/service.js';
 import { getProvider } from '$lib/server/storage/utils.js';
 import { requireBucketKey } from '../params.js';
 import { maxEditableFileSize } from '$lib/server/feature-flags.js';
@@ -130,7 +129,12 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
     totalLength = totalEditBytes;
   }
 
-  await uploadObject(locals.storageConfig!, bucket, key, mergedBuffer, contentType, totalLength);
+  await getProvider(locals.storageConfig!, bucket).putObject(
+    key,
+    mergedBuffer,
+    contentType,
+    totalLength
+  );
 
   log.info({ bucket, key }, 'save-text completed');
 

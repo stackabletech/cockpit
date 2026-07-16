@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { extractArchiveEntry, getArchiveFormat } from '$lib/server/storage/archive.js';
-import { downloadObject, getObjectMetadata } from '$lib/server/storage/service.js';
+import { getProvider } from '$lib/server/storage/utils.js';
 import { archivePreviewMaxBytes } from '$lib/server/feature-flags.js';
 import type { RequestHandler } from './$types';
 
@@ -44,8 +44,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   );
 
   const downloadFn = (k: string) =>
-    downloadObject(locals.storageConfig!, bucket, k).then((d) => d.stream);
-  const metadataFn = (k: string) => getObjectMetadata(locals.storageConfig!, bucket, k);
+    getProvider(locals.storageConfig!, bucket)
+      .getObject(k)
+      .then((d) => d.stream);
+  const metadataFn = (k: string) => getProvider(locals.storageConfig!, bucket).getMetadata(k);
 
   const data = await extractArchiveEntry(
     bucket,

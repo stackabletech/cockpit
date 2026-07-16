@@ -1,4 +1,4 @@
-import { uploadObject } from '$lib/server/storage/service.js';
+import { getProvider } from '$lib/server/storage/utils.js';
 import type { RequestHandler } from '@sveltejs/kit';
 import { requireBucketKey } from '../params.js';
 
@@ -19,7 +19,7 @@ export const POST: RequestHandler = async ({ locals, url }) => {
 
   const contentType = key.endsWith('/') ? 'application/x-directory' : 'text/plain';
 
-  await uploadObject(locals.storageConfig!, bucket, key, Buffer.alloc(0), contentType, 0);
+  await getProvider(locals.storageConfig!, bucket).putObject(key, Buffer.alloc(0), contentType, 0);
 
   log.info({ bucket, key, content_type: contentType }, 'object created');
 
