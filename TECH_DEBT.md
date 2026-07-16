@@ -217,3 +217,77 @@ The upload endpoint imposes no maximum file size. S3's 5 TB single-object limit 
 **File:** `src/routes/healthz/+server.ts`, `deploy/helm/cockpit/values.yaml`
 
 Both `livenessProbe` and `readinessProbe` point at `/healthz`, which always returns 200. There is currently nothing meaningful to gate readiness on (better-auth uses an in-memory session store, OIDC discovery is fetched lazily on first auth call), so a separate `/readyz` would just be a placeholder. Once one of these lands — a real session store / DB, eager OIDC discovery, or a startup-time cache warm — split into `/healthz` (liveness, trivial) and `/readyz` (readiness, checking the new dependency), and update the helm probes accordingly.
+
+---
+
+## Architecture (Tracked by fitness functions in src/architecture/fitness.spec.ts)
+
+### Circular imports in the Trino server layer
+
+**Files:** `src/lib/server/trino/client.ts` ↔ `src/lib/server/trino/user-clients.ts` and `src/lib/server/trino/queries.ts` ↔ `src/lib/server/trino/result-collector.ts`
+
+Two pairs of circular imports exist in the Trino sub-layer. They cause unpredictable module initialisation order and block reliable tree-shaking. The fitness function `KNOWN VIOLATION — Trino layer has circular imports` documents this and will fail the moment the cycle count drops to zero (prompting removal of the exception).
+
+**Fix:** Extract shared interfaces (`TrinoQuery`, `QueryState`, etc.) into `src/lib/server/trino/types.ts`. Neither `client.ts` nor `user-clients.ts` should import from each other — both should import types from the new file.
+
+---
+
+### `state.svelte.ts` is too large (2 331 LOC)
+
+**File:** `src/lib/storage/state.svelte.ts`
+
+This single file contains the entire client-side storage state machine, all reactive derived values, and all event handlers. It is the primary obstacle to the 600-line LOC fitness function threshold. The fitness function currently allows up to 2 400 lines.
+
+**Fix:** Split into focused modules:
+
+- `state/selection.svelte.ts` — selected items, range-selection logic
+- `state/upload.svelte.ts` — upload job tracking
+- `state/navigation.svelte.ts` — current path, history
+- `state/operations.svelte.ts` — copy/move/delete operation state
+- `state/index.svelte.ts` — re-exports and glue
+
+---
+
+### `PreviewModal.svelte` is too large (1 065 LOC)
+
+**File:** `src/lib/components/storage/modals/PreviewModal.svelte`
+
+This Svelte component mixes routing logic, multiple preview renderers, and toolbar state in one file. The fitness function currently allows up to 1 100 lines.
+
+**Fix:** Extract preview renderers into separate child components (`CsvRenderer.svelte`, `ParquetRenderer.svelte`, `TextRenderer.svelte`, etc.) and pass the selected object as a prop.
+
+---
+
+### Pre-existing `<div onclick>` patterns (BITV 2.0 violation)
+
+**Files:**
+
+- `src/lib/components/catalog/CatalogTree.svelte` — tree node rows
+- `src/lib/components/storage/explorer/OperationsButton.svelte` — operation rows
+- `src/lib/components/storage/explorer/TabBar.svelte` — tab items
+- `src/lib/components/storage/shared/FloatingMenu.svelte` — portal overlay
+- `src/lib/components/trino/StatementResult.svelte` — result rows
+
+Using `<div onclick>` instead of `<button>` breaks keyboard navigation and screen reader support (BITV 2.0). Each of these is listed in the fitness function `KNOWN_VIOLATIONS` list for the `clickable div/span elements must not replace <button>` rule. **When a file is fixed, remove it from that list.** New files with the same pattern will fail the test immediately.
+
+**Fix:** Replace interactive `<div>` elements with `<button type="button">` or an appropriate semantic element (`<li role="option">` for list items in a listbox, etc.).
+
+---
+
+### Pre-existing hardcoded `aria-label` strings (i18n violation)
+
+**Files:** `ToastHost.svelte`, `TextEditor.svelte`, `ContextMenu.svelte`, `FileRow.svelte`, `FolderRow.svelte`, `ObjectTable.svelte`, `StorageBreadcrumb.svelte`, `CsvPreview.svelte`, `ParquetPreview.svelte`, `TextPreview.svelte`
+
+Ten components use static `aria-label="English text"` attributes instead of Paraglide i18n message functions. Screen reader users on the German locale receive English text. Each is listed in the `KNOWN_VIOLATIONS` list in the `aria-label` fitness function. **When a file is fixed, remove it from that list.**
+
+**Fix:** Add corresponding message keys to `messages/en.json` and `messages/de.json`, import `* as m from '$lib/paraglide/messages.js'`, and replace `aria-label="..."` with `aria-label={m.key_name()}`.
+
+---
+
+### Shared storage types live in `src/lib/server/storage/types.ts` instead of `src/lib/types/`
+
+**Files:** `src/lib/components/storage/landing/StorageConnectForm.svelte`, `src/lib/components/storage/sidebar/StorageConnectionSidebar.svelte`
+
+These Svelte components use `import type { ConnectionMetadata }` from the server layer. TypeScript erases `import type` at compile time so there is no runtime bundle risk, but it establishes an unexpected dependency arrow from the component layer to the server layer that is invisible to ArchUnitTS (which does not scan `.svelte` files).
+
+**Fix:** Move `ConnectionMetadata` and other shared types from `src/lib/server/storage/types.ts` into `src/lib/types/storage.ts` so the types live in the layer that both server and client code can freely import.
