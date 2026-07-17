@@ -124,7 +124,7 @@ describe('AddBucketModal', () => {
 
       await expect
         .poll(() => fetch)
-        .toHaveBeenCalledWith('/api/storage/check-bucket?bucket=my%20bucket', {
+        .toHaveBeenCalledWith('/api/storage/data?bucket=my%20bucket', {
           headers: { 'x-storage-connection-id': 'mock-connection-id' }
         });
     });

@@ -49,8 +49,8 @@
     try {
       const connectionId = connectionStore.activeConnectionId;
       if (!connectionId) return;
-      const params = new URLSearchParams({ bucket, prefix });
-      const res = await fetch(`/api/storage/directory-metadata?${params}`, {
+      const params = new URLSearchParams({ bucket, prefix, metadata: 'true' });
+      const res = await fetch(`/api/storage/data?${params}`, {
         headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
       });
       if (!res.ok) {

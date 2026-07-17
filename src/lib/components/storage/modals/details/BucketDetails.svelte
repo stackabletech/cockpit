@@ -30,8 +30,8 @@
           loading = false;
           return;
         }
-        const params = new URLSearchParams({ bucket });
-        const res = await fetch(`/api/storage/bucket-details?${params}`, {
+        const params = new URLSearchParams({ bucket, details: 'true' });
+        const res = await fetch(`/api/storage/buckets?${params}`, {
           headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
         });
         if (!res.ok) {

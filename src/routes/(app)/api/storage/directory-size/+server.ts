@@ -1,125 +1,16 @@
 import { error } from '@sveltejs/kit';
-import { getProvider } from '$lib/server/storage/utils.js';
-import { requireBucket } from '../params.js';
-import type {
-  DirectorySizeEvent,
-  DirectoryChildItem,
-  TreemapNode
-} from '$lib/storage/details-types.js';
-import type { RequestHandler } from './$types';
+import type { DirectorySizeEvent } from '$lib/storage/details-types.js';
+import { buildTree, buildChildrenByDepth } from '$lib/server/storage/directory-tree.js';
+import { withStorage } from '../_middleware.js';
 
-function buildTree(prefix: string, keys: Array<{ key: string; size: number }>): TreemapNode {
-  const rootName = prefix.split('/').filter(Boolean).pop() || '(root)';
+export const GET = async (event) => {
+  const { provider, params } = await withStorage(event);
+  const prefix = params.prefix;
 
-  interface TrieNode {
-    name: string;
-    size: number;
-    children: Map<string, TrieNode>;
-  }
+  if (!prefix) throw error(400, 'Missing required query parameter: prefix');
 
-  const rootTrie: TrieNode = { name: rootName, size: 0, children: new Map() };
+  event.locals.logger.debug({ bucket: params.bucket, prefix }, 'calculating directory size');
 
-  for (const { key, size } of keys) {
-    const relative = key.slice(prefix.length);
-    const parts = relative.split('/').filter(Boolean);
-    if (parts.length === 0) continue;
-
-    rootTrie.size += size;
-    let current = rootTrie;
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      if (!current.children.has(part)) {
-        current.children.set(part, { name: part, size: 0, children: new Map() });
-      }
-      current = current.children.get(part)!;
-      current.size += size;
-    }
-  }
-
-  function trieToTreemap(node: TrieNode): TreemapNode {
-    function convert(n: TrieNode, parentPrefix: string, isRoot: boolean): TreemapNode {
-      const result: TreemapNode = {
-        name: n.name,
-        size: n.size
-      };
-      if (n.children.size > 0) {
-        result.children = [...n.children.entries()]
-          .map(([, v]) => convert(v, isRoot ? '' : parentPrefix + n.name + '/', false))
-          .sort((a, b) => b.size - a.size);
-      } else {
-        result.path = parentPrefix || undefined;
-        result.fullKey = prefix + (parentPrefix || '') + n.name;
-      }
-      return result;
-    }
-    return convert(node, '', true);
-  }
-
-  return trieToTreemap(rootTrie);
-}
-
-function buildChildrenByDepth(
-  prefix: string,
-  keys: Array<{ key: string; size: number; lastModified?: Date }>,
-  maxDepth: number
-): Record<number, DirectoryChildItem[]> {
-  const depthMaps: Map<string, { size: number; lastModified: Date | undefined }>[] = [];
-  for (let d = 1; d <= maxDepth; d++) {
-    depthMaps.push(new Map());
-  }
-
-  for (const { key, size, lastModified } of keys) {
-    const relative = key.slice(prefix.length);
-    const parts = relative.split('/').filter(Boolean);
-    if (parts.length === 0) continue;
-
-    for (let d = 1; d <= maxDepth; d++) {
-      if (parts.length < d) continue;
-
-      const nameParts = parts.slice(0, d);
-      const index = d - 1;
-      const isDir = index < parts.length - 1 || relative.endsWith('/');
-      const childName = isDir ? nameParts.join('/') + '/' : nameParts.join('/');
-
-      const map = depthMaps[d - 1];
-      const existing = map.get(childName);
-      if (existing) {
-        existing.size += size;
-        if (lastModified && (!existing.lastModified || lastModified > existing.lastModified)) {
-          existing.lastModified = lastModified;
-        }
-      } else {
-        map.set(childName, { size, lastModified });
-      }
-    }
-  }
-
-  const result: Record<number, DirectoryChildItem[]> = {};
-  for (let d = 1; d <= maxDepth; d++) {
-    result[d] = [...depthMaps[d - 1].entries()]
-      .map(([name, entry]) => ({
-        name,
-        size: entry.size,
-        lastModified: entry.lastModified?.toISOString(),
-        isDirectory: name.endsWith('/')
-      }))
-      .sort((a, b) => b.size - a.size);
-  }
-
-  return result;
-}
-
-export const GET: RequestHandler = async ({ url, locals }) => {
-  const bucket = requireBucket(url);
-  const prefix = url.searchParams.get('prefix') ?? '';
-
-  if (!prefix) {
-    throw error(400, 'Missing required query parameter: prefix');
-  }
-
-  locals.logger.debug({ bucket, prefix }, 'calculating directory size');
-
-  const provider = getProvider(locals.storageConfig!, bucket);
   const allKeys: Array<{ key: string; size: number; lastModified?: Date }> = [];
   const startTime = Date.now();
   const encoder = new TextEncoder();
@@ -154,11 +45,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         let totalFiles = 0;
         let totalDirectories = 0;
         for (const { key } of allKeys) {
-          if (key.endsWith('/')) {
-            totalDirectories++;
-          } else {
-            totalFiles++;
-          }
+          if (key.endsWith('/')) totalDirectories++;
+          else totalFiles++;
         }
 
         const result: DirectorySizeEvent = {

@@ -1,12 +1,12 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { getProvider } from '$lib/server/storage/utils.js';
-import { requireBucket } from '../params.js';
+import { withStorage } from '../_middleware.js';
 import { performCopyOrMove } from '$lib/server/storage/copy-move.js';
 
-export const POST: RequestHandler = async ({ locals, request, url }) => {
-  const bucket = requireBucket(url);
-  const streamProgress = url.searchParams.get('progress') === 'true';
+export const POST: RequestHandler = async (event) => {
+  const { provider, params } = await withStorage(event);
+  const streamProgress = params.streamProgress;
+  const { locals, request } = event;
 
   const body = (await request.json()) as {
     sourceKeys: string[];
@@ -22,7 +22,7 @@ export const POST: RequestHandler = async ({ locals, request, url }) => {
 
   locals.logger.debug(
     {
-      bucket,
+      bucket: params.bucket,
       source_key_count: body.sourceKeys.length,
       destination_prefix: body.destinationPrefix,
       stream_progress: streamProgress
@@ -30,15 +30,13 @@ export const POST: RequestHandler = async ({ locals, request, url }) => {
     'copy request received'
   );
 
-  const provider = getProvider(locals.storageConfig!, bucket);
-
   return performCopyOrMove({
     provider,
     sourceKeys: body.sourceKeys,
     destinationPrefix: body.destinationPrefix,
     streamProgress,
     logger: locals.logger,
-    bucket,
+    bucket: params.bucket,
     jobId: body.jobId,
     deleteOriginals: false
   });

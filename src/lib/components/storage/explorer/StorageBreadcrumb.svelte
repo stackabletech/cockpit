@@ -111,7 +111,7 @@
     const headers: HeadersInit = connectionId
       ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
       : {};
-    const res = await fetch(`/api/storage/create?${params}`, { method: 'POST', headers });
+    const res = await fetch(`/api/storage/data?${params}`, { method: 'POST', headers });
     if (!res.ok) throw new Error(`Create failed with status ${res.status}`);
   }
 

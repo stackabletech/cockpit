@@ -448,7 +448,7 @@ export class StorageState {
         prefix: prefix ?? '',
         pageSize: String(this.pageSize)
       });
-      const res = await fetch(`/api/storage/objects?${params}`, {
+      const res = await fetch(`/api/storage/data?${params}`, {
         headers: { 'x-storage-connection-id': connectionId }
       });
       if (res.ok) {
@@ -988,14 +988,14 @@ export class StorageState {
       for (let i = 0; i < parts.length - 1; i++) {
         const dirKey = this.prefix + parts.slice(0, i + 1).join('/') + '/';
         const params = new SvelteURLSearchParams({ bucket: this.bucket, key: dirKey });
-        const res = await fetch(`/api/storage/create?${params}`, { method: 'POST', headers });
+        const res = await fetch(`/api/storage/data?${params}`, { method: 'POST', headers });
         if (!res.ok) throw new Error(`Create failed with status ${res.status}`);
       }
 
       // Create the final object (file or directory)
       const finalKey = this.prefix + sanitized + (isFolder ? '/' : '');
       const params = new SvelteURLSearchParams({ bucket: this.bucket, key: finalKey });
-      const res = await fetch(`/api/storage/create?${params}`, { method: 'POST', headers });
+      const res = await fetch(`/api/storage/data?${params}`, { method: 'POST', headers });
       if (!res.ok) throw new Error(`Create failed with status ${res.status}`);
 
       void invalidateAll();
@@ -1214,7 +1214,7 @@ export class StorageState {
       }
 
       const renameParams = new SvelteURLSearchParams({ bucket: this.bucket });
-      const res = await fetch(`/api/storage/rename?${renameParams}`, {
+      const res = await fetch(`/api/storage/data?${renameParams}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1578,7 +1578,7 @@ export class StorageState {
     }
 
     try {
-      await fetch(`/api/storage/delete?${params}`, {
+      await fetch(`/api/storage/data?${params}`, {
         method: 'DELETE',
         headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
       });
@@ -1678,7 +1678,7 @@ export class StorageState {
         const newKey = pending.destPrefix + rename.newName;
         const renameParams = new SvelteURLSearchParams({ bucket: this.bucket });
         try {
-          const res = await fetch(`/api/storage/rename?${renameParams}`, {
+          const res = await fetch(`/api/storage/data?${renameParams}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1809,7 +1809,7 @@ export class StorageState {
 
         const renameParams = new SvelteURLSearchParams({ bucket: this.bucket });
         try {
-          const renameRes = await fetch(`/api/storage/rename?${renameParams}`, {
+          const renameRes = await fetch(`/api/storage/data?${renameParams}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2165,7 +2165,7 @@ export class StorageState {
     const connectionId = connectionStore.activeConnectionId;
     const headers: HeadersInit = connectionId ? { 'x-storage-connection-id': connectionId } : {};
 
-    const res = await fetch(`/api/storage/delete?${params}`, { method: 'DELETE', headers });
+    const res = await fetch(`/api/storage/data?${params}`, { method: 'DELETE', headers });
     if (!res.ok) {
       let code: string;
       if (res.status === 401) code = 'not_connected';

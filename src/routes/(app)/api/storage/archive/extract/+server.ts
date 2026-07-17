@@ -38,16 +38,21 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     throw error(400, `Unsupported archive format: ${key}`);
   }
 
+  const config = locals.storageConfig;
+  if (!config) {
+    throw error(401, 'No storage connection configured');
+  }
+
   locals.logger.debug(
     { bucket, key, internal_path: internalPath, nested_archive_path: nestedArchivePath, format },
     'extracting archive entry'
   );
 
   const downloadFn = (k: string) =>
-    getProvider(locals.storageConfig!, bucket)
+    getProvider(config, bucket)
       .getObject(k)
       .then((d) => d.stream);
-  const metadataFn = (k: string) => getProvider(locals.storageConfig!, bucket).getMetadata(k);
+  const metadataFn = (k: string) => getProvider(config, bucket).getMetadata(k);
 
   const data = await extractArchiveEntry(
     bucket,

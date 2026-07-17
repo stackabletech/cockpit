@@ -56,7 +56,7 @@
         return;
       }
       const params = new URLSearchParams({ bucket, key });
-      const res = await fetch(`/api/storage/details?${params}`, {
+      const res = await fetch(`/api/storage/data?${params}`, {
         headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
       });
       if (!res.ok) {

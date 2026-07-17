@@ -44,7 +44,7 @@
     error = null;
 
     try {
-      const res = await fetch(`/api/storage/check-bucket?bucket=${encodeURIComponent(name)}`, {
+      const res = await fetch(`/api/storage/data?bucket=${encodeURIComponent(name)}`, {
         headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionStore.activeConnectionId ?? '' }
       });
 

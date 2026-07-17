@@ -33,7 +33,7 @@ export const load: PageLoad = async ({ fetch, url, data }) => {
   if (continuationToken) query.set('continuationToken', continuationToken);
   if (pageSizeParam) query.set('pageSize', pageSizeParam);
 
-  const res = await fetch(`/api/storage/objects?${query}`, {
+  const res = await fetch(`/api/storage/data?${query}`, {
     headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
   });
 

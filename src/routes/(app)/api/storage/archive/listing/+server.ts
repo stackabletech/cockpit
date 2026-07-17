@@ -28,16 +28,21 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   const internalPrefix = url.searchParams.get('internalPrefix') ?? '';
   const nestedArchivePath = url.searchParams.get('nestedArchivePath')?.trim() || undefined;
 
+  const config = locals.storageConfig;
+  if (!config) {
+    throw error(401, 'No storage connection configured');
+  }
+
   locals.logger.debug(
     { bucket, key, internal_prefix: internalPrefix, nested_archive_path: nestedArchivePath },
     'listing archive contents'
   );
 
   const downloadFn = (k: string) =>
-    getProvider(locals.storageConfig!, bucket)
+    getProvider(config, bucket)
       .getObject(k)
       .then((d) => d.stream);
-  const metadataFn = (k: string) => getProvider(locals.storageConfig!, bucket).getMetadata(k);
+  const metadataFn = (k: string) => getProvider(config, bucket).getMetadata(k);
 
   const listing = await listArchiveContents(
     bucket,

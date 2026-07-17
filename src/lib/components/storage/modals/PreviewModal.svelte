@@ -570,7 +570,7 @@
         ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
         : {};
 
-      const res = await fetch(`/api/storage/save-text?${params}`, {
+      const res = await fetch(`/api/storage/data?${params}`, {
         method: 'POST',
         headers,
         body: editorText
