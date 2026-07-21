@@ -11,9 +11,9 @@ import { storageCutCopyEnabled, storageMoveEnabled } from '$lib/client/feature-f
 export function handleRowDragStart(
   e: DragEvent,
   itemKey: string,
-  state: { selectedKeys: Set<string>; isInArchive: boolean }
+  state: { selectedKeys: Set<string>; archive: { isInArchive: boolean } }
 ): void {
-  if (!storageCutCopyEnabled || state.isInArchive) return;
+  if (!storageCutCopyEnabled || state.archive.isInArchive) return;
   if (!state.selectedKeys.has(itemKey)) {
     state.selectedKeys = new SvelteSet<string>([itemKey]);
   }
@@ -38,6 +38,6 @@ export function parseStorageDropKeys(e: DragEvent): string[] | null {
 /**
  * Check whether a storage drag-drop is allowed in the current context.
  */
-export function canStorageDrop(storage: { isInArchive: boolean }): boolean {
-  return storageMoveEnabled && !storage.isInArchive;
+export function canStorageDrop(storage: { archive: { isInArchive: boolean } }): boolean {
+  return storageMoveEnabled && !storage.archive.isInArchive;
 }

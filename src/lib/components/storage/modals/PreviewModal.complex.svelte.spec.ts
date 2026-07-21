@@ -64,6 +64,7 @@ function mockFetchResponse(
 function parquetNdjson(headers: string[], rows: unknown[][], totalRows: number): string {
   const lines: Array<Record<string, unknown>> = [{ t: 'h', h: headers, tr: totalRows }];
   for (let ci = 0; ci < headers.length; ci++) {
+    // eslint-disable-next-line security/detect-object-injection
     lines.push({ t: 'c', n: headers[ci], v: rows.map((r) => r[ci]) });
   }
   lines.push({ t: 'd' });

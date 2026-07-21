@@ -18,8 +18,8 @@
   import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
 
   function navigateUp() {
-    if (storage.isInArchive) {
-      storage.navigateUpFromArchive();
+    if (storage.archive.isInArchive) {
+      storage.archive.navigateUpFromArchive();
       return;
     }
     if (!storage.prefix) return;
@@ -180,7 +180,7 @@
 
 <div
   bind:this={scrollContainer}
-  class="preview-scroll h-full overflow-x-auto overflow-y-auto {tableDragOver
+  class="h-full overflow-x-auto overflow-y-auto {tableDragOver
     ? 'outline-primary/40 outline -outline-offset-2 outline-dashed'
     : ''}"
   ondragover={handleTableDragOver}
@@ -223,7 +223,7 @@
       <!-- Parent directory row -->
       {#if storage.prefix}
         <tr
-          class="hover cursor-pointer {parentDragOver
+          class="cursor-pointer {parentDragOver
             ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
             : ''}"
           onclick={navigateUp}
@@ -242,7 +242,7 @@
         </tr>
       {/if}
 
-      {#if storage.archiveTooLarge}
+      {#if storage.archive.archiveTooLarge}
         <!-- Archive too large fallback -->
         <tr>
           <td colspan={5} class="py-16 text-center">

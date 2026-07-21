@@ -953,7 +953,7 @@
           bind:showingRowsCount={csvShowingRowsCount}
         />
       {:else if preview.kind === 'image'}
-        <div class="preview-scroll h-full overflow-scroll">
+        <div class="h-full overflow-scroll">
           <ImagePreview
             src={preview.blobUrl}
             name={filename}
@@ -962,11 +962,11 @@
           />
         </div>
       {:else if preview.kind === 'pdf'}
-        <div class="preview-scroll h-full overflow-scroll">
+        <div class="h-full overflow-scroll">
           <PdfPreview src={preview.blobUrl} name={filename} />
         </div>
       {:else if preview.kind === 'fallback'}
-        <div class="preview-scroll h-full overflow-scroll">
+        <div class="h-full overflow-scroll">
           <FallbackPreview
             contentType={preview.contentType}
             onDownload={triggerDownload}

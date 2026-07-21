@@ -81,30 +81,30 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 function guessContentType(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase() ?? '';
-  const mime: Record<string, string> = {
-    txt: 'text/plain',
-    csv: 'text/csv',
-    json: 'application/json',
-    xml: 'application/xml',
-    html: 'text/html',
-    css: 'text/css',
-    js: 'application/javascript',
-    md: 'text/markdown',
-    yaml: 'application/x-yaml',
-    yml: 'application/x-yaml',
-    parquet: 'application/octet-stream',
-    pdf: 'application/pdf',
-    png: 'image/png',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    gif: 'image/gif',
-    svg: 'image/svg+xml',
-    webp: 'image/webp',
-    log: 'text/plain',
-    py: 'text/plain',
-    java: 'text/plain',
-    ts: 'text/plain',
-    sql: 'text/plain'
-  };
-  return mime[ext] ?? 'application/octet-stream';
+  const mime = new Map<string, string>([
+    ['txt', 'text/plain'],
+    ['csv', 'text/csv'],
+    ['json', 'application/json'],
+    ['xml', 'application/xml'],
+    ['html', 'text/html'],
+    ['css', 'text/css'],
+    ['js', 'application/javascript'],
+    ['md', 'text/markdown'],
+    ['yaml', 'application/x-yaml'],
+    ['yml', 'application/x-yaml'],
+    ['parquet', 'application/octet-stream'],
+    ['pdf', 'application/pdf'],
+    ['png', 'image/png'],
+    ['jpg', 'image/jpeg'],
+    ['jpeg', 'image/jpeg'],
+    ['gif', 'image/gif'],
+    ['svg', 'image/svg+xml'],
+    ['webp', 'image/webp'],
+    ['log', 'text/plain'],
+    ['py', 'text/plain'],
+    ['java', 'text/plain'],
+    ['ts', 'text/plain'],
+    ['sql', 'text/plain']
+  ]);
+  return mime.get(ext) ?? 'application/octet-stream';
 }

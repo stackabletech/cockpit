@@ -240,7 +240,7 @@ describe('executeAction("copy")', () => {
 describe('isCutKey', () => {
   it('returns true when key is in clipboard with cut action and matching bucket', () => {
     const state = makeState();
-    state.clipboard = {
+    state.clipboardState.clipboard = {
       action: 'cut',
       keys: ['file.txt', 'dir/'],
       sourceBucket: 'test-bucket',
@@ -254,7 +254,7 @@ describe('isCutKey', () => {
 
   it('returns false for keys not in clipboard', () => {
     const state = makeState();
-    state.clipboard = {
+    state.clipboardState.clipboard = {
       action: 'cut',
       keys: ['file.txt'],
       sourceBucket: 'test-bucket',
@@ -267,7 +267,7 @@ describe('isCutKey', () => {
 
   it('returns false when clipboard action is copy', () => {
     const state = makeState();
-    state.clipboard = {
+    state.clipboardState.clipboard = {
       action: 'copy',
       keys: ['file.txt'],
       sourceBucket: 'test-bucket',
@@ -280,7 +280,7 @@ describe('isCutKey', () => {
 
   it('returns false when bucket does not match', () => {
     const state = makeState();
-    state.clipboard = {
+    state.clipboardState.clipboard = {
       action: 'cut',
       keys: ['file.txt'],
       sourceBucket: 'other-bucket',
@@ -293,7 +293,7 @@ describe('isCutKey', () => {
 
   it('returns false when clipboard is null', () => {
     const state = makeState();
-    state.clipboard = null;
+    state.clipboardState.clipboard = null;
 
     expect(state.isCutKey('file.txt')).toBe(false);
   });
@@ -306,14 +306,14 @@ describe('isCutKey', () => {
 describe('executeAction("paste")', () => {
   it('shows warning when inside an archive', async () => {
     const state = makeState();
-    state.clipboard = {
+    state.clipboardState.clipboard = {
       action: 'copy',
       keys: ['file.txt'],
       sourceBucket: 'test-bucket',
       sourcePrefix: '',
       fileSizes: {}
     };
-    Object.assign(state, { archiveKey: 'archive.zip' });
+    state.archive.archiveKey = 'archive.zip';
 
     await state.executeAction('paste');
 
@@ -327,7 +327,7 @@ describe('executeAction("paste")', () => {
         failed: 0
       });
       const state = makeState({ copy: copySpy });
-      state.clipboard = {
+      state.clipboardState.clipboard = {
         action: 'copy',
         keys: ['file.txt'],
         sourceBucket: 'test-bucket',
@@ -351,7 +351,7 @@ describe('executeAction("paste")', () => {
     it('shows error toast when all items fail (source not found)', async () => {
       const copySpy = vi.fn().mockResolvedValue({ results: [], failed: 1 });
       const state = makeState({ copy: copySpy });
-      state.clipboard = {
+      state.clipboardState.clipboard = {
         action: 'copy',
         keys: ['file.txt'],
         sourceBucket: 'test-bucket',
@@ -374,7 +374,7 @@ describe('executeAction("paste")', () => {
         failed: 1
       });
       const state = makeState({ copy: copySpy });
-      state.clipboard = {
+      state.clipboardState.clipboard = {
         action: 'copy',
         keys: ['file.txt', 'photo.jpg'],
         sourceBucket: 'test-bucket',
@@ -398,7 +398,7 @@ describe('executeAction("paste")', () => {
         failed: 0
       });
       const state = makeState({ move: moveSpy });
-      state.clipboard = {
+      state.clipboardState.clipboard = {
         action: 'cut',
         keys: ['file.txt'],
         sourceBucket: 'test-bucket',
@@ -424,7 +424,7 @@ describe('executeAction("paste")', () => {
     it('keeps original clipboard on failed move (no results)', async () => {
       const moveSpy = vi.fn().mockResolvedValue({ results: [], failed: 1 });
       const state = makeState({ move: moveSpy });
-      state.clipboard = {
+      state.clipboardState.clipboard = {
         action: 'cut',
         keys: ['file.txt'],
         sourceBucket: 'test-bucket',
@@ -675,7 +675,7 @@ describe('handleKeydown', () => {
       failed: 0
     });
     const state = makeState({ copy: copySpy });
-    state.clipboard = {
+    state.clipboardState.clipboard = {
       action: 'copy',
       keys: ['file.txt'],
       sourceBucket: 'test-bucket',
@@ -690,7 +690,7 @@ describe('handleKeydown', () => {
 
   it('Ctrl+V does nothing when clipboard is empty', () => {
     const state = makeState();
-    state.clipboard = null;
+    state.clipboardState.clipboard = null;
 
     dispatch(state, 'v', true);
 
@@ -741,7 +741,7 @@ describe('performDelete clipboard cleanup', () => {
   it('removes deleted keys from clipboard', async () => {
     const deleteSpy = vi.fn().mockResolvedValue({ failed: [] });
     const state = makeState({ delete: deleteSpy });
-    state.clipboard = {
+    state.clipboardState.clipboard = {
       action: 'cut',
       keys: ['file.txt', 'photo.jpg', 'nested/file.js'],
       sourceBucket: 'test-bucket',
@@ -759,7 +759,7 @@ describe('performDelete clipboard cleanup', () => {
   it('clears clipboard when all keys are deleted', async () => {
     const deleteSpy = vi.fn().mockResolvedValue({ failed: [] });
     const state = makeState({ delete: deleteSpy });
-    state.clipboard = {
+    state.clipboardState.clipboard = {
       action: 'copy',
       keys: ['file.txt'],
       sourceBucket: 'test-bucket',
@@ -777,7 +777,7 @@ describe('performDelete clipboard cleanup', () => {
   it('does not affect clipboard when source bucket differs', async () => {
     const deleteSpy = vi.fn().mockResolvedValue({ failed: [] });
     const state = makeState({ delete: deleteSpy });
-    state.clipboard = {
+    state.clipboardState.clipboard = {
       action: 'copy',
       keys: ['file.txt'],
       sourceBucket: 'other-bucket',

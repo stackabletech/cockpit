@@ -38,6 +38,7 @@ function partsToAlias(parts: string[]): RelationAlias | null {
 /** If `pos` points at an `(`, skip past the matching `)` and return the
  *  position after it. Otherwise return `pos` unchanged. */
 function skipOptionalParenGroup(tokens: Token[], pos: number): number {
+  // eslint-disable-next-line security/detect-object-injection
   if (tokens[pos]?.type !== LPAREN) return pos;
   return parenGroupEndPosition(tokens, pos).pos;
 }
@@ -51,6 +52,7 @@ function skipOptionalParenGroup(tokens: Token[], pos: number): number {
 function cursorScopeTokens(tokens: Token[], cursor: number): Token[] | null {
   let pos = 0;
   while (pos < tokens.length) {
+    // eslint-disable-next-line security/detect-object-injection
     if (tokens[pos].type !== LPAREN) {
       pos++;
       continue;
@@ -65,6 +67,7 @@ function cursorScopeTokens(tokens: Token[], cursor: number): Token[] | null {
     }
 
     const { pos: end, closed } = parenGroupEndPosition(tokens, pos);
+    // eslint-disable-next-line security/detect-object-injection
     const openChar = tokens[pos].start;
 
     // Cursor is inside this body if it's past the opening `(` and either
@@ -97,6 +100,7 @@ export function extractPrefixAtCursor(
 ): { prefixParts: string[]; wordAtCursor: string } {
   // Step 1: find the last token that starts before the cursor.
   let pos = tokens.length - 1;
+  // eslint-disable-next-line security/detect-object-injection
   while (pos >= 0 && tokens[pos].start >= cursorInStatement) pos--;
   if (pos < 0) return { prefixParts: [], wordAtCursor: '' };
 
@@ -104,6 +108,7 @@ export function extractPrefixAtCursor(
   //   A) cursor is inside/at the end of an identifier → that's the partial word
   //   B) cursor is immediately after a dot → no word yet, prefix continues
   //   C) cursor is attached to something else (keyword, operator) → no prefix
+  // eslint-disable-next-line security/detect-object-injection
   const last = tokens[pos];
   const lastEndExclusive = last.stop + 1;
   const cursorTouchesLast = lastEndExclusive >= cursorInStatement;
@@ -124,6 +129,7 @@ export function extractPrefixAtCursor(
 
   // Step 3: walk backwards through (DOT IDENTIFIER)* pairs.
   const prefixParts: string[] = [];
+  // eslint-disable-next-line security/detect-object-injection
   while (pos >= 1 && tokens[pos].type === DOT && IDENTIFIER_TOKENS.has(tokens[pos - 1].type)) {
     prefixParts.unshift(unquoteIdentifier(tokens[pos - 1].text ?? ''));
     pos -= 2;
@@ -167,6 +173,7 @@ export function extractAliasMap(
   const aliasMap = new Map<string, RelationAlias>();
 
   for (let pos = 0; pos < tokens.length; pos++) {
+    // eslint-disable-next-line security/detect-object-injection
     const token = tokens[pos];
 
     // FROM / JOIN <qualifiedName> [[AS] alias]
@@ -179,8 +186,11 @@ export function extractAliasMap(
         // Lowercase for case-insensitive lookup.
         aliasMap.set(alias.table.toLowerCase(), alias);
         // Optional [AS] <identifier> follows the name.
+        // eslint-disable-next-line security/detect-object-injection
         if (tokens[next]?.type === SqlBaseLexer.AS) next++;
+        // eslint-disable-next-line security/detect-object-injection
         if (tokens[next] && IDENTIFIER_TOKENS.has(tokens[next].type)) {
+          // eslint-disable-next-line security/detect-object-injection
           const aliasName = unquoteIdentifier(tokens[next].text ?? '');
           aliasMap.set(aliasName.toLowerCase(), alias);
           next++;
@@ -194,16 +204,20 @@ export function extractAliasMap(
     // the JSDoc for why the body is skipped).
     if (token.type === SqlBaseLexer.WITH) {
       let next = pos + 1;
+      // eslint-disable-next-line security/detect-object-injection
       while (next < tokens.length && IDENTIFIER_TOKENS.has(tokens[next].type)) {
+        // eslint-disable-next-line security/detect-object-injection
         const cteName = unquoteIdentifier(tokens[next].text ?? '');
         aliasMap.set(cteName.toLowerCase(), { table: cteName });
         next++;
 
         next = skipOptionalParenGroup(tokens, next); // optional column list
+        // eslint-disable-next-line security/detect-object-injection
         if (tokens[next]?.type === SqlBaseLexer.AS) next++;
         next = skipOptionalParenGroup(tokens, next); // CTE body
 
         // Comma means another CTE follows; anything else ends the WITH list.
+        // eslint-disable-next-line security/detect-object-injection
         if (tokens[next]?.type !== COMMA) break;
         next++;
       }

@@ -145,7 +145,9 @@ async function readNdjsonResponse(res: Response): Promise<{
           rows.push(new Array(resultHeaders.length).fill(undefined));
         }
         for (let i = 0; i < values.length; i++) {
+          // eslint-disable-next-line security/detect-object-injection
           if (!rows[i]) rows[i] = new Array(resultHeaders.length).fill(undefined);
+          // eslint-disable-next-line security/detect-object-injection
           rows[i][colIdx] = values[i];
         }
       } else if (msg.t === 'e') {

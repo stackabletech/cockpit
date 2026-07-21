@@ -38,6 +38,7 @@ export function buildTree(prefix: string, keys: Array<{ key: string; size: numbe
     rootTrie.size += size;
     let current = rootTrie;
     for (let i = 0; i < parts.length; i++) {
+      // eslint-disable-next-line security/detect-object-injection
       const part = parts[i];
       if (!current.children.has(part)) {
         current.children.set(part, { name: part, size: 0, children: new Map() });
@@ -88,6 +89,7 @@ export function buildChildrenByDepth(
 
   const result: Record<number, DirectoryChildItem[]> = {};
   for (let d = 1; d <= maxDepth; d++) {
+    // eslint-disable-next-line security/detect-object-injection
     result[d] = [...depthMaps[d - 1].entries()]
       .map(([name, entry]) => ({
         name,
