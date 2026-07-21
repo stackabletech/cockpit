@@ -2,10 +2,8 @@
  * Client-side utility for downloading a single S3 object via the server proxy.
  *
  * Strategy:
- *  1. Fetch the object with the `x-storage-connection-id` header carrying the
- *     active connection UUID from the connection store.
- *  2. On error: throw a `DownloadError` with a typed `code` so the caller can
- *     display a localised message.
+ *  1. Fetch the object via `storageFetch` which injects the connection header
+ *     and maps HTTP errors to `StorageError`.
  *  3. On success: create a Blob URL and trigger a native browser download via a
  *     programmatic anchor click.
  *
@@ -15,22 +13,10 @@
  * proportional browser memory — see TECH_DEBT.md for the long-term fix.
  */
 
-import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
-import { StorageError, type StorageErrorCode } from '$lib/storage/errors.js';
+import { createStorageFetch } from '$lib/storage/storage-fetch.js';
+import type { StorageErrorCode } from '$lib/storage/errors.js';
 
 export type DownloadErrorCode = StorageErrorCode;
-
-function buildDownloadUrl(bucket: string, key: string): string {
-  return `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
-}
-
-function mapStatusToCode(status: number): StorageErrorCode {
-  if (status === 401) return 'not_connected';
-  if (status === 403) return 'access_denied';
-  if (status === 404) return 'not_found';
-  if (status >= 500) return 'server_error';
-  return 'unknown';
-}
 
 /**
  * Download a single S3 object.
@@ -45,16 +31,10 @@ export async function downloadObject(
   key: string,
   connectionId: string
 ): Promise<void> {
-  const url = buildDownloadUrl(bucket, key);
+  const fetch_ = createStorageFetch(() => connectionId);
+  const url = `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
 
-  const response = await fetch(url, {
-    headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
-  });
-
-  if (!response.ok) {
-    const code = mapStatusToCode(response.status);
-    throw new StorageError(code, `Download failed with status ${response.status}`);
-  }
+  const response = await fetch_(url);
 
   const blob = await response.blob();
   const blobUrl = URL.createObjectURL(blob);

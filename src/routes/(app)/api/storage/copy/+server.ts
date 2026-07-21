@@ -1,11 +1,11 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { withStorage } from '../_middleware.js';
+import { createStorageProvider } from '$lib/server/storage/request-context.js';
 import { performCopyOrMove } from '$lib/server/storage/copy-move.js';
 
 export const POST: RequestHandler = async (event) => {
-  const { provider, params } = await withStorage(event);
-  const streamProgress = params.streamProgress;
+  const { provider, bucket } = createStorageProvider(event);
+  const streamProgress = event.url.searchParams.get('progress') === 'true';
   const { locals, request } = event;
 
   const body = (await request.json()) as {
@@ -22,7 +22,7 @@ export const POST: RequestHandler = async (event) => {
 
   locals.logger.debug(
     {
-      bucket: params.bucket,
+      bucket,
       source_key_count: body.sourceKeys.length,
       destination_prefix: body.destinationPrefix,
       stream_progress: streamProgress
@@ -36,7 +36,7 @@ export const POST: RequestHandler = async (event) => {
     destinationPrefix: body.destinationPrefix,
     streamProgress,
     logger: locals.logger,
-    bucket: params.bucket,
+    bucket,
     jobId: body.jobId,
     deleteOriginals: false
   });

@@ -5,7 +5,7 @@ import { getParquetPreview } from '$lib/server/storage/preview/parquet';
 import { getCsvPreview } from '$lib/server/storage/preview/csv';
 import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
-import { withStorage } from '../_middleware.js';
+import { createStorageProvider } from '$lib/server/storage/request-context.js';
 import { infiniteScrollEnabled, filePreviewRows } from '$lib/server/feature-flags';
 import type { RequestHandler } from './$types';
 
@@ -16,8 +16,8 @@ import type { RequestHandler } from './$types';
  * middleware in hooks.server.ts before this handler runs.
  */
 export const GET: RequestHandler = async (event) => {
-  const { provider, params } = await withStorage(event);
-  const { bucket, key } = params;
+  const { provider, bucket } = createStorageProvider(event);
+  const key = event.url.searchParams.get('key')?.trim();
   if (!key) throw error(400, 'Missing required query parameter: key');
   const { url, locals } = event;
   const log = locals.logger;

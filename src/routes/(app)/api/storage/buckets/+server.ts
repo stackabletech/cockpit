@@ -2,16 +2,16 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { BucketDetails } from '$lib/storage/details-types.js';
 import { getConnectionProvider } from '$lib/server/storage/utils.js';
-import { withStorage } from '../_middleware.js';
+import { createStorageProvider } from '$lib/server/storage/request-context.js';
 
 export const GET: RequestHandler = async (event) => {
   const detailsParam = event.url.searchParams.get('details');
   const prefix = event.url.searchParams.get('prefix');
 
   if (detailsParam === 'true') {
-    const { provider, params } = await withStorage(event);
+    const { provider, bucket } = createStorageProvider(event);
 
-    event.locals.logger.debug({ bucket: params.bucket }, 'fetching bucket details');
+    event.locals.logger.debug({ bucket }, 'fetching bucket details');
 
     const [versioning, lifecycleRules, tags, acl] = await Promise.all([
       provider.getBucketVersioning(),
@@ -21,7 +21,7 @@ export const GET: RequestHandler = async (event) => {
     ]);
 
     const details: BucketDetails = {
-      name: params.bucket,
+      name: bucket,
       versioning: versioning as 'Enabled' | 'Suspended' | 'Disabled',
       lifecycleRules,
       tags,

@@ -6,6 +6,7 @@ export type StorageErrorCode =
   | 'not_connected'
   | 'access_denied'
   | 'not_found'
+  | 'conflict'
   | 'server_error'
   | 'no_such_bucket'
   | 'invalid_part'

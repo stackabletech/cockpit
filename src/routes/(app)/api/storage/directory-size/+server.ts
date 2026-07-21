@@ -1,15 +1,16 @@
 import { error } from '@sveltejs/kit';
 import type { DirectorySizeEvent } from '$lib/storage/details-types.js';
 import { buildTree, buildChildrenByDepth } from '$lib/server/storage/directory-tree.js';
-import { withStorage } from '../_middleware.js';
+import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import type { RequestHandler } from './$types';
 
-export const GET = async (event) => {
-  const { provider, params } = await withStorage(event);
-  const prefix = params.prefix;
+export const GET: RequestHandler = async (event) => {
+  const { provider, bucket } = createStorageProvider(event);
+  const prefix = event.url.searchParams.get('prefix')?.trim();
 
   if (!prefix) throw error(400, 'Missing required query parameter: prefix');
 
-  event.locals.logger.debug({ bucket: params.bucket, prefix }, 'calculating directory size');
+  event.locals.logger.debug({ bucket, prefix }, 'calculating directory size');
 
   const allKeys: Array<{ key: string; size: number; lastModified?: Date }> = [];
   const startTime = Date.now();

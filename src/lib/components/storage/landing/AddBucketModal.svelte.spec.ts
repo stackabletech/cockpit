@@ -15,8 +15,16 @@ vi.mock('$app/paths', () => ({
 
 // Mock storage context
 const mockAddBucket = vi.fn();
+const mockCheckBucket = vi.fn();
+const mockUpdateConnections = vi.fn();
 vi.mock('$lib/storage/context.js', () => ({
-  getStorageState: () => ({ addBucket: mockAddBucket })
+  getStorageState: () => ({
+    addBucket: mockAddBucket,
+    api: {
+      checkBucket: mockCheckBucket,
+      updateConnections: mockUpdateConnections
+    }
+  })
 }));
 
 // Mock connection store
@@ -24,8 +32,16 @@ vi.mock('$lib/storage/connection-store.svelte.js', () => ({
   connectionStore: { activeConnectionId: 'mock-connection-id', connections: [] }
 }));
 
-vi.mock('$lib/storage/connection-id-header.js', () => ({
-  STORAGE_CONNECTION_ID_HEADER: 'x-storage-connection-id'
+// Mock storage errors
+vi.mock('$lib/storage/errors.js', () => ({
+  StorageError: class StorageError extends Error {
+    code: string;
+    constructor(code: string, message: string) {
+      super(message);
+      this.code = code;
+      this.name = 'StorageError';
+    }
+  }
 }));
 
 // Mock paraglide messages
@@ -98,10 +114,9 @@ describe('AddBucketModal', () => {
   });
 
   describe('successful connection', () => {
-    it('should call addBucket and navigate on 204 response', async () => {
-      vi.mocked(fetch)
-        .mockResolvedValueOnce({ ok: true, status: 204 } as Response)
-        .mockResolvedValueOnce({ ok: true } as Response);
+    it('should call addBucket and navigate on ok response', async () => {
+      mockCheckBucket.mockResolvedValue({ ok: true, status: 200 });
+      mockUpdateConnections.mockResolvedValue(undefined);
 
       render(AddBucketModal, { open: true });
 
@@ -112,27 +127,22 @@ describe('AddBucketModal', () => {
       await expect.poll(() => mockGoto).toHaveBeenCalledWith('/storage/my-bucket');
     });
 
-    it('should URL-encode the bucket name in the check request', async () => {
-      vi.mocked(fetch)
-        .mockResolvedValueOnce({ ok: true, status: 204 } as Response)
-        .mockResolvedValueOnce({ ok: true } as Response);
+    it('should pass the bucket name to checkBucket', async () => {
+      mockCheckBucket.mockResolvedValue({ ok: true, status: 200 });
+      mockUpdateConnections.mockResolvedValue(undefined);
 
       render(AddBucketModal, { open: true });
 
       await userEvent.type(page.getByLabelText('Bucket name'), 'my bucket');
       await userEvent.click(page.getByRole('button', { name: 'Connect' }));
 
-      await expect
-        .poll(() => fetch)
-        .toHaveBeenCalledWith('/api/storage/data?bucket=my%20bucket', {
-          headers: { 'x-storage-connection-id': 'mock-connection-id' }
-        });
+      await expect.poll(() => mockCheckBucket).toHaveBeenCalledWith({ bucket: 'my bucket' });
     });
   });
 
   describe('error handling', () => {
     it('should show access denied error on 403', async () => {
-      vi.mocked(fetch).mockResolvedValue({ ok: false, status: 403 } as Response);
+      mockCheckBucket.mockResolvedValue({ ok: false, status: 403 });
 
       render(AddBucketModal, { open: true });
 
@@ -145,7 +155,7 @@ describe('AddBucketModal', () => {
     });
 
     it('should show not found error on 404', async () => {
-      vi.mocked(fetch).mockResolvedValue({ ok: false, status: 404 } as Response);
+      mockCheckBucket.mockResolvedValue({ ok: false, status: 404 });
 
       render(AddBucketModal, { open: true });
 
@@ -158,7 +168,7 @@ describe('AddBucketModal', () => {
     });
 
     it('should show generic error on 502', async () => {
-      vi.mocked(fetch).mockResolvedValue({ ok: false, status: 502 } as Response);
+      mockCheckBucket.mockResolvedValue({ ok: false, status: 502 });
 
       render(AddBucketModal, { open: true });
 
@@ -171,7 +181,7 @@ describe('AddBucketModal', () => {
     });
 
     it('should show generic error on network failure', async () => {
-      vi.mocked(fetch).mockRejectedValue(new Error('Network error'));
+      mockCheckBucket.mockRejectedValue(new Error('Network error'));
 
       render(AddBucketModal, { open: true });
 
@@ -184,7 +194,7 @@ describe('AddBucketModal', () => {
     });
 
     it('should not navigate or add bucket on error', async () => {
-      vi.mocked(fetch).mockResolvedValue({ ok: false, status: 403 } as Response);
+      mockCheckBucket.mockResolvedValue({ ok: false, status: 403 });
 
       render(AddBucketModal, { open: true });
 
@@ -197,10 +207,10 @@ describe('AddBucketModal', () => {
     });
 
     it('should clear error when user types a new bucket name', async () => {
-      vi.mocked(fetch)
-        .mockResolvedValueOnce({ ok: false, status: 404 } as Response)
-        .mockResolvedValueOnce({ ok: true, status: 204 } as Response)
-        .mockResolvedValueOnce({ ok: true } as Response);
+      mockCheckBucket
+        .mockResolvedValueOnce({ ok: false, status: 404 })
+        .mockResolvedValueOnce({ ok: true, status: 200 });
+      mockUpdateConnections.mockResolvedValue(undefined);
 
       render(AddBucketModal, { open: true });
 

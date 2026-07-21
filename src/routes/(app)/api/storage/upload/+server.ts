@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { withStorage } from '../_middleware.js';
+import { createStorageProvider } from '$lib/server/storage/request-context.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -13,8 +13,8 @@ import type { RequestHandler } from './$types';
  * middleware in hooks.server.ts before this handler runs.
  */
 export const POST: RequestHandler = async (event) => {
-  const { provider, params } = await withStorage(event);
-  const { bucket, key } = params;
+  const { provider, bucket } = createStorageProvider(event);
+  const key = event.url.searchParams.get('key')?.trim();
   if (!key) throw error(400, 'Missing required query parameter: key');
   const { locals, request } = event;
   const log = locals.logger;

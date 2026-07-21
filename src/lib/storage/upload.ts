@@ -14,25 +14,9 @@
 
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { StorageError, type StorageErrorCode } from '$lib/storage/errors.js';
+import { createStorageFetch, mapStatusToCode } from '$lib/storage/storage-fetch.js';
 
 export type UploadErrorCode = StorageErrorCode;
-
-function buildUploadUrl(bucket: string, key: string): string {
-  return `/api/storage/upload?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
-}
-
-function buildDownloadUrl(bucket: string, key: string): string {
-  return `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
-}
-
-function mapStatusToUploadCode(status: number): StorageErrorCode {
-  if (status === 403) return 'access_denied';
-  if (status === 404) return 'no_such_bucket';
-  if (status === 400) return 'invalid_part';
-  if (status === 401) return 'not_connected';
-  if (status >= 500) return 'server_error';
-  return 'unknown';
-}
 
 /**
  * Check whether an object with the given key already exists in the bucket.
@@ -46,16 +30,18 @@ export async function checkObjectExists(
   key: string,
   connectionId: string
 ): Promise<boolean> {
-  const url = buildDownloadUrl(bucket, key);
-  const res = await fetch(url, {
-    method: 'HEAD',
-    headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
-  });
-  if (res.status === 200) return true;
-  if (res.status === 404) return false;
-  if (res.status === 401) throw new StorageError('not_connected', 'Not connected');
-  if (res.status === 403) throw new StorageError('access_denied', 'Access denied');
-  throw new StorageError('server_error', `Unexpected status ${res.status}`);
+  const fetch_ = createStorageFetch(() => connectionId);
+  try {
+    const res = await fetch_(
+      `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`,
+      {
+        method: 'HEAD'
+      }
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -77,7 +63,7 @@ export function uploadFile(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    const url = buildUploadUrl(bucket, key);
+    const url = `/api/storage/upload?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
 
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable) {
@@ -91,7 +77,7 @@ export function uploadFile(
         resolve();
         return;
       }
-      const code = mapStatusToUploadCode(xhr.status);
+      const code = mapStatusToCode(xhr.status);
       reject(new StorageError(code, `Upload failed with status ${xhr.status}`));
     });
 

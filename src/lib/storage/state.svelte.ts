@@ -1,4 +1,4 @@
-import { SvelteMap, SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { tick } from 'svelte';
 import { browser } from '$app/environment';
 import { invalidateAll } from '$app/navigation';
@@ -12,8 +12,6 @@ import type {
   NavigateFn,
   ActionName,
   ClipboardState,
-  ArchiveListingResponse,
-  ArchiveEntry,
   StorageOperation
 } from '$lib/storage/types.js';
 import { ARCHIVE_EXTENSIONS } from '$lib/storage/types.js';
@@ -25,16 +23,15 @@ import {
   storageRenameEnabled,
   storageMoveEnabled
 } from '$lib/client/feature-flags.js';
-import { checkObjectExists } from '$lib/storage/upload.js';
 import { downloadObject } from '$lib/storage/download.js';
 import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import { ActionError, StorageError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
 import { connectionStore } from '$lib/storage/connection-store.svelte.js';
-import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { keyToName } from '$lib/storage/utils.js';
-import { readNdjsonStream } from '$lib/storage/ndjson-stream.js';
+import type { StorageApi } from './api.js';
+import { createFetchStorageApi } from './api.js';
 
 // Set to true when the page starts unloading (reload, tab close, navigate away).
 // Used to suppress misleading error toasts for in-flight operations that the
@@ -222,15 +219,27 @@ export class StorageState {
   // Constructor
   // ────────────────────────────────────────────────────────────────────────────
 
-  constructor(options?: { connected?: boolean; buckets?: string[]; connectionId?: string | null }) {
+  private _api: StorageApi;
+
+  constructor(options?: {
+    connected?: boolean;
+    buckets?: string[];
+    connectionId?: string | null;
+    api?: StorageApi;
+  }) {
     if (options?.connected !== undefined) this.connected = options.connected;
     if (options?.buckets) this.buckets = options.buckets;
     if (options?.connectionId !== undefined) this.connectionId = options.connectionId;
+    this._api = options?.api ?? createFetchStorageApi(() => connectionStore.activeConnectionId);
     this.bookmarks = new BookmarksState(options?.connectionId ?? '');
     // Restore persisted operation history (interrupted ops appear from previous sessions).
     this.operations = loadPersistedOperations();
     // Reconcile interrupted operations that have a server-side job store entry.
     void this.reconcileInterruptedOps();
+  }
+
+  get api(): StorageApi {
+    return this._api;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -438,24 +447,13 @@ export class StorageState {
   /** Manually fetch S3 objects for the given prefix (used when exiting archive). */
   private async _fetchS3Objects(prefix: string): Promise<void> {
     try {
-      const connectionId = connectionStore.activeConnectionId;
-      if (!connectionId) {
-        this.loading = false;
-        return;
-      }
-      const params = new SvelteURLSearchParams({
+      const objects = await this.api.list({
         bucket: this.bucket,
         prefix: prefix ?? '',
-        pageSize: String(this.pageSize)
+        pageSize: this.pageSize
       });
-      const res = await fetch(`/api/storage/data?${params}`, {
-        headers: { 'x-storage-connection-id': connectionId }
-      });
-      if (res.ok) {
-        const objects = (await res.json()) as StoragePage;
-        this.prefix = prefix;
-        this.objects = objects;
-      }
+      this.prefix = prefix;
+      this.objects = objects;
     } catch {
       // Fall back to invalidateAll if manual fetch fails
       void invalidateAll();
@@ -468,27 +466,12 @@ export class StorageState {
   downloadFromArchive = async (internalPath: string): Promise<void> => {
     if (!this.archiveKey) return;
     try {
-      const connectionId = connectionStore.activeConnectionId;
-      if (!connectionId) {
-        addToast('error', m.storage_download_error_unknown());
-        return;
-      }
-      const params = new SvelteURLSearchParams({
+      const res = await this.api.archiveExtract({
         bucket: this.bucket,
         key: this.archiveKey,
-        path: internalPath
+        path: internalPath,
+        nestedArchivePath: this.archiveNestedPath ?? undefined
       });
-      if (this.archiveNestedPath) {
-        params.set('nestedArchivePath', this.archiveNestedPath);
-      }
-      const res = await fetch(`/api/storage/archive/extract?${params}`, {
-        headers: { 'x-storage-connection-id': connectionId }
-      });
-      if (!res.ok) {
-        const code =
-          res.status === 403 ? 'access_denied' : res.status === 404 ? 'not_found' : 'server_error';
-        throw new StorageError(code, `Extract failed with status ${res.status}`);
-      }
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const filename = internalPath.split('/').filter(Boolean).pop() ?? internalPath;
@@ -511,26 +494,16 @@ export class StorageState {
 
   /** Fetch archive listing from the server API. */
   private async _fetchArchiveListing(): Promise<void> {
-    const connectionId = connectionStore.activeConnectionId;
-    if (!connectionId || !this.archiveKey) {
+    if (!this.archiveKey) {
       this.archiveLoading = false;
       return;
     }
-    const params = new SvelteURLSearchParams({
+    const data = await this.api.archiveListing({
       bucket: this.bucket,
       key: this.archiveKey,
-      internalPrefix: this.archivePrefix
+      internalPrefix: this.archivePrefix,
+      nestedArchivePath: this.archiveNestedPath ?? undefined
     });
-    if (this.archiveNestedPath) {
-      params.set('nestedArchivePath', this.archiveNestedPath);
-    }
-    const res = await fetch(`/api/storage/archive/listing?${params}`, {
-      headers: { 'x-storage-connection-id': connectionId }
-    });
-    if (!res.ok) {
-      throw new Error(m.storage_archive_open_error());
-    }
-    const data = (await res.json()) as ArchiveListingResponse;
     if (data.tooLarge) {
       this.archiveTooLarge = true;
       this.archiveLoading = false;
@@ -540,7 +513,7 @@ export class StorageState {
     this.archiveTooLarge = false;
     const prefix = this.archivePrefix || '';
     this.objects = {
-      objects: data.entries.map((e: ArchiveEntry) => ({
+      objects: data.entries.map((e) => ({
         key: prefix + e.key,
         size: e.size,
         lastModified: e.lastModified,
@@ -977,26 +950,18 @@ export class StorageState {
     this.loading = true;
 
     try {
-      const connectionId = connectionStore.activeConnectionId;
-      const headers: HeadersInit = connectionId
-        ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
-        : {};
       const isFolder = type === 'folder';
       const parts = sanitized.split('/');
 
       // Create intermediate directory markers
       for (let i = 0; i < parts.length - 1; i++) {
         const dirKey = this.prefix + parts.slice(0, i + 1).join('/') + '/';
-        const params = new SvelteURLSearchParams({ bucket: this.bucket, key: dirKey });
-        const res = await fetch(`/api/storage/data?${params}`, { method: 'POST', headers });
-        if (!res.ok) throw new Error(`Create failed with status ${res.status}`);
+        await this.api.create({ bucket: this.bucket, key: dirKey });
       }
 
       // Create the final object (file or directory)
       const finalKey = this.prefix + sanitized + (isFolder ? '/' : '');
-      const params = new SvelteURLSearchParams({ bucket: this.bucket, key: finalKey });
-      const res = await fetch(`/api/storage/data?${params}`, { method: 'POST', headers });
-      if (!res.ok) throw new Error(`Create failed with status ${res.status}`);
+      await this.api.create({ bucket: this.bucket, key: finalKey });
 
       void invalidateAll();
     } catch {
@@ -1028,7 +993,7 @@ export class StorageState {
     } catch (err: unknown) {
       this.loading = false;
       let msg = m.storage_delete_error_unknown();
-      if (err instanceof ActionError) {
+      if (err instanceof StorageError) {
         if (err.code === 'not_connected') msg = m.storage_delete_error_not_connected();
         else if (err.code === 'access_denied') msg = m.storage_delete_error_access_denied();
         else if (err.code === 'server_error') msg = m.storage_delete_error_server_error();
@@ -1062,38 +1027,20 @@ export class StorageState {
     results: Array<{ sourceKey: string; destKey: string }>;
     failed: number;
   }> {
-    const connectionId = connectionStore.activeConnectionId;
-    if (!connectionId) throw new ActionError('not_connected', 'No connection');
-
-    const endpoint = deleteOriginals ? '/api/storage/move' : '/api/storage/copy';
-    const params = new SvelteURLSearchParams({ bucket: this.bucket });
-    const res = await fetch(`${endpoint}?${params}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        [STORAGE_CONNECTION_ID_HEADER]: connectionId
-      },
-      body: JSON.stringify({
+    if (deleteOriginals) {
+      return this.api.move({
+        bucket: this.bucket,
         sourceKeys: keys,
-        destinationPrefix: destPrefix
-      }),
+        destinationPrefix: destPrefix,
+        signal
+      });
+    }
+    return this.api.copy({
+      bucket: this.bucket,
+      sourceKeys: keys,
+      destinationPrefix: destPrefix,
       signal
     });
-
-    if (!res.ok) {
-      let code = 'server_error';
-      if (res.status === 401) code = 'not_connected';
-      else if (res.status === 403) code = 'access_denied';
-      throw new ActionError(code, `Paste failed with status ${res.status}`);
-    }
-
-    const data = (await res.json()) as {
-      results?: Array<{ sourceKey: string; destKey: string }>;
-      moved?: Array<{ sourceKey: string; destKey: string }>;
-      failed: Array<unknown>;
-    };
-    const results = data.results ?? data.moved ?? [];
-    return { results, failed: data.failed?.length ?? 0 };
   }
 
   /**
@@ -1118,13 +1065,12 @@ export class StorageState {
     failed: number;
     fileJobIds: string[];
   }> {
-    const connectionId = connectionStore.activeConnectionId;
-    if (!connectionId) throw new ActionError('not_connected', 'No connection');
-
-    const endpoint = deleteOriginals ? '/api/storage/move' : '/api/storage/copy';
     const results: Array<{ sourceKey: string; destKey: string }> = [];
     let failed = 0;
     const fileJobIds: string[] = [];
+    const moveFn = deleteOriginals
+      ? (params: Parameters<StorageApi['move']>[0]) => this.api.move(params)
+      : (params: Parameters<StorageApi['copy']>[0]) => this.api.copy(params);
 
     for (let i = 0; i < keys.length; i++) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -1133,34 +1079,26 @@ export class StorageState {
       const fileJobId = crypto.randomUUID();
       fileJobIds.push(fileJobId);
       onFileJobId?.(i, fileJobId);
-      const params = new SvelteURLSearchParams({ bucket: this.bucket });
-      params.set('progress', 'true');
-      const res = await fetch(`${endpoint}?${params}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          [STORAGE_CONNECTION_ID_HEADER]: connectionId
-        },
-        body: JSON.stringify({
+
+      try {
+        const result = await moveFn({
+          bucket: this.bucket,
           sourceKeys: [sourceKey],
           destinationPrefix: destPrefix,
-          jobId: fileJobId
-        }),
-        signal
-      });
-
-      if (!res.ok) {
+          progress: true,
+          jobId: fileJobId,
+          signal,
+          callbacks: {
+            onProgress: onFileProgress
+              ? (_sourceKey, _destKey, loaded, total) => onFileProgress(loaded, total)
+              : undefined
+          }
+        });
+        results.push(...result.results);
+        failed += result.failed;
+      } catch {
         failed++;
-        continue;
       }
-
-      const streamResult = await readNdjsonStream(res.body, {
-        onProgress: onFileProgress
-          ? (_sourceKey, _destKey, loaded, total) => onFileProgress(loaded, total)
-          : undefined
-      });
-      results.push(...streamResult.results);
-      failed += streamResult.failed.length;
       onFileComplete?.(i + 1, sourceKey);
     }
 
@@ -1205,35 +1143,21 @@ export class StorageState {
     );
 
     try {
-      const connectionId = connectionStore.activeConnectionId;
-      if (!connectionId) {
+      try {
+        await this.api.rename({ bucket: this.bucket, key, newKey });
+      } catch (err: unknown) {
         this._finishOp(opId, 'error');
         this.renameLoading = false;
-        addToast('error', m.storage_rename_error_not_connected());
-        return;
-      }
-
-      const renameParams = new SvelteURLSearchParams({ bucket: this.bucket });
-      const res = await fetch(`/api/storage/data?${renameParams}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          [STORAGE_CONNECTION_ID_HEADER]: connectionId
-        },
-        body: JSON.stringify({ key, newKey })
-      });
-
-      if (!res.ok) {
-        this._finishOp(opId, 'error');
-        this.renameLoading = false;
-        if (res.status === 409) {
+        if (err instanceof StorageError && err.code === 'conflict') {
           this.renameError = m.storage_rename_error_conflict({ name: newName });
           return;
         }
         this.closeModal();
         let msg = m.storage_rename_error({ name: newName });
-        if (res.status === 403) msg = m.storage_rename_error_access_denied();
-        else if (res.status === 404) msg = m.storage_rename_error_not_found();
+        if (err instanceof StorageError && err.code === 'access_denied')
+          msg = m.storage_rename_error_access_denied();
+        else if (err instanceof StorageError && err.code === 'not_found')
+          msg = m.storage_rename_error_not_found();
         addToast('error', msg);
         return;
       }
@@ -1369,15 +1293,6 @@ export class StorageState {
     );
 
     try {
-      const connectionId = connectionStore.activeConnectionId;
-      if (!connectionId) {
-        this._finishOp(opId, 'error');
-        this._pendingSourcePrefix = null;
-        addToast('error', m.storage_action_move_error_not_connected());
-        return;
-      }
-
-      const endpoint = '/api/storage/move';
       const results: Array<{ sourceKey: string; destKey: string }> = [];
       let failed = 0;
       const fileJobIds: string[] = [];
@@ -1391,56 +1306,44 @@ export class StorageState {
         const fileJobId = crypto.randomUUID();
         fileJobIds.push(fileJobId);
         this._updateOpJobIds(opId, [...fileJobIds]);
-        const params = new SvelteURLSearchParams({ bucket: this.bucket });
-        params.set('progress', 'true');
-        const res = await fetch(`${endpoint}?${params}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            [STORAGE_CONNECTION_ID_HEADER]: connectionId
-          },
-          body: JSON.stringify({
+
+        try {
+          const result = await this.api.move({
+            bucket: this.bucket,
             sourceKeys: [sourceKey],
             destinationPrefix: destPrefix,
-            jobId: fileJobId
-          }),
-          signal: abortController.signal
-        });
-
-        if (!res.ok) {
+            progress: true,
+            jobId: fileJobId,
+            signal: abortController.signal,
+            callbacks: {
+              onProgress: (_sourceKey, _destKey, loaded) => {
+                const prevBytes = results.reduce((sum, r) => {
+                  const item = items.find((it) => it.key === r.sourceKey);
+                  return sum + (item?.size ?? 0);
+                }, 0);
+                this._updateOpProgress(opId, i + 1, prevBytes + loaded, keyToName(sourceKey));
+              },
+              onComplete: (finalResults, finalFailed) => {
+                if (finalResults.length > 0) {
+                  results.length = 0;
+                  results.push(...finalResults);
+                }
+                if (finalFailed.length > 0) {
+                  failed = finalFailed.length;
+                }
+              }
+            }
+          });
+          results.push(...result.results);
+          failed += result.failed;
+          const completedBytes = results.reduce((sum, r) => {
+            const item = items.find((it) => it.key === r.sourceKey);
+            return sum + (item?.size ?? 0);
+          }, 0);
+          this._updateOpProgress(opId, i + 1, completedBytes, keyToName(sourceKey));
+        } catch {
           failed++;
-          continue;
         }
-
-        await readNdjsonStream(res.body, {
-          onProgress: (_sourceKey, _destKey, loaded) => {
-            const prevBytes = results.reduce((sum, r) => {
-              const item = items.find((it) => it.key === r.sourceKey);
-              return sum + (item?.size ?? 0);
-            }, 0);
-            this._updateOpProgress(opId, i + 1, prevBytes + loaded, keyToName(sourceKey));
-          },
-          onDone: (sourceKey, destKey) => {
-            results.push({ sourceKey, destKey });
-            const completedBytes = results.reduce((sum, r) => {
-              const item = items.find((it) => it.key === r.sourceKey);
-              return sum + (item?.size ?? 0);
-            }, 0);
-            this._updateOpProgress(opId, i + 1, completedBytes, keyToName(sourceKey));
-          },
-          onFailed: () => {
-            failed++;
-          },
-          onComplete: (finalResults, finalFailed) => {
-            if (finalResults.length > 0) {
-              results.length = 0;
-              results.push(...finalResults);
-            }
-            if (finalFailed.length > 0) {
-              failed = finalFailed.length;
-            }
-          }
-        });
       }
 
       await tick();
@@ -1507,7 +1410,6 @@ export class StorageState {
     keys: string[],
     destPrefix: string
   ): Promise<ConflictEntry[]> {
-    const connectionId = connectionStore.activeConnectionId ?? '';
     const results: ConflictEntry[] = [];
 
     for (const key of keys) {
@@ -1515,7 +1417,7 @@ export class StorageState {
       const destKey = destPrefix + origName;
       let conflict = false;
       try {
-        conflict = await checkObjectExists(this.bucket, destKey, connectionId);
+        conflict = await this.api.checkObjectExists({ bucket: this.bucket, key: destKey });
       } catch {
         // If the check fails, assume no conflict and proceed
       }
@@ -1559,9 +1461,6 @@ export class StorageState {
     destPrefix: string,
     resolvedEntries: ConflictEntry[]
   ): Promise<void> {
-    const connectionId = connectionStore.activeConnectionId;
-    if (!connectionId) return;
-
     const keysToDelete: string[] = [];
     for (const entry of resolvedEntries) {
       if (entry.resolution === 'skip' || entry.resolution === 'rename') continue;
@@ -1572,16 +1471,8 @@ export class StorageState {
 
     if (keysToDelete.length === 0) return;
 
-    const params = new SvelteURLSearchParams({ bucket: this.bucket });
-    for (const key of keysToDelete) {
-      params.append('keys', key);
-    }
-
     try {
-      await fetch(`/api/storage/data?${params}`, {
-        method: 'DELETE',
-        headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
-      });
+      await this.api.delete({ bucket: this.bucket, keys: keysToDelete });
     } catch {
       // Best-effort - if deletion fails, the server may auto-rename
     }
@@ -1670,23 +1561,9 @@ export class StorageState {
           renameFailed++;
           continue;
         }
-        const connectionId = connectionStore.activeConnectionId;
-        if (!connectionId) {
-          renameFailed++;
-          continue;
-        }
         const newKey = pending.destPrefix + rename.newName;
-        const renameParams = new SvelteURLSearchParams({ bucket: this.bucket });
         try {
-          const res = await fetch(`/api/storage/data?${renameParams}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              [STORAGE_CONNECTION_ID_HEADER]: connectionId
-            },
-            body: JSON.stringify({ key: destKey, newKey })
-          });
-          if (!res.ok) renameFailed++;
+          await this.api.rename({ bucket: this.bucket, key: destKey, newKey });
           this._updateOpProgress(
             opId,
             replaceKeys.length + renameKeys.indexOf(rename) + 1,
@@ -1782,13 +1659,6 @@ export class StorageState {
       pending.totalBytes
     );
 
-    const connectionId = connectionStore.activeConnectionId;
-    if (!connectionId) {
-      this._finishOp(opId, 'error');
-      addToast('error', m.storage_action_move_error_not_connected());
-      return;
-    }
-
     // Only delete conflicting destinations for "replace" entries
     await this._deleteConflictingDests(pending.destPrefix, resolvedEntries);
 
@@ -1807,21 +1677,13 @@ export class StorageState {
         const renamedSourceKey =
           parentPrefix + rename.newName + (rename.sourceKey.endsWith('/') ? '/' : '');
 
-        const renameParams = new SvelteURLSearchParams({ bucket: this.bucket });
         try {
-          const renameRes = await fetch(`/api/storage/data?${renameParams}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              [STORAGE_CONNECTION_ID_HEADER]: connectionId
-            },
-            body: JSON.stringify({ key: rename.sourceKey, newKey: renamedSourceKey })
+          await this.api.rename({
+            bucket: this.bucket,
+            key: rename.sourceKey,
+            newKey: renamedSourceKey
           });
-          if (renameRes.ok) {
-            replaceKeys.push(renamedSourceKey);
-          } else {
-            renameFailed++;
-          }
+          replaceKeys.push(renamedSourceKey);
         } catch {
           renameFailed++;
         }
@@ -1830,50 +1692,36 @@ export class StorageState {
       failed = renameFailed;
 
       // ── Move all entries ────────────────────────────────────────────────────
-      const endpoint = '/api/storage/move';
 
       for (const key of replaceKeys) {
         if (abortController.signal.aborted) {
           throw new DOMException('Aborted', 'AbortError');
         }
 
-        const params = new SvelteURLSearchParams({ bucket: this.bucket });
-        params.set('progress', 'true');
-        const res = await fetch(`${endpoint}?${params}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            [STORAGE_CONNECTION_ID_HEADER]: connectionId
-          },
-          body: JSON.stringify({
+        try {
+          const result = await this.api.move({
+            bucket: this.bucket,
             sourceKeys: [key],
-            destinationPrefix: pending.destPrefix
-          }),
-          signal: abortController.signal
-        });
-
-        if (!res.ok) {
+            destinationPrefix: pending.destPrefix,
+            progress: true,
+            signal: abortController.signal,
+            callbacks: {
+              onComplete: (finalResults, finalFailed) => {
+                if (finalResults.length > 0) {
+                  results.length = 0;
+                  results.push(...finalResults);
+                }
+                if (finalFailed.length > 0) {
+                  failed = finalFailed.length;
+                }
+              }
+            }
+          });
+          results.push(...result.results);
+          failed += result.failed;
+        } catch {
           failed++;
-          continue;
         }
-
-        await readNdjsonStream(res.body, {
-          onDone: (sourceKey, destKey) => {
-            results.push({ sourceKey, destKey });
-          },
-          onFailed: () => {
-            failed++;
-          },
-          onComplete: (finalResults, finalFailed) => {
-            if (finalResults.length > 0) {
-              results.length = 0;
-              results.push(...finalResults);
-            }
-            if (finalFailed.length > 0) {
-              failed = finalFailed.length;
-            }
-          }
-        });
         this._updateOpProgress(opId, results.length, 0, keyToName(key));
       }
 
@@ -2057,12 +1905,7 @@ export class StorageState {
 
     for (const jobId of op.fileJobIds!) {
       try {
-        const res = await fetch(`/api/storage/copy/job/${jobId}`);
-        if (!res.ok) continue;
-        const job = (await res.json()) as {
-          status: string;
-          progress?: { completedCount?: number; completedBytes?: number; currentFileName?: string };
-        };
+        const job = await this.api.pollJob(jobId);
         if (job.status === 'done') {
           completedCount++;
         } else if (job.status === 'running') {
@@ -2159,25 +2002,7 @@ export class StorageState {
     bucket: string,
     keys: string[]
   ): Promise<{ failed: Array<{ key: string; code?: string; message?: string }> }> {
-    const params = new SvelteURLSearchParams({ bucket });
-    for (const key of keys) params.append('keys', key);
-
-    const connectionId = connectionStore.activeConnectionId;
-    const headers: HeadersInit = connectionId ? { 'x-storage-connection-id': connectionId } : {};
-
-    const res = await fetch(`/api/storage/data?${params}`, { method: 'DELETE', headers });
-    if (!res.ok) {
-      let code: string;
-      if (res.status === 401) code = 'not_connected';
-      else if (res.status === 403) code = 'access_denied';
-      else if (res.status >= 500) code = 'server_error';
-      else code = 'unknown';
-      throw new ActionError(code, `Delete failed with status ${res.status}`);
-    }
-
-    const result = (await res.json()) as {
-      failed: Array<{ key: string; code?: string; message?: string }>;
-    };
+    const result = await this.api.delete({ bucket, keys });
 
     // Clean up pinned locations and recent items for deleted paths
     const dirPrefixes = keys.filter((k) => k.endsWith('/'));
