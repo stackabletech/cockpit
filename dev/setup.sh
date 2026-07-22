@@ -3,9 +3,35 @@
 # Assumes: kind cluster is running, kubectl context points to it.
 set -euo pipefail
 
-SKIP_TRINO=false
-SKIP_GARAGE=false
-SKIP_POSTGRESQL=false
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ENV_FILE="$PROJECT_DIR/.env.development"
+export ENV_FILE
+
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/logging.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/k8s.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/probe.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/modules/prerequisites.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/modules/keycloak.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/modules/trino.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/modules/garage.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/modules/postgresql.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/modules/env.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/modules/secret.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/modules/summary.sh"
+
+SKIP_TRINO=false; SKIP_GARAGE=false; SKIP_POSTGRESQL=false
 for arg in "$@"; do
   case "$arg" in
     --skip-trino) SKIP_TRINO=true ;;
@@ -14,415 +40,33 @@ for arg in "$@"; do
     *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino] [--skip-garage] [--skip-postgresql]"; exit 1 ;;
   esac
 done
+export SKIP_TRINO SKIP_GARAGE SKIP_POSTGRESQL
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-ENV_FILE="$PROJECT_DIR/.env.development"
-
-echo "=== Stackable Cockpit dev environment setup ==="
-if [[ "$SKIP_TRINO" == true ]]; then
-  echo "(Trino deployment skipped via --skip-trino)"
-fi
-if [[ "$SKIP_GARAGE" == true ]]; then
-  echo "(Garage deployment skipped via --skip-garage)"
-fi
-if [[ "$SKIP_POSTGRESQL" == true ]]; then
-  echo "(PostgreSQL deployment skipped via --skip-postgresql)"
-fi
+log::info "Stackable Cockpit dev environment setup"
+[[ "$SKIP_TRINO" == true ]] && echo "  (Trino deployment skipped)"
+[[ "$SKIP_GARAGE" == true ]] && echo "  (Garage deployment skipped)"
+[[ "$SKIP_POSTGRESQL" == true ]] && echo "  (PostgreSQL deployment skipped)"
 echo ""
 
-# ------------------------------------------------------------------
-# 1. Install npm dependencies if needed
-# ------------------------------------------------------------------
-if [ ! -d "$PROJECT_DIR/node_modules" ]; then
-  echo "Installing npm dependencies..."
-  (cd "$PROJECT_DIR" && npm install)
-else
-  echo "npm dependencies already installed, skipping."
-fi
+# ── Phase 1: Bootstrap ──
+prerequisites::run
+NODE_IP=$(k8s::node_ip)
+export NODE_IP
 
-# ------------------------------------------------------------------
-# 2. Install Stackable operators
-# ------------------------------------------------------------------
-echo ""
-if [[ "$SKIP_TRINO" == true ]]; then
-  echo "Installing Stackable operators (commons, listener, secret)..."
-  stackablectl operator install commons listener secret
-else
-  echo "Installing Stackable operators (commons, listener, secret, trino)..."
-  stackablectl operator install commons listener secret trino
-fi
+# ── Phase 2: Deploy services ──
+keycloak::deploy
+trino::deploy
+garage::deploy
+postgresql::deploy
 
-# ------------------------------------------------------------------
-# 3. Deploy Keycloak
-# ------------------------------------------------------------------
-echo ""
-echo "Deploying Keycloak..."
-kubectl apply -f "$SCRIPT_DIR/keycloak.yaml"
+# ── Phase 3: Configure services ──
+keycloak::configure
+garage::init
+postgresql::migrate
+trino::probe
 
-# ------------------------------------------------------------------
-# 4. Wait for Keycloak and configure realm/client/users
-# ------------------------------------------------------------------
-echo ""
-echo "Waiting for Keycloak deployment to be available..."
-kubectl wait --for=condition=available deployment/keycloak --timeout=120s
-
-POD=$(kubectl get pod -l app=keycloak -o jsonpath='{.items[0].metadata.name}')
-NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-if [ -z "$NODE_IP" ]; then
-  echo "ERROR: Could not detect kind node IP."
-  exit 1
-fi
-echo "Node IP: $NODE_IP"
-
-# ------------------------------------------------------------------
-# 5. Deploy Trino (after node IP is known, trino.yaml is a template)
-# ------------------------------------------------------------------
-if [[ "$SKIP_TRINO" == false ]]; then
-  echo ""
-  echo "Deploying Trino..."
-  sed "s/\${NODE_IP}/$NODE_IP/g" "$SCRIPT_DIR/trino.yaml" | kubectl apply -f -
-fi
-
-# ------------------------------------------------------------------
-# 5b. Deploy Garage S3 (via Helm)
-# ------------------------------------------------------------------
-if [[ "$SKIP_GARAGE" == false ]]; then
-  echo ""
-  echo "Deploying Garage S3..."
-  helm upgrade --install garage "$SCRIPT_DIR/garage" \
-    --namespace default \
-    --wait \
-    --timeout 60s
-fi
-
-# ------------------------------------------------------------------
-# 5c. Deploy PostgreSQL 18 (via Helm)
-# ------------------------------------------------------------------
-if [[ "$SKIP_POSTGRESQL" == false ]]; then
-  echo ""
-  echo "Deploying PostgreSQL 18..."
-  helm upgrade --install postgresql "$SCRIPT_DIR/postgresql" \
-    --namespace default \
-    --wait \
-    --timeout 60s
-fi
-
-# On some local Kubernetes distributions (e.g. Rancher Desktop k3s), the node's
-# InternalIP is not reachable from the host network, but NodePorts are exposed
-# on localhost. Probe both and use the first reachable URL.
-KEYCLOAK_BASE_URL=""
-deadline=$(( $(date +%s) + 120 ))
-while [ -z "$KEYCLOAK_BASE_URL" ] && [ "$(date +%s)" -lt "$deadline" ]; do
-  for base in "http://${NODE_IP}:30080" "http://127.0.0.1:30080" "http://localhost:30080"; do
-    if curl -sf --max-time 2 "${base}/realms/master" >/dev/null 2>&1; then
-      KEYCLOAK_BASE_URL="$base"
-      break
-    fi
-  done
-  [ -z "$KEYCLOAK_BASE_URL" ] && sleep 2
-done
-
-if [ -z "$KEYCLOAK_BASE_URL" ]; then
-  echo "ERROR: Could not reach Keycloak via NodePort 30080 within 120s."
-  echo "Tried: http://${NODE_IP}:30080, http://127.0.0.1:30080, http://localhost:30080"
-  exit 1
-fi
-echo "Keycloak URL: ${KEYCLOAK_BASE_URL}"
-
-echo "Waiting for Keycloak to accept connections"
-until curl -sf "${KEYCLOAK_BASE_URL}/realms/master" >/dev/null 2>&1; do
-  sleep 2
-done
-
-kcadm() {
-  kubectl exec "$POD" -- /opt/keycloak/bin/kcadm.sh "$@"
-}
-
-# Check if realm already exists
-if kcadm get realms/stackable --fields realm 2>/dev/null | grep -q '"stackable"'; then
-  echo "Realm 'stackable' already exists, skipping Keycloak configuration."
-  # Still need to fetch the client secret
-  CLIENT_UUID=$(kcadm get clients -r stackable --fields id,clientId \
-    | grep -B1 '"stackable-cockpit"' | grep '"id"' | sed 's/.*: *"\(.*\)".*/\1/')
-  SECRET=$(kcadm get clients/"$CLIENT_UUID"/client-secret -r stackable --fields value \
-    | grep '"value"' | sed 's/.*: *"\(.*\)".*/\1/')
-else
-  echo "Logging into Keycloak admin CLI..."
-  kcadm config credentials \
-    --server http://localhost:8080 \
-    --realm master \
-    --user admin \
-    --password admin
-
-  echo "Creating realm 'stackable'..."
-  kcadm create realms \
-    -s realm=stackable \
-    -s enabled=true
-
-  echo "Creating client 'stackable-cockpit'..."
-  CLIENT_UUID=$(kcadm create clients \
-    -r stackable \
-    -s clientId=stackable-cockpit \
-    -s enabled=true \
-    -s protocol=openid-connect \
-    -s publicClient=false \
-    -s standardFlowEnabled=true \
-    -s directAccessGrantsEnabled=false \
-    -s 'redirectUris=["*"]' \
-    -s 'webOrigins=["*"]' \
-    -i)
-
-  echo "Creating client 'trino'..."
-  kcadm create clients \
-    -r stackable \
-    -s clientId=trino \
-    -s enabled=true \
-    -s protocol=openid-connect \
-    -s publicClient=false \
-    -s standardFlowEnabled=true \
-    -s directAccessGrantsEnabled=false \
-    -s secret=trino-oidc-dev \
-    -s 'redirectUris=["*"]' \
-    -s 'webOrigins=["*"]'
-
-  create_user() {
-    local username=$1 password=$2 first=$3 last=$4
-    echo "Creating user '$username'..."
-    kcadm create users \
-      -r stackable \
-      -s username="$username" \
-      -s email="$username@example.com" \
-      -s firstName="$first" \
-      -s lastName="$last" \
-      -s enabled=true
-    kcadm set-password \
-      -r stackable \
-      --username "$username" \
-      --new-password "$password"
-  }
-
-  create_user alice alicealice Alice Example
-  create_user bob   bobbob    Bob   Example
-
-  echo "Fetching client secret..."
-  SECRET=$(kcadm get clients/"$CLIENT_UUID"/client-secret -r stackable --fields value \
-    | grep '"value"' | sed 's/.*: *"\(.*\)".*/\1/')
-fi
-
-# ------------------------------------------------------------------
-# 7. Initialise Garage S3 (create bucket + access key, write s3-config.json)
-# ------------------------------------------------------------------
-if [[ "$SKIP_GARAGE" == false ]]; then
-  echo ""
-  echo "Initialising Garage S3..."
-
-  GARAGE_ADMIN_PORT=30902
-  GARAGE_S3_PORT=30900
-  GARAGE_BASE_URL=""
-  deadline=$(( $(date +%s) + 60 ))
-  while [ -z "$GARAGE_BASE_URL" ] && [ "$(date +%s)" -lt "$deadline" ]; do
-    for base in "http://${NODE_IP}:${GARAGE_ADMIN_PORT}" "http://127.0.0.1:${GARAGE_ADMIN_PORT}" "http://localhost:${GARAGE_ADMIN_PORT}"; do
-      if curl -sf --max-time 2 -H "Authorization: Bearer stackable-cockpit-e2e-admin-token" "${base}/v2/ListBuckets" >/dev/null 2>&1; then
-        GARAGE_BASE_URL="$base"
-        break
-      fi
-    done
-    [ -z "$GARAGE_BASE_URL" ] && sleep 2
-  done
-
-  if [ -z "$GARAGE_BASE_URL" ]; then
-    echo "ERROR: Could not reach Garage admin API via NodePort ${GARAGE_ADMIN_PORT} within 60s."
-    echo "Tried: http://${NODE_IP}:${GARAGE_ADMIN_PORT}, http://127.0.0.1:${GARAGE_ADMIN_PORT}, http://localhost:${GARAGE_ADMIN_PORT}"
-    exit 1
-  fi
-
-  # Derive the matching S3 base URL from the same host
-  GARAGE_HOST=$(echo "$GARAGE_BASE_URL" | sed 's|http://||; s|:[0-9]*$||')
-  GARAGE_S3_URL="http://${GARAGE_HOST}:${GARAGE_S3_PORT}"
-
-  S3_SECRET_ACCESS_KEY=$(openssl rand -hex 32) \
-    GARAGE_ADMIN_TOKEN=stackable-cockpit-e2e-admin-token \
-    S3_ENDPOINT="$GARAGE_S3_URL" \
-    GARAGE_ADMIN_URL="$GARAGE_BASE_URL" \
-    S3_CONFIG_PATH="$PROJECT_DIR/s3-config.json" \
-    "$SCRIPT_DIR/../e2e/init-garage-s3.sh"
-
-  echo "Wrote s3-config.json (S3 endpoint: ${GARAGE_S3_URL})"
-fi
-
-# ------------------------------------------------------------------
-# 8. Write .env.development
-# ------------------------------------------------------------------
-echo ""
-SESSION_SECRET=$(openssl rand -hex 32)
-STORAGE_ENCRYPTION_KEY=$(openssl rand -hex 32)
-
-if [ -f "$ENV_FILE" ]; then
-  echo "Backing up existing .env.development to .env.development.bak"
-  cp "$ENV_FILE" "$ENV_FILE.bak"
-fi
-
-if [[ "$SKIP_POSTGRESQL" == false ]]; then
-  echo ""
-  echo "Waiting for PostgreSQL to be ready..."
-  kubectl wait --for=condition=ready pod -l app=postgresql --timeout=60s
-
-  echo "Running database migrations..."
-  DATABASE_HOST=localhost \
-    DATABASE_PORT=31432 \
-    DATABASE_NAME=cockpit \
-    DATABASE_USER=cockpit \
-    DATABASE_PASSWORD=cockpit-dev-password \
-    npx tsx src/lib/server/migrate.ts
-fi
-
-if [[ "$SKIP_TRINO" == false ]]; then
-  TRINO_PORT=$(kubectl get svc trino-coordinator -o jsonpath='{.spec.ports[0].nodePort}')
-
-  # Probe Trino reachability the same way we did for Keycloak.
-  TRINO_BASE_URL=""
-  for base in "https://${NODE_IP}:${TRINO_PORT}" "https://127.0.0.1:${TRINO_PORT}" "https://localhost:${TRINO_PORT}"; do
-    if curl -sfk --max-time 2 "${base}/v1/info" >/dev/null 2>&1; then
-      TRINO_BASE_URL="$base"
-      break
-    fi
-  done
-  # Fall back to NODE_IP if none respond yet (Trino may still be starting).
-  TRINO_BASE_URL="${TRINO_BASE_URL:-https://${NODE_IP}:${TRINO_PORT}}"
-fi
-
-if [[ "$SKIP_TRINO" == false ]]; then
-  cat > "$ENV_FILE" <<EOF
-STACKABLE_COCKPIT_OIDC_DISCOVERY_URL=${KEYCLOAK_BASE_URL}/realms/stackable/.well-known/openid-configuration
-STACKABLE_COCKPIT_OIDC_CLIENT_ID=stackable-cockpit
-STACKABLE_COCKPIT_OIDC_CLIENT_SECRET=${SECRET}
-STACKABLE_COCKPIT_SESSION_SECRET=${SESSION_SECRET}
-STACKABLE_COCKPIT_BASE_URL=http://localhost:5173
-STACKABLE_COCKPIT_TRINO_URL=${TRINO_BASE_URL}
-STACKABLE_COCKPIT_TRINO_AUTH_TYPE=basic
-STACKABLE_COCKPIT_TRINO_AUTH_USERNAME=stackable-cockpit
-STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD=stackable-cockpit-dev
-STACKABLE_COCKPIT_TRINO_TLS_INSECURE=true
-STORAGE_ENCRYPTION_KEY=${STORAGE_ENCRYPTION_KEY}
-STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true
-STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES=262144
-STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES=5242880
-STACKABLE_COCKPIT_PDF_PREVIEW_BYTES=26214400
-STACKABLE_COCKPIT_FILE_PREVIEW_ROWS=250
-STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS=50
-STACKABLE_COCKPIT_ARCHIVE_PREVIEW_MAX_MB=100
-STACKABLE_COCKPIT_PARQUET_PREVIEW_DISALLOWED_COMPRESSION_TYPES=gzip-no_offset
-PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT=true
-PUBLIC_STACKABLE_COCKPIT_STORAGE_RESTORE_TABS=true
-PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES=25,50,100
-PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE=25
-PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES=15
-PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT_TIMEOUT_MS=15000
-PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE=5242880
-PUBLIC_STACKABLE_COCKPIT_UPLOAD_CONCURRENCY=3
-PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED=true
-PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED=true
-PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED=true
-PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED=true
-PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED=true
-DATABASE_HOST=localhost
-DATABASE_PORT=31432
-DATABASE_NAME=cockpit
-DATABASE_USER=cockpit
-DATABASE_PASSWORD=cockpit-dev-password
-EOF
-else
-  cat > "$ENV_FILE" <<EOF
-STACKABLE_COCKPIT_OIDC_DISCOVERY_URL=${KEYCLOAK_BASE_URL}/realms/stackable/.well-known/openid-configuration
-STACKABLE_COCKPIT_OIDC_CLIENT_ID=stackable-cockpit
-STACKABLE_COCKPIT_OIDC_CLIENT_SECRET=${SECRET}
-STACKABLE_COCKPIT_SESSION_SECRET=${SESSION_SECRET}
-STACKABLE_COCKPIT_BASE_URL=http://localhost:5173
-STORAGE_ENCRYPTION_KEY=${STORAGE_ENCRYPTION_KEY}
-STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true
-STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES=262144
-STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES=5242880
-STACKABLE_COCKPIT_PDF_PREVIEW_BYTES=26214400
-STACKABLE_COCKPIT_FILE_PREVIEW_ROWS=250
-STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS=50
-STACKABLE_COCKPIT_PARQUET_PREVIEW_DISALLOWED_COMPRESSION_TYPES=gzip-no_offset
-PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT=true
-PUBLIC_STACKABLE_COCKPIT_STORAGE_RESTORE_TABS=true
-PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES=25,50,100
-PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE=25
-PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES=15
-PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT_TIMEOUT_MS=15000
-PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE=5242880
-PUBLIC_STACKABLE_COCKPIT_UPLOAD_CONCURRENCY=3
-PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED=true
-PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED=true
-PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED=true
-PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED=true
-PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED=true
-DATABASE_HOST=localhost
-DATABASE_PORT=31432
-DATABASE_NAME=cockpit
-DATABASE_USER=cockpit
-DATABASE_PASSWORD=cockpit-dev-password
-EOF
-fi
-
-echo "Wrote $ENV_FILE"
-
-# 9. Create Kubernetes Secret for the Helm chart
-# ------------------------------------------------------------------
-echo ""
-echo "Creating stackable-cockpit-credentials Secret..."
-kubectl delete secret stackable-cockpit-credentials --ignore-not-found
-kubectl create secret generic stackable-cockpit-credentials \
-  --from-literal=oidc-client-secret="$SECRET" \
-  --from-literal=trino-auth-password=stackable-cockpit-dev
-
-# ------------------------------------------------------------------
-# 10. Wait for Trino to be ready
-# ------------------------------------------------------------------
-if [[ "$SKIP_TRINO" == false ]]; then
-  echo ""
-  echo "Waiting for Trino to be ready..."
-  kubectl rollout status statefulset/trino-coordinator-default --timeout=300s
-
-  echo "Trino endpoint: https://${NODE_IP}:${TRINO_PORT}"
-fi
-
-# ------------------------------------------------------------------
-# Done
-# ------------------------------------------------------------------
-echo ""
-echo "=== Setup complete ==="
-echo ""
-echo "Start the dev server with:  npm run dev"
-echo ""
-echo "Keycloak:       http://${NODE_IP}:30080"
-echo "  Admin:        admin / admin"
-echo ""
-if [[ "$SKIP_TRINO" == false ]]; then
-  echo "Trino endpoint: https://${NODE_IP}:${TRINO_PORT}"
-  echo ""
-  echo "Trino connection is pre-configured via STACKABLE_COCKPIT_TRINO_* env vars."
-  echo ""
-else
-  echo "Trino was skipped. Add STACKABLE_COCKPIT_TRINO_* vars to $ENV_FILE manually when ready."
-  echo ""
-fi
-if [[ "$SKIP_GARAGE" == false ]]; then
-  echo "Garage S3:      http://${NODE_IP}:30900  (admin: http://${NODE_IP}:30902)"
-  echo "  Credentials written to s3-config.json for E2E tests."
-  echo ""
-fi
-if [[ "$SKIP_POSTGRESQL" == false ]]; then
-  echo "PostgreSQL:     localhost:31432"
-  echo "  Database:     cockpit"
-  echo "  User:         cockpit"
-  echo "  Password:     cockpit-dev-password"
-  echo "  Environment:  DATABASE_HOST, DATABASE_PORT, DATABASE_NAME, DATABASE_USER, DATABASE_PASSWORD"
-  echo ""
-fi
-echo "Test users (OIDC):"
-echo "  alice / alicealice"
-echo "  bob   / bobbob"
+# ── Phase 4: Finalise ──
+env::write
+secret::create
+trino::wait_for_ready
+summary::print
