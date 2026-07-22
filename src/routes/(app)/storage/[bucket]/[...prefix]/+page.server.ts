@@ -9,5 +9,5 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   const prefix = params.prefix ? params.prefix + '/' : '';
   const bucket = params.bucket;
-  return { bucket, prefix };
+  return { bucket, prefix, activeConnectionId: activeId };
 };

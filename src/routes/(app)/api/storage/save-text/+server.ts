@@ -1,46 +1,48 @@
 import { error } from '@sveltejs/kit';
-import { uploadObject } from '$lib/server/storage/service.js';
-import { getProvider } from '$lib/server/storage/utils.js';
-import { requireBucketKey } from '../params.js';
+import { createStorageProvider } from '$lib/server/storage/request-context.js';
 import { maxEditableFileSize } from '$lib/server/feature-flags.js';
-import type { RequestHandler } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
 /**
- * POST /api/storage/save-text?bucket=<bucket>&key=<key>&contentType=<type>&originalSize=<number>&previewBytes=<number>
+ * POST /api/storage/save-text?bucket=<bucket>&key=<object-key>&originalSize=<n>&previewBytes=<n>&contentType=<type>
  *
- * Saves edited text content back to S3. When the original file was truncated
- * during preview (previewBytes < originalSize), the endpoint fetches the
- * unseen tail of the original file, concatenates it with the edited text, and
- * uploads the combined result. This preserves the portion of the file that
- * was not visible in the editor.
+ * Saves edited text content for a storage object. The request body is the raw
+ * text to save. When `previewBytes < originalSize`, the tail of the original
+ * file is fetched and merged with the edited portion so only the beginning of
+ * the file was transmitted to the client for editing.
  *
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.
  */
-export const POST: RequestHandler = async ({ locals, url, request }) => {
-  const log = locals.logger;
-  const { bucket, key } = requireBucketKey(url);
+export const POST: RequestHandler = async (event) => {
+  const { provider, bucket } = createStorageProvider(event);
+  const key = event.url.searchParams.get('key')?.trim();
+  if (!key) throw error(400, 'Missing required query parameter: key');
+  const log = event.locals.logger;
 
-  const contentType = url.searchParams.get('contentType')?.trim() || 'text/plain';
-  const rawOriginalSize = url.searchParams.get('originalSize');
-  const rawPreviewBytes = url.searchParams.get('previewBytes');
+  const contentType = event.url.searchParams.get('contentType')?.trim() || 'text/plain';
+  const rawOriginalSize = event.url.searchParams.get('originalSize');
+  const rawPreviewBytes = event.url.searchParams.get('previewBytes');
+  const originalSize = rawOriginalSize ? parseInt(rawOriginalSize, 10) : NaN;
+  const previewBytes = rawPreviewBytes ? parseInt(rawPreviewBytes, 10) : originalSize;
 
-  const originalSize = parseInt(rawOriginalSize ?? '0', 10);
   if (!Number.isFinite(originalSize) || originalSize < 0) {
     throw error(400, 'Invalid originalSize: must be a non-negative integer');
   }
-  const previewBytes = parseInt(rawPreviewBytes ?? String(originalSize), 10);
   if (!Number.isFinite(previewBytes) || previewBytes < 0) {
     throw error(400, 'Invalid previewBytes: must be a non-negative integer');
   }
 
-  if (!request.body) {
-    throw error(400, 'Missing request body');
-  }
+  if (!event.request.body) throw error(400, 'Missing request body');
 
   if (originalSize > maxEditableFileSize) {
     log.warn(
-      { bucket, key, original_size: originalSize, max_editable_size: maxEditableFileSize },
+      {
+        bucket,
+        key,
+        original_size: originalSize,
+        max_editable_size: maxEditableFileSize
+      },
       'save-text rejected: file exceeds max editable size (read-only)'
     );
     throw error(413, 'File exceeds the maximum editable size and is read-only');
@@ -60,8 +62,7 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
     'save-text request received'
   );
 
-  // Read the entire edited text body into a buffer
-  const editReader = request.body.getReader();
+  const editReader = event.request.body.getReader();
   const editChunks: Uint8Array[] = [];
   let totalEditBytes = 0;
   while (true) {
@@ -79,9 +80,6 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
   let totalLength: number;
 
   if (truncated) {
-    const provider = getProvider(locals.storageConfig!, bucket);
-
-    // Fetch the unseen tail of the original file
     const tailStream = await provider.getObjectRange(key, previewBytes, originalSize - 1);
     const tailReader = tailStream.getReader();
     const tailChunks: Uint8Array[] = [];
@@ -93,7 +91,6 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
       totalTailBytes += value.length;
     }
 
-    // Concatenate edited text + original tail
     const merged = new Uint8Array(totalEditBytes + totalTailBytes);
     let offset = 0;
     for (const chunk of editChunks) {
@@ -119,7 +116,6 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
       'saving truncated file with tail merge'
     );
   } else {
-    // Not truncated — concatenate chunks into a single buffer
     const merged = new Uint8Array(totalEditBytes);
     let offset = 0;
     for (const chunk of editChunks) {
@@ -130,7 +126,7 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
     totalLength = totalEditBytes;
   }
 
-  await uploadObject(locals.storageConfig!, bucket, key, mergedBuffer, contentType, totalLength);
+  await provider.putObject(key, mergedBuffer, contentType, totalLength);
 
   log.info({ bucket, key }, 'save-text completed');
 

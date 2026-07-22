@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { resolveRoute } from '$app/paths';
   import IconArrowForward from 'virtual:icons/material-symbols/arrow-forward';
   import IconDescriptionOutline from 'virtual:icons/material-symbols/description-outline';
   import IconPreviewOutline from 'virtual:icons/material-symbols/preview-outline';
@@ -21,6 +22,8 @@
   import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
 
   const storage = getStorageState();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rr = (p: string) => resolveRoute(p as any);
 
   type Tab = 'files' | 'locations';
   let activeTab = $state<Tab>('files');
@@ -59,7 +62,7 @@
     </thead>
     <tbody>
       {#each storage.bookmarks.recentFiles as file (file.bucket + '::' + file.key)}
-        <tr class="hover">
+        <tr>
           <td>
             <div class="flex items-center gap-2">
               <IconDescriptionOutline class="text-primary size-4 shrink-0" aria-hidden="true" />
@@ -67,13 +70,11 @@
             </div>
           </td>
           <td>
-            <!-- eslint-disable svelte/no-navigation-without-resolve -->
             <a
-              href={fileHref(file)}
+              href={rr(fileHref(file))}
               data-sveltekit-preload-data="off"
               class="text-base-content/60 hover:text-primary truncate text-xs"
             >
-              <!-- eslint-enable svelte/no-navigation-without-resolve -->
               {fileLocation(file)}
             </a>
           </td>
@@ -95,14 +96,12 @@
                 </button>
               </div>
               <div class="tooltip tooltip-left" data-tip={m.storage_recent_open_folder()}>
-                <!-- eslint-disable svelte/no-navigation-without-resolve -->
                 <a
-                  href={fileHref(file)}
+                  href={rr(fileHref(file))}
                   data-sveltekit-preload-data="off"
                   class="btn btn-ghost btn-xs"
                   aria-label="{m.storage_recent_open_folder()} — {fileName(file.key)}"
                 >
-                  <!-- eslint-enable svelte/no-navigation-without-resolve -->
                   <IconFolderOpenOutline class="size-3.5" aria-hidden="true" />
                 </a>
               </div>
@@ -126,7 +125,7 @@
     </thead>
     <tbody>
       {#each storage.bookmarks.recentLocations as loc (loc.bucket + '::' + loc.prefix)}
-        <tr class="hover">
+        <tr>
           <td>
             <div class="flex items-center gap-2">
               {#if loc.prefix === ''}
@@ -134,23 +133,19 @@
               {:else}
                 <IconFolderOutline class="text-warning size-4 shrink-0" aria-hidden="true" />
               {/if}
-              <!-- eslint-disable svelte/no-navigation-without-resolve -->
               <a
-                href={locationHref(loc)}
+                href={rr(locationHref(loc))}
                 data-sveltekit-preload-data="off"
                 class="hover:text-primary font-medium">{locationName(loc)}</a
               >
-              <!-- eslint-enable svelte/no-navigation-without-resolve -->
             </div>
           </td>
           <td>
-            <!-- eslint-disable svelte/no-navigation-without-resolve -->
             <a
-              href={locationHref(loc)}
+              href={rr(locationHref(loc))}
               data-sveltekit-preload-data="off"
               class="text-base-content/60 hover:text-primary truncate text-xs"
             >
-              <!-- eslint-enable svelte/no-navigation-without-resolve -->
               {locationPath(loc)}
             </a>
           </td>
@@ -159,14 +154,12 @@
           </td>
           <td>
             <div class="tooltip tooltip-left" data-tip={m.storage_recent_go_to_location()}>
-              <!-- eslint-disable svelte/no-navigation-without-resolve -->
               <a
-                href={locationHref(loc)}
+                href={rr(locationHref(loc))}
                 data-sveltekit-preload-data="off"
                 class="btn btn-ghost btn-xs"
                 aria-label="{m.storage_recent_go_to_location()} — {locationName(loc)}"
               >
-                <!-- eslint-enable svelte/no-navigation-without-resolve -->
                 <IconArrowForward class="size-3.5" aria-hidden="true" />
               </a>
             </div>

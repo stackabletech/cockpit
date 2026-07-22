@@ -46,6 +46,7 @@ function loadHistory(): HistoryStore {
     const parsed = JSON.parse(raw) as Partial<HistoryStore>;
     const fresh = emptyStore();
     for (const category of Object.keys(fresh) as HistoryCategory[]) {
+      // eslint-disable-next-line security/detect-object-injection
       const list = parsed[category];
       if (Array.isArray(list)) {
         // Sanitize: strings only, deduped, capped.
@@ -53,7 +54,9 @@ function loadHistory(): HistoryStore {
         for (const name of list) {
           if (typeof name !== 'string' || seen.has(name)) continue;
           seen.add(name);
+          // eslint-disable-next-line security/detect-object-injection
           fresh[category].push(name);
+          // eslint-disable-next-line security/detect-object-injection
           if (fresh[category].length >= CAPS[category]) break;
         }
       }
@@ -82,11 +85,13 @@ function scheduleSave(): void {
  *  category. Moves it to the front of the LRU list and persists. */
 export function recordUse(category: HistoryCategory, name: string): void {
   const history = loadHistory();
+  // eslint-disable-next-line security/detect-object-injection
   const list = history[category];
   const index = list.indexOf(name);
   if (index === 0) return; // already at the head, nothing to do
   if (index > 0) list.splice(index, 1);
   list.unshift(name);
+  // eslint-disable-next-line security/detect-object-injection
   if (list.length > CAPS[category]) list.length = CAPS[category];
   scheduleSave();
 }
@@ -95,6 +100,7 @@ export function recordUse(category: HistoryCategory, name: string): void {
  *  present. The caller uses this to bias `sortText`. */
 export function rankOf(category: HistoryCategory, name: string): number | null {
   const history = loadHistory();
+  // eslint-disable-next-line security/detect-object-injection
   const index = history[category].indexOf(name);
   return index < 0 ? null : index;
 }

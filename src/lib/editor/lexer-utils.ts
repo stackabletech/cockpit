@@ -46,7 +46,9 @@ export function parenGroupEndPosition(
   let depth = 1;
   let pos = start + 1;
   while (pos < tokens.length && depth > 0) {
+    // eslint-disable-next-line security/detect-object-injection
     if (tokens[pos].type === LPAREN) depth++;
+    // eslint-disable-next-line security/detect-object-injection
     else if (tokens[pos].type === RPAREN) depth--;
     pos++;
   }
@@ -74,12 +76,15 @@ export function readQualifiedName(
   const parts: string[] = [];
   let pos = start;
 
+  // eslint-disable-next-line security/detect-object-injection
   while (pos < tokens.length && IDENTIFIER_TOKENS.has(tokens[pos].type)) {
+    // eslint-disable-next-line security/detect-object-injection
     parts.push(unquoteIdentifier(tokens[pos].text ?? ''));
     pos++;
 
     // Continue only when a `DOT IDENTIFIER` pair follows. Anything else
     // (end of input, trailing dot, different token) ends the name.
+    // eslint-disable-next-line security/detect-object-injection
     const dotFollows = tokens[pos]?.type === DOT;
     const identAfterDot =
       tokens[pos + 1] !== undefined && IDENTIFIER_TOKENS.has(tokens[pos + 1].type);

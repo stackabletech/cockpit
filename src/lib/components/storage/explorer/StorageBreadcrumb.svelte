@@ -15,12 +15,10 @@
   import IconAdd from 'virtual:icons/material-symbols/add';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { getTabsState } from '$lib/storage/tabs-context.js';
+  import { getTabsState } from '$lib/storage/context.js';
   import type { StorageLocation } from '$lib/storage/types.js';
   import { keyToName } from '$lib/storage/utils.js';
   import { invalidateAll } from '$app/navigation';
-  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
-  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
   import { storageMoveEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import OperationsButton from './OperationsButton.svelte';
@@ -41,10 +39,10 @@
   );
 
   const archiveParts = $derived(
-    storage.isInArchive && storage.archiveKey
+    storage.archive.isInArchive && storage.archive.archiveKey
       ? [
-          ...(storage.archivePrefix
-            ? storage.archivePrefix
+          ...(storage.archive.archivePrefix
+            ? storage.archive.archivePrefix
                 .replace(/\/$/, '')
                 .split('/')
                 .map((label, i, parts) => ({
@@ -57,9 +55,11 @@
       : []
   );
 
-  const archiveName = $derived(storage.archiveKey ? keyToName(storage.archiveKey) : '');
+  const archiveName = $derived(
+    storage.archive.archiveKey ? keyToName(storage.archive.archiveKey) : ''
+  );
   const nestedArchiveName = $derived(
-    storage.archiveNestedPath ? keyToName(storage.archiveNestedPath) : ''
+    storage.archive.nestedArchivePath ? keyToName(storage.archive.nestedArchivePath) : ''
   );
 
   const MAX_TAIL = 2;
@@ -106,13 +106,7 @@
   }
 
   async function createObject(bucket: string, key: string): Promise<void> {
-    const params = new URLSearchParams({ bucket, key });
-    const connectionId = connectionStore.activeConnectionId;
-    const headers: HeadersInit = connectionId
-      ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
-      : {};
-    const res = await fetch(`/api/storage/create?${params}`, { method: 'POST', headers });
-    if (!res.ok) throw new Error(`Create failed with status ${res.status}`);
+    await storage.api.create({ bucket, key });
   }
 
   async function handleCreate() {
@@ -162,12 +156,8 @@
 
   /** Navigate to an S3 prefix, clearing archive state first. */
   function navigateS3(prefix: string) {
-    if (storage.isInArchive) {
-      storage.archiveKey = null;
-      storage.archivePrefix = '';
-      storage.archiveNestedPath = null;
-      storage.previousS3Prefix = '';
-      storage.archiveLoading = false;
+    if (storage.archive.isInArchive) {
+      storage.archive.reset();
     }
     storage.navigate(prefix);
   }
@@ -296,7 +286,7 @@
     flex min-w-0 flex-1 items-center gap-1 text-sm
   "
   >
-    {#if breadcrumbParts.length === 0 && !storage.isInArchive}
+    {#if breadcrumbParts.length === 0 && !storage.archive.isInArchive}
       <span class="group flex shrink-0 items-center gap-1">
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <span
@@ -413,7 +403,7 @@
       </div>
     {/if}
     {#each visibleParts as part, i (part.prefix)}
-      {@const isCurrent = !storage.isInArchive && i === visibleParts.length - 1}
+      {@const isCurrent = !storage.archive.isInArchive && i === visibleParts.length - 1}
       <IconChevronRight
         class="text-base-content/30 pointer-events-none size-4 shrink-0"
         aria-hidden="true"
@@ -460,7 +450,7 @@
         {@render pinButton(storage.bucket, part.prefix)}
       </span>
     {/each}
-    {#if storage.isInArchive}
+    {#if storage.archive.isInArchive}
       <!-- Outer archive entry -->
       <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
       <span class="group flex shrink-0 items-center gap-1">
@@ -471,10 +461,10 @@
           "
           title={archiveName}
           onclick={() => {
-            if (storage.archiveNestedPath) {
-              storage.navigateToOuterArchiveRoot();
+            if (storage.archive.nestedArchivePath) {
+              storage.archive.navigateToOuterArchiveRoot();
             } else {
-              storage.navigateInArchive('');
+              storage.archive.navigateInArchive('');
             }
           }}
         >
@@ -483,7 +473,7 @@
         </button>
       </span>
       <!-- Nested archive entry -->
-      {#if storage.archiveNestedPath}
+      {#if storage.archive.nestedArchivePath}
         <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
         <span class="group flex shrink-0 items-center gap-1">
           <button
@@ -492,7 +482,7 @@
               py-0.5 font-medium transition-colors hover:cursor-pointer hover:opacity-70
             "
             title={nestedArchiveName}
-            onclick={() => storage.navigateInArchive('')}
+            onclick={() => storage.archive.navigateInArchive('')}
           >
             <IconFolderZip class="size-4" aria-hidden="true" />
             {nestedArchiveName}
@@ -520,7 +510,7 @@
                 py-0.5 transition-colors hover:cursor-pointer
               "
               title={part.label}
-              onclick={() => storage.navigateInArchive(part.prefix)}
+              onclick={() => storage.archive.navigateInArchive(part.prefix)}
             >
               {part.label}
             </button>
@@ -625,7 +615,7 @@
           </label>
           <input
             id="create-name-input"
-            class="input input-bordered input-sm w-full"
+            class="input input-sm w-full"
             autofocus
             value={createName}
             placeholder={m.storage_create_placeholder()}
@@ -658,7 +648,7 @@
   </div>
 
   <!-- Upload button (hidden inside archives) -->
-  {#if !storage.isInArchive}
+  {#if !storage.archive.isInArchive}
     <button
       class="btn btn-primary btn-xs gap-1"
       onclick={() =>
@@ -704,7 +694,7 @@
           {m.storage_tab_new()}
         </button>
       </li>
-      {#if !storage.isInArchive}
+      {#if !storage.archive.isInArchive}
         <li role="none">
           {#if currentIsPinned}
             {@const PinIcon2 = IconPushPin}

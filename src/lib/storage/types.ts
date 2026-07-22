@@ -94,7 +94,7 @@ export type ActionName =
 // ── Clipboard state (cut / copy) ────────────────────────────────────────────
 
 /** Tracks items stored in the virtual clipboard for cut/copy + paste operations. */
-export interface ClipboardState {
+export interface ClipboardData {
   /** 'cut' items are rendered shaded; 'copy' items are not. */
   action: 'cut' | 'copy';
   /** S3 keys of the items in the clipboard. */

@@ -7,8 +7,8 @@
   import IconFolder from 'virtual:icons/material-symbols/folder';
   import IconBucket from '$lib/components/storage/shared/BucketIcon.svelte';
   import * as m from '$lib/paraglide/messages.js';
-  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
-  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
+  import { getStorageState } from '$lib/storage/context.js';
+  import { StorageError } from '$lib/storage/errors.js';
   import type { FileDetails as FileDetailsType } from '$lib/storage/details-types.js';
   import FileDetails from './details/FileDetails.svelte';
   import DirectoryDetails from './details/DirectoryDetails.svelte';
@@ -23,6 +23,8 @@
   }
 
   let { open = $bindable(), type, bucket, key, prefix }: Props = $props();
+
+  const storage = getStorageState();
 
   let maximized = $state(false);
 
@@ -50,22 +52,13 @@
     loading = true;
     loadError = null;
     try {
-      const connectionId = connectionStore.activeConnectionId;
-      if (!connectionId) {
-        loadError = m.storage_details_error_not_connected();
-        return;
-      }
-      const params = new URLSearchParams({ bucket, key });
-      const res = await fetch(`/api/storage/details?${params}`, {
-        headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
-      });
-      if (!res.ok) {
-        loadError = m.storage_details_error_fetch_file({ status: res.status });
-        return;
-      }
-      fileDetails = (await res.json()) as FileDetailsType;
+      fileDetails = await storage.api.details({ bucket, key });
     } catch (err) {
-      loadError = err instanceof Error ? err.message : m.storage_details_error_unknown();
+      if (err instanceof StorageError) {
+        loadError = err.message;
+      } else {
+        loadError = err instanceof Error ? err.message : m.storage_details_error_unknown();
+      }
     } finally {
       loading = false;
     }

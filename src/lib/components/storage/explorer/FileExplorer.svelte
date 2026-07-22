@@ -6,7 +6,7 @@
   import { navigating } from '$app/state';
   import { getStorageState } from '$lib/storage/context.js';
   import { TabsState } from '$lib/storage/tabs.svelte.js';
-  import { setTabsState } from '$lib/storage/tabs-context.js';
+  import { setTabsState } from '$lib/storage/context.js';
   import { storageRestoreTabsEnabled } from '$lib/client/feature-flags.js';
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import TabBar from './TabBar.svelte';
@@ -116,7 +116,7 @@
   <StorageBreadcrumb />
 
   <div bind:this={objectListEl} class="relative min-h-0 flex-1 overflow-hidden">
-    {#if storage.loading || storage.deleting || storage.archiveLoading || navigating.to}
+    {#if storage.loading || storage.deleting || storage.archive.archiveLoading || navigating.to}
       <div
         class="bg-base-100/70 absolute inset-0 z-20 flex items-center justify-center"
         aria-live="polite"

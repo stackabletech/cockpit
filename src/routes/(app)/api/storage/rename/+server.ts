@@ -1,78 +1,76 @@
-import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
-import { getProvider } from '$lib/server/storage/utils.js';
-import { requireBucket } from '../params.js';
+import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ locals, request, url }) => {
-  const bucket = requireBucket(url);
+/**
+ * POST /api/storage/rename?bucket=<bucket>
+ *
+ * Renames (moves) a storage object from `key` to `newKey`.
+ * The request body must be JSON: `{ key: string, newKey: string }`.
+ * Directory renames copy the marker and all children, then delete the originals.
+ *
+ * The connection config is parsed and validated by the `handleStorageConnection`
+ * middleware in hooks.server.ts before this handler runs.
+ */
+export const POST: RequestHandler = async (event) => {
+  const { provider, bucket } = createStorageProvider(event);
+  const log = event.locals.logger;
 
-  const body = (await request.json()) as { key: string; newKey: string };
-  if (!body.key) {
-    throw error(400, 'Missing required body field: key');
-  }
-  if (!body.newKey) {
-    throw error(400, 'Missing required body field: newKey');
-  }
+  const body = (await event.request.json()) as { key?: string; newKey?: string };
 
-  locals.logger.debug(
-    { bucket, source_key: body.key, dest_key: body.newKey },
-    'rename request received'
-  );
+  if (!body.key) throw error(400, 'Missing required body field: key');
+  if (!body.newKey) throw error(400, 'Missing required body field: newKey');
 
-  const provider = getProvider(locals.storageConfig!, bucket);
+  const key = body.key;
+  const newKey = body.newKey;
 
-  // Conflict check: reject if destination already exists
-  const exists = await provider.exists(body.newKey);
-  if (exists) {
-    throw error(409, `Destination "${body.newKey}" already exists`);
-  }
+  log.debug({ bucket, source_key: key, dest_key: newKey }, 'rename request received');
 
-  // If renaming a directory (key ends with /), we need to rename all children
-  if (body.key.endsWith('/')) {
-    const children = await provider.listAllKeys(body.key);
-    // Rename the directory marker itself
+  const exists = await provider.exists(newKey);
+  if (exists) throw error(409, `Destination "${newKey}" already exists`);
+
+  if (key.endsWith('/')) {
+    const children = await provider.listAllKeys(key);
     try {
-      await provider.copyObject(body.key, body.newKey);
+      await provider.copyObject(key, newKey);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      throw error(502, `Rename failed for directory marker: ${message}`);
+      throw error(
+        502,
+        `Rename failed for directory marker: ${err instanceof Error ? err.message : 'Unknown error'}`
+      );
     }
-    // Rename each child
     for (const child of children) {
-      const destChild = body.newKey + child.slice(body.key.length);
+      const destChild = newKey + child.slice(key.length);
       try {
         await provider.copyObject(child, destChild);
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        throw error(502, `Rename failed for child "${child}": ${message}`);
+        throw error(
+          502,
+          `Rename failed for child "${child}": ${err instanceof Error ? err.message : 'Unknown error'}`
+        );
       }
     }
-    // Delete old paths
-    const allOld = [body.key, ...children];
-    const deleteResult = await provider.deleteObjects(allOld);
+    const deleteResult = await provider.deleteObjects([key, ...children]);
     if (deleteResult.failed.length > 0) {
-      locals.logger.warn(
-        { bucket, failed_count: deleteResult.failed.length },
-        'rename delete had failures'
-      );
+      log.warn({ bucket, failed_count: deleteResult.failed.length }, 'rename delete had failures');
     }
   } else {
-    // Single file rename: copy + delete
     try {
-      await provider.copyObject(body.key, body.newKey);
+      await provider.copyObject(key, newKey);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      throw error(502, `Rename failed: ${message}`);
+      throw error(502, `Rename failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
     try {
-      await provider.deleteObjects([body.key]);
+      await provider.deleteObjects([key]);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      throw error(502, `Rename delete failed: ${message}`);
+      throw error(
+        502,
+        `Rename delete failed: ${err instanceof Error ? err.message : 'Unknown error'}`
+      );
     }
   }
 
-  locals.logger.info({ bucket, source_key: body.key, dest_key: body.newKey }, 'rename completed');
+  log.info({ bucket, source_key: key, dest_key: newKey }, 'rename completed');
 
   return json({ success: true });
 };

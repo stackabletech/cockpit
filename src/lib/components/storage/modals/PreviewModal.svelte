@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { SvelteURLSearchParams } from 'svelte/reactivity';
   import IconCloseFullscreen from 'virtual:icons/material-symbols/close-fullscreen';
   import IconOpenInFull from 'virtual:icons/material-symbols/open-in-full';
   import IconClose from 'virtual:icons/material-symbols/close';
@@ -21,11 +20,10 @@
   import PdfPreview from './preview/PdfPreview.svelte';
   import FallbackPreview from './preview/FallbackPreview.svelte';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
-  import { downloadObject, DownloadError } from '$lib/storage/download.js';
-  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
-  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
+  import { StorageError } from '$lib/storage/errors.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
   import { maxEditableFileSize, infiniteScrollEnabled } from '$lib/client/feature-flags.js';
+  import { getStorageState } from '$lib/storage/context.js';
 
   interface Props {
     open?: boolean;
@@ -116,6 +114,8 @@
     nestedArchivePath = ''
   }: Props = $props();
 
+  const storage = getStorageState();
+
   let preview: PreviewKind = $state({ kind: 'idle' });
   let blobUrls: string[] = [];
   let maximized = $state(false);
@@ -193,26 +193,17 @@
     preview = { kind: 'loading' };
     revokeBlobUrls();
 
-    const connectionId = connectionStore.activeConnectionId;
-    const headers: HeadersInit = connectionId
-      ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
-      : {};
-
     try {
       let res: Response;
       if (archiveKey && archivePath) {
-        const params = new SvelteURLSearchParams({
+        res = await storage.api.archiveExtract({
           bucket: activeBucket,
           key: archiveKey,
-          path: archivePath
+          path: archivePath,
+          nestedArchivePath: nestedArchivePath || undefined
         });
-        if (nestedArchivePath) {
-          params.set('nestedArchivePath', nestedArchivePath);
-        }
-        res = await fetch(`/api/storage/archive/extract?${params}`, { headers });
       } else {
-        const params = new SvelteURLSearchParams({ bucket: activeBucket, key });
-        res = await fetch(`/api/storage/preview?${params}`, { headers });
+        res = await storage.api.preview({ bucket: activeBucket, key });
       }
 
       if (!res.ok) {
@@ -577,30 +568,31 @@
 
   async function triggerDownload() {
     if (!objectKey) return;
-    const connectionId = connectionStore.activeConnectionId;
-    if (!connectionId) {
-      addToast('error', m.storage_download_error_unknown());
-      return;
-    }
 
     try {
-      await downloadObject(bucket, objectKey, connectionId);
+      const res = await storage.api.preview({ bucket, key: objectKey });
+      if (!res.ok) {
+        addToast('error', m.storage_download_error_unknown());
+        return;
+      }
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const filename = objectKey.split('/').filter(Boolean).pop() ?? objectKey;
+      const anchor = document.createElement('a');
+      anchor.href = blobUrl;
+      anchor.download = filename;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
     } catch (err) {
-      if (err instanceof DownloadError) {
+      if (err instanceof StorageError) {
         addToast('error', err.message);
       } else {
         addToast('error', m.storage_download_error_unknown());
       }
     }
-  }
-
-  function getSaveTextParams(): URLSearchParams | null {
-    if (preview.kind !== 'text' || !objectKey) return null;
-    const params = new SvelteURLSearchParams({ bucket, key: objectKey });
-    params.set('contentType', preview.contentType);
-    params.set('originalSize', String(preview.totalSize));
-    params.set('previewBytes', String(preview.previewBytes));
-    return params;
   }
 
   async function handleSave() {
@@ -609,42 +601,26 @@
       addToast('error', m.storage_editor_too_large({ limit: formatFileSize(maxEditableFileSize) }));
       return;
     }
-    const params = getSaveTextParams();
-    if (!params) return;
+    if (preview.kind !== 'text') return;
 
     saving = true;
     try {
-      const connectionId = connectionStore.activeConnectionId;
-      const headers: HeadersInit = connectionId
-        ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
-        : {};
-
-      const res = await fetch(`/api/storage/save-text?${params}`, {
-        method: 'POST',
-        headers,
-        body: editorText
-      });
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          addToast('error', m.storage_upload_error_not_connected());
-        } else if (res.status === 403) {
-          addToast('error', m.storage_upload_error_access_denied());
-        } else if (res.status === 413) {
-          addToast(
-            'error',
-            m.storage_editor_too_large({ limit: formatFileSize(maxEditableFileSize) })
-          );
-        } else {
-          addToast('error', m.storage_editor_error());
-        }
-        return;
-      }
+      await storage.api.saveText({ bucket, key: objectKey, body: editorText });
 
       originalText = editorText;
       addToast('success', m.storage_editor_saved());
-    } catch {
-      addToast('error', m.storage_editor_error());
+    } catch (err) {
+      if (err instanceof StorageError) {
+        if (err.code === 'not_connected') {
+          addToast('error', m.storage_upload_error_not_connected());
+        } else if (err.code === 'access_denied') {
+          addToast('error', m.storage_upload_error_access_denied());
+        } else {
+          addToast('error', m.storage_editor_error());
+        }
+      } else {
+        addToast('error', m.storage_editor_error());
+      }
     } finally {
       saving = false;
     }
@@ -754,20 +730,13 @@
   ): Promise<unknown[][]> {
     if (!objectKey) return [];
 
-    const connectionId = connectionStore.activeConnectionId;
-    const fetchHeaders: HeadersInit = connectionId
-      ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
-      : {};
-
-    const params = new URLSearchParams({
+    const res = await storage.api.preview({
       bucket,
       key: objectKey,
-      offset: String(offset),
-      limit: String(limit),
-      data: 'true'
+      offset,
+      limit,
+      data: true
     });
-
-    const res = await fetch(`/api/storage/preview?${params}`, { headers: fetchHeaders });
 
     if (!res.ok) {
       throw new Error('Failed to fetch parquet chunk');
@@ -781,20 +750,13 @@
   async function fetchCsvRows(offset: number, limit: number): Promise<unknown[][]> {
     if (!objectKey) return [];
 
-    const connectionId = connectionStore.activeConnectionId;
-    const fetchHeaders: HeadersInit = connectionId
-      ? { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
-      : {};
-
-    const params = new URLSearchParams({
+    const res = await storage.api.preview({
       bucket,
       key: objectKey,
-      offset: String(offset),
-      limit: String(limit),
-      data: 'true'
+      offset,
+      limit,
+      data: true
     });
-
-    const res = await fetch(`/api/storage/preview?${params}`, { headers: fetchHeaders });
 
     if (!res.ok) {
       throw new Error('Failed to fetch CSV chunk');
@@ -1041,7 +1003,7 @@
           bind:showingRowsCount={csvShowingRowsCount}
         />
       {:else if preview.kind === 'image'}
-        <div class="preview-scroll h-full overflow-scroll">
+        <div class="h-full overflow-scroll">
           <ImagePreview
             src={preview.blobUrl}
             name={filename}
@@ -1050,11 +1012,11 @@
           />
         </div>
       {:else if preview.kind === 'pdf'}
-        <div class="preview-scroll h-full overflow-scroll">
+        <div class="h-full overflow-scroll">
           <PdfPreview src={preview.blobUrl} name={filename} />
         </div>
       {:else if preview.kind === 'fallback'}
-        <div class="preview-scroll h-full overflow-scroll">
+        <div class="h-full overflow-scroll">
           <FallbackPreview
             contentType={preview.contentType}
             onDownload={triggerDownload}

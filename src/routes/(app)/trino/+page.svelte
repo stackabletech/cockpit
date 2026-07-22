@@ -780,7 +780,7 @@
               <button
                 type="button"
                 class="
-                  rounded-btn hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
+                  hover:bg-primary-content/20 cursor-pointer rounded-md px-3 py-1.5
                   text-left
                   {runMode === 'cursor' ? 'bg-primary-content/15' : ''}"
                 onclick={() => selectRunMode('cursor')}
@@ -790,7 +790,7 @@
               <button
                 type="button"
                 class="
-                  rounded-btn hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
+                  hover:bg-primary-content/20 cursor-pointer rounded-md px-3 py-1.5
                   text-left
                   {runMode === 'all' ? 'bg-primary-content/15' : ''}"
                 onclick={() => selectRunMode('all')}
@@ -868,12 +868,14 @@
             </span>
           {/if}
           {#if runner.currentTrinoQueryUrl}
+            <!-- eslint-disable svelte/no-navigation-without-resolve -->
             <a
               href={runner.currentTrinoQueryUrl}
               target="_blank"
               rel="noopener noreferrer"
               class="btn btn-ghost btn-xs"
             >
+              <!-- eslint-enable svelte/no-navigation-without-resolve -->
               {m.trino_view_in_trino()}
               <svg
                 xmlns="http://www.w3.org/2000/svg"

@@ -1,8 +1,36 @@
 import type { StorageProvider } from './provider.js';
+import type pino from 'pino';
 
 export interface DestEntry {
   sourceKey: string;
   baseDestKey: string;
+}
+
+export interface ProcessKeysOptions {
+  onCopySuccess?: (sourceKey: string, destKey: string) => void | Promise<void>;
+  onCopyProgress?: (
+    sourceKey: string,
+    destKey: string,
+    loaded: number,
+    total: number
+  ) => void | Promise<void>;
+  onCopyFailed?: (
+    sourceKey: string,
+    destKey: string,
+    error: string,
+    errorName?: string,
+    stack?: string
+  ) => void | Promise<void>;
+  onBeforeDelete?: (keys: string[]) => void | Promise<void>;
+  onDeleteFailed?: (key: string, error: string) => void | Promise<void>;
+  logger?: pino.Logger;
+  bucket?: string;
+  deleteOriginals?: boolean;
+}
+
+export interface ProcessKeysResult {
+  succeeded: Array<{ sourceKey: string; destKey: string }>;
+  failed: Array<{ sourceKey: string; error: string }>;
 }
 
 /**
@@ -58,6 +86,99 @@ export async function uniqueDestKey(provider: StorageProvider, baseKey: string):
     if (!(await provider.exists(candidate))) return candidate;
     counter++;
   }
+}
+
+/**
+ * Process a list of source keys sequentially, copying each to a unique
+ * destination under the given prefix. Handles unique-key resolution,
+ * optional progress reporting, failure logging, and originals deletion.
+ *
+ * This is the shared core used by both the non-streaming and streaming
+ * code paths in copy-move operations.
+ */
+export async function processKeysSequentially(
+  provider: StorageProvider,
+  sourceKeys: string[],
+  destinationPrefix: string,
+  options: ProcessKeysOptions = {}
+): Promise<ProcessKeysResult> {
+  const {
+    onCopySuccess,
+    onCopyProgress,
+    onCopyFailed,
+    onBeforeDelete,
+    onDeleteFailed,
+    logger,
+    bucket,
+    deleteOriginals
+  } = options;
+
+  const destinations = await computeDestinations(provider, sourceKeys, destinationPrefix);
+  const succeeded: Array<{ sourceKey: string; destKey: string }> = [];
+  const failed: Array<{ sourceKey: string; error: string }> = [];
+
+  const operationName = deleteOriginals ? 'move' : 'copy';
+  const countKey = deleteOriginals ? 'moved' : 'copied';
+  const failMsg = deleteOriginals ? 'move copy failed for key' : 'copy failed for key';
+
+  for (const { sourceKey, baseDestKey } of destinations) {
+    try {
+      const destKey = await uniqueDestKey(provider, baseDestKey);
+      if (onCopyProgress) {
+        await provider.copyObject(sourceKey, destKey, (loaded, total) => {
+          onCopyProgress(sourceKey, destKey, loaded, total);
+        });
+      } else {
+        await provider.copyObject(sourceKey, destKey);
+      }
+      succeeded.push({ sourceKey, destKey });
+      await onCopySuccess?.(sourceKey, destKey);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      const errorName = err instanceof Error ? err.constructor.name : typeof err;
+      const stack =
+        err instanceof Error ? (err.stack ?? '').split('\n').slice(0, 3).join(' | ') : '';
+      failed.push({ sourceKey, error: message });
+      if (logger) {
+        logger.warn(
+          {
+            bucket,
+            source_key: sourceKey,
+            dest_key: baseDestKey,
+            error: message,
+            error_name: errorName,
+            stack
+          },
+          failMsg
+        );
+      }
+      await onCopyFailed?.(sourceKey, baseDestKey, message, errorName, stack);
+    }
+  }
+
+  if (deleteOriginals && succeeded.length > 0) {
+    const keysToDelete = [...new Set(succeeded.map((s) => s.sourceKey))];
+    if (keysToDelete.length > 0) {
+      await onBeforeDelete?.(keysToDelete);
+      const deleteResult = await provider.deleteObjects(keysToDelete);
+      for (const f of deleteResult.failed) {
+        failed.push({ sourceKey: f.key, error: f.message ?? 'Delete failed' });
+        if (logger) {
+          logger.warn({ bucket, key: f.key }, 'move delete failed for key');
+        }
+        await onDeleteFailed?.(f.key, f.message ?? 'Delete failed');
+      }
+    }
+  }
+
+  if (logger) {
+    logger.info(
+      { bucket, [countKey]: succeeded.length, failed: failed.length },
+      `${operationName} completed`
+    );
+  }
+
+  return { succeeded, failed };
 }
 
 /**

@@ -55,7 +55,7 @@
         {m.storage_action_details()}
       </button>
 
-      {#if !storage.isInArchive}
+      {#if !storage.archive.isInArchive}
         <button
           class="
             btn btn-ghost btn-xs gap-1

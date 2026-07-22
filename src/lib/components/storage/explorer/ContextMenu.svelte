@@ -100,21 +100,21 @@
           icon: IconDescriptionOutline as Component,
           label: m.storage_create_file(),
           disabled: false,
-          hidden: storage.isInArchive
+          hidden: storage.archive.isInArchive
         },
         {
           key: 'create-folder' as ActionName,
           icon: IconFolderOutline as Component,
           label: m.storage_create_folder(),
           disabled: false,
-          hidden: storage.isInArchive
+          hidden: storage.archive.isInArchive
         },
         {
           key: 'paste' as ActionName,
           icon: IconPaste as Component,
           label: m.storage_action_paste(),
-          disabled: storage.clipboard === null || storage.isInArchive,
-          hidden: !storagePasteEnabled || storage.isInArchive
+          disabled: storage.clipboard === null || storage.archive.isInArchive,
+          hidden: !storagePasteEnabled || storage.archive.isInArchive
         }
       );
       return items;
@@ -147,29 +147,29 @@
         key: 'cut' as ActionName,
         icon: IconCut as Component,
         label: m.storage_action_cut(),
-        disabled: selectionCount === 0 || storage.isInArchive,
-        hidden: !storageCutCopyEnabled || storage.isInArchive
+        disabled: selectionCount === 0 || storage.archive.isInArchive,
+        hidden: !storageCutCopyEnabled || storage.archive.isInArchive
       },
       {
         key: 'copy' as ActionName,
         icon: IconCopy as Component,
         label: m.storage_action_copy(),
-        disabled: selectionCount === 0 || storage.isInArchive,
-        hidden: !storageCutCopyEnabled || storage.isInArchive
+        disabled: selectionCount === 0 || storage.archive.isInArchive,
+        hidden: !storageCutCopyEnabled || storage.archive.isInArchive
       },
       {
         key: 'paste' as ActionName,
         icon: IconPaste as Component,
         label: m.storage_action_paste(),
-        disabled: storage.clipboard === null || storage.isInArchive,
-        hidden: !storagePasteEnabled || storage.isInArchive
+        disabled: storage.clipboard === null || storage.archive.isInArchive,
+        hidden: !storagePasteEnabled || storage.archive.isInArchive
       },
       {
         key: 'rename' as ActionName,
         icon: IconDriveFileRenameOutline as Component,
         label: m.storage_action_rename(),
-        disabled: selectionCount !== 1 || storage.isInArchive,
-        hidden: !storageRenameEnabled || storage.isInArchive
+        disabled: selectionCount !== 1 || storage.archive.isInArchive,
+        hidden: !storageRenameEnabled || storage.archive.isInArchive
       },
       {
         key: 'copy-filename' as ActionName,
@@ -189,15 +189,15 @@
         key: 'pin' as ActionName,
         icon: IconPushPinOutline as Component,
         label: m.storage_action_pin(),
-        disabled: !storage.canPin || storage.isInArchive,
-        hidden: !storage.canPin || storage.ctxIsPinned || storage.isInArchive
+        disabled: !storage.canPin || storage.archive.isInArchive,
+        hidden: !storage.canPin || storage.ctxIsPinned || storage.archive.isInArchive
       },
       {
         key: 'unpin' as ActionName,
         icon: IconPushPin as Component,
         label: m.storage_action_unpin(),
-        disabled: !storage.ctxIsPinned || storage.isInArchive,
-        hidden: !storage.ctxIsPinned || storage.isInArchive
+        disabled: !storage.ctxIsPinned || storage.archive.isInArchive,
+        hidden: !storage.ctxIsPinned || storage.archive.isInArchive
       }
     );
 
@@ -205,7 +205,7 @@
   });
 
   const dangerActions = $derived(
-    storage.isInArchive || !hasCtxKey
+    storage.archive.isInArchive || !hasCtxKey
       ? []
       : [
           {

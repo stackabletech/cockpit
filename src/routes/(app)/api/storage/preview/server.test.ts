@@ -6,6 +6,10 @@ vi.mock('$lib/server/storage/utils.js', () => ({
   getProvider: vi.fn(() => ({ getMetadata: mockGetMetadata }))
 }));
 
+vi.mock('$lib/server/storage/wrap-provider.js', () => ({
+  wrapProvider: (p: unknown) => p
+}));
+
 vi.mock('$lib/server/storage/preview/binary.js', () => ({
   KNOWN_BINARY_TYPES: new Set(['application/zip']),
   binaryPreview: vi.fn(() => new Response(null, { headers: { 'X-Preview-Renderable': 'false' } }))
@@ -72,7 +76,7 @@ function mockEvent(params: string) {
     locals: {
       logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
       user: { id: 'test-user' },
-      storageConfig: { type: 's3', region: 'us-east-1' }
+      storageConfig: { type: 's3', region: { name: 'us-east-1' } }
     }
   } as unknown as Parameters<typeof GET>[0];
 }
