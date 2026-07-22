@@ -595,11 +595,7 @@ export class StorageState {
     e.stopPropagation();
 
     if (!this.selectedKeys.has(key)) {
-      if (this.selectedKeys.size === 0) {
-        this.selectedKeys = new SvelteSet<string>([key]);
-      } else {
-        this.selectedKeys.add(key);
-      }
+      this.selectedKeys = new SvelteSet<string>([key]);
     }
 
     this.contextMenu = { x: e.clientX, y: e.clientY, key };
@@ -2048,6 +2044,8 @@ export class StorageState {
     } else if (e.key === 'Escape') {
       if (this.contextMenu) {
         this.closeContextMenu();
+      } else {
+        this.clearSelection();
       }
       if (this.selectedKeys.size > 0) {
         this.clearSelection();
