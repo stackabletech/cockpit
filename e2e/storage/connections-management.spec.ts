@@ -5,6 +5,7 @@ import { waitForHydration } from '../support/helpers.js';
 
 /** Open the Options context menu for the first connection row and click Edit. */
 async function openFirstConnectionEditPage(page: Page) {
+  await page.locator('table tbody tr').first().waitFor();
   await page
     .getByRole('button', { name: /Options for/i })
     .first()

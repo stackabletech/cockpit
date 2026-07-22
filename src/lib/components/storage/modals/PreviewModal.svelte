@@ -72,7 +72,15 @@
         totalSize: number;
         previewBytes: number;
       }
-    | { kind: 'csv'; text: string; truncated: boolean; totalSize: number; previewBytes: number }
+    | {
+        kind: 'csv';
+        text: string;
+        truncated: boolean;
+        totalSize: number;
+        previewBytes: number;
+        previewRows: number;
+        previewColumns: number;
+      }
     | {
         kind: 'csv_scroll';
         headers: string[];
@@ -94,7 +102,7 @@
       }
     | { kind: 'image'; blobUrl: string; contentType: string; totalSize: number }
     | { kind: 'pdf'; blobUrl: string; totalSize: number }
-    | { kind: 'fallback'; contentType: string; isBinary: boolean }
+    | { kind: 'fallback'; contentType: string; isBinary: boolean; imageTooLarge?: boolean }
     | { kind: 'error'; message: string };
 
   let {
@@ -222,7 +230,15 @@
         10
       );
       const truncated = res.headers.get('X-Preview-Truncated') === 'true';
+      const previewRows = Number(res.headers.get('X-Preview-Preview-Rows') ?? '0');
+      const previewColumns = Number(res.headers.get('X-Preview-Preview-Columns') ?? '0');
+
       if (contentType.startsWith('image/')) {
+        if (truncated) {
+          await res.body?.cancel();
+          preview = { kind: 'fallback', contentType, isBinary: false, imageTooLarge: true };
+          return;
+        }
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         blobUrls = [url];
@@ -322,7 +338,7 @@
         return;
       }
 
-      const text = await readTextSafely(res, key);
+      const text = await readTextSafely(res, key, contentType);
       if (text === null) {
         preview = { kind: 'fallback', contentType, isBinary: true };
         return;
@@ -336,7 +352,15 @@
         key.toLowerCase().endsWith('.csv') ||
         key.toLowerCase().endsWith('.tsv')
       ) {
-        preview = { kind: 'csv', text, truncated, totalSize, previewBytes };
+        preview = {
+          kind: 'csv',
+          text,
+          truncated,
+          totalSize,
+          previewBytes,
+          previewRows,
+          previewColumns
+        };
         return;
       }
 
@@ -348,11 +372,25 @@
     }
   }
 
-  async function readTextSafely(res: Response, key: string): Promise<string | null> {
+  function isTextContentType(contentType: string): boolean {
+    if (contentType.startsWith('text/')) return true;
+    if (contentType === 'application/json') return true;
+    if (contentType === 'application/yaml') return true;
+    if (contentType === 'application/xml') return true;
+    if (contentType === 'application/csv') return true;
+    if (contentType === 'application/x-ndjson') return true;
+    return false;
+  }
+
+  async function readTextSafely(
+    res: Response,
+    key: string,
+    contentType: string
+  ): Promise<string | null> {
     try {
       const buf = await res.arrayBuffer();
       const bytes = new Uint8Array(buf);
-
+      const truncated = res.headers.get('X-Preview-Truncated') === 'true';
       if (bytes.length >= 2) {
         if (bytes[0] === 0xff && bytes[1] === 0xfe) {
           return new TextDecoder('utf-16le').decode(buf);
@@ -365,6 +403,18 @@
       try {
         return new TextDecoder('utf-8', { fatal: true }).decode(buf);
       } catch {
+        // If the content was truncated, the invalid bytes might be at the
+        // truncation boundary (a multi-byte character cut in half). Decode
+        // without fatal and strip trailing replacement characters.
+        // Only do this for text-like content types — binary files should
+        // fall through to the FallbackPreview.
+        if (truncated && isTextContentType(contentType)) {
+          const text = new TextDecoder('utf-8').decode(buf);
+          return text.replace(/\uFFFD+$/, '');
+        }
+
+        // For CSV/TSV files try Windows-1252 — the default encoding used by
+        // Excel on Windows when exporting to CSV.
         const lowerKey = key.toLowerCase();
         if (lowerKey.endsWith('.csv') || lowerKey.endsWith('.tsv')) {
           return new TextDecoder('windows-1252').decode(buf);
@@ -971,6 +1021,7 @@
             contentType={preview.contentType}
             onDownload={triggerDownload}
             isBinary={preview.isBinary}
+            imageTooLarge={preview.imageTooLarge}
           />
         </div>
       {/if}

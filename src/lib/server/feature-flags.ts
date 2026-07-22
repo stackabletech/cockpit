@@ -56,6 +56,13 @@ export const pdfPreviewBytes =
  *  and the size of the payload sent to the browser. */
 export const filePreviewRows = parseInt(env.STACKABLE_COCKPIT_FILE_PREVIEW_ROWS ?? '', 10) || 250;
 
+/** Maximum number of columns included in a file preview that is rendered as a
+ *  table (currently: used by CSV).
+ *  Controlled by `STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS`. Default: 50.
+ *  Values only affect client side rendering and not payload size. */
+export const filePreviewColumns =
+  parseInt(env.STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS ?? '', 10) || 50;
+
 /** Maximum compressed size of an archive that will be opened for in-browser
  *  preview. Archives larger than this threshold will not be downloaded at all
  *  and a "too large" fallback is shown instead. During listing the total
