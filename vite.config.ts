@@ -18,6 +18,11 @@ export default defineConfig({
   ],
   server: { allowedHosts: true },
   test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['json', 'json-summary'],
+      reportsDirectory: './coverage'
+    },
     expect: { requireAssertions: true },
     projects: [
       {
@@ -30,7 +35,8 @@ export default defineConfig({
             instances: [{ browser: 'chromium', headless: true }]
           },
           include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
-          exclude: ['src/lib/server/**']
+          exclude: ['src/lib/server/**'],
+          setupFiles: ['src/test/setup-client.ts']
         }
       },
 

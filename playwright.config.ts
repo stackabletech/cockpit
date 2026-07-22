@@ -7,7 +7,7 @@ const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 export default defineConfig({
   testDir: path.join(import.meta.dirname, 'e2e'),
   outputDir: path.join(import.meta.dirname, 'e2e/test-results'),
-  globalSetup: path.join(import.meta.dirname, 'e2e/global-setup.ts'),
+  globalSetup: path.join(import.meta.dirname, 'e2e/support/global-setup.ts'),
   timeout: 60_000,
   retries: 2,
   expect: {
@@ -20,19 +20,19 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'npx tsx e2e/start-mock-oidc.ts',
+      command: 'npx tsx e2e/support/start-mock-oidc.ts',
       url: 'http://localhost:9090/.well-known/openid-configuration',
-      reuseExistingServer: false
+      reuseExistingServer: true
     },
     {
-      command: 'npx tsx e2e/start-mock-trino.ts',
+      command: 'npx tsx e2e/support/start-mock-trino.ts',
       url: 'http://localhost:8080',
-      reuseExistingServer: false
+      reuseExistingServer: true
     },
     {
       command: 'PORT=4173 node --env-file=.env.test build',
       url: baseURL,
-      reuseExistingServer: false
+      reuseExistingServer: true
     }
   ],
   projects: [

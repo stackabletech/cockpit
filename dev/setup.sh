@@ -4,10 +4,12 @@
 set -euo pipefail
 
 SKIP_TRINO=false
+SKIP_GARAGE=false
 for arg in "$@"; do
   case "$arg" in
     --skip-trino) SKIP_TRINO=true ;;
-    *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino]"; exit 1 ;;
+    --skip-garage) SKIP_GARAGE=true ;;
+    *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino] [--skip-garage]"; exit 1 ;;
   esac
 done
 
@@ -18,6 +20,9 @@ ENV_FILE="$PROJECT_DIR/.env.development"
 echo "=== Stackable Cockpit dev environment setup ==="
 if [[ "$SKIP_TRINO" == true ]]; then
   echo "(Trino deployment skipped via --skip-trino)"
+fi
+if [[ "$SKIP_GARAGE" == true ]]; then
+  echo "(Garage deployment skipped via --skip-garage)"
 fi
 echo ""
 
@@ -72,6 +77,18 @@ if [[ "$SKIP_TRINO" == false ]]; then
   echo ""
   echo "Deploying Trino..."
   sed "s/\${NODE_IP}/$NODE_IP/g" "$SCRIPT_DIR/trino.yaml" | kubectl apply -f -
+fi
+
+# ------------------------------------------------------------------
+# 5b. Deploy Garage S3 (via Helm)
+# ------------------------------------------------------------------
+if [[ "$SKIP_GARAGE" == false ]]; then
+  echo ""
+  echo "Deploying Garage S3..."
+  helm upgrade --install garage "$SCRIPT_DIR/garage" \
+    --namespace default \
+    --wait \
+    --timeout 60s
 fi
 
 # On some local Kubernetes distributions (e.g. Rancher Desktop k3s), the node's
@@ -177,7 +194,48 @@ else
 fi
 
 # ------------------------------------------------------------------
-# 7. Write .env.development
+# 7. Initialise Garage S3 (create bucket + access key, write s3-config.json)
+# ------------------------------------------------------------------
+if [[ "$SKIP_GARAGE" == false ]]; then
+  echo ""
+  echo "Initialising Garage S3..."
+
+  GARAGE_ADMIN_PORT=30902
+  GARAGE_S3_PORT=30900
+  GARAGE_BASE_URL=""
+  deadline=$(( $(date +%s) + 60 ))
+  while [ -z "$GARAGE_BASE_URL" ] && [ "$(date +%s)" -lt "$deadline" ]; do
+    for base in "http://${NODE_IP}:${GARAGE_ADMIN_PORT}" "http://127.0.0.1:${GARAGE_ADMIN_PORT}" "http://localhost:${GARAGE_ADMIN_PORT}"; do
+      if curl -sf --max-time 2 -H "Authorization: Bearer stackable-cockpit-e2e-admin-token" "${base}/v2/ListBuckets" >/dev/null 2>&1; then
+        GARAGE_BASE_URL="$base"
+        break
+      fi
+    done
+    [ -z "$GARAGE_BASE_URL" ] && sleep 2
+  done
+
+  if [ -z "$GARAGE_BASE_URL" ]; then
+    echo "ERROR: Could not reach Garage admin API via NodePort ${GARAGE_ADMIN_PORT} within 60s."
+    echo "Tried: http://${NODE_IP}:${GARAGE_ADMIN_PORT}, http://127.0.0.1:${GARAGE_ADMIN_PORT}, http://localhost:${GARAGE_ADMIN_PORT}"
+    exit 1
+  fi
+
+  # Derive the matching S3 base URL from the same host
+  GARAGE_HOST=$(echo "$GARAGE_BASE_URL" | sed 's|http://||; s|:[0-9]*$||')
+  GARAGE_S3_URL="http://${GARAGE_HOST}:${GARAGE_S3_PORT}"
+
+  S3_SECRET_ACCESS_KEY=$(openssl rand -hex 32) \
+    GARAGE_ADMIN_TOKEN=stackable-cockpit-e2e-admin-token \
+    S3_ENDPOINT="$GARAGE_S3_URL" \
+    GARAGE_ADMIN_URL="$GARAGE_BASE_URL" \
+    S3_CONFIG_PATH="$PROJECT_DIR/s3-config.json" \
+    "$SCRIPT_DIR/../e2e/init-garage-s3.sh"
+
+  echo "Wrote s3-config.json (S3 endpoint: ${GARAGE_S3_URL})"
+fi
+
+# ------------------------------------------------------------------
+# 8. Write .env.development
 # ------------------------------------------------------------------
 echo ""
 SESSION_SECRET=$(openssl rand -hex 32)
@@ -187,14 +245,20 @@ if [ -f "$ENV_FILE" ]; then
   cp "$ENV_FILE" "$ENV_FILE.bak"
 fi
 
-TRINO_PORT=$(kubectl get svc trino-coordinator -o jsonpath='{.spec.ports[0].nodePort}')
-TRINO_BASE_URL="${TRINO_BASE_URL:-https://${NODE_IP}:${TRINO_PORT}}"
-for base in "https://${NODE_IP}:${TRINO_PORT}" "https://127.0.0.1:${TRINO_PORT}" "https://localhost:${TRINO_PORT}"; do
-  if [[ "$SKIP_TRINO" == false ]] && curl -sfk --max-time 2 "${base}/v1/info" >/dev/null 2>&1; then
-    TRINO_BASE_URL="$base"
-    break
-  fi
-done
+if [[ "$SKIP_TRINO" == false ]]; then
+  TRINO_PORT=$(kubectl get svc trino-coordinator -o jsonpath='{.spec.ports[0].nodePort}')
+
+  # Probe Trino reachability the same way we did for Keycloak.
+  TRINO_BASE_URL=""
+  for base in "https://${NODE_IP}:${TRINO_PORT}" "https://127.0.0.1:${TRINO_PORT}" "https://localhost:${TRINO_PORT}"; do
+    if curl -sfk --max-time 2 "${base}/v1/info" >/dev/null 2>&1; then
+      TRINO_BASE_URL="$base"
+      break
+    fi
+  done
+  # Fall back to NODE_IP if none respond yet (Trino may still be starting).
+  TRINO_BASE_URL="${TRINO_BASE_URL:-https://${NODE_IP}:${TRINO_PORT}}"
+fi
 
 if [[ "$SKIP_TRINO" == false ]]; then
   cat > "$ENV_FILE" <<EOF
@@ -208,6 +272,17 @@ STACKABLE_COCKPIT_TRINO_AUTH_TYPE=basic
 STACKABLE_COCKPIT_TRINO_AUTH_USERNAME=stackable-cockpit
 STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD=stackable-cockpit-dev
 STACKABLE_COCKPIT_TRINO_TLS_INSECURE=true
+STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true
+STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES=262144
+STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES=5242880
+STACKABLE_COCKPIT_PDF_PREVIEW_BYTES=26214400
+STACKABLE_COCKPIT_FILE_PREVIEW_ROWS=250
+STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS=50
+PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT=true
+PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES=25,50,100
+PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE=25
+PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES=15
+PUBLIC_STACKABLE_COCKPIT_UPLOAD_CONCURRENCY=3
 EOF
 else
   cat > "$ENV_FILE" <<EOF
@@ -216,13 +291,24 @@ STACKABLE_COCKPIT_OIDC_CLIENT_ID=stackable-cockpit
 STACKABLE_COCKPIT_OIDC_CLIENT_SECRET=${SECRET}
 STACKABLE_COCKPIT_SESSION_SECRET=${SESSION_SECRET}
 STACKABLE_COCKPIT_BASE_URL=http://localhost:5173
+STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true
+STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES=262144
+STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES=5242880
+STACKABLE_COCKPIT_PDF_PREVIEW_BYTES=26214400
+STACKABLE_COCKPIT_FILE_PREVIEW_ROWS=250
+STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS=50
+PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT=true
+PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES=25,50,100
+PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE=25
+PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES=15
+PUBLIC_STACKABLE_COCKPIT_UPLOAD_CONCURRENCY=3
 EOF
 fi
 
 echo "Wrote $ENV_FILE"
 
 # ------------------------------------------------------------------
-# 8. Create Kubernetes Secret for the Helm chart
+# 9. Create Kubernetes Secret for the Helm chart
 # ------------------------------------------------------------------
 echo ""
 echo "Creating stackable-cockpit-credentials Secret..."
@@ -232,7 +318,7 @@ kubectl create secret generic stackable-cockpit-credentials \
   --from-literal=trino-auth-password=stackable-cockpit-dev
 
 # ------------------------------------------------------------------
-# 9. Wait for Trino to be ready
+# 10. Wait for Trino to be ready
 # ------------------------------------------------------------------
 if [[ "$SKIP_TRINO" == false ]]; then
   echo ""
@@ -260,6 +346,11 @@ if [[ "$SKIP_TRINO" == false ]]; then
   echo ""
 else
   echo "Trino was skipped. Add STACKABLE_COCKPIT_TRINO_* vars to $ENV_FILE manually when ready."
+  echo ""
+fi
+if [[ "$SKIP_GARAGE" == false ]]; then
+  echo "Garage S3:      http://${NODE_IP}:30900  (admin: http://${NODE_IP}:30902)"
+  echo "  Credentials written to s3-config.json for E2E tests."
   echo ""
 fi
 echo "Test users (OIDC):"

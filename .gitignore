@@ -33,9 +33,16 @@ dist/
 .claude/settings.local.json
 .claude/CLAUDE.local.md
 
+# Vitest coverage reports
+coverage/
+coverage/*
+
 # Playwright
 e2e/test-results
 e2e/.auth
 # Paraglide
 src/lib/paraglide
 project.inlang/cache/
+# Garage
+.garage.log
+s3-config.json

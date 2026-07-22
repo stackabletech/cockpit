@@ -29,7 +29,7 @@
 
   async function fetchLevel(params: Record<string, string>): Promise<unknown[][]> {
     const qs = new URLSearchParams(params).toString();
-    const res = await fetch(`/trino/catalog?${qs}`);
+    const res = await fetch(`/api/trino/catalog?${qs}`);
     if (!res.ok) {
       const text = await res.text();
       throw new Error(text);

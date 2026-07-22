@@ -1,6 +1,14 @@
-export const ALLOWED_PAGE_SIZES = [25, 50, 100] as const;
-export type PageSize = (typeof ALLOWED_PAGE_SIZES)[number];
+import { browser } from '$app/environment';
+import { allowedPageSizes, defaultPageSize } from '$lib/client/feature-flags.js';
+
+export type PageSize = number;
 
 export function isPageSize(n: number): n is PageSize {
-  return (ALLOWED_PAGE_SIZES as readonly number[]).includes(n);
+  return allowedPageSizes.includes(n);
+}
+
+export function initPageSize(storageKey: string): PageSize {
+  if (!browser) return defaultPageSize;
+  const stored = parseInt(localStorage.getItem(storageKey) ?? '', 10);
+  return isPageSize(stored) ? stored : defaultPageSize;
 }

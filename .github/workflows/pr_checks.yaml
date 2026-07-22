@@ -61,9 +61,34 @@ jobs:
       - name: Run pre-commit
         run: pre-commit run --all-files --show-diff-on-failure --color=always
 
-  tests:
-    name: E2E Tests
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+  e2e-with-garage:
+    name: E2E Tests with Garage S3
+    runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -82,5 +107,35 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox
 
-      - name: Run E2E tests
-        run: npm run test:e2e
+      - name: Start Garage S3 and initialize bucket
+        run: |
+          # GitHub Actions services now support entrypoint + command, but we still
+          # start Garage manually here because service containers are created before
+          # actions/checkout runs. The upstream Garage image contains only the
+          # /garage binary (no /bin/sh), so the service cannot wait for the checked-
+          # out e2e/garage.toml to appear before it starts.
+          docker run -d --name garage \
+            -p 3900:3900 \
+            -p 3902:3902 \
+            -e GARAGE_CONFIG_FILE=/workspace/dev/garage/garage.toml \
+            -v "$PWD:/workspace" \
+            --entrypoint /garage \
+            oci.stackable.tech/stackable/dxflrs/garage:v2.3.0 \
+            server --single-node
+
+          # Wait for the S3 API to become available
+          for _ in $(seq 1 30); do
+            if curl -s http://localhost:3900 >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+
+          S3_SECRET_ACCESS_KEY="e2e-test-secret-key-for-ci" \
+            GARAGE_ADMIN_TOKEN='stackable-cockpit-e2e-admin-token' \
+            S3_ENDPOINT='http://localhost:3900' \
+            S3_CONFIG_PATH="$PWD/s3-config.json" \
+            ./e2e/init-garage-s3.sh
+
+      - name: Run E2E tests with Garage
+        run: npm run test:e2e:garage

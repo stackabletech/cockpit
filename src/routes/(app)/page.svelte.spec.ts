@@ -4,7 +4,11 @@ import { render } from 'vitest-browser-svelte';
 import Page from './+page.svelte';
 
 const renderPage = () =>
-  render(Page, { params: {}, data: { user: null, serviceCount: 0, healthy: true }, form: null });
+  render(Page, {
+    params: {},
+    data: { user: null, storageBrowserEnabled: true, serviceCount: 0, healthy: true },
+    form: null
+  });
 
 describe('/(app)/+page.svelte', () => {
   it('should render the welcome heading', async () => {
@@ -20,6 +24,30 @@ describe('/(app)/+page.svelte', () => {
     await expect.element(page.getByText('Services', { exact: true })).toBeInTheDocument();
     await expect.element(page.getByText('Active Queries')).toBeInTheDocument();
     await expect.element(page.getByText('Health', { exact: true })).toBeInTheDocument();
+  });
+
+  it('should display the service count from props', async () => {
+    render(Page, {
+      params: {},
+      data: { user: null, storageBrowserEnabled: true, serviceCount: 5, healthy: true },
+      form: null
+    });
+
+    await expect.element(page.getByText('5')).toBeInTheDocument();
+  });
+
+  it('should display the health OK status', async () => {
+    renderPage();
+
+    await expect.element(page.getByText('OK')).toBeInTheDocument();
+  });
+
+  it('should render the dashboard subtitle', async () => {
+    renderPage();
+
+    await expect
+      .element(page.getByText(/stackable unified data platform overview/i))
+      .toBeInTheDocument();
   });
 
   it('should render the getting started section', async () => {

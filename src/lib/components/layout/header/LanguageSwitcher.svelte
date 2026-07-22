@@ -27,7 +27,10 @@
 </script>
 
 <button
-  class={`btn btn-ghost btn-sm ${showLabel ? 'gap-2' : 'btn-square'}`}
+  class={`
+    btn btn-ghost btn-sm
+    ${showLabel ? 'gap-2' : 'btn-square'}
+  `}
   popovertarget="lang-switcher"
   style="anchor-name:--lang-switcher"
   aria-label={showLabel
@@ -40,7 +43,10 @@
   {/if}
 </button>
 <ul
-  class="dropdown dropdown-end menu bg-base-100 border-base-300 w-40 rounded-lg border p-1 shadow-lg"
+  class="
+    menu dropdown dropdown-end border-base-300 bg-base-100 w-40 rounded-lg
+    border p-1 shadow-lg
+  "
   popover
   id="lang-switcher"
   style="position-anchor:--lang-switcher"

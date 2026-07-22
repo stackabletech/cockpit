@@ -4,6 +4,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import Sidebar from '$lib/components/layout/sidebar/Sidebar.svelte';
   import Header from '$lib/components/layout/header/Header.svelte';
+  import ToastHost from '$lib/components/ToastHost.svelte';
 
   let { children, data } = $props();
 
@@ -29,7 +30,12 @@
     '/trino': m.page_title_trino
   };
 
-  let title = $derived((pageTitles[page.url.pathname] ?? m.page_title_default)());
+  let title = $derived(
+    (
+      pageTitles[page.url.pathname] ??
+      (page.url.pathname.startsWith('/storage') ? m.page_title_storage : m.page_title_default)
+    )()
+  );
 </script>
 
 <svelte:head>
@@ -37,7 +43,11 @@
 </svelte:head>
 
 <div class="bg-base-100 flex h-dvh overflow-hidden">
-  <Sidebar bind:collapsed={sidebarCollapsed} bind:mobileOpen />
+  <Sidebar
+    bind:collapsed={sidebarCollapsed}
+    bind:mobileOpen
+    storageBrowserEnabled={data.storageBrowserEnabled}
+  />
 
   <div class="flex min-w-0 flex-1 flex-col">
     <Header
@@ -52,3 +62,5 @@
     </main>
   </div>
 </div>
+
+<ToastHost />

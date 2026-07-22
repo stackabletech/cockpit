@@ -9,13 +9,15 @@
 
   let {
     collapsed = $bindable(false),
-    mobileOpen = $bindable(false)
+    mobileOpen = $bindable(false),
+    storageBrowserEnabled = false
   }: {
     collapsed?: boolean;
     mobileOpen?: boolean;
+    storageBrowserEnabled?: boolean;
   } = $props();
 
-  const sections = $derived(getNavSections());
+  const sections = $derived(getNavSections({ storageBrowserEnabled }));
 
   function isActive(href: string): boolean {
     if (href === '/') return page.url.pathname === '/';
