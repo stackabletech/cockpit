@@ -60,39 +60,40 @@ spec:
               value: {{ .Values.service.targetPort | quote }}
             - name: STACKABLE_COCKPIT_COMPLETION_ENABLED
               value: {{ .Values.features.trino.completion.enabled | quote }}
+            {{- $storageDefaults := index (.Values.features | default dict) "storage" | default dict }}
             - name: STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED
-              value: {{ .Values.features.storage.enabled | quote }}
+              value: {{ $storageDefaults.enabled | default false | quote }}
             - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT
-              value: {{ .Values.features.storage.autoConnect | quote }}
+              value: {{ $storageDefaults.autoConnect | default false | quote }}
             - name: PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES
-              value: {{ .Values.features.storage.pageSizes | quote }}
-            {{- if .Values.features.storage.defaultPageSize }}
+              value: {{ $storageDefaults.pageSizes | default "25,50,100" | quote }}
+            {{- if $storageDefaults.defaultPageSize }}
             - name: PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE
-              value: {{ .Values.features.storage.defaultPageSize | quote }}
+              value: {{ $storageDefaults.defaultPageSize | quote }}
             {{- end }}
             - name: PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES
-              value: {{ .Values.features.storage.maxRecentFiles | quote }}
+              value: {{ $storageDefaults.maxRecentFiles | default 15 | quote }}
             - name: PUBLIC_STACKABLE_COCKPIT_UPLOAD_CONCURRENCY
-              value: {{ .Values.features.storage.uploadConcurrency | quote }}
-            {{- if .Values.features.storage.textPreviewBytes }}
+              value: {{ $storageDefaults.uploadConcurrency | default 3 | quote }}
+            {{- if $storageDefaults.textPreviewBytes }}
             - name: STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES
-              value: {{ .Values.features.storage.textPreviewBytes | quote }}
+              value: {{ $storageDefaults.textPreviewBytes | quote }}
             {{- end }}
-            {{- if .Values.features.storage.imagePreviewBytes }}
+            {{- if $storageDefaults.imagePreviewBytes }}
             - name: STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES
-              value: {{ .Values.features.storage.imagePreviewBytes | quote }}
+              value: {{ $storageDefaults.imagePreviewBytes | quote }}
             {{- end }}
-            {{- if .Values.features.storage.pdfPreviewBytes }}
+            {{- if $storageDefaults.pdfPreviewBytes }}
             - name: STACKABLE_COCKPIT_PDF_PREVIEW_BYTES
-              value: {{ .Values.features.storage.pdfPreviewBytes | quote }}
+              value: {{ $storageDefaults.pdfPreviewBytes | quote }}
             {{- end }}
-            {{- if .Values.features.storage.filePreviewRows }}
+            {{- if $storageDefaults.filePreviewRows }}
             - name: STACKABLE_COCKPIT_FILE_PREVIEW_ROWS
-              value: {{ .Values.features.storage.filePreviewRows | quote }}
+              value: {{ $storageDefaults.filePreviewRows | quote }}
             {{- end }}
-            {{- if .Values.features.storage.filePreviewColumns }}
+            {{- if $storageDefaults.filePreviewColumns }}
             - name: STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS
-              value: {{ .Values.features.storage.filePreviewColumns | quote }}
+              value: {{ $storageDefaults.filePreviewColumns | quote }}
             {{- end }}
             {{- if .Values.trino.queryTtl }}
             - name: STACKABLE_COCKPIT_QUERY_TTL

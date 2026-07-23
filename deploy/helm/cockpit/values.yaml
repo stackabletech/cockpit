@@ -107,32 +107,6 @@ features:
   trino:
     completion:
       enabled: true
-  storage:
-    # When enabled, the S3/HDFS file browser is shown in the sidebar and
-    # routes under /storage become active. Disabled by default because it
-    # exposes storage credentials and the file-browser UI.
-    enabled: false
-    # Automatically reconnect to the most recently used storage connection
-    # when navigating to the storage page.
-    autoConnect: false
-    # Comma-separated page size options for paginated list views.
-    pageSizes: "25,50,100"
-    # Default page size (must be one of pageSizes). Empty = code default.
-    defaultPageSize: ""
-    # Maximum number of recently visited files in storage browser history.
-    maxRecentFiles: 15
-    # Maximum parallel HTTP requests during upload conflict check and upload.
-    uploadConcurrency: 3
-    # Maximum bytes fetched for text/CSV/JSON file previews (256 KiB default).
-    textPreviewBytes: ""
-    # Maximum bytes fetched for image file previews (5 MiB default).
-    imagePreviewBytes: ""
-    # Maximum bytes fetched for PDF file previews (25 MiB default).
-    pdfPreviewBytes: ""
-    # Maximum rows in a tabular file preview (Parquet/CSV).
-    filePreviewRows: ""
-    # Maximum columns in a tabular file preview.
-    filePreviewColumns: ""
 
 logging:
   level: ""
@@ -205,5 +179,3 @@ trino:
     # Stackable SecretClass name for provisioning the Trino CA certificate.
     # The Secret Operator mounts ca.crt into /stackable/trino-tls.
     secretClass: ""
-  # Query result TTL in seconds (default: 1800 / 30 min).
-  queryTtl: ""
