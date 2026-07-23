@@ -144,6 +144,14 @@ The upload endpoint imposes no maximum file size. S3's 5 TB single-object limit 
 
 ---
 
+### Blocking `<script>` in `app.html` for sidebar width
+
+**File:** `src/app.html`
+
+A blocking `<script>` in `<head>` reads `localStorage.getItem('storage_sidebar_width')` and sets `--storage-sidebar-width` on `<html>` before first paint, to prevent SSR→client width flash on F5 reload. This duplicates the localStorage read from `createResizablePanel`'s `$effect` and couples the sidebar width fix to a specific `app.html` implementation detail. Acceptable because the same pattern is already used for the theme. Long-term: find a SvelteKit-native way to influence SSR output from client-side persisted state without blocking scripts or FOUC workarounds.
+
+---
+
 ### No `/readyz` endpoint — readiness uses the trivial liveness probe
 
 **File:** `src/routes/healthz/+server.ts`, `deploy/helm/cockpit/values.yaml`

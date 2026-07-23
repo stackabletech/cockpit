@@ -10,6 +10,8 @@
           localStorage.getItem('theme') ||
           (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         document.documentElement.setAttribute('data-theme', theme);
+        const w = localStorage.getItem('storage_sidebar_width');
+        if (w) document.documentElement.style.setProperty('--storage-sidebar-width', w + 'px');
       })();
     </script>
     %sveltekit.head%

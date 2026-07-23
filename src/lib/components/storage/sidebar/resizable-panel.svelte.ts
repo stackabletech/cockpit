@@ -19,8 +19,9 @@ export function createResizablePanel({
   minWidth = 120,
   maxWidth = 480
 }: Options) {
-  function getInitialWidth(): number {
-    if (!browser) return defaultWidth;
+  const cssVar = '--' + storageKey.replace(/_/g, '-');
+
+  function loadWidth(): number {
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
@@ -36,13 +37,25 @@ export function createResizablePanel({
   function saveWidth(w: number) {
     try {
       localStorage.setItem(storageKey, String(w));
+      if (browser) document.documentElement.style.setProperty(cssVar, w + 'px');
     } catch {
       /* ignore storage errors */
     }
   }
 
-  let width = $state(getInitialWidth());
+  // Use the default during SSR. The blocking <script> in app.html sets the
+  // CSS custom property from localStorage before first paint, so the correct
+  // width is applied visually even while the JS state still has the default.
+  let width = $derived(defaultWidth);
+
+  // Sync the JS width after hydration so resize handle aria-valuenow etc. are
+  // correct. This is needed because $state values are serialized during SSR
+  // and restored as-is on the client — the initializer never runs again.
+  $effect(() => {
+    width = loadWidth();
+  });
   let isDragging = $state(false);
+
   let dragStartX = 0;
   let dragStartWidth = 0;
 
@@ -97,6 +110,9 @@ export function createResizablePanel({
     },
     get isDragging() {
       return isDragging;
+    },
+    get cssVarName() {
+      return cssVar;
     },
     minWidth,
     maxWidth,

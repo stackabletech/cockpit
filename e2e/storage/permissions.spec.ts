@@ -108,6 +108,12 @@ test.describe('Storage S3 — Permissions', () => {
 
     await expect(page.getByText('403')).toBeVisible();
     await expect(page.getByText('You do not have permission to access the bucket')).toBeVisible();
+    await expect(page.locator('nav[aria-label="breadcrumb"]')).toBeVisible();
+    await expect(page.locator('nav[aria-label="breadcrumb"] a')).toContainText(writeonlyBucket);
+    await expect(page.locator('nav[aria-label="breadcrumb"] a')).toHaveAttribute(
+      'href',
+      bucketRoute(writeonlyBucket)
+    );
     await expect(page.getByRole('link', { name: 'Back to storage' })).toBeVisible();
   });
 
@@ -132,5 +138,11 @@ test.describe('Storage S3 — Permissions', () => {
 
     await expect(page.getByText('403')).toBeVisible();
     await expect(page.getByText('You do not have permission to access the bucket')).toBeVisible();
+    await expect(page.locator('nav[aria-label="breadcrumb"]')).toBeVisible();
+    await expect(page.locator('nav[aria-label="breadcrumb"] a')).toContainText(noAccessBucket);
+    await expect(page.locator('nav[aria-label="breadcrumb"] a')).toHaveAttribute(
+      'href',
+      bucketRoute(noAccessBucket)
+    );
   });
 });

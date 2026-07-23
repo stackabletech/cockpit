@@ -80,8 +80,19 @@
         <FileRow {file} />
       {/each}
 
-      <!-- Empty folder -->
-      {#if storage.folders.length === 0 && storage.files.length === 0}
+      <!-- Loading skeleton -->
+      {#if storage.loading && storage.folders.length === 0 && storage.files.length === 0}
+        {#each [1, 2, 3, 4, 5] as row (row)}
+          <tr class="animate-pulse">
+            <td class="pr-0"></td>
+            <td><div class="skeleton h-4 w-3/4"></div></td>
+            <td><div class="skeleton ml-auto h-4 w-1/4"></div></td>
+            <td><div class="skeleton h-4 w-1/3"></div></td>
+            <td></td>
+          </tr>
+        {/each}
+      {:else if storage.folders.length === 0 && storage.files.length === 0}
+        <!-- Empty folder -->
         <tr>
           <td colspan={5} class="text-base-content/40 py-16 text-center">
             <IconFolderOpen class="mx-auto mb-3 size-10 opacity-30" aria-hidden="true" />

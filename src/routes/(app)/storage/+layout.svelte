@@ -27,7 +27,7 @@
   const isConnectionsRoute = $derived(page.url.pathname.startsWith('/storage/connections'));
 </script>
 
-{#if data.connected && !isConnectionsRoute}
+{#if !isConnectionsRoute}
   <div class="flex h-full min-h-0 gap-4">
     <BucketList />
     <div class="flex min-w-0 flex-1 flex-col">
