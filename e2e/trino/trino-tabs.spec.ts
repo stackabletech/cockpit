@@ -59,6 +59,30 @@ test.describe('Trino editor tabs', () => {
     await expect(tabs).toHaveCount(1);
   });
 
+  test('close non-active tab removes it and preserves active tab', async ({ page }) => {
+    await setTabState(page, [{ sql: 'SELECT 1' }, { sql: 'SELECT 2' }]);
+    await page.goto('/trino');
+    await waitForHydration(page);
+
+    const tabs = page.locator('[role="tab"]');
+    await expect(tabs).toHaveCount(2);
+
+    // Switch to the second tab to make it active
+    await tabs.nth(1).click();
+    await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+
+    // Close the first (non-active) tab
+    const closeBtn = tabs
+      .nth(0)
+      .locator('..')
+      .getByRole('button', { name: /Close tab/ });
+    await closeBtn.click();
+
+    // Only one tab remains with default label — it should still be active
+    await expect(page.locator('[role="tab"]')).toHaveCount(1);
+    await expect(page.locator('[role="tab"]').nth(0)).toHaveAttribute('aria-selected', 'true');
+  });
+
   test('cannot close last remaining tab', async ({ page }) => {
     // With only one tab, close button should not be visible.
     const tabs = page.locator('[role="tab"]');

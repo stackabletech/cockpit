@@ -133,7 +133,15 @@ test.describe('Storage S3 — File Operations', () => {
       await page.waitForTimeout(1000);
 
       // Should show error toast about source not found
-      await expect(page.getByText(/could not paste|source.*deleted/i)).toBeVisible();
+      const errorMsg = page.getByText(/could not paste|source.*deleted/i);
+      await expect(errorMsg).toBeVisible();
+
+      // The toast also has a Dismiss button
+      const toast = page.getByRole('alert').filter({ hasText: /could not paste|source.*deleted/i });
+      const dismissBtn = toast.getByRole('button', { name: 'Dismiss' });
+      await expect(dismissBtn).toBeVisible();
+      await dismissBtn.click();
+      await expect(toast).not.toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
