@@ -16,9 +16,10 @@ test.describe('Storage S3 — Tooltips', () => {
     );
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   test('hovering over a sidebar bucket name shows a tooltip', async ({ page }, _testInfo) => {
     const credentials = requireGarageCredentials();
-    const client = createS3Client(credentials);
+    createS3Client(credentials);
 
     await connectAndOpenPrefix(page, credentials, '');
 

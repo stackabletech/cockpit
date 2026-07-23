@@ -22,7 +22,13 @@ describe('readNdjsonStream', () => {
   it('parses progress events and calls onProgress', async () => {
     const onProgress = vi.fn();
     const stream = createStream([
-      JSON.stringify({ type: 'progress', sourceKey: 'a.txt', destKey: 'b.txt', loaded: 50, total: 100 })
+      JSON.stringify({
+        type: 'progress',
+        sourceKey: 'a.txt',
+        destKey: 'b.txt',
+        loaded: 50,
+        total: 100
+      })
     ]);
 
     const result = await readNdjsonStream(stream, { onProgress });
@@ -71,9 +77,7 @@ describe('readNdjsonStream', () => {
   });
 
   it('uses default error message when error field is missing', async () => {
-    const stream = createStream([
-      JSON.stringify({ type: 'failed', sourceKey: 'a.txt' })
-    ]);
+    const stream = createStream([JSON.stringify({ type: 'failed', sourceKey: 'a.txt' })]);
 
     const result = await readNdjsonStream(stream);
 
@@ -81,9 +85,7 @@ describe('readNdjsonStream', () => {
   });
 
   it('ignores failed events missing sourceKey', async () => {
-    const stream = createStream([
-      JSON.stringify({ type: 'failed', error: 'err' })
-    ]);
+    const stream = createStream([JSON.stringify({ type: 'failed', error: 'err' })]);
 
     const result = await readNdjsonStream(stream);
 
@@ -143,9 +145,7 @@ describe('readNdjsonStream', () => {
 
   it('calls onStatus with message', async () => {
     const onStatus = vi.fn();
-    const stream = createStream([
-      JSON.stringify({ type: 'status', message: 'Processing...' })
-    ]);
+    const stream = createStream([JSON.stringify({ type: 'status', message: 'Processing...' })]);
 
     await readNdjsonStream(stream, { onStatus });
 
@@ -153,7 +153,11 @@ describe('readNdjsonStream', () => {
   });
 
   it('handles empty lines gracefully', async () => {
-    const stream = createStream(['', '  ', JSON.stringify({ type: 'done', sourceKey: 'a.txt', destKey: 'b.txt' })]);
+    const stream = createStream([
+      '',
+      '  ',
+      JSON.stringify({ type: 'done', sourceKey: 'a.txt', destKey: 'b.txt' })
+    ]);
 
     const result = await readNdjsonStream(stream);
 

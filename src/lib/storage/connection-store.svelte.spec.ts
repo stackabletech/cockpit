@@ -35,12 +35,20 @@ describe('connectionStore', () => {
 
   it('handles switching activeConnectionId', () => {
     const conn1: ConnectionListItem = {
-      id: 'c1', name: 'First', endpoint: null,
-      additionalBuckets: [], createdAt: '', updatedAt: ''
+      id: 'c1',
+      name: 'First',
+      endpoint: null,
+      additionalBuckets: [],
+      createdAt: '',
+      updatedAt: ''
     };
     const conn2: ConnectionListItem = {
-      id: 'c2', name: 'Second', endpoint: null,
-      additionalBuckets: [], createdAt: '', updatedAt: ''
+      id: 'c2',
+      name: 'Second',
+      endpoint: null,
+      additionalBuckets: [],
+      createdAt: '',
+      updatedAt: ''
     };
     connectionStore.connections.push(conn1, conn2);
     connectionStore.activeConnectionId = 'c1';

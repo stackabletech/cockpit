@@ -54,5 +54,4 @@ test.describe('Storage S3 — Toast notifications', () => {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
   });
-
 });

@@ -47,7 +47,11 @@ describe('pinnedLabel', () => {
   });
 
   it('returns last segment of prefix', () => {
-    const pin: PinnedLocation = { connectionId: 'c1', bucket: 'my-bucket', prefix: 'a/b/deep-path' };
+    const pin: PinnedLocation = {
+      connectionId: 'c1',
+      bucket: 'my-bucket',
+      prefix: 'a/b/deep-path'
+    };
     expect(pinnedLabel(pin)).toBe('deep-path');
   });
 });
@@ -123,31 +127,56 @@ describe('fileHref', () => {
 
 describe('locationName', () => {
   it('returns bucket name when no prefix', () => {
-    const loc: RecentLocation = { bucket: 'my-bucket', prefix: '', visitedAt: '', connectionId: 'c1' };
+    const loc: RecentLocation = {
+      bucket: 'my-bucket',
+      prefix: '',
+      visitedAt: '',
+      connectionId: 'c1'
+    };
     expect(locationName(loc)).toBe('my-bucket');
   });
 
   it('returns last prefix segment', () => {
-    const loc: RecentLocation = { bucket: 'my-bucket', prefix: 'a/b/c', visitedAt: '', connectionId: 'c1' };
+    const loc: RecentLocation = {
+      bucket: 'my-bucket',
+      prefix: 'a/b/c',
+      visitedAt: '',
+      connectionId: 'c1'
+    };
     expect(locationName(loc)).toBe('c');
   });
 });
 
 describe('locationPath', () => {
   it('returns bucket name when no prefix', () => {
-    const loc: RecentLocation = { bucket: 'my-bucket', prefix: '', visitedAt: '', connectionId: 'c1' };
+    const loc: RecentLocation = {
+      bucket: 'my-bucket',
+      prefix: '',
+      visitedAt: '',
+      connectionId: 'c1'
+    };
     expect(locationPath(loc)).toBe('my-bucket');
   });
 
   it('returns bucket / prefix path', () => {
-    const loc: RecentLocation = { bucket: 'my-bucket', prefix: 'a/b/c', visitedAt: '', connectionId: 'c1' };
+    const loc: RecentLocation = {
+      bucket: 'my-bucket',
+      prefix: 'a/b/c',
+      visitedAt: '',
+      connectionId: 'c1'
+    };
     expect(locationPath(loc)).toBe('my-bucket / a / b / c');
   });
 });
 
 describe('locationHref', () => {
   it('generates href from recent location', () => {
-    const loc: RecentLocation = { bucket: 'my-bucket', prefix: 'some/path', visitedAt: '', connectionId: 'c1' };
+    const loc: RecentLocation = {
+      bucket: 'my-bucket',
+      prefix: 'some/path',
+      visitedAt: '',
+      connectionId: 'c1'
+    };
     expect(locationHref(loc)).toBe('/storage/my-bucket/some/path');
   });
 });

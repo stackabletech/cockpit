@@ -7,7 +7,7 @@ beforeEach(() => {
 
 describe('addToast', () => {
   it('adds a toast with the given properties', () => {
-    const id = addToast('info', 'Hello world');
+    addToast('info', 'Hello world');
     expect(toasts).toHaveLength(1);
     expect(toasts[0]).toMatchObject({ type: 'info', message: 'Hello world' });
     expect(typeof toasts[0].id).toBe('string');
@@ -38,7 +38,7 @@ describe('addToast', () => {
 
   it('stores actions when provided', () => {
     const action = { label: 'Undo', onClick: () => {} };
-    const id = addToast('warning', 'With action', 5000, [action]);
+    addToast('warning', 'With action', 5000, [action]);
     expect(toasts[0].actions).toEqual([action]);
   });
 });

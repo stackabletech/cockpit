@@ -36,9 +36,7 @@ describe('ToastHost', () => {
   });
 
   it('renders action buttons when toast has actions', () => {
-    addToast('warning', 'With action', 5000, [
-      { label: 'Undo', onClick: () => {} }
-    ]);
+    addToast('warning', 'With action', 5000, [{ label: 'Undo', onClick: () => {} }]);
     render(ToastHost);
     const undoBtn = page.getByText('Undo');
     expect(undoBtn.query()).not.toBeNull();

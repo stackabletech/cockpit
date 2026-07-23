@@ -180,6 +180,7 @@
 
 <div
   bind:this={scrollContainer}
+  role="region"
   class="h-full overflow-x-auto overflow-y-auto {tableDragOver
     ? 'outline-primary/40 outline -outline-offset-2 outline-dashed'
     : ''}"

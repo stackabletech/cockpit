@@ -616,7 +616,6 @@
           <input
             id="create-name-input"
             class="input input-sm w-full"
-            autofocus
             value={createName}
             placeholder={m.storage_create_placeholder()}
             oninput={(e) => {

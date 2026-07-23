@@ -9,15 +9,11 @@ describe('parseParquetDisallowed', () => {
   });
 
   it('defaults to GZIP with requireOffsetIndex when value is empty string', () => {
-    expect(parseParquetDisallowed('')).toEqual([
-      { codec: 'GZIP', requireOffsetIndex: true }
-    ]);
+    expect(parseParquetDisallowed('')).toEqual([{ codec: 'GZIP', requireOffsetIndex: true }]);
   });
 
   it('parses a single codec without suffix', () => {
-    expect(parseParquetDisallowed('zstd')).toEqual([
-      { codec: 'ZSTD', requireOffsetIndex: false }
-    ]);
+    expect(parseParquetDisallowed('zstd')).toEqual([{ codec: 'ZSTD', requireOffsetIndex: false }]);
   });
 
   it('parses a codec with -no_offset suffix', () => {
