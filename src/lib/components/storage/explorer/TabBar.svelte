@@ -272,6 +272,7 @@
   onclose={closeCtxMenu}
   onaction={handleTabAction}
   actions={tabMenuActions}
+  title={m.storage_tab_context_menu()}
 />
 
 {#if tabsState.hasTabs}

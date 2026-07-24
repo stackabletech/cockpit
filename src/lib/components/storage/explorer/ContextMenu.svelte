@@ -251,6 +251,7 @@
     class="menu menu-sm border-base-300 bg-base-100 fixed z-60 w-48 rounded-lg border p-1 shadow-lg"
     role="menu"
     tabindex="-1"
+    aria-label={title}
     style="left: {adjustedPos.left}px; top: {adjustedPos.top}px;"
   >
     {#if title}
