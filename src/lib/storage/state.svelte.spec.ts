@@ -104,6 +104,9 @@ function makeApi(overrides?: Partial<StorageApi>): StorageApi {
     async checkObjectExists() {
       return false;
     },
+    async download() {
+      return new Response(null, { status: 200 });
+    },
     async preview() {
       return new Response(null, { status: 200 });
     },

@@ -570,7 +570,7 @@
     if (!objectKey) return;
 
     try {
-      const res = await storage.api.preview({ bucket, key: objectKey });
+      const res = await storage.api.download({ bucket, key: objectKey });
       if (!res.ok) {
         addToast('error', m.storage_download_error_unknown());
         return;
