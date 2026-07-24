@@ -11,13 +11,16 @@
 
   // Set bucket/prefix immediately so breadcrumb renders correctly during SSR
   // ($effect doesn't run on the server, but data is available from the load function)
+  // svelte-ignore state_referenced_locally
   storage.bucket = data.bucket;
+  // svelte-ignore state_referenced_locally
   storage.prefix = data.prefix;
 
   // During SSR, $effect doesn't run, so storage.loading stays false and the
   // empty state renders instead of the loading overlay. Setting loading here
   // when hydrating ensures the loading spinner is present in the SSR HTML,
   // preventing a flash of empty state on F5 reload before the client load completes.
+  // svelte-ignore state_referenced_locally
   if (data.hydrating) storage.loading = true;
 
   let hydrated = false;

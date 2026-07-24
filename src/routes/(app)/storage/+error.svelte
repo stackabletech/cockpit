@@ -5,6 +5,10 @@
   import IconStorage from 'virtual:icons/material-symbols/storage';
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
   import * as m from '$lib/paraglide/messages.js';
+  import { getStorageState } from '$lib/storage/context.js';
+
+  const storage = getStorageState();
+  storage.loading = false;
 
   const bucket = $derived(
     page.params.bucket ||
