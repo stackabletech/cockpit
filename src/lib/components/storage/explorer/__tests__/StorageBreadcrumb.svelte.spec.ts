@@ -352,7 +352,7 @@ describe('StorageBreadcrumb', () => {
       const bucketEl = nav.getByText('test-bucket');
       await bucketEl.click({ button: 'right' });
 
-      const menuItem = page.getByRole('menuitem');
+      const menuItem = page.getByRole('menuitem', { name: /pin/i });
       await menuItem.first().click();
       expect(spy).toHaveBeenCalledWith('test-bucket', '');
     });
@@ -369,7 +369,7 @@ describe('StorageBreadcrumb', () => {
       const bucketEl = nav.getByText('test-bucket');
       await bucketEl.click({ button: 'right' });
 
-      const menuItem = page.getByRole('menuitem');
+      const menuItem = page.getByRole('menuitem', { name: /unpin/i });
       await menuItem.first().click();
       expect(spy).toHaveBeenCalledWith('test-bucket', '');
     });

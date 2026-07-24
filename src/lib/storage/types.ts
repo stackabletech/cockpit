@@ -1,3 +1,5 @@
+import type { Component } from 'svelte';
+
 // ── Modal types ─────────────────────────────────────────────────────────────
 
 export type ModalType =
@@ -56,6 +58,15 @@ export type ActiveModal = {
 }[ModalType];
 
 // ── Context menu ─────────────────────────────────────────────────────────────
+
+export interface ContextMenuAction {
+  key: string;
+  icon: Component;
+  label: string;
+  disabled?: boolean;
+  hidden?: boolean;
+  class?: string;
+}
 
 export interface ContextMenuState {
   x: number;

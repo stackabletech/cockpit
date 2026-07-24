@@ -1,10 +1,15 @@
 <script lang="ts">
   import IconAdd from 'virtual:icons/material-symbols/add';
   import IconClose from 'virtual:icons/material-symbols/close';
+  import IconFileCopy from 'virtual:icons/material-symbols/file-copy-outline';
+  import IconContentCopy from 'virtual:icons/material-symbols/content-copy';
+  import IconDriveFileRenameOutline from 'virtual:icons/material-symbols/drive-file-rename-outline';
   import * as m from '$lib/paraglide/messages.js';
   import type { TabsState } from '$lib/storage/tabs.svelte.js';
+  import type { ContextMenuAction } from '$lib/storage/types.js';
   import { getStorageState } from '$lib/storage/context.js';
   import { storageMoveEnabled } from '$lib/client/feature-flags.js';
+  import ContextMenu from './ContextMenu.svelte';
 
   interface Props {
     tabsState: TabsState;
@@ -89,6 +94,56 @@
 
   function closeCtxMenu() {
     ctxMenu = null;
+  }
+
+  const tabMenuActions = $derived.by<ContextMenuAction[]>(() => {
+    if (!ctxMenu) return [];
+    return [
+      {
+        key: 'rename',
+        icon: IconDriveFileRenameOutline,
+        label: m.storage_tab_rename(),
+        disabled: false,
+        hidden: false
+      },
+      {
+        key: 'copy-filename',
+        icon: IconFileCopy,
+        label: m.storage_action_copy_directory_name(),
+        disabled: false,
+        hidden: false
+      },
+      {
+        key: 'copy-path',
+        icon: IconContentCopy,
+        label: m.storage_action_copy_path(),
+        disabled: false,
+        hidden: false
+      },
+      {
+        key: 'close',
+        icon: IconClose,
+        label: m.storage_tab_close(),
+        disabled: false,
+        hidden: false,
+        class: 'text-error'
+      }
+    ];
+  });
+
+  function handleTabAction(key: string) {
+    if (!ctxMenu) return;
+    if (key === 'rename') {
+      startRename(ctxMenu.tabId);
+    } else if (key === 'close') {
+      tabsState.closeTab(ctxMenu.tabId);
+    } else if (key === 'copy-filename') {
+      const tab = tabsState.tabs.find((t) => t.id === ctxMenu!.tabId);
+      if (tab) storage.copyFilename(tab.snapshot.prefix);
+    } else if (key === 'copy-path') {
+      const tab = tabsState.tabs.find((t) => t.id === ctxMenu!.tabId);
+      if (tab) storage.copyPath(tab.snapshot.bucket, tab.snapshot.prefix);
+    }
   }
 
   function startRename(tabId: string) {
@@ -210,38 +265,15 @@
   }
 </script>
 
-{#if ctxMenu}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-40" onmousedown={closeCtxMenu}></div>
-  <ul
-    class="menu menu-sm border-base-300 bg-base-100 fixed z-60 w-44 rounded-lg border p-1 shadow-lg"
-    role="menu"
-    aria-label={m.storage_tab_context_menu()}
-    style="left: {ctxMenu.x}px; top: {ctxMenu.y}px;"
-  >
-    <li role="none">
-      <button
-        role="menuitem"
-        class="justify-start text-sm"
-        onclick={() => startRename(ctxMenu!.tabId)}
-      >
-        {m.storage_tab_rename()}
-      </button>
-    </li>
-    <li role="none">
-      <button
-        role="menuitem"
-        class="text-error justify-start text-sm"
-        onclick={() => {
-          tabsState.closeTab(ctxMenu!.tabId);
-          closeCtxMenu();
-        }}
-      >
-        {m.storage_tab_close()}
-      </button>
-    </li>
-  </ul>
-{/if}
+<ContextMenu
+  x={ctxMenu?.x ?? 0}
+  y={ctxMenu?.y ?? 0}
+  open={!!ctxMenu}
+  onclose={closeCtxMenu}
+  onaction={handleTabAction}
+  actions={tabMenuActions}
+  title={m.storage_tab_context_menu()}
+/>
 
 {#if tabsState.hasTabs}
   <div class="bg-base-200/60 relative flex items-end pt-1.5 pl-2">
