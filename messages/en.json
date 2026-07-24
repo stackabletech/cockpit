@@ -428,7 +428,16 @@
   "storage_tab_rename": "Rename tab",
   "storage_tab_list": "Explorer tabs",
   "storage_tab_context_menu": "Tab options",
-  "storage_restore_tabs_message": "You have {count} saved tab(s) from your last session.",
+  "storage_restore_tabs_message": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "You have 1 saved tab from your last session.",
+        "countPlural=other": "You have {count} saved tabs from your last session."
+      }
+    }
+  ],
   "storage_restore_tabs_action": "Restore tabs",
   "storage_preview_parquet_tab_aria": "Parquet preview tabs",
   "storage_preview_parquet_tab_metadata": "Metadata",
@@ -545,20 +554,83 @@
   "storage_details_object_lock": "Object lock",
   "storage_details_object_lock_mode": "Lock mode",
   "storage_details_object_lock_until": "Retain until",
-  "storage_action_cut_success": "{count} item(s) cut",
-  "storage_action_copy_success": "{count} item(s) copied",
-  "storage_action_paste_success": "{count} item(s) pasted",
+  "storage_action_cut_success": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 item cut",
+        "countPlural=other": "{count} items cut"
+      }
+    }
+  ],
+  "storage_action_copy_success": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 item copied",
+        "countPlural=other": "{count} items copied"
+      }
+    }
+  ],
+  "storage_action_paste_success": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 item pasted",
+        "countPlural=other": "{count} items pasted"
+      }
+    }
+  ],
   "storage_action_paste_error": "Could not paste items. Please try again.",
-  "storage_action_paste_partial": "{count} item(s) could not be pasted.",
+  "storage_action_paste_partial": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 item could not be pasted.",
+        "countPlural=other": "{count} items could not be pasted."
+      }
+    }
+  ],
   "storage_action_paste_error_source_not_found": "Could not paste — the source items may have been deleted or moved.",
   "storage_action_paste_archive_error": "Cannot paste inside an archive.",
-  "storage_action_move_success": "{count} item(s) moved",
-  "storage_action_move_partial": "{count} item(s) could not be moved.",
+  "storage_action_move_success": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 item moved",
+        "countPlural=other": "{count} items moved"
+      }
+    }
+  ],
+  "storage_action_move_partial": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 item could not be moved.",
+        "countPlural=other": "{count} items could not be moved."
+      }
+    }
+  ],
   "storage_action_move_error": "Could not move items. Please try again.",
   "storage_action_move_error_not_connected": "No storage connection configured. Please connect first.",
   "storage_action_move_error_access_denied": "Access denied. You do not have permission to move items.",
   "storage_move_confirm_title": "Move items",
-  "storage_move_confirm_body": "Move {count} item(s) to \"{destination}\"?",
+  "storage_move_confirm_body": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Move 1 item to \"{destination}\"?",
+        "countPlural=other": "Move {count} items to \"{destination}\"?"
+      }
+    }
+  ],
   "storage_move_confirm_label": "Move",
   "storage_move_confirm_cancel": "Cancel",
   "storage_move_confirm_more": "+{count} more",
