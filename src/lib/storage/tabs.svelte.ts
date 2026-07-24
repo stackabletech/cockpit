@@ -235,15 +235,28 @@ export class TabsState {
 
   /** Initialises tabs from the current storage state. If persistence is
    *  enabled, restores tabs from localStorage (handles both SPA navigation
-   *  via the /storage banner flag and full page reloads). */
+   *  via the /storage banner flag and full page reloads).
+   *
+   *  Tabs are only restored when the current storage bucket/prefix matches
+   *  the saved active tab's location — otherwise the user navigated to a
+   *  different location directly and stale tabs should not override it. */
   ensureInitialTab(): void {
     if (this.tabs.length > 0) return;
 
     if (this.persistEnabled) {
       const saved = this.peekPersistedTabs();
       if (saved && saved.tabs.length > 0) {
-        this.restorePersistedTabs(saved);
-        return;
+        const activeIdx = saved.tabs.findIndex((pt) => pt.id === saved.activeTabId);
+        const activeTab = activeIdx >= 0 ? saved.tabs[activeIdx] : saved.tabs[0];
+        if (
+          activeTab &&
+          this.storage.bucket === activeTab.bucket &&
+          this.storage.prefix === activeTab.prefix
+        ) {
+          this.restorePersistedTabs(saved);
+          return;
+        }
+        this.clearPersistedTabs();
       }
     }
 
