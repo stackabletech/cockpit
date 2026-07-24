@@ -220,7 +220,7 @@ Both `livenessProbe` and `readinessProbe` point at `/healthz`, which always retu
 
 ---
 
-## Architecture (Tracked by fitness functions in src/architecture/fitness.spec.ts)
+## Architecture (Tracked by fitness functions in src/architecture/\*.spec.ts)
 
 ### Circular imports in the Trino server layer
 
