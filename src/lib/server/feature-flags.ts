@@ -81,7 +81,7 @@ export interface ParquetDisallowedCompression {
   requireOffsetIndex: boolean;
 }
 
-function parseParquetDisallowed(value: string | undefined): ParquetDisallowedCompression[] {
+export function parseParquetDisallowed(value: string | undefined): ParquetDisallowedCompression[] {
   if (!value) return [{ codec: 'GZIP', requireOffsetIndex: true }];
   return value
     .split(',')
