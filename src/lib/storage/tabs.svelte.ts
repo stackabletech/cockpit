@@ -52,18 +52,6 @@ export interface PersistedTabsState {
   connectionId?: string;
 }
 
-// ── Module-level restore request flag ────────────────────────────────────────
-// Set by the /storage banner when the user clicks "Restore tabs". Consumed
-// once by the next ensureInitialTab() call so the FileExplorer knows to
-// restore rather than start fresh. A module-level variable works here because
-// the banner navigates via SvelteKit (SPA navigation — no full page reload).
-
-let restoreRequestedOnNextMount = false;
-
-export function requestTabsRestore(): void {
-  restoreRequestedOnNextMount = true;
-}
-
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 const EMPTY_PAGE: StoragePage = { objects: [], hasNextPage: false, currentPage: 1, pageSize: 25 };
@@ -245,14 +233,13 @@ export class TabsState {
 
   // ── Tab operations ───────────────────────────────────────────────────────
 
-  /** Initialises tabs from the current storage state. If a restore was
-   *  requested via requestTabsRestore(), restores persisted tabs instead of
-   *  starting fresh. */
+  /** Initialises tabs from the current storage state. If persistence is
+   *  enabled, restores tabs from localStorage (handles both SPA navigation
+   *  via the /storage banner flag and full page reloads). */
   ensureInitialTab(): void {
     if (this.tabs.length > 0) return;
 
-    if (restoreRequestedOnNextMount && this.persistEnabled) {
-      restoreRequestedOnNextMount = false;
+    if (this.persistEnabled) {
       const saved = this.peekPersistedTabs();
       if (saved && saved.tabs.length > 0) {
         this.restorePersistedTabs(saved);

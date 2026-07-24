@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import {
-  TabsState,
-  requestTabsRestore,
-  type PersistedTabsState
-} from '$lib/storage/tabs.svelte.js';
+import { TabsState, type PersistedTabsState } from '$lib/storage/tabs.svelte.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
 import { LS_TABS } from '$lib/storage/persistence.js';
 
@@ -535,8 +531,6 @@ describe('TabsState', () => {
       };
       localStorage.setItem(LS_TABS, JSON.stringify(saved));
 
-      requestTabsRestore();
-
       const storage = makeStorage('b1', '');
       const { ts } = makeTabs(storage, { persistEnabled: true });
       ts.ensureInitialTab();
@@ -545,7 +539,7 @@ describe('TabsState', () => {
       expect(ts.tabs.length).toBe(2);
     });
 
-    it('flag is consumed after ensureInitialTab so subsequent calls start fresh', () => {
+    it('restores from localStorage on every ensureInitialTab when persistEnabled', () => {
       const saved: PersistedTabsState = {
         tabs: [
           { id: 'a', label: 'A', bucket: 'b1', prefix: '' },
@@ -555,22 +549,18 @@ describe('TabsState', () => {
       };
       localStorage.setItem(LS_TABS, JSON.stringify(saved));
 
-      requestTabsRestore();
-
-      // First TabsState consumes the flag
+      // First TabsState restores from localStorage
       const storage1 = makeStorage('b1', '');
       const { ts: ts1 } = makeTabs(storage1, { persistEnabled: true });
       ts1.ensureInitialTab();
       expect(ts1.tabs.length).toBe(2);
 
-      // Reset localStorage to simulate a fresh session
-      localStorage.setItem(LS_TABS, JSON.stringify(saved));
-
-      // Second TabsState — flag is already consumed, starts fresh
+      // Second TabsState — persistence is still enabled and data exists,
+      // so it restores from localStorage again (handles page reloads)
       const storage2 = makeStorage('b1', '');
       const { ts: ts2 } = makeTabs(storage2, { persistEnabled: true });
       ts2.ensureInitialTab();
-      expect(ts2.tabs.length).toBe(1);
+      expect(ts2.tabs.length).toBe(2);
     });
   });
 });
