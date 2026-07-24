@@ -202,182 +202,188 @@
     border-base-300 bg-base-100 relative flex shrink-0 flex-col
     rounded-lg border
   "
-  style="width: {resize.width}px"
+  style="width: var(--storage-sidebar-width, {resize.width}px)"
   aria-label={m.storage_buckets_label()}
 >
-  <!-- Pinned Access section -->
-  {#if storage.bookmarks.pinnedLocations.length > 0}
-    <div class="border-base-300 max-h-1/2 overflow-y-auto border-b">
-      <div class="flex items-center px-3 py-2">
-        <span class="text-base-content/50 text-xs font-semibold tracking-wide uppercase">
-          {m.storage_pinned_label()}
-        </span>
-      </div>
-      <ul class="py-1" role="list">
-        {#each storage.bookmarks.pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
-          {@const active = isPinnedActive(pin)}
-          <li role="none" class="group relative">
-            <!-- eslint-disable svelte/no-navigation-without-resolve -->
-            <a
-              href={pinnedHref(pin)}
-              data-sveltekit-preload-data="off"
-              class="
+  {#if !storage.connected}
+    <div class="flex flex-1 items-center justify-center">
+      <span class="loading loading-md loading-spinner text-primary" aria-hidden="true"></span>
+    </div>
+  {:else}
+    <!-- Pinned Access section -->
+    {#if storage.bookmarks.pinnedLocations.length > 0}
+      <div class="border-base-300 max-h-1/2 overflow-y-auto border-b">
+        <div class="flex items-center px-3 py-2">
+          <span class="text-base-content/50 text-xs font-semibold tracking-wide uppercase">
+            {m.storage_pinned_label()}
+          </span>
+        </div>
+        <ul class="py-1" role="list">
+          {#each storage.bookmarks.pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
+            {@const active = isPinnedActive(pin)}
+            <li role="none" class="group relative">
+              <!-- eslint-disable svelte/no-navigation-without-resolve -->
+              <a
+                href={pinnedHref(pin)}
+                data-sveltekit-preload-data="off"
+                class="
                 hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
                 pr-7 text-sm
                 {active ? 'bg-primary/10 text-primary font-medium' : 'text-base-content'}
                 {dropSidebarTarget === pin.prefix ? 'bg-primary/20' : ''}"
-              aria-current={active ? 'page' : undefined}
-              onmouseenter={(e) => showTooltip(e, pinnedLabel(pin))}
-              onmouseleave={hideTooltip}
-              onfocus={(e) => showTooltip(e, pinnedLabel(pin))}
-              onblur={hideTooltip}
-              ondragover={(e) => handleSidebarDragOver(e, pin.prefix)}
-              ondragleave={handleSidebarDragLeave}
-              ondrop={(e) => handleSidebarDrop(e, pin.bucket, pin.prefix)}
-            >
-              <!-- eslint-enable svelte/no-navigation-without-resolve -->
-              {#if pin.prefix === ''}
-                <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
-              {:else}
-                <IconFolderOutline class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
-              {/if}
-              <span class="truncate">{pinnedLabel(pin)}</span>
-            </a>
-            <button
-              class="
+                aria-current={active ? 'page' : undefined}
+                onmouseenter={(e) => showTooltip(e, pinnedLabel(pin))}
+                onmouseleave={hideTooltip}
+                onfocus={(e) => showTooltip(e, pinnedLabel(pin))}
+                onblur={hideTooltip}
+                ondragover={(e) => handleSidebarDragOver(e, pin.prefix)}
+                ondragleave={handleSidebarDragLeave}
+                ondrop={(e) => handleSidebarDrop(e, pin.bucket, pin.prefix)}
+              >
+                <!-- eslint-enable svelte/no-navigation-without-resolve -->
+                {#if pin.prefix === ''}
+                  <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
+                {:else}
+                  <IconFolderOutline class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
+                {/if}
+                <span class="truncate">{pinnedLabel(pin)}</span>
+              </a>
+              <button
+                class="
                 btn btn-ghost btn-xs absolute top-1/2 right-1 z-150 -translate-y-1/2
                 p-0 opacity-0 transition-opacity
                 group-hover:opacity-100 focus:opacity-100
               "
-              onclick={(e) => openUnpinMenuFromButton(e, pin)}
-              aria-label={m.storage_more_options()}
-              title={m.storage_more_options()}
-            >
-              <IconMoreHoriz class="size-3.5" aria-hidden="true" />
-            </button>
-          </li>
-        {/each}
-      </ul>
-    </div>
-  {/if}
+                onclick={(e) => openUnpinMenuFromButton(e, pin)}
+                aria-label={m.storage_more_options()}
+                title={m.storage_more_options()}
+              >
+                <IconMoreHoriz class="size-3.5" aria-hidden="true" />
+              </button>
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
 
-  <div
-    class="
+    <div
+      class="
       border-base-300 flex items-center justify-between border-b px-3 py-2
     "
-  >
-    <span
-      class="
+    >
+      <span
+        class="
         text-base-content/50 text-xs font-semibold tracking-wide uppercase
       "
-    >
-      {m.storage_buckets_label()}
-    </span>
-    <a
-      href={resolve('/storage')}
-      data-sveltekit-preload-data="off"
-      class="btn btn-ghost btn-xs group tooltip tooltip-right z-150 before:z-200"
-      title={m.storage_view_all_buckets()}
-      data-tip={m.storage_view_all_buckets()}
-    >
-      <IconGridView
-        class="group-hover:text-primary size-3.5 transition-colors"
-        aria-hidden="true"
-      />
-    </a>
-  </div>
+      >
+        {m.storage_buckets_label()}
+      </span>
+      <a
+        href={resolve('/storage')}
+        data-sveltekit-preload-data="off"
+        class="btn btn-ghost btn-xs group tooltip tooltip-right z-150 before:z-200"
+        title={m.storage_view_all_buckets()}
+        data-tip={m.storage_view_all_buckets()}
+      >
+        <IconGridView
+          class="group-hover:text-primary size-3.5 transition-colors"
+          aria-hidden="true"
+        />
+      </a>
+    </div>
 
-  <div class="min-h-0 flex-1 overflow-y-auto">
-    <ul class="py-1" role="list">
-      {#if storage.buckets.length === 0}
-        <li class="text-base-content/40 px-3 py-4 text-center text-xs">
-          {m.storage_buckets_empty()}
-        </li>
-      {:else}
-        {#each storage.buckets as bucket (bucket)}
-          <li role="none">
-            <a
-              href={resolve('/(app)/storage/[bucket]/[...prefix]', {
-                bucket: encodeURIComponent(bucket),
-                prefix: ''
-              })}
-              data-sveltekit-preload-data="off"
-              class="
+    <div class="min-h-0 flex-1 overflow-y-auto">
+      <ul class="py-1" role="list">
+        {#if storage.buckets.length === 0}
+          <li class="text-base-content/40 px-3 py-4 text-center text-xs">
+            {m.storage_buckets_empty()}
+          </li>
+        {:else}
+          {#each storage.buckets as bucket (bucket)}
+            <li role="none">
+              <a
+                href={resolve('/(app)/storage/[bucket]/[...prefix]', {
+                  bucket: encodeURIComponent(bucket),
+                  prefix: ''
+                })}
+                data-sveltekit-preload-data="off"
+                class="
                   hover:bg-base-200 flex items-center gap-2
                   px-3 py-1.5 text-sm
                   {activeBucket === bucket
-                ? 'bg-primary/10 text-primary font-medium'
-                : 'text-base-content'}
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'text-base-content'}
                   {dropSidebarTarget === '' && activeBucket === bucket ? 'bg-primary/20' : ''}"
-              aria-current={activeBucket === bucket && !page.params.prefix ? 'page' : undefined}
-              onmouseenter={(e) => showTooltip(e, bucket)}
-              onmouseleave={hideTooltip}
-              onfocus={(e) => showTooltip(e, bucket)}
-              onblur={hideTooltip}
-              oncontextmenu={(e) => openBucketContextMenu(e, bucket)}
-              ondragover={(e) => handleSidebarDragOver(e, '')}
-              ondragleave={handleSidebarDragLeave}
-              ondrop={(e) => handleSidebarDrop(e, bucket, '')}
-            >
-              <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
-              <span class="truncate">{bucket}</span>
-            </a>
-          </li>
-        {/each}
-      {/if}
-    </ul>
-  </div>
-
-  <!-- Disconnect button -->
-  <div class="border-base-300 border-t p-2">
-    <form bind:this={disconnectForm} method="POST" action="/storage?/disconnect">
-      <button
-        type="button"
-        class="btn text-base-content/60 btn-ghost btn-xs hover:text-error w-full"
-        onclick={() => (disconnectConfirmOpen = true)}
-      >
-        {m.storage_disconnect()}
-      </button>
-    </form>
-  </div>
-
-  <FloatingMenu
-    x={bucketCtx?.x ?? 0}
-    y={bucketCtx?.y ?? 0}
-    open={bucketCtx !== null}
-    onclose={closeBucketContextMenu}
-  >
-    <button
-      role="menuitem"
-      class="btn btn-ghost btn-sm w-full justify-start gap-2"
-      onclick={openBucketDetails}
-    >
-      <IconInfo class="size-4" aria-hidden="true" />
-      {m.storage_action_details()}
-    </button>
-  </FloatingMenu>
-
-  <!-- Disconnect confirmation modal -->
-  <Modal bind:open={disconnectConfirmOpen} class="modal">
-    <div class="modal-box max-w-sm">
-      <h3 class="mb-3 flex items-center gap-2 text-lg font-bold">
-        <IconPowerOff class="text-error size-5 shrink-0" aria-hidden="true" />
-        {m.storage_disconnect_confirm_title()}
-      </h3>
-      <p class="text-base-content/80 text-sm">
-        {m.storage_disconnect_confirm_message()}
-      </p>
-      <div class="modal-action mt-6">
-        <button class="btn btn-ghost" onclick={() => (disconnectConfirmOpen = false)}>
-          {m.storage_disconnect_cancel()}
-        </button>
-        <button class="btn btn-outline btn-error" onclick={confirmDisconnect}>
-          <IconPowerOff class="size-4" aria-hidden="true" />
-          {m.storage_disconnect_confirm_button()}
-        </button>
-      </div>
+                aria-current={activeBucket === bucket && !page.params.prefix ? 'page' : undefined}
+                onmouseenter={(e) => showTooltip(e, bucket)}
+                onmouseleave={hideTooltip}
+                onfocus={(e) => showTooltip(e, bucket)}
+                onblur={hideTooltip}
+                oncontextmenu={(e) => openBucketContextMenu(e, bucket)}
+                ondragover={(e) => handleSidebarDragOver(e, '')}
+                ondragleave={handleSidebarDragLeave}
+                ondrop={(e) => handleSidebarDrop(e, bucket, '')}
+              >
+                <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
+                <span class="truncate">{bucket}</span>
+              </a>
+            </li>
+          {/each}
+        {/if}
+      </ul>
     </div>
-  </Modal>
+
+    <!-- Disconnect button -->
+    <div class="border-base-300 border-t p-2">
+      <form bind:this={disconnectForm} method="POST" action="/storage?/disconnect">
+        <button
+          type="button"
+          class="btn text-base-content/60 btn-ghost btn-xs hover:text-error w-full"
+          onclick={() => (disconnectConfirmOpen = true)}
+        >
+          {m.storage_disconnect()}
+        </button>
+      </form>
+    </div>
+
+    <FloatingMenu
+      x={bucketCtx?.x ?? 0}
+      y={bucketCtx?.y ?? 0}
+      open={bucketCtx !== null}
+      onclose={closeBucketContextMenu}
+    >
+      <button
+        role="menuitem"
+        class="btn btn-ghost btn-sm w-full justify-start gap-2"
+        onclick={openBucketDetails}
+      >
+        <IconInfo class="size-4" aria-hidden="true" />
+        {m.storage_action_details()}
+      </button>
+    </FloatingMenu>
+
+    <!-- Disconnect confirmation modal -->
+    <Modal bind:open={disconnectConfirmOpen} class="modal">
+      <div class="modal-box max-w-sm">
+        <h3 class="mb-3 flex items-center gap-2 text-lg font-bold">
+          <IconPowerOff class="text-error size-5 shrink-0" aria-hidden="true" />
+          {m.storage_disconnect_confirm_title()}
+        </h3>
+        <p class="text-base-content/80 text-sm">
+          {m.storage_disconnect_confirm_message()}
+        </p>
+        <div class="modal-action mt-6">
+          <button class="btn btn-ghost" onclick={() => (disconnectConfirmOpen = false)}>
+            {m.storage_disconnect_cancel()}
+          </button>
+          <button class="btn btn-outline btn-error" onclick={confirmDisconnect}>
+            <IconPowerOff class="size-4" aria-hidden="true" />
+            {m.storage_disconnect_confirm_button()}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  {/if}
 
   <ResizeHandle panel={resize} />
 </nav>

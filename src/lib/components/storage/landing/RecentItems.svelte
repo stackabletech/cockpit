@@ -21,6 +21,12 @@
   import PreviewModal from '$lib/components/storage/modals/PreviewModal.svelte';
   import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
 
+  interface Props {
+    loading?: boolean;
+  }
+
+  let { loading = false }: Props = $props();
+
   const storage = getStorageState();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rr = (p: string) => resolveRoute(p as any);
@@ -39,8 +45,63 @@
   }
 </script>
 
+{#snippet skeletonRows()}
+  <table class="table-sm table w-full">
+    <thead>
+      <tr>
+        {#if activeTab === 'files'}
+          <th>{m.storage_recent_col_name()}</th>
+          <th>{m.storage_recent_col_location()}</th>
+          <th>{m.storage_recent_col_size()}</th>
+          <th>{m.storage_recent_col_visited()}</th>
+          <th class="w-16">{m.storage_recent_col_actions()}</th>
+        {:else}
+          <th>{m.storage_recent_col_name()}</th>
+          <th>{m.storage_recent_col_path()}</th>
+          <th>{m.storage_recent_col_visited()}</th>
+          <th class="w-16">{m.storage_recent_col_actions()}</th>
+        {/if}
+      </tr>
+    </thead>
+    <tbody>
+      <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+      {#each [1, 2, 3, 4] as _, i (i)}
+        <tr>
+          <td>
+            <div class="flex items-center gap-2">
+              <div class="skeleton size-4 animate-pulse rounded" aria-hidden="true"></div>
+              <div class="skeleton h-4 w-32 animate-pulse rounded" aria-hidden="true"></div>
+            </div>
+          </td>
+          <td>
+            <div class="skeleton h-4 w-48 animate-pulse rounded" aria-hidden="true"></div>
+          </td>
+          {#if activeTab === 'files'}
+            <td>
+              <div class="skeleton h-4 w-16 animate-pulse rounded" aria-hidden="true"></div>
+            </td>
+          {/if}
+          <td>
+            <div class="skeleton h-4 w-24 animate-pulse rounded" aria-hidden="true"></div>
+          </td>
+          <td>
+            <div class="flex items-center gap-1">
+              <div class="skeleton size-6 animate-pulse rounded" aria-hidden="true"></div>
+              <div class="skeleton size-6 animate-pulse rounded" aria-hidden="true"></div>
+            </div>
+          </td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+{/snippet}
+
 {#snippet tabPanel(isEmpty: boolean, emptyMessage: string, tableContent: Snippet)}
-  {#if isEmpty}
+  {#if loading}
+    <div class="overflow-x-auto" aria-label={m.storage_loading()}>
+      {@render skeletonRows()}
+    </div>
+  {:else if isEmpty}
     <p class="text-base-content/40 px-4 py-8 text-center text-sm">{emptyMessage}</p>
   {:else}
     <div class="overflow-x-auto">

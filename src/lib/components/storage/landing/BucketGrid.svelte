@@ -9,9 +9,10 @@
 
   interface Props {
     buckets?: string[];
+    loading?: boolean;
   }
 
-  let { buckets = [] }: Props = $props();
+  let { buckets = [], loading = false }: Props = $props();
 
   let tooltipText = $state<string | null>(null);
   let tooltipX = $state(0);
@@ -51,7 +52,27 @@
   </button>
 </FloatingMenu>
 
-{#if buckets.length > 0}
+{#if loading}
+  <div
+    class="
+      grid grid-cols-2 gap-3
+      sm:grid-cols-3
+      md:grid-cols-4
+      lg:grid-cols-6
+    "
+    aria-label={m.storage_loading()}
+  >
+    <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+    {#each [1, 2, 3, 4, 5, 6] as _, i (i)}
+      <div
+        class="border-base-300 bg-base-100 flex flex-col items-center gap-2 rounded-xl border p-4"
+      >
+        <div class="skeleton size-10 animate-pulse rounded-full" aria-hidden="true"></div>
+        <div class="skeleton h-4 w-16 animate-pulse rounded" aria-hidden="true"></div>
+      </div>
+    {/each}
+  </div>
+{:else if buckets.length > 0}
   <div
     class="
       grid grid-cols-2 gap-3

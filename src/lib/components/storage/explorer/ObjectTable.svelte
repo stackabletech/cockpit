@@ -242,6 +242,18 @@
         </tr>
       {/if}
 
+      {#if storage.loading && storage.folders.length === 0 && storage.files.length === 0}
+        {#each [75, 60, 85, 45, 90] as width, i (i)}
+          <tr>
+            <td class="pr-0"><div class="skeleton h-4 w-4 animate-pulse rounded"></div></td>
+            <td><div class="skeleton h-4 animate-pulse rounded" style="width: {width}%"></div></td>
+            <td><div class="skeleton ml-auto h-4 w-16 animate-pulse rounded"></div></td>
+            <td><div class="skeleton h-4 w-24 animate-pulse rounded"></div></td>
+            <td></td>
+          </tr>
+        {/each}
+      {/if}
+
       {#if storage.archive.archiveTooLarge}
         <!-- Archive too large fallback -->
         <tr>
@@ -262,7 +274,7 @@
         {/each}
 
         <!-- Empty folder -->
-        {#if storage.folders.length === 0 && storage.files.length === 0}
+        {#if !storage.loading && storage.folders.length === 0 && storage.files.length === 0}
           <tr
             class={emptyDragOver
               ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'

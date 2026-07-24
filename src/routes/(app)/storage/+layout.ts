@@ -19,7 +19,12 @@ const DISCONNECTED = {
  */
 export const load: LayoutLoad = async ({ fetch, data }) => {
   if (!browser) {
-    return { ...DISCONNECTED, connections: data.connections ?? [] };
+    return {
+      ...DISCONNECTED,
+      connections: data.connections ?? [],
+      hydrating: true as const,
+      hasActiveConnection: data.activeConnectionId != null
+    };
   }
 
   const connections = data.connections ?? [];
