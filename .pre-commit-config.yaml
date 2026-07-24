@@ -61,6 +61,13 @@ repos:
         pass_filenames: false
         files: \.(svelte|ts|js)$
 
+      - id: npm-arch-test
+        name: npm arch test (fitness functions)
+        language: system
+        entry: npm run test:arch
+        stages: [pre-commit, pre-merge-commit]
+        pass_filenames: false
+
       - id: helm-lint
         name: helm lint
         language: system

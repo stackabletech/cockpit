@@ -232,7 +232,7 @@ npm run test:arch            # Run all architecture fitness function tests (~5 s
 npm run test:arch:report     # Same, plus generate HTML dependency/metrics reports in /reports/
 ```
 
-Architecture tests live in `src/architecture/fitness.spec.ts` and use [ArchUnitTS](https://github.com/LukasNiessen/ArchUnitTS) together with plain Node.js `fs` checks. They run in CI and must remain **green at all times**.
+Architecture tests live in `src/architecture/*.spec.ts` and use [ArchUnitTS](https://github.com/LukasNiessen/ArchUnitTS) together with plain Node.js `fs` checks. They run in CI and must remain **green at all times**.
 
 **Run `npm run test:arch` whenever you:**
 
@@ -254,7 +254,7 @@ Architecture tests live in `src/architecture/fitness.spec.ts` and use [ArchUnitT
 | i18n Compliance          | `messages/en.json` and `messages/de.json` must have the same keys; no static `aria-label="English text"` (known violations listed in TECH_DEBT.md)             |
 
 **Extending the fitness functions:**
-When you add a new architectural rule (e.g., a new layer, a new naming convention), add it to `src/architecture/fitness.spec.ts` following the existing patterns. Use archunit for TypeScript dependency/cycle rules and plain Node.js `fs` for content checks on Svelte files.
+When you add a new architectural rule (e.g., a new layer, a new naming convention), add a new `.spec.ts` file in `src/architecture/` following the existing patterns. Use archunit for TypeScript dependency/cycle rules and plain Node.js `fs` for content checks on Svelte files.
 
 ### E2E Testing
 
