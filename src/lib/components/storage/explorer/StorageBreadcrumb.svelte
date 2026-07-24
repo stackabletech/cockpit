@@ -13,6 +13,8 @@
   import IconFolderZip from 'virtual:icons/material-symbols/folder-zip';
   import IconTab from 'virtual:icons/material-symbols/tab';
   import IconAdd from 'virtual:icons/material-symbols/add';
+  import IconFileCopy from 'virtual:icons/material-symbols/file-copy-outline';
+  import IconContentCopy from 'virtual:icons/material-symbols/content-copy';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import { getTabsState } from '$lib/storage/context.js';
@@ -22,6 +24,8 @@
   import { storageMoveEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import OperationsButton from './OperationsButton.svelte';
+  import ContextMenu from './ContextMenu.svelte';
+  import type { ContextMenuAction } from '$lib/storage/types.js';
 
   const storage = getStorageState();
   const tabsState = getTabsState();
@@ -154,6 +158,52 @@
     breadcrumbCtx = null;
   }
 
+  const breadcrumbMenuActions = $derived.by<ContextMenuAction[]>(() => {
+    const ctx = breadcrumbCtx;
+    if (!ctx) return [];
+    const isPinned = storage.bookmarks.isPinned(ctx.bucket, ctx.prefix);
+    return [
+      {
+        key: 'copy-filename',
+        icon: IconFileCopy,
+        label: m.storage_action_copy_directory_name(),
+        disabled: false,
+        hidden: false
+      },
+      {
+        key: 'copy-path',
+        icon: IconContentCopy,
+        label: m.storage_action_copy_path(),
+        disabled: false,
+        hidden: false
+      },
+      {
+        key: 'pin-toggle',
+        icon: isPinned ? IconPushPin : IconPushPinOutline,
+        label: isPinned ? m.storage_action_unpin() : m.storage_action_pin(),
+        disabled: false,
+        hidden: false,
+        class: isPinned ? 'text-error' : ''
+      }
+    ];
+  });
+
+  function handleBreadcrumbAction(key: string) {
+    const ctx = breadcrumbCtx;
+    if (!ctx) return;
+    if (key === 'copy-filename') {
+      storage.copyFilename(ctx.prefix);
+    } else if (key === 'copy-path') {
+      storage.copyPath(ctx.bucket, ctx.prefix);
+    } else if (key === 'pin-toggle') {
+      if (storage.bookmarks.isPinned(ctx.bucket, ctx.prefix)) {
+        storage.bookmarks.unpin(ctx.bucket, ctx.prefix);
+      } else {
+        storage.bookmarks.pin(ctx.bucket, ctx.prefix);
+      }
+    }
+  }
+
   /** Navigate to an S3 prefix, clearing archive state first. */
   function navigateS3(prefix: string) {
     if (storage.archive.isInArchive) {
@@ -195,46 +245,14 @@
   }
 </script>
 
-{#if breadcrumbCtx}
-  {@const breadcrumbIsPinned = storage.bookmarks.isPinned(
-    breadcrumbCtx.bucket,
-    breadcrumbCtx.prefix
-  )}
-  {@const BreadcrumbPinIcon = breadcrumbIsPinned ? IconPushPin : IconPushPinOutline}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="fixed inset-0 z-40"
-    onmousedown={closeBreadcrumbCtx}
-    onkeydown={(e) => e.key === 'Escape' && closeBreadcrumbCtx()}
-  ></div>
-  <ul
-    class="
-      menu menu-sm border-base-300 bg-base-100 fixed z-60 w-48 rounded-lg
-      border p-1 shadow-lg
-    "
-    role="menu"
-    style="left: {breadcrumbCtx.x}px; bottom: calc(100vh - {breadcrumbCtx.y}px);"
-  >
-    <li role="none">
-      <button
-        role="menuitem"
-        class="justify-start {breadcrumbIsPinned ? 'text-error' : ''}"
-        title={breadcrumbIsPinned ? m.storage_action_unpin() : m.storage_action_pin()}
-        onclick={() => {
-          if (storage.bookmarks.isPinned(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix)) {
-            storage.bookmarks.unpin(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix);
-          } else {
-            storage.bookmarks.pin(breadcrumbCtx!.bucket, breadcrumbCtx!.prefix);
-          }
-          closeBreadcrumbCtx();
-        }}
-      >
-        <BreadcrumbPinIcon class="size-4 shrink-0" aria-hidden="true" />
-        {breadcrumbIsPinned ? m.storage_action_unpin() : m.storage_action_pin()}
-      </button>
-    </li>
-  </ul>
-{/if}
+<ContextMenu
+  x={breadcrumbCtx?.x ?? 0}
+  y={breadcrumbCtx?.y ?? 0}
+  open={!!breadcrumbCtx}
+  onclose={closeBreadcrumbCtx}
+  onaction={handleBreadcrumbAction}
+  actions={breadcrumbMenuActions}
+/>
 
 {#snippet pinButton(bucket: string, prefix: string)}
   {@const pinned = storage.bookmarks.isPinned(bucket, prefix)}

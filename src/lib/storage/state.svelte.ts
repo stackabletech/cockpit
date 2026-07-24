@@ -456,12 +456,14 @@ export class StorageState {
       case 'copy-filename': {
         const nameKey = ctxKey ?? this.selectedFiles[0]?.key;
         if (!nameKey) return;
-        try {
-          await navigator.clipboard.writeText(keyToName(nameKey));
-          addToast('success', m.storage_action_copy_filename_success());
-        } catch {
-          addToast('error', m.storage_action_copy_filename_error());
-        }
+        await this.copyFilename(nameKey);
+        return;
+      }
+
+      case 'copy-path': {
+        const pathKey = ctxKey ?? this.selectedFiles[0]?.key;
+        if (!pathKey) return;
+        await this.copyPath(this.bucket, pathKey);
         return;
       }
 
@@ -478,20 +480,6 @@ export class StorageState {
           key: targetKey,
           prefix: isDir ? targetKey : undefined
         });
-        return;
-      }
-
-      case 'copy-path': {
-        const pathKey = ctxKey ?? this.selectedFiles[0]?.key;
-        if (!pathKey) return;
-        // Strip trailing slash for folders so the URI is canonical.
-        const cleanKey = pathKey.endsWith('/') ? pathKey.slice(0, -1) : pathKey;
-        try {
-          await navigator.clipboard.writeText(`s3://${this.bucket}/${cleanKey}`);
-          addToast('success', m.storage_action_copy_path_success());
-        } catch {
-          addToast('error', m.storage_action_copy_path_error());
-        }
         return;
       }
 
@@ -542,6 +530,38 @@ export class StorageState {
       case 'create-folder':
         this.openModal('create', { type: 'folder' });
         return;
+    }
+  };
+
+  copyFilename = async (key: string): Promise<void> => {
+    try {
+      const name = key ? keyToName(key) : this.bucket;
+      await navigator.clipboard.writeText(name);
+      const isDir = !key || key.endsWith('/');
+      addToast(
+        'success',
+        isDir
+          ? m.storage_action_copy_directory_name_success()
+          : m.storage_action_copy_filename_success()
+      );
+    } catch {
+      const isDir = !key || key.endsWith('/');
+      addToast(
+        'error',
+        isDir
+          ? m.storage_action_copy_directory_name_error()
+          : m.storage_action_copy_filename_error()
+      );
+    }
+  };
+
+  copyPath = async (bucket: string, key: string): Promise<void> => {
+    const cleanKey = key.endsWith('/') ? key.slice(0, -1) : key;
+    try {
+      await navigator.clipboard.writeText(`s3://${bucket}/${cleanKey}`);
+      addToast('success', m.storage_action_copy_path_success());
+    } catch {
+      addToast('error', m.storage_action_copy_path_error());
     }
   };
 
