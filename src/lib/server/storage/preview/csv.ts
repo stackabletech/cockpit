@@ -108,6 +108,7 @@ async function extendCache(
   const buffer = await streamToArrayBuffer(stream);
   const text = new TextDecoder('utf-8', { fatal: false }).decode(buffer);
 
+  const textEndsWithNewline = text.endsWith('\n');
   const lines = text.split('\n');
 
   if (entry.headers.length === 0) {
@@ -115,27 +116,36 @@ async function extendCache(
       entry.headers = parseCsvRow(lines[0].replace(/\r$/, ''));
     }
     let bytePos = entry.bytesRead;
-    for (let i = 0; i < lines[0].length + 1; i++) {
+    // Advance past header + its \n (if \n is in this chunk)
+    const headerComplete = lines.length > 1;
+    for (let i = 0; i < lines[0].length + (headerComplete ? 1 : 0); i++) {
       bytePos++;
     }
     for (let i = 1; i < lines.length; i++) {
-      entry.lineOffsets.push(bytePos);
-      // eslint-disable-next-line security/detect-object-injection
-      bytePos += lines[i].length + 1;
+      const isIncomplete = !textEndsWithNewline && i === lines.length - 1;
+      if (!isIncomplete && (lines[i].length > 0 || i < lines.length - 1)) {
+        entry.lineOffsets.push(bytePos);
+      }
+      if (!isIncomplete) {
+        // eslint-disable-next-line security/detect-object-injection
+        bytePos += lines[i].length + 1;
+      }
     }
+    entry.bytesRead = bytePos;
   } else {
     let bytePos = entry.bytesRead;
     for (let i = 0; i < lines.length; i++) {
-      // eslint-disable-next-line security/detect-object-injection
-      if (lines[i].length > 0 || i < lines.length - 1) {
+      const isIncomplete = !textEndsWithNewline && i === lines.length - 1;
+      if (!isIncomplete && (lines[i].length > 0 || i < lines.length - 1)) {
         entry.lineOffsets.push(bytePos);
       }
-      // eslint-disable-next-line security/detect-object-injection
-      bytePos += lines[i].length + 1;
+      if (!isIncomplete) {
+        // eslint-disable-next-line security/detect-object-injection
+        bytePos += lines[i].length + 1;
+      }
     }
+    entry.bytesRead = bytePos;
   }
-
-  entry.bytesRead = entry.bytesRead + bytesToRead;
   return entry;
 }
 

@@ -796,11 +796,10 @@
             <span class="badge badge-neutral badge-sm font-mono"
               >{formatFileSize(preview.totalSize)}</span
             >
-            {#if preview.truncated}
+            {#if csvShowingRowsCount > 0}
               <span class="badge badge-soft badge-warning badge-sm">
-                {m.storage_preview_parquet_rows({
-                  count: csvShowingRowsCount.toLocaleString(getLocale()),
-                  total: preview.totalRows.toLocaleString(getLocale())
+                {m.storage_preview_csv_rows({
+                  count: csvShowingRowsCount.toLocaleString(getLocale())
                 })}
               </span>
             {/if}

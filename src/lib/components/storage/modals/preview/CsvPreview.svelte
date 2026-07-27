@@ -170,10 +170,15 @@
     if (keys.length === 0) return 0;
     return Math.max(...keys);
   });
+  let loadedRowsCount = $derived(
+    isLegacyMode || isSimpleMode
+      ? 0
+      : Object.values(loadedChunks).reduce((sum, chunk) => sum + chunk.length, 0)
+  );
   let virtualTotalRows = $derived(
     isLegacyMode || isSimpleMode
       ? 0
-      : Math.min(totalRows, (highestLoadedChunk + 1) * CHUNK_SIZE + 10)
+      : Math.min(totalRows, Math.max(loadedRowsCount, (highestLoadedChunk + 1) * CHUNK_SIZE + 10))
   );
 
   let startIndex = $derived(
@@ -231,9 +236,6 @@
     });
   });
 
-  const loadedRowsCount = $derived(
-    isLegacyMode || isSimpleMode ? 0 : Object.keys(loadedChunks).length * CHUNK_SIZE
-  );
   const isTruncated = $derived(
     isLegacyMode
       ? textTruncated
@@ -242,7 +244,6 @@
         : totalRows > loadedRowsCount
   );
   const formattedLoadedRowsCount = $derived(loadedRowsCount.toLocaleString(getLocale()));
-  const formattedTotalRows = $derived(totalRows.toLocaleString(getLocale()));
 
   $effect(() => {
     if (!isLegacyMode && !isSimpleMode) {
@@ -334,8 +335,12 @@
     {#if headers.length === 0}
       <p class="text-base-content/50 p-4 text-sm italic">{m.storage_bucket_empty()}</p>
     {:else}
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div
         class="min-h-0 w-full flex-1 overflow-auto"
+        tabindex="0"
+        role="region"
+        aria-label="CSV preview"
         bind:clientHeight={containerHeight}
         bind:clientWidth={containerWidth}
         onscroll={(e) => {
@@ -425,12 +430,7 @@
       </div>
       {#if isTruncated}
         <p class="text-base-content/50 px-4 py-2 text-xs italic">
-          {m.storage_preview_parquet_rows
-            ? m.storage_preview_parquet_rows({
-                count: formattedLoadedRowsCount,
-                total: formattedTotalRows
-              })
-            : `Showing ${formattedLoadedRowsCount} of ${formattedTotalRows} rows. Scroll to load more.`}
+          {m.storage_preview_csv_rows({ count: formattedLoadedRowsCount })}
         </p>
       {/if}
     {/if}
