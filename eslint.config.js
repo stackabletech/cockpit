@@ -3,6 +3,7 @@ import js from '@eslint/js';
 import { includeIgnoreFile } from '@eslint/compat';
 import svelte from 'eslint-plugin-svelte';
 import betterTailwindcss from 'eslint-plugin-better-tailwindcss';
+import importx from 'eslint-plugin-import-x';
 import security from 'eslint-plugin-security';
 import globals from 'globals';
 import { fileURLToPath } from 'node:url';
@@ -50,6 +51,73 @@ export default ts.config(
     },
     rules: {
       'better-tailwindcss/no-unknown-classes': ['warn', { detectComponentClasses: true }]
+    }
+  },
+
+  // ── Architecture fitness: server / client boundary ───────────────────────
+  {
+    plugins: { 'import-x': importx },
+    rules: {
+      'import-x/no-restricted-paths': [
+        'error',
+        {
+          zones: [
+            { target: 'src/lib/client', from: 'src/lib/server' },
+            { target: 'src/lib/stores', from: 'src/lib/server' },
+            { target: 'src/lib/storage', from: 'src/lib/server' },
+            { target: 'src/lib/editor', from: 'src/lib/server' },
+            { target: 'src/lib/types', from: 'src/lib/server' },
+            { target: 'src/lib/server', from: 'src/lib/client' },
+            { target: 'src/lib/server', from: 'src/lib/stores' }
+          ]
+        }
+      ]
+    }
+  },
+
+  // ── Architecture fitness: no circular dependencies ───────────────────────
+  // (except the "KNOWN VIOLATION" test which remains in arch tests)
+  {
+    files: ['src/lib/**/*.ts'],
+    ignores: ['src/lib/editor/generated/**', 'src/lib/server/trino/**'],
+    rules: {
+      'import-x/no-cycle': 'error'
+    }
+  },
+  {
+    files: ['src/routes/**/*.ts'],
+    rules: {
+      'import-x/no-cycle': 'error'
+    }
+  },
+
+  // ── Architecture fitness: code size limits ──────────────────────────────
+  {
+    files: ['src/**/*.ts'],
+    ignores: ['src/lib/editor/generated/**', 'src/lib/paraglide/**'],
+    rules: {
+      'max-lines': ['error', { max: 2400 }]
+    }
+  },
+  {
+    files: ['src/**/*.svelte'],
+    rules: {
+      'max-lines': ['error', { max: 1100 }]
+    }
+  },
+  {
+    files: ['src/**/*.{test,spec}.ts'],
+    rules: {
+      'max-lines': ['error', { max: 1000 }]
+    }
+  },
+
+  // ── Architecture fitness: server-side logging ───────────────────────────
+  {
+    files: ['src/lib/server/**/*.ts', 'src/routes/**/*.server.ts'],
+    ignores: ['**/migrate.ts', '**/*.{test,spec}.ts'],
+    rules: {
+      'no-console': 'error'
     }
   }
 );
