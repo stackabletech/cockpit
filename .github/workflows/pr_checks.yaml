@@ -59,7 +59,7 @@ jobs:
         run: python -m pip install pre-commit
 
       - name: Run pre-commit
-        run: pre-commit run --all-files --show-diff-on-failure --color=always
+        run: pre-commit run --all-files --hook-stage manual --show-diff-on-failure --color=always
 
   unit-tests:
     name: Unit Tests
