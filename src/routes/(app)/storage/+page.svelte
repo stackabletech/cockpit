@@ -78,7 +78,7 @@
   });
 </script>
 
-{#if data.connected}
+{#if data.connected || (data.hydrating && data.hasActiveConnection)}
   <div class="relative flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto p-2">
     {#if navigating?.to?.url.pathname.startsWith('/storage/')}
       <div
@@ -126,12 +126,16 @@
       </div>
       <p class="text-base-content/60 text-sm">{m.storage_buckets_subtitle()}</p>
     </div>
-    <BucketGrid buckets={storage.buckets} />
+    <BucketGrid buckets={storage.buckets} loading={data.hydrating} />
   </div>
   <div class="relative flex h-full min-h-0 flex-col overflow-y-auto p-2">
-    <RecentItems />
+    <RecentItems loading={data.hydrating} />
   </div>
   <AddBucketModal bind:open={addBucketOpen} />
+{:else if data.hydrating && !data.hasActiveConnection}
+  <div class="flex h-full items-center justify-center">
+    <span class="loading loading-lg loading-spinner text-primary" aria-hidden="true"></span>
+  </div>
 {:else if mounted}
   <StorageConnectForm
     connectionForm={data.connectionForm}
