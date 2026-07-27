@@ -8,7 +8,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import { storageRestoreTabsEnabled } from '$lib/client/feature-flags.js';
-  import { requestTabsRestore, type PersistedTabsState } from '$lib/storage/tabs.svelte.js';
+  import { type PersistedTabsState } from '$lib/storage/tabs.svelte.js';
   import { LS_TABS } from '$lib/storage/persistence.js';
   import IconTabOutline from 'virtual:icons/material-symbols/tab-outline';
   import IconClose from 'virtual:icons/material-symbols/close';
@@ -49,10 +49,29 @@
     }
   });
 
+  // ── Track whether the user explicitly clicked "Restore tabs" ──
+  // When navigating from the landing page to a bucket, we need to know
+  // if the restore button was clicked or if the user just clicked a bucket
+  // directly. In the latter case, persisted tabs should be cleared so the
+  // FileExplorer starts fresh rather than auto-restoring.
+  let restoreClicked = $state(false);
+
+  $effect(() => {
+    if (!browser || !storageRestoreTabsEnabled) return;
+    const to = navigating?.to?.url.pathname;
+    if (!to || !to.startsWith('/storage/') || to === '/storage') return;
+    // Navigation to a bucket sub-path is starting — if the user did not
+    // explicitly click "Restore tabs", clear persisted tabs so that
+    // ensureInitialTab creates a fresh single tab.
+    if (!restoreClicked) {
+      localStorage.removeItem(LS_TABS);
+    }
+  });
+
   function handleRestore() {
     if (!savedTabs) return;
 
-    requestTabsRestore();
+    restoreClicked = true;
 
     const active = savedTabs.tabs.find((t) => t.id === savedTabs!.activeTabId) ?? savedTabs.tabs[0];
     const encodedPrefix = active.prefix
