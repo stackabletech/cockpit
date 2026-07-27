@@ -11,15 +11,20 @@
  *     because archunit does not scan .svelte files)
  */
 
-import { projectFiles } from 'archunit';
 import { describe, expect, it } from 'vitest';
-import { defaultOptions, findFiles } from './helpers';
+import { findFiles } from './helpers';
 
 describe('Naming Conventions', () => {
-  it('files in src/lib/stores/ must use the .svelte.ts extension', async () => {
-    const rule = projectFiles().inPath('src/lib/stores/**').should().haveName('*.svelte.ts');
+  it('files in src/lib/stores/ must use the .svelte.ts extension', () => {
+    // Svelte 5 rune-based reactive state ($state, $derived) only compiles
+    // correctly when the file extension is .svelte.ts.
+    // Spec files (*.spec.ts) are excluded from this check.
+    const violations = findFiles('src/lib/stores', /\.ts$/, [/__tests__/]).filter((f) => {
+      const name = f.split('/').at(-1) ?? '';
+      return !name.endsWith('.svelte.ts') && !name.endsWith('.spec.ts');
+    });
 
-    await expect(rule).toPassAsync(defaultOptions);
+    expect(violations).toStrictEqual([]);
   });
 
   it('Svelte components in src/lib/components/ must be PascalCase', () => {
