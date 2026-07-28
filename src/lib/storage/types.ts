@@ -1,3 +1,5 @@
+import type { Component } from 'svelte';
+
 // ── Modal types ─────────────────────────────────────────────────────────────
 
 export type ModalType =
@@ -57,6 +59,15 @@ export type ActiveModal = {
 
 // ── Context menu ─────────────────────────────────────────────────────────────
 
+export interface ContextMenuAction {
+  key: string;
+  icon: Component;
+  label: string;
+  disabled?: boolean;
+  hidden?: boolean;
+  class?: string;
+}
+
 export interface ContextMenuState {
   x: number;
   y: number;
@@ -94,7 +105,7 @@ export type ActionName =
 // ── Clipboard state (cut / copy) ────────────────────────────────────────────
 
 /** Tracks items stored in the virtual clipboard for cut/copy + paste operations. */
-export interface ClipboardState {
+export interface ClipboardData {
   /** 'cut' items are rendered shaded; 'copy' items are not. */
   action: 'cut' | 'copy';
   /** S3 keys of the items in the clipboard. */

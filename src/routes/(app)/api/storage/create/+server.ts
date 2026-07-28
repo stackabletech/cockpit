@@ -1,25 +1,25 @@
-import { uploadObject } from '$lib/server/storage/service.js';
-import type { RequestHandler } from '@sveltejs/kit';
-import { requireBucketKey } from '../params.js';
+import { error } from '@sveltejs/kit';
+import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import type { RequestHandler } from './$types';
 
 /**
  * POST /api/storage/create?bucket=<bucket>&key=<object-key>
  *
- * Creates an empty object (zero bytes) at the given key.
- * If the key ends with '/', it creates a directory marker.
- *
+ * Creates an empty object (or directory marker when the key ends with `/`).
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.
  */
-export const POST: RequestHandler = async ({ locals, url }) => {
-  const log = locals.logger;
-  const { bucket, key } = requireBucketKey(url);
-
-  log.debug({ bucket, key }, 'creating object');
+export const POST: RequestHandler = async (event) => {
+  const { provider, bucket } = createStorageProvider(event);
+  const key = event.url.searchParams.get('key')?.trim();
+  if (!key) throw error(400, 'Missing required query parameter: key');
+  const log = event.locals.logger;
 
   const contentType = key.endsWith('/') ? 'application/x-directory' : 'text/plain';
 
-  await uploadObject(locals.storageConfig!, bucket, key, Buffer.alloc(0), contentType, 0);
+  log.debug({ bucket, key }, 'creating object');
+
+  await provider.putObject(key, Buffer.alloc(0), contentType, 0);
 
   log.info({ bucket, key, content_type: contentType }, 'object created');
 

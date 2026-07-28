@@ -87,7 +87,7 @@
       <button class="btn btn-ghost btn-sm" onclick={onCancel}>
         {m.storage_move_confirm_cancel()}
       </button>
-      <button class="btn btn-primary btn-sm" onclick={onConfirm} autofocus>
+      <button class="btn btn-primary btn-sm" onclick={onConfirm}>
         {m.storage_move_confirm_label()}
       </button>
     </div>

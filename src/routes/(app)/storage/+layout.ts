@@ -19,7 +19,12 @@ const DISCONNECTED = {
  */
 export const load: LayoutLoad = async ({ fetch, data }) => {
   if (!browser) {
-    return { ...DISCONNECTED, connections: data.connections ?? [] };
+    return {
+      ...DISCONNECTED,
+      connections: data.connections ?? [],
+      hydrating: true as const,
+      hasActiveConnection: data.activeConnectionId != null
+    };
   }
 
   const connections = data.connections ?? [];
@@ -30,14 +35,24 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
   const targetId = data.activeConnectionId ?? null;
   if (!targetId) {
     connectionStore.activeConnectionId = null;
-    return { ...DISCONNECTED, connections };
+    return {
+      ...DISCONNECTED,
+      connections,
+      hydrating: false as const,
+      hasActiveConnection: false as const
+    };
   }
 
   const target = connections.find((c) => c.id === targetId);
   if (!target) {
     // Session refers to a connection that has since been deleted.
     connectionStore.activeConnectionId = null;
-    return { ...DISCONNECTED, connections };
+    return {
+      ...DISCONNECTED,
+      connections,
+      hydrating: false as const,
+      hasActiveConnection: false as const
+    };
   }
 
   connectionStore.activeConnectionId = target.id;
@@ -47,11 +62,30 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
       headers: { [STORAGE_CONNECTION_ID_HEADER]: target.id }
     });
 
-    if (!res.ok) return { ...DISCONNECTED, connections };
+    if (!res.ok) {
+      return {
+        ...DISCONNECTED,
+        connections,
+        hydrating: false as const,
+        hasActiveConnection: false as const
+      };
+    }
 
     const buckets = (await res.json()) as string[];
-    return { connected: true, buckets, connectionType: 's3', connections };
+    return {
+      connected: true,
+      buckets,
+      connectionType: 's3',
+      connections,
+      hydrating: false as const,
+      hasActiveConnection: true as const
+    };
   } catch {
-    return { ...DISCONNECTED, connections };
+    return {
+      ...DISCONNECTED,
+      connections,
+      hydrating: false as const,
+      hasActiveConnection: false as const
+    };
   }
 };

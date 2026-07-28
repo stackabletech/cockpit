@@ -73,6 +73,7 @@ export const auth = betterAuth({
                     email: profile.email || profile.preferred_username,
                     emailVerified: profile.email_verified ?? true,
                     image: profile.picture || null,
+                    // eslint-disable-next-line security/detect-object-injection
                     username: profile[usernameClaim] || profile.preferred_username || profile.email
                   };
                 }

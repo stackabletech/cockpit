@@ -67,7 +67,7 @@
     : selected
       ? 'bg-primary/10 hover:bg-primary/15'
       : 'hover:bg-base-200/60'}"
-  draggable={storageCutCopyEnabled && !storage.isInArchive}
+  draggable={storageCutCopyEnabled && !storage.archive.isInArchive}
   ondragstart={handleDragStart}
   ondragover={handleDragOver}
   ondragleave={handleDragLeave}
@@ -75,16 +75,16 @@
   onclick={(e) => {
     if (storage.selectionMode || e.ctrlKey || e.metaKey) {
       storage.toggleSelect(folder.key, true);
-    } else if (storage.isInArchive) {
-      storage.navigateInArchive(folder.key);
+    } else if (storage.archive.isInArchive) {
+      storage.archive.navigateInArchive(folder.key);
     } else {
       storage.navigate(folder.key);
     }
   }}
   ondblclick={(e) => {
     if (e.ctrlKey || e.metaKey) {
-      if (storage.isInArchive) {
-        storage.navigateInArchive(folder.key);
+      if (storage.archive.isInArchive) {
+        storage.archive.navigateInArchive(folder.key);
       } else {
         storage.navigate(folder.key);
       }

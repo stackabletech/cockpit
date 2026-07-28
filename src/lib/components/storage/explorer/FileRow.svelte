@@ -35,12 +35,12 @@
     : selected
       ? 'bg-primary/10 hover:bg-primary/15'
       : 'hover:bg-base-200/60'}"
-  draggable={storageCutCopyEnabled && !storage.isInArchive}
+  draggable={storageCutCopyEnabled && !storage.archive.isInArchive}
   ondragstart={handleDragStart}
   onclick={(e) => storage.toggleSelect(file.key, e.ctrlKey || e.metaKey)}
   ondblclick={() => {
     if (isArchive) {
-      void storage.enterArchive(file.key);
+      void storage.archive.enterArchive(file.key);
     } else {
       storage.executeAction('preview');
     }

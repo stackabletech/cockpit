@@ -15,7 +15,12 @@ function mockEvent(params: string) {
     url,
     locals: {
       logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
-      storageConfig: { type: 's3', host: 'localhost' }
+      storageConfig: {
+        type: 's3',
+        host: 'localhost',
+        accessStyle: 'Path' as const,
+        region: { name: 'us-east-1' }
+      }
     }
   } as unknown as Parameters<typeof GET>[0];
 }

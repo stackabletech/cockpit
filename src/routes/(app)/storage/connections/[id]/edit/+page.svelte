@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto, beforeNavigate } from '$app/navigation';
-  import { resolve } from '$app/paths';
+  import { resolve, resolveRoute } from '$app/paths';
   import { superForm } from 'sveltekit-superforms';
   import { zod4 as zod } from 'sveltekit-superforms/adapters';
   import { untrack } from 'svelte';
@@ -74,7 +74,8 @@
     confirmLeaveOpen = false;
     pendingNavigation = null;
     bypassDirtyCheck = true;
-    goto(dest);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    goto(resolveRoute(dest as any));
   }
 
   function cancelLeave() {
@@ -145,7 +146,7 @@
         id="{uid}-name"
         name="name"
         type="text"
-        class="input-bordered input w-full"
+        class="input w-full"
         placeholder={m.storage_connection_edit_name_placeholder()}
         bind:value={$form.name}
       />
@@ -163,7 +164,7 @@
         id="{uid}-host"
         name="host"
         type="text"
-        class={['input-bordered input w-full', $errors?.host && 'input-error']}
+        class={['input w-full', $errors?.host && 'input-error']}
         placeholder={m.storage_connect_host_placeholder()}
         bind:value={$form.host}
         onblur={parseHostInput}
@@ -184,7 +185,7 @@
         type="number"
         min="1"
         max="65535"
-        class={['input-bordered input w-full', $errors?.port && 'input-error']}
+        class={['input w-full', $errors?.port && 'input-error']}
         placeholder={m.storage_connect_port_placeholder()}
         bind:value={$form.port}
       />
@@ -243,7 +244,7 @@
       <select
         id="{uid}-access-style"
         name="accessStyle"
-        class="select-bordered select w-full"
+        class="select w-full"
         bind:value={$form.accessStyle}
       >
         <option value="Path">{m.storage_connect_access_style_path()}</option>
@@ -260,7 +261,7 @@
         id="{uid}-region"
         name="region.name"
         type="text"
-        class={['input-bordered input w-full', $errors?.region?.name && 'input-error']}
+        class={['input w-full', $errors?.region?.name && 'input-error']}
         bind:value={$form.region.name}
       />
       {#if $errors?.region?.name}
@@ -277,7 +278,7 @@
         id="{uid}-access-key"
         name="credentials.accessKey"
         type="text"
-        class={['input-bordered input w-full', $errors?.credentials?.accessKey && 'input-error']}
+        class={['input w-full', $errors?.credentials?.accessKey && 'input-error']}
         autocomplete="username"
         bind:value={$form.credentials.accessKey}
       />
@@ -295,7 +296,7 @@
         id="{uid}-secret-key"
         name="credentials.secretKey"
         type="password"
-        class={['input-bordered input w-full', $errors?.credentials?.secretKey && 'input-error']}
+        class={['input w-full', $errors?.credentials?.secretKey && 'input-error']}
         autocomplete="current-password"
         bind:value={$form.credentials.secretKey}
       />

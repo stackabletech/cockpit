@@ -67,7 +67,7 @@
     <input
       bind:this={inputEl}
       id={uid + '-rename-input'}
-      class="input input-bordered input-sm w-full"
+      class="input input-sm w-full"
       bind:value={newName}
       onkeydown={handleKeydown}
       disabled={loading}

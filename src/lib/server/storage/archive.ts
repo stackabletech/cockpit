@@ -53,6 +53,7 @@ const cleanupTimer = setInterval(() => {
     if (now > entry.expiresAt) {
       try {
         const dir = join(entry.path, '..');
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
         if (existsSync(dir)) rmRecursive(dir);
       } catch (err) {
         log.warn({ err, cache_key: cacheKey }, 'failed to clean up archive temp file');
@@ -70,6 +71,7 @@ function cacheKey(bucket: string, key: string): string {
 
 function getCachedPath(bucket: string, key: string): string | null {
   const entry = archiveCache.get(cacheKey(bucket, key));
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (entry && Date.now() < entry.expiresAt && existsSync(entry.path)) {
     return entry.path;
   }
@@ -85,6 +87,7 @@ function streamToTempFile(stream: ReadableStream, ext: string): Promise<string> 
   return new Promise<string>((resolve, reject) => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'archive-'));
     const tmpPath = join(tmpDir, `archive${ext}`);
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const writable = createWriteStream(tmpPath);
     const nodeStream = Readable.fromWeb(stream as import('stream/web').ReadableStream);
 
@@ -329,6 +332,7 @@ function listTar(
     });
     extract.on('error', reject);
 
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     createReadStream(tempPath).pipe(extract);
   });
 }
@@ -361,6 +365,7 @@ function extractTarEntry(tempPath: string, internalPath: string): Promise<Buffer
     extract.on('finish', () => resolve(found));
     extract.on('error', reject);
 
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     createReadStream(tempPath).pipe(extract);
   });
 }
@@ -401,6 +406,7 @@ function listTarGz(
     extract.on('error', reject);
     gunzip.on('error', reject);
 
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     createReadStream(tempPath).pipe(gunzip).pipe(extract);
   });
 }
@@ -435,6 +441,7 @@ function extractTarGzEntry(tempPath: string, internalPath: string): Promise<Buff
     extract.on('error', reject);
     gunzip.on('error', reject);
 
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     createReadStream(tempPath).pipe(gunzip).pipe(extract);
   });
 }
@@ -659,7 +666,9 @@ async function extract7zEntry(tempPath: string, internalPath: string): Promise<B
     if (!resolvedPath.startsWith(tmpDir + sep)) {
       throw new Error('Path traversal rejected');
     }
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     if (!existsSync(resolvedPath)) return null;
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     return readFile(resolvedPath);
   } catch (err) {
     throw new Error('7z extraction failed: ' + (err instanceof Error ? err.message : String(err)));
@@ -705,6 +714,7 @@ async function resolveArchivePath(
   // Resolve nested archive — cache it under a composite key
   const nestedCacheKey = cacheKey(bucket, `${key}!/${nestedArchivePath}`);
   const cachedEntry = archiveCache.get(nestedCacheKey);
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (cachedEntry && Date.now() < cachedEntry.expiresAt && existsSync(cachedEntry.path)) {
     return cachedEntry.path;
   }
@@ -745,6 +755,7 @@ async function resolveArchivePath(
   const nestedDir = mkdtempSync(join(tmpdir(), 'archive-nested-'));
   const nestedPath = join(nestedDir, `archive${nestedExt}`);
 
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   writeFileSync(nestedPath, nestedData);
 
   archiveCache.set(nestedCacheKey, {
@@ -910,6 +921,7 @@ export function clearArchiveCache(): void {
   for (const [cacheKey, entry] of archiveCache) {
     try {
       const dir = join(entry.path, '..');
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
       if (existsSync(dir)) rmRecursive(dir);
     } catch {
       /* noop */

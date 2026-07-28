@@ -52,18 +52,6 @@ export interface PersistedTabsState {
   connectionId?: string;
 }
 
-// ── Module-level restore request flag ────────────────────────────────────────
-// Set by the /storage banner when the user clicks "Restore tabs". Consumed
-// once by the next ensureInitialTab() call so the FileExplorer knows to
-// restore rather than start fresh. A module-level variable works here because
-// the banner navigates via SvelteKit (SPA navigation — no full page reload).
-
-let restoreRequestedOnNextMount = false;
-
-export function requestTabsRestore(): void {
-  restoreRequestedOnNextMount = true;
-}
-
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 const EMPTY_PAGE: StoragePage = { objects: [], hasNextPage: false, currentPage: 1, pageSize: 25 };
@@ -109,22 +97,22 @@ export class TabsState {
       objects: this.storage.objects,
       prevTokens: [...this.storage.prevTokens],
       pageSize: this.storage.pageSize,
-      archiveKey: this.storage.archiveKey,
-      archivePrefix: this.storage.archivePrefix,
-      archiveNestedPath: this.storage.archiveNestedPath,
-      previousS3Prefix: this.storage.previousS3Prefix,
-      archiveLoading: this.storage.archiveLoading,
-      archiveTooLarge: this.storage.archiveTooLarge,
+      archiveKey: this.storage.archive.archiveKey,
+      archivePrefix: this.storage.archive.archivePrefix,
+      archiveNestedPath: this.storage.archive.nestedArchivePath ?? null,
+      previousS3Prefix: this.storage.archive._previousS3Prefix,
+      archiveLoading: this.storage.archive.archiveLoading,
+      archiveTooLarge: this.storage.archive.archiveTooLarge,
       autoLabel: this.computeAutoLabel()
     };
   }
 
   private computeAutoLabel(): string {
-    if (this.storage.isInArchive && this.storage.archiveKey) {
+    if (this.storage.archive.isInArchive && this.storage.archive.archiveKey) {
       return this.archiveLabelFrom(
-        this.storage.archiveKey,
-        this.storage.archivePrefix,
-        this.storage.archiveNestedPath
+        this.storage.archive.archiveKey,
+        this.storage.archive.archivePrefix,
+        this.storage.archive.nestedArchivePath ?? null
       );
     }
     return this.buildLabel(this.storage.bucket, this.storage.prefix);
@@ -136,12 +124,14 @@ export class TabsState {
     this.storage.objects = snapshot.objects;
     this.storage.prevTokens = [...snapshot.prevTokens];
     this.storage.pageSize = snapshot.pageSize;
-    this.storage.archiveKey = snapshot.archiveKey;
-    this.storage.archivePrefix = snapshot.archivePrefix;
-    this.storage.archiveNestedPath = snapshot.archiveNestedPath;
-    this.storage.previousS3Prefix = snapshot.previousS3Prefix;
-    this.storage.archiveLoading = snapshot.archiveLoading;
-    this.storage.archiveTooLarge = snapshot.archiveTooLarge;
+    this.storage.archive._restoreFullState({
+      archiveKey: snapshot.archiveKey,
+      archivePrefix: snapshot.archivePrefix,
+      archiveNestedPath: snapshot.archiveNestedPath,
+      previousS3Prefix: snapshot.previousS3Prefix,
+      archiveLoading: snapshot.archiveLoading,
+      archiveTooLarge: snapshot.archiveTooLarge
+    });
     this.storage.loading = false;
     this.storage.clearSelection();
     this.replaceLocationUrl?.(snapshot.bucket, snapshot.prefix);
@@ -214,6 +204,7 @@ export class TabsState {
       }
     }));
 
+    // eslint-disable-next-line security/detect-object-injection
     const mappedActiveId = activeIdx >= 0 ? this.tabs[activeIdx].id : this.tabs[0].id;
     this.activeTabId = mappedActiveId;
 
@@ -242,18 +233,30 @@ export class TabsState {
 
   // ── Tab operations ───────────────────────────────────────────────────────
 
-  /** Initialises tabs from the current storage state. If a restore was
-   *  requested via requestTabsRestore(), restores persisted tabs instead of
-   *  starting fresh. */
+  /** Initialises tabs from the current storage state. If persistence is
+   *  enabled, restores tabs from localStorage (handles both SPA navigation
+   *  via the /storage banner flag and full page reloads).
+   *
+   *  Tabs are only restored when the current storage bucket/prefix matches
+   *  the saved active tab's location — otherwise the user navigated to a
+   *  different location directly and stale tabs should not override it. */
   ensureInitialTab(): void {
     if (this.tabs.length > 0) return;
 
-    if (restoreRequestedOnNextMount && this.persistEnabled) {
-      restoreRequestedOnNextMount = false;
+    if (this.persistEnabled) {
       const saved = this.peekPersistedTabs();
       if (saved && saved.tabs.length > 0) {
-        this.restorePersistedTabs(saved);
-        return;
+        const activeIdx = saved.tabs.findIndex((pt) => pt.id === saved.activeTabId);
+        const activeTab = activeIdx >= 0 ? saved.tabs[activeIdx] : saved.tabs[0];
+        if (
+          activeTab &&
+          this.storage.bucket === activeTab.bucket &&
+          this.storage.prefix === activeTab.prefix
+        ) {
+          this.restorePersistedTabs(saved);
+          return;
+        }
+        this.clearPersistedTabs();
       }
     }
 
@@ -269,6 +272,7 @@ export class TabsState {
     if (!this.activeTabId) return;
     const idx = this.tabs.findIndex((t) => t.id === this.activeTabId);
     if (idx === -1) return;
+    // eslint-disable-next-line security/detect-object-injection
     const tab = this.tabs[idx];
     if (!tab.stub) return;
     this.tabs = [
@@ -283,6 +287,7 @@ export class TabsState {
     if (!this.activeTabId) return;
     const idx = this.tabs.findIndex((t) => t.id === this.activeTabId);
     if (idx === -1) return;
+    // eslint-disable-next-line security/detect-object-injection
     const tab = this.tabs[idx];
     const updatedTab: Tab = {
       ...tab,
@@ -332,6 +337,7 @@ export class TabsState {
 
     if (id === this.activeTabId) {
       const newIdx = Math.min(idx, newTabs.length - 1);
+      // eslint-disable-next-line security/detect-object-injection
       const nextTab = newTabs[newIdx];
       this.activeTabId = nextTab.id;
       if (nextTab.stub && this.navigateToLocation) {
@@ -348,6 +354,7 @@ export class TabsState {
   renameTab(id: string, newLabel: string): void {
     const idx = this.tabs.findIndex((t) => t.id === id);
     if (idx === -1) return;
+    // eslint-disable-next-line security/detect-object-injection
     const tab = this.tabs[idx];
     this.tabs = [
       ...this.tabs.slice(0, idx),

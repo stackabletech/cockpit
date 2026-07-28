@@ -6,15 +6,19 @@
   import { setStorageState } from '$lib/storage/context.js';
   import StorageModals from '$lib/components/storage/modals/StorageModals.svelte';
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+  import { createFetchStorageApi } from '$lib/storage/api.js';
 
   let { children, data } = $props();
+
+  const storageApi = createFetchStorageApi(() => connectionStore.activeConnectionId);
 
   const storage = untrack(
     () =>
       new StorageState({
         connected: data.connected,
         buckets: data.buckets,
-        connectionId: connectionStore.activeConnectionId
+        connectionId: connectionStore.activeConnectionId,
+        api: storageApi
       })
   );
   setStorageState(storage);
@@ -34,7 +38,7 @@
   const isConnectionsRoute = $derived(page.url.pathname.startsWith('/storage/connections'));
 </script>
 
-{#if data.connected && !isConnectionsRoute}
+{#if !isConnectionsRoute && (data.connected || (data.hydrating && data.hasActiveConnection))}
   <div class="flex h-full min-h-0 gap-4">
     <BucketList />
     <div class="flex min-w-0 flex-1 flex-col">

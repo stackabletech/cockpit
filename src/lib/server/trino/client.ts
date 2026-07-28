@@ -158,6 +158,7 @@ if (trinoConfigured) {
     dispatcher = new Agent({
       connect: {
         rejectUnauthorized: !tlsInsecure,
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
         ...(tlsCaCertPath ? { ca: readFileSync(tlsCaCertPath) } : {})
       }
     });

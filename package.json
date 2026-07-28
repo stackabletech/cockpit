@@ -18,6 +18,7 @@
     "test:arch": "vitest run --config vitest.arch.config.ts",
     "test:arch:report": "ARCH_REPORT=1 vitest run --config vitest.arch.config.ts",
     "test:e2e": "node --env-file=.env.test node_modules/.bin/vite build && npx tsx e2e/support/run-e2e.ts",
+    "test:e2e:desktop": "node --env-file=.env.test node_modules/.bin/vite build && npx tsx e2e/support/run-e2e.ts --project=chromium --project=firefox",
     "test:e2e:ui": "playwright test --ui",
     "generate:antlr": "cd src/lib/editor/grammar && antlr-ng -v -l -Dlanguage=TypeScript -o ../generated SqlBase.g4 && node patch-generated.mjs",
     "db:generate": "drizzle-kit generate",

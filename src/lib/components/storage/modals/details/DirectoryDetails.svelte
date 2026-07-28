@@ -3,8 +3,8 @@
   import IconCalculate from 'virtual:icons/material-symbols/calculate';
   import IconWarning from 'virtual:icons/material-symbols/warning';
   import { formatFileSize, keyToName } from '$lib/storage/utils.js';
-  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
-  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
+  import { getStorageState } from '$lib/storage/context.js';
+  import { StorageError } from '$lib/storage/errors.js';
   import type {
     DirectorySizeEvent,
     DirectoryMetadata,
@@ -23,6 +23,8 @@
   }
 
   let { key: objectKey, bucket, maximized = false }: Props = $props();
+
+  const storage = getStorageState();
 
   const prefix = $derived(objectKey.endsWith('/') ? objectKey : objectKey + '/');
 
@@ -47,19 +49,13 @@
 
   async function fetchMetadata() {
     try {
-      const connectionId = connectionStore.activeConnectionId;
-      if (!connectionId) return;
-      const params = new URLSearchParams({ bucket, prefix });
-      const res = await fetch(`/api/storage/directory-metadata?${params}`, {
-        headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
-      });
-      if (!res.ok) {
-        metaError = m.storage_details_error_fetch_dir_meta({ status: res.status });
-        return;
-      }
-      meta = await res.json();
+      meta = await storage.api.directoryMetadata({ bucket, prefix });
     } catch (err) {
-      metaError = err instanceof Error ? err.message : m.storage_details_error_unknown();
+      if (err instanceof StorageError) {
+        metaError = err.message;
+      } else {
+        metaError = err instanceof Error ? err.message : m.storage_details_error_unknown();
+      }
     }
   }
 
@@ -74,16 +70,7 @@
     result = null;
 
     try {
-      const connectionId = connectionStore.activeConnectionId;
-      if (!connectionId) {
-        error = m.storage_details_error_not_connected();
-        calculating = false;
-        return;
-      }
-      const params = new URLSearchParams({ bucket, prefix });
-      const res = await fetch(`/api/storage/directory-size?${params}`, {
-        headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
-      });
+      const res = await storage.api.directorySize({ bucket, prefix });
 
       if (!res.ok) {
         error = m.storage_details_error_calc_size({ status: res.status });
@@ -135,7 +122,11 @@
         }
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : m.storage_details_error_unknown();
+      if (err instanceof StorageError) {
+        error = err.message;
+      } else {
+        error = err instanceof Error ? err.message : m.storage_details_error_unknown();
+      }
     } finally {
       calculating = false;
     }
