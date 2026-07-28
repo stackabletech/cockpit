@@ -293,6 +293,7 @@
   "storage_error_access_denied": "Sie haben keine Berechtigung, auf den Bucket „{bucket}“ zuzugreifen.",
   "storage_error_not_found": "Der Bucket „{bucket}“ existiert nicht.",
   "storage_error_storage_error": "Beim Zugriff auf den Bucket „{bucket}“ ist ein Fehler aufgetreten.",
+  "storage_error_warning_icon_label": "Warnung",
   "storage_error_back_to_storage": "Zurück zum Speicher",
   "storage_error_go_back": "Zurück",
   "storage_download_error_title": "Download fehlgeschlagen",

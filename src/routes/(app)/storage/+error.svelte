@@ -34,7 +34,8 @@
       bg-error/10 text-error flex size-20 items-center justify-center
       rounded-full
     "
-    aria-hidden="true"
+    role="img"
+    aria-label={m.storage_error_warning_icon_label()}
   >
     <IconWarning class="size-10" aria-hidden="true" />
   </div>
