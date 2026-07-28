@@ -129,7 +129,6 @@ async function extendCache(
       const isIncomplete = !textEndsWithNewline && isLastElement && !isLastByte;
       const hasOwnNewline = textEndsWithNewline || !isLastElement;
       if (!isIncomplete && (lines[i].length > 0 || i < lines.length - 1)) {
-         
         entry.lineOffsets.push(bytePos);
       }
       if (!isIncomplete) {
@@ -147,7 +146,6 @@ async function extendCache(
       const isIncomplete = !textEndsWithNewline && isLastElement && !isLastByte;
       const hasOwnNewline = textEndsWithNewline || !isLastElement;
       if (!isIncomplete && (lines[i].length > 0 || i < lines.length - 1)) {
-         
         entry.lineOffsets.push(bytePos);
       }
       if (!isIncomplete) {
