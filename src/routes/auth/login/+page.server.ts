@@ -13,7 +13,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     throw redirect(302, '/');
   }
 
-  const redirectTo = sanitiseRedirectTo(url.searchParams.get('redirectTo'));
+  const raw = url.searchParams.get('redirectTo');
+  const redirectTo = sanitiseRedirectTo(raw);
+  // Resolve relative path against the request origin so Better Auth
+  // validates it as an absolute URL (comparing origins only), avoiding
+  // its restrictive relative-path regex which rejects % in the path.
+  const abs = redirectTo.startsWith('/') ? new URL(redirectTo, url.origin).href : redirectTo;
 
-  return { redirectTo };
+  return { redirectTo: abs };
 };
