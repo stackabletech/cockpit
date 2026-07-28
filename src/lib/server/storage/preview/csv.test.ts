@@ -247,4 +247,27 @@ describe('getCsvPreview', () => {
     expect(body.rows[1]).toEqual(['row1']);
     expect(body.rows[2]).toEqual(['row2']);
   });
+
+  it('includes the last line when the file has no trailing newline', async () => {
+    // E2E scenario: file without trailing \n on the last line.
+    // The last line MUST be included even though text doesn't end with \n.
+    const fileContent = 'h\na\nb'; // 5 bytes, fits in one chunk (textPreviewBytes=11)
+    const provider = sliceProvider(fileContent);
+
+    const res = await getCsvPreview(
+      provider,
+      'no-trailing-newline',
+      0,
+      250,
+      'text/csv',
+      fileContent.length,
+      mockLog,
+      true
+    );
+
+    expect(res.headers.get('X-Preview-Total-Rows')).toBe('2');
+    const body = await readNdjsonResponse(res);
+    expect(body.rows).toHaveLength(2);
+    expect(body.rows).toEqual([['a'], ['b']]);
+  });
 });
