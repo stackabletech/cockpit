@@ -284,7 +284,7 @@
       </table>
       {#if textTruncated}
         <p class="text-base-content/50 px-4 py-2 text-xs italic">
-          {m.storage_preview_csv_rows({ count: textRows.length })}
+          {m.storage_preview_csv_rows({ count: textRows.length.toLocaleString(getLocale()) })}
         </p>
       {/if}
     {/if}

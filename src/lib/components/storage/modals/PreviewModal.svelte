@@ -798,9 +798,13 @@
             >
             {#if csvShowingRowsCount > 0}
               <span class="badge badge-soft badge-warning badge-sm">
-                {m.storage_preview_csv_rows({
-                  count: csvShowingRowsCount.toLocaleString(getLocale())
-                })}
+                {csvTotalRows === csvShowingRowsCount
+                  ? m.storage_preview_csv_rows_complete({
+                      count: csvShowingRowsCount.toLocaleString(getLocale())
+                    })
+                  : m.storage_preview_csv_rows({
+                      count: csvShowingRowsCount.toLocaleString(getLocale())
+                    })}
               </span>
             {/if}
           </div>
