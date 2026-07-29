@@ -289,6 +289,7 @@
   "storage_parent_dir": "Übergeordnetes Verzeichnis",
   "storage_loading": "Wird geladen…",
   "storage_breadcrumb_more": "Weitere Ordner",
+  "storage_error_breadcrumb_aria_label": "Brotkrümelnavigation",
   "storage_error_title": "Speicherfehler",
   "storage_error_access_denied": "Sie haben keine Berechtigung, auf den Bucket „{bucket}“ zuzugreifen.",
   "storage_error_not_found": "Der Bucket „{bucket}“ existiert nicht.",
@@ -348,6 +349,7 @@
   "storage_preview_not_found": "Die Datei konnte nicht gefunden werden.",
   "storage_preview_image_alt": "Vorschau von {name}",
   "storage_preview_csv_rows": "Erste {count} Zeilen werden angezeigt",
+  "storage_preview_csv_rows_complete": "Alle {count} Zeilen werden angezeigt",
   "storage_preview_parquet_rows": "Erste {count} von {total} Zeilen werden angezeigt (Parquet)",
   "storage_preview_infinite_scroll_disabled": "Dies ist das Ende der Vorschau. Laden Sie die vollständige Datei herunter oder bitten Sie den Administrator, das unendliche Scrollen zu aktivieren, um weitere Zeilen in dieser Vorschau zu laden.",
   "storage_preview_pdf_too_large": "PDF ist zu groß für die Inline-Vorschau.",
@@ -422,7 +424,16 @@
   "storage_tab_rename": "Tab umbenennen",
   "storage_tab_list": "Explorer-Tabs",
   "storage_tab_context_menu": "Tab-Optionen",
-  "storage_restore_tabs_message": "Sie haben {count} gespeicherte(n) Tab(s) aus Ihrer letzten Sitzung.",
+  "storage_restore_tabs_message": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Sie haben 1 gespeicherten Tab aus Ihrer letzten Sitzung.",
+        "countPlural=other": "Sie haben {count} gespeicherte Tabs aus Ihrer letzten Sitzung."
+      }
+    }
+  ],
   "storage_restore_tabs_action": "Tabs wiederherstellen",
   "storage_preview_parquet_tab_aria": "Parquet-Vorschau-Registerkarten",
   "storage_preview_parquet_tab_metadata": "Metadaten",
@@ -539,20 +550,83 @@
   "storage_details_object_lock": "Objektsperre",
   "storage_details_object_lock_mode": "Sperrmodus",
   "storage_details_object_lock_until": "Aufbewahren bis",
-  "storage_action_cut_success": "{count} Element(e) ausgeschnitten",
-  "storage_action_copy_success": "{count} Element(e) kopiert",
-  "storage_action_paste_success": "{count} Element(e) eingefügt",
+  "storage_action_cut_success": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 Element ausgeschnitten",
+        "countPlural=other": "{count} Elemente ausgeschnitten"
+      }
+    }
+  ],
+  "storage_action_copy_success": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 Element kopiert",
+        "countPlural=other": "{count} Elemente kopiert"
+      }
+    }
+  ],
+  "storage_action_paste_success": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 Element eingefügt",
+        "countPlural=other": "{count} Elemente eingefügt"
+      }
+    }
+  ],
   "storage_action_paste_error": "Elemente konnten nicht eingefügt werden. Bitte versuchen Sie es erneut.",
-  "storage_action_paste_partial": "{count} Element(e) konnten nicht eingefügt werden.",
+  "storage_action_paste_partial": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 Element konnte nicht eingefügt werden.",
+        "countPlural=other": "{count} Elemente konnten nicht eingefügt werden."
+      }
+    }
+  ],
   "storage_action_paste_error_source_not_found": "Einfügen fehlgeschlagen — die Quell-Elemente wurden möglicherweise gelöscht oder verschoben.",
   "storage_action_paste_archive_error": "Einfügen innerhalb eines Archivs nicht möglich.",
-  "storage_action_move_success": "{count} Element(e) verschoben",
-  "storage_action_move_partial": "{count} Element(e) konnten nicht verschoben werden.",
+  "storage_action_move_success": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 Element verschoben",
+        "countPlural=other": "{count} Elemente verschoben"
+      }
+    }
+  ],
+  "storage_action_move_partial": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 Element konnte nicht verschoben werden.",
+        "countPlural=other": "{count} Elemente konnten nicht verschoben werden."
+      }
+    }
+  ],
   "storage_action_move_error": "Elemente konnten nicht verschoben werden. Bitte versuchen Sie es erneut.",
   "storage_action_move_error_not_connected": "Keine Speicherverbindung konfiguriert. Bitte verbinden Sie sich zuerst.",
   "storage_action_move_error_access_denied": "Zugriff verweigert. Sie haben keine Berechtigung zum Verschieben.",
   "storage_move_confirm_title": "Elemente verschieben",
-  "storage_move_confirm_body": "{count} Element(e) nach \"{destination}\" verschieben?",
+  "storage_move_confirm_body": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 Element nach \"{destination}\" verschieben?",
+        "countPlural=other": "{count} Elemente nach \"{destination}\" verschieben?"
+      }
+    }
+  ],
   "storage_move_confirm_label": "Verschieben",
   "storage_move_confirm_cancel": "Abbrechen",
   "storage_move_confirm_more": "+{count} mehr",
