@@ -782,6 +782,9 @@ export class StorageState {
       if (!this.archive.isInArchive && this.clipboard) {
         void this.executeAction('paste');
       }
+    } else if (isCtrl && e.key === 'a') {
+      e.preventDefault();
+      this.selectAll(!this.allSelected);
     } else if (e.key === 'F2') {
       if (!this.archive.isInArchive && this.selectedKeys.size === 1) {
         void this.executeAction('rename');
