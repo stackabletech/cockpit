@@ -124,10 +124,12 @@ describe('PreviewModal complex previews', () => {
       render(PreviewModal, { ...defaultProps, objectKey: 'data/file.parquet' });
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
       await expect.element(page.getByText('val1')).toBeInTheDocument();
-      await expect.element(page.getByText(/showing first 250 of 10,000 rows/i)).toBeInTheDocument();
+      await expect
+        .element(page.getByRole('paragraph'))
+        .toHaveTextContent(/showing first 1 of 10,000 rows/i);
     });
 
-    it('should show row count badge when parquet is truncated', async () => {
+    it('should show row count badge when parquet is truncated with previewRows header', async () => {
       fetchMock.mockResolvedValue(
         mockFetchResponse(parquetNdjson(['col1', 'col2'], [['val1', 'val2']], 10000), {
           contentType: 'application/json',
@@ -141,7 +143,9 @@ describe('PreviewModal complex previews', () => {
       render(PreviewModal, { ...defaultProps, objectKey: 'data/file.parquet' });
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
       await expect.element(page.getByText('val1')).toBeInTheDocument();
-      await expect.element(page.getByText(/showing first 250 of 10,000 rows/i)).toBeInTheDocument();
+      await expect
+        .element(page.getByRole('paragraph'))
+        .toHaveTextContent(/showing first 1 of 10,000 rows/i);
     });
   });
 

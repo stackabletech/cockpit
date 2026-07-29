@@ -86,6 +86,8 @@ export interface StorageApi {
 
   checkObjectExists(params: { bucket: string; key: string }): Promise<boolean>;
 
+  download(params: { bucket: string; key: string }): Promise<Response>;
+
   preview(params: {
     bucket: string;
     key: string;
@@ -214,6 +216,11 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       } catch {
         return false;
       }
+    },
+
+    async download({ bucket, key }) {
+      const params = new URLSearchParams({ bucket, key });
+      return fetch_(`/api/storage/download?${params}`);
     },
 
     async preview({ bucket, key, offset, limit, data }) {

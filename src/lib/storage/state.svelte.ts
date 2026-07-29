@@ -751,7 +751,7 @@ export class StorageState {
   // ────────────────────────────────────────────────────────────────────────────
 
   handleKeydown = (e: KeyboardEvent): void => {
-    if (this.activeModal?.type === 'delete') return;
+    if (this.activeModal) return;
     if (this.archive.isInArchive && e.key !== 'Escape') return;
 
     const isCtrl = e.ctrlKey || e.metaKey;

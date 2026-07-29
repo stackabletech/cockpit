@@ -69,6 +69,10 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
       return false;
     },
 
+    async download() {
+      return new Response(null, { status: 200 });
+    },
+
     async preview() {
       return new Response(null, { status: 200 });
     },

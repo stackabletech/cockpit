@@ -570,7 +570,7 @@
     if (!objectKey) return;
 
     try {
-      const res = await storage.api.preview({ bucket, key: objectKey });
+      const res = await storage.api.download({ bucket, key: objectKey });
       if (!res.ok) {
         addToast('error', m.storage_download_error_unknown());
         return;
@@ -796,12 +796,15 @@
             <span class="badge badge-neutral badge-sm font-mono"
               >{formatFileSize(preview.totalSize)}</span
             >
-            {#if preview.truncated}
+            {#if csvShowingRowsCount > 0}
               <span class="badge badge-soft badge-warning badge-sm">
-                {m.storage_preview_parquet_rows({
-                  count: csvShowingRowsCount.toLocaleString(getLocale()),
-                  total: preview.totalRows.toLocaleString(getLocale())
-                })}
+                {csvTotalRows === csvShowingRowsCount
+                  ? m.storage_preview_csv_rows_complete({
+                      count: csvShowingRowsCount.toLocaleString(getLocale())
+                    })
+                  : m.storage_preview_csv_rows({
+                      count: csvShowingRowsCount.toLocaleString(getLocale())
+                    })}
               </span>
             {/if}
           </div>

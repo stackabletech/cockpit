@@ -61,6 +61,8 @@
   let loadingChunks = $state<Set<number>>(new Set());
 
   let columnWidths = $state<number[]>([]);
+  let containerWidth = $state(800);
+  let scrollLeft = $state(0);
 
   function textWidth(text: string): number {
     if (typeof document === 'undefined') return text.length * 7;
@@ -91,6 +93,64 @@
     }
   }
 
+  const LINE_NUM_WIDTH = 40;
+  const COL_BUFFER = 3;
+
+  function sumColWidths(from: number, to: number): number {
+    if (columnWidths.length === 0) {
+      const clampedFrom = Math.max(0, Math.min(from, headers.length));
+      const clampedTo = Math.max(clampedFrom, Math.min(to, headers.length));
+      return (clampedTo - clampedFrom) * 120;
+    }
+    let s = 0;
+    for (let i = from; i < to && i < columnWidths.length; i++) {
+      s += columnWidths[i] || 80;
+    }
+    return s;
+  }
+
+  function findDataColIndex(scrollPos: number): number {
+    if (scrollPos <= LINE_NUM_WIDTH) return 0;
+    if (columnWidths.length === 0) {
+      return Math.max(0, Math.floor((scrollPos - LINE_NUM_WIDTH) / 120));
+    }
+    let offset = LINE_NUM_WIDTH;
+    for (let i = 0; i < columnWidths.length; i++) {
+      const w = columnWidths[i] || 80;
+      if (scrollPos < offset + w) return i;
+      offset += w;
+    }
+    return columnWidths.length;
+  }
+
+  let totalTableWidth = $derived(
+    isLegacyMode || isSimpleMode ? 0 : LINE_NUM_WIDTH + sumColWidths(0, headers.length)
+  );
+
+  let colStartIndex = $derived.by(() => {
+    if (isLegacyMode || isSimpleMode) return 0;
+    const idx = findDataColIndex(scrollLeft);
+    return Math.max(0, Math.min(idx - COL_BUFFER, headers.length - 1));
+  });
+
+  let colEndIndex = $derived.by(() => {
+    if (isLegacyMode || isSimpleMode) return headers.length;
+    const idx = findDataColIndex(scrollLeft + containerWidth);
+    return Math.min(headers.length, idx + 1 + COL_BUFFER);
+  });
+
+  let leftPadWidth = $derived(isLegacyMode || isSimpleMode ? 0 : sumColWidths(0, colStartIndex));
+
+  let rightPadWidth = $derived(
+    isLegacyMode || isSimpleMode ? 0 : sumColWidths(colEndIndex, headers.length)
+  );
+
+  let totalCellCount = $derived(
+    isLegacyMode || isSimpleMode
+      ? headers.length + 1
+      : 1 + (colEndIndex - colStartIndex) + (leftPadWidth > 0 ? 1 : 0) + (rightPadWidth > 0 ? 1 : 0)
+  );
+
   onMount(() => {
     if (!isLegacyMode && !isSimpleMode) populateChunk0();
   });
@@ -110,10 +170,15 @@
     if (keys.length === 0) return 0;
     return Math.max(...keys);
   });
+  let loadedRowsCount = $derived(
+    isLegacyMode || isSimpleMode
+      ? 0
+      : Object.values(loadedChunks).reduce((sum, chunk) => sum + chunk.length, 0)
+  );
   let virtualTotalRows = $derived(
     isLegacyMode || isSimpleMode
       ? 0
-      : Math.min(totalRows, (highestLoadedChunk + 1) * CHUNK_SIZE + 10)
+      : Math.min(totalRows, Math.max(loadedRowsCount, (highestLoadedChunk + 1) * CHUNK_SIZE + 10))
   );
 
   let startIndex = $derived(
@@ -171,9 +236,6 @@
     });
   });
 
-  const loadedRowsCount = $derived(
-    isLegacyMode || isSimpleMode ? 0 : Object.keys(loadedChunks).length * CHUNK_SIZE
-  );
   const isTruncated = $derived(
     isLegacyMode
       ? textTruncated
@@ -182,7 +244,6 @@
         : totalRows > loadedRowsCount
   );
   const formattedLoadedRowsCount = $derived(loadedRowsCount.toLocaleString(getLocale()));
-  const formattedTotalRows = $derived(totalRows.toLocaleString(getLocale()));
 
   $effect(() => {
     if (!isLegacyMode && !isSimpleMode) {
@@ -223,7 +284,7 @@
       </table>
       {#if textTruncated}
         <p class="text-base-content/50 px-4 py-2 text-xs italic">
-          {m.storage_preview_csv_rows({ count: textRows.length })}
+          {m.storage_preview_csv_rows({ count: textRows.length.toLocaleString(getLocale()) })}
         </p>
       {/if}
     {/if}
@@ -274,27 +335,47 @@
     {#if headers.length === 0}
       <p class="text-base-content/50 p-4 text-sm italic">{m.storage_bucket_empty()}</p>
     {:else}
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div
         class="min-h-0 w-full flex-1 overflow-auto"
+        tabindex="0"
+        role="region"
+        aria-label="CSV preview"
         bind:clientHeight={containerHeight}
-        onscroll={(e) => (scrollTop = e.currentTarget.scrollTop)}
+        bind:clientWidth={containerWidth}
+        onscroll={(e) => {
+          scrollTop = e.currentTarget.scrollTop;
+          scrollLeft = e.currentTarget.scrollLeft;
+        }}
       >
-        <table class="table-xs table table-fixed" aria-label="CSV preview">
+        <table
+          class="table-xs table table-fixed"
+          style={totalTableWidth > 0 ? `width: ${totalTableWidth}px` : ''}
+          aria-label="CSV preview"
+        >
           <thead class="bg-base-200 text-base-content/60 sticky top-0 z-10 text-xs shadow-sm">
             <tr>
               <th class="text-base-content/30 w-10 text-right font-normal"></th>
-              {#each headers as header, j (header)}
+              {#if leftPadWidth > 0}
+                <th style="width: {leftPadWidth}px" class="border-0 p-0"></th>
+              {/if}
+              {#each headers.slice(colStartIndex, colEndIndex) as header, j (colStartIndex + j)}
                 <th
                   class="truncate font-semibold"
-                  style={columnWidths.length > 0 ? `width: ${columnWidths[j]}px` : ''}>{header}</th
+                  style={columnWidths.length > 0 && columnWidths[colStartIndex + j] !== undefined
+                    ? `width: ${columnWidths[colStartIndex + j]}px`
+                    : 'width: 120px'}>{header}</th
                 >
               {/each}
+              {#if rightPadWidth > 0}
+                <th style="width: {rightPadWidth}px" class="border-0 p-0"></th>
+              {/if}
             </tr>
           </thead>
           <tbody>
             {#if startIndex > 0}
               <tr style="height: {startIndex * ROW_HEIGHT}px;">
-                <td colspan={headers.length + 1} class="border-0 p-0"></td>
+                <td colspan={totalCellCount} class="border-0 p-0"></td>
               </tr>
             {/if}
             {#each visibleRows as row (row.index)}
@@ -302,12 +383,23 @@
                 <td class="text-base-content/30 w-10 pr-1 text-right text-xs select-none"
                   >{(row.index + 1).toLocaleString(getLocale())}</td
                 >
+                {#if leftPadWidth > 0}
+                  <td style="width: {leftPadWidth}px" class="border-0 p-0"></td>
+                {/if}
                 {#if row.data !== null && row.data !== undefined}
                   <!--eslint-disable-next-line @typescript-eslint/no-unused-vars-->
-                  {#each headers as _h, j (j)}
-                    {#if row.data[j] !== undefined}
-                      <td class="text-base-content/80 truncate text-xs">
-                        {row.data[j] !== null ? String(row.data[j]) : ''}
+                  {#each headers.slice(colStartIndex, colEndIndex) as _h, j (colStartIndex + j)}
+                    {#if row.data[colStartIndex + j] !== undefined}
+                      <td
+                        class="text-base-content/80 truncate text-xs"
+                        style={columnWidths.length > 0 &&
+                        columnWidths[colStartIndex + j] !== undefined
+                          ? `width: ${columnWidths[colStartIndex + j]}px`
+                          : 'width: 120px'}
+                      >
+                        {row.data[colStartIndex + j] !== null
+                          ? String(row.data[colStartIndex + j])
+                          : ''}
                       </td>
                     {:else}
                       <td class="p-1">
@@ -317,17 +409,20 @@
                   {/each}
                 {:else}
                   <!--eslint-disable-next-line @typescript-eslint/no-unused-vars-->
-                  {#each headers as _h, j (j)}
+                  {#each headers.slice(colStartIndex, colEndIndex) as _h, j (colStartIndex + j)}
                     <td class="p-1">
                       <div class="bg-base-300/40 h-4 w-full animate-pulse rounded"></div>
                     </td>
                   {/each}
                 {/if}
+                {#if rightPadWidth > 0}
+                  <td style="width: {rightPadWidth}px" class="border-0 p-0"></td>
+                {/if}
               </tr>
             {/each}
             {#if endIndex < virtualTotalRows}
               <tr style="height: {(virtualTotalRows - endIndex) * ROW_HEIGHT}px;">
-                <td colspan={headers.length + 1} class="border-0 p-0"></td>
+                <td colspan={totalCellCount} class="border-0 p-0"></td>
               </tr>
             {/if}
           </tbody>
@@ -335,12 +430,7 @@
       </div>
       {#if isTruncated}
         <p class="text-base-content/50 px-4 py-2 text-xs italic">
-          {m.storage_preview_parquet_rows
-            ? m.storage_preview_parquet_rows({
-                count: formattedLoadedRowsCount,
-                total: formattedTotalRows
-              })
-            : `Showing ${formattedLoadedRowsCount} of ${formattedTotalRows} rows. Scroll to load more.`}
+          {m.storage_preview_csv_rows({ count: formattedLoadedRowsCount })}
         </p>
       {/if}
     {/if}
