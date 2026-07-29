@@ -162,14 +162,12 @@
     {#if result.trinoQueryUrl || result.columns.length > 0}
       <div class="flex items-center gap-2 pb-1">
         {#if result.trinoQueryUrl}
-          <!-- eslint-disable svelte/no-navigation-without-resolve -->
           <a
             href={result.trinoQueryUrl}
             target="_blank"
             rel="noopener noreferrer"
             class="btn btn-ghost btn-xs"
           >
-            <!-- eslint-enable svelte/no-navigation-without-resolve -->
             {m.trino_view_in_trino()}
             <svg
               xmlns="http://www.w3.org/2000/svg"

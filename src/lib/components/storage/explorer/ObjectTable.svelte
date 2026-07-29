@@ -18,8 +18,8 @@
   import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
 
   function navigateUp() {
-    if (storage.archive.isInArchive) {
-      storage.archive.navigateUpFromArchive();
+    if (storage.isInArchive) {
+      storage.navigateUpFromArchive();
       return;
     }
     if (!storage.prefix) return;
@@ -180,8 +180,7 @@
 
 <div
   bind:this={scrollContainer}
-  role="region"
-  class="h-full overflow-x-auto overflow-y-auto {tableDragOver
+  class="preview-scroll h-full overflow-x-auto overflow-y-auto {tableDragOver
     ? 'outline-primary/40 outline -outline-offset-2 outline-dashed'
     : ''}"
   ondragover={handleTableDragOver}
@@ -224,7 +223,7 @@
       <!-- Parent directory row -->
       {#if storage.prefix}
         <tr
-          class="cursor-pointer {parentDragOver
+          class="hover cursor-pointer {parentDragOver
             ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
             : ''}"
           onclick={navigateUp}
@@ -243,19 +242,7 @@
         </tr>
       {/if}
 
-      {#if storage.loading && storage.folders.length === 0 && storage.files.length === 0}
-        {#each [75, 60, 85, 45, 90] as width, i (i)}
-          <tr>
-            <td class="pr-0"><div class="skeleton h-4 w-4 animate-pulse rounded"></div></td>
-            <td><div class="skeleton h-4 animate-pulse rounded" style="width: {width}%"></div></td>
-            <td><div class="skeleton ml-auto h-4 w-16 animate-pulse rounded"></div></td>
-            <td><div class="skeleton h-4 w-24 animate-pulse rounded"></div></td>
-            <td></td>
-          </tr>
-        {/each}
-      {/if}
-
-      {#if storage.archive.archiveTooLarge}
+      {#if storage.archiveTooLarge}
         <!-- Archive too large fallback -->
         <tr>
           <td colspan={5} class="py-16 text-center">
@@ -275,7 +262,7 @@
         {/each}
 
         <!-- Empty folder -->
-        {#if !storage.loading && storage.folders.length === 0 && storage.files.length === 0}
+        {#if storage.folders.length === 0 && storage.files.length === 0}
           <tr
             class={emptyDragOver
               ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'

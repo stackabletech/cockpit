@@ -5,6 +5,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { getStorageState } from '$lib/storage/context.js';
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+  import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 
   interface Props {
     open: boolean;
@@ -43,11 +44,20 @@
     error = null;
 
     try {
-      const result = await storage.api.checkBucket({ bucket: name });
+      const res = await fetch(`/api/storage/check-bucket?bucket=${encodeURIComponent(name)}`, {
+        headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionStore.activeConnectionId ?? '' }
+      });
 
-      if (result.ok) {
+      if (res.ok) {
         // Persist the bucket to the connection's additionalBuckets
-        await storage.api.updateConnections({ bucket: name });
+        await fetch(`/api/storage/connections`, {
+          method: 'PATCH',
+          headers: {
+            [STORAGE_CONNECTION_ID_HEADER]: connectionStore.activeConnectionId ?? '',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ bucket: name })
+        });
 
         // Update local store so the grid reflects the change
         const activeId = connectionStore.activeConnectionId;
@@ -72,9 +82,9 @@
             prefix: ''
           })
         );
-      } else if (result.status === 403) {
+      } else if (res.status === 403) {
         error = 'access_denied';
-      } else if (result.status === 404) {
+      } else if (res.status === 404) {
         error = 'not_found';
       } else {
         error = 'unknown';

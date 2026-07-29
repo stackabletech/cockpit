@@ -65,7 +65,12 @@
         <label for="{uid}-type" class="label mb-1 text-sm font-medium">
           {m.storage_connect_type()}
         </label>
-        <select id="{uid}-type" name="type" class="select w-full" bind:value={$form.type}>
+        <select
+          id="{uid}-type"
+          name="type"
+          class="select-bordered select w-full"
+          bind:value={$form.type}
+        >
           <option value="s3">{m.storage_connect_type_s3()}</option>
           <option value="hdfs" disabled>{m.storage_connect_type_hdfs()}</option>
         </select>
@@ -79,7 +84,7 @@
           id="{uid}-host"
           name="host"
           type="text"
-          class={['input w-full', $errors?.host && 'input-error']}
+          class={['input-bordered input w-full', $errors?.host && 'input-error']}
           placeholder={m.storage_connect_host_placeholder()}
           bind:value={$form.host}
           onblur={parseHostInput}
@@ -99,7 +104,7 @@
           type="number"
           min="1"
           max="65535"
-          class={['input w-full', $errors?.port && 'input-error']}
+          class={['input-bordered input w-full', $errors?.port && 'input-error']}
           placeholder={m.storage_connect_port_placeholder()}
           bind:value={$form.port}
         />
@@ -154,7 +159,7 @@
         <select
           id="{uid}-access-style"
           name="accessStyle"
-          class="select w-full"
+          class="select-bordered select w-full"
           bind:value={$form.accessStyle}
         >
           <option value="Path">{m.storage_connect_access_style_path()}</option>
@@ -170,7 +175,7 @@
           id="{uid}-region"
           name="region.name"
           type="text"
-          class={['input w-full', $errors?.region?.name && 'input-error']}
+          class={['input-bordered input w-full', $errors?.region?.name && 'input-error']}
           bind:value={$form.region.name}
         />
         {#if $errors?.region?.name}
@@ -186,7 +191,7 @@
           id="{uid}-access-key"
           name="credentials.accessKey"
           type="text"
-          class={['input w-full', $errors?.credentials?.accessKey && 'input-error']}
+          class={['input-bordered input w-full', $errors?.credentials?.accessKey && 'input-error']}
           autocomplete="username"
           bind:value={$form.credentials.accessKey}
         />
@@ -203,7 +208,7 @@
           id="{uid}-secret-key"
           name="credentials.secretKey"
           type="password"
-          class={['input w-full', $errors?.credentials?.secretKey && 'input-error']}
+          class={['input-bordered input w-full', $errors?.credentials?.secretKey && 'input-error']}
           autocomplete="current-password"
           bind:value={$form.credentials.secretKey}
         />

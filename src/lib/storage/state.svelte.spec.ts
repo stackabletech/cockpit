@@ -1,3 +1,7 @@
+vi.mock('$lib/storage/upload.js', () => ({
+  checkObjectExists: vi.fn().mockResolvedValue(false)
+}));
+
 vi.mock('$lib/client/feature-flags.js', () => ({
   storageAutoConnectEnabled: false,
   storageRestoreTabsEnabled: false,
@@ -10,6 +14,15 @@ vi.mock('$lib/client/feature-flags.js', () => ({
   storagePasteEnabled: true,
   storageRenameEnabled: true,
   storageMoveEnabled: true
+}));
+
+vi.mock('$lib/storage/connection-storage.js', () => ({
+  STORAGE_CONNECTION_HEADER: 'x-storage-connection',
+  loadConnectionLocally: vi.fn(() => ({ id: 'test-conn', type: 's3' })),
+  getConnectionHeader: vi.fn(() => 'test-conn-header'),
+  saveConnectionLocally: vi.fn(),
+  loadAllConnectionsLocally: vi.fn(() => []),
+  removeConnectionLocally: vi.fn()
 }));
 
 vi.mock('$lib/storage/connection-store.svelte.js', () => ({
@@ -28,9 +41,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SvelteSet } from 'svelte/reactivity';
 import { StorageState } from './state.svelte.js';
 import type { StorageObject, StoragePage } from './types.js';
-import type { StorageApi, CopyMoveResult, DeleteResult } from './api.js';
-import type { FileDetails, DirectoryMetadata, BucketDetails } from './details-types.js';
-import { StorageError } from './errors.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import { invalidateAll } from '$app/navigation';
 
@@ -76,78 +86,59 @@ function makePage(objects?: StorageObject[]): StoragePage {
   };
 }
 
-function makeApi(overrides?: Partial<StorageApi>): StorageApi {
-  const defaults: StorageApi = {
-    async list() {
-      return makePage();
-    },
-    async copy(): Promise<CopyMoveResult> {
-      return { results: [], failed: 0 };
-    },
-    async move(): Promise<CopyMoveResult> {
-      return { results: [], failed: 0 };
-    },
-    async rename() {},
-    async delete(): Promise<DeleteResult> {
-      return { failed: [] };
-    },
-    async create() {},
-    async archiveExtract() {
-      return new Response(null, { status: 200 });
-    },
-    async archiveListing() {
-      return { entries: [], hasMore: false };
-    },
-    async pollJob() {
-      return { status: 'done' };
-    },
-    async checkObjectExists() {
-      return false;
-    },
-    async preview() {
-      return new Response(null, { status: 200 });
-    },
-    async saveText() {
-      // no-op
-    },
-    async details(): Promise<FileDetails> {
-      return {} as FileDetails;
-    },
-    async directoryMetadata(): Promise<DirectoryMetadata> {
-      return {} as DirectoryMetadata;
-    },
-    async directorySize() {
-      return new Response(null, { status: 200 });
-    },
-    async bucketDetails(): Promise<BucketDetails> {
-      return {} as BucketDetails;
-    },
-    async checkBucket() {
-      return { ok: true, status: 200 };
-    },
-    async updateConnections() {
-      // no-op
-    }
-  };
-  return { ...defaults, ...overrides };
-}
-
-function makeState(
-  apiOverrides?: Partial<StorageApi>,
-  stateOverrides?: Partial<StorageState>
-): StorageState {
-  const state = new StorageState({
-    connected: true,
-    buckets: ['test-bucket'],
-    api: makeApi(apiOverrides)
-  });
+function makeState(overrides?: Partial<StorageState>): StorageState {
+  const state = new StorageState({ connected: true, buckets: ['test-bucket'] });
   state.bucket = 'test-bucket';
   state.prefix = '';
   state.objects = makePage();
-  if (stateOverrides) {
-    Object.assign(state, stateOverrides);
+  if (overrides) {
+    Object.assign(state, overrides);
   }
   return state;
+}
+
+/**
+ * Build a mock Response that streams NDJSON events matching what the
+ * copy/move endpoints return when `?progress=true` is set.
+ */
+function makeNdjsonResponse(
+  data: Record<string, unknown>,
+  opts?: { ok?: boolean; status?: number }
+): Response {
+  const ok = opts?.ok ?? true;
+  const encoder = new TextEncoder();
+  const lines =
+    [
+      // Simulate a synthetic 100% progress event (as the server does for small files)
+      ...((data.results ?? data.moved) as Array<{ sourceKey: string; destKey: string }>).flatMap(
+        (r) => [
+          JSON.stringify({
+            type: 'progress',
+            sourceKey: r.sourceKey,
+            destKey: r.destKey,
+            loaded: 100,
+            total: 100
+          }),
+          JSON.stringify({ type: 'done', sourceKey: r.sourceKey, destKey: r.destKey })
+        ]
+      ),
+      ...((data.failed ?? []) as Array<unknown>).map((f) =>
+        JSON.stringify({ type: 'failed', ...(f as Record<string, unknown>) })
+      ),
+      JSON.stringify({ type: 'complete', ...data })
+    ].join('\n') + '\n';
+
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(lines));
+      controller.close();
+    }
+  });
+
+  return new Response(stream, {
+    status: ok ? 200 : (opts?.status ?? 500),
+    headers: { 'Content-Type': 'application/x-ndjson' }
+  });
 }
 
 beforeEach(() => {
@@ -240,7 +231,7 @@ describe('executeAction("copy")', () => {
 describe('isCutKey', () => {
   it('returns true when key is in clipboard with cut action and matching bucket', () => {
     const state = makeState();
-    state.clipboardState.clipboard = {
+    state.clipboard = {
       action: 'cut',
       keys: ['file.txt', 'dir/'],
       sourceBucket: 'test-bucket',
@@ -254,7 +245,7 @@ describe('isCutKey', () => {
 
   it('returns false for keys not in clipboard', () => {
     const state = makeState();
-    state.clipboardState.clipboard = {
+    state.clipboard = {
       action: 'cut',
       keys: ['file.txt'],
       sourceBucket: 'test-bucket',
@@ -267,7 +258,7 @@ describe('isCutKey', () => {
 
   it('returns false when clipboard action is copy', () => {
     const state = makeState();
-    state.clipboardState.clipboard = {
+    state.clipboard = {
       action: 'copy',
       keys: ['file.txt'],
       sourceBucket: 'test-bucket',
@@ -280,7 +271,7 @@ describe('isCutKey', () => {
 
   it('returns false when bucket does not match', () => {
     const state = makeState();
-    state.clipboardState.clipboard = {
+    state.clipboard = {
       action: 'cut',
       keys: ['file.txt'],
       sourceBucket: 'other-bucket',
@@ -293,7 +284,7 @@ describe('isCutKey', () => {
 
   it('returns false when clipboard is null', () => {
     const state = makeState();
-    state.clipboardState.clipboard = null;
+    state.clipboard = null;
 
     expect(state.isCutKey('file.txt')).toBe(false);
   });
@@ -306,14 +297,14 @@ describe('isCutKey', () => {
 describe('executeAction("paste")', () => {
   it('shows warning when inside an archive', async () => {
     const state = makeState();
-    state.clipboardState.clipboard = {
+    state.clipboard = {
       action: 'copy',
       keys: ['file.txt'],
       sourceBucket: 'test-bucket',
       sourcePrefix: '',
       fileSizes: {}
     };
-    state.archive.archiveKey = 'archive.zip';
+    Object.assign(state, { archiveKey: 'archive.zip' });
 
     await state.executeAction('paste');
 
@@ -321,27 +312,29 @@ describe('executeAction("paste")', () => {
   });
 
   describe('from copy', () => {
-    it('calls the copy API and shows success', async () => {
-      const copySpy = vi.fn().mockResolvedValue({
-        results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-        failed: 0
-      });
-      const state = makeState({ copy: copySpy });
-      state.clipboardState.clipboard = {
+    it('calls the copy endpoint and shows success', async () => {
+      const state = makeState();
+      state.clipboard = {
         action: 'copy',
         keys: ['file.txt'],
         sourceBucket: 'test-bucket',
         sourcePrefix: '',
         fileSizes: { 'file.txt': 100 }
       };
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        makeNdjsonResponse({
+          results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
+          failed: []
+        })
+      );
 
       await state.executeAction('paste');
 
-      expect(copySpy).toHaveBeenCalledWith(
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/api/storage/copy'),
         expect.objectContaining({
-          bucket: 'test-bucket',
-          sourceKeys: ['file.txt'],
-          destinationPrefix: ''
+          method: 'POST',
+          body: expect.stringContaining('"sourceKeys":["file.txt"]')
         })
       );
       expect(addToast).toHaveBeenCalledWith('success', expect.stringContaining('pasted'));
@@ -349,15 +342,17 @@ describe('executeAction("paste")', () => {
     });
 
     it('shows error toast when all items fail (source not found)', async () => {
-      const copySpy = vi.fn().mockResolvedValue({ results: [], failed: 1 });
-      const state = makeState({ copy: copySpy });
-      state.clipboardState.clipboard = {
+      const state = makeState();
+      state.clipboard = {
         action: 'copy',
         keys: ['file.txt'],
         sourceBucket: 'test-bucket',
         sourcePrefix: '',
         fileSizes: {}
       };
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        makeNdjsonResponse({ results: [], failed: [{ sourceKey: 'file.txt', error: 'Not found' }] })
+      );
 
       await state.executeAction('paste');
 
@@ -369,18 +364,20 @@ describe('executeAction("paste")', () => {
     });
 
     it('shows warning when some items fail', async () => {
-      const copySpy = vi.fn().mockResolvedValue({
-        results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-        failed: 1
-      });
-      const state = makeState({ copy: copySpy });
-      state.clipboardState.clipboard = {
+      const state = makeState();
+      state.clipboard = {
         action: 'copy',
         keys: ['file.txt', 'photo.jpg'],
         sourceBucket: 'test-bucket',
         sourcePrefix: '',
         fileSizes: { 'file.txt': 100, 'photo.jpg': 500 }
       };
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        makeNdjsonResponse({
+          results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
+          failed: [{ sourceKey: 'photo.jpg', error: 'Not found' }]
+        })
+      );
 
       await state.executeAction('paste');
 
@@ -392,27 +389,27 @@ describe('executeAction("paste")', () => {
   });
 
   describe('from cut', () => {
-    it('calls the move API and updates clipboard to destination keys', async () => {
-      const moveSpy = vi.fn().mockResolvedValue({
-        results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-        failed: 0
-      });
-      const state = makeState({ move: moveSpy });
-      state.clipboardState.clipboard = {
+    it('calls the move endpoint and updates clipboard to destination keys', async () => {
+      const state = makeState();
+      state.clipboard = {
         action: 'cut',
         keys: ['file.txt'],
         sourceBucket: 'test-bucket',
         sourcePrefix: '',
         fileSizes: { 'file.txt': 100 }
       };
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        makeNdjsonResponse({
+          moved: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
+          failed: []
+        })
+      );
 
       await state.executeAction('paste');
 
-      expect(moveSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          bucket: 'test-bucket',
-          sourceKeys: ['file.txt']
-        })
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/api/storage/move'),
+        expect.any(Object)
       );
       // Clipboard updated to destination keys with action='copy'
       expect(state.clipboard).not.toBeNull();
@@ -422,15 +419,17 @@ describe('executeAction("paste")', () => {
     });
 
     it('keeps original clipboard on failed move (no results)', async () => {
-      const moveSpy = vi.fn().mockResolvedValue({ results: [], failed: 1 });
-      const state = makeState({ move: moveSpy });
-      state.clipboardState.clipboard = {
+      const state = makeState();
+      state.clipboard = {
         action: 'cut',
         keys: ['file.txt'],
         sourceBucket: 'test-bucket',
         sourcePrefix: '',
         fileSizes: { 'file.txt': 100 }
       };
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        makeNdjsonResponse({ moved: [], failed: [{ sourceKey: 'file.txt', error: 'Not found' }] })
+      );
 
       await state.executeAction('paste');
 
@@ -457,12 +456,11 @@ describe('confirmRename', () => {
     expect(state.renameLoading).toBe(false);
   });
 
-  it('shows inline error on conflict and keeps modal open', async () => {
-    const renameSpy = vi
-      .fn()
-      .mockRejectedValue(new StorageError('conflict', 'Object already exists'));
-    const state = makeState({ rename: renameSpy });
+  it('shows inline error on 409 conflict and keeps modal open', async () => {
+    const state = makeState();
     state.openModal('rename', { key: 'file.txt' });
+    const resp = new Response(null, { status: 409, statusText: 'Conflict' });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(resp);
 
     await state.confirmRename('file.txt', 'renamed.txt');
 
@@ -471,10 +469,10 @@ describe('confirmRename', () => {
     expect(state.renameLoading).toBe(false);
   });
 
-  it('shows toast on access_denied and closes modal', async () => {
-    const renameSpy = vi.fn().mockRejectedValue(new StorageError('access_denied', 'Access denied'));
-    const state = makeState({ rename: renameSpy });
+  it('shows toast on 403 and closes modal', async () => {
+    const state = makeState();
     state.openModal('rename', { key: 'file.txt' });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 403 }));
 
     await state.confirmRename('file.txt', 'renamed.txt');
 
@@ -482,10 +480,10 @@ describe('confirmRename', () => {
     expect(addToast).toHaveBeenCalledWith('error', expect.stringContaining('denied'));
   });
 
-  it('shows toast on not_found and closes modal', async () => {
-    const renameSpy = vi.fn().mockRejectedValue(new StorageError('not_found', 'Not found'));
-    const state = makeState({ rename: renameSpy });
+  it('shows toast on 404 and closes modal', async () => {
+    const state = makeState();
     state.openModal('rename', { key: 'file.txt' });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 404 }));
 
     await state.confirmRename('file.txt', 'renamed.txt');
 
@@ -494,9 +492,12 @@ describe('confirmRename', () => {
   });
 
   it('shows success toast on successful rename and updates recent files', async () => {
-    const renameSpy = vi.fn().mockResolvedValue(undefined);
-    const state = makeState({ rename: renameSpy });
+    const state = makeState();
     state.openModal('rename', { key: 'file.txt' });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({})
+    } as Response);
     // Seed a recent file entry for the old key
     state.bookmarks.recordFileVisit('test-bucket', 'file.txt', 100);
 
@@ -511,9 +512,12 @@ describe('confirmRename', () => {
   });
 
   it('handles directory rename (trailing slash)', async () => {
-    const renameSpy = vi.fn().mockResolvedValue(undefined);
-    const state = makeState({ rename: renameSpy });
+    const state = makeState();
     state.openModal('rename', { key: 'dir/' });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({})
+    } as Response);
 
     await state.confirmRename('dir/', 'renamed-dir');
 
@@ -585,22 +589,25 @@ describe('performMove', () => {
 });
 
 describe('confirmMove', () => {
-  it('calls the move API and shows success toast', async () => {
-    const moveSpy = vi.fn().mockResolvedValue({
-      results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-      failed: 0
-    });
-    const state = makeState({ move: moveSpy });
+  it('calls the move endpoint and shows success toast', async () => {
+    const state = makeState();
     state.selectedKeys = new SvelteSet<string>(['file.txt']);
     state.performMove('dest/');
 
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      makeNdjsonResponse({
+        moved: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
+        failed: []
+      })
+    );
+
     await state.confirmMove();
 
-    expect(moveSpy).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/storage/move'),
       expect.objectContaining({
-        bucket: 'test-bucket',
-        sourceKeys: ['file.txt'],
-        destinationPrefix: 'dest/'
+        method: 'POST',
+        body: expect.stringContaining('"sourceKeys":["file.txt"]')
       })
     );
     expect(addToast).toHaveBeenCalledWith('success', expect.stringContaining('moved'));
@@ -608,13 +615,16 @@ describe('confirmMove', () => {
   });
 
   it('shows warning on partial failures', async () => {
-    const moveSpy = vi.fn().mockResolvedValue({
-      results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-      failed: 1
-    });
-    const state = makeState({ move: moveSpy });
+    const state = makeState();
     state.selectedKeys = new SvelteSet<string>(['file.txt', 'photo.jpg']);
     state.performMove('dest/');
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      makeNdjsonResponse({
+        moved: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
+        failed: [{ sourceKey: 'photo.jpg', error: 'Access denied' }]
+      })
+    );
 
     await state.confirmMove();
 
@@ -622,15 +632,15 @@ describe('confirmMove', () => {
   });
 
   it('cancelMove closes the modal without calling API', () => {
-    const moveSpy = vi.fn();
-    const state = makeState({ move: moveSpy });
+    const state = makeState();
     state.selectedKeys = new SvelteSet<string>(['file.txt']);
     state.performMove('dest/');
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
 
     state.cancelMove();
 
     expect(state.activeModal).toBeNull();
-    expect(moveSpy).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 
@@ -670,18 +680,21 @@ describe('handleKeydown', () => {
   });
 
   it('Ctrl+V triggers paste when clipboard non-empty', async () => {
-    const copySpy = vi.fn().mockResolvedValue({
-      results: [{ sourceKey: 'file.txt', destKey: 'paste/file.txt' }],
-      failed: 0
-    });
-    const state = makeState({ copy: copySpy });
-    state.clipboardState.clipboard = {
+    const state = makeState();
+    state.clipboard = {
       action: 'copy',
       keys: ['file.txt'],
       sourceBucket: 'test-bucket',
       sourcePrefix: '',
       fileSizes: {}
     };
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      makeNdjsonResponse({
+        results: [{ sourceKey: 'file.txt', destKey: 'paste/file.txt' }],
+        failed: []
+      })
+    );
 
     await state.executeAction('paste');
 
@@ -690,7 +703,7 @@ describe('handleKeydown', () => {
 
   it('Ctrl+V does nothing when clipboard is empty', () => {
     const state = makeState();
-    state.clipboardState.clipboard = null;
+    state.clipboard = null;
 
     dispatch(state, 'v', true);
 
@@ -739,9 +752,8 @@ describe('handleKeydown', () => {
 
 describe('performDelete clipboard cleanup', () => {
   it('removes deleted keys from clipboard', async () => {
-    const deleteSpy = vi.fn().mockResolvedValue({ failed: [] });
-    const state = makeState({ delete: deleteSpy });
-    state.clipboardState.clipboard = {
+    const state = makeState();
+    state.clipboard = {
       action: 'cut',
       keys: ['file.txt', 'photo.jpg', 'nested/file.js'],
       sourceBucket: 'test-bucket',
@@ -751,15 +763,19 @@ describe('performDelete clipboard cleanup', () => {
     state.selectedKeys = new SvelteSet<string>(['file.txt', 'photo.jpg']);
     state.openModal('delete', { keys: ['file.txt', 'photo.jpg'] });
 
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ failed: [] })
+    } as Response);
+
     await state.confirmDelete();
 
     expect(state.clipboard!.keys).toEqual(['nested/file.js']);
   });
 
   it('clears clipboard when all keys are deleted', async () => {
-    const deleteSpy = vi.fn().mockResolvedValue({ failed: [] });
-    const state = makeState({ delete: deleteSpy });
-    state.clipboardState.clipboard = {
+    const state = makeState();
+    state.clipboard = {
       action: 'copy',
       keys: ['file.txt'],
       sourceBucket: 'test-bucket',
@@ -769,15 +785,19 @@ describe('performDelete clipboard cleanup', () => {
     state.selectedKeys = new SvelteSet<string>(['file.txt']);
     state.openModal('delete', { keys: ['file.txt'] });
 
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ failed: [] })
+    } as Response);
+
     await state.confirmDelete();
 
     expect(state.clipboard).toBeNull();
   });
 
   it('does not affect clipboard when source bucket differs', async () => {
-    const deleteSpy = vi.fn().mockResolvedValue({ failed: [] });
-    const state = makeState({ delete: deleteSpy });
-    state.clipboardState.clipboard = {
+    const state = makeState();
+    state.clipboard = {
       action: 'copy',
       keys: ['file.txt'],
       sourceBucket: 'other-bucket',
@@ -786,6 +806,11 @@ describe('performDelete clipboard cleanup', () => {
     };
     state.selectedKeys = new SvelteSet<string>(['file.txt']);
     state.openModal('delete', { keys: ['file.txt'] });
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ failed: [] })
+    } as Response);
 
     await state.confirmDelete();
 

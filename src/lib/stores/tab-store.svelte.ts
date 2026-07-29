@@ -201,7 +201,6 @@ function createTabStore() {
 
     if (activeTabId === id) {
       const newIndex = Math.min(index, tabs.length - 1);
-      // eslint-disable-next-line security/detect-object-injection
       activeTabId = tabs[newIndex].id;
     }
     saveIndex();

@@ -6,7 +6,6 @@ import { waitForHydration } from './support/helpers';
 /** Load the saved auth storage state, optionally stripping the locale cookie. */
 function loadAuthState(projectName: string, { withoutLocale = false } = {}) {
   const authFile = path.join(import.meta.dirname, `.auth/user-setup-${projectName}.json`);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const state = JSON.parse(fs.readFileSync(authFile, 'utf-8'));
   if (withoutLocale) {
     state.cookies = state.cookies.filter((c: { name: string }) => c.name !== 'PARAGLIDE_LOCALE');

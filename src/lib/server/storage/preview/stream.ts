@@ -1,12 +1,6 @@
 import type pino from 'pino';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
-import {
-  textPreviewBytes,
-  imagePreviewBytes,
-  pdfPreviewBytes,
-  filePreviewRows,
-  filePreviewColumns
-} from '$lib/server/feature-flags.js';
+import { textPreviewBytes, imagePreviewBytes, pdfPreviewBytes } from '$lib/server/feature-flags.js';
 
 export async function streamPreview(
   provider: StorageProvider,
@@ -51,8 +45,6 @@ export async function streamPreview(
       'X-Preview-Truncated': String(truncated),
       'X-Preview-Total-Size': String(totalSize),
       'X-Preview-Bytes': String(previewBytes),
-      'X-Preview-Preview-Rows': String(filePreviewRows),
-      'X-Preview-Preview-Columns': String(filePreviewColumns),
       'Cache-Control': 'no-store'
     }
   });

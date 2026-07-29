@@ -29,7 +29,7 @@ function mockEvent(opts: {
     locals: {
       logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
       user: { id: 'test-user' },
-      storageConfig: { type: 's3', region: { name: 'us-east-1' } }
+      storageConfig: { type: 's3', region: 'us-east-1' }
     }
   } as unknown as Parameters<typeof POST>[0];
 }

@@ -119,35 +119,4 @@ test.describe('Storage S3 — Delete & Selection', () => {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
   });
-
-  test('Delete keyboard shortcut opens the delete confirmation modal', async ({
-    page
-  }, testInfo) => {
-    const credentials = requireGarageCredentials();
-    const client = createS3Client(credentials);
-    const prefix = uniquePrefix(testInfo, 'kb-delete');
-    const cleanupKeys = [`${prefix}delete-me.txt`];
-
-    try {
-      await putTextObject(client, credentials.bucket, `${prefix}delete-me.txt`, 'delete me');
-
-      await connectAndOpenPrefix(page, credentials, prefix);
-
-      // Select the file by clicking on the row
-      await rowByName(page, 'delete-me.txt').click();
-
-      // Press Delete key
-      await page.keyboard.press('Delete');
-
-      // Delete confirmation modal should appear
-      await expect(page.getByRole('heading', { name: /Delete.*delete-me.txt/i })).toBeVisible();
-      await expect(page.getByText('This action cannot be undone.')).toBeVisible();
-
-      // Cancel the delete
-      await page.getByRole('button', { name: 'Cancel' }).click();
-      await expect(page.getByRole('heading', { name: /Delete.*delete-me.txt/i })).not.toBeVisible();
-    } finally {
-      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
-    }
-  });
 });

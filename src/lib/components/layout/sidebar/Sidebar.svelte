@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { resolveRoute } from '$app/paths';
   import { page } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
   import type { Component } from 'svelte';
@@ -100,9 +99,8 @@
         {#each section.items as item (item.label)}
           {@const active = isActive(item.href)}
           <li>
-            <!-- eslint-disable @typescript-eslint/no-explicit-any, svelte/no-navigation-without-resolve -->
             <a
-              href={resolveRoute(item.href as any)}
+              href={item.href}
               onclick={(e) => handleNavClick(e, item)}
               onkeydown={(e) => handleNavKeydown(e, item)}
               title={collapsed ? item.label : undefined}
@@ -127,7 +125,6 @@
                 {/if}
               {/if}
             </a>
-            <!-- eslint-enable @typescript-eslint/no-explicit-any, svelte/no-navigation-without-resolve -->
           </li>
         {/each}
       </ul>

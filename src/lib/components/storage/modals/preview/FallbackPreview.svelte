@@ -8,29 +8,19 @@
     onDownload: () => void;
     /** When true, the content was determined to be binary (non-displayable UTF-8). */
     isBinary?: boolean;
-    /** When true, the image preview was skipped because the file is too large. */
-    imageTooLarge?: boolean;
   }
 
-  let { contentType, onDownload, isBinary = false, imageTooLarge = false }: Props = $props();
+  let { contentType, onDownload, isBinary = false }: Props = $props();
 </script>
 
 <div class="flex min-h-full flex-col items-center justify-center gap-4 p-8 text-center">
   <IconFilePresent class="text-base-content/30 size-16" aria-hidden="true" />
   <div>
     <p class="text-base-content font-semibold">
-      {imageTooLarge
-        ? m.storage_preview_image_too_large()
-        : isBinary
-          ? m.storage_preview_binary_title()
-          : m.storage_preview_unsupported_title()}
+      {isBinary ? m.storage_preview_binary_title() : m.storage_preview_unsupported_title()}
     </p>
     <p class="text-base-content/60 mt-1 text-sm">
-      {imageTooLarge
-        ? m.storage_preview_image_too_large_desc()
-        : isBinary
-          ? m.storage_preview_binary_desc()
-          : m.storage_preview_unsupported_desc()}
+      {isBinary ? m.storage_preview_binary_desc() : m.storage_preview_unsupported_desc()}
     </p>
     {#if contentType}
       <p class="text-base-content/40 mt-1 font-mono text-xs">{contentType}</p>

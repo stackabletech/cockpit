@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { resolveRoute } from '$app/paths';
   import * as m from '$lib/paraglide/messages.js';
   import IconLogout from 'virtual:icons/material-symbols/logout';
   import type { User } from '$lib/types/auth.js';
@@ -42,8 +41,7 @@
     </li>
     <li><hr class="border-base-300 my-1" /></li>
     <li class="mt-4">
-      <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-      <a href={resolveRoute('/auth/logout')} class="text-sm">
+      <a href="/auth/logout" class="text-sm">
         <IconLogout class="h-4 w-4" aria-hidden="true" />
         {m.header_sign_out()}
       </a>

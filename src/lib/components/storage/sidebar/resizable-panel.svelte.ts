@@ -36,7 +36,6 @@ export function createResizablePanel({
   function saveWidth(w: number) {
     try {
       localStorage.setItem(storageKey, String(w));
-      document.documentElement.style.setProperty('--storage-sidebar-width', w + 'px');
     } catch {
       /* ignore storage errors */
     }

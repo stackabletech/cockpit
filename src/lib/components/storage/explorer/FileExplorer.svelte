@@ -6,29 +6,8 @@
   import { navigating } from '$app/state';
   import { getStorageState } from '$lib/storage/context.js';
   import { TabsState } from '$lib/storage/tabs.svelte.js';
-  import { setTabsState } from '$lib/storage/context.js';
-  import {
-    storageCutCopyEnabled,
-    storagePasteEnabled,
-    storageRenameEnabled,
-    storageRestoreTabsEnabled
-  } from '$lib/client/feature-flags.js';
-  import type { ContextMenuAction } from '$lib/storage/types.js';
-  import type { ActionName } from '$lib/storage/types.js';
-  import IconVisibility from 'virtual:icons/material-symbols/visibility';
-  import IconDownload from 'virtual:icons/material-symbols/download';
-  import IconInfo from 'virtual:icons/material-symbols/info';
-  import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
-  import IconPushPin from 'virtual:icons/material-symbols/push-pin';
-  import IconDelete from 'virtual:icons/material-symbols/delete';
-  import IconContentCopy from 'virtual:icons/material-symbols/content-copy';
-  import IconFileCopy from 'virtual:icons/material-symbols/file-copy-outline';
-  import IconCut from 'virtual:icons/material-symbols/content-cut';
-  import IconCopy from 'virtual:icons/material-symbols/content-copy';
-  import IconPaste from 'virtual:icons/material-symbols/content-paste';
-  import IconDriveFileRenameOutline from 'virtual:icons/material-symbols/drive-file-rename-outline';
-  import IconDescriptionOutline from 'virtual:icons/material-symbols/description-outline';
-  import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
+  import { setTabsState } from '$lib/storage/tabs-context.js';
+  import { storageRestoreTabsEnabled } from '$lib/client/feature-flags.js';
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import TabBar from './TabBar.svelte';
   import ObjectTable from './ObjectTable.svelte';
@@ -104,148 +83,6 @@
     if (b) untrack(() => storage.bookmarks.recordLocationVisit(b, p));
   });
 
-  // ── Context menu actions ─────────────────────────────────────────────────
-
-  const hasCtxKey = $derived(!!storage.contextMenu?.key);
-  const canPreview = $derived(
-    (storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0) ||
-      (storage.contextMenu !== null && storage.ctxIsFile)
-  );
-  const canDownload = $derived(storage.selectedFiles.length > 0 || storage.ctxIsFile);
-  const canShowDetails = $derived(
-    storage.contextMenu !== null ||
-      (storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0)
-  );
-  const selectionCount = $derived(storage.selectedKeys.size);
-
-  const contextMenuActions = $derived.by<ContextMenuAction[]>(() => {
-    if (!hasCtxKey) {
-      return [
-        {
-          key: 'create-file' as ActionName,
-          icon: IconDescriptionOutline,
-          label: m.storage_create_file(),
-          disabled: false,
-          hidden: storage.archive.isInArchive
-        },
-        {
-          key: 'create-folder' as ActionName,
-          icon: IconFolderOutline,
-          label: m.storage_create_folder(),
-          disabled: false,
-          hidden: storage.archive.isInArchive
-        },
-        {
-          key: 'paste' as ActionName,
-          icon: IconPaste,
-          label: m.storage_action_paste(),
-          disabled: storage.clipboard === null || storage.archive.isInArchive,
-          hidden: !storagePasteEnabled || storage.archive.isInArchive
-        }
-      ];
-    }
-
-    const items: ContextMenuAction[] = [
-      {
-        key: 'preview' as ActionName,
-        icon: IconVisibility,
-        label: m.storage_action_preview(),
-        disabled: !canPreview,
-        hidden: false
-      },
-      {
-        key: 'download' as ActionName,
-        icon: IconDownload,
-        label: m.storage_action_download(),
-        disabled: !canDownload,
-        hidden: false
-      },
-      {
-        key: 'details' as ActionName,
-        icon: IconInfo,
-        label: m.storage_action_details(),
-        disabled: !canShowDetails,
-        hidden: false
-      },
-      {
-        key: 'cut' as ActionName,
-        icon: IconCut,
-        label: m.storage_action_cut(),
-        disabled: selectionCount === 0 || storage.archive.isInArchive,
-        hidden: !storageCutCopyEnabled || storage.archive.isInArchive
-      },
-      {
-        key: 'copy' as ActionName,
-        icon: IconCopy,
-        label: m.storage_action_copy(),
-        disabled: selectionCount === 0 || storage.archive.isInArchive,
-        hidden: !storageCutCopyEnabled || storage.archive.isInArchive
-      },
-      {
-        key: 'paste' as ActionName,
-        icon: IconPaste,
-        label: m.storage_action_paste(),
-        disabled: storage.clipboard === null || storage.archive.isInArchive,
-        hidden: !storagePasteEnabled || storage.archive.isInArchive
-      },
-      {
-        key: 'rename' as ActionName,
-        icon: IconDriveFileRenameOutline,
-        label: m.storage_action_rename(),
-        disabled: selectionCount !== 1 || storage.archive.isInArchive,
-        hidden: !storageRenameEnabled || storage.archive.isInArchive
-      },
-      {
-        key: 'copy-filename' as ActionName,
-        icon: IconFileCopy,
-        label:
-          hasCtxKey && !storage.ctxIsFile
-            ? m.storage_action_copy_directory_name()
-            : m.storage_action_copy_filename(),
-        disabled: !hasCtxKey,
-        hidden: false
-      },
-      {
-        key: 'copy-path' as ActionName,
-        icon: IconContentCopy,
-        label: m.storage_action_copy_path(),
-        disabled: !hasCtxKey,
-        hidden: false
-      },
-      {
-        key: 'pin' as ActionName,
-        icon: IconPushPinOutline,
-        label: m.storage_action_pin(),
-        disabled: !storage.canPin || storage.archive.isInArchive,
-        hidden: !storage.canPin || storage.ctxIsPinned || storage.archive.isInArchive
-      },
-      {
-        key: 'unpin' as ActionName,
-        icon: IconPushPin,
-        label: m.storage_action_unpin(),
-        disabled: !storage.ctxIsPinned || storage.archive.isInArchive,
-        hidden: !storage.ctxIsPinned || storage.archive.isInArchive
-      }
-    ];
-
-    if (!storage.archive.isInArchive && hasCtxKey) {
-      items.push({
-        key: 'delete' as ActionName,
-        icon: IconDelete,
-        label: m.storage_action_delete(),
-        disabled: selectionCount === 0,
-        class: 'text-error'
-      });
-    }
-
-    return items;
-  });
-
-  function handleContextMenuAction(key: string) {
-    storage.executeAction(key as ActionName);
-    storage.contextMenu = null;
-  }
-
   // Clicking anywhere inside the object-list container that is not a table row
   // clears the current selection (left-click) or opens the empty-space context
   // menu (right-click). Keyboard users already have Escape via the svelte:window
@@ -279,7 +116,7 @@
   <StorageBreadcrumb />
 
   <div bind:this={objectListEl} class="relative min-h-0 flex-1 overflow-hidden">
-    {#if storage.loading || storage.deleting || storage.archive.archiveLoading || navigating.to}
+    {#if storage.loading || storage.deleting || storage.archiveLoading || navigating.to}
       <div
         class="bg-base-100/70 absolute inset-0 z-20 flex items-center justify-center"
         aria-live="polite"
@@ -309,12 +146,6 @@
 </div>
 
 <!-- Context menu -->
-<ContextMenu
-  x={storage.contextMenu?.x ?? 0}
-  y={storage.contextMenu?.y ?? 0}
-  open={!!storage.contextMenu}
-  onclose={() => storage.closeContextMenu()}
-  onaction={handleContextMenuAction}
-  actions={contextMenuActions}
-  title={m.storage_context_menu_actions()}
-/>
+{#if storage.contextMenu}
+  <ContextMenu />
+{/if}

@@ -80,7 +80,7 @@
     <input
       bind:this={inputEl}
       id={uid + '-create-input'}
-      class="input input-sm w-full"
+      class="input input-bordered input-sm w-full"
       placeholder={m.storage_create_placeholder()}
       value={name}
       oninput={(e) => {

@@ -9,6 +9,11 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+/** Standard options: suppress verbose logs, fail on empty patterns. */
+export const defaultOptions = {
+  logging: { enabled: false, level: 'warn' as const }
+};
+
 /**
  * Recursively collect all files under `dir` whose names match `filenamePattern`.
  * Hidden directories (starting with `.`) are skipped automatically.

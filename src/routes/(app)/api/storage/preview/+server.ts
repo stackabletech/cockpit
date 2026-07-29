@@ -1,11 +1,11 @@
-import { error } from '@sveltejs/kit';
 import { S3ServiceException } from '@aws-sdk/client-s3';
 import { mapS3ErrorToHttp } from '$lib/server/storage/s3-errors.js';
+import { getProvider } from '$lib/server/storage/utils.js';
 import { getParquetPreview } from '$lib/server/storage/preview/parquet';
 import { getCsvPreview } from '$lib/server/storage/preview/csv';
 import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
-import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import { requireBucketKey } from '../params.js';
 import { infiniteScrollEnabled, filePreviewRows } from '$lib/server/feature-flags';
 import type { RequestHandler } from './$types';
 
@@ -15,12 +15,11 @@ import type { RequestHandler } from './$types';
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.
  */
-export const GET: RequestHandler = async (event) => {
-  const { provider, bucket } = createStorageProvider(event);
-  const key = event.url.searchParams.get('key')?.trim();
-  if (!key) throw error(400, 'Missing required query parameter: key');
-  const { url, locals } = event;
+export const GET: RequestHandler = async ({ url, locals }) => {
   const log = locals.logger;
+  const { bucket, key } = requireBucketKey(url);
+
+  const provider = getProvider(locals.storageConfig!, bucket);
 
   try {
     const metadata = await provider.getMetadata(key);

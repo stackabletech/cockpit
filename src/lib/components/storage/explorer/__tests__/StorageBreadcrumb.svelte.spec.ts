@@ -352,7 +352,7 @@ describe('StorageBreadcrumb', () => {
       const bucketEl = nav.getByText('test-bucket');
       await bucketEl.click({ button: 'right' });
 
-      const menuItem = page.getByRole('menuitem', { name: /pin/i });
+      const menuItem = page.getByRole('menuitem');
       await menuItem.first().click();
       expect(spy).toHaveBeenCalledWith('test-bucket', '');
     });
@@ -369,7 +369,7 @@ describe('StorageBreadcrumb', () => {
       const bucketEl = nav.getByText('test-bucket');
       await bucketEl.click({ button: 'right' });
 
-      const menuItem = page.getByRole('menuitem', { name: /unpin/i });
+      const menuItem = page.getByRole('menuitem');
       await menuItem.first().click();
       expect(spy).toHaveBeenCalledWith('test-bucket', '');
     });
@@ -461,7 +461,7 @@ describe('StorageBreadcrumb', () => {
   describe('archive mode', () => {
     it('should show archive name when inside an archive', async () => {
       const state = createState();
-      state.archive.archiveKey = 'data.zip';
+      state.archiveKey = 'data.zip';
       render(StorageBreadcrumbWrapper, { state });
 
       const nav = page.getByRole('navigation', { name: 'breadcrumb' });
@@ -470,8 +470,8 @@ describe('StorageBreadcrumb', () => {
 
     it('should show internal path parts when navigating within archive', async () => {
       const state = createState();
-      state.archive.archiveKey = 'data.zip';
-      state.archive.archivePrefix = 'music/videos/';
+      state.archiveKey = 'data.zip';
+      state.archivePrefix = 'music/videos/';
       render(StorageBreadcrumbWrapper, { state });
 
       const nav = page.getByRole('navigation', { name: 'breadcrumb' });
@@ -483,16 +483,9 @@ describe('StorageBreadcrumb', () => {
 
     it('should show nested archive entry when browsing nested archive', async () => {
       const state = createState();
-      state.archive.archiveKey = 'outer.zip';
-      state.archive._restoreFullState({
-        archiveKey: 'outer.zip',
-        archivePrefix: 'subdir/',
-        archiveNestedPath: 'inner.tar',
-        previousS3Prefix: '',
-        archiveLoading: false,
-        archiveTooLarge: false
-      });
-      state.archive.archivePrefix = 'subdir/';
+      state.archiveKey = 'outer.zip';
+      state.archiveNestedPath = 'inner.tar';
+      state.archivePrefix = 'subdir/';
       render(StorageBreadcrumbWrapper, { state });
 
       const nav = page.getByRole('navigation', { name: 'breadcrumb' });
@@ -503,9 +496,9 @@ describe('StorageBreadcrumb', () => {
 
     it('should call navigateInArchive when clicking breadcrumb folder inside archive', async () => {
       const state = createState();
-      state.archive.archiveKey = 'data.zip';
-      state.archive.archivePrefix = 'music/videos/';
-      const spy = vi.spyOn(state.archive, 'navigateInArchive');
+      state.archiveKey = 'data.zip';
+      state.archivePrefix = 'music/videos/';
+      const spy = vi.spyOn(state, 'navigateInArchive');
       render(StorageBreadcrumbWrapper, { state });
 
       const nav = page.getByRole('navigation', { name: 'breadcrumb' });
@@ -515,7 +508,7 @@ describe('StorageBreadcrumb', () => {
 
     it('should hide upload button when in archive mode', async () => {
       const state = createState();
-      state.archive.archiveKey = 'data.zip';
+      state.archiveKey = 'data.zip';
       render(StorageBreadcrumbWrapper, { state });
 
       await expect.element(page.getByRole('button', { name: /upload/i })).not.toBeInTheDocument();

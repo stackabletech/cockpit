@@ -12,7 +12,14 @@ vi.mock('$app/paths', () => ({
 // Mock upload module
 vi.mock('$lib/storage/upload.js', () => ({
   checkObjectExists: vi.fn().mockResolvedValue(false),
-  uploadFile: vi.fn().mockResolvedValue(undefined)
+  uploadFile: vi.fn().mockResolvedValue(undefined),
+  UploadError: class UploadError extends Error {
+    code: string;
+    constructor(code: string, message: string) {
+      super(message);
+      this.code = code;
+    }
+  }
 }));
 
 function createMockStorageState(activeModal: unknown = null): StorageState {

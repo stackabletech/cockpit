@@ -1,20 +1,14 @@
-import { error } from '@sveltejs/kit';
-import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import { getProvider } from '$lib/server/storage/utils.js';
+import { requireBucketKey } from '../params.js';
 import type { FileDetails } from '$lib/storage/details-types.js';
 import type { RequestHandler } from './$types';
 
-/**
- * GET /api/storage/details?bucket=<bucket>&key=<object-key>
- *
- * Returns the full metadata for a single storage object.
- */
-export const GET: RequestHandler = async (event) => {
-  const { provider, bucket } = createStorageProvider(event);
-  const key = event.url.searchParams.get('key')?.trim();
-  if (!key) throw error(400, 'Missing required query parameter: key');
+export const GET: RequestHandler = async ({ url, locals }) => {
+  const { bucket, key } = requireBucketKey(url);
 
-  event.locals.logger.debug({ bucket, key }, 'fetching object details');
+  locals.logger.debug({ bucket, key }, 'fetching object details');
 
+  const provider = getProvider(locals.storageConfig!, bucket);
   const meta = await provider.getMetadata(key);
 
   const details: FileDetails = {

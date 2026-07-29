@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import { getProvider } from '$lib/server/storage/utils.js';
+import { requireBucketKey } from '../params.js';
 
 /** Derive the bare filename from a (possibly path-prefixed) object key. */
 function filenameFromKey(key: string): string {
@@ -19,15 +20,18 @@ function filenameFromKey(key: string): string {
  * by the handleStorageConnection middleware using the x-storage-connection-id
  * header and a database lookup.
  */
-export const GET: RequestHandler = async (event) => {
-  const { provider, bucket } = createStorageProvider(event);
-  const key = event.url.searchParams.get('key')?.trim();
-  if (!key) throw error(400, 'Missing required query parameter: key');
-  const { locals, request } = event;
+export const GET: RequestHandler = async ({ locals, request, url }) => {
+  const { bucket, key } = requireBucketKey(url);
 
   locals.logger.debug({ bucket, key }, 'download request received');
 
-  const download = await provider.getObject(key);
+  const config = locals.storageConfig;
+
+  if (!config) {
+    throw error(401, 'No storage connection configured');
+  }
+
+  const download = await getProvider(config, bucket).getObject(key);
 
   // When the client cancels the download (closes the connection), abort the S3
   // stream proactively so the backend stops fetching data from S3.
@@ -80,14 +84,12 @@ export const GET: RequestHandler = async (event) => {
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.
  */
-export const HEAD: RequestHandler = async (event) => {
-  const { provider, bucket } = createStorageProvider(event);
-  const key = event.url.searchParams.get('key')?.trim();
-  if (!key) throw error(400, 'Missing required query parameter: key');
+export const HEAD: RequestHandler = async ({ locals, url }) => {
+  const { bucket, key } = requireBucketKey(url);
 
-  event.locals.logger.debug({ bucket, key }, 'download pre-flight check');
+  locals.logger.debug({ bucket, key }, 'download pre-flight check');
 
-  const meta = await provider.getMetadata(key);
+  const meta = await getProvider(locals.storageConfig!, bucket).getMetadata(key);
 
   return new Response(null, {
     status: 200,

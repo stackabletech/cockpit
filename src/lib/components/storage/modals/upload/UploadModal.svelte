@@ -6,8 +6,7 @@
   import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
-  import { checkObjectExists, uploadFile } from '$lib/storage/upload.js';
-  import { StorageError } from '$lib/storage/errors.js';
+  import { checkObjectExists, uploadFile, UploadError } from '$lib/storage/upload.js';
   import { formatFileSize } from '$lib/storage/utils.js';
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { uploadConcurrency } from '$lib/client/feature-flags.js';
@@ -200,7 +199,7 @@
       );
     } catch (err) {
       const msg =
-        err instanceof StorageError ? mapUploadError(err) : m.storage_upload_error_unknown();
+        err instanceof UploadError ? mapUploadError(err) : m.storage_upload_error_unknown();
       entries = entries.map((e) =>
         e.id === entry.id ? { ...e, status: 'error' as const, errorMessage: msg } : e
       );
@@ -307,7 +306,7 @@
 
   // ── Error mapping ──────────────────────────────────────────────────────────
 
-  function mapUploadError(err: StorageError): string {
+  function mapUploadError(err: UploadError): string {
     switch (err.code) {
       case 'not_connected':
         return m.storage_upload_error_not_connected();

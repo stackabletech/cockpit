@@ -1,23 +1,22 @@
 import { error, isHttpError } from '@sveltejs/kit';
-import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import { getProvider } from '$lib/server/storage/utils.js';
+import { requireBucket } from '../params.js';
 import type { RequestHandler } from './$types';
 
-/**
- * GET /api/storage/check-bucket?bucket=<bucket>
- *
- * Verifies that the configured bucket is reachable and accessible.
- * Returns 204 on success, 502 if the bucket cannot be reached.
- */
-export const GET: RequestHandler = async (event) => {
-  const { provider, bucket } = createStorageProvider(event);
+export const GET: RequestHandler = async ({ url, locals }) => {
+  const log = locals.logger;
+  const bucket = requireBucket(url);
 
   try {
-    await provider.listObjects('', 1);
-    event.locals.logger.debug({ bucket }, 'bucket access check passed');
+    await getProvider(locals.storageConfig!, bucket).listObjects('', 1);
+    log.debug({ bucket }, 'bucket access check passed');
     return new Response(null, { status: 204 });
   } catch (err) {
-    if (isHttpError(err)) throw err;
-    event.locals.logger.warn({ err, bucket }, 'unexpected error during bucket access check');
+    if (isHttpError(err)) {
+      log.info({ bucket, status: err.status }, 'bucket access check failed');
+      throw err;
+    }
+    log.warn({ err, bucket }, 'unexpected error during bucket access check');
     throw error(502, 'Could not reach bucket');
   }
 };

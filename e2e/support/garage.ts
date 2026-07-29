@@ -37,7 +37,6 @@ function readString(value: unknown, keys: string[]): string | null {
   }
 
   for (const key of keys) {
-    // eslint-disable-next-line security/detect-object-injection
     const candidate = record[key];
     if (typeof candidate === 'string' && candidate.length > 0) {
       return candidate;
@@ -54,7 +53,6 @@ function readStringArray(value: unknown, keys: string[]): string[] {
   }
 
   for (const key of keys) {
-    // eslint-disable-next-line security/detect-object-injection
     const candidate = record[key];
     if (Array.isArray(candidate)) {
       return candidate.filter((item): item is string => typeof item === 'string');
@@ -75,7 +73,6 @@ function extractAdminList(value: unknown): JsonRecord[] {
   }
 
   for (const key of ADMIN_LIST_KEYS) {
-    // eslint-disable-next-line security/detect-object-injection
     const candidate = record[key];
     if (Array.isArray(candidate)) {
       return candidate

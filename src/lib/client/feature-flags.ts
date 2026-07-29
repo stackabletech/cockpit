@@ -42,7 +42,7 @@ export const infiniteScrollEnabled =
 /** Parse a comma-separated page-sizes string into a deduplicated, sorted list
  *  of positive integers. Falls back to [25, 50, 100] when the value is absent
  *  or produces no valid entries. */
-export function parsePageSizes(raw: string | undefined): readonly number[] {
+function parsePageSizes(raw: string | undefined): readonly number[] {
   if (raw) {
     const parsed = raw
       .split(',')

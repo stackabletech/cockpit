@@ -2,8 +2,10 @@
  * Client-side utility for downloading a single S3 object via the server proxy.
  *
  * Strategy:
- *  1. Fetch the object via `storageFetch` which injects the connection header
- *     and maps HTTP errors to `StorageError`.
+ *  1. Fetch the object with the `x-storage-connection-id` header carrying the
+ *     active connection UUID from the connection store.
+ *  2. On error: throw a `DownloadError` with a typed `code` so the caller can
+ *     display a localised message.
  *  3. On success: create a Blob URL and trigger a native browser download via a
  *     programmatic anchor click.
  *
@@ -13,10 +15,36 @@
  * proportional browser memory — see TECH_DEBT.md for the long-term fix.
  */
 
-import { createStorageFetch } from '$lib/storage/storage-fetch.js';
-import type { StorageErrorCode } from '$lib/storage/errors.js';
+import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 
-export type DownloadErrorCode = StorageErrorCode;
+export type DownloadErrorCode =
+  | 'not_connected'
+  | 'access_denied'
+  | 'not_found'
+  | 'server_error'
+  | 'unknown';
+
+export class DownloadError extends Error {
+  constructor(
+    public readonly code: DownloadErrorCode,
+    message: string
+  ) {
+    super(message);
+    this.name = 'DownloadError';
+  }
+}
+
+function buildDownloadUrl(bucket: string, key: string): string {
+  return `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
+}
+
+function mapStatusToCode(status: number): DownloadErrorCode {
+  if (status === 401) return 'not_connected';
+  if (status === 403) return 'access_denied';
+  if (status === 404) return 'not_found';
+  if (status >= 500) return 'server_error';
+  return 'unknown';
+}
 
 /**
  * Download a single S3 object.
@@ -24,17 +52,23 @@ export type DownloadErrorCode = StorageErrorCode;
  * Fetches the object with the connection ID header, buffers it as a Blob,
  * then triggers a native browser download via a programmatic anchor click.
  *
- * @throws {StorageError} when the server returns a non-2xx response.
+ * @throws {DownloadError} when the server returns a non-2xx response.
  */
 export async function downloadObject(
   bucket: string,
   key: string,
   connectionId: string
 ): Promise<void> {
-  const fetch_ = createStorageFetch(() => connectionId);
-  const url = `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
+  const url = buildDownloadUrl(bucket, key);
 
-  const response = await fetch_(url);
+  const response = await fetch(url, {
+    headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
+  });
+
+  if (!response.ok) {
+    const code = mapStatusToCode(response.status);
+    throw new DownloadError(code, `Download failed with status ${response.status}`);
+  }
 
   const blob = await response.blob();
   const blobUrl = URL.createObjectURL(blob);

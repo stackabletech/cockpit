@@ -122,7 +122,6 @@ function createQueryRunner(tabId: string): QueryRunner {
             isTerminal(s.state) &&
             s.rows.length === 0 &&
             s.columns.length === 0 &&
-            // eslint-disable-next-line security/detect-object-injection
             (!results[i] || !isTerminal(results[i].state) || results[i].rows.length === 0)
         );
         if (hasNewlyCompleted) {

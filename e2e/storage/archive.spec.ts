@@ -169,7 +169,6 @@ test.describe('Storage S3 — Archive preview', () => {
       await waitForObjectsLoaded(page);
 
       // Should be at the bucket root (archive exited)
-      // eslint-disable-next-line security/detect-non-literal-regexp
       await expect(page).toHaveURL(new RegExp(`/storage/${credentials.bucket}(\\?|$)`));
       await expect(page.getByText('archive.zip')).not.toBeVisible();
     } finally {

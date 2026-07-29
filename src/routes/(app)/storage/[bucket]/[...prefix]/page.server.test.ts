@@ -30,7 +30,7 @@ function mockEvent(
 describe('bucket page server load', () => {
   it('returns bucket and prefix when an active connection exists', async () => {
     const result = await load(mockEvent({ activeConnectionId: 'conn-123' }));
-    expect(result).toEqual({ bucket: 'my-bucket', prefix: '', activeConnectionId: 'conn-123' });
+    expect(result).toEqual({ bucket: 'my-bucket', prefix: '' });
   });
 
   it('redirects to /storage when no active connection', async () => {
@@ -47,17 +47,13 @@ describe('bucket page server load', () => {
 
   it('adds trailing slash to prefix', async () => {
     const result = await load(mockEvent({ prefix: 'data/2024', activeConnectionId: 'conn-123' }));
-    expect(result).toEqual({
-      bucket: 'my-bucket',
-      prefix: 'data/2024/',
-      activeConnectionId: 'conn-123'
-    });
+    expect(result).toEqual({ bucket: 'my-bucket', prefix: 'data/2024/' });
   });
 
   it('handles empty prefix', async () => {
     const result = await load(
       mockEvent({ bucket: 'test-bucket', prefix: '', activeConnectionId: 'conn-123' })
     );
-    expect(result).toEqual({ bucket: 'test-bucket', prefix: '', activeConnectionId: 'conn-123' });
+    expect(result).toEqual({ bucket: 'test-bucket', prefix: '' });
   });
 });

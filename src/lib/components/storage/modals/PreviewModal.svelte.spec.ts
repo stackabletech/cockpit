@@ -13,23 +13,6 @@ vi.mock('$app/paths', () => ({
   resolve: (path: string) => path
 }));
 
-// Mock storage context — provide an API that delegates to the global fetch
-vi.mock('$lib/storage/context.js', () => ({
-  getStorageState: () => ({
-    get api() {
-      return {
-        preview: (...args: unknown[]) =>
-          (globalThis.fetch as typeof fetch)(...(args as Parameters<typeof fetch>)),
-        archiveExtract: (...args: unknown[]) =>
-          (globalThis.fetch as typeof fetch)(...(args as Parameters<typeof fetch>)),
-        saveText: (...args: unknown[]) =>
-          (globalThis.fetch as typeof fetch)(...(args as Parameters<typeof fetch>))
-      };
-    },
-    bucket: 'test-bucket'
-  })
-}));
-
 const defaultProps = {
   open: true,
   bucket: faker.word.noun(),

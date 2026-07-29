@@ -43,7 +43,6 @@ function makeZip(path: string, entries: Record<string, string | Buffer>): void {
 function makeTar(path: string, entries: Record<string, string>): Promise<void> {
   return new Promise((resolve, reject) => {
     const pack = tar.pack();
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const ws = createWriteStream(path);
     pack.pipe(ws);
     for (const [name, content] of Object.entries(entries)) {
@@ -59,7 +58,6 @@ function makeTarGz(path: string, entries: Record<string, string>): Promise<void>
   return new Promise((resolve, reject) => {
     const pack = tar.pack();
     const gz = createGzip();
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const ws = createWriteStream(path);
     pack.pipe(gz).pipe(ws);
     for (const [name, content] of Object.entries(entries)) {
@@ -86,7 +84,6 @@ function makeNestedZip(): string {
 }
 
 const dummyDownloadFn: ArchiveDownloadFn = (key: string) => {
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const buf = readFileSync(key);
   return Promise.resolve(
     new ReadableStream({
@@ -144,14 +141,12 @@ describe('listArchiveContents', () => {
     clearArchiveCache();
     for (const p of cleanupPaths) {
       try {
-        // eslint-disable-next-line security/detect-non-literal-fs-filename
         if (existsSync(p)) unlinkSync(p);
       } catch {
         /* noop */
       }
     }
     try {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
       if (existsSync(testDir)) unlinkSync(testDir);
     } catch {
       /* noop */

@@ -6,13 +6,3 @@
  * authenticated user ID, then decrypts the stored credentials.
  */
 export const STORAGE_CONNECTION_ID_HEADER = 'x-storage-connection-id';
-
-export interface SavedConnection {
-  id: string;
-  name: string;
-  host: string;
-  port: number | null;
-  type: 's3';
-  region: { name: string };
-  credentials?: { accessKey: string; secretKey: string };
-}

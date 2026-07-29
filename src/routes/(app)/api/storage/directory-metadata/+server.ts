@@ -1,20 +1,20 @@
 import { error } from '@sveltejs/kit';
-import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import { getProvider } from '$lib/server/storage/utils.js';
+import { requireBucket } from '../params.js';
 import type { DirectoryMetadata } from '$lib/storage/details-types.js';
 import type { RequestHandler } from './$types';
 
-/**
- * GET /api/storage/directory-metadata?bucket=<bucket>&prefix=<prefix>
- *
- * Returns metadata for a directory, including the bucket ACL and, if present,
- * the directory marker object's metadata.
- */
-export const GET: RequestHandler = async (event) => {
-  const { provider, bucket } = createStorageProvider(event);
-  const prefix = event.url.searchParams.get('prefix')?.trim();
-  if (!prefix) throw error(400, 'Missing required query parameter: prefix');
+export const GET: RequestHandler = async ({ url, locals }) => {
+  const bucket = requireBucket(url);
+  const prefix = url.searchParams.get('prefix')?.trim();
 
-  event.locals.logger.debug({ bucket, prefix }, 'fetching directory metadata');
+  if (!prefix) {
+    throw error(400, 'Missing required query parameter: prefix');
+  }
+
+  locals.logger.debug({ bucket, prefix }, 'fetching directory metadata');
+
+  const provider = getProvider(locals.storageConfig!, bucket);
 
   const acl = await provider.getBucketAcl();
   const result: DirectoryMetadata = {
@@ -38,5 +38,7 @@ export const GET: RequestHandler = async (event) => {
     // No directory marker object — that's fine
   }
 
-  return Response.json(result);
+  return new Response(JSON.stringify(result), {
+    headers: { 'Content-Type': 'application/json' }
+  });
 };

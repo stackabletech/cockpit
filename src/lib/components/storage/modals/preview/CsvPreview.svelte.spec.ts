@@ -105,7 +105,7 @@ describe('CsvPreview', () => {
     await expect.element(page.getByText('3')).toBeInTheDocument();
   });
 
-  it('should truncate at default 250 rows and show notice', async () => {
+  it('should truncate at 250 rows and show notice', async () => {
     const header = 'Name,Email';
     const rows = Array.from(
       { length: 300 },

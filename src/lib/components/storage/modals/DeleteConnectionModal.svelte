@@ -3,7 +3,7 @@
   import IconCheck from 'virtual:icons/material-symbols/check';
   import Modal from '$lib/components/Modal.svelte';
   import * as m from '$lib/paraglide/messages.js';
-  import type { SavedConnection } from '$lib/storage/connection-id-header.js';
+  import type { SavedConnection } from '$lib/storage/connection-storage.js';
 
   interface Props {
     open: boolean;
