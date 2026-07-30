@@ -1,0 +1,324 @@
+<script lang="ts">
+  import Modal from '$lib/components/Modal.svelte';
+  import { PRODUCTS, type Product } from '$lib/dashboard/products';
+  import { addBookmark } from '$lib/dashboard/bookmarks.svelte.js';
+  import type { Bookmark } from '$lib/dashboard/types';
+  import * as m from '$lib/paraglide/messages.js';
+
+  let {
+    open = $bindable(false)
+  }: {
+    open: boolean;
+  } = $props();
+
+  let selectedProduct = $state<Product>(PRODUCTS[0]);
+  let openIn = $state<'cockpit' | 'new-tab'>('cockpit');
+  let name = $state('');
+  let userEditedName = $state(false);
+  let environment = $state('');
+  let url = $state('');
+  let pinned = $state(false);
+
+  let uid = $props.id();
+
+  function resetForm() {
+    selectedProduct = PRODUCTS[0];
+    openIn = 'cockpit';
+    name = '';
+    userEditedName = false;
+    environment = '';
+    url = '';
+    pinned = false;
+  }
+
+  function handleProductSelect(product: Product) {
+    selectedProduct = product;
+    if (!userEditedName) {
+      name = product.defaultName;
+    }
+  }
+
+  function handleNameInput() {
+    userEditedName = true;
+  }
+
+  function getDefaultName(): string {
+    return selectedProduct.defaultName;
+  }
+
+  function getHostname(urlStr: string): string {
+    try {
+      return new URL(urlStr).hostname;
+    } catch {
+      return urlStr;
+    }
+  }
+
+  function handleLogoError(e: Event) {
+    const el = e.currentTarget as HTMLImageElement;
+    el.style.display = 'none';
+    const next = el.nextElementSibling;
+    if (next) next.classList.remove('hidden');
+  }
+
+  function handleSubmit() {
+    if (!name.trim() || !url.trim()) return;
+
+    const bookmark: Bookmark = {
+      id: crypto.randomUUID(),
+      productId: selectedProduct.id,
+      name: name.trim(),
+      environment: environment.trim(),
+      url: url.trim(),
+      openIn,
+      pinned,
+      createdAt: new Date().toISOString()
+    };
+
+    addBookmark(bookmark);
+    resetForm();
+    open = false;
+  }
+</script>
+
+<Modal bind:open class="modal">
+  <div class="modal-box max-w-2xl">
+    <form method="dialog">
+      <button
+        class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
+        aria-label={m.button_close()}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="size-5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg
+        >
+      </button>
+    </form>
+
+    <h3 class="text-base-content text-lg font-bold">{m.bookmark_add_title()}</h3>
+
+    <div class="mt-6 space-y-6">
+      <!-- Section 1: Product selection -->
+      <fieldset>
+        <legend class="text-base-content/80 mb-3 text-sm font-medium"
+          >{m.bookmark_product_label()}</legend
+        >
+        <div class="flex flex-wrap gap-2">
+          {#each PRODUCTS as product (product.id)}
+            <button
+              type="button"
+              onclick={() => handleProductSelect(product)}
+              class="
+                flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors
+                {selectedProduct.id === product.id
+                ? 'ring-primary bg-primary/10 ring-2 ring-offset-1'
+                : 'bg-base-200 text-base-content/70 hover:bg-base-300'}
+              "
+              aria-pressed={selectedProduct.id === product.id}
+            >
+              {#if product.logoPath}
+                <img
+                  src={product.logoPath}
+                  alt={product.name}
+                  class="size-5 rounded-full object-contain"
+                  onerror={handleLogoError}
+                />
+                <span
+                  class="flex hidden size-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                  style="background-color: {product.color}"
+                >
+                  {product.initials}
+                </span>
+              {:else}
+                <span
+                  class="flex size-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                  style="background-color: {product.color}"
+                >
+                  {product.initials}
+                </span>
+              {/if}
+              {product.name}
+            </button>
+          {/each}
+        </div>
+      </fieldset>
+
+      <!-- Section 2: Open in -->
+      <fieldset>
+        <legend class="text-base-content/80 mb-2 text-sm font-medium"
+          >{m.bookmark_open_in_label()}</legend
+        >
+        <div class="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onclick={() => (openIn = 'cockpit')}
+            class="
+              flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors
+              {openIn === 'cockpit'
+              ? 'border-primary bg-primary/5 ring-primary ring-1'
+              : 'border-base-300 bg-base-200 hover:border-base-content/30'}
+            "
+            aria-pressed={openIn === 'cockpit'}
+          >
+            <span class="text-base-content text-sm font-semibold"
+              >{m.bookmark_open_in_cockpit()}</span
+            >
+            <span class="text-base-content/50 text-xs leading-tight"
+              >{m.bookmark_open_in_cockpit_desc()}</span
+            >
+          </button>
+          <button
+            type="button"
+            onclick={() => (openIn = 'new-tab')}
+            class="
+              flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors
+              {openIn === 'new-tab'
+              ? 'border-primary bg-primary/5 ring-primary ring-1'
+              : 'border-base-300 bg-base-200 hover:border-base-content/30'}
+            "
+            aria-pressed={openIn === 'new-tab'}
+          >
+            <span class="text-base-content text-sm font-semibold"
+              >{m.bookmark_open_in_new_tab()}</span
+            >
+            <span class="text-base-content/50 text-xs leading-tight"
+              >{m.bookmark_open_in_new_tab_desc()}</span
+            >
+          </button>
+        </div>
+      </fieldset>
+
+      <!-- Section 3 & 4: Product Name + Environment -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label for="{uid}-name" class="text-base-content/80 mb-1 block text-sm font-medium">
+            {m.bookmark_name_label()}
+          </label>
+          <input
+            id="{uid}-name"
+            type="text"
+            bind:value={name}
+            oninput={handleNameInput}
+            placeholder={getDefaultName()}
+            class="input input-bordered w-full"
+          />
+        </div>
+        <div>
+          <label for="{uid}-env" class="text-base-content/80 mb-1 block text-sm font-medium">
+            {m.bookmark_env_label()}
+          </label>
+          <input
+            id="{uid}-env"
+            type="text"
+            bind:value={environment}
+            placeholder={m.bookmark_env_placeholder()}
+            class="input input-bordered w-full"
+          />
+        </div>
+      </div>
+
+      <!-- Section 5: URL -->
+      <div>
+        <label for="{uid}-url" class="text-base-content/80 mb-1 block text-sm font-medium">
+          {m.bookmark_url_label()}
+        </label>
+        <input
+          id="{uid}-url"
+          type="url"
+          bind:value={url}
+          placeholder="https://superset.data-prod.corp"
+          class="input input-bordered w-full"
+        />
+      </div>
+
+      <!-- Section 6: Pinned checkbox -->
+      <label class="flex cursor-pointer items-center gap-2">
+        <input
+          type="checkbox"
+          bind:checked={pinned}
+          class="checkbox checkbox-primary checkbox-sm"
+        />
+        <span class="text-base-content/80 text-sm">{m.bookmark_pinned_label()}</span>
+      </label>
+
+      <!-- Section 7: Preview -->
+      {#if selectedProduct}
+        <div>
+          <p class="text-base-content/60 mb-2 text-xs font-medium tracking-wider uppercase">
+            {m.bookmark_preview_label()}
+          </p>
+          <div class="border-base-300 bg-base-200 flex items-center gap-3 rounded-xl border p-3">
+            <div class="shrink-0">
+              {#if selectedProduct.logoPath}
+                <img
+                  src={selectedProduct.logoPath}
+                  alt={selectedProduct.name}
+                  class="size-10 rounded-xl object-contain"
+                  onerror={handleLogoError}
+                />
+                <span
+                  class="flex hidden size-10 items-center justify-center rounded-xl text-sm font-bold text-white"
+                  style="background-color: {selectedProduct.color}"
+                >
+                  {selectedProduct.initials}
+                </span>
+              {:else}
+                <span
+                  class="flex size-10 items-center justify-center rounded-xl text-sm font-bold text-white"
+                  style="background-color: {selectedProduct.color}"
+                >
+                  {selectedProduct.initials}
+                </span>
+              {/if}
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-base-content text-sm leading-tight font-semibold">
+                {name || getDefaultName() || selectedProduct.name}
+              </p>
+              <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
+                <span class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]">
+                  {selectedProduct.name}
+                </span>
+                {#if environment}
+                  <span
+                    class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]"
+                  >
+                    {environment}
+                  </span>
+                {/if}
+              </div>
+              {#if url}
+                <p class="text-base-content/50 mt-0.5 truncate text-xs">{getHostname(url)}</p>
+              {/if}
+            </div>
+          </div>
+        </div>
+      {/if}
+    </div>
+
+    <div class="modal-action">
+      <button
+        type="button"
+        class="btn btn-ghost"
+        onclick={() => {
+          resetForm();
+          open = false;
+        }}
+      >
+        {m.button_cancel()}
+      </button>
+      <button
+        type="button"
+        class="btn btn-primary"
+        disabled={!name.trim() || !url.trim()}
+        onclick={handleSubmit}
+      >
+        {m.bookmark_add_title()}
+      </button>
+    </div>
+  </div>
+</Modal>
