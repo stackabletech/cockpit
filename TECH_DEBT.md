@@ -90,7 +90,7 @@ Completed query snapshots (including result rows) are cleaned up after `STACKABL
 
 ### Client-side row accumulation has no memory bound
 
-**File:** `src/routes/(app)/trino/query-runner.svelte.ts`
+**File:** `src/lib/trino/query-runner.svelte.ts`
 
 The client accumulates all result rows in memory up to `MAX_CLIENT_ROWS` (10,000). For wide result sets this could consume significant browser memory. Consider implementing streaming/virtual scrolling for large results.
 
@@ -98,7 +98,7 @@ The client accumulates all result rows in memory up to `MAX_CLIENT_ROWS` (10,000
 
 ### Displayed results not cleared on connection change
 
-**File:** `src/routes/(app)/trino/+page.svelte`
+**File:** `src/lib/trino/query-runner.svelte.ts`, `src/routes/(app)/trino/+page.svelte`, `src/routes/embed/trino/+page.svelte`
 
 After saving a new connection, the previous query results remain visible until a new query is run. Consider calling `runner.reset()` when the connection changes.
 
@@ -106,7 +106,7 @@ After saving a new connection, the previous query results remain visible until a
 
 ### No validation that the connection target is a Trino instance
 
-**File:** `src/routes/(app)/trino/+page.server.ts`
+**File:** `src/routes/(app)/trino/+page.server.ts`, `src/routes/embed/trino/+page.server.ts`
 
 The query action sends whatever SQL the user provides to the configured connection URL without first verifying that the endpoint is actually a Trino instance. A user could point the URL at any HTTP server, and the app would blindly POST to it. We should validate new connections (e.g. by calling Trino's `/v1/info` endpoint) and reject URLs that do not respond as a Trino server.
 
@@ -121,6 +121,34 @@ Mobile viewport tests (393×851, touch-enabled) are excluded from CI runs to red
 ---
 
 ## Infrastructure
+
+### Session cookie not configured for cross-origin iframe embedding
+
+**File:** `src/lib/server/auth.ts`
+
+The better-auth session cookie currently uses `SameSite=Lax` (the browser default when no `SameSite` attribute is set). Browsers do not send `SameSite=Lax` cookies when a page is loaded inside an `<iframe>` whose top-level frame is on a different origin, so authenticated users visiting `/embed/trino` or `/embed/storage` from an external host page will be silently redirected to `/auth/login`.
+
+To fix this, configure the session cookie with `SameSite=None; Secure` in `better-auth`:
+
+```typescript
+// src/lib/server/auth.ts
+export const auth = betterAuth({
+  advanced: {
+    cookies: {
+      session_token: {
+        attributes: { sameSite: 'none', secure: true }
+      }
+    }
+  }
+  // …rest of config
+});
+```
+
+**Why this is deferred:** `SameSite=None` is only accepted by browsers when the `Secure` flag is also set, which requires HTTPS. The current dev setup uses plain HTTP, so setting this unconditionally would break local development. The correct approach is to make it conditional on a production/HTTPS flag (e.g. `process.env.NODE_ENV === 'production'` or a dedicated env var) once a staging environment with HTTPS is available.
+
+**Also required for cross-origin embedding:** The embedding host page and the Cockpit server must both be on HTTPS, and the Cockpit server's CORS / CSP must explicitly trust the embedding origin if additional API restrictions are in place.
+
+---
 
 ### No Content Security Policy headers
 

@@ -69,18 +69,44 @@ const handleAuthGuard: Handle = async ({ event, resolve }) => {
  * malformed / invalid header on any route.
  */
 const handleStorageConnection: Handle = async ({ event, resolve }) => {
-  if (
-    (event.route.id?.startsWith('/(app)/storage/') ||
-      event.route.id?.startsWith('/(app)/api/storage/')) &&
-    !storageBrowserEnabled
-  ) {
+  const routeId = event.route.id ?? '';
+  const isAppStorage = routeId.startsWith('/(app)/storage/');
+  const isEmbedStorage = routeId.startsWith('/embed/storage/');
+  const isStorageApi = routeId.startsWith('/(app)/api/storage/');
+
+  if ((isAppStorage || isEmbedStorage || isStorageApi) && !storageBrowserEnabled) {
     throw error(404, 'Storage browser is not enabled');
   }
   event.locals.storageConfig = getConnectionFromHeader(event.request);
-  if (event.locals.storageConfig === null && event.route.id?.startsWith('/(app)/api/storage/')) {
+  if (event.locals.storageConfig === null && isStorageApi) {
     throw error(401, 'No storage connection configured');
   }
   return resolve(event);
+};
+
+/**
+ * Allow embed routes to be loaded inside <iframe> elements from any origin.
+ *
+ * By default browsers block cross-origin framing when the server sets
+ * `X-Frame-Options: SAMEORIGIN` or a restrictive `frame-ancestors` CSP.
+ * SvelteKit does not set either header by default, so this hook is mainly a
+ * defence-in-depth measure and an explicit signal that embedding is intentional.
+ *
+ * For cross-origin embedding to work the session cookie must also carry
+ * `SameSite=None; Secure`.  See TECH_DEBT.md for the outstanding action item.
+ */
+const handleEmbedHeaders: Handle = async ({ event, resolve }) => {
+  const response = await resolve(event);
+  if (event.url.pathname.startsWith('/embed/')) {
+    response.headers.set('X-Frame-Options', 'ALLOWALL');
+    response.headers.set(
+      'Content-Security-Policy',
+      [response.headers.get('Content-Security-Policy'), 'frame-ancestors *']
+        .filter(Boolean)
+        .join('; ')
+    );
+  }
+  return response;
 };
 
 export const handle = sequence(
@@ -88,7 +114,8 @@ export const handle = sequence(
   handleMetrics,
   handleParaglide,
   ...(oidcEnabled ? [handleAuth, handleAuthGuard] : []),
-  handleStorageConnection
+  handleStorageConnection,
+  handleEmbedHeaders
 );
 
 export const handleError: HandleServerError = ({ error, event, status, message }) => {
