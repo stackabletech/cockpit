@@ -1,3 +1,4 @@
+import { OPAClient } from '@open-policy-agent/opa';
 import { logger } from '$lib/server/logging';
 import { opaEnabled, opaUrl, opaTimeout } from './feature-flags.js';
 import { opaRequestDuration, opaRequestTotal } from './metrics.js';
@@ -12,12 +13,10 @@ interface OpaInput {
   };
 }
 
-interface OpaAdminDecision {
-  result?: boolean;
-}
+const client = opaEnabled ? new OPAClient(opaUrl, { sdk: { timeoutMs: opaTimeout } }) : null;
 
 export async function checkAdmin(input: OpaInput): Promise<boolean> {
-  if (!opaEnabled) {
+  if (!client) {
     opaRequestDuration.observe({ outcome: 'disabled' }, 0);
     opaRequestTotal.inc({ outcome: 'disabled' });
     log.debug('OPA disabled, returning non-admin');
@@ -26,30 +25,17 @@ export async function checkAdmin(input: OpaInput): Promise<boolean> {
 
   const start = performance.now();
   try {
-    const res = await fetch(`${opaUrl}/v1/data/stackable/admin`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input }),
-      signal: AbortSignal.timeout(opaTimeout)
+    const isAdmin = await client.evaluate<OpaInput, boolean>('stackable/admin', input, {
+      fromResult: (r) => (r as Record<string, unknown>)?.admin === true
     });
 
     const duration = (performance.now() - start) / 1000;
-    opaRequestDuration.observe({ outcome: res.ok ? 'allow' : 'error' }, duration);
-
-    if (!res.ok) {
-      opaRequestTotal.inc({ outcome: 'error' });
-      log.warn({ status_code: res.status, user_id: input.user.id }, 'OPA returned error');
-      return false;
-    }
-
-    const data: OpaAdminDecision = await res.json();
-    const isAdmin = data.result === true;
-
+    opaRequestDuration.observe({ outcome: isAdmin ? 'allow' : 'deny' }, duration);
     opaRequestTotal.inc({ outcome: isAdmin ? 'allow' : 'deny' });
     log.debug({ user_id: input.user.id, is_admin: isAdmin }, 'OPA admin check');
 
     return isAdmin;
-  } catch (err) {
+  } catch (err: unknown) {
     const duration = (performance.now() - start) / 1000;
     opaRequestDuration.observe({ outcome: 'error' }, duration);
     opaRequestTotal.inc({ outcome: 'error' });
