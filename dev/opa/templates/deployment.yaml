@@ -1,0 +1,60 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opa
+  namespace: default
+  labels:
+    app: opa
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opa
+  template:
+    metadata:
+      labels:
+        app: opa
+    spec:
+      containers:
+        - name: opa
+          image: '{{ .Values.image.repository }}:{{ .Values.image.tag }}'
+          imagePullPolicy: { { .Values.image.pullPolicy } }
+          args:
+            - run
+            - --server
+            - --addr
+            - 0.0.0.0:8181
+            - '{{ .Values.policyMountPath }}/admin.rego'
+          ports:
+            - name: http
+              containerPort: 8181
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8181
+            initialDelaySeconds: 2
+            periodSeconds: 3
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8181
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: policies
+              mountPath: '{{ .Values.policyMountPath }}'
+              readOnly: true
+          resources:
+            requests:
+              cpu: { { .Values.resources.requests.cpu } }
+              memory: { { .Values.resources.requests.memory } }
+            limits:
+              cpu: { { .Values.resources.limits.cpu } }
+              memory: { { .Values.resources.limits.memory } }
+      volumes:
+        - name: policies
+          configMap:
+            name: opa-policies

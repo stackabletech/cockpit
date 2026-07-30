@@ -51,3 +51,27 @@ export const filePreviewRows = parseInt(env.STACKABLE_COCKPIT_FILE_PREVIEW_ROWS 
  *  Values only affect client side rendering and not payload size. */
 export const filePreviewColumns =
   parseInt(env.STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS ?? '', 10) || 50;
+
+/** Maximum compressed size of an archive that will be opened for in-browser
+ *  preview. Archives larger than this threshold will not be downloaded at all
+ *  and a "too large" fallback is shown instead. During listing the total
+ *  decompressed entry size is also checked against this limit.
+ *  Controlled by `STACKABLE_COCKPIT_ARCHIVE_PREVIEW_MAX_MB`. Default: 100 MB. */
+export const archivePreviewMaxBytes =
+  parseInt(env.STACKABLE_COCKPIT_ARCHIVE_PREVIEW_MAX_MB ?? '', 10) * 1024 * 1024 ||
+  100 * 1024 * 1024;
+
+// ── OPA ────────────────────────────────────────────────────────────────────
+
+/** When `STACKABLE_COCKPIT_OPA_ENABLED=true`, the app calls OPA on every
+ *  authenticated request to check admin rights. Disabled by default — the
+ *  admin check is a no-op until OPA is configured. */
+export const opaEnabled = env.STACKABLE_COCKPIT_OPA_ENABLED === 'true';
+
+/** OPA server base URL. Required when OPA is enabled.
+ *  Controlled by `STACKABLE_COCKPIT_OPA_URL`. */
+export const opaUrl = env.STACKABLE_COCKPIT_OPA_URL ?? '';
+
+/** OPA request timeout in milliseconds. Default: 5000.
+ *  Controlled by `STACKABLE_COCKPIT_OPA_TIMEOUT`. */
+export const opaTimeout = parseInt(env.STACKABLE_COCKPIT_OPA_TIMEOUT ?? '', 10) || 5000;

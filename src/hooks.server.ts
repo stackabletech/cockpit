@@ -8,6 +8,8 @@ import { auth, oidcEnabled } from '$lib/server/auth';
 import { requestLogger, logger } from '$lib/server/logging';
 import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
 import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
+import { opaEnabled } from '$lib/server/feature-flags.js';
+import { checkAdmin } from '$lib/server/opa.js';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
 if (dev) {
@@ -60,6 +62,24 @@ const handleAuthGuard: Handle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
+const handleOpaAdmin: Handle = async ({ event, resolve }) => {
+  const isPublic = PUBLIC_PATHS.some((p) => event.url.pathname.startsWith(p));
+  if (isPublic || !event.locals.user) {
+    event.locals.isAdmin = false;
+    return resolve(event);
+  }
+
+  event.locals.isAdmin = await checkAdmin({
+    user: {
+      id: event.locals.user.id,
+      email: event.locals.user.email ?? '',
+      username: event.locals.user.username ?? null
+    }
+  });
+
+  return resolve(event);
+};
+
 /**
  * Parse the `x-storage-connection` header (base64 JSON) for every request and
  * store the result in `event.locals.storageConfig`. For routes under
@@ -88,6 +108,7 @@ export const handle = sequence(
   handleMetrics,
   handleParaglide,
   ...(oidcEnabled ? [handleAuth, handleAuthGuard] : []),
+  ...(opaEnabled ? [handleOpaAdmin] : []),
   handleStorageConnection
 );
 
