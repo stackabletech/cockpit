@@ -3,53 +3,61 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Embedded Apps Demo — Another Frontend</title>
+    <title>Acme Corp — Data Platform</title>
     <style>
-      /* -----------------------------------------------------------------------
-         This file simulates an external / host frontend that embeds the Trino
-         SQL editor and the Storage browser from the Stackable Cockpit via
-         <iframe>.  It is intentionally self-contained (no framework, no build
-         step) to keep the demo as simple as possible.
+      /*
+        Embed demo: simulates an entirely separate host application (Acme Corp
+        Data Platform) that pulls the Trino SQL editor and the Storage browser
+        out of Stackable Cockpit and shows them as embedded panels.
 
-         HOW TO USE
-         ----------
-         Serve this file from the same origin as the Stackable Cockpit during
-         local development (e.g. copy it to `static/embed-demo.html` and open
-         http://localhost:5173/embed-demo.html) so that the session cookie is
-         shared automatically.
+        HOW TO USE (local development)
+        --------------------------------
+        Access this file through the Cockpit dev server so that the session
+        cookie is on the same origin as the iframes:
 
-         For cross-origin embedding (the file served from a different domain):
-         1. The Cockpit server must set `SameSite=None; Secure` on its session
-            cookie — see TECH_DEBT.md for the outstanding action item.
-         2. Both the Cockpit server and this page must be on HTTPS (browsers
-            refuse to send SameSite=None cookies over HTTP).
-         3. Update COCKPIT_BASE_URL below to the production Cockpit URL.
+            http://localhost:5173/embed-demo.html
 
-         PROXY / REQUEST HEADERS
-         -----------------------
-         The iframe loads its content from the Cockpit origin, so all API
-         requests made by the embedded app's JavaScript go directly to that
-         same origin.  No special forwarding of proxy headers (X-Forwarded-For,
-         X-Forwarded-Host, etc.) is required because the browser sends those
-         requests to the Cockpit server directly — not via this host page.
+        Opening the file directly via file:// or from a different origin is
+        equivalent to cross-origin embedding (the session cookie will not be
+        sent to the Cockpit server) and requires the SameSite=None; Secure
+        fix described in TECH_DEBT.md before it can work.
 
-         If a future embedded app (e.g. NiFi) uses proxy-based authentication
-         headers (X-Remote-User, X-Webauth-User, etc.) the reverse proxy in
-         front of the Cockpit server must be configured to pass those headers
-         for requests arriving at the /embed/* routes.
-      ----------------------------------------------------------------------- */
+        CROSS-ORIGIN EMBEDDING (production)
+        ------------------------------------
+        1.  Configure the Cockpit session cookie with SameSite=None; Secure
+            (see TECH_DEBT.md).
+        2.  Both this page and the Cockpit server must be on HTTPS.
+        3.  Set COCKPIT_BASE_URL below to the Cockpit server's full URL.
+
+        PROXY / REQUEST HEADERS
+        -----------------------
+        No special header forwarding is needed.  The iframes load from the
+        Cockpit origin; all API calls made by the embedded apps go directly
+        from the browser to the Cockpit server without passing through this
+        page.  For future apps that rely on proxy-auth headers (e.g. NiFi
+        using X-Remote-User), configure the reverse proxy in front of the
+        Cockpit server to inject those headers for /embed/* requests.
+      */
 
       :root {
-        --accent: #6366f1;
-        --accent-dark: #4f46e5;
-        --bg: #0f172a;
-        --surface: #1e293b;
-        --border: #334155;
-        --text: #f1f5f9;
-        --text-muted: #94a3b8;
-        --tab-active: #6366f1;
-        --tab-inactive: #334155;
-        --radius: 0.5rem;
+        --bg: #f8fafc;
+        --surface: #ffffff;
+        --border: #e2e8f0;
+        --text: #1e293b;
+        --text-muted: #64748b;
+        --accent: #0ea5e9;
+        --accent-dark: #0284c7;
+        --sidebar-w: 13rem;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f172a;
+          --surface: #1e293b;
+          --border: #334155;
+          --text: #f1f5f9;
+          --text-muted: #94a3b8;
+        }
       }
 
       *,
@@ -74,130 +82,130 @@
         overflow: hidden;
       }
 
-      /* ---- Top bar ---- */
-      header {
+      /* ---- Topbar ---- */
+      .topbar {
         background: var(--surface);
         border-bottom: 1px solid var(--border);
-        padding: 0 1.25rem;
+        padding: 0 1.5rem;
+        height: 3rem;
         display: flex;
         align-items: center;
-        gap: 1rem;
-        height: 3.25rem;
+        justify-content: space-between;
         flex-shrink: 0;
       }
 
-      header h1 {
+      .topbar-brand {
         font-size: 0.9rem;
         font-weight: 700;
-        color: var(--text-muted);
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
-
-      header .badge {
-        font-size: 0.65rem;
-        font-weight: 600;
-        background: var(--accent);
-        color: #fff;
-        padding: 0.15rem 0.45rem;
-        border-radius: 9999px;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-      }
-
-      /* ---- Tab bar ---- */
-      nav {
-        background: var(--surface);
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        gap: 0.25rem;
-        padding: 0 1.25rem;
-        flex-shrink: 0;
-      }
-
-      nav button {
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 0.85rem;
-        font-weight: 500;
-        padding: 0.6rem 1rem;
-        color: var(--text-muted);
-        border-bottom: 2px solid transparent;
-        transition:
-          color 0.15s,
-          border-color 0.15s;
-        white-space: nowrap;
-      }
-
-      nav button:hover {
-        color: var(--text);
-      }
-
-      nav button.active {
         color: var(--accent);
-        border-bottom-color: var(--accent);
+        letter-spacing: -0.01em;
       }
 
-      /* ---- Content area ---- */
-      main {
+      .topbar-user {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      /* ---- Body: sidebar + content ---- */
+      .body {
         flex: 1;
         display: flex;
         min-height: 0;
       }
 
-      /* ---- Left sidebar (fake nav items in the host app) ---- */
-      aside {
-        width: 14rem;
+      /* ---- Sidebar (Acme-specific nav — nothing to do with the Cockpit) ---- */
+      .sidebar {
+        width: var(--sidebar-w);
         background: var(--surface);
         border-right: 1px solid var(--border);
         display: flex;
         flex-direction: column;
-        gap: 0.25rem;
-        padding: 0.75rem 0.5rem;
+        padding: 1rem 0.5rem;
+        gap: 0.125rem;
         flex-shrink: 0;
+        overflow-y: auto;
       }
 
-      aside a {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        padding: 0.45rem 0.75rem;
-        border-radius: var(--radius);
-        font-size: 0.875rem;
-        color: var(--text-muted);
-        text-decoration: none;
-        transition:
-          background 0.12s,
-          color 0.12s;
-      }
-
-      aside a:hover {
-        background: rgba(255, 255, 255, 0.06);
-        color: var(--text);
-      }
-
-      aside a.active {
-        background: rgba(99, 102, 241, 0.15);
-        color: var(--accent);
-        font-weight: 600;
-      }
-
-      aside .section-label {
-        font-size: 0.7rem;
+      .sidebar-heading {
+        font-size: 0.65rem;
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--text-muted);
-        padding: 0.4rem 0.75rem 0.1rem;
-        margin-top: 0.5rem;
+        padding: 0.75rem 0.75rem 0.25rem;
       }
 
-      /* ---- iframe panel ---- */
+      .sidebar a {
+        display: block;
+        padding: 0.4rem 0.75rem;
+        border-radius: 0.375rem;
+        font-size: 0.825rem;
+        color: var(--text-muted);
+        text-decoration: none;
+        transition:
+          background 0.1s,
+          color 0.1s;
+      }
+
+      .sidebar a:hover {
+        background: rgba(14, 165, 233, 0.08);
+        color: var(--text);
+      }
+
+      .sidebar a.active {
+        background: rgba(14, 165, 233, 0.12);
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      /* ---- Content area ---- */
+      .content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+      }
+
+      /* ---- Auth notice ---- */
+      .auth-notice {
+        display: none;
+        background: #fef3c7;
+        color: #92400e;
+        font-size: 0.8rem;
+        padding: 0.5rem 1rem;
+        gap: 0.4rem;
+        align-items: center;
+        border-bottom: 1px solid #fde68a;
+        flex-shrink: 0;
+      }
+
+      .auth-notice.visible {
+        display: flex;
+      }
+
+      .auth-notice a {
+        color: #b45309;
+        font-weight: 600;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .auth-notice {
+          background: #451a03;
+          color: #fde68a;
+          border-color: #78350f;
+        }
+
+        .auth-notice a {
+          color: #fbbf24;
+        }
+      }
+
+      /* ---- Panels (iframe wrappers) ---- */
       .panel {
         flex: 1;
         display: none;
-        min-width: 0;
+        min-height: 0;
       }
 
       .panel.visible {
@@ -209,264 +217,161 @@
         flex: 1;
         border: none;
         width: 100%;
-        height: 100%;
+        min-height: 0;
       }
 
-      /* ---- Auth banner ---- */
-      .auth-banner {
-        display: none;
-        background: #7c3aed;
-        color: #fff;
-        font-size: 0.8rem;
-        padding: 0.5rem 1.25rem;
-        gap: 0.5rem;
-        align-items: center;
-        flex-shrink: 0;
-      }
-
-      .auth-banner.visible {
-        display: flex;
-      }
-
-      .auth-banner a {
-        color: #c4b5fd;
-        font-weight: 600;
-      }
-
-      /* ---- Loading overlay ---- */
-      .frame-loading {
+      /* ---- Non-iframe panels (Acme's own pages) ---- */
+      .placeholder {
         flex: 1;
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--text-muted);
         font-size: 0.875rem;
+        flex-direction: column;
+        gap: 0.5rem;
       }
 
-      @media (max-width: 640px) {
-        aside {
+      .placeholder strong {
+        color: var(--text);
+        font-size: 1rem;
+      }
+
+      @media (max-width: 600px) {
+        .sidebar {
           display: none;
         }
       }
     </style>
   </head>
   <body>
-    <!-- -------------------------------------------------------------------- -->
-    <!-- Top bar: branding for the "host" frontend                             -->
-    <!-- -------------------------------------------------------------------- -->
-    <header>
-      <h1>My Portal</h1>
-      <span class="badge">Demo host frontend</span>
-    </header>
-
-    <!-- -------------------------------------------------------------------- -->
-    <!-- Auth warning: shown when the embedded page is not authenticated       -->
-    <!-- -------------------------------------------------------------------- -->
-    <div class="auth-banner" id="authBanner">
-      ⚠ Not signed in to Stackable Cockpit.
-      <a id="loginLink" href="#" target="_blank">Sign in</a>
-      and then reload this page.
-      <span id="sameSiteNote" style="display: none">
-        (Cross-origin embedding also requires
-        <code>SameSite=None; Secure</code> on the session cookie — see
-        <strong>TECH_DEBT.md</strong>.)
-      </span>
+    <!-- Top bar: this host application's own branding -->
+    <div class="topbar">
+      <span class="topbar-brand">Acme Corp Data Platform</span>
+      <span class="topbar-user">alice@acme.example</span>
     </div>
 
-    <!-- -------------------------------------------------------------------- -->
-    <!-- Tab bar: selects which embedded app to show                           -->
-    <!-- -------------------------------------------------------------------- -->
-    <nav>
-      <button class="active" id="tab-home" onclick="showPanel('home')">Home</button>
-      <button id="tab-trino" onclick="showPanel('trino')">SQL Editor</button>
-      <button id="tab-storage" onclick="showPanel('storage')">Storage</button>
-    </nav>
+    <!-- Auth notice (shown when the Cockpit session is missing) -->
+    <div class="auth-notice" id="authNotice">
+      ⚠ Not signed in to Stackable Cockpit.
+      <a id="loginLink" href="#" target="_blank">Sign in</a>
+      and reload this page.
+    </div>
 
-    <!-- -------------------------------------------------------------------- -->
-    <!-- Main content: left sidebar + iframe panels                            -->
-    <!-- -------------------------------------------------------------------- -->
-    <main>
-      <aside>
-        <span class="section-label">Platform</span>
+    <div class="body">
+      <!--
+        Sidebar: entirely Acme's own navigation — no Cockpit concepts here.
+        The embedded apps (SQL Query, Object Storage) are just two items
+        among many in Acme's own menu.
+      -->
+      <nav class="sidebar" aria-label="Main navigation">
+        <span class="sidebar-heading">Overview</span>
         <a
           href="#"
-          class="active"
           onclick="
-            showPanel('home');
+            showPanel('overview');
             return false;
           "
+          class="active"
+          id="nav-overview"
+          >Overview</a
         >
-          <!-- Home icon -->
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-          </svg>
-          Dashboard
-        </a>
+        <a href="#" onclick="return false;">Reports</a>
+        <a href="#" onclick="return false;">Alerts</a>
 
-        <span class="section-label">Data Tools</span>
+        <span class="sidebar-heading">Data</span>
         <a
           href="#"
-          id="nav-trino"
           onclick="
             showPanel('trino');
             return false;
           "
+          id="nav-trino"
+          >SQL Query</a
         >
-          <!-- Database icon -->
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path
-              d="M12 3C7.58 3 4 4.79 4 7s3.58 4 8 4 8-1.79 8-4-3.58-4-8-4zm0 14c-4.42 0-8-1.79-8-4v3c0 2.21 3.58 4 8 4s8-1.79 8-4v-3c0 2.21-3.58 4-8 4zm0-5c-4.42 0-8-1.79-8-4v3c0 2.21 3.58 4 8 4s8-1.79 8-4V8c0 2.21-3.58 4-8 4z"
-            />
-          </svg>
-          SQL Editor
-        </a>
         <a
           href="#"
-          id="nav-storage"
           onclick="
             showPanel('storage');
             return false;
           "
+          id="nav-storage"
+          >Object Storage</a
         >
-          <!-- Folder icon -->
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path
-              d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"
-            />
-          </svg>
-          Storage
-        </a>
-      </aside>
+        <a href="#" onclick="return false;">Pipelines</a>
 
-      <!-- Home "page" (fake content, no iframe) -->
-      <div class="panel visible" id="panel-home">
-        <div class="frame-loading" style="flex-direction: column; gap: 1rem">
-          <svg
-            width="48"
-            height="48"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            style="color: #6366f1"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
-            />
-          </svg>
-          <div style="text-align: center">
-            <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem">
-              Welcome to My Portal
-            </p>
-            <p style="color: #94a3b8; max-width: 28rem; line-height: 1.6">
-              This page simulates a host frontend that embeds the
-              <strong>Trino SQL Editor</strong> and the <strong>Storage Browser</strong> from
-              Stackable Cockpit via <code>&lt;iframe&gt;</code>. Click a tab or sidebar link to open
-              an embedded app.
-            </p>
+        <span class="sidebar-heading">Admin</span>
+        <a href="#" onclick="return false;">Users</a>
+        <a href="#" onclick="return false;">Settings</a>
+      </nav>
+
+      <div class="content">
+        <!-- Overview (Acme's own content, no iframe) -->
+        <div class="panel visible" id="panel-overview">
+          <div class="placeholder">
+            <strong>Acme Corp Data Platform</strong>
+            <span
+              >Select a section from the sidebar. The <em>SQL Query</em> and
+              <em>Object Storage</em> panels are powered by Stackable Cockpit embedded via
+              <code>&lt;iframe&gt;</code>.</span
+            >
           </div>
         </div>
-      </div>
 
-      <!-- Trino SQL Editor iframe -->
-      <div class="panel" id="panel-trino">
-        <iframe id="iframe-trino" title="Trino SQL Editor" allow="clipboard-write"></iframe>
-      </div>
+        <!-- Trino SQL editor — embedded from /embed/trino -->
+        <div class="panel" id="panel-trino">
+          <iframe id="iframe-trino" title="SQL Query (powered by Stackable Cockpit)"></iframe>
+        </div>
 
-      <!-- Storage Browser iframe -->
-      <div class="panel" id="panel-storage">
-        <iframe id="iframe-storage" title="Storage Browser"></iframe>
+        <!-- Storage browser — embedded from /embed/storage -->
+        <div class="panel" id="panel-storage">
+          <iframe
+            id="iframe-storage"
+            title="Object Storage (powered by Stackable Cockpit)"
+          ></iframe>
+        </div>
       </div>
-    </main>
+    </div>
 
     <script>
-      // -----------------------------------------------------------------------
-      // Configuration
-      // -----------------------------------------------------------------------
-
-      // Base URL of the Stackable Cockpit server.
-      // When this demo is served from the same origin (e.g. /embed-demo.html)
-      // leave this as an empty string so relative URLs are used automatically.
-      // For cross-origin embedding set this to the full Cockpit URL, e.g.:
+      // Set to the Cockpit server URL when this page is served from a different
+      // origin.  Leave empty when served from the same origin (e.g. in local dev
+      // via http://localhost:5173/embed-demo.html).
+      //
       //   const COCKPIT_BASE_URL = 'https://cockpit.example.com';
       const COCKPIT_BASE_URL = '';
 
-      // -----------------------------------------------------------------------
-      // State
-      // -----------------------------------------------------------------------
-
-      let activePanel = 'home';
       const iframesLoaded = {};
 
-      // -----------------------------------------------------------------------
-      // Panel switching
-      // -----------------------------------------------------------------------
-
       function showPanel(name) {
-        // Update tab buttons
-        document.querySelectorAll('nav button').forEach((btn) => {
-          btn.classList.toggle('active', btn.id === 'tab-' + name);
-        });
-
-        // Update sidebar links
-        document.querySelectorAll('aside a').forEach((a) => {
-          const target = a.id?.replace('nav-', '');
-          a.classList.toggle('active', target === name || (!target && name === 'home'));
-        });
-
-        // Show/hide panels
         document.querySelectorAll('.panel').forEach((p) => {
           p.classList.toggle('visible', p.id === 'panel-' + name);
         });
-
-        // Lazy-load the iframe src the first time the panel is shown
-        if ((name === 'trino' || name === 'storage') && !iframesLoaded[name]) {
-          loadIframe(name);
-        }
-
-        activePanel = name;
-      }
-
-      function loadIframe(name) {
-        const iframe = document.getElementById('iframe-' + name);
-        if (!iframe) return;
-
-        const path = name === 'trino' ? '/embed/trino' : '/embed/storage';
-        iframe.src = COCKPIT_BASE_URL + path;
-        iframesLoaded[name] = true;
-
-        // Detect auth redirects: if the iframe navigates to /auth/login the user
-        // is not authenticated on the Cockpit server.
-        iframe.addEventListener('load', function onLoad() {
-          try {
-            const iframePath = iframe.contentWindow?.location?.pathname ?? '';
-            if (iframePath.startsWith('/auth/login') || iframePath.startsWith('/auth/')) {
-              showAuthBanner(name);
-            }
-          } catch {
-            // Cross-origin: we cannot read the iframe location.
-            // Show a note about the SameSite cookie requirement.
-            showAuthBanner(name, true);
-          }
+        document.querySelectorAll('.sidebar a[id^="nav-"]').forEach((a) => {
+          a.classList.toggle('active', a.id === 'nav-' + name);
         });
+
+        if ((name === 'trino' || name === 'storage') && !iframesLoaded[name]) {
+          const iframe = document.getElementById('iframe-' + name);
+          const path = name === 'trino' ? '/embed/trino' : '/embed/storage';
+          iframe.src = COCKPIT_BASE_URL + path;
+          iframesLoaded[name] = true;
+
+          iframe.addEventListener('load', () => {
+            try {
+              const path = iframe.contentWindow?.location?.pathname ?? '';
+              if (path.startsWith('/auth/')) showAuthNotice();
+            } catch {
+              // Cross-origin: cannot inspect iframe location.
+              // The app may still work if SameSite=None; Secure is configured.
+            }
+          });
+        }
       }
 
-      // -----------------------------------------------------------------------
-      // Auth banner
-      // -----------------------------------------------------------------------
-
-      function showAuthBanner(appName, crossOrigin) {
-        const banner = document.getElementById('authBanner');
-        const loginLink = document.getElementById('loginLink');
-        const sameSiteNote = document.getElementById('sameSiteNote');
-
-        loginLink.href = COCKPIT_BASE_URL + '/auth/login';
-        if (crossOrigin) {
-          sameSiteNote.style.display = '';
-        }
-        banner.classList.add('visible');
+      function showAuthNotice() {
+        document.getElementById('loginLink').href = COCKPIT_BASE_URL + '/auth/login';
+        document.getElementById('authNotice').classList.add('visible');
       }
     </script>
   </body>

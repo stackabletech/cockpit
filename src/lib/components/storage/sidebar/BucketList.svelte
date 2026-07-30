@@ -1,6 +1,5 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { resolve } from '$app/paths';
   import { beforeNavigate } from '$app/navigation';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
@@ -12,12 +11,14 @@
   import Modal from '$lib/components/Modal.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
+  import { getStorageRouteBase } from '$lib/storage/route-context.js';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
   import { pinnedLabel, pinnedHref } from '$lib/storage/display-helpers.js';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
 
   const storage = getStorageState();
+  const routes = getStorageRouteBase();
 
   const resize = createResizablePanel({
     storageKey: 'storage_sidebar_width',
@@ -40,7 +41,7 @@
   // with optional chaining to avoid crashing the layout and escalating the
   // error to the root fallback handler.
   const activeBucket = $derived.by(() => {
-    const match = page.url?.pathname?.match(/^\/storage\/([^/]+)/);
+    const match = page.url?.pathname?.match(routes.activeBucketRegex);
     return match ? decodeURIComponent(match[1]) : null;
   });
   const activePrefix = $derived(page.params.prefix ? page.params.prefix + '/' : '');
@@ -157,7 +158,7 @@
             >
               <!-- eslint-disable svelte/no-navigation-without-resolve -->
               <a
-                href={pinnedHref(pin)}
+                href={pinnedHref(pin, routes.storageHref)}
                 data-sveltekit-preload-data="off"
                 class="
                 hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
@@ -205,7 +206,7 @@
       {m.storage_buckets_label()}
     </span>
     <a
-      href={resolve('/storage')}
+      href={routes.storageRoot}
       data-sveltekit-preload-data="off"
       class="btn btn-ghost btn-xs group tooltip tooltip-right z-150 before:z-200"
       title={m.storage_view_all_buckets()}
@@ -227,10 +228,7 @@
       {#each storage.buckets as bucket (bucket)}
         <li role="none">
           <a
-            href={resolve('/(app)/storage/[bucket]/[...prefix]', {
-              bucket: encodeURIComponent(bucket),
-              prefix: ''
-            })}
+            href={routes.storageHref(bucket, '')}
             data-sveltekit-preload-data="off"
             class="
               hover:bg-base-200 tooltip tooltip-right flex items-center gap-2 px-3
@@ -251,7 +249,7 @@
 
   <!-- Disconnect button -->
   <div class="border-base-300 border-t p-2">
-    <form bind:this={disconnectForm} method="POST" action="/storage?/disconnect">
+    <form bind:this={disconnectForm} method="POST" action={routes.disconnectAction}>
       <button
         type="button"
         class="btn text-base-content/60 btn-ghost btn-xs hover:text-error w-full"

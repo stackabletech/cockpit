@@ -9,6 +9,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import { formatFileSize } from '$lib/storage/utils.js';
   import { getStorageState } from '$lib/storage/context.js';
+  import { getStorageRouteBase } from '$lib/storage/route-context.js';
   import {
     fileName,
     fileHref,
@@ -21,6 +22,7 @@
   import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
 
   const storage = getStorageState();
+  const routes = getStorageRouteBase();
 
   type Tab = 'files' | 'locations';
   let activeTab = $state<Tab>('files');
@@ -69,7 +71,7 @@
           <td>
             <!-- eslint-disable svelte/no-navigation-without-resolve -->
             <a
-              href={fileHref(file)}
+              href={fileHref(file, routes.storageHref)}
               data-sveltekit-preload-data="off"
               class="text-base-content/60 hover:text-primary truncate text-xs"
             >
@@ -97,7 +99,7 @@
               <div class="tooltip tooltip-left" data-tip={m.storage_recent_open_folder()}>
                 <!-- eslint-disable svelte/no-navigation-without-resolve -->
                 <a
-                  href={fileHref(file)}
+                  href={fileHref(file, routes.storageHref)}
                   data-sveltekit-preload-data="off"
                   class="btn btn-ghost btn-xs"
                   aria-label="{m.storage_recent_open_folder()} — {fileName(file.key)}"
@@ -136,7 +138,7 @@
               {/if}
               <!-- eslint-disable svelte/no-navigation-without-resolve -->
               <a
-                href={locationHref(loc)}
+                href={locationHref(loc, routes.storageHref)}
                 data-sveltekit-preload-data="off"
                 class="hover:text-primary font-medium">{locationName(loc)}</a
               >
@@ -146,7 +148,7 @@
           <td>
             <!-- eslint-disable svelte/no-navigation-without-resolve -->
             <a
-              href={locationHref(loc)}
+              href={locationHref(loc, routes.storageHref)}
               data-sveltekit-preload-data="off"
               class="text-base-content/60 hover:text-primary truncate text-xs"
             >
@@ -161,7 +163,7 @@
             <div class="tooltip tooltip-left" data-tip={m.storage_recent_go_to_location()}>
               <!-- eslint-disable svelte/no-navigation-without-resolve -->
               <a
-                href={locationHref(loc)}
+                href={locationHref(loc, routes.storageHref)}
                 data-sveltekit-preload-data="off"
                 class="btn btn-ghost btn-xs"
                 aria-label="{m.storage_recent_go_to_location()} — {locationName(loc)}"

@@ -1,13 +1,15 @@
 <script lang="ts">
   import IconBucket from '../shared/BucketIcon.svelte';
   import * as m from '$lib/paraglide/messages.js';
-  import { resolve } from '$app/paths';
+  import { getStorageRouteBase } from '$lib/storage/route-context.js';
 
   interface Props {
     buckets?: string[];
   }
 
   let { buckets = [] }: Props = $props();
+
+  const routes = getStorageRouteBase();
 </script>
 
 {#if buckets.length > 0}
@@ -21,11 +23,9 @@
   >
     {#each buckets as bucket (bucket)}
       <div class="tooltip tooltip-bottom" data-tip={bucket}>
+        <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
         <a
-          href={resolve('/(app)/storage/[bucket]/[...prefix]', {
-            bucket: encodeURIComponent(bucket),
-            prefix: ''
-          })}
+          href={routes.storageHref(bucket, '')}
           data-sveltekit-preload-data="off"
           class="
               border-base-300 bg-base-100 hover:border-primary hover:bg-primary/5 flex flex-col items-center
