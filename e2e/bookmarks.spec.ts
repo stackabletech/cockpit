@@ -181,6 +181,12 @@ test.describe('Dashboard bookmarks', () => {
     await expect(page.locator('dialog[open]')).not.toBeVisible();
     await expect(page.getByText('Dashboards')).toBeVisible();
     await expect(page.getByText('Not Saved')).not.toBeVisible();
+
+    // Reopening the edit modal prefills the bookmark values again
+    await page.getByRole('button', { name: 'Edit bookmark' }).click();
+    await expect(page.locator('dialog[open]')).toBeVisible();
+    await expect(page.getByLabel('Name')).toHaveValue('Dashboards');
+    await expect(page.getByLabel('URL')).toHaveValue('https://superset.example.com');
   });
 
   test('deletes a bookmark from the edit modal with confirmation', async ({ page }) => {
