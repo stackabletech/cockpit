@@ -4,6 +4,8 @@ import { waitForHydration } from './support/helpers';
 test.describe('Dashboard bookmarks', () => {
   test.use({ locale: 'en-US' });
 
+  const addButton = 'Add Bookmark';
+
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem('dashboard_bookmarks');
@@ -14,14 +16,14 @@ test.describe('Dashboard bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await expect(page.getByRole('button', { name: '+ Add Bookmark' })).toBeVisible();
+    await expect(page.getByRole('button', { name: addButton })).toBeVisible();
   });
 
   test('opens modal when Add Bookmark is clicked', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: '+ Add Bookmark' }).click();
+    await page.getByRole('button', { name: addButton }).click();
 
     await expect(page.locator('dialog[open]')).toBeVisible();
   });
@@ -30,7 +32,7 @@ test.describe('Dashboard bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: '+ Add Bookmark' }).click();
+    await page.getByRole('button', { name: addButton }).click();
 
     await expect(page.locator('dialog[open]')).toBeVisible();
 
@@ -60,7 +62,7 @@ test.describe('Dashboard bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: '+ Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add Bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await page.locator('button[aria-pressed]').filter({ hasText: 'Superset' }).click();
@@ -72,7 +74,7 @@ test.describe('Dashboard bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: '+ Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add Bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await page.getByLabel('Name').fill('My Dashboard');
@@ -85,14 +87,14 @@ test.describe('Dashboard bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: '+ Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add Bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await page.locator('button[aria-pressed]').filter({ hasText: 'Superset' }).click();
     await page.getByLabel('Name').fill('Dashboards');
     await page.getByLabel('URL').fill('https://superset.example.com');
 
-    await page.locator('dialog[open]').getByRole('button', { name: '+ Add Bookmark' }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: 'Add Bookmark' }).click();
 
     // Bookmark section is visible
     await expect(page.getByRole('heading', { name: 'Bookmarks' })).toBeVisible();
@@ -104,14 +106,14 @@ test.describe('Dashboard bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: '+ Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add Bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await page.locator('button[aria-pressed]').filter({ hasText: 'Superset' }).click();
     await page.getByLabel('Name').fill('Dashboards');
     await page.getByLabel('URL').fill('https://superset.example.com');
 
-    await page.locator('dialog[open]').getByRole('button', { name: '+ Add Bookmark' }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: 'Add Bookmark' }).click();
 
     const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
     expect(stored).toBeTruthy();
@@ -121,20 +123,97 @@ test.describe('Dashboard bookmarks', () => {
     expect(bookmarks[0].name).toBe('Dashboards');
   });
 
-  test('removes a bookmark', async ({ page }) => {
+  test('edits a bookmark', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: '+ Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add Bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await page.locator('button[aria-pressed]').filter({ hasText: 'Superset' }).click();
     await page.getByLabel('Name').fill('Dashboards');
     await page.getByLabel('URL').fill('https://superset.example.com');
 
-    await page.locator('dialog[open]').getByRole('button', { name: '+ Add Bookmark' }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: 'Add Bookmark' }).click();
 
-    await page.getByRole('button', { name: 'Remove bookmark' }).click();
+    await page.getByRole('button', { name: 'Edit bookmark' }).click();
+    await expect(page.locator('dialog[open]')).toBeVisible();
+
+    // Modal opens prefilled and shows edit title
+    await expect(
+      page.locator('dialog[open]').getByRole('heading', { name: 'Edit Bookmark' })
+    ).toBeVisible();
+    await expect(page.getByLabel('Name')).toHaveValue('Dashboards');
+    await expect(page.getByLabel('URL')).toHaveValue('https://superset.example.com');
+
+    await page.getByLabel('Name').fill('Renamed Dashboard');
+
+    await page.locator('dialog[open]').getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(page.getByText('Renamed Dashboard')).toBeVisible();
+    await expect(page.getByText('Dashboards')).not.toBeVisible();
+
+    const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
+    const bookmarks = JSON.parse(stored!);
+    expect(bookmarks).toHaveLength(1);
+    expect(bookmarks[0].name).toBe('Renamed Dashboard');
+  });
+
+  test('cancel in edit dialog closes without changes', async ({ page }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    await page.getByRole('button', { name: 'Add Bookmark' }).click();
+    await expect(page.locator('dialog[open]')).toBeVisible();
+
+    await page.locator('button[aria-pressed]').filter({ hasText: 'Superset' }).click();
+    await page.getByLabel('Name').fill('Dashboards');
+    await page.getByLabel('URL').fill('https://superset.example.com');
+
+    await page.locator('dialog[open]').getByRole('button', { name: 'Add Bookmark' }).click();
+
+    await page.getByRole('button', { name: 'Edit bookmark' }).click();
+    await expect(page.locator('dialog[open]')).toBeVisible();
+
+    await page.getByLabel('Name').fill('Not Saved');
+    await page.locator('dialog[open]').getByRole('button', { name: 'Cancel' }).click();
+
+    await expect(page.locator('dialog[open]')).not.toBeVisible();
+    await expect(page.getByText('Dashboards')).toBeVisible();
+    await expect(page.getByText('Not Saved')).not.toBeVisible();
+  });
+
+  test('deletes a bookmark from the edit modal with confirmation', async ({ page }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    await page.getByRole('button', { name: 'Add Bookmark' }).click();
+    await expect(page.locator('dialog[open]')).toBeVisible();
+
+    await page.locator('button[aria-pressed]').filter({ hasText: 'Superset' }).click();
+    await page.getByLabel('Name').fill('Dashboards');
+    await page.getByLabel('URL').fill('https://superset.example.com');
+
+    await page.locator('dialog[open]').getByRole('button', { name: 'Add Bookmark' }).click();
+
+    await page.getByRole('button', { name: 'Edit bookmark' }).click();
+    await expect(page.locator('dialog[open]')).toBeVisible();
+
+    // Delete opens a confirmation dialog
+    await page.locator('dialog[open]').getByRole('button', { name: 'Delete' }).click();
+    await expect(
+      page.locator('dialog[open]').getByRole('heading', { name: 'Delete bookmark?' })
+    ).toBeVisible();
+
+    // Cancelling the confirmation returns to the edit dialog
+    await page.locator('dialog[open]').getByRole('button', { name: 'Cancel' }).click();
+    await expect(
+      page.locator('dialog[open]').getByRole('heading', { name: 'Edit Bookmark' })
+    ).toBeVisible();
+
+    // Delete again and confirm
+    await page.locator('dialog[open]').getByRole('button', { name: 'Delete' }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: 'Delete' }).click();
 
     await expect(page.getByText('Dashboards')).not.toBeVisible();
   });
