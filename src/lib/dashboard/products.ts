@@ -1,11 +1,35 @@
+import type { Picture } from '@sveltejs/enhanced-img';
+
 export interface Product {
   id: string;
   name: string;
   initials: string;
   color: string;
-  logoPath: string | null;
+  logo: Picture | null;
   defaultName: string;
 }
+
+const logos = import.meta.glob<Picture>('../logos/*.png', {
+  eager: true,
+  import: 'default',
+  query: { enhanced: true, imgWidth: '40' }
+});
+
+const LOGOS: Record<string, Picture> = {
+  trino: logos['../logos/trino.png'],
+  superset: logos['../logos/superset.png'],
+  airflow: logos['../logos/airflow.png'],
+  nifi: logos['../logos/nifi.png'],
+  kafka: logos['../logos/kafka.png'],
+  druid: logos['../logos/druid.png'],
+  opensearch: logos['../logos/opensearch.png'],
+  hdfs: logos['../logos/hdfs.png'],
+  hbase: logos['../logos/hbase.png'],
+  spark: logos['../logos/spark.png'],
+  zookeeper: logos['../logos/zookeeper.png'],
+  hive: logos['../logos/hive.png'],
+  opa: logos['../logos/openpolicyagent.png']
+};
 
 export const PRODUCTS: Product[] = [
   {
@@ -13,7 +37,7 @@ export const PRODUCTS: Product[] = [
     name: 'Trino',
     initials: 'TR',
     color: '#DD0031',
-    logoPath: '/logos/trino.png',
+    logo: LOGOS['trino'],
     defaultName: 'SQL Editor'
   },
   {
@@ -21,7 +45,7 @@ export const PRODUCTS: Product[] = [
     name: 'Superset',
     initials: 'SU',
     color: '#1FA7E0',
-    logoPath: '/logos/superset.png',
+    logo: LOGOS['superset'],
     defaultName: 'Dashboards'
   },
   {
@@ -29,7 +53,7 @@ export const PRODUCTS: Product[] = [
     name: 'Airflow',
     initials: 'AF',
     color: '#017CEE',
-    logoPath: '/logos/airflow.png',
+    logo: LOGOS['airflow'],
     defaultName: 'Pipelines'
   },
   {
@@ -37,7 +61,7 @@ export const PRODUCTS: Product[] = [
     name: 'NiFi',
     initials: 'NF',
     color: '#728E2B',
-    logoPath: '/logos/nifi.png',
+    logo: LOGOS['nifi'],
     defaultName: 'Data Flow'
   },
   {
@@ -45,7 +69,7 @@ export const PRODUCTS: Product[] = [
     name: 'Kafka',
     initials: 'KF',
     color: '#231F20',
-    logoPath: '/logos/kafka.png',
+    logo: LOGOS['kafka'],
     defaultName: 'Event Stream'
   },
   {
@@ -53,7 +77,7 @@ export const PRODUCTS: Product[] = [
     name: 'Druid',
     initials: 'DR',
     color: '#29F1FB',
-    logoPath: '/logos/druid.png',
+    logo: LOGOS['druid'],
     defaultName: 'Analytics'
   },
   {
@@ -61,7 +85,7 @@ export const PRODUCTS: Product[] = [
     name: 'OpenSearch',
     initials: 'OS',
     color: '#005EB8',
-    logoPath: '/logos/opensearch.png',
+    logo: LOGOS['opensearch'],
     defaultName: 'Search'
   },
   {
@@ -69,7 +93,7 @@ export const PRODUCTS: Product[] = [
     name: 'HDFS',
     initials: 'HF',
     color: '#FEDB5F',
-    logoPath: '/logos/hdfs.png',
+    logo: LOGOS['hdfs'],
     defaultName: 'Storage'
   },
   {
@@ -77,7 +101,7 @@ export const PRODUCTS: Product[] = [
     name: 'HBase',
     initials: 'HB',
     color: '#C02228',
-    logoPath: '/logos/hbase.png',
+    logo: LOGOS['hbase'],
     defaultName: 'Database'
   },
   {
@@ -85,7 +109,7 @@ export const PRODUCTS: Product[] = [
     name: 'Spark',
     initials: 'SP',
     color: '#E25A1C',
-    logoPath: '/logos/spark.png',
+    logo: LOGOS['spark'],
     defaultName: 'Processing'
   },
   {
@@ -93,7 +117,7 @@ export const PRODUCTS: Product[] = [
     name: 'ZooKeeper',
     initials: 'ZK',
     color: '#314D45',
-    logoPath: '/logos/zookeeper.png',
+    logo: LOGOS['zookeeper'],
     defaultName: 'Coordinator'
   },
   {
@@ -101,7 +125,7 @@ export const PRODUCTS: Product[] = [
     name: 'Hive',
     initials: 'HV',
     color: '#FDEE21',
-    logoPath: '/logos/hive.png',
+    logo: LOGOS['hive'],
     defaultName: 'Warehouse'
   },
   {
@@ -109,7 +133,7 @@ export const PRODUCTS: Product[] = [
     name: 'OPA',
     initials: 'OP',
     color: '#7D56F4',
-    logoPath: '/logos/openpolicyagent.png',
+    logo: LOGOS['opa'],
     defaultName: 'Policy'
   },
   {
@@ -117,7 +141,7 @@ export const PRODUCTS: Product[] = [
     name: 'Custom Link',
     initials: 'CL',
     color: '#64748B',
-    logoPath: null,
+    logo: null,
     defaultName: ''
   }
 ];

@@ -174,9 +174,9 @@
               "
               aria-pressed={selectedProduct.id === product.id}
             >
-              {#if product.logoPath}
-                <img
-                  src={product.logoPath}
+              {#if product.logo}
+                <enhanced:img
+                  src={product.logo}
                   alt={product.name}
                   class="size-5 rounded-full bg-white object-contain p-0.5"
                   onerror={handleLogoError}
@@ -307,9 +307,9 @@
           </p>
           <div class="border-base-300 bg-base-200 flex items-center gap-3 rounded-xl border p-3">
             <div class="shrink-0">
-              {#if selectedProduct.logoPath}
-                <img
-                  src={selectedProduct.logoPath}
+              {#if selectedProduct.logo}
+                <enhanced:img
+                  src={selectedProduct.logo}
                   alt={selectedProduct.name}
                   class="size-10 rounded-xl bg-white object-contain p-1"
                   onerror={handleLogoError}

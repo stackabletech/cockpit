@@ -138,9 +138,9 @@
                 </button>
 
                 <div class="flex items-center gap-2.5">
-                  {#if product.logoPath}
-                    <img
-                      src={product.logoPath}
+                  {#if product.logo}
+                    <enhanced:img
+                      src={product.logo}
                       alt={product.name}
                       class="size-8 rounded-lg bg-white object-contain p-1"
                       onerror={handleLogoError}
@@ -204,9 +204,9 @@
                 </button>
 
                 <div class="flex items-center gap-2.5">
-                  {#if product.logoPath}
-                    <img
-                      src={product.logoPath}
+                  {#if product.logo}
+                    <enhanced:img
+                      src={product.logo}
                       alt={product.name}
                       class="size-8 rounded-lg bg-white object-contain p-1"
                       onerror={handleLogoError}
