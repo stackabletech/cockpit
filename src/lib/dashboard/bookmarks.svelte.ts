@@ -37,3 +37,11 @@ export function removeBookmark(id: string): void {
     saveBookmarks(bookmarks);
   }
 }
+
+export function updateBookmark(updated: Bookmark): void {
+  const idx = bookmarks.findIndex((b) => b.id === updated.id);
+  if (idx !== -1) {
+    bookmarks[idx] = updated;
+    saveBookmarks(bookmarks);
+  }
+}

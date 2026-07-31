@@ -1,17 +1,30 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import type { PageProps } from './$types';
+  import IconEdit from 'virtual:icons/material-symbols/edit';
   import AddBookmarkModal from '$lib/components/dashboard/AddBookmarkModal.svelte';
-  import { getBookmarks, removeBookmark } from '$lib/dashboard/bookmarks.svelte.js';
+  import { getBookmarks } from '$lib/dashboard/bookmarks.svelte.js';
   import { PRODUCTS } from '$lib/dashboard/products';
+  import type { Bookmark } from '$lib/dashboard/types';
 
   let props: PageProps = $props();
 
   let addModalOpen = $state(false);
+  let editingBookmark: Bookmark | null = $state(null);
 
   let bookmarks = $derived(getBookmarks());
   let pinnedBookmarks = $derived(bookmarks.filter((b) => b.pinned));
   let unpinnedBookmarks = $derived(bookmarks.filter((b) => !b.pinned));
+
+  function openEditBookmark(bookmark: Bookmark) {
+    editingBookmark = bookmark;
+    addModalOpen = true;
+  }
+
+  function openAddBookmark() {
+    editingBookmark = null;
+    addModalOpen = true;
+  }
 
   function getProduct(productId: string) {
     return PRODUCTS.find((p) => p.id === productId) ?? PRODUCTS[PRODUCTS.length - 1];
@@ -33,7 +46,7 @@
   }
 </script>
 
-<AddBookmarkModal bind:open={addModalOpen} />
+<AddBookmarkModal bind:open={addModalOpen} bookmark={editingBookmark} />
 
 <div class="mx-auto max-w-6xl space-y-6">
   <div class="flex items-start justify-between">
@@ -41,7 +54,7 @@
       <h2 class="text-base-content text-2xl font-bold">{m.dashboard_welcome()}</h2>
       <p class="text-base-content/60 mt-1 text-sm">{m.dashboard_subtitle()}</p>
     </div>
-    <button type="button" class="btn btn-primary btn-sm" onclick={() => (addModalOpen = true)}>
+    <button type="button" class="btn btn-primary btn-sm" onclick={openAddBookmark}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         class="size-4"
@@ -117,18 +130,11 @@
               >
                 <button
                   type="button"
-                  class="btn btn-ghost btn-xs absolute top-1 right-1 opacity-0 transition-opacity group-hover:opacity-100"
-                  aria-label={m.bookmark_remove_label()}
-                  onclick={() => removeBookmark(bookmark.id)}
+                  class="btn btn-ghost btn-xs absolute top-1 right-1"
+                  aria-label={m.bookmark_edit_label()}
+                  onclick={() => openEditBookmark(bookmark)}
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="size-3.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg
-                  >
+                  <IconEdit class="size-3.5" />
                 </button>
 
                 <div class="flex items-center gap-2.5">
@@ -190,18 +196,11 @@
               >
                 <button
                   type="button"
-                  class="btn btn-ghost btn-xs absolute top-1 right-1 opacity-0 transition-opacity group-hover:opacity-100"
-                  aria-label={m.bookmark_remove_label()}
-                  onclick={() => removeBookmark(bookmark.id)}
+                  class="btn btn-ghost btn-xs absolute top-1 right-1"
+                  aria-label={m.bookmark_edit_label()}
+                  onclick={() => openEditBookmark(bookmark)}
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="size-3.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg
-                  >
+                  <IconEdit class="size-3.5" />
                 </button>
 
                 <div class="flex items-center gap-2.5">

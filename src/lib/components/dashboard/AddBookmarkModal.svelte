@@ -1,14 +1,16 @@
 <script lang="ts">
   import Modal from '$lib/components/Modal.svelte';
   import { PRODUCTS, type Product } from '$lib/dashboard/products';
-  import { addBookmark } from '$lib/dashboard/bookmarks.svelte.js';
+  import { addBookmark, removeBookmark, updateBookmark } from '$lib/dashboard/bookmarks.svelte.js';
   import type { Bookmark } from '$lib/dashboard/types';
   import * as m from '$lib/paraglide/messages.js';
 
   let {
-    open = $bindable(false)
+    open = $bindable(false),
+    bookmark = null
   }: {
     open: boolean;
+    bookmark?: Bookmark | null;
   } = $props();
 
   let selectedProduct = $state<Product>(PRODUCTS[0]);
@@ -18,8 +20,12 @@
   let environment = $state('');
   let url = $state('');
   let pinned = $state(false);
+  let confirmDeleteOpen = $state(false);
+  let lastInit = $state<Bookmark | null | undefined>(undefined);
 
   let uid = $props.id();
+
+  let isEditing = $derived(bookmark !== null);
 
   function resetForm() {
     selectedProduct = PRODUCTS[0];
@@ -30,6 +36,27 @@
     url = '';
     pinned = false;
   }
+
+  function initForm(target: Bookmark | null) {
+    if (target) {
+      selectedProduct = PRODUCTS.find((p) => p.id === target.productId) ?? PRODUCTS[0];
+      openIn = target.openIn;
+      name = target.name;
+      userEditedName = true;
+      environment = target.environment;
+      url = target.url;
+      pinned = target.pinned;
+    } else {
+      resetForm();
+    }
+  }
+
+  $effect(() => {
+    if (open && lastInit !== bookmark) {
+      lastInit = bookmark;
+      initForm(bookmark);
+    }
+  });
 
   function handleProductSelect(product: Product) {
     selectedProduct = product;
@@ -64,20 +91,39 @@
   function handleSubmit() {
     if (!name.trim() || !url.trim()) return;
 
-    const bookmark: Bookmark = {
-      id: crypto.randomUUID(),
+    const values = {
       productId: selectedProduct.id,
       name: name.trim(),
       environment: environment.trim(),
       url: url.trim(),
       openIn,
-      pinned,
-      createdAt: new Date().toISOString()
+      pinned
     };
 
-    addBookmark(bookmark);
+    if (bookmark) {
+      updateBookmark({ ...bookmark, ...values });
+    } else {
+      addBookmark({ id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...values });
+    }
     resetForm();
     open = false;
+  }
+
+  function handleDeleteClick() {
+    open = false;
+    confirmDeleteOpen = true;
+  }
+
+  function handleDeleteCancel() {
+    confirmDeleteOpen = false;
+    open = true;
+  }
+
+  function handleDeleteConfirm() {
+    if (!bookmark) return;
+    removeBookmark(bookmark.id);
+    confirmDeleteOpen = false;
+    resetForm();
   }
 </script>
 
@@ -99,7 +145,9 @@
       </button>
     </form>
 
-    <h3 class="text-base-content text-lg font-bold">{m.bookmark_add_title()}</h3>
+    <h3 class="text-base-content text-lg font-bold">
+      {isEditing ? m.bookmark_edit_title() : m.bookmark_add_title()}
+    </h3>
 
     <div class="mt-6 space-y-6">
       <!-- Section 1: Product selection -->
@@ -301,6 +349,11 @@
     </div>
 
     <div class="modal-action">
+      {#if isEditing}
+        <button type="button" class="btn btn-error mr-auto" onclick={handleDeleteClick}>
+          {m.button_delete()}
+        </button>
+      {/if}
       <button
         type="button"
         class="btn btn-ghost"
@@ -317,7 +370,24 @@
         disabled={!name.trim() || !url.trim()}
         onclick={handleSubmit}
       >
-        {m.bookmark_add_title()}
+        {isEditing ? m.bookmark_save_changes() : m.bookmark_add_title()}
+      </button>
+    </div>
+  </div>
+</Modal>
+
+<Modal bind:open={confirmDeleteOpen} class="modal">
+  <div class="modal-box max-w-sm">
+    <h3 class="text-error text-lg font-bold">{m.bookmark_delete_confirm_title()}</h3>
+    <p class="text-base-content/80 mt-3 text-sm">
+      {m.bookmark_delete_confirm_message({ name: bookmark?.name ?? name.trim() })}
+    </p>
+    <div class="modal-action">
+      <button type="button" class="btn btn-ghost" onclick={handleDeleteCancel}>
+        {m.button_cancel()}
+      </button>
+      <button type="button" class="btn btn-error" onclick={handleDeleteConfirm}>
+        {m.button_delete()}
       </button>
     </div>
   </div>
