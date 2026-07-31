@@ -2,8 +2,10 @@
   import * as m from '$lib/paraglide/messages.js';
   import type { PageProps } from './$types';
   import IconEdit from 'virtual:icons/material-symbols/edit';
+  import IconStar from 'virtual:icons/material-symbols/star';
+  import IconStarOutline from 'virtual:icons/material-symbols/star-outline';
   import AddBookmarkModal from '$lib/components/dashboard/AddBookmarkModal.svelte';
-  import { getBookmarks } from '$lib/dashboard/bookmarks.svelte.js';
+  import { getBookmarks, togglePinBookmark } from '$lib/dashboard/bookmarks.svelte.js';
   import { PRODUCTS } from '$lib/dashboard/products';
   import type { Bookmark } from '$lib/dashboard/types';
 
@@ -130,6 +132,18 @@
               >
                 <button
                   type="button"
+                  class="btn btn-ghost btn-xs absolute top-1 right-8"
+                  aria-label={bookmark.pinned ? m.bookmark_unpin_label() : m.bookmark_pin_label()}
+                  onclick={() => togglePinBookmark(bookmark.id)}
+                >
+                  {#if bookmark.pinned}
+                    <IconStar class="text-warning size-3.5" />
+                  {:else}
+                    <IconStarOutline class="size-3.5" />
+                  {/if}
+                </button>
+                <button
+                  type="button"
                   class="btn btn-ghost btn-xs absolute top-1 right-1"
                   aria-label={m.bookmark_edit_label()}
                   onclick={() => openEditBookmark(bookmark)}
@@ -194,6 +208,18 @@
               <div
                 class="border-base-300 bg-base-200 hover:border-base-content/20 group relative rounded-xl border p-3 transition-colors"
               >
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs absolute top-1 right-8"
+                  aria-label={bookmark.pinned ? m.bookmark_unpin_label() : m.bookmark_pin_label()}
+                  onclick={() => togglePinBookmark(bookmark.id)}
+                >
+                  {#if bookmark.pinned}
+                    <IconStar class="text-warning size-3.5" />
+                  {:else}
+                    <IconStarOutline class="size-3.5" />
+                  {/if}
+                </button>
                 <button
                   type="button"
                   class="btn btn-ghost btn-xs absolute top-1 right-1"

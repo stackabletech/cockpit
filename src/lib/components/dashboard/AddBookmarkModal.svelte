@@ -296,7 +296,7 @@
           bind:checked={pinned}
           class="checkbox checkbox-primary checkbox-sm"
         />
-        <span class="text-base-content/80 text-sm">{m.bookmark_pinned_label()}</span>
+        <span class="text-base-content/80 text-sm">{m.bookmark_pin_checkbox_label()}</span>
       </label>
 
       <!-- Section 7: Preview -->

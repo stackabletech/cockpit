@@ -45,3 +45,11 @@ export function updateBookmark(updated: Bookmark): void {
     saveBookmarks(bookmarks);
   }
 }
+
+export function togglePinBookmark(id: string): void {
+  const idx = bookmarks.findIndex((b) => b.id === id);
+  if (idx !== -1) {
+    bookmarks[idx] = { ...bookmarks[idx], pinned: !bookmarks[idx].pinned };
+    saveBookmarks(bookmarks);
+  }
+}
