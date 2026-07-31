@@ -167,7 +167,7 @@
               type="button"
               onclick={() => handleProductSelect(product)}
               class="
-                flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors
+                flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors
                 {selectedProduct.id === product.id
                 ? 'ring-primary bg-primary/10 ring-2 ring-offset-1'
                 : 'bg-base-200 text-base-content/70 hover:bg-base-300'}
@@ -178,7 +178,7 @@
                 <img
                   src={product.logoPath}
                   alt={product.name}
-                  class="size-5 rounded-full object-contain"
+                  class="size-5 rounded-full bg-white object-contain p-0.5"
                   onerror={handleLogoError}
                 />
                 <span
@@ -211,7 +211,7 @@
             type="button"
             onclick={() => (openIn = 'cockpit')}
             class="
-              flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors
+              flex cursor-pointer flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors
               {openIn === 'cockpit'
               ? 'border-primary bg-primary/5 ring-primary ring-1'
               : 'border-base-300 bg-base-200 hover:border-base-content/30'}
@@ -229,7 +229,7 @@
             type="button"
             onclick={() => (openIn = 'new-tab')}
             class="
-              flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors
+              flex cursor-pointer flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors
               {openIn === 'new-tab'
               ? 'border-primary bg-primary/5 ring-primary ring-1'
               : 'border-base-300 bg-base-200 hover:border-base-content/30'}
@@ -311,7 +311,7 @@
                 <img
                   src={selectedProduct.logoPath}
                   alt={selectedProduct.name}
-                  class="size-10 rounded-xl object-contain"
+                  class="size-10 rounded-xl bg-white object-contain p-1"
                   onerror={handleLogoError}
                 />
                 <span
