@@ -142,7 +142,7 @@
                     <img
                       src={product.logoPath}
                       alt={product.name}
-                      class="size-8 rounded-lg object-contain"
+                      class="size-8 rounded-lg bg-white object-contain p-1"
                       onerror={handleLogoError}
                     />
                     <span
@@ -208,7 +208,7 @@
                     <img
                       src={product.logoPath}
                       alt={product.name}
-                      class="size-8 rounded-lg object-contain"
+                      class="size-8 rounded-lg bg-white object-contain p-1"
                       onerror={handleLogoError}
                     />
                     <span
