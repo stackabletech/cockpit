@@ -26,7 +26,7 @@ export async function checkAdmin(input: OpaInput): Promise<boolean> {
   const start = performance.now();
   try {
     const isAdmin = await client.evaluate<OpaInput, boolean>('stackable/admin', input, {
-      fromResult: (r) => (r as Record<string, unknown>)?.admin === true
+      fromResult: (r) => r === true || (r as Record<string, unknown>)?.admin === true
     });
 
     const duration = (performance.now() - start) / 1000;
