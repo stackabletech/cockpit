@@ -4,7 +4,6 @@
   import BucketList from '$lib/components/storage/sidebar/BucketList.svelte';
   import { StorageState } from '$lib/storage/state.svelte.js';
   import { setStorageState } from '$lib/storage/context.js';
-  import { setStorageRouteBase, APP_STORAGE_ROUTES } from '$lib/storage/route-context.js';
 
   let { children, data } = $props();
 
@@ -17,7 +16,6 @@
       })
   );
   setStorageState(storage);
-  setStorageRouteBase(APP_STORAGE_ROUTES);
 
   // Keep layout-level data in sync when SvelteKit re-runs the load function
   $effect(() => {

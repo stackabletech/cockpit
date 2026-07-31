@@ -98,7 +98,7 @@ The client accumulates all result rows in memory up to `MAX_CLIENT_ROWS` (10,000
 
 ### Displayed results not cleared on connection change
 
-**File:** `src/lib/trino/query-runner.svelte.ts`, `src/routes/(app)/trino/+page.svelte`, `src/routes/embed/trino/+page.svelte`
+**File:** `src/routes/(app)/trino/query-runner.svelte.ts`, `src/routes/(app)/trino/+page.svelte`
 
 After saving a new connection, the previous query results remain visible until a new query is run. Consider calling `runner.reset()` when the connection changes.
 
@@ -106,7 +106,7 @@ After saving a new connection, the previous query results remain visible until a
 
 ### No validation that the connection target is a Trino instance
 
-**File:** `src/routes/(app)/trino/+page.server.ts`, `src/routes/embed/trino/+page.server.ts`
+**File:** `src/routes/(app)/trino/+page.server.ts`
 
 The query action sends whatever SQL the user provides to the configured connection URL without first verifying that the endpoint is actually a Trino instance. A user could point the URL at any HTTP server, and the app would blindly POST to it. We should validate new connections (e.g. by calling Trino's `/v1/info` endpoint) and reject URLs that do not respond as a Trino server.
 
@@ -126,7 +126,7 @@ Mobile viewport tests (393×851, touch-enabled) are excluded from CI runs to red
 
 **File:** `src/lib/server/auth.ts`
 
-The better-auth session cookie currently uses `SameSite=Lax` (the browser default when no `SameSite` attribute is set). Browsers do not send `SameSite=Lax` cookies when a page is loaded inside an `<iframe>` whose top-level frame is on a different origin, so authenticated users visiting `/embed/trino` or `/embed/storage` from an external host page will be silently redirected to `/auth/login`.
+The better-auth session cookie currently uses `SameSite=Lax` (the browser default when no `SameSite` attribute is set). Browsers do not send `SameSite=Lax` cookies when a page is loaded inside an `<iframe>` whose top-level frame is on a different origin, so authenticated users visiting `/trino?embed=1` or `/storage?embed=1` from an external host page will be silently redirected to `/auth/login`.
 
 To fix this, configure the session cookie with `SameSite=None; Secure` in `better-auth`:
 

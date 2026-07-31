@@ -2,10 +2,10 @@ import { page } from 'vitest/browser';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { ComponentProps } from 'svelte';
-import StorageConnectFormWrapper from './__tests__/StorageConnectFormWrapper.svelte';
+import StorageConnectForm from './StorageConnectForm.svelte';
 import type { SavedConnection } from '$lib/storage/connection-storage.js';
 
-type ConnectionFormProp = ComponentProps<typeof StorageConnectFormWrapper>['connectionForm'];
+type ConnectionFormProp = ComponentProps<typeof StorageConnectForm>['connectionForm'];
 
 /** Build a minimal StoredConnection fixture with a stable UUID. */
 function makeConn(
@@ -117,14 +117,14 @@ describe('StorageConnectForm', () => {
   });
 
   it('should render the form title and subtitle', async () => {
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await expect.element(page.getByText('Connect to Storage')).toBeInTheDocument();
     await expect.element(page.getByText('Enter your connection details')).toBeInTheDocument();
   });
 
   it('should render all form fields with labels', async () => {
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await expect.element(page.getByLabelText('Backend type')).toBeInTheDocument();
     await expect.element(page.getByLabelText('Host')).toBeInTheDocument();
@@ -137,7 +137,7 @@ describe('StorageConnectForm', () => {
   });
 
   it('should render backend type as a select with S3 option', async () => {
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     const select = page.getByLabelText('Backend type');
     await expect.element(select).toBeInTheDocument();
@@ -146,28 +146,28 @@ describe('StorageConnectForm', () => {
   });
 
   it('should render host as text input', async () => {
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     const input = page.getByLabelText('Host');
     await expect.element(input).toHaveAttribute('type', 'text');
   });
 
   it('should render port as number input', async () => {
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     const input = page.getByLabelText('Port');
     await expect.element(input).toHaveAttribute('type', 'number');
   });
 
   it('should render TLS as a checkbox toggle', async () => {
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     const toggle = page.getByLabelText('Use TLS');
     await expect.element(toggle).toHaveAttribute('type', 'checkbox');
   });
 
   it('should show verify certificate toggle when TLS is enabled', async () => {
-    render(StorageConnectFormWrapper, {
+    render(StorageConnectForm, {
       connectionForm: createMockForm({ data: { tls: { verification: 'Full' } } })
     });
 
@@ -175,7 +175,7 @@ describe('StorageConnectForm', () => {
   });
 
   it('should hide verify certificate toggle when TLS is disabled', async () => {
-    render(StorageConnectFormWrapper, {
+    render(StorageConnectForm, {
       connectionForm: createMockForm({ data: { tls: undefined } })
     });
 
@@ -183,20 +183,20 @@ describe('StorageConnectForm', () => {
   });
 
   it('should render secret key as password input', async () => {
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     const input = page.getByLabelText('Secret key');
     await expect.element(input).toHaveAttribute('type', 'password');
   });
 
   it('should render connect button', async () => {
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await expect.element(page.getByRole('button', { name: 'Connect' })).toBeInTheDocument();
   });
 
   it('should show no saved connections message when none exist', async () => {
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await expect.element(page.getByText('No saved connections yet')).toBeInTheDocument();
   });
@@ -212,7 +212,7 @@ describe('StorageConnectForm', () => {
       })
     ]);
 
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await expect.element(page.getByText('minio.example.com:9000').first()).toBeInTheDocument();
   });
@@ -227,7 +227,7 @@ describe('StorageConnectForm', () => {
       })
     ]);
 
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await expect
       .element(page.getByRole('button', { name: 'Forget s3.test.io' }))
@@ -244,7 +244,7 @@ describe('StorageConnectForm', () => {
       })
     ]);
 
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     const forgetBtn = page.getByRole('button', { name: 'Forget s3.remove.io' });
     await forgetBtn.click();
@@ -282,7 +282,7 @@ describe('StorageConnectForm', () => {
       })
     ]);
 
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await expect.element(page.getByText('first.example.com').first()).toBeInTheDocument();
     await expect.element(page.getByText('second.example.com:9000').first()).toBeInTheDocument();
@@ -299,20 +299,20 @@ describe('StorageConnectForm', () => {
       })
     ]);
 
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await expect.element(page.getByRole('list').first()).toBeInTheDocument();
     await expect.element(page.getByRole('listitem').first()).toBeInTheDocument();
   });
 
   it('should render port hint text', async () => {
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await expect.element(page.getByText('Leave blank for default port')).toBeInTheDocument();
   });
 
   it('should render form with POST method', async () => {
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     const form = page.getByRole('button', { name: 'Connect' }).element().closest('form');
     expect(form?.getAttribute('method')).toBe('POST');
@@ -328,7 +328,7 @@ describe('StorageConnectForm', () => {
       })
     ]);
 
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await page.getByRole('button', { name: 'Forget s3.cancel.io' }).click();
     await expect
@@ -351,7 +351,7 @@ describe('StorageConnectForm', () => {
     });
     vi.mocked(loadAllConnectionsLocally).mockReturnValue([conn]);
 
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await page.getByRole('button', { name: 'Forget s3.forget.io' }).click();
     // After clicking forget, mock returns empty list
@@ -363,7 +363,7 @@ describe('StorageConnectForm', () => {
   });
 
   it('should display host error when form has host errors', async () => {
-    render(StorageConnectFormWrapper, {
+    render(StorageConnectForm, {
       connectionForm: createMockForm({
         errors: { host: ['Host is required'] }
       })
@@ -376,7 +376,7 @@ describe('StorageConnectForm', () => {
   });
 
   it('should display region error when form has region errors', async () => {
-    render(StorageConnectFormWrapper, {
+    render(StorageConnectForm, {
       connectionForm: createMockForm({
         errors: { region: { name: ['Region name is required'] } }
       })
@@ -388,7 +388,7 @@ describe('StorageConnectForm', () => {
   });
 
   it('should display access key error', async () => {
-    render(StorageConnectFormWrapper, {
+    render(StorageConnectForm, {
       connectionForm: createMockForm({
         errors: {
           credentials: { accessKey: ['Access key is required when secret key is provided'] }
@@ -404,7 +404,7 @@ describe('StorageConnectForm', () => {
   });
 
   it('should display secret key error', async () => {
-    render(StorageConnectFormWrapper, {
+    render(StorageConnectForm, {
       connectionForm: createMockForm({
         errors: {
           credentials: { secretKey: ['Secret key is required when access key is provided'] }
@@ -420,7 +420,7 @@ describe('StorageConnectForm', () => {
   });
 
   it('should display server message when present', async () => {
-    render(StorageConnectFormWrapper, {
+    render(StorageConnectForm, {
       connectionForm: createMockForm({
         message: 'Connection refused: unable to reach endpoint'
       })
@@ -444,7 +444,7 @@ describe('StorageConnectForm', () => {
       })
     ]);
 
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     // Click the saved connection button (first match — mobile card)
     await page.getByRole('button', { name: 's3.select.io:9000', exact: true }).first().click();
@@ -466,13 +466,13 @@ describe('StorageConnectForm', () => {
       })
     ]);
 
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await expect.element(page.getByText('Saved connections').first()).toBeInTheDocument();
   });
 
   it('should display multiple field errors simultaneously', async () => {
-    render(StorageConnectFormWrapper, {
+    render(StorageConnectForm, {
       connectionForm: createMockForm({
         errors: {
           host: ['Host is required'],
@@ -503,7 +503,7 @@ describe('StorageConnectForm', () => {
       })
     ]);
 
-    render(StorageConnectFormWrapper, { connectionForm: createMockForm() });
+    render(StorageConnectForm, { connectionForm: createMockForm() });
 
     await page.getByRole('button', { name: 'Forget s3.backdrop.io' }).click();
     await expect

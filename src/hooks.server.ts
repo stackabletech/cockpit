@@ -71,10 +71,9 @@ const handleAuthGuard: Handle = async ({ event, resolve }) => {
 const handleStorageConnection: Handle = async ({ event, resolve }) => {
   const routeId = event.route.id ?? '';
   const isAppStorage = routeId.startsWith('/(app)/storage/');
-  const isEmbedStorage = routeId.startsWith('/embed/storage/');
   const isStorageApi = routeId.startsWith('/(app)/api/storage/');
 
-  if ((isAppStorage || isEmbedStorage || isStorageApi) && !storageBrowserEnabled) {
+  if ((isAppStorage || isStorageApi) && !storageBrowserEnabled) {
     throw error(404, 'Storage browser is not enabled');
   }
   event.locals.storageConfig = getConnectionFromHeader(event.request);
@@ -85,19 +84,22 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
 };
 
 /**
- * Allow embed routes to be loaded inside <iframe> elements from any origin.
+ * Allow pages loaded with `?embed=1` to be displayed inside <iframe> elements
+ * from any origin. The `(app)` layout uses the same query parameter to hide
+ * the app shell (sidebar/header) so a single module can be embedded on its
+ * own.
  *
  * By default browsers block cross-origin framing when the server sets
  * `X-Frame-Options: SAMEORIGIN` or a restrictive `frame-ancestors` CSP.
  * SvelteKit does not set either header by default, so this hook is mainly a
- * defence-in-depth measure and an explicit signal that embedding is intentional.
+ * defence-in-depth measure and an explicit signal that embedding is intended.
  *
  * For cross-origin embedding to work the session cookie must also carry
  * `SameSite=None; Secure`.  See TECH_DEBT.md for the outstanding action item.
  */
 const handleEmbedHeaders: Handle = async ({ event, resolve }) => {
   const response = await resolve(event);
-  if (event.url.pathname.startsWith('/embed/')) {
+  if (event.url.searchParams.get('embed') === '1') {
     response.headers.set('X-Frame-Options', 'ALLOWALL');
     response.headers.set(
       'Content-Security-Policy',

@@ -36,7 +36,7 @@
         from the browser to the Cockpit server without passing through this
         page.  For future apps that rely on proxy-auth headers (e.g. NiFi
         using X-Remote-User), configure the reverse proxy in front of the
-        Cockpit server to inject those headers for /embed/* requests.
+        Cockpit server to inject those headers for the embedded pages.
       */
 
       :root {
@@ -318,12 +318,12 @@
           </div>
         </div>
 
-        <!-- Trino SQL editor — embedded from /embed/trino -->
+        <!-- Trino SQL editor — embedded from /trino?embed=1 -->
         <div class="panel" id="panel-trino">
           <iframe id="iframe-trino" title="SQL Query (powered by Stackable Cockpit)"></iframe>
         </div>
 
-        <!-- Storage browser — embedded from /embed/storage -->
+        <!-- Storage browser — embedded from /storage?embed=1 -->
         <div class="panel" id="panel-storage">
           <iframe
             id="iframe-storage"
@@ -353,7 +353,7 @@
 
         if ((name === 'trino' || name === 'storage') && !iframesLoaded[name]) {
           const iframe = document.getElementById('iframe-' + name);
-          const path = name === 'trino' ? '/embed/trino' : '/embed/storage';
+          const path = name === 'trino' ? '/trino?embed=1' : '/storage?embed=1';
           iframe.src = COCKPIT_BASE_URL + path;
           iframesLoaded[name] = true;
 

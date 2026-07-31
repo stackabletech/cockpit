@@ -7,10 +7,10 @@
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { ConnectionSchema, type ConnectionMessage } from '$lib/trino/validation.js';
+  import { ConnectionSchema, type ConnectionMessage } from './validation.js';
   import TabBar from '$lib/components/TabBar.svelte';
   import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
-  import { getOrCreateQueryRunner, destroyQueryRunner } from '$lib/trino/query-runner.svelte.js';
+  import { getOrCreateQueryRunner, destroyQueryRunner } from './query-runner.svelte.js';
   import { isTerminal } from '$lib/types/query';
   import {
     splitStatements,

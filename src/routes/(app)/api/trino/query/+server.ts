@@ -8,7 +8,7 @@ import {
   removeTabQuery
 } from '$lib/server/trino/queries.js';
 import { resolveTrinoClient } from '$lib/server/trino/client.js';
-import { StatementRequestSchema, TabIdSchema } from '$lib/trino/validation.js';
+import { StatementRequestSchema, TabIdSchema } from '../../../trino/validation.js';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {

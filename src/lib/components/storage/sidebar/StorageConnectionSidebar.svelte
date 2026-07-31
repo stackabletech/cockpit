@@ -7,8 +7,8 @@
   import DeleteConnectionModal from '$lib/components/storage/DeleteConnectionModal.svelte';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
+  import { resolve } from '$app/paths';
   import * as m from '$lib/paraglide/messages.js';
-  import { getStorageRouteBase } from '$lib/storage/route-context.js';
   import {
     loadAllConnectionsLocally,
     removeConnectionLocally,
@@ -23,8 +23,6 @@
   }
 
   let { activeId, onselect }: Props = $props();
-
-  const routes = getStorageRouteBase();
 
   let allConnections: SavedConnection[] = $state([]);
   let connectionsLoaded = $state(false);
@@ -117,7 +115,7 @@
   >
     <li role="none">
       <a
-        href={`${routes.connectionsRoot}/${menuConn.id}/edit`}
+        href={resolve(`/storage/connections/${menuConn.id}/edit`)}
         role="menuitem"
         onclick={closeContextMenu}
         class="justify-start"
@@ -190,7 +188,7 @@
       {/each}
     </div>
     <div class="mt-2 text-right">
-      <a href={routes.connectionsRoot} class="link link-primary text-xs">
+      <a href={resolve('/storage/connections')} class="link link-primary text-xs">
         {m.storage_connect_manage()}
       </a>
     </div>
@@ -263,7 +261,10 @@
   </ul>
 
   <div class="border-base-300 border-t p-2">
-    <a href={routes.connectionsRoot} class="btn btn-ghost btn-xs w-full justify-start text-xs">
+    <a
+      href={resolve('/storage/connections')}
+      class="btn btn-ghost btn-xs w-full justify-start text-xs"
+    >
       {m.storage_connect_manage()}
     </a>
   </div>
