@@ -21,7 +21,8 @@
   let url = $state('');
   let pinned = $state(false);
   let confirmDeleteOpen = $state(false);
-  let lastInit = $state<Bookmark | null | undefined>(undefined);
+  let wasOpen = $state(false);
+  let skipInitOnOpen = $state(false);
 
   let uid = $props.id();
 
@@ -52,10 +53,14 @@
   }
 
   $effect(() => {
-    if (open && lastInit !== bookmark) {
-      lastInit = bookmark;
-      initForm(bookmark);
+    const opening = open && !wasOpen;
+    wasOpen = open;
+    if (!opening) return;
+    if (skipInitOnOpen) {
+      skipInitOnOpen = false;
+      return;
     }
+    initForm(bookmark);
   });
 
   function handleProductSelect(product: Product) {
@@ -110,6 +115,7 @@
   }
 
   function handleDeleteClick() {
+    skipInitOnOpen = true;
     open = false;
     confirmDeleteOpen = true;
   }
