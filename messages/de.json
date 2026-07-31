@@ -185,7 +185,7 @@
   "storage_connections_empty": "Noch keine gespeicherten Verbindungen.",
   "storage_connections_edit": "Bearbeiten",
   "storage_connections_delete": "Löschen",
-  "storage_connections_delete_confirm": "\u201e{label}\u201c aus den gespeicherten Verbindungen entfernen? Dies kann nicht rückgängig gemacht werden.",
+  "storage_connections_delete_confirm": "\"{label}\" aus den gespeicherten Verbindungen entfernen? Dies kann nicht rückgängig gemacht werden.",
   "storage_connections_delete_cancel": "Abbrechen",
   "storage_connections_delete_confirm_button": "Löschen",
   "storage_connection_edit_title": "Verbindung bearbeiten",
