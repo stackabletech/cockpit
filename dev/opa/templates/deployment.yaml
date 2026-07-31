@@ -19,7 +19,7 @@ spec:
       containers:
         - name: opa
           image: '{{ .Values.image.repository }}:{{ .Values.image.tag }}'
-          imagePullPolicy: { { .Values.image.pullPolicy } }
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
             - run
             - --server
@@ -49,11 +49,11 @@ spec:
               readOnly: true
           resources:
             requests:
-              cpu: { { .Values.resources.requests.cpu } }
-              memory: { { .Values.resources.requests.memory } }
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
             limits:
-              cpu: { { .Values.resources.limits.cpu } }
-              memory: { { .Values.resources.limits.memory } }
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
       volumes:
         - name: policies
           configMap:
