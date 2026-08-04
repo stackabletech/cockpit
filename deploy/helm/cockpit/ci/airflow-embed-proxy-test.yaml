@@ -1,0 +1,33 @@
+suite: airflow embed proxy
+templates:
+  - templates/service.yaml
+  - templates/deployment.yaml
+  - templates/airflow-embed-proxy-configmap.yaml
+tests:
+  - it: routes the service through the nginx proxy
+    values:
+      - airflow-embed-proxy-values.yaml
+    asserts:
+      - equal:
+          path: spec.ports[0].targetPort
+          value: proxy
+  - it: configures Airflow and Keycloak on the Cockpit origin
+    template: templates/airflow-embed-proxy-configmap.yaml
+    values:
+      - airflow-embed-proxy-values.yaml
+    asserts:
+      - matchRegex:
+          path: data.default\.conf
+          pattern: location /airflow/
+      - matchRegex:
+          path: data.default\.conf
+          pattern: proxy_pass http://airflow.example.test:8080;
+      - matchRegex:
+          path: data.default\.conf
+          pattern: location /keycloak/
+      - matchRegex:
+          path: data.default\.conf
+          pattern: proxy_pass https://keycloak.example.test:8443;
+      - matchRegex:
+          path: data.default\.conf
+          pattern: proxy_ssl_verify off;

@@ -1,0 +1,121 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-webserver-config
+  namespace: default
+data:
+  webserver_config.py: |
+    import os
+
+    from flask_appbuilder.security.manager import AUTH_OAUTH
+
+    AUTH_TYPE = AUTH_OAUTH
+    AUTH_USER_REGISTRATION = True
+    # Every user in the local Keycloak realm is an Airflow admin. This is for
+    # development only and lets the test user administer example DAGs.
+    AUTH_USER_REGISTRATION_ROLE = "Admin"
+
+    public_keycloak_url = os.environ["PUBLIC_KEYCLOAK_URL"]
+    internal_keycloak_url = os.environ["INTERNAL_KEYCLOAK_URL"]
+    realm = "/realms/stackable/protocol/openid-connect/"
+
+    OAUTH_PROVIDERS = [
+        {
+            "name": "keycloak",
+            "token_key": "access_token",
+            "icon": "fa-key",
+            "remote_app": {
+                "client_id": os.environ["AIRFLOW_OIDC_CLIENT_ID"],
+                "client_secret": os.environ["AIRFLOW_OIDC_CLIENT_SECRET"],
+                "api_base_url": internal_keycloak_url + realm,
+                "access_token_url": internal_keycloak_url + realm + "token",
+                "authorize_url": public_keycloak_url + realm + "auth",
+                "client_kwargs": {"scope": "openid profile email"},
+            },
+        }
+    ]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow
+  template:
+    metadata:
+      labels:
+        app: airflow
+    spec:
+      securityContext:
+        fsGroup: 50000
+      initContainers:
+        - name: migrate-database
+          image: apache/airflow:2.10.5
+          args: ['bash', '-ec', 'airflow db migrate']
+          env:
+            - name: AIRFLOW__CORE__EXECUTOR
+              value: SequentialExecutor
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              value: sqlite:////opt/airflow/airflow.db
+          volumeMounts:
+            - name: airflow-data
+              mountPath: /opt/airflow
+      containers:
+        - name: airflow
+          image: apache/airflow:2.10.5
+          args: ['bash', '-ec', 'exec airflow webserver']
+          env:
+            - name: AIRFLOW__CORE__EXECUTOR
+              value: SequentialExecutor
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              value: sqlite:////opt/airflow/airflow.db
+            - name: AIRFLOW__WEBSERVER__BASE_URL
+              value: https://localhost:8443/airflow
+            - name: AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX
+              value: 'true'
+            - name: AIRFLOW__WEBSERVER__COOKIE_SECURE
+              value: 'true'
+            - name: AIRFLOW__WEBSERVER__CONFIG_FILE
+              value: /opt/airflow/webserver_config.py
+            - name: AIRFLOW_OIDC_CLIENT_ID
+              value: airflow
+            - name: AIRFLOW_OIDC_CLIENT_SECRET
+              value: airflow-oidc-dev
+            - name: PUBLIC_KEYCLOAK_URL
+              value: https://localhost:8443/keycloak
+            - name: INTERNAL_KEYCLOAK_URL
+              value: http://keycloak:8080/keycloak
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: airflow-data
+              mountPath: /opt/airflow
+            - name: airflow-webserver-config
+              mountPath: /opt/airflow/webserver_config.py
+              subPath: webserver_config.py
+              readOnly: true
+      volumes:
+        - name: airflow-data
+          emptyDir: {}
+        - name: airflow-webserver-config
+          configMap:
+            name: airflow-webserver-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow
+  namespace: default
+spec:
+  type: NodePort
+  selector:
+    app: airflow
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30081

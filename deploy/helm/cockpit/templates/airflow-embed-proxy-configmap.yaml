@@ -1,0 +1,74 @@
+{{- if .Values.airflowEmbedProxy.enabled }}
+{{- $airflowUrl := required "airflowEmbedProxy.airflow.url is required when the Airflow embed proxy is enabled" .Values.airflowEmbedProxy.airflow.url }}
+{{- $keycloakUrl := required "airflowEmbedProxy.keycloak.url is required when the Airflow embed proxy is enabled" .Values.airflowEmbedProxy.keycloak.url }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cockpit.fullname" . }}-airflow-embed-proxy
+  labels:
+    {{- include "cockpit.labels" . | nindent 4 }}
+data:
+  default.conf: |
+    server {
+      listen 8080;
+      server_name _;
+
+      client_body_temp_path /tmp/client_temp;
+      proxy_temp_path /tmp/proxy_temp;
+
+      location / {
+        proxy_pass http://127.0.0.1:{{ .Values.service.targetPort }};
+        proxy_http_version 1.1;
+        # Better Auth can set several encrypted session cookies on the OIDC callback.
+        proxy_buffer_size 32k;
+        proxy_buffers 4 32k;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+
+      location = /airflow {
+        return 308 /airflow/;
+      }
+
+      location /airflow/ {
+        proxy_pass {{ $airflowUrl }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $proxy_host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Accept-Encoding "";
+        proxy_redirect {{ $keycloakUrl }}/ /keycloak/;
+        proxy_redirect {{ $airflowUrl }}/ /airflow/;
+        proxy_redirect /auth/login/ /airflow/auth/login/;
+        proxy_redirect /auth/login /airflow/auth/login;
+        proxy_cookie_path / /airflow/;
+        sub_filter_once off;
+        sub_filter '<base href="/"' '<base href="/airflow/"';
+        sub_filter 'href="/auth/' 'href="/airflow/auth/';
+        sub_filter 'src="/auth/' 'src="/airflow/auth/';
+        sub_filter '"/auth/' '"/airflow/auth/';
+      }
+
+      location = /keycloak {
+        return 308 /keycloak/;
+      }
+
+      location /keycloak/ {
+        proxy_pass {{ $keycloakUrl }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $proxy_host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Prefix /keycloak;
+        proxy_set_header Accept-Encoding "";
+        {{- if .Values.airflowEmbedProxy.keycloak.tls.insecure }}
+        proxy_ssl_verify off;
+        {{- end }}
+        proxy_redirect {{ $keycloakUrl }}/ /keycloak/;
+      }
+    }
+{{- end }}

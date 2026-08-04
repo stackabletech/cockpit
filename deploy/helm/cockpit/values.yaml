@@ -51,6 +51,35 @@ service:
   targetPort: 3000
   annotations: {}
 
+# Optionally serve Airflow and its Keycloak identity provider below the Cockpit
+# origin. This makes the embedded login same-origin, so Keycloak's
+# `frame-ancestors 'self'` policy and session cookies work in an iframe.
+airflowEmbedProxy:
+  enabled: false
+  image:
+    repository: nginxinc/nginx-unprivileged
+    tag: 1.29.8-alpine
+    pullPolicy: IfNotPresent
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 101
+    # Matches podSecurityContext.runAsGroup so the mounted /tmp volume is writable.
+    runAsGroup: 574654813
+  airflow:
+    # Airflow URL without a path, e.g. http://airflow-webserver:8080
+    url: ""
+  keycloak:
+    # Keycloak URL without a path, e.g. https://keycloak:8443
+    url: ""
+    tls:
+      # Only use for test systems when a private CA cannot be mounted in nginx.
+      insecure: false
+
 ingress:
   enabled: false
   className: ""

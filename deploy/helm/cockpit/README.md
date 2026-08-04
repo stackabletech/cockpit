@@ -78,6 +78,49 @@ The following table lists the configurable parameters of the Cockpit chart and t
 | `proxy.protocolHeader` | Trusted forwarded protocol header (e.g. `x-forwarded-proto`). | `""` |
 | `proxy.hostHeader` | Trusted forwarded host header (e.g. `x-forwarded-host`). | `""` |
 
+### Airflow Embed Proxy Parameters
+
+Enable `airflowEmbedProxy` to run an nginx sidecar in front of Cockpit, Airflow, and Keycloak. It exposes all three applications on the Cockpit public origin: Cockpit at `/`, Airflow at `/airflow/`, and Keycloak at `/keycloak/`. This makes the Keycloak login same-origin with the Airflow iframe, which satisfies Keycloak's frame policy and allows its session cookies to work without third-party cookie exceptions.
+
+Cockpit must be published over HTTPS. Configure Airflow with its public base URL as `https://<cockpit-host>/airflow` and enable its proxy-fix support. Configure Keycloak to trust `X-Forwarded-*` headers, set its public hostname to `https://<cockpit-host>/keycloak`, and use `/keycloak` as its HTTP relative path (for example, `KC_PROXY_HEADERS=xforwarded`, `KC_HOSTNAME=https://<cockpit-host>/keycloak`, and `KC_HTTP_RELATIVE_PATH=/keycloak`). nginx preserves the `/airflow` and `/keycloak` paths, rewrites Airflow cookies to `/airflow/`, and retains Keycloak's configured cookie path. Do not append a slash to either upstream URL.
+
+After deployment, create an Airflow bookmark in Cockpit with the URL `https://<cockpit-host>/airflow/` and choose **Open inside Cockpit**.
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `airflowEmbedProxy.enabled` | Enable the nginx same-origin proxy sidecar. | `false` |
+| `airflowEmbedProxy.image.repository` | nginx unprivileged image repository. | `nginxinc/nginx-unprivileged` |
+| `airflowEmbedProxy.image.tag` | nginx image tag. | `1.29.8-alpine` |
+| `airflowEmbedProxy.securityContext.runAsGroup` | Must match `podSecurityContext.runAsGroup` so nginx can write to `/tmp`. | `574654813` |
+| `airflowEmbedProxy.airflow.url` | Airflow upstream origin without a trailing slash. Required when enabled. | `""` |
+| `airflowEmbedProxy.keycloak.url` | Keycloak upstream origin without a trailing slash. Required when enabled. | `""` |
+| `airflowEmbedProxy.keycloak.tls.insecure` | Disable validation of the Keycloak upstream certificate. Test systems only. | `false` |
+
+Example values for the supplied test endpoints:
+
+```yaml
+ingress:
+  enabled: true
+  hosts:
+    - host: cockpit.example.test
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: cockpit-tls
+      hosts:
+        - cockpit.example.test
+
+airflowEmbedProxy:
+  enabled: true
+  airflow:
+    url: http://212.132.78.62:8080
+  keycloak:
+    url: https://81.173.115.246:30596
+    tls:
+      insecure: true
+```
+
 ### Application Configuration
 
 | Parameter | Description | Default |

@@ -1,0 +1,93 @@
+server {
+  listen 8443 ssl;
+  server_name ${DEV_PROXY_HOST};
+
+  ssl_certificate /etc/nginx/certs/tls.crt;
+  ssl_certificate_key /etc/nginx/certs/tls.key;
+
+  location / {
+    proxy_pass http://${VITE_PROXY_HOST}:5173;
+    proxy_http_version 1.1;
+    # Better Auth can set several encrypted session cookies on the OIDC callback.
+    proxy_buffer_size 32k;
+    proxy_buffers 4 32k;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Host $http_host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_intercept_errors on;
+    error_page 502 = @cockpit_unavailable;
+  }
+
+  location @cockpit_unavailable {
+    default_type text/plain;
+    return 503 "Cockpit development server is unavailable. Start or restart it with: npm run dev\n";
+  }
+
+  location = /airflow {
+    return 308 /airflow/;
+  }
+
+  location /airflow/ {
+    proxy_pass ${AIRFLOW_PROXY_PASS};
+    proxy_http_version 1.1;
+    proxy_set_header Accept-Encoding "";
+    proxy_redirect ${AIRFLOW_BASE_URL}/ /airflow/;
+    proxy_redirect ${AIRFLOW_KEYCLOAK_BASE_URL}/ /airflow-keycloak/;
+    proxy_redirect /auth/login/ /airflow/auth/login/;
+    proxy_redirect /auth/login /airflow/auth/login;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Host $http_host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_cookie_path / /airflow/;
+    sub_filter_once off;
+    sub_filter '<base href="/"' '<base href="/airflow/"';
+    sub_filter 'href="/auth/' 'href="/airflow/auth/';
+    sub_filter 'src="/auth/' 'src="/airflow/auth/';
+    sub_filter '"/auth/' '"/airflow/auth/';
+  }
+
+  location = /keycloak {
+    return 308 /keycloak/;
+  }
+
+  location /keycloak/ {
+    proxy_pass ${KEYCLOAK_BASE_URL};
+    proxy_http_version 1.1;
+    proxy_redirect ${KEYCLOAK_BASE_URL}/ /keycloak/;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Host $http_host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Prefix /keycloak;
+  }
+
+  location = /airflow-keycloak {
+    return 308 /airflow-keycloak/;
+  }
+
+  location /airflow-keycloak/ {
+    proxy_pass ${AIRFLOW_KEYCLOAK_PROXY_PASS};
+    proxy_http_version 1.1;
+    proxy_set_header Accept-Encoding "";
+    ${AIRFLOW_KEYCLOAK_TLS_INSECURE}
+    proxy_redirect http://localhost:8443/auth/oauth-authorized/keycloak https://localhost:8443/airflow/auth/oauth-authorized/keycloak;
+    proxy_redirect ${AIRFLOW_KEYCLOAK_BASE_URL} https://localhost:8443/airflow-keycloak;
+    proxy_redirect ${AIRFLOW_KEYCLOAK_BASE_URL}/ /airflow-keycloak/;
+    proxy_cookie_path / /airflow-keycloak/;
+    proxy_set_header Host $proxy_host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Host $proxy_host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Prefix /airflow-keycloak;
+    sub_filter_once off;
+    sub_filter '="/resources/' '="/airflow-keycloak/resources/';
+    sub_filter '"/resources/' '"/airflow-keycloak/resources/';
+    sub_filter '="/realms/' '="/airflow-keycloak/realms/';
+    sub_filter '"/realms/' '"/airflow-keycloak/realms/';
+    sub_filter '${AIRFLOW_KEYCLOAK_BASE_URL}' 'https://localhost:8443/airflow-keycloak';
+  }
+}

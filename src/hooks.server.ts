@@ -41,8 +41,16 @@ const handleParaglide: Handle = ({ event, resolve }) =>
     });
   });
 
-const handleAuth: Handle = ({ event, resolve }) =>
-  svelteKitHandler({ event, resolve, auth, building });
+const handleAuth: Handle = ({ event, resolve }) => {
+  // Vite terminates the local nginx proxy over HTTP, so its request origin does
+  // not match Better Auth's public HTTPS base URL. Route auth requests directly
+  // to Better Auth while leaving its configured public callback URL unchanged.
+  if (event.url.pathname.startsWith('/api/auth/')) {
+    return auth.handler(event.request);
+  }
+
+  return svelteKitHandler({ event, resolve, auth, building });
+};
 
 const PUBLIC_PATHS = ['/auth/login', '/auth/logout', '/api/auth', '/metrics', '/healthz'];
 

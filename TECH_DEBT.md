@@ -157,3 +157,11 @@ The upload endpoint imposes no maximum file size. S3's 5 TB single-object limit 
 **File:** `src/routes/healthz/+server.ts`, `deploy/helm/cockpit/values.yaml`
 
 Both `livenessProbe` and `readinessProbe` point at `/healthz`, which always returns 200. There is currently nothing meaningful to gate readiness on (better-auth uses an in-memory session store, OIDC discovery is fetched lazily on first auth call), so a separate `/readyz` would just be a placeholder. Once one of these lands — a real session store / DB, eager OIDC discovery, or a startup-time cache warm — split into `/healthz` (liveness, trivial) and `/readyz` (readiness, checking the new dependency), and update the helm probes accordingly.
+
+---
+
+### Airflow embed proxy can disable Keycloak TLS verification
+
+**File:** `deploy/helm/cockpit/templates/airflow-embed-proxy-configmap.yaml`
+
+The optional Airflow nginx sidecar supports `airflowEmbedProxy.keycloak.tls.insecure=true` so a test Keycloak endpoint using a self-signed certificate can be proxied without a trusted CA bundle. This is only acceptable for isolated test environments because it permits a MITM attack against the identity provider. The long-term fix is to support mounting a private CA bundle into the nginx sidecar and configure `proxy_ssl_trusted_certificate` while retaining certificate verification.

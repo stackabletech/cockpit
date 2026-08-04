@@ -1,0 +1,17 @@
+---
+ingress:
+  enabled: true
+  hosts:
+    - host: cockpit.example.test
+      paths:
+        - path: /
+          pathType: Prefix
+
+airflowEmbedProxy:
+  enabled: true
+  airflow:
+    url: http://airflow.example.test:8080
+  keycloak:
+    url: https://keycloak.example.test:8443
+    tls:
+      insecure: true

@@ -198,10 +198,11 @@ nvm use       # activates it in the current shell
 
 ### Local Setup
 
-For a pre-configured local dev environment using OIDC, deploy & configure Keycloak and Trino on a kind cluster:
+For a pre-configured local dev environment using OIDC, deploy and configure Keycloak, Airflow, and Trino on a kind cluster. The setup starts an nginx HTTPS proxy at `https://localhost:8443` so Airflow's Keycloak login can be embedded in Cockpit:
 
 ```bash
-./dev/setup.sh           # Creates and configures Keycloak. Deploys Trino with OIDC authentication. Writes to .env.development which is used by dev server.
+./dev/setup.sh           # Deploys Keycloak, Airflow, Trino, and Garage; starts the HTTPS proxy; writes .env.development.
+./dev/setup.sh --skip-airflow  # Omits Airflow and uses the direct http://localhost:5173 development flow.
 ```
 
 ### Development

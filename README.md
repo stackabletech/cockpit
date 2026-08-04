@@ -125,6 +125,25 @@ The application is configured via environment variables. Create a `.env` file at
 | `STACKABLE_COCKPIT_PDF_PREVIEW_BYTES`   | `integer` (bytes) | `26214400` (25 MiB) | Maximum bytes fetched when previewing PDF files.                                           | `STACKABLE_COCKPIT_PDF_PREVIEW_BYTES=52428800`   |
 | `STACKABLE_COCKPIT_FILE_PREVIEW_ROWS`   | `integer` (rows)  | `250`               | Maximum number of rows included in a tabular file preview (e.g. Parquet converted to CSV). | `STACKABLE_COCKPIT_FILE_PREVIEW_ROWS=500`        |
 
+### Embedded Airflow
+
+Airflow backed by Keycloak cannot be embedded directly from a different origin: Keycloak deliberately returns `frame-ancestors 'self'` and its login cookies are not usable as third-party cookies. The Helm chart provides an optional nginx sidecar that proxies Cockpit, Airflow, and Keycloak on one HTTPS origin. See the [Airflow Embed Proxy configuration](./deploy/helm/cockpit/README.md#airflow-embed-proxy-parameters) for the required upstream and identity-provider settings.
+
+`./dev/setup.sh` also deploys a local Airflow instance and starts an nginx proxy at `https://localhost:8443`. Start or restart Vite with `npm run dev` after setup so it reads the generated `.env.development`, then open Cockpit through the proxy. Add an Airflow bookmark for `https://localhost:8443/airflow/` and select **Open inside Cockpit**. Sign in to Airflow through Keycloak as `admin` / `adminadmin`.
+
+The setup requires Docker for nginx and creates a localhost certificate in `dev/.proxy/` unless both `DEV_PROXY_CERT_FILE` and `DEV_PROXY_KEY_FILE` name an existing trusted certificate and key. Pass `--skip-airflow` to retain the former direct `http://localhost:5173` workflow without starting the proxy.
+
+To embed a remote HTTP Airflow test instance, route it through the local HTTPS proxy rather than using its `http://` URL in the bookmark. The remote Keycloak endpoint is exposed separately at `/airflow-keycloak/`, so it does not conflict with Cockpit's local Keycloak login.
+
+```bash
+DEV_AIRFLOW_URL=http://212.132.78.62:8080 \
+DEV_AIRFLOW_KEYCLOAK_URL=https://81.173.115.246:30596 \
+DEV_AIRFLOW_KEYCLOAK_TLS_INSECURE=true \
+./dev/setup.sh --skip-trino --skip-garage
+```
+
+`DEV_AIRFLOW_KEYCLOAK_TLS_INSECURE=true` is required only for the supplied self-signed test Keycloak certificate. Keep the Cockpit bookmark URL as `https://localhost:8443/airflow/`.
+
 ## Contributing
 
 1. Make your changes
