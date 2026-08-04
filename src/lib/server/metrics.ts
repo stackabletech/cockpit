@@ -24,3 +24,18 @@ export const trinoActiveQueries = new Gauge({
   help: 'Number of active Trino queries submitted through Stackable UI',
   registers: [register]
 });
+
+export const opaRequestDuration = new Histogram({
+  name: 'opa_request_duration_seconds',
+  help: 'Duration of OPA policy evaluation requests in seconds',
+  labelNames: ['outcome'],
+  buckets: [0.01, 0.05, 0.1, 0.5, 1.0],
+  registers: [register]
+});
+
+export const opaRequestTotal = new Counter({
+  name: 'opa_request_total',
+  help: 'Total OPA policy evaluation requests',
+  labelNames: ['outcome'],
+  registers: [register]
+});
