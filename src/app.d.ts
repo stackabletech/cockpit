@@ -23,6 +23,8 @@ declare global {
        * Null for all other routes.
        */
       storageConfig: import('$lib/server/storage/types.js').S3ConnectionConfig | null;
+      /** Whether the current user has admin rights, determined by OPA. */
+      isAdmin: boolean;
     }
     // interface PageData {}
     // interface PageState {}

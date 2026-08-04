@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opa-policies
+  namespace: default
+data:
+  admin.rego: |-
+    {{- .Files.Get "policies/admin.rego" | nindent 4 }}
