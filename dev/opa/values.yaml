@@ -1,0 +1,19 @@
+---
+image:
+  repository: openpolicyagent/opa
+  tag: 1.16.2
+  pullPolicy: IfNotPresent
+
+# NodePort for the OPA HTTP API.
+nodePort: 30181
+
+# Path inside the container where policies are loaded from.
+policyMountPath: /policies
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi

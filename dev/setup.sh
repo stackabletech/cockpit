@@ -91,6 +91,16 @@ if [[ "$SKIP_GARAGE" == false ]]; then
     --timeout 60s
 fi
 
+# ------------------------------------------------------------------
+# 5c. Deploy OPA (via Helm)
+# ------------------------------------------------------------------
+echo ""
+echo "Deploying OPA..."
+helm upgrade --install opa "$SCRIPT_DIR/opa" \
+  --namespace default \
+  --wait \
+  --timeout 60s
+
 # On some local Kubernetes distributions (e.g. Rancher Desktop k3s), the node's
 # InternalIP is not reachable from the host network, but NodePorts are exposed
 # on localhost. Probe both and use the first reachable URL.
@@ -171,11 +181,12 @@ else
 
   create_user() {
     local username=$1 password=$2 first=$3 last=$4
+    local email=${5:-"$username@example.com"}
     echo "Creating user '$username'..."
     kcadm create users \
       -r stackable \
       -s username="$username" \
-      -s email="$username@example.com" \
+      -s email="$email" \
       -s firstName="$first" \
       -s lastName="$last" \
       -s enabled=true
@@ -185,7 +196,7 @@ else
       --new-password "$password"
   }
 
-  create_user alice alicealice Alice Example
+  create_user alice alicealice Alice Example alice@admin.example.com
   create_user bob   bobbob    Bob   Example
 
   echo "Fetching client secret..."
@@ -260,6 +271,17 @@ if [[ "$SKIP_TRINO" == false ]]; then
   TRINO_BASE_URL="${TRINO_BASE_URL:-https://${NODE_IP}:${TRINO_PORT}}"
 fi
 
+# Probe OPA reachability (same pattern as Keycloak/Trino).
+OPA_NODE_PORT=30181
+OPA_BASE_URL=""
+for base in "http://${NODE_IP}:${OPA_NODE_PORT}" "http://127.0.0.1:${OPA_NODE_PORT}" "http://localhost:${OPA_NODE_PORT}"; do
+  if curl -sf --max-time 2 "${base}/health" >/dev/null 2>&1; then
+    OPA_BASE_URL="$base"
+    break
+  fi
+done
+OPA_BASE_URL="${OPA_BASE_URL:-http://${NODE_IP}:${OPA_NODE_PORT}}"
+
 if [[ "$SKIP_TRINO" == false ]]; then
   cat > "$ENV_FILE" <<EOF
 STACKABLE_COCKPIT_OIDC_DISCOVERY_URL=${KEYCLOAK_BASE_URL}/realms/stackable/.well-known/openid-configuration
@@ -273,6 +295,8 @@ STACKABLE_COCKPIT_TRINO_AUTH_USERNAME=stackable-cockpit
 STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD=stackable-cockpit-dev
 STACKABLE_COCKPIT_TRINO_TLS_INSECURE=true
 STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true
+STACKABLE_COCKPIT_OPA_ENABLED=true
+STACKABLE_COCKPIT_OPA_URL=${OPA_BASE_URL}
 STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES=262144
 STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES=5242880
 STACKABLE_COCKPIT_PDF_PREVIEW_BYTES=26214400
@@ -292,6 +316,8 @@ STACKABLE_COCKPIT_OIDC_CLIENT_SECRET=${SECRET}
 STACKABLE_COCKPIT_SESSION_SECRET=${SESSION_SECRET}
 STACKABLE_COCKPIT_BASE_URL=http://localhost:5173
 STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true
+STACKABLE_COCKPIT_OPA_ENABLED=true
+STACKABLE_COCKPIT_OPA_URL=${OPA_BASE_URL}
 STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES=262144
 STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES=5242880
 STACKABLE_COCKPIT_PDF_PREVIEW_BYTES=26214400
@@ -339,6 +365,8 @@ echo ""
 echo "Keycloak:       http://${NODE_IP}:30080"
 echo "  Admin:        admin / admin"
 echo ""
+echo "OPA:            ${OPA_BASE_URL}"
+echo ""
 if [[ "$SKIP_TRINO" == false ]]; then
   echo "Trino endpoint: https://${NODE_IP}:${TRINO_PORT}"
   echo ""
@@ -354,5 +382,5 @@ if [[ "$SKIP_GARAGE" == false ]]; then
   echo ""
 fi
 echo "Test users (OIDC):"
-echo "  alice / alicealice"
+echo "  alice / alicealice (admin)"
 echo "  bob   / bobbob"

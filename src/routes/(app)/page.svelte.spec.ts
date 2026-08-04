@@ -6,7 +6,13 @@ import Page from './+page.svelte';
 const renderPage = () =>
   render(Page, {
     params: {},
-    data: { user: null, storageBrowserEnabled: true, serviceCount: 0, healthy: true },
+    data: {
+      user: null,
+      storageBrowserEnabled: true,
+      isAdmin: false,
+      serviceCount: 0,
+      healthy: true
+    },
     form: null
   });
 
@@ -29,7 +35,13 @@ describe('/(app)/+page.svelte', () => {
   it('should display the service count from props', async () => {
     render(Page, {
       params: {},
-      data: { user: null, storageBrowserEnabled: true, serviceCount: 5, healthy: true },
+      data: {
+        user: null,
+        storageBrowserEnabled: true,
+        isAdmin: false,
+        serviceCount: 5,
+        healthy: true
+      },
       form: null
     });
 
