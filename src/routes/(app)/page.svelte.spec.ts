@@ -39,7 +39,7 @@ describe('/(app)/+page.svelte', () => {
   it('should display the health OK status', async () => {
     renderPage();
 
-    await expect.element(page.getByText('OK')).toBeInTheDocument();
+    await expect.element(page.getByText('OK', { exact: true })).toBeInTheDocument();
   });
 
   it('should render the dashboard subtitle', async () => {
