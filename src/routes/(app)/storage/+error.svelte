@@ -33,7 +33,10 @@
 
 <div class="bg-base-100 flex flex-1 flex-col overflow-hidden">
   <div class="border-base-300 flex items-center gap-3 border-b px-6 py-3">
-    <nav aria-label="breadcrumb" class="flex min-w-0 flex-1 items-center gap-1 text-sm">
+    <nav
+      aria-label={m.storage_error_breadcrumb()}
+      class="flex min-w-0 flex-1 items-center gap-1 text-sm"
+    >
       <span class="flex shrink-0 items-center gap-1">
         <a
           href={resolve('/(app)/storage/[bucket]/[...prefix]', {

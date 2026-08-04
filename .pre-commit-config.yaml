@@ -45,27 +45,45 @@ repos:
 
   - repo: local
     hooks:
-      - id: npm-lint
-        name: npm lint (prettier + eslint)
+      # ── Fix variant (runs locally on commit — auto-fixes where possible) ──
+      - id: npm-lint-fix
+        name: npm lint with --fix (prettier + eslint)
         language: system
-        entry: npm run lint
+        entry: npm run lint:fix
         stages: [pre-commit, pre-merge-commit]
         pass_filenames: false
         files: \.(svelte|ts|js|css|html|json|md)$
 
+      # ── Check-only variant (runs in CI — no auto-fix) ──
+      - id: npm-lint
+        name: npm lint check only (prettier + eslint)
+        language: system
+        entry: npm run lint
+        stages: [manual]
+        pass_filenames: false
+        files: \.(svelte|ts|js|css|html|json|md)$
+
+      # ── Shared hooks (same behaviour locally and in CI) ──
       - id: npm-check
         name: npm check (svelte-check)
         language: system
         entry: npm run check
-        stages: [pre-commit, pre-merge-commit]
+        stages: [pre-commit, pre-merge-commit, manual]
         pass_filenames: false
         files: \.(svelte|ts|js)$
+
+      - id: npm-arch-test
+        name: npm arch test (fitness functions)
+        language: system
+        entry: npm run test:arch
+        stages: [pre-commit, pre-merge-commit, manual]
+        pass_filenames: false
 
       - id: helm-lint
         name: helm lint
         language: system
         entry: helm lint deploy/helm/cockpit
-        stages: [pre-commit, pre-merge-commit]
+        stages: [pre-commit, pre-merge-commit, manual]
         pass_filenames: false
         files: ^deploy/helm/
 
@@ -78,6 +96,6 @@ repos:
           --set auth.oidc.discoveryUrl=https://stub
           --set auth.oidc.clientId=stub
           --set auth.oidc.clientSecret.secretKeyRef.name=stub > /dev/null'
-        stages: [pre-commit, pre-merge-commit]
+        stages: [pre-commit, pre-merge-commit, manual]
         pass_filenames: false
         files: ^deploy/helm/
