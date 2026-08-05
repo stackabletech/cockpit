@@ -29,6 +29,7 @@
   "sidebar_tools_expand": "Expand tools section",
   "sidebar_tools_collapse": "Collapse tools section",
   "sidebar_bookmark_open_external": "Open in new tab",
+  "sidebar_bookmark_open_in_cockpit": "Open in Cockpit",
   "header_open_nav": "Open navigation",
   "header_close_nav": "Close navigation",
   "header_user_menu": "User menu",

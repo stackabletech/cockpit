@@ -95,6 +95,82 @@ test.describe('Sidebar bookmarks', () => {
     await expect(trinoItem.getByRole('link', { name: 'Open in new tab' })).toHaveCount(0);
   });
 
+  test('migrates a custom link bookmark whose id is the URL literal so it can be opened', async ({
+    page
+  }) => {
+    await page.addInitScript(
+      ({ embedUrl }) => {
+        localStorage.setItem(
+          'dashboard_bookmarks',
+          JSON.stringify([
+            {
+              id: embedUrl,
+              productId: 'custom',
+              name: 'Custom Tool',
+              environment: '',
+              url: embedUrl,
+              openIn: 'cockpit',
+              pinned: false,
+              createdAt: new Date().toISOString()
+            }
+          ])
+        );
+      },
+      { embedUrl: EMBED_URL }
+    );
+    await page.goto('/');
+    await waitForHydration(page);
+
+    const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
+    const [migrated] = JSON.parse(stored!);
+    expect(migrated.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    expect(migrated.id).not.toBe(EMBED_URL);
+
+    await page.getByRole('link', { name: 'Custom Tool' }).click();
+    await expect(page).toHaveURL(new RegExp(`/bookmark/${migrated.id}`));
+
+    const frame = page.frameLocator('iframe');
+    await expect(frame.getByRole('heading', { name: 'Embedded Tool' })).toBeVisible();
+  });
+
+  test('bookmark set to open in a new tab links externally and the side button opens the cockpit', async ({
+    page
+  }) => {
+    await page.addInitScript(
+      ({ bookmarkId, embedUrl }) => {
+        localStorage.setItem(
+          'dashboard_bookmarks',
+          JSON.stringify([
+            {
+              id: bookmarkId,
+              productId: 'superset',
+              name: 'Dashboards',
+              environment: '',
+              url: embedUrl,
+              openIn: 'new-tab',
+              pinned: false,
+              createdAt: new Date().toISOString()
+            }
+          ])
+        );
+      },
+      { bookmarkId: BOOKMARK_ID, embedUrl: EMBED_URL }
+    );
+    await page.goto('/');
+    await waitForHydration(page);
+
+    const dashboardsLink = page.getByRole('link', { name: 'Dashboards' });
+    await expect(dashboardsLink).toHaveAttribute('href', EMBED_URL);
+    await expect(dashboardsLink).toHaveAttribute('target', '_blank');
+    await expect(dashboardsLink).toHaveAttribute('rel', /noopener/);
+    await expect(dashboardsLink).not.toHaveAttribute('aria-current', 'page');
+
+    const dashboardsItem = dashboardsLink.locator('..');
+    const cockpitButton = dashboardsItem.getByRole('link', { name: 'Open in Cockpit' });
+    await expect(cockpitButton).toHaveAttribute('href', `/bookmark/${BOOKMARK_ID}`);
+    await expect(cockpitButton).not.toHaveAttribute('target', '_blank');
+  });
+
   test('tools section is collapsible', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);

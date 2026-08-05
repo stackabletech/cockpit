@@ -29,6 +29,7 @@
   "sidebar_tools_expand": "Werkzeugbereich ausklappen",
   "sidebar_tools_collapse": "Werkzeugbereich einklappen",
   "sidebar_bookmark_open_external": "In neuem Tab öffnen",
+  "sidebar_bookmark_open_in_cockpit": "Im Cockpit öffnen",
   "header_open_nav": "Navigation öffnen",
   "header_close_nav": "Navigation schließen",
   "header_user_menu": "Benutzermenü",

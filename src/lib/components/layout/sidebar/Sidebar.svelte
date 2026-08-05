@@ -7,6 +7,7 @@
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
   import IconExpandMore from 'virtual:icons/material-symbols/expand-more';
   import IconArrowOutward from 'virtual:icons/material-symbols/arrow-outward';
+  import IconWebAsset from 'virtual:icons/material-symbols/web-asset';
   import type { NavItem } from '$lib/types/navigation.js';
   import { getPlatformSection, getToolsSection } from './nav-items.js';
   import { getBookmarks } from '$lib/dashboard/bookmarks.svelte.js';
@@ -108,6 +109,54 @@
   {/if}
 {/snippet}
 
+{#snippet bookmarkItem(bookmark: Bookmark)}
+  {@const href = `/bookmark/${bookmark.id}`}
+  {@const openInNewTab = bookmark.openIn === 'new-tab'}
+  {@const active = !openInNewTab && isActive(href)}
+  <li class="group relative">
+    <a
+      href={openInNewTab ? bookmark.url : href}
+      target={openInNewTab ? '_blank' : undefined}
+      rel={openInNewTab ? 'noopener noreferrer' : undefined}
+      onclick={() => (mobileOpen = false)}
+      title={collapsed ? bookmark.name : undefined}
+      class="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
+        {active
+        ? 'bg-primary/10 text-primary'
+        : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
+        {collapsed ? 'justify-center' : 'pr-9'}"
+      aria-current={active ? 'page' : undefined}
+    >
+      <span class="flex shrink-0 items-center">
+        {@render bookmarkIcon(bookmark)}
+      </span>
+      {#if !collapsed}
+        <span class="truncate">{bookmark.name}</span>
+      {/if}
+    </a>
+    {#if !collapsed}
+      <a
+        href={openInNewTab ? href : bookmark.url}
+        target={openInNewTab ? undefined : '_blank'}
+        rel={openInNewTab ? undefined : 'noopener noreferrer'}
+        class="text-base-content/60 hover:bg-base-content/10 hover:text-base-content absolute top-1/2 right-1 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full transition-colors"
+        aria-label={openInNewTab
+          ? m.sidebar_bookmark_open_in_cockpit()
+          : m.sidebar_bookmark_open_external()}
+        title={openInNewTab
+          ? m.sidebar_bookmark_open_in_cockpit()
+          : m.sidebar_bookmark_open_external()}
+      >
+        {#if openInNewTab}
+          <IconWebAsset class="h-3.5 w-3.5" aria-hidden="true" />
+        {:else}
+          <IconArrowOutward class="h-3.5 w-3.5" aria-hidden="true" />
+        {/if}
+      </a>
+    {/if}
+  </li>
+{/snippet}
+
 <!-- Mobile backdrop -->
 {#if mobileOpen}
   <button
@@ -192,40 +241,7 @@
       {/if}
       <ul class="flex flex-col gap-1">
         {#each pinnedBookmarks as bookmark (bookmark.id)}
-          {@const href = `/bookmark/${bookmark.id}`}
-          {@const active = isActive(href)}
-          <li class="group relative">
-            <a
-              {href}
-              onclick={() => (mobileOpen = false)}
-              title={collapsed ? bookmark.name : undefined}
-              class="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
-                {active
-                ? 'bg-primary/10 text-primary'
-                : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
-                {collapsed ? 'justify-center' : 'pr-9'}"
-              aria-current={active ? 'page' : undefined}
-            >
-              <span class="flex shrink-0 items-center">
-                {@render bookmarkIcon(bookmark)}
-              </span>
-              {#if !collapsed}
-                <span class="truncate">{bookmark.name}</span>
-              {/if}
-            </a>
-            {#if !collapsed}
-              <a
-                href={bookmark.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-base-content/60 hover:bg-base-content/10 hover:text-base-content absolute top-1/2 right-1 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full transition-colors"
-                aria-label={m.sidebar_bookmark_open_external()}
-                title={m.sidebar_bookmark_open_external()}
-              >
-                <IconArrowOutward class="h-3.5 w-3.5" aria-hidden="true" />
-              </a>
-            {/if}
-          </li>
+          {@render bookmarkItem(bookmark)}
         {/each}
       </ul>
     {/if}
@@ -281,40 +297,7 @@
           </li>
         {/each}
         {#each unpinnedBookmarks as bookmark (bookmark.id)}
-          {@const href = `/bookmark/${bookmark.id}`}
-          {@const active = isActive(href)}
-          <li class="group relative">
-            <a
-              {href}
-              onclick={() => (mobileOpen = false)}
-              title={collapsed ? bookmark.name : undefined}
-              class="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
-                {active
-                ? 'bg-primary/10 text-primary'
-                : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
-                {collapsed ? 'justify-center' : 'pr-9'}"
-              aria-current={active ? 'page' : undefined}
-            >
-              <span class="flex shrink-0 items-center">
-                {@render bookmarkIcon(bookmark)}
-              </span>
-              {#if !collapsed}
-                <span class="truncate">{bookmark.name}</span>
-              {/if}
-            </a>
-            {#if !collapsed}
-              <a
-                href={bookmark.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-base-content/60 hover:bg-base-content/10 hover:text-base-content absolute top-1/2 right-1 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full transition-colors"
-                aria-label={m.sidebar_bookmark_open_external()}
-                title={m.sidebar_bookmark_open_external()}
-              >
-                <IconArrowOutward class="h-3.5 w-3.5" aria-hidden="true" />
-              </a>
-            {/if}
-          </li>
+          {@render bookmarkItem(bookmark)}
         {/each}
       </ul>
     {/if}
