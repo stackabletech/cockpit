@@ -51,7 +51,7 @@ test.describe('OPA admin gating for bookmarks', () => {
 
     // The admin-only hint is shown to regular users.
     await expect(
-      page.getByText('Only administrators can pin bookmarks for everyone.')
+      page.getByText('Only administrators can pin bookmarks for everyone')
     ).toBeVisible();
   });
 

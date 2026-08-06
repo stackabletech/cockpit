@@ -44,14 +44,16 @@ describe('AddBookmarkModal', () => {
     renderModal({ isAdmin: false });
 
     await expect
-      .element(page.getByText('Only administrators can pin bookmarks for everyone.'))
+      .element(page.getByText('Only administrators can pin bookmarks for everyone'))
       .toBeInTheDocument();
   });
 
   it('shows the general hint to admins', async () => {
     renderModal({ isAdmin: true });
 
-    await expect.element(page.getByText('Shows this bookmark to every user.')).toBeInTheDocument();
+    await expect
+      .element(page.getByText('This bookmark is shown to every user'))
+      .toBeInTheDocument();
   });
 
   it('stores pinnedForEveryone: true when an admin pins for everyone', async () => {

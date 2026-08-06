@@ -30,7 +30,7 @@
   let uid = $props.id();
 
   let isEditing = $derived(bookmark !== null);
-  let pinEveryoneDisabled = $derived(!isAdmin || !pinned);
+  let pinEveryoneDisabled = $derived(!isAdmin);
 
   let pinSectionEl = $state<HTMLDivElement>();
   let parentPinCheckbox = $state<HTMLInputElement>();
