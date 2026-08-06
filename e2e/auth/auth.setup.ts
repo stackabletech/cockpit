@@ -1,6 +1,7 @@
 import { test as setup, expect } from '@playwright/test';
 import path from 'path';
 import { waitForHydration } from '../support/helpers.js';
+import { ISSUER_URL, PROFILE_COOKIE } from '../support/mock-oidc-server.js';
 
 // Each Playwright project runs its own auth setup, producing a unique
 // session. The mock OIDC server issues a different `sub` per token so
@@ -9,6 +10,17 @@ import { waitForHydration } from '../support/helpers.js';
 
 setup('authenticate via mock OIDC', async ({ page }, testInfo) => {
   const authFile = path.join(import.meta.dirname, `../.auth/user-${testInfo.project.name}.json`);
+
+  // Projects whose name contains "admin" (e.g. setup-admin) log in with an
+  // admin profile so the mock OPA server grants them admin rights.
+  const isAdmin = testInfo.project.name.includes('admin');
+  await page.context().addCookies([
+    {
+      name: PROFILE_COOKIE,
+      value: isAdmin ? 'admin' : 'regular',
+      url: ISSUER_URL
+    }
+  ]);
 
   // Navigate to the app — auth guard redirects to /auth/login
   await page.goto('/');

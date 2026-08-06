@@ -46,7 +46,11 @@
   }
 </script>
 
-<AddBookmarkModal bind:open={addModalOpen} bookmark={editingBookmark} />
+<AddBookmarkModal
+  bind:open={addModalOpen}
+  bookmark={editingBookmark}
+  isAdmin={props.data.isAdmin}
+/>
 
 <div class="mx-auto max-w-6xl space-y-6">
   <div class="flex items-start justify-between">
