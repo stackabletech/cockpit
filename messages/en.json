@@ -21,6 +21,7 @@
   "nav_badge_soon": "Soon",
   "sidebar_label": "Sidebar",
   "sidebar_nav_label": "Main navigation",
+  "navigation_loading": "Loading…",
   "sidebar_close_nav": "Close navigation",
   "sidebar_expand": "Expand sidebar",
   "sidebar_collapse": "Collapse sidebar",

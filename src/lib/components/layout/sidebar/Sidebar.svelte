@@ -103,6 +103,7 @@
             <!-- eslint-disable @typescript-eslint/no-explicit-any, svelte/no-navigation-without-resolve -->
             <a
               href={resolveRoute(item.href as any)}
+              data-sveltekit-preload-data="hover"
               onclick={(e) => handleNavClick(e, item)}
               onkeydown={(e) => handleNavKeydown(e, item)}
               title={collapsed ? item.label : undefined}
