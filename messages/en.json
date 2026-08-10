@@ -386,7 +386,6 @@
   "bookmark_pinned_label_basic": "Pin bookmark",
   "bookmark_pin_everyone": "Pin bookmark for everyone",
   "bookmark_pin_everyone_hint": "This bookmark is shown to every user",
-  "bookmark_pin_everyone_admin_hint": "Only administrators can pin bookmarks for everyone",
   "bookmark_preview_label": "Preview",
   "bookmark_section_title": "Bookmarks",
   "bookmark_edit_label": "Edit bookmark",
