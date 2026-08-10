@@ -21,10 +21,45 @@
     warning: 'alert-warning',
     error: 'alert-error'
   };
+
+  // Native dialogs render in the browser's top layer, above any element
+  // attached to <body>. Keep toasts in the active dialog so their controls
+  // remain clickable while an editor modal is open.
+  function portalToActiveDialog(node: HTMLElement) {
+    if (typeof document === 'undefined') return {};
+
+    let target: HTMLElement | null = null;
+    const move = () => {
+      const dialogs = document.querySelectorAll<HTMLDialogElement>('dialog[open]');
+      const nextTarget = dialogs[dialogs.length - 1] ?? document.body;
+      if (nextTarget === target) return;
+      nextTarget.appendChild(node);
+      target = nextTarget;
+    };
+
+    move();
+    const observer = new MutationObserver(move);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['open']
+    });
+
+    return {
+      destroy() {
+        observer.disconnect();
+      }
+    };
+  }
 </script>
 
-<!-- Positioned fixed at the bottom-end corner, above everything -->
-<div class="toast toast-end toast-bottom z-100 gap-2" aria-live="polite" aria-atomic="false">
+<div
+  use:portalToActiveDialog
+  class="toast toast-end toast-bottom z-[10001] gap-2"
+  aria-live="polite"
+  aria-atomic="false"
+>
   {#each toasts as toast (toast.id)}
     {@const ToastIcon = iconMap[toast.type]}
     <div
@@ -34,15 +69,13 @@
       <div class="flex w-full items-start gap-2">
         <ToastIcon class="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
         <span class="flex-1 text-sm">{toast.message}</span>
-        <div class="tooltip tooltip-top" data-tip={m.action_dismiss()}>
-          <button
-            class="btn btn-ghost btn-xs ml-1 shrink-0"
-            aria-label={m.action_dismiss()}
-            onclick={() => removeToast(toast.id)}
-          >
-            <IconClose class="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
+        <button
+          class="btn btn-ghost btn-xs ml-1 shrink-0"
+          aria-label={m.action_dismiss()}
+          onclick={() => removeToast(toast.id)}
+        >
+          <IconClose class="h-4 w-4" aria-hidden="true" />
+        </button>
       </div>
       {#if toast.actions && toast.actions.length > 0}
         <div class="flex w-full justify-end gap-2">
