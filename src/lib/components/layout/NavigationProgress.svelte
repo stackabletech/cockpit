@@ -1,8 +1,27 @@
 <script lang="ts">
   import { navigating } from '$app/state';
+  import { getNavSections } from '$lib/components/layout/sidebar/nav-items.js';
   import * as m from '$lib/paraglide/messages.js';
 
-  const active = $derived(navigating.to !== null);
+  // Show navigation progress bar when navigating between different app roots.
+  // Otherwise, add exceptions to this if you want navigation progress inside a specific app.
+  const appRoots = $derived(
+    getNavSections({ storageBrowserEnabled: true }).flatMap((section) =>
+      section.items.map((item) => item.href)
+    )
+  );
+
+  function appRootOf(pathname: string | null): string | null {
+    if (!pathname) return null;
+    const sub = appRoots.find((root) => root !== '/' && pathname.startsWith(root));
+    if (sub) return sub;
+    return pathname === '/' ? '/' : null;
+  }
+
+  const fromRoot = $derived(appRootOf(navigating.from?.url.pathname ?? null));
+  const toRoot = $derived(appRootOf(navigating.to?.url.pathname ?? null));
+
+  const active = $derived(fromRoot !== null && toRoot !== null && fromRoot !== toRoot);
 </script>
 
 {#if active}

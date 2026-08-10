@@ -27,6 +27,28 @@ test.describe('App navigation', () => {
     await expect(progress).toBeHidden();
   });
 
+  test('navigating within an app does not show the global loading bar', async ({ page }) => {
+    await page.goto('/storage');
+    await waitForHydration(page);
+
+    // Delay the connections page's data fetch. Even while it is in flight the
+    // global progress bar must stay hidden: it only appears between apps.
+    await page.route('**/storage/connections/__data.json*', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.continue();
+    });
+
+    await page.getByRole('link', { name: 'Manage connections' }).click();
+
+    const progress = page.locator('[data-navigation-progress]');
+    await expect(progress).toBeHidden();
+    // Wait out the artificial delay while the intra-app navigation is in flight.
+    await page.waitForTimeout(2000);
+    await expect(progress).toHaveCount(0);
+
+    await expect(page.getByRole('heading', { name: 'Manage connections' })).toBeVisible();
+  });
+
   test('sidebar highlights the active app when switching between dashboard, Trino and storage', async ({
     page
   }) => {
