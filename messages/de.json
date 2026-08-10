@@ -383,6 +383,7 @@
   "bookmark_env_placeholder": "z.B. dev, prod",
   "bookmark_url_label": "URL",
   "bookmark_pinned_label": "Lesezeichen für dich anheften",
+  "bookmark_pinned_label_basic": "Lesezeichen anheften",
   "bookmark_pin_everyone": "Lesezeichen für alle anheften",
   "bookmark_pin_everyone_hint": "Dieses Lesezeichen wird allen Benutzern angezeigt.",
   "bookmark_pin_everyone_admin_hint": "Nur Administratoren können Lesezeichen für alle anheften.",
