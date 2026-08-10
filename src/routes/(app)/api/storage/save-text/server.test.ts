@@ -63,6 +63,22 @@ describe('POST /api/storage/save-text', () => {
     expect(mockProvider.getObjectRange).not.toHaveBeenCalled();
   });
 
+  it('saves newly created empty files', async () => {
+    mockProvider.putObject.mockResolvedValue(undefined);
+
+    const res = await POST(
+      mockEvent('bucket=b1&key=file.txt&originalSize=0&previewBytes=0', textBody('new text'))
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockProvider.putObject).toHaveBeenCalledWith(
+      'file.txt',
+      expect.anything(),
+      'text/plain',
+      8
+    );
+  });
+
   it('merges edit tail when truncated', async () => {
     const tailBytes = new TextEncoder().encode('...tail');
     const tailStream = new ReadableStream({

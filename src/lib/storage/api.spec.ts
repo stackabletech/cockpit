@@ -445,6 +445,32 @@ describe('createFetchStorageApi', () => {
       expect(exists).toBe(false);
     });
   });
+
+  describe('saveText', () => {
+    it('includes preview metadata required by the save endpoint', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 200 }));
+
+      await api.saveText({
+        bucket: 'b',
+        key: 'new file.txt',
+        body: 'new text',
+        originalSize: 0,
+        previewBytes: 0,
+        contentType: 'text/plain'
+      });
+
+      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      expect(url).toContain('/api/storage/save-text');
+      expect(url).toContain('bucket=b');
+      expect(url).toContain('key=new+file.txt');
+      expect(url).toContain('originalSize=0');
+      expect(url).toContain('previewBytes=0');
+      expect(url).toContain('contentType=text%2Fplain');
+      expect(init?.method).toBe('POST');
+      expect(init?.body).toBe('new text');
+    });
+  });
 });
 
 describe('NDJSON streaming via copy', () => {

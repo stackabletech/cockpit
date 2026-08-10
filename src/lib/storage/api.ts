@@ -96,7 +96,14 @@ export interface StorageApi {
     data?: boolean;
   }): Promise<Response>;
 
-  saveText(params: { bucket: string; key: string; body: string }): Promise<void>;
+  saveText(params: {
+    bucket: string;
+    key: string;
+    body: string;
+    originalSize: number;
+    previewBytes: number;
+    contentType: string;
+  }): Promise<void>;
 
   details(params: { bucket: string; key: string }): Promise<FileDetails>;
 
@@ -231,8 +238,14 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       return fetch_(`/api/storage/preview?${params}`);
     },
 
-    async saveText({ bucket, key, body }) {
-      const params = new URLSearchParams({ bucket, key });
+    async saveText({ bucket, key, body, originalSize, previewBytes, contentType }) {
+      const params = new URLSearchParams({
+        bucket,
+        key,
+        originalSize: String(originalSize),
+        previewBytes: String(previewBytes),
+        contentType
+      });
       await fetch_(`/api/storage/save-text?${params}`, {
         method: 'POST',
         body
