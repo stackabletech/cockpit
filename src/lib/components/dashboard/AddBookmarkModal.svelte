@@ -345,50 +345,54 @@
             bind:checked={pinned}
             class="checkbox checkbox-primary checkbox-sm"
           />
-          <span class="text-base-content/80 text-sm">{m.bookmark_pinned_label()}</span>
+          <span class="text-base-content/80 text-sm"
+            >{isAdmin ? m.bookmark_pinned_label() : m.bookmark_pinned_label_basic()}</span
+          >
         </label>
 
-        <!-- Section 6b: Pin for everyone (admin only) -->
-        <div class="mt-6 ml-8">
-          <label
-            for="{uid}-pin-everyone"
-            class="flex items-center gap-2 {pinEveryoneDisabled
-              ? 'cursor-not-allowed opacity-50'
-              : 'cursor-pointer'}"
-          >
-            <input
-              id="{uid}-pin-everyone"
-              type="checkbox"
-              bind:this={childPinCheckbox}
-              bind:checked={pinnedForEveryone}
-              disabled={pinEveryoneDisabled}
-              class="checkbox checkbox-primary checkbox-sm"
-            />
-            <span
-              class="text-sm {pinEveryoneDisabled
-                ? 'text-base-content/50'
-                : 'text-base-content/80'}">{m.bookmark_pin_everyone()}</span
+        {#if isAdmin}
+          <!-- Section 6b: Pin for everyone (admin only) -->
+          <div class="mt-6 ml-8">
+            <label
+              for="{uid}-pin-everyone"
+              class="flex items-center gap-2 {pinEveryoneDisabled
+                ? 'cursor-not-allowed opacity-50'
+                : 'cursor-pointer'}"
             >
-          </label>
-          <p
-            class="mt-1 text-xs {pinEveryoneDisabled
-              ? 'text-base-content/40'
-              : 'text-base-content/50'}"
-          >
-            {pinEveryoneDisabled
-              ? m.bookmark_pin_everyone_admin_hint()
-              : m.bookmark_pin_everyone_hint()}
-          </p>
-        </div>
+              <input
+                id="{uid}-pin-everyone"
+                type="checkbox"
+                bind:this={childPinCheckbox}
+                bind:checked={pinnedForEveryone}
+                disabled={pinEveryoneDisabled}
+                class="checkbox checkbox-primary checkbox-sm"
+              />
+              <span
+                class="text-sm {pinEveryoneDisabled
+                  ? 'text-base-content/50'
+                  : 'text-base-content/80'}">{m.bookmark_pin_everyone()}</span
+              >
+            </label>
+            <p
+              class="mt-1 text-xs {pinEveryoneDisabled
+                ? 'text-base-content/40'
+                : 'text-base-content/50'}"
+            >
+              {pinEveryoneDisabled
+                ? m.bookmark_pin_everyone_admin_hint()
+                : m.bookmark_pin_everyone_hint()}
+            </p>
+          </div>
 
-        <svg
-          class="pointer-events-none absolute inset-0 overflow-visible"
-          fill="none"
-          stroke="currentColor"
-          aria-hidden="true"
-        >
-          <path d={connectorPath} class="text-base-content/30" stroke-width="1.5" />
-        </svg>
+          <svg
+            class="pointer-events-none absolute inset-0 overflow-visible"
+            fill="none"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path d={connectorPath} class="text-base-content/30" stroke-width="1.5" />
+          </svg>
+        {/if}
       </div>
 
       <!-- Section 7: Preview -->
