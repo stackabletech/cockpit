@@ -383,6 +383,7 @@
   "bookmark_env_placeholder": "e.g. dev, prod",
   "bookmark_url_label": "URL",
   "bookmark_pinned_label": "Pin bookmark for yourself",
+  "bookmark_pinned_label_basic": "Pin bookmark",
   "bookmark_pin_everyone": "Pin bookmark for everyone",
   "bookmark_pin_everyone_hint": "This bookmark is shown to every user",
   "bookmark_pin_everyone_admin_hint": "Only administrators can pin bookmarks for everyone",
