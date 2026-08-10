@@ -77,8 +77,16 @@
   function openContextMenu(e: MouseEvent, conn: ConnectionMetadata) {
     e.preventDefault();
     e.stopPropagation();
-    const btnRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    menuRawPos = { left: btnRect.right, top: btnRect.bottom };
+    menuRawPos = { left: e.clientX, top: e.clientY };
+    menuConn = conn;
+  }
+
+  function handleConnectionKeydown(e: KeyboardEvent, conn: ConnectionMetadata) {
+    if (e.key !== 'ContextMenu' && !(e.shiftKey && e.key === 'F10')) return;
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    e.preventDefault();
+    menuRawPos = { left: rect.left, top: rect.bottom };
     menuConn = conn;
   }
 
@@ -287,6 +295,8 @@
                 onmouseleave={hideTooltip}
                 onfocus={(e) => showTooltip(e, connectionLabel(conn))}
                 onblur={hideTooltip}
+                oncontextmenu={(e) => openContextMenu(e, conn)}
+                onkeydown={(e) => handleConnectionKeydown(e, conn)}
               >
                 <IconStorage
                   class="text-primary size-3.5 shrink-0 {activeId === conn.id ? '' : 'opacity-60'}"
@@ -310,6 +320,8 @@
                   onmouseleave={hideTooltip}
                   onfocus={(e) => showTooltip(e, connectionLabel(conn))}
                   onblur={hideTooltip}
+                  oncontextmenu={(e) => openContextMenu(e, conn)}
+                  onkeydown={(e) => handleConnectionKeydown(e, conn)}
                 >
                   <IconStorage
                     class="text-primary size-3.5 shrink-0 {activeId === conn.id
