@@ -46,13 +46,11 @@ test.describe('OPA admin gating for bookmarks', () => {
     await page.getByRole('button', { name: 'Add Bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
-    const pinEveryone = page.getByRole('checkbox', { name: /pin bookmark for everyone/i });
-    await expect(pinEveryone).toBeDisabled();
-
-    // The admin-only hint is shown to regular users.
-    await expect(
-      page.getByText('Only administrators can pin bookmarks for everyone')
-    ).toBeVisible();
+    // The "pin for everyone" section is not shown to regular users.
+    await expect(page.getByRole('checkbox', { name: /pin bookmark for everyone/i })).toHaveCount(0);
+    await expect(page.getByText('Only administrators can pin bookmarks for everyone')).toHaveCount(
+      0
+    );
   });
 
   test('OPA request metrics are exposed on /metrics', async ({ page }, testInfo) => {

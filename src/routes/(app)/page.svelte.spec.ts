@@ -80,7 +80,7 @@ describe('/(app)/+page.svelte', () => {
     await expect.element(page.getByText('Browse catalogs and query')).toBeInTheDocument();
   });
 
-  it('should disable pin-for-everyone in the modal for non-admins', async () => {
+  it('should hide pin-for-everyone in the modal for non-admins', async () => {
     render(Page, {
       params: {},
       data: {
@@ -97,7 +97,7 @@ describe('/(app)/+page.svelte', () => {
 
     await expect
       .element(page.getByRole('checkbox', { name: /pin bookmark for everyone/i }))
-      .toBeDisabled();
+      .not.toBeInTheDocument();
   });
 
   it('should enable pin-for-everyone in the modal for admins', async () => {
