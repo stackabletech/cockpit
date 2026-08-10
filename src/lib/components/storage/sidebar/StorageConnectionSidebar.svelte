@@ -3,7 +3,7 @@
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
   import IconEdit from 'virtual:icons/material-symbols/edit';
   import IconClose from 'virtual:icons/material-symbols/close';
-  import Tooltip from '$lib/components/Tooltip.svelte';
+  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
   import { resolve } from '$app/paths';
@@ -54,22 +54,6 @@
   });
 
   // ── Tooltip ──────────────────────────────────────────────────────────────
-  let tooltipText = $state<string | null>(null);
-  let tooltipX = $state(0);
-  let tooltipY = $state(0);
-
-  function showTooltip(e: MouseEvent | FocusEvent, text: string) {
-    const el = e.currentTarget as HTMLElement;
-    const rect = el.getBoundingClientRect();
-    tooltipX = rect.right;
-    tooltipY = rect.top + rect.height / 2;
-    tooltipText = text;
-  }
-
-  function hideTooltip() {
-    tooltipText = null;
-  }
-
   function connectionLabel(conn: ConnectionMetadata): string {
     return conn.name || conn.endpoint || 'S3';
   }
@@ -273,32 +257,10 @@
         <li class="group relative">
           <div class="relative z-150 w-full">
             {#if onselect}
-              <button
-                type="button"
-                onclick={() => onselect(conn)}
-                class="
-                  hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
-                  pr-7 text-sm
-                  {activeId === conn.id
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-base-content'}
-                "
-                onmouseenter={(e) => showTooltip(e, connectionLabel(conn))}
-                onmouseleave={hideTooltip}
-                onfocus={(e) => showTooltip(e, connectionLabel(conn))}
-                onblur={hideTooltip}
-              >
-                <IconStorage
-                  class="text-primary size-3.5 shrink-0 {activeId === conn.id ? '' : 'opacity-60'}"
-                  aria-hidden="true"
-                />
-                <span class="truncate">{connectionLabel(conn)}</span>
-              </button>
-            {:else}
-              <form method="POST" action="?/use">
-                <input type="hidden" name="connectionId" value={conn.id} />
+              <TooltipTrigger text={connectionLabel(conn)} orientation="right">
                 <button
-                  type="submit"
+                  type="button"
+                  onclick={() => onselect(conn)}
                   class="
                     hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
                     pr-7 text-sm
@@ -306,10 +268,6 @@
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-base-content'}
                   "
-                  onmouseenter={(e) => showTooltip(e, connectionLabel(conn))}
-                  onmouseleave={hideTooltip}
-                  onfocus={(e) => showTooltip(e, connectionLabel(conn))}
-                  onblur={hideTooltip}
                 >
                   <IconStorage
                     class="text-primary size-3.5 shrink-0 {activeId === conn.id
@@ -319,23 +277,48 @@
                   />
                   <span class="truncate">{connectionLabel(conn)}</span>
                 </button>
+              </TooltipTrigger>
+            {:else}
+              <form method="POST" action="?/use">
+                <input type="hidden" name="connectionId" value={conn.id} />
+                <TooltipTrigger text={connectionLabel(conn)} orientation="right">
+                  <button
+                    type="submit"
+                    class="
+                      hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
+                      pr-7 text-sm
+                      {activeId === conn.id
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-base-content'}
+                    "
+                  >
+                    <IconStorage
+                      class="text-primary size-3.5 shrink-0 {activeId === conn.id
+                        ? ''
+                        : 'opacity-60'}"
+                      aria-hidden="true"
+                    />
+                    <span class="truncate">{connectionLabel(conn)}</span>
+                  </button>
+                </TooltipTrigger>
               </form>
             {/if}
           </div>
 
-          <button
-            type="button"
-            onclick={(e) => openContextMenu(e, conn)}
-            class="
-              btn btn-ghost btn-xs absolute top-1/2 right-1 z-150 -translate-y-1/2
-              p-0 opacity-0 transition-opacity
-              group-hover:opacity-100 focus:opacity-100
-            "
-            aria-label={m.storage_more_options()}
-            title={m.storage_more_options()}
-          >
-            <IconMoreHoriz class="size-3.5" aria-hidden="true" />
-          </button>
+          <TooltipTrigger text={m.storage_more_options()} orientation="right">
+            <button
+              type="button"
+              onclick={(e) => openContextMenu(e, conn)}
+              class="
+                btn btn-ghost btn-xs absolute top-1/2 right-1 z-150 -translate-y-1/2
+                p-0 opacity-0 transition-opacity
+                group-hover:opacity-100 focus:opacity-100
+              "
+              aria-label={m.storage_more_options()}
+            >
+              <IconMoreHoriz class="size-3.5" aria-hidden="true" />
+            </button>
+          </TooltipTrigger>
         </li>
       {/each}
     {/if}
@@ -352,5 +335,3 @@
 
   <ResizeHandle panel={resize} />
 </aside>
-
-<Tooltip text={tooltipText} x={tooltipX} y={tooltipY} orientation="right" />

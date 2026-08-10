@@ -10,6 +10,7 @@
     parseStorageDropKeys,
     canStorageDrop
   } from '$lib/storage/drag-handlers.js';
+  import * as m from '$lib/paraglide/messages.js';
 
   interface Props {
     folder: StorageObject;
@@ -112,13 +113,14 @@
   <td class="text-base-content/30 text-right">—</td>
   <td class="text-base-content/30">—</td>
   <td class="w-10 py-0 pr-2 text-right">
-    <button
-      class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100"
-      title="Actions"
-      aria-label="Actions for {keyToName(folder.key)}"
-      onclick={(e) => storage.openContextMenu(e, folder.key)}
-    >
-      <IconMoreHoriz class="size-4" aria-hidden="true" />
-    </button>
+    <div class="tooltip tooltip-left" data-tip={m.storage_context_menu_actions()}>
+      <button
+        class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100"
+        aria-label={m.storage_action_actions_for({ name: keyToName(folder.key) })}
+        onclick={(e) => storage.openContextMenu(e, folder.key)}
+      >
+        <IconMoreHoriz class="size-4" aria-hidden="true" />
+      </button>
+    </div>
   </td>
 </tr>

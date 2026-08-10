@@ -1,5 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
+  "action_close": "Close",
+  "action_dismiss": "Dismiss",
   "dashboard_welcome": "Welcome back",
   "dashboard_subtitle": "Stackable Unified Data Platform overview",
   "dashboard_services": "Services",
@@ -251,6 +253,7 @@
   "storage_paste_plural": "Paste {count} items",
   "storage_selected": "{count} selected",
   "storage_action_preview": "Preview",
+  "storage_action_actions_for": "Actions for {name}",
   "storage_action_refresh": "Refresh",
   "storage_action_preview_no_selection": "No file selected for preview.",
   "storage_action_download_no_selection": "No file selected for download.",

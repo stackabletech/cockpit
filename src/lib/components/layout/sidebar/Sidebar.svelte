@@ -7,6 +7,7 @@
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
   import type { NavItem } from '$lib/types/navigation.js';
   import { getNavSections } from './nav-items.js';
+  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
 
   let {
     collapsed = $bindable(false),
@@ -101,32 +102,34 @@
           {@const active = isActive(item.href)}
           <li>
             <!-- eslint-disable @typescript-eslint/no-explicit-any, svelte/no-navigation-without-resolve -->
-            <a
-              href={resolveRoute(item.href as any)}
-              onclick={(e) => handleNavClick(e, item)}
-              onkeydown={(e) => handleNavKeydown(e, item)}
-              title={collapsed ? item.label : undefined}
-              class="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
-                {active
-                ? 'bg-primary/10 text-primary'
-                : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
-                {item.disabled ? 'opacity-40' : ''}
-                {collapsed ? 'justify-center' : ''}"
-              aria-current={active ? 'page' : undefined}
-              aria-disabled={item.disabled ? 'true' : undefined}
-            >
-              {@render navIcon(item.icon)}
-              {#if !collapsed}
-                <span class="truncate">{item.label}</span>
-                {#if item.badge}
-                  <span
-                    class="bg-base-300 text-base-content/60 ml-auto rounded-md px-1.5 py-0.5 text-xs font-semibold tracking-wider uppercase"
-                  >
-                    {item.badge}
-                  </span>
+            <TooltipTrigger text={collapsed ? item.label : null} orientation="right">
+              <a
+                href={resolveRoute(item.href as any)}
+                onclick={(e) => handleNavClick(e, item)}
+                onkeydown={(e) => handleNavKeydown(e, item)}
+                aria-label={collapsed ? item.label : undefined}
+                class="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
+                  {active
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
+                  {item.disabled ? 'opacity-40' : ''}
+                  {collapsed ? 'justify-center' : ''}"
+                aria-current={active ? 'page' : undefined}
+                aria-disabled={item.disabled ? 'true' : undefined}
+              >
+                {@render navIcon(item.icon)}
+                {#if !collapsed}
+                  <span class="truncate">{item.label}</span>
+                  {#if item.badge}
+                    <span
+                      class="bg-base-300 text-base-content/60 ml-auto rounded-md px-1.5 py-0.5 text-xs font-semibold tracking-wider uppercase"
+                    >
+                      {item.badge}
+                    </span>
+                  {/if}
                 {/if}
-              {/if}
-            </a>
+              </a>
+            </TooltipTrigger>
             <!-- eslint-enable @typescript-eslint/no-explicit-any, svelte/no-navigation-without-resolve -->
           </li>
         {/each}
@@ -136,19 +139,21 @@
 
   <!-- Footer: collapse toggle (desktop only) -->
   <div class="border-base-300 hidden shrink-0 border-t p-3 lg:block">
-    <button
-      onclick={() => (collapsed = !collapsed)}
-      class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3 py-2
-        text-sm font-medium transition-colors hover:cursor-pointer
-        {collapsed ? 'justify-center' : ''}"
-      aria-label={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
-    >
-      {#if collapsed}
-        <IconChevronRight class="h-4 w-4 shrink-0" aria-hidden="true" />
-      {:else}
-        <IconChevronLeft class="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span>{m.sidebar_collapse_label()}</span>
-      {/if}
-    </button>
+    <TooltipTrigger text={collapsed ? m.sidebar_expand() : null} orientation="right">
+      <button
+        onclick={() => (collapsed = !collapsed)}
+        class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3 py-2
+          text-sm font-medium transition-colors hover:cursor-pointer
+          {collapsed ? 'justify-center' : ''}"
+        aria-label={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
+      >
+        {#if collapsed}
+          <IconChevronRight class="h-4 w-4 shrink-0" aria-hidden="true" />
+        {:else}
+          <IconChevronLeft class="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{m.sidebar_collapse_label()}</span>
+        {/if}
+      </button>
+    </TooltipTrigger>
   </div>
 </aside>

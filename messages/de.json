@@ -1,5 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
+  "action_close": "Schließen",
+  "action_dismiss": "Schließen",
   "dashboard_welcome": "Willkommen zurück",
   "dashboard_subtitle": "Stackable Unified Data Platform – Übersicht",
   "dashboard_services": "Dienste",
@@ -251,6 +253,7 @@
   "storage_paste_plural": "{count} Elemente einfügen",
   "storage_selected": "{count} ausgewählt",
   "storage_action_preview": "Vorschau",
+  "storage_action_actions_for": "Aktionen für {name}",
   "storage_action_refresh": "Aktualisieren",
   "storage_action_preview_no_selection": "Keine Datei für die Vorschau ausgewählt.",
   "storage_action_download_no_selection": "Keine Datei für den Download ausgewählt.",

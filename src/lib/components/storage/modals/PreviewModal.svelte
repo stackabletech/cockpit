@@ -841,30 +841,36 @@
       </div>
 
       {#if maximized}
-        <button
-          class="btn btn-ghost btn-sm btn-square"
-          onclick={toggleMaximized}
-          aria-label={m.storage_preview_restore()}
-        >
-          <IconCloseFullscreen class="size-4" aria-hidden="true" />
-        </button>
+        <div class="tooltip tooltip-bottom" data-tip={m.storage_preview_restore()}>
+          <button
+            class="btn btn-ghost btn-sm btn-square"
+            onclick={toggleMaximized}
+            aria-label={m.storage_preview_restore()}
+          >
+            <IconCloseFullscreen class="size-4" aria-hidden="true" />
+          </button>
+        </div>
       {:else}
-        <button
-          class="btn btn-ghost btn-sm btn-square"
-          onclick={toggleMaximized}
-          aria-label={m.storage_preview_maximise()}
-        >
-          <IconOpenInFull class="size-4" aria-hidden="true" />
-        </button>
+        <div class="tooltip tooltip-bottom" data-tip={m.storage_preview_maximise()}>
+          <button
+            class="btn btn-ghost btn-sm btn-square"
+            onclick={toggleMaximized}
+            aria-label={m.storage_preview_maximise()}
+          >
+            <IconOpenInFull class="size-4" aria-hidden="true" />
+          </button>
+        </div>
       {/if}
 
-      <button
-        class="btn btn-ghost btn-sm btn-square"
-        onclick={handleCloseClick}
-        aria-label={m.storage_preview_close()}
-      >
-        <IconClose class="size-5" aria-hidden="true" />
-      </button>
+      <div class="tooltip tooltip-bottom" data-tip={m.storage_preview_close()}>
+        <button
+          class="btn btn-ghost btn-sm btn-square"
+          onclick={handleCloseClick}
+          aria-label={m.storage_preview_close()}
+        >
+          <IconClose class="size-5" aria-hidden="true" />
+        </button>
+      </div>
     </div>
 
     {#if preview.kind === 'parquet'}

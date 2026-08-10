@@ -756,8 +756,9 @@
                 type="button"
                 class="
                   btn join-item border-l-primary-content/20 btn-primary
-                  self-stretch border-l px-2
+                  tooltip tooltip-bottom z-150 self-stretch border-l px-2 before:z-200
                 "
+                data-tip={m.trino_run_mode_select()}
                 class:pointer-events-none={isActive}
                 aria-haspopup="true"
                 aria-label={m.trino_run_mode_select()}

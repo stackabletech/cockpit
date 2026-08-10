@@ -7,6 +7,7 @@
   import { getStorageState } from '$lib/storage/context.js';
   import { storageCutCopyEnabled } from '$lib/client/feature-flags.js';
   import { handleRowDragStart } from '$lib/storage/drag-handlers.js';
+  import * as m from '$lib/paraglide/messages.js';
 
   interface Props {
     file: StorageObject;
@@ -66,13 +67,14 @@
     ><TimestampDisplay date={file.lastModified} relative /></td
   >
   <td class="w-10 py-0 pr-2 text-right">
-    <button
-      class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100"
-      title="Actions"
-      aria-label="Actions for {keyToName(file.key)}"
-      onclick={(e) => storage.openContextMenu(e, file.key)}
-    >
-      <IconMoreHoriz class="size-4" aria-hidden="true" />
-    </button>
+    <div class="tooltip tooltip-left" data-tip={m.storage_context_menu_actions()}>
+      <button
+        class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100"
+        aria-label={m.storage_action_actions_for({ name: keyToName(file.key) })}
+        onclick={(e) => storage.openContextMenu(e, file.key)}
+      >
+        <IconMoreHoriz class="size-4" aria-hidden="true" />
+      </button>
+    </div>
   </td>
 </tr>

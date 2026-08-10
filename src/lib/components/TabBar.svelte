@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
+  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
 
   interface TabItem {
     id: string;
@@ -168,49 +169,53 @@
       </button>
 
       {#if showClose && item.closable !== false}
-        <button
-          type="button"
-          class="btn btn-ghost btn-xs mr-1 h-5 min-h-0 w-5 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100
-            {isActive ? 'opacity-60' : ''}"
-          tabindex={isActive ? 0 : -1}
-          aria-label={m.trino_tab_close({ name: item.label })}
-          onclick={() => onClose?.(item.id)}
-        >
-          <svg
-            class="h-3 w-3"
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
+        <TooltipTrigger text={m.trino_tab_close({ name: item.label })} orientation="down">
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs mr-1 h-5 min-h-0 w-5 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100
+              {isActive ? 'opacity-60' : ''}"
+            tabindex={isActive ? 0 : -1}
+            aria-label={m.trino_tab_close({ name: item.label })}
+            onclick={() => onClose?.(item.id)}
           >
-        </button>
+            <svg
+              class="h-3 w-3"
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
+            >
+          </button>
+        </TooltipTrigger>
       {/if}
     </div>
   {/each}
 
   {#if onAdd && showAdd}
-    <button
-      type="button"
-      class="btn btn-ghost btn-xs mb-0.5 h-7 min-h-0 px-2"
-      aria-label={m.trino_tab_new()}
-      onclick={() => {
-        onAdd!();
-        requestAnimationFrame(() => focusTab(activeId));
-      }}
-    >
-      <svg
-        class="h-4 w-4"
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg
+    <TooltipTrigger text={m.trino_tab_new()} orientation="down">
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs mb-0.5 h-7 min-h-0 px-2"
+        aria-label={m.trino_tab_new()}
+        onclick={() => {
+          onAdd!();
+          requestAnimationFrame(() => focusTab(activeId));
+        }}
       >
-    </button>
+        <svg
+          class="h-4 w-4"
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg
+        >
+      </button>
+    </TooltipTrigger>
   {/if}
 </div>

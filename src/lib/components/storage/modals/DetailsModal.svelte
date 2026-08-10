@@ -96,25 +96,31 @@
         </div>
       </div>
       <div class="flex shrink-0 items-center gap-1">
-        <button
-          class="btn btn-ghost btn-sm btn-square"
-          onclick={() => (maximized = !maximized)}
-          aria-label={maximized ? m.storage_details_restore() : m.storage_details_maximise()}
-          title={maximized ? m.storage_details_restore() : m.storage_details_maximise()}
+        <div
+          class="tooltip tooltip-bottom"
+          data-tip={maximized ? m.storage_details_restore() : m.storage_details_maximise()}
         >
-          {#if maximized}
-            <IconCloseFullscreen class="size-4" aria-hidden="true" />
-          {:else}
-            <IconOpenInFull class="size-4" aria-hidden="true" />
-          {/if}
-        </button>
-        <button
-          class="btn btn-ghost btn-sm btn-square"
-          onclick={() => (open = false)}
-          aria-label={m.storage_details_close()}
-        >
-          <IconClose class="size-4" aria-hidden="true" />
-        </button>
+          <button
+            class="btn btn-ghost btn-sm btn-square"
+            onclick={() => (maximized = !maximized)}
+            aria-label={maximized ? m.storage_details_restore() : m.storage_details_maximise()}
+          >
+            {#if maximized}
+              <IconCloseFullscreen class="size-4" aria-hidden="true" />
+            {:else}
+              <IconOpenInFull class="size-4" aria-hidden="true" />
+            {/if}
+          </button>
+        </div>
+        <div class="tooltip tooltip-bottom" data-tip={m.storage_details_close()}>
+          <button
+            class="btn btn-ghost btn-sm btn-square"
+            onclick={() => (open = false)}
+            aria-label={m.storage_details_close()}
+          >
+            <IconClose class="size-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </div>
 

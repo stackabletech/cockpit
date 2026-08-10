@@ -2,6 +2,7 @@
   import IconContentCopy from 'virtual:icons/material-symbols/content-copy';
   import IconCheck from 'virtual:icons/material-symbols/check';
   import Modal from '$lib/components/Modal.svelte';
+  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import type { SavedConnection } from '$lib/storage/connection-id-header.js';
 
@@ -53,20 +54,25 @@
         <table class="table-sm table">
           <tbody>
             {#snippet copyBtn(value: string, field: string)}
-              <button
-                type="button"
-                class="btn btn-ghost btn-xs btn-square"
-                aria-label={copiedField === field
-                  ? m.storage_connect_copied()
-                  : m.storage_connect_copy()}
-                onclick={() => copyField(value, field)}
+              <TooltipTrigger
+                text={copiedField === field ? m.storage_connect_copied() : m.storage_connect_copy()}
+                orientation="left"
               >
-                {#if copiedField === field}
-                  <IconCheck class="text-success h-4 w-4" />
-                {:else}
-                  <IconContentCopy class="h-4 w-4" />
-                {/if}
-              </button>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs btn-square"
+                  aria-label={copiedField === field
+                    ? m.storage_connect_copied()
+                    : m.storage_connect_copy()}
+                  onclick={() => copyField(value, field)}
+                >
+                  {#if copiedField === field}
+                    <IconCheck class="text-success h-4 w-4" />
+                  {:else}
+                    <IconContentCopy class="h-4 w-4" />
+                  {/if}
+                </button>
+              </TooltipTrigger>
             {/snippet}
             <tr>
               <th>{m.storage_connect_host()}</th>

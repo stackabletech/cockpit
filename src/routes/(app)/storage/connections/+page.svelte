@@ -124,14 +124,19 @@
               </td>
               <td class="text-base-content/60 text-xs uppercase">s3</td>
               <td>
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100"
-                  aria-label={m.storage_connections_options({ label: connectionLabel(conn) })}
-                  onclick={(e) => openContextMenu(e, conn)}
+                <div
+                  class="tooltip tooltip-left"
+                  data-tip={m.storage_connections_options({ label: connectionLabel(conn) })}
                 >
-                  <IconMoreHoriz class="size-4" aria-hidden="true" />
-                </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100"
+                    aria-label={m.storage_connections_options({ label: connectionLabel(conn) })}
+                    onclick={(e) => openContextMenu(e, conn)}
+                  >
+                    <IconMoreHoriz class="size-4" aria-hidden="true" />
+                  </button>
+                </div>
               </td>
             </tr>
           {/each}

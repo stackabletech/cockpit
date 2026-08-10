@@ -258,15 +258,17 @@
       <li class="menu-title p-0" role="none">
         <div class="menu-title flex items-center justify-between py-1 pr-0 pl-2">
           <span class="text-base-content/70 text-xs font-medium">{title}</span>
-          <button
-            type="button"
-            role="menuitem"
-            class="btn btn-ghost btn-xs"
-            aria-label="Close"
-            onclick={close}
-          >
-            <IconClose class="size-4" aria-hidden="true" />
-          </button>
+          <div class="tooltip tooltip-left" data-tip={m.action_close()}>
+            <button
+              type="button"
+              role="menuitem"
+              class="btn btn-ghost btn-xs"
+              aria-label={m.action_close()}
+              onclick={close}
+            >
+              <IconClose class="size-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </li>
     {/if}

@@ -25,6 +25,7 @@
   import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import OperationsButton from './OperationsButton.svelte';
   import ContextMenu from './ContextMenu.svelte';
+  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
   import type { ContextMenuAction } from '$lib/storage/types.js';
 
   const storage = getStorageState();
@@ -265,34 +266,38 @@
       motion-safe:transition-[width] motion-safe:duration-150 motion-safe:group-hover:delay-700
     "
   >
-    <button
-      class="
-          btn btn-ghost btn-xs group/pin z-60 size-5 p-0
-          {pinned ? 'hover:text-error' : 'hover:text-white'}
-        "
-      title={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
-      aria-label={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
-      onclick={() => {
-        if (pinned) {
-          storage.bookmarks.unpin(bucket, prefix);
-        } else {
-          storage.bookmarks.pin(bucket, prefix);
-        }
-      }}
+    <TooltipTrigger
+      text={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
+      orientation="down"
     >
-      <span class="relative inline-flex size-3.5">
-        <span
-          class="absolute inset-0 flex items-center justify-center transition-opacity duration-150 group-hover/pin:opacity-0"
-        >
-          <PinIcon class="size-3.5" aria-hidden="true" />
+      <button
+        class="
+            btn btn-ghost btn-xs group/pin z-60 size-5 p-0
+            {pinned ? 'hover:text-error' : 'hover:text-white'}
+          "
+        aria-label={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
+        onclick={() => {
+          if (pinned) {
+            storage.bookmarks.unpin(bucket, prefix);
+          } else {
+            storage.bookmarks.pin(bucket, prefix);
+          }
+        }}
+      >
+        <span class="relative inline-flex size-3.5">
+          <span
+            class="absolute inset-0 flex items-center justify-center transition-opacity duration-150 group-hover/pin:opacity-0"
+          >
+            <PinIcon class="size-3.5" aria-hidden="true" />
+          </span>
+          <span
+            class="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover/pin:opacity-100"
+          >
+            <UnpinIcon class="size-3.5" aria-hidden="true" />
+          </span>
         </span>
-        <span
-          class="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover/pin:opacity-100"
-        >
-          <UnpinIcon class="size-3.5" aria-hidden="true" />
-        </span>
-      </span>
-    </button>
+      </button>
+    </TooltipTrigger>
   </span>
 {/snippet}
 
@@ -376,18 +381,20 @@
           collapsedDropdownOpen = false;
         }}
       >
-        <button
-          tabindex="0"
-          class="
-            hover:bg-base-200 hover:text-base-content flex items-center rounded-sm px-1.5
-            py-0.5 transition-colors hover:cursor-pointer
-            focus-visible:outline
-          "
-          aria-label={m.storage_breadcrumb_more()}
-          aria-haspopup="listbox"
-        >
-          <IconMoreHoriz class="size-4" aria-hidden="true" />
-        </button>
+        <div class="tooltip tooltip-bottom" data-tip={m.storage_breadcrumb_more()}>
+          <button
+            tabindex="0"
+            class="
+              hover:bg-base-200 hover:text-base-content flex items-center rounded-sm px-1.5
+              py-0.5 transition-colors hover:cursor-pointer
+              focus-visible:outline
+            "
+            aria-label={m.storage_breadcrumb_more()}
+            aria-haspopup="listbox"
+          >
+            <IconMoreHoriz class="size-4" aria-hidden="true" />
+          </button>
+        </div>
         <ul
           tabindex="0"
           role="listbox"
