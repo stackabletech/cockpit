@@ -12,6 +12,11 @@ const getRequestEvent = appServer?.getRequestEvent ?? (() => undefined as unknow
 
 const usernameClaim = env.STACKABLE_COCKPIT_OIDC_USERNAME_CLAIM ?? 'preferred_username';
 
+// Cockpit's session lifetime (seconds). Per iframe-spike §4.6 this should be the SHORTEST clock in
+// the platform, so expiry surfaces at the top level (where the IdP can render) before an embedded
+// product's in-frame session lapses. Defaults to 7 days; override to tune the invariant.
+const sessionMaxAge = Number(env.STACKABLE_COCKPIT_SESSION_MAX_AGE_SECONDS) || 60 * 60 * 24 * 7;
+
 // OIDC is enabled only when all required OIDC env vars are present.
 export const oidcEnabled = !!(
   env.STACKABLE_COCKPIT_OIDC_DISCOVERY_URL &&
@@ -23,7 +28,9 @@ export const auth = betterAuth({
   secret: env.STACKABLE_COCKPIT_SESSION_SECRET,
   baseURL: env.STACKABLE_COCKPIT_BASE_URL,
   session: {
-    cookieCache: { enabled: true, maxAge: 5 * 60 }
+    expiresIn: sessionMaxAge,
+    updateAge: sessionMaxAge,
+    cookieCache: { enabled: true, maxAge: Math.min(5 * 60, sessionMaxAge) }
   },
   user: {
     additionalFields: {

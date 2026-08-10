@@ -1,0 +1,28 @@
+# Expose the host's Vite dev server (npm run dev, 0.0.0.0:5173) behind the in-cluster
+# ingress as https://cockpit.sdp.test. A selector-less Service + manual Endpoints points
+# at the kind docker-network gateway (172.19.0.1 = the host from inside the cluster).
+#
+# If `docker network inspect kind` shows a different gateway, update the Endpoints IP.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cockpit-devserver
+  namespace: default
+spec:
+  ports:
+    - name: http
+      port: 5173
+      targetPort: 5173
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: cockpit-devserver
+  namespace: default
+subsets:
+  - addresses:
+      - ip: 172.19.0.1
+    ports:
+      - name: http
+        port: 5173

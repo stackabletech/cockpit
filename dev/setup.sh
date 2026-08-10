@@ -5,13 +5,23 @@ set -euo pipefail
 
 SKIP_TRINO=false
 SKIP_GARAGE=false
+INTEGRATED=false
 for arg in "$@"; do
   case "$arg" in
     --skip-trino) SKIP_TRINO=true ;;
     --skip-garage) SKIP_GARAGE=true ;;
-    *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino] [--skip-garage]"; exit 1 ;;
+    --integrated) INTEGRATED=true ;;
+    *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino] [--skip-garage] [--integrated]"; exit 1 ;;
   esac
 done
+
+# --integrated layers the brokered experience (Dex + ingress + TLS, see dev/integrated) on top of
+# the baseline. It repoints Trino, so it is incompatible with --skip-trino and needs a cluster
+# created from dev/integrated/kind-config.yaml (pinned apiserver + 80/443 mappings).
+if [[ "$INTEGRATED" == true && "$SKIP_TRINO" == true ]]; then
+  echo "ERROR: --integrated repoints Trino and cannot be combined with --skip-trino."
+  exit 1
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -23,6 +33,9 @@ if [[ "$SKIP_TRINO" == true ]]; then
 fi
 if [[ "$SKIP_GARAGE" == true ]]; then
   echo "(Garage deployment skipped via --skip-garage)"
+fi
+if [[ "$INTEGRATED" == true ]]; then
+  echo "(Integrated mode: Dex broker + ingress + TLS via dev/integrated/up.sh after the baseline)"
 fi
 echo ""
 
@@ -326,6 +339,16 @@ if [[ "$SKIP_TRINO" == false ]]; then
   kubectl rollout status statefulset/trino-coordinator-default --timeout=300s
 
   echo "Trino endpoint: https://${NODE_IP}:${TRINO_PORT}"
+fi
+
+# ------------------------------------------------------------------
+# 11. Integrated bring-up (Dex broker + ingress + TLS + repoint Trino/Cockpit)
+# ------------------------------------------------------------------
+if [[ "$INTEGRATED" == true ]]; then
+  echo ""
+  echo "=== Integrated mode: running dev/integrated/up.sh ==="
+  bash "$SCRIPT_DIR/integrated/up.sh"
+  exit 0
 fi
 
 # ------------------------------------------------------------------

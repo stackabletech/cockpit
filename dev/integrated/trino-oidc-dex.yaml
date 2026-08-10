@@ -1,0 +1,47 @@
+# Integrated mode: repoint Trino's OIDC AuthenticationClass from Keycloak-direct to the
+# Dex broker. The clientCredentialsSecret (`trino-oidc-client`: clientId=trino,
+# clientSecret=trino-oidc-dev) already matches Dex's `trino` static client, so only the
+# issuer coordinates + TLS trust change here.
+#
+# The Stackable operator refuses unverified TLS to an OIDC provider, so Trino must verify
+# Dex's ingress cert against a CA. `sdp-oidc-ca` is an autoTls SecretClass whose CA is the
+# PoC CA that signed the ingress cert (imported into secret `sdp-oidc-ca-keypair` by the
+# setup script). We only use its CA cert for verification, not to issue certs.
+#
+# Overwrites the `trino-oidc` AuthenticationClass created by dev/setup.sh.
+---
+apiVersion: secrets.stackable.tech/v1alpha1
+kind: SecretClass
+metadata:
+  name: sdp-oidc-ca
+spec:
+  backend:
+    autoTls:
+      ca:
+        autoGenerate: false
+        secret:
+          name: sdp-oidc-ca-keypair
+          namespace: default
+---
+apiVersion: authentication.stackable.tech/v1alpha1
+kind: AuthenticationClass
+metadata:
+  name: trino-oidc
+spec:
+  provider:
+    oidc:
+      hostname: dex.sdp.test
+      port: 443
+      # Empty (not "/") so Trino's computed issuer is exactly https://dex.sdp.test with no
+      # trailing slash — Dex advertises the issuer without one, and Trino requires an exact match.
+      rootPath: ''
+      scopes:
+        - openid
+        - profile
+        - email
+      principalClaim: preferred_username
+      tls:
+        verification:
+          server:
+            caCert:
+              secretClass: sdp-oidc-ca

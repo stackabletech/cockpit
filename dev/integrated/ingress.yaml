@@ -1,0 +1,108 @@
+# Ingress routing + TLS termination for the integrated PoC.
+# All hosts share the wildcard secret `sdp-wildcard-tls`. TLS is terminated here;
+# Trino is re-encrypted (it speaks HTTPS with its own operator cert).
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: idp-keycloak
+  namespace: default
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [idp.corp.test]
+      secretName: sdp-wildcard-tls
+  rules:
+    - host: idp.corp.test
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dex
+  namespace: default
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [dex.sdp.test]
+      secretName: sdp-wildcard-tls
+  rules:
+    - host: dex.sdp.test
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dex
+                port:
+                  number: 5556
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: trino
+  namespace: default
+  annotations:
+    # Route through the chrome proxy (http), which injects the in-frame script and re-encrypts
+    # to the Trino coordinator's HTTPS. Larger proxy buffers for Trino's OAuth2 cookie headers.
+    nginx.ingress.kubernetes.io/proxy-buffer-size: '32k'
+    nginx.ingress.kubernetes.io/proxy-buffers-number: '4'
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [trino.sdp.test]
+      secretName: sdp-wildcard-tls
+  rules:
+    - host: trino.sdp.test
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: trino-chrome
+                port:
+                  number: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cockpit
+  namespace: default
+  annotations:
+    # Vite dev server (on the host, reached via the cockpit-devserver Endpoints). It serves
+    # HTTPS in integrated mode (so SvelteKit sees the request as https and better-auth's origin
+    # check against baseURL passes) -> re-encrypt. Long timeouts keep the HMR websocket open.
+    nginx.ingress.kubernetes.io/backend-protocol: 'HTTPS'
+    nginx.ingress.kubernetes.io/proxy-ssl-verify: 'off'
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '3600'
+    # The OIDC callback response carries several large Set-Cookie headers (better-auth session
+    # + OAuth state/PKCE); default nginx proxy header buffers overflow -> 502. Enlarge them.
+    nginx.ingress.kubernetes.io/proxy-buffer-size: '32k'
+    nginx.ingress.kubernetes.io/proxy-buffers-number: '4'
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [cockpit.sdp.test]
+      secretName: sdp-wildcard-tls
+  rules:
+    - host: cockpit.sdp.test
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cockpit-devserver
+                port:
+                  number: 5173

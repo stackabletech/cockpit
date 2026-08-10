@@ -1,0 +1,29 @@
+# kind cluster config for the integrated-Cockpit PoC (iframe-spike Layer 1).
+#
+# Differences from a default kind cluster:
+#   - apiServerPort pinned to 6443 so the host-side apiserver port is stable and
+#     can be allow-listed in the nono sandbox (open_port). A random port breaks
+#     kubectl under the sandbox.
+#   - control-plane labelled ingress-ready and 80/443 mapped to the host so an
+#     ingress controller (ingress-nginx) can terminate TLS for the *.sdp.test /
+#     *.corp.test hostnames the browser hits.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  apiServerAddress: '127.0.0.1'
+  apiServerPort: 6443
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP

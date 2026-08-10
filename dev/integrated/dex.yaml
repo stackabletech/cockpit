@@ -1,0 +1,98 @@
+# Dex OIDC broker for the integrated PoC.
+#   issuer https://dex.sdp.test (TLS terminated at the ingress; Dex serves plain HTTP)
+#   federates to Keycloak (the stand-in customer IdP) at https://idp.corp.test
+#   staticClients: cockpit + trino (exact redirect URIs — Dex forbids wildcards, iframe-spike §4.3)
+#
+# PoC shortcuts (see dev/integrated/RESULTS.md): in-memory storage, insecureEnableGroups.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dex-config
+  namespace: default
+data:
+  config.yaml: |
+    # Trailing slash: the Stackable operator always renders Trino's OIDC issuer as
+    # https://dex.sdp.test/ (it normalises rootPath to "/"), and Trino requires the
+    # advertised issuer to match exactly.
+    issuer: https://dex.sdp.test/
+    storage:
+      type: memory
+    web:
+      http: 0.0.0.0:5556
+    oauth2:
+      skipApprovalScreen: true
+    enablePasswordDB: false
+    connectors:
+      - type: oidc
+        id: keycloak
+        name: Keycloak
+        config:
+          issuer: https://idp.corp.test/realms/stackable
+          clientID: dex
+          clientSecret: dex-oidc-dev
+          redirectURI: https://dex.sdp.test/callback
+          scopes:
+            - openid
+            - profile
+            - email
+          userNameKey: preferred_username
+          insecureEnableGroups: true
+          rootCAs:
+            - /etc/dex-ca/ca.crt
+    staticClients:
+      - id: cockpit
+        name: Cockpit
+        secret: cockpit-oidc-dev
+        redirectURIs:
+          - https://cockpit.sdp.test/api/auth/oauth2/callback/oidc
+      - id: trino
+        name: Trino
+        secret: trino-oidc-dev
+        redirectURIs:
+          - https://trino.sdp.test/oauth2/callback
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dex
+  namespace: default
+  labels: { app: dex }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: dex }
+  template:
+    metadata:
+      labels: { app: dex }
+    spec:
+      containers:
+        - name: dex
+          image: ghcr.io/dexidp/dex:v2.45.1
+          command: ['/usr/local/bin/dex', 'serve', '/etc/dex-config/config.yaml']
+          ports:
+            - containerPort: 5556
+          readinessProbe:
+            httpGet: { path: /healthz, port: 5556 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - { name: config, mountPath: /etc/dex-config, readOnly: true }
+            - { name: ca, mountPath: /etc/dex-ca, readOnly: true }
+      volumes:
+        - name: config
+          configMap: { name: dex-config }
+        - name: ca
+          configMap: { name: sdp-ca }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dex
+  namespace: default
+spec:
+  selector: { app: dex }
+  ports:
+    - name: http
+      port: 5556
+      targetPort: 5556
