@@ -378,9 +378,7 @@
                 ? 'text-base-content/40'
                 : 'text-base-content/50'}"
             >
-              {pinEveryoneDisabled
-                ? m.bookmark_pin_everyone_admin_hint()
-                : m.bookmark_pin_everyone_hint()}
+              {m.bookmark_pin_everyone_hint()}
             </p>
           </div>
 

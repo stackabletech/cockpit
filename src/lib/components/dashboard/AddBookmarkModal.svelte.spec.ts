@@ -28,10 +28,10 @@ const pinEveryoneCheckbox = () =>
   page.getByRole('checkbox', { name: /pin bookmark for everyone/i });
 
 describe('AddBookmarkModal', () => {
-  it('disables "pin for everyone" for non-admins', async () => {
+  it('does not show "pin for everyone" for non-admins', async () => {
     renderModal({ isAdmin: false });
 
-    await expect.element(pinEveryoneCheckbox()).toBeDisabled();
+    await expect.element(pinEveryoneCheckbox()).not.toBeInTheDocument();
   });
 
   it('enables "pin for everyone" for admins', async () => {
@@ -40,12 +40,12 @@ describe('AddBookmarkModal', () => {
     await expect.element(pinEveryoneCheckbox()).toBeEnabled();
   });
 
-  it('shows the admin-only hint to non-admins', async () => {
+  it('does not show the admin-only hint to non-admins', async () => {
     renderModal({ isAdmin: false });
 
     await expect
       .element(page.getByText('Only administrators can pin bookmarks for everyone'))
-      .toBeInTheDocument();
+      .not.toBeInTheDocument();
   });
 
   it('shows the general hint to admins', async () => {
