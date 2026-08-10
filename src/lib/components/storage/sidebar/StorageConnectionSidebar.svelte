@@ -272,10 +272,12 @@
                   class="
                     hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
                     pr-7 text-sm
-                    {activeId === conn.id
+                  {activeId === conn.id
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-base-content'}
-                  "
+                "
+                  oncontextmenu={(e) => openContextMenu(e, conn)}
+                  onkeydown={(e) => handleConnectionKeydown(e, conn)}
                 >
                   <IconStorage
                     class="text-primary size-3.5 shrink-0 {activeId === conn.id
@@ -299,6 +301,8 @@
                       ? 'bg-primary/10 text-primary font-medium'
                       : 'text-base-content'}
                     "
+                    oncontextmenu={(e) => openContextMenu(e, conn)}
+                    onkeydown={(e) => handleConnectionKeydown(e, conn)}
                   >
                     <IconStorage
                       class="text-primary size-3.5 shrink-0 {activeId === conn.id
