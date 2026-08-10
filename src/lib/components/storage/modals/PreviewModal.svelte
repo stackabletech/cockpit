@@ -605,7 +605,14 @@
 
     saving = true;
     try {
-      await storage.api.saveText({ bucket, key: objectKey, body: editorText });
+      await storage.api.saveText({
+        bucket,
+        key: objectKey,
+        body: editorText,
+        originalSize: preview.totalSize,
+        previewBytes: preview.previewBytes,
+        contentType: preview.contentType
+      });
 
       originalText = editorText;
       addToast('success', m.storage_editor_saved());
