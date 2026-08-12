@@ -122,9 +122,32 @@ kcadm() {
   kubectl exec "$POD" -- /opt/keycloak/bin/kcadm.sh "$@"
 }
 
+# The shared dex broker (airflow-kc stack, http://localhost:5556) uses this
+# client to reach the stackable realm as its "customer" OIDC provider. Create it
+# idempotently — the realm may already exist from a previous run.
+create_dex_client() {
+  if kcadm get clients -r stackable --fields clientId 2>/dev/null | grep -q '"dex"'; then
+    echo "Client 'dex' already exists, skipping."
+    return
+  fi
+  echo "Creating client 'dex' (for the shared dex SSO broker)..."
+  kcadm create clients \
+    -r stackable \
+    -s clientId=dex \
+    -s enabled=true \
+    -s protocol=openid-connect \
+    -s publicClient=false \
+    -s standardFlowEnabled=true \
+    -s directAccessGrantsEnabled=false \
+    -s secret=dex-secret \
+    -s 'redirectUris=["http://localhost:5556/callback"]' \
+    -s 'webOrigins=["*"]'
+}
+
 # Check if realm already exists
 if kcadm get realms/stackable --fields realm 2>/dev/null | grep -q '"stackable"'; then
   echo "Realm 'stackable' already exists, skipping Keycloak configuration."
+  create_dex_client
   # Still need to fetch the client secret
   CLIENT_UUID=$(kcadm get clients -r stackable --fields id,clientId \
     | grep -B1 '"stackable-cockpit"' | grep '"id"' | sed 's/.*: *"\(.*\)".*/\1/')
@@ -169,6 +192,8 @@ else
     -s 'redirectUris=["*"]' \
     -s 'webOrigins=["*"]'
 
+  create_dex_client
+
   create_user() {
     local username=$1 password=$2 first=$3 last=$4
     echo "Creating user '$username'..."
@@ -176,6 +201,7 @@ else
       -r stackable \
       -s username="$username" \
       -s email="$username@example.com" \
+      -s emailVerified=true \
       -s firstName="$first" \
       -s lastName="$last" \
       -s enabled=true
@@ -240,6 +266,26 @@ fi
 echo ""
 SESSION_SECRET=$(openssl rand -hex 32)
 
+# When the shared dex broker (airflow-kc stack, http://localhost:5556) is
+# reachable, use it as the cockpit's OIDC provider so the cockpit and Airflow
+# share one identity broker (SSO). Otherwise fall back to the kind-cluster
+# Keycloak deployed above.
+DEX_DISCOVERY_URL=""
+if curl -sf --max-time 2 "http://localhost:5556/.well-known/openid-configuration" >/dev/null 2>&1; then
+  DEX_DISCOVERY_URL="http://localhost:5556/.well-known/openid-configuration"
+fi
+
+if [ -n "$DEX_DISCOVERY_URL" ]; then
+  OIDC_DISCOVERY_URL="$DEX_DISCOVERY_URL"
+  OIDC_CLIENT_SECRET="lY7rCsg4Ae0Gj1L119CRt1sGw2Z2yEBT"
+  echo "Using shared dex broker (http://localhost:5556) as OIDC provider."
+  echo "  (airflow-kc docker-compose must be running; users live in the 'stackable' realm: alice/bob)"
+else
+  OIDC_DISCOVERY_URL="${KEYCLOAK_BASE_URL}/realms/stackable/.well-known/openid-configuration"
+  OIDC_CLIENT_SECRET="${SECRET}"
+  echo "Shared dex broker not reachable at http://localhost:5556; falling back to kind-cluster Keycloak."
+fi
+
 if [ -f "$ENV_FILE" ]; then
   echo "Backing up existing .env.development to .env.development.bak"
   cp "$ENV_FILE" "$ENV_FILE.bak"
@@ -262,9 +308,9 @@ fi
 
 if [[ "$SKIP_TRINO" == false ]]; then
   cat > "$ENV_FILE" <<EOF
-STACKABLE_COCKPIT_OIDC_DISCOVERY_URL=${KEYCLOAK_BASE_URL}/realms/stackable/.well-known/openid-configuration
+STACKABLE_COCKPIT_OIDC_DISCOVERY_URL=${OIDC_DISCOVERY_URL}
 STACKABLE_COCKPIT_OIDC_CLIENT_ID=stackable-cockpit
-STACKABLE_COCKPIT_OIDC_CLIENT_SECRET=${SECRET}
+STACKABLE_COCKPIT_OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
 STACKABLE_COCKPIT_SESSION_SECRET=${SESSION_SECRET}
 STACKABLE_COCKPIT_BASE_URL=http://localhost:5173
 STACKABLE_COCKPIT_TRINO_URL=${TRINO_BASE_URL}
@@ -286,9 +332,9 @@ PUBLIC_STACKABLE_COCKPIT_UPLOAD_CONCURRENCY=3
 EOF
 else
   cat > "$ENV_FILE" <<EOF
-STACKABLE_COCKPIT_OIDC_DISCOVERY_URL=${KEYCLOAK_BASE_URL}/realms/stackable/.well-known/openid-configuration
+STACKABLE_COCKPIT_OIDC_DISCOVERY_URL=${OIDC_DISCOVERY_URL}
 STACKABLE_COCKPIT_OIDC_CLIENT_ID=stackable-cockpit
-STACKABLE_COCKPIT_OIDC_CLIENT_SECRET=${SECRET}
+STACKABLE_COCKPIT_OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
 STACKABLE_COCKPIT_SESSION_SECRET=${SESSION_SECRET}
 STACKABLE_COCKPIT_BASE_URL=http://localhost:5173
 STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true
