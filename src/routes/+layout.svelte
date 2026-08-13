@@ -2,6 +2,7 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import { theme } from '$lib/theme.svelte';
+  import NavigationProgress from '$lib/components/layout/NavigationProgress.svelte';
 
   let { children } = $props();
 
@@ -18,5 +19,7 @@
     return () => observer.disconnect();
   });
 </script>
+
+<NavigationProgress />
 
 {@render children()}

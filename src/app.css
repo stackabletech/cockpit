@@ -60,3 +60,12 @@ progress.progress.progress-smooth::-moz-progress-bar {
 .preview-scroll::-webkit-scrollbar-thumb:hover {
   background-color: color-mix(in oklch, currentColor 50%, transparent);
 }
+
+@keyframes nav-progress-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
