@@ -3,7 +3,7 @@ import { createReadStream, createWriteStream } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
-import { Readable } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { finished } from 'node:stream/promises';
 import archiver from 'archiver';
 import { logger } from '$lib/server/logging';
@@ -35,6 +35,7 @@ export interface DownloadJob {
   status: DownloadJobStatus;
   createdAt: number;
   updatedAt: number;
+  totalBytes: number;
   progress: { completedCount: number; completedBytes: number; currentFileName?: string };
   files: DownloadFile[];
   error?: string;
@@ -96,21 +97,41 @@ function shouldArchive(keys: string[]): boolean {
   return keys.length > 3 || keys.some((key) => key.endsWith('/'));
 }
 
-async function streamToFile(source: ReadableStream, path: string): Promise<void> {
+async function streamToFile(
+  source: ReadableStream,
+  path: string,
+  onProgress?: (bytes: number) => void
+): Promise<void> {
   const output = createWriteStream(path);
-  await finished(Readable.fromWeb(source as import('node:stream/web').ReadableStream).pipe(output));
+  const progress = new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      onProgress?.(chunk.length);
+      callback(null, chunk);
+    }
+  });
+  await finished(
+    Readable.fromWeb(source as import('node:stream/web').ReadableStream)
+      .pipe(progress)
+      .pipe(output)
+  );
 }
 
 async function appendObject(
   provider: StorageProvider,
   key: string,
-  archive: archiver.Archiver
-): Promise<number> {
+  archive: archiver.Archiver,
+  onProgress: (bytes: number) => void
+): Promise<void> {
   const download = await provider.getObject(key);
   const nodeStream = Readable.fromWeb(download.stream as import('node:stream/web').ReadableStream);
-  archive.append(nodeStream, { name: key });
-  await finished(nodeStream);
-  return download.contentLength ?? 0;
+  const progress = new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      onProgress(chunk.length);
+      callback(null, chunk);
+    }
+  });
+  archive.append(nodeStream.pipe(progress), { name: key });
+  await finished(progress);
 }
 
 async function expandKeys(provider: StorageProvider, keys: string[]): Promise<ArchiveEntry[]> {
@@ -139,16 +160,16 @@ function safeStagingPath(root: string, key: string): string {
 async function appendEntry(
   provider: StorageProvider,
   entry: ArchiveEntry,
-  archive: archiver.Archiver
-): Promise<number> {
+  archive: archiver.Archiver,
+  onProgress: (bytes: number) => void
+): Promise<void> {
   if (entry.isDirectory) {
     archive.append(Buffer.alloc(0), {
       name: entry.key.endsWith('/') ? entry.key : `${entry.key}/`
     });
-    return 0;
+    return;
   }
-  await appendObject(provider, entry.key, archive);
-  return entry.size;
+  await appendObject(provider, entry.key, archive, onProgress);
 }
 
 async function writeArchive(
@@ -166,9 +187,11 @@ async function writeArchive(
   for (const entry of entries) {
     job.progress.currentFileName = fileName(entry.key);
     job.updatedAt = Date.now();
-    const size = await appendEntry(provider, entry, archive);
+    await appendEntry(provider, entry, archive, (bytes) => {
+      job.progress.completedBytes += bytes;
+      job.updatedAt = Date.now();
+    });
     if (!entry.isDirectory) job.progress.completedCount++;
-    job.progress.completedBytes += size;
   }
   await archive.finalize();
   await finished(output);
@@ -190,9 +213,11 @@ async function stageZipEntries(
     job.updatedAt = Date.now();
     await mkdir(dirname(path), { recursive: true });
     const download = await provider.getObject(entry.key);
-    await streamToFile(download.stream, path);
+    await streamToFile(download.stream, path, (bytes) => {
+      job.progress.completedBytes += bytes;
+      job.updatedAt = Date.now();
+    });
     job.progress.completedCount++;
-    job.progress.completedBytes += entry.size;
   }
 }
 
@@ -215,6 +240,7 @@ async function prepareArchive(job: JobInternal, provider: StorageProvider): Prom
   const entries = await expandKeys(provider, job.keys);
   const archivePath = join(directory, archiveFileName(archiveBaseName(job), job.format));
   const totalSize = entries.reduce((total, entry) => total + entry.size, 0);
+  job.totalBytes = totalSize;
 
   if (job.format !== 'zip' || totalSize <= downloadPartSizeBytes) {
     await writeArchive(job, provider, entries, archivePath);
@@ -265,6 +291,8 @@ async function prepareArchive(job: JobInternal, provider: StorageProvider): Prom
 
 async function prepareFiles(job: JobInternal, provider: StorageProvider): Promise<void> {
   const directory = jobDirectory(job.id);
+  const metadata = await Promise.all(job.keys.map((key) => provider.getMetadata(key)));
+  job.totalBytes = metadata.reduce((total, item) => total + item.size, 0);
   const pending = [...job.keys.entries()];
   const worker = async () => {
     while (pending.length > 0) {
@@ -274,11 +302,13 @@ async function prepareFiles(job: JobInternal, provider: StorageProvider): Promis
       job.progress.currentFileName = fileName(key);
       const download = await provider.getObject(key);
       const path = join(directory, `${index}-${fileName(key)}`);
-      await streamToFile(download.stream, path);
+      await streamToFile(download.stream, path, (bytes) => {
+        job.progress.completedBytes += bytes;
+        job.updatedAt = Date.now();
+      });
       const size = (await stat(path)).size;
       job.files.push({ filename: fileName(key), path, size, part: index + 1, ready: true });
       job.progress.completedCount++;
-      job.progress.completedBytes += size;
       job.updatedAt = Date.now();
     }
   };
@@ -356,6 +386,7 @@ export function createDownloadJob(
     status: 'queued',
     createdAt: now,
     updatedAt: now,
+    totalBytes: 0,
     progress: { completedCount: 0, completedBytes: 0 },
     files: [],
     config,

@@ -309,6 +309,7 @@
   "storage_download_error_server_error": "Beim Herunterladen der Datei ist ein Serverfehler aufgetreten. Bitte versuchen Sie es erneut.",
   "storage_download_error_unknown": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
   "storage_download_dismiss": "Schließen",
+  "storage_download_again": "Erneut herunterladen",
   "storage_delete_confirm_title_one": "„{name}“ löschen?",
   "storage_delete_confirm_title_many": "{count} Elemente löschen?",
   "storage_delete_confirm_message": "Diese Aktion kann nicht rückgängig gemacht werden.",

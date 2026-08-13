@@ -24,6 +24,14 @@ async function triggerDownload(jobId: string, part: number, filename: string): P
   setTimeout(() => anchor.remove(), 10_000);
 }
 
+export async function downloadAgain(api: StorageApi, jobId: string): Promise<void> {
+  const job = await api.pollDownloadJob(jobId);
+  if (job.status !== 'ready') throw new Error(job.error ?? 'Download is no longer available');
+  for (const file of job.files) {
+    if (file.ready) await triggerDownload(job.id, file.part, file.filename);
+  }
+}
+
 function loadJobs(): PersistedDownloadJob[] {
   try {
     const parsed = JSON.parse(

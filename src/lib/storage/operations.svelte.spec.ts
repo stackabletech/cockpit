@@ -126,6 +126,19 @@ describe('localStorage persistence', () => {
     expect(stored[0].completedAt).toBeGreaterThan(0);
   });
 
+  it('resumes an interrupted download when its server job is reacquired', () => {
+    const state = new OperationsState(makeMockApi(), makeOpts());
+    state.startDownloadOp('download-1', 'Download', 1, ['report.zip'], 100);
+    state.operations = state.operations.map((operation) =>
+      operation.id === 'download-1' ? { ...operation, status: 'interrupted' as const } : operation
+    );
+
+    state.resumeDownloadOp('download-1', 200);
+
+    expect(state.operations[0]).toMatchObject({ status: 'running', totalBytes: 200 });
+    expect(state.operations[0].completedAt).toBeUndefined();
+  });
+
   it('updateOpJobIds persists fileJobIds to localStorage', () => {
     const state = new OperationsState(makeMockApi(), makeOpts());
     state.startOp('op-1', 'Copy: file.txt', 'paste', 3);

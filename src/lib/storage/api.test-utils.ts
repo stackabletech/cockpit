@@ -69,6 +69,7 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
       return {
         id: 'download-job',
         status: 'ready' as const,
+        totalBytes: 0,
         progress: { completedCount: 0, completedBytes: 0 },
         files: []
       };
@@ -78,6 +79,7 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
       return {
         id: 'download-job',
         status: 'ready' as const,
+        totalBytes: 0,
         progress: { completedCount: 0, completedBytes: 0 },
         files: []
       };

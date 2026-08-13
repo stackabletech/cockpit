@@ -40,6 +40,7 @@ export interface JobStatus {
 export interface DownloadJobStatus {
   id: string;
   status: 'queued' | 'running' | 'ready' | 'error';
+  totalBytes: number;
   progress: {
     completedCount: number;
     completedBytes: number;

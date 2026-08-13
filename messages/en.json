@@ -309,6 +309,7 @@
   "storage_download_error_server_error": "A server error occurred while downloading the file. Please try again.",
   "storage_download_error_unknown": "An unexpected error occurred. Please try again.",
   "storage_download_dismiss": "Dismiss",
+  "storage_download_again": "Download again",
   "storage_delete_confirm_title_one": "Delete \"{name}\"?",
   "storage_delete_confirm_title_many": "Delete {count} items?",
   "storage_delete_confirm_message": "This action cannot be undone.",

@@ -474,6 +474,17 @@
                     </div>
                   {/if}
 
+                  {#if op.type === 'download' && op.status === 'done'}
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs text-primary mt-1 ml-5 h-6 px-1 text-[10px]"
+                      onclick={() => storage.downloadAgain(op.id)}
+                    >
+                      <IconDownload class="size-3" aria-hidden="true" />
+                      {m.storage_download_again()}
+                    </button>
+                  {/if}
+
                   <!-- Partial progress for interrupted / error -->
                   {#if (op.status === 'interrupted' || op.status === 'error') && op.totalBytes > 0}
                     <div class="mt-1.5 pl-5">

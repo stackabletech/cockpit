@@ -19,7 +19,7 @@ import {
   storagePasteEnabled,
   storageRenameEnabled
 } from '$lib/client/feature-flags.js';
-import { startDownload, reacquireDownloads } from '$lib/storage/download.js';
+import { startDownload, reacquireDownloads, downloadAgain } from '$lib/storage/download.js';
 import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import { StorageError, getActionErrorMessage } from './errors.js';
@@ -241,18 +241,29 @@ export class StorageState {
             m.storage_action_download(),
             job.progress.completedCount,
             [],
-            job.progress.completedBytes
+            job.totalBytes
           );
+        } else {
+          this.operations_.resumeDownloadOp(job.id, job.totalBytes);
         }
         this.operations_.updateOpProgress(
           job.id,
           job.progress.completedCount,
           job.progress.completedBytes,
-          job.progress.currentFileName
+          job.progress.currentFileName,
+          job.totalBytes
         );
       },
       (jobId) => this.operations_.finishOp(jobId, 'done')
     );
+  }
+
+  async downloadAgain(jobId: string): Promise<void> {
+    try {
+      await downloadAgain(this._api, jobId);
+    } catch {
+      addToast('error', m.storage_download_error_unknown());
+    }
   }
 
   /** Add a bucket to the in-memory list (no server-side persistence). */
@@ -488,7 +499,8 @@ export class StorageState {
                 job.id,
                 job.progress.completedCount,
                 job.progress.completedBytes,
-                job.progress.currentFileName
+                job.progress.currentFileName,
+                job.totalBytes
               );
             },
             (jobId) => this.operations_.finishOp(jobId, 'done')

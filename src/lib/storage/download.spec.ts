@@ -25,12 +25,14 @@ describe('downloadsNeedArchive', () => {
       createDownloadJob: async () => ({
         id: 'job-1',
         status: 'ready' as const,
+        totalBytes: 10,
         progress: { completedCount: 2, completedBytes: 10 },
         files: []
       }),
       pollDownloadJob: async () => ({
         id: 'job-1',
         status: 'ready' as const,
+        totalBytes: 10,
         progress: { completedCount: 2, completedBytes: 10 },
         files: []
       })

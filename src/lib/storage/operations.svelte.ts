@@ -113,13 +113,29 @@ export class OperationsState {
     id: string,
     completedCount: number,
     completedBytes: number,
-    currentFileName?: string
+    currentFileName?: string,
+    totalBytes?: number
   ): void {
     this.operations = this.operations.map((op) =>
       op.id === id && op.status !== 'cancelled'
-        ? { ...op, completedCount, completedBytes, currentFileName }
+        ? {
+            ...op,
+            completedCount,
+            completedBytes,
+            currentFileName,
+            totalBytes: totalBytes ?? op.totalBytes
+          }
         : op
     );
+  }
+
+  resumeDownloadOp(id: string, totalBytes: number): void {
+    this.operations = this.operations.map((op) =>
+      op.id === id && op.type === 'download' && op.status === 'interrupted'
+        ? { ...op, status: 'running' as const, completedAt: undefined, totalBytes }
+        : op
+    );
+    saveOperationsToStorage(this.operations);
   }
 
   updateOpJobIds(id: string, fileJobIds: string[]): void {
