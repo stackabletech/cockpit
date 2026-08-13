@@ -144,3 +144,31 @@ export const storageRenameEnabled =
  *  API endpoint (drag-and-drop) is active. Uses PUBLIC_ key. Disabled by default. */
 export const storageMoveEnabled =
   (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED ?? 'false') === 'true';
+
+// ── Storage browser: downloads ─────────────────────────────────────────────
+
+/** Archive format used when a storage download contains a directory or more
+ * than three files. Controlled by `STACKABLE_COCKPIT_DOWNLOAD_ARCHIVE_FORMAT`.
+ * Supported values are `zip` and `tar.gz`; the default is `zip`. */
+export const downloadArchiveFormat =
+  env.STACKABLE_COCKPIT_DOWNLOAD_ARCHIVE_FORMAT === 'tar.gz' ? 'tar.gz' : 'zip';
+
+/** Maximum size of each standard split-ZIP volume. ZIP downloads use the
+ * interoperable `.z01`, `.z02`, …, `.zip` layout. TAR.GZ remains a single
+ * archive because it has no Windows-compatible split-volume convention.
+ * Controlled by `STACKABLE_COCKPIT_DOWNLOAD_PART_SIZE_MB`. */
+export const downloadPartSizeBytes =
+  parseInt(env.STACKABLE_COCKPIT_DOWNLOAD_PART_SIZE_MB ?? '', 10) * 1024 * 1024 ||
+  256 * 1024 * 1024;
+
+/** Number of download preparation jobs allowed to read from object storage at
+ * once. This protects ordinary storage-browser requests from large downloads.
+ * Controlled by `STACKABLE_COCKPIT_DOWNLOAD_JOB_CONCURRENCY`. */
+export const downloadJobConcurrency =
+  parseInt(env.STACKABLE_COCKPIT_DOWNLOAD_JOB_CONCURRENCY ?? '', 10) || 2;
+
+/** Minutes that completed download artefacts remain available for browser
+ * resume and tab reacquisition. Controlled by
+ * `STACKABLE_COCKPIT_DOWNLOAD_RETENTION_MINUTES`. */
+export const downloadRetentionMs =
+  (parseInt(env.STACKABLE_COCKPIT_DOWNLOAD_RETENTION_MINUTES ?? '', 10) || 30) * 60 * 1000;

@@ -14,6 +14,7 @@
   import IconDeleteSweep from 'virtual:icons/material-symbols/delete-sweep-outline';
   import IconHistory from 'virtual:icons/material-symbols/history';
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
+  import IconDownload from 'virtual:icons/material-symbols/download';
 
   const storage = getStorageState();
 
@@ -21,7 +22,8 @@
     paste: IconContentPaste,
     move: IconDriveFileMove,
     rename: IconEdit,
-    delete: IconDelete
+    delete: IconDelete,
+    download: IconDownload
   };
 
   let dropdownOpen = $state(false);
@@ -222,7 +224,7 @@
   {/if}
   <div bind:this={dropdownEl} class="relative z-50 inline-flex">
     <!-- Trigger button -->
-    <div class="tooltip tooltip-top" data-tip={m.storage_operations_label()}>
+    <div class="tooltip tooltip-bottom" data-tip={m.storage_operations_label()}>
       <button
         class="
           btn btn-ghost btn-xs relative size-7 rounded-full p-0

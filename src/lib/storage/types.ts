@@ -122,7 +122,7 @@ export interface ClipboardData {
 
 export type OperationStatus = 'running' | 'done' | 'error' | 'cancelled' | 'interrupted';
 
-export type OperationType = 'paste' | 'move' | 'rename' | 'delete';
+export type OperationType = 'paste' | 'move' | 'rename' | 'delete' | 'download';
 
 export interface StorageOperation {
   id: string;

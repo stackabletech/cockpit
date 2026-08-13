@@ -137,6 +137,16 @@ export class OperationsState {
     saveOperationsToStorage(this.operations);
   }
 
+  startDownloadOp(
+    id: string,
+    label: string,
+    itemCount: number,
+    sourceNames: string[],
+    totalBytes: number
+  ): void {
+    this.startOp(id, label, 'download', itemCount, undefined, undefined, sourceNames, totalBytes);
+  }
+
   cancelOp(id: string): void {
     const controller = this._abortControllers.get(id);
     if (controller) {

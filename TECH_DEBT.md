@@ -70,11 +70,11 @@ All server-side query state (progress, rows, status) is held in a module-level `
 
 ---
 
-### Single-file download limit
+### Download artefacts are process-local
 
-**File:** `src/lib/storage/download.ts`, `src/lib/components/storage/FileExplorer.svelte`
+**File:** `src/lib/server/storage/download-jobs.ts`
 
-The Download action is intentionally restricted to a single file at a time. Multi-file or folder downloads (e.g. zipping selected items on the fly) are deferred to a future ticket. Until then, the Download button is disabled whenever more than one item is selected and is always disabled for directories.
+Prepared download parts and their job metadata are retained on the local filesystem for a configurable period (30 minutes by default). This permits retry and tab reacquisition on one application instance, but a restart or a request routed to another replica loses the artefact. The long-term fix is a shared job store and durable object storage for generated archives.
 
 ---
 

@@ -1,56 +1,116 @@
-/**
- * Client-side utility for downloading a single S3 object via the server proxy.
- *
- * Strategy:
- *  1. Fetch the object via `storageFetch` which injects the connection header
- *     and maps HTTP errors to `StorageError`.
- *  3. On success: create a Blob URL and trigger a native browser download via a
- *     programmatic anchor click.
- *
- * Note: The response body is buffered as a Blob before the download link is
- * constructed. This avoids exposing credentials in the URL (query-param approach)
- * while keeping the implementation simple. For very large files this will use
- * proportional browser memory — see TECH_DEBT.md for the long-term fix.
- */
+import type { DownloadJobStatus, StorageApi } from './api.js';
 
-import { createStorageFetch } from '$lib/storage/storage-fetch.js';
-import type { StorageErrorCode } from '$lib/storage/errors.js';
+const MAX_INDIVIDUAL_DOWNLOADS = 3;
+const POLL_INTERVAL_MS = 1_000;
+const DOWNLOADS_KEY = 'storage_download_jobs';
 
-export type DownloadErrorCode = StorageErrorCode;
+interface PersistedDownloadJob {
+  id: string;
+  connectionId: string;
+  startedAt: number;
+}
 
-/**
- * Download a single S3 object.
- *
- * Fetches the object with the connection ID header, buffers it as a Blob,
- * then triggers a native browser download via a programmatic anchor click.
- *
- * @throws {StorageError} when the server returns a non-2xx response.
- */
-export async function downloadObject(
-  bucket: string,
-  key: string,
-  connectionId: string
-): Promise<void> {
-  const fetch_ = createStorageFetch(() => connectionId);
-  const url = `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
-
-  const response = await fetch_(url);
-
-  const blob = await response.blob();
-  const blobUrl = URL.createObjectURL(blob);
-
-  // Derive filename from the key (last path segment).
-  const filename = key.split('/').filter(Boolean).pop() ?? key;
-
+async function triggerDownload(jobId: string, part: number, filename: string): Promise<void> {
   const anchor = document.createElement('a');
-  anchor.href = blobUrl;
+  anchor.href = `/api/storage/download/jobs/${encodeURIComponent(jobId)}/${part}`;
   anchor.download = filename;
   anchor.style.display = 'none';
   document.body.appendChild(anchor);
   anchor.click();
-  document.body.removeChild(anchor);
+  // Browsers can cancel concurrent native downloads when their initiating
+  // anchors are detached immediately. Keep each link alive briefly and stagger
+  // the clicks while the downloads themselves proceed in parallel.
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  setTimeout(() => anchor.remove(), 10_000);
+}
 
-  // Release the object URL after a short delay to allow the browser to initiate
-  // the download before the URL is revoked.
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+function loadJobs(): PersistedDownloadJob[] {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(DOWNLOADS_KEY) ?? '[]'
+    ) as PersistedDownloadJob[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistJobs(jobs: PersistedDownloadJob[]): void {
+  localStorage.setItem(DOWNLOADS_KEY, JSON.stringify(jobs));
+}
+
+function saveJob(job: PersistedDownloadJob): void {
+  persistJobs([...loadJobs().filter((existing) => existing.id !== job.id), job]);
+}
+
+function removeJob(id: string): void {
+  persistJobs(loadJobs().filter((job) => job.id !== id));
+}
+
+async function waitForDownload(
+  api: StorageApi,
+  jobId: string,
+  onUpdate: (job: DownloadJobStatus) => void,
+  onComplete: (jobId: string) => void
+): Promise<void> {
+  const downloaded = new Set<number>();
+  while (true) {
+    const job = await api.pollDownloadJob(jobId);
+    onUpdate(job);
+    for (const file of job.files) {
+      if (file.ready && !downloaded.has(file.part)) {
+        await triggerDownload(job.id, file.part, file.filename);
+        downloaded.add(file.part);
+      }
+    }
+    if (job.status === 'ready') {
+      removeJob(jobId);
+      onComplete(jobId);
+      return;
+    }
+    if (job.status === 'error') {
+      removeJob(jobId);
+      throw new Error(job.error ?? 'Download preparation failed');
+    }
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  }
+}
+
+export async function startDownload(
+  api: StorageApi,
+  bucket: string,
+  prefix: string,
+  keys: string[],
+  connectionId: string,
+  onCreated: (job: DownloadJobStatus) => void,
+  onUpdate: (job: DownloadJobStatus) => void,
+  onComplete: (jobId: string) => void
+): Promise<void> {
+  const job = await api.createDownloadJob({ bucket, prefix, keys });
+  saveJob({ id: job.id, connectionId, startedAt: Date.now() });
+  onCreated(job);
+  await waitForDownload(api, job.id, onUpdate, onComplete);
+}
+
+/** Reacquire download preparation that outlived the previous tab. */
+export async function reacquireDownloads(
+  api: StorageApi,
+  connectionId: string,
+  onUpdate: (job: DownloadJobStatus) => void,
+  onComplete: (jobId: string) => void
+): Promise<void> {
+  const jobs = loadJobs().filter((job) => job.connectionId === connectionId);
+  await Promise.all(
+    jobs.map(async (job) => {
+      try {
+        await waitForDownload(api, job.id, onUpdate, onComplete);
+      } catch {
+        removeJob(job.id);
+      }
+    })
+  );
+}
+
+export function downloadsNeedArchive(keys: string[]): boolean {
+  return keys.length > MAX_INDIVIDUAL_DOWNLOADS || keys.some((key) => key.endsWith('/'));
 }

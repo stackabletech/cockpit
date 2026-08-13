@@ -19,7 +19,7 @@ import {
   storagePasteEnabled,
   storageRenameEnabled
 } from '$lib/client/feature-flags.js';
-import { downloadObject } from '$lib/storage/download.js';
+import { startDownload, reacquireDownloads } from '$lib/storage/download.js';
 import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import { StorageError, getActionErrorMessage } from './errors.js';
@@ -44,6 +44,7 @@ export class StorageState {
   });
   buckets = $state<string[]>([]);
   connected = $state(false);
+  private downloadsReacquiredForConnection: string | null = null;
 
   // ── Derived views ──
   folders = $derived(this.objects.objects.filter((o: StorageObject) => o.isDirectory));
@@ -222,6 +223,36 @@ export class StorageState {
     this.loading = false;
     this.selectedKeys = new SvelteSet<string>();
     this.archive.reset();
+    this.reacquireDownloads();
+  }
+
+  private reacquireDownloads(): void {
+    const connectionId = connectionStore.activeConnectionId;
+    if (!connectionId || this.downloadsReacquiredForConnection === connectionId) return;
+    this.downloadsReacquiredForConnection = connectionId;
+    void reacquireDownloads(
+      this._api,
+      connectionId,
+      (job) => {
+        const operation = this.operations.find((op) => op.id === job.id);
+        if (!operation) {
+          this.operations_.startDownloadOp(
+            job.id,
+            m.storage_action_download(),
+            job.progress.completedCount,
+            [],
+            job.progress.completedBytes
+          );
+        }
+        this.operations_.updateOpProgress(
+          job.id,
+          job.progress.completedCount,
+          job.progress.completedBytes,
+          job.progress.currentFileName
+        );
+      },
+      (jobId) => this.operations_.finishOp(jobId, 'done')
+    );
   }
 
   /** Add a bucket to the in-memory list (no server-side persistence). */
@@ -418,7 +449,8 @@ export class StorageState {
         return;
 
       case 'download':
-        if (!key) {
+        const downloadItems = [...this.selectedFolders, ...this.selectedFiles];
+        if (downloadItems.length === 0) {
           addToast('warning', m.storage_action_download_no_selection());
           return;
         }
@@ -426,7 +458,7 @@ export class StorageState {
           void this.archive.downloadFromArchive(key);
           return;
         }
-        for (const f of effectiveSelectedFiles) {
+        for (const f of downloadItems) {
           this.bookmarks.recordFileVisit(this.bucket, f.key, f.size);
         }
         try {
@@ -435,8 +467,37 @@ export class StorageState {
             addToast('error', m.storage_download_error_unknown());
             return;
           }
-          await downloadObject(this.bucket, key, connectionId);
+          const keys = downloadItems.map((file) => file.key);
+          await startDownload(
+            this._api,
+            this.bucket,
+            this.prefix,
+            keys,
+            connectionId,
+            (job) => {
+              this.operations_.startDownloadOp(
+                job.id,
+                m.storage_action_download(),
+                keys.length,
+                downloadItems.map((file) => keyToName(file.key)),
+                downloadItems.reduce((total, file) => total + file.size, 0)
+              );
+            },
+            (job) => {
+              this.operations_.updateOpProgress(
+                job.id,
+                job.progress.completedCount,
+                job.progress.completedBytes,
+                job.progress.currentFileName
+              );
+            },
+            (jobId) => this.operations_.finishOp(jobId, 'done')
+          );
         } catch (err: unknown) {
+          const operation = this.operations.find(
+            (candidate) => candidate.type === 'download' && candidate.status === 'running'
+          );
+          if (operation) this.operations_.finishOp(operation.id, 'error');
           if (err instanceof StorageError) {
             addToast('error', getActionErrorMessage(err));
           } else {

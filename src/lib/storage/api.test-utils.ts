@@ -65,6 +65,24 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
       return { status: 'done' };
     },
 
+    async createDownloadJob() {
+      return {
+        id: 'download-job',
+        status: 'ready' as const,
+        progress: { completedCount: 0, completedBytes: 0 },
+        files: []
+      };
+    },
+
+    async pollDownloadJob() {
+      return {
+        id: 'download-job',
+        status: 'ready' as const,
+        progress: { completedCount: 0, completedBytes: 0 },
+        files: []
+      };
+    },
+
     async checkObjectExists() {
       return false;
     },

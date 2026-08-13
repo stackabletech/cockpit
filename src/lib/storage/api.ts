@@ -37,6 +37,18 @@ export interface JobStatus {
   };
 }
 
+export interface DownloadJobStatus {
+  id: string;
+  status: 'queued' | 'running' | 'ready' | 'error';
+  progress: {
+    completedCount: number;
+    completedBytes: number;
+    currentFileName?: string;
+  };
+  files: Array<{ filename: string; size: number; part: number; ready: boolean }>;
+  error?: string;
+}
+
 // ── Interface ──────────────────────────────────────────────────────────────
 
 export interface StorageApi {
@@ -83,6 +95,14 @@ export interface StorageApi {
   }): Promise<ArchiveListingResponse>;
 
   pollJob(jobId: string): Promise<JobStatus>;
+
+  createDownloadJob(params: {
+    bucket: string;
+    prefix: string;
+    keys: string[];
+  }): Promise<DownloadJobStatus>;
+
+  pollDownloadJob(jobId: string): Promise<DownloadJobStatus>;
 
   checkObjectExists(params: { bucket: string; key: string }): Promise<boolean>;
 
@@ -211,6 +231,21 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
     async pollJob(jobId) {
       const res = await fetch_(`/api/storage/copy/job/${jobId}`);
       return (await res.json()) as JobStatus;
+    },
+
+    async createDownloadJob({ bucket, prefix, keys }) {
+      const params = new URLSearchParams({ bucket, prefix });
+      const res = await fetch_(`/api/storage/download/jobs?${params}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keys })
+      });
+      return (await res.json()) as DownloadJobStatus;
+    },
+
+    async pollDownloadJob(jobId) {
+      const res = await fetch_(`/api/storage/download/jobs/${encodeURIComponent(jobId)}`);
+      return (await res.json()) as DownloadJobStatus;
     },
 
     async checkObjectExists({ bucket, key }) {

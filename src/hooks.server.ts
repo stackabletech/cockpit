@@ -95,7 +95,8 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
   const requiresConnectionHeader =
     event.route.id?.startsWith('/(app)/api/storage/') &&
     !event.route.id?.startsWith('/(app)/api/storage/connections') &&
-    !event.route.id?.startsWith('/(app)/api/storage/copy/job/');
+    !event.route.id?.startsWith('/(app)/api/storage/copy/job/') &&
+    !event.route.id?.startsWith('/(app)/api/storage/download/jobs/');
   if (event.locals.storageConfig === null && requiresConnectionHeader) {
     throw error(401, 'No storage connection configured');
   }

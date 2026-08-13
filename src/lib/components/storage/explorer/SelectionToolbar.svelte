@@ -13,9 +13,7 @@
   const canPreview = $derived(
     storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0
   );
-  const canDownload = $derived(
-    storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0
-  );
+  const canDownload = $derived(selectedCount > 0);
 </script>
 
 <tr class="border-primary/20 bg-primary/5 z-30 border-t">

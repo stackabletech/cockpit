@@ -75,13 +75,22 @@ describe('SelectionToolbar', () => {
     await expect.element(btn).not.toBeDisabled();
   });
 
-  it('should disable download when folder selected', async () => {
+  it('should enable download when folder selected', async () => {
     const objects = [makeFolder('dir/')];
     const state = createState(objects, ['dir/']);
     render(SelectionToolbarWrapper, { state });
 
     const btn = page.getByRole('button', { name: /Download/ });
-    await expect.element(btn).toBeDisabled();
+    await expect.element(btn).not.toBeDisabled();
+  });
+
+  it('should enable download when multiple files are selected', async () => {
+    const files = [makeFile('a.txt'), makeFile('b.txt')];
+    const state = createState(files, ['a.txt', 'b.txt']);
+    render(SelectionToolbarWrapper, { state });
+
+    const btn = page.getByRole('button', { name: /Download/ });
+    await expect.element(btn).not.toBeDisabled();
   });
 
   it('should enable delete button when items are selected', async () => {
