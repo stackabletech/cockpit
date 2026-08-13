@@ -10,6 +10,7 @@
   import { getStorageState } from '$lib/storage/context.js';
   import { storageMoveEnabled } from '$lib/client/feature-flags.js';
   import ContextMenu from './ContextMenu.svelte';
+  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
 
   interface Props {
     tabsState: TabsState;
@@ -335,39 +336,41 @@
           >
             <span class="truncate">{tab.label}</span>
             {#if tabsState.tabs.length > 1}
-              <span
-                class="text-base-content/40 hover:text-error shrink-0 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
-                title={m.storage_tab_close()}
-                role="button"
-                tabindex="-1"
-                aria-label={m.storage_tab_close()}
-                onclick={(e) => {
-                  e.stopPropagation();
-                  tabsState.closeTab(tab.id);
-                }}
-                onkeydown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
+              <TooltipTrigger text={m.storage_tab_close()} orientation="down">
+                <span
+                  class="text-base-content/40 hover:text-error shrink-0 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+                  role="button"
+                  tabindex="-1"
+                  aria-label={m.storage_tab_close()}
+                  onclick={(e) => {
                     e.stopPropagation();
                     tabsState.closeTab(tab.id);
-                  }
-                }}
-              >
-                <IconClose class="size-3" aria-hidden="true" />
-              </span>
+                  }}
+                  onkeydown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.stopPropagation();
+                      tabsState.closeTab(tab.id);
+                    }
+                  }}
+                >
+                  <IconClose class="size-3" aria-hidden="true" />
+                </span>
+              </TooltipTrigger>
             {/if}
           </button>
         {/if}
       {/each}
 
       <!-- Plus button — sits inline next to the last tab -->
-      <button
-        class="btn btn-ghost btn-xs z-20 ml-2 shrink-0"
-        title={m.storage_tab_new()}
-        aria-label={m.storage_tab_new()}
-        onclick={() => tabsState.addTab()}
-      >
-        <IconAdd class="size-3.5" aria-hidden="true" />
-      </button>
+      <TooltipTrigger text={m.storage_tab_new()} orientation="down">
+        <button
+          class="btn btn-ghost btn-xs z-20 ml-2 shrink-0"
+          aria-label={m.storage_tab_new()}
+          onclick={() => tabsState.addTab()}
+        >
+          <IconAdd class="size-3.5" aria-hidden="true" />
+        </button>
+      </TooltipTrigger>
     </div>
 
     <!-- Fade-out gradient indicating more tabs to the left -->

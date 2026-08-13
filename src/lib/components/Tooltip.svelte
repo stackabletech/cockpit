@@ -9,14 +9,19 @@
   }
   let { text, x, y, orientation = 'right' }: Props = $props();
 
+  // The critical behaviour (fixed positioning, no pointer interception, high
+  // z-index) is applied inline so the tooltip behaves identically even when
+  // utility classes are unavailable (e.g. in component tests that render
+  // without the global stylesheet).
   const contentStyle = $derived(
-    orientation === 'right'
-      ? `left:${x + GAP}px;top:${y}px;transform:translateY(-50%)`
-      : orientation === 'left'
-        ? `left:${x - GAP}px;top:${y}px;transform:translate(-100%,-50%)`
-        : orientation === 'up'
-          ? `left:${x}px;top:${y - GAP}px;transform:translate(-50%,-100%)`
-          : `left:${x}px;top:${y + GAP}px;transform:translate(-50%,0)`
+    `position:fixed;pointer-events:none;z-index:150;` +
+      (orientation === 'right'
+        ? `left:${x + GAP}px;top:${y}px;transform:translateY(-50%)`
+        : orientation === 'left'
+          ? `left:${x - GAP}px;top:${y}px;transform:translate(-100%,-50%)`
+          : orientation === 'up'
+            ? `left:${x}px;top:${y - GAP}px;transform:translate(-50%,-100%)`
+            : `left:${x}px;top:${y + GAP}px;transform:translate(-50%,0)`)
   );
 
   const arrowClasses = $derived(
@@ -31,7 +36,7 @@
 </script>
 
 {#if text}
-  <div class="pointer-events-none fixed z-150" role="tooltip" style={contentStyle}>
+  <div role="tooltip" style={contentStyle}>
     <div
       class="bg-neutral text-neutral-content relative rounded-md px-2 py-1 text-sm whitespace-nowrap shadow-lg"
     >

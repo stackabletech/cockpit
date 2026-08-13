@@ -120,13 +120,15 @@
         <button class="btn btn-sm btn-neutral shrink-0" onclick={handleRestore}>
           {m.storage_restore_tabs_action()}
         </button>
-        <button
-          class="btn btn-ghost btn-sm btn-square shrink-0"
-          aria-label={m.storage_download_dismiss()}
-          onclick={handleDismiss}
-        >
-          <IconClose class="size-4" aria-hidden="true" />
-        </button>
+        <div class="tooltip tooltip-bottom" data-tip={m.storage_download_dismiss()}>
+          <button
+            class="btn btn-ghost btn-sm btn-square shrink-0"
+            aria-label={m.storage_download_dismiss()}
+            onclick={handleDismiss}
+          >
+            <IconClose class="size-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
     {/if}
 

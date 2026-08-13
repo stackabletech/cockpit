@@ -11,7 +11,7 @@
   import IconGridView from 'virtual:icons/material-symbols/grid-view';
   import IconPowerOff from 'virtual:icons/material-symbols/power-settings-new';
   import Modal from '$lib/components/Modal.svelte';
-  import Tooltip from '$lib/components/Tooltip.svelte';
+  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import FloatingMenu from '../shared/FloatingMenu.svelte';
@@ -114,24 +114,6 @@
     }
   }
 
-  // ── Fixed tooltip (avoids overflow clipping that breaks DaisyUI tooltips) ──
-  // TODO: This is a temporary solution until it's fixed in daisyUI 5.6: https://github.com/saadeghi/daisyui/issues/3346#issuecomment-4544975800
-  let tooltipText = $state<string | null>(null);
-  let tooltipX = $state(0);
-  let tooltipY = $state(0);
-
-  function showTooltip(e: MouseEvent | FocusEvent, text: string) {
-    const el = e.currentTarget as HTMLElement;
-    const rect = el.getBoundingClientRect();
-    tooltipX = rect.right;
-    tooltipY = rect.top + rect.height / 2;
-    tooltipText = text;
-  }
-
-  function hideTooltip() {
-    tooltipText = null;
-  }
-
   // ── Drag-drop targets for sidebar items ────────────────────────────────
   let dropSidebarTarget = $state<string | null>(null);
 
@@ -177,15 +159,17 @@
         <span class="text-base-content/70 text-xs font-medium">
           {m.storage_context_menu_actions()}
         </span>
-        <button
-          type="button"
-          role="menuitem"
-          class="btn btn-ghost btn-xs"
-          aria-label={m.storage_preview_close()}
-          onclick={closeUnpinMenu}
-        >
-          <IconClose class="size-4" aria-hidden="true" />
-        </button>
+        <div class="tooltip tooltip-left" data-tip={m.action_close()}>
+          <button
+            type="button"
+            role="menuitem"
+            class="btn btn-ghost btn-xs"
+            aria-label={m.action_close()}
+            onclick={closeUnpinMenu}
+          >
+            <IconClose class="size-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </li>
     <li role="none">
@@ -223,43 +207,42 @@
             {@const active = isPinnedActive(pin)}
             <li role="none" class="group relative">
               <!-- eslint-disable svelte/no-navigation-without-resolve -->
-              <a
-                href={pinnedHref(pin)}
-                data-sveltekit-preload-data="off"
-                class="
-                hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
-                pr-7 text-sm
-                {active ? 'bg-primary/10 text-primary font-medium' : 'text-base-content'}
-                {dropSidebarTarget === pin.prefix ? 'bg-primary/20' : ''}"
-                aria-current={active ? 'page' : undefined}
-                onmouseenter={(e) => showTooltip(e, pinnedLabel(pin))}
-                onmouseleave={hideTooltip}
-                onfocus={(e) => showTooltip(e, pinnedLabel(pin))}
-                onblur={hideTooltip}
-                ondragover={(e) => handleSidebarDragOver(e, pin.prefix)}
-                ondragleave={handleSidebarDragLeave}
-                ondrop={(e) => handleSidebarDrop(e, pin.bucket, pin.prefix)}
-              >
-                <!-- eslint-enable svelte/no-navigation-without-resolve -->
-                {#if pin.prefix === ''}
-                  <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
-                {:else}
-                  <IconFolderOutline class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
-                {/if}
-                <span class="truncate">{pinnedLabel(pin)}</span>
-              </a>
-              <button
-                class="
-                btn btn-ghost btn-xs absolute top-1/2 right-1 z-150 -translate-y-1/2
-                p-0 opacity-0 transition-opacity
-                group-hover:opacity-100 focus:opacity-100
-              "
-                onclick={(e) => openUnpinMenuFromButton(e, pin)}
-                aria-label={m.storage_more_options()}
-                title={m.storage_more_options()}
-              >
-                <IconMoreHoriz class="size-3.5" aria-hidden="true" />
-              </button>
+              <TooltipTrigger text={pinnedLabel(pin)} orientation="right">
+                <a
+                  href={pinnedHref(pin)}
+                  data-sveltekit-preload-data="off"
+                  class="
+                    hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
+                    pr-7 text-sm
+                    {active ? 'bg-primary/10 text-primary font-medium' : 'text-base-content'}
+                    {dropSidebarTarget === pin.prefix ? 'bg-primary/20' : ''}"
+                  aria-current={active ? 'page' : undefined}
+                  ondragover={(e) => handleSidebarDragOver(e, pin.prefix)}
+                  ondragleave={handleSidebarDragLeave}
+                  ondrop={(e) => handleSidebarDrop(e, pin.bucket, pin.prefix)}
+                >
+                  <!-- eslint-enable svelte/no-navigation-without-resolve -->
+                  {#if pin.prefix === ''}
+                    <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
+                  {:else}
+                    <IconFolderOutline class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
+                  {/if}
+                  <span class="truncate">{pinnedLabel(pin)}</span>
+                </a>
+              </TooltipTrigger>
+              <TooltipTrigger text={m.storage_more_options()} orientation="right">
+                <button
+                  class="
+                    btn btn-ghost btn-xs absolute top-1/2 right-1 z-150 -translate-y-1/2
+                    p-0 opacity-0 transition-opacity
+                    group-hover:opacity-100 focus:opacity-100
+                  "
+                  onclick={(e) => openUnpinMenuFromButton(e, pin)}
+                  aria-label={m.storage_more_options()}
+                >
+                  <IconMoreHoriz class="size-3.5" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
             </li>
           {/each}
         </ul>
@@ -301,32 +284,30 @@
         {:else}
           {#each storage.buckets as bucket (bucket)}
             <li role="none">
-              <a
-                href={resolve('/(app)/storage/[bucket]/[...prefix]', {
-                  bucket: encodeURIComponent(bucket),
-                  prefix: ''
-                })}
-                data-sveltekit-preload-data="off"
-                class="
-                  hover:bg-base-200 flex items-center gap-2
-                  px-3 py-1.5 text-sm
-                  {activeBucket === bucket
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-base-content'}
-                  {dropSidebarTarget === '' && activeBucket === bucket ? 'bg-primary/20' : ''}"
-                aria-current={activeBucket === bucket && !page.params.prefix ? 'page' : undefined}
-                onmouseenter={(e) => showTooltip(e, bucket)}
-                onmouseleave={hideTooltip}
-                onfocus={(e) => showTooltip(e, bucket)}
-                onblur={hideTooltip}
-                oncontextmenu={(e) => openBucketContextMenu(e, bucket)}
-                ondragover={(e) => handleSidebarDragOver(e, '')}
-                ondragleave={handleSidebarDragLeave}
-                ondrop={(e) => handleSidebarDrop(e, bucket, '')}
-              >
-                <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
-                <span class="truncate">{bucket}</span>
-              </a>
+              <TooltipTrigger text={bucket} orientation="right">
+                <a
+                  href={resolve('/(app)/storage/[bucket]/[...prefix]', {
+                    bucket: encodeURIComponent(bucket),
+                    prefix: ''
+                  })}
+                  data-sveltekit-preload-data="off"
+                  class="
+                    hover:bg-base-200 flex items-center gap-2
+                    px-3 py-1.5 text-sm
+                    {activeBucket === bucket
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'text-base-content'}
+                    {dropSidebarTarget === '' && activeBucket === bucket ? 'bg-primary/20' : ''}"
+                  aria-current={activeBucket === bucket && !page.params.prefix ? 'page' : undefined}
+                  oncontextmenu={(e) => openBucketContextMenu(e, bucket)}
+                  ondragover={(e) => handleSidebarDragOver(e, '')}
+                  ondragleave={handleSidebarDragLeave}
+                  ondrop={(e) => handleSidebarDrop(e, bucket, '')}
+                >
+                  <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
+                  <span class="truncate">{bucket}</span>
+                </a>
+              </TooltipTrigger>
             </li>
           {/each}
         {/if}
@@ -387,5 +368,3 @@
 
   <ResizeHandle panel={resize} />
 </nav>
-
-<Tooltip text={tooltipText} x={tooltipX} y={tooltipY} orientation="right" />

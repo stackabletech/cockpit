@@ -332,13 +332,15 @@
       <h2 class="text-base-content text-lg font-semibold">
         {m.storage_upload_title()}
       </h2>
-      <button
-        class="btn btn-ghost btn-sm btn-square"
-        onclick={handleCancel}
-        aria-label={m.storage_upload_close()}
-      >
-        <IconClose class="size-5" aria-hidden="true" />
-      </button>
+      <div class="tooltip tooltip-bottom" data-tip={m.storage_upload_close()}>
+        <button
+          class="btn btn-ghost btn-sm btn-square"
+          onclick={handleCancel}
+          aria-label={m.storage_upload_close()}
+        >
+          <IconClose class="size-5" aria-hidden="true" />
+        </button>
+      </div>
     </div>
 
     <!-- Target prefix info -->

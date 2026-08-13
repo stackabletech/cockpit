@@ -222,33 +222,34 @@
   {/if}
   <div bind:this={dropdownEl} class="relative z-50 inline-flex">
     <!-- Trigger button -->
-    <button
-      class="
-        btn btn-ghost btn-xs relative size-7 rounded-full p-0
-        {storage.hasRunningOps ? 'text-primary' : hasError ? 'text-error' : 'text-success'}
-      "
-      title={m.storage_operations_label()}
-      aria-label={m.storage_operations_label()}
-      aria-expanded={dropdownOpen}
-      aria-haspopup="menu"
-      onclick={toggleDropdown}
-    >
-      {#if storage.hasRunningOps}
-        <span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
-        {#if activeOps.length > 1}
-          <span
-            class="badge badge-primary badge-xs absolute -top-1 -right-1 min-w-4 px-0.5 text-[9px]"
-            aria-hidden="true"
-          >
-            {activeOps.length}
-          </span>
+    <div class="tooltip tooltip-top" data-tip={m.storage_operations_label()}>
+      <button
+        class="
+          btn btn-ghost btn-xs relative size-7 rounded-full p-0
+          {storage.hasRunningOps ? 'text-primary' : hasError ? 'text-error' : 'text-success'}
+        "
+        aria-label={m.storage_operations_label()}
+        aria-expanded={dropdownOpen}
+        aria-haspopup="menu"
+        onclick={toggleDropdown}
+      >
+        {#if storage.hasRunningOps}
+          <span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
+          {#if activeOps.length > 1}
+            <span
+              class="badge badge-primary badge-xs absolute -top-1 -right-1 min-w-4 px-0.5 text-[9px]"
+              aria-hidden="true"
+            >
+              {activeOps.length}
+            </span>
+          {/if}
+        {:else if hasError}
+          <IconError class="size-4" aria-hidden="true" />
+        {:else}
+          <IconCheckCircle class="size-4" aria-hidden="true" />
         {/if}
-      {:else if hasError}
-        <IconError class="size-4" aria-hidden="true" />
-      {:else}
-        <IconCheckCircle class="size-4" aria-hidden="true" />
-      {/if}
-    </button>
+      </button>
+    </div>
 
     <!-- Dropdown panel -->
     {#if dropdownOpen}
@@ -309,14 +310,15 @@
                     </div>
 
                     <!-- Cancel -->
-                    <button
-                      class="btn btn-ghost btn-xs text-error/70 hover:text-error size-5 shrink-0 p-0"
-                      title={m.storage_operations_cancel()}
-                      aria-label={m.storage_operations_cancel()}
-                      onclick={() => storage.cancelOp(op.id)}
-                    >
-                      <IconClose class="size-3" aria-hidden="true" />
-                    </button>
+                    <div class="tooltip tooltip-left" data-tip={m.storage_operations_cancel()}>
+                      <button
+                        class="btn btn-ghost btn-xs text-error/70 hover:text-error size-5 shrink-0 p-0"
+                        aria-label={m.storage_operations_cancel()}
+                        onclick={() => storage.cancelOp(op.id)}
+                      >
+                        <IconClose class="size-3" aria-hidden="true" />
+                      </button>
+                    </div>
                   </div>
 
                   <!-- Expanded detail -->
