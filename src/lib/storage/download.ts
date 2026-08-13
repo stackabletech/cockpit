@@ -59,7 +59,7 @@ async function waitForDownload(
   api: StorageApi,
   jobId: string,
   onUpdate: (job: DownloadJobStatus) => void,
-  onComplete: (jobId: string) => void
+  onComplete: (job: DownloadJobStatus) => void
 ): Promise<void> {
   const downloaded = new Set<number>();
   while (true) {
@@ -73,7 +73,7 @@ async function waitForDownload(
     }
     if (job.status === 'ready') {
       removeJob(jobId);
-      onComplete(jobId);
+      onComplete(job);
       return;
     }
     if (job.status === 'error') {

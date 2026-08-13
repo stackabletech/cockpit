@@ -66,6 +66,12 @@
     return () => clearInterval(id);
   });
 
+  $effect(() => {
+    if (!storage.operations.some((op) => op.type === 'download' && op.cacheExpiresAt)) return;
+    const id = setInterval(() => tick++, 1_000);
+    return () => clearInterval(id);
+  });
+
   function toggleDropdown() {
     dropdownOpen = !dropdownOpen;
   }
@@ -208,6 +214,11 @@
       return `${m.storage_operations_speed()}: ${s} | ${e} ${m.storage_operations_remaining()}`;
     if (s) return `${m.storage_operations_speed()}: ${s}`;
     return `${e} ${m.storage_operations_remaining()}`;
+  }
+
+  function downloadIsCached(op: StorageOperation): boolean {
+    void tick;
+    return op.cacheExpiresAt !== undefined && op.cacheExpiresAt > Date.now();
   }
 </script>
 
@@ -474,7 +485,7 @@
                     </div>
                   {/if}
 
-                  {#if op.type === 'download' && op.status === 'done'}
+                  {#if op.type === 'download' && op.status === 'done' && downloadIsCached(op)}
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs text-primary mt-1 ml-5 h-6 px-1 text-[10px]"

@@ -38,6 +38,8 @@ export interface DownloadJob {
   totalBytes: number;
   progress: { completedCount: number; completedBytes: number; currentFileName?: string };
   files: DownloadFile[];
+  /** Epoch milliseconds when this retained artefact is removed unless accessed again. */
+  expiresAt?: number;
   error?: string;
 }
 
@@ -399,7 +401,11 @@ export function createDownloadJob(
 }
 
 function publicJob(job: JobInternal): DownloadJob {
-  return { ...job, files: job.files.map(({ path: _path, ...file }) => file) };
+  return {
+    ...job,
+    files: job.files.map(({ path: _path, ...file }) => file),
+    ...(job.status === 'ready' ? { expiresAt: job.updatedAt + downloadRetentionMs } : {})
+  };
 }
 
 export function getDownloadJob(userId: string, id: string): DownloadJob | null {

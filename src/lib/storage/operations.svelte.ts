@@ -138,6 +138,13 @@ export class OperationsState {
     saveOperationsToStorage(this.operations);
   }
 
+  setDownloadCacheExpiry(id: string, cacheExpiresAt: number | undefined): void {
+    this.operations = this.operations.map((op) =>
+      op.id === id && op.type === 'download' ? { ...op, cacheExpiresAt } : op
+    );
+    saveOperationsToStorage(this.operations);
+  }
+
   updateOpJobIds(id: string, fileJobIds: string[]): void {
     this.operations = this.operations.map((op) => (op.id === id ? { ...op, fileJobIds } : op));
     saveOperationsToStorage(this.operations);

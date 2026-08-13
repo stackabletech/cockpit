@@ -253,8 +253,9 @@ export class StorageState {
           job.progress.currentFileName,
           job.totalBytes
         );
+        this.operations_.setDownloadCacheExpiry(job.id, job.expiresAt);
       },
-      (jobId) => this.operations_.finishOp(jobId, 'done')
+      (job) => this.operations_.finishOp(job.id, 'done')
     );
   }
 
@@ -502,8 +503,9 @@ export class StorageState {
                 job.progress.currentFileName,
                 job.totalBytes
               );
+              this.operations_.setDownloadCacheExpiry(job.id, job.expiresAt);
             },
-            (jobId) => this.operations_.finishOp(jobId, 'done')
+            (job) => this.operations_.finishOp(job.id, 'done')
           );
         } catch (err: unknown) {
           const operation = this.operations.find(

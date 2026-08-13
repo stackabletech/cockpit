@@ -139,6 +139,18 @@ describe('localStorage persistence', () => {
     expect(state.operations[0].completedAt).toBeUndefined();
   });
 
+  it('persists the download cache expiry for replay visibility', () => {
+    const state = new OperationsState(makeMockApi(), makeOpts());
+    state.startDownloadOp('download-1', 'Download', 1, ['report.zip'], 100);
+    const expiry = Date.now() + 60_000;
+
+    state.setDownloadCacheExpiry('download-1', expiry);
+
+    expect(state.operations[0].cacheExpiresAt).toBe(expiry);
+    const stored = JSON.parse(localStorage.getItem(OPERATIONS_HISTORY_KEY)!) as StorageOperation[];
+    expect(stored[0].cacheExpiresAt).toBe(expiry);
+  });
+
   it('updateOpJobIds persists fileJobIds to localStorage', () => {
     const state = new OperationsState(makeMockApi(), makeOpts());
     state.startOp('op-1', 'Copy: file.txt', 'paste', 3);

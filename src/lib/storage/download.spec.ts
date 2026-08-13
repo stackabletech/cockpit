@@ -26,6 +26,7 @@ describe('downloadsNeedArchive', () => {
         id: 'job-1',
         status: 'ready' as const,
         totalBytes: 10,
+        expiresAt: Date.now() + 60_000,
         progress: { completedCount: 2, completedBytes: 10 },
         files: []
       }),
@@ -33,11 +34,12 @@ describe('downloadsNeedArchive', () => {
         id: 'job-1',
         status: 'ready' as const,
         totalBytes: 10,
+        expiresAt: Date.now() + 60_000,
         progress: { completedCount: 2, completedBytes: 10 },
         files: []
       })
     } as StorageApi;
-    const completed: string[] = [];
+    const completed: Array<{ id: string }> = [];
 
     await startDownload(
       api,
@@ -47,12 +49,12 @@ describe('downloadsNeedArchive', () => {
       'connection',
       () => {},
       () => {},
-      (id) => {
-        completed.push(id);
+      (job) => {
+        completed.push(job);
       }
     );
 
-    expect(completed).toEqual(['job-1']);
+    expect(completed.map((job) => job.id)).toEqual(['job-1']);
     vi.unstubAllGlobals();
   });
 });

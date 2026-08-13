@@ -146,6 +146,8 @@ export interface StorageOperation {
   currentFileName?: string;
   /** Server-side job IDs per file for recovering results after reload. */
   fileJobIds?: string[];
+  /** Epoch milliseconds when a completed download artefact expires. */
+  cacheExpiresAt?: number;
 }
 
 // ── Storage locations ────────────────────────────────────────────────────────

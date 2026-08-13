@@ -47,6 +47,7 @@ export interface DownloadJobStatus {
     currentFileName?: string;
   };
   files: Array<{ filename: string; size: number; part: number; ready: boolean }>;
+  expiresAt?: number;
   error?: string;
 }
 
