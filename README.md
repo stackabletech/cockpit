@@ -125,6 +125,26 @@ The application is configured via environment variables. Create a `.env` file at
 | `STACKABLE_COCKPIT_PDF_PREVIEW_BYTES`   | `integer` (bytes) | `26214400` (25 MiB) | Maximum bytes fetched when previewing PDF files.                                           | `STACKABLE_COCKPIT_PDF_PREVIEW_BYTES=52428800`   |
 | `STACKABLE_COCKPIT_FILE_PREVIEW_ROWS`   | `integer` (rows)  | `250`               | Maximum number of rows included in a tabular file preview (e.g. Parquet converted to CSV). | `STACKABLE_COCKPIT_FILE_PREVIEW_ROWS=500`        |
 
+### Embedded Services
+
+Embedded services are routed through authenticated, same-origin SvelteKit routes under
+`/api/services/<service>/`. This removes browser CORS and iframe-cookie concerns without
+modifying the service or deploying a separate reverse proxy. Service credentials are used
+only by the Cockpit server and never reach the browser.
+
+To embed Airflow, configure its direct URL and add an Airflow bookmark that opens inside
+Cockpit. The iframe uses `/api/services/airflow/`, rather than the bookmark URL.
+
+| Variable                                 | Description                                                                                            |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `STACKABLE_COCKPIT_AIRFLOW_URL`          | Direct HTTP(S) URL for Airflow's API server. Enables the Airflow proxy.                                |
+| `STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE`    | `bearer` for a dedicated Airflow service token, or `all-admins` for the stock local development stack. |
+| `STACKABLE_COCKPIT_AIRFLOW_BEARER_TOKEN` | Required when `AUTH_MODE=bearer`; remains server-side.                                                 |
+
+`~/airflow-proxy` contains the default Airflow 3.3.0 development stack. It uses
+Airflow's official `simple_auth_manager_all_admins` setting solely for local development;
+production deployments must use `bearer` with a least-privilege service token.
+
 ## Contributing
 
 1. Make your changes

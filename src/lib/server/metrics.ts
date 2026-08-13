@@ -24,3 +24,10 @@ export const trinoActiveQueries = new Gauge({
   help: 'Number of active Trino queries submitted through Stackable UI',
   registers: [register]
 });
+
+export const embeddedServiceRequests = new Counter({
+  name: 'embedded_service_requests_total',
+  help: 'Total requests forwarded to embedded services',
+  labelNames: ['service', 'outcome'],
+  registers: [register]
+});

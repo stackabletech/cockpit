@@ -5,14 +5,17 @@
 
   const id = $derived(page.params.id);
   const bookmark = $derived(getBookmarks().find((b) => b.id === id));
+  const embedUrl = $derived(
+    bookmark?.productId === 'airflow' ? '/api/services/airflow/' : bookmark?.url
+  );
 </script>
 
 {#if bookmark}
   <iframe
-    src={bookmark.url}
+    src={embedUrl}
     title={bookmark.name}
     allow="fullscreen"
-    class="border-base-300 h-[calc(100dvh-7rem)] w-full rounded-xl border bg-white"
+    class="border-base-300 bg-base-100 h-[calc(100dvh-7rem)] w-full rounded-xl border"
   ></iframe>
 {:else}
   <div class="flex h-full items-center justify-center">

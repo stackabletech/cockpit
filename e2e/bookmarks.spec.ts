@@ -102,6 +102,22 @@ test.describe('Dashboard bookmarks', () => {
     await expect(page.getByText('superset.example.com')).toBeVisible();
   });
 
+  test('embeds Airflow through the same-origin service proxy', async ({ page }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    await page.getByRole('button', { name: addButton }).click();
+    await page.locator('button[aria-pressed]').filter({ hasText: 'Airflow' }).click();
+    await page.getByLabel('Name').fill('Pipelines');
+    await page.getByLabel('URL').fill('http://airflow.example.test');
+    await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
+
+    await page.goto(
+      '/bookmark/' + (await page.evaluate(() => JSON.parse(localStorage.dashboard_bookmarks)[0].id))
+    );
+    await expect(page.locator('iframe')).toHaveAttribute('src', '/api/services/airflow/');
+  });
+
   test('bookmark persists in localStorage', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);
