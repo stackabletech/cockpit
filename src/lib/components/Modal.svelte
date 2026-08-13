@@ -3,12 +3,14 @@
     open = $bindable(false),
     children,
     class: className = '',
-    closeguard
+    closeguard,
+    ...restProps
   }: {
     open: boolean;
     children: import('svelte').Snippet;
     class?: string;
     closeguard?: () => boolean;
+    [key: string]: unknown;
   } = $props();
 
   let dialogEl = $state<HTMLDialogElement | undefined>(undefined);
@@ -62,6 +64,7 @@
 <dialog
   bind:this={dialogEl}
   class={className}
+  {...restProps}
   onclose={handleClose}
   oncancel={handleCancel}
   onclick={handleBackdropClick}

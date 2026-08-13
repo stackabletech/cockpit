@@ -123,6 +123,62 @@ describe('createFetchStorageApi', () => {
     });
   });
 
+  describe('search', () => {
+    it('searches a bucket and forwards its abort signal', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      const controller = new AbortController();
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        jsonResponse({
+          results: [
+            {
+              key: 'report.txt',
+              size: 1,
+              lastModified: '2026-08-12T12:00:00.000Z',
+              isDirectory: false
+            }
+          ],
+          truncated: false
+        })
+      );
+
+      const result = await api.search({
+        bucket: 'documents',
+        query: 'report',
+        signal: controller.signal
+      });
+
+      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      expect(url).toContain('/api/storage/search?bucket=documents&q=report');
+      expect(init?.signal).toBe(controller.signal);
+      expect(result.results[0].lastModified).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('recent searches', () => {
+    it('lists recent searches', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        jsonResponse([{ bucket: 'documents', query: 'report' }])
+      );
+
+      await expect(api.listRecentSearches()).resolves.toEqual([
+        { bucket: 'documents', query: 'report' }
+      ]);
+      expect(vi.mocked(globalThis.fetch).mock.calls[0]![0]).toBe('/api/storage/search/history');
+    });
+
+    it('records and clears recent searches', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+
+      await api.recordRecentSearch({ bucket: 'documents', query: 'report' });
+      await api.clearRecentSearches();
+
+      expect(vi.mocked(globalThis.fetch).mock.calls[0]![1]).toMatchObject({ method: 'POST' });
+      expect(vi.mocked(globalThis.fetch).mock.calls[1]![1]).toMatchObject({ method: 'DELETE' });
+    });
+  });
+
   describe('copy', () => {
     it('sends a POST request with JSON body', async () => {
       const api = createFetchStorageApi(() => 'conn-1');

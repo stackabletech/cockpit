@@ -81,6 +81,14 @@ function makeApi(overrides?: Partial<StorageApi>): StorageApi {
     async list() {
       return makePage();
     },
+    async search() {
+      return { results: [], truncated: false };
+    },
+    async listRecentSearches() {
+      return [];
+    },
+    async recordRecentSearch() {},
+    async clearRecentSearches() {},
     async copy(): Promise<CopyMoveResult> {
       return { results: [], failed: 0 };
     },

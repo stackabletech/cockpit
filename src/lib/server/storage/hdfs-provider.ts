@@ -1,4 +1,10 @@
-import type { StorageProvider, ObjectDownload, DeleteObjectsResult } from './provider.js';
+import type {
+  StorageProvider,
+  ObjectDownload,
+  DeleteObjectsResult,
+  SearchOptions,
+  SearchResult
+} from './provider.js';
 import type { HDFSConfig } from './types.js';
 import type { StoragePage, StorageMetadata } from '$lib/storage/types.js';
 import type { LifecycleRule, BucketAcl } from '$lib/storage/details-types.js';
@@ -58,8 +64,13 @@ export class HDFSStorageProvider implements StorageProvider {
 
   listAllKeysProgressively(
     _prefix: string,
-    _onBatch: (keys: Array<{ key: string; size: number }>) => void
+    _onBatch: (keys: Array<{ key: string; size: number }>) => void,
+    _options?: import('./provider.js').ProgressiveListOptions
   ): Promise<void> {
+    throw new Error('HDFS not implemented');
+  }
+
+  search(_query: string, _options?: SearchOptions): Promise<SearchResult> {
     throw new Error('HDFS not implemented');
   }
 

@@ -14,7 +14,12 @@
 import { STORAGE_CONNECTION_ID_HEADER } from './connection-id-header.js';
 import { createStorageFetch } from './storage-fetch.js';
 import { readNdjsonStream, type NdjsonStreamCallbacks } from './ndjson-stream.js';
-import type { StoragePage, ArchiveListingResponse } from './types.js';
+import type {
+  StoragePage,
+  ArchiveListingResponse,
+  StorageSearchResponse,
+  RecentSearchEntry
+} from './types.js';
 import type { FileDetails, DirectoryMetadata, BucketDetails } from './details-types.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -41,6 +46,18 @@ export interface JobStatus {
 
 export interface StorageApi {
   list(params: { bucket: string; prefix?: string; pageSize?: number }): Promise<StoragePage>;
+
+  search(params: {
+    bucket: string;
+    query: string;
+    signal?: AbortSignal;
+  }): Promise<StorageSearchResponse>;
+
+  listRecentSearches(): Promise<RecentSearchEntry[]>;
+
+  recordRecentSearch(params: { bucket: string; query: string }): Promise<void>;
+
+  clearRecentSearches(): Promise<void>;
 
   copy(params: {
     bucket: string;
@@ -137,6 +154,36 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       }
       const res = await fetch_(`/api/storage/list?${params}`);
       return (await res.json()) as StoragePage;
+    },
+
+    async search({ bucket, query, signal }) {
+      const params = new URLSearchParams({ bucket, q: query });
+      const res = await fetch_(`/api/storage/search?${params}`, { signal });
+      const response = (await res.json()) as StorageSearchResponse;
+      return {
+        ...response,
+        results: response.results.map((result) => ({
+          ...result,
+          lastModified: new Date(result.lastModified)
+        }))
+      };
+    },
+
+    async listRecentSearches() {
+      const res = await fetch_('/api/storage/search/history');
+      return (await res.json()) as RecentSearchEntry[];
+    },
+
+    async recordRecentSearch({ bucket, query }) {
+      await fetch_('/api/storage/search/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bucket, query })
+      });
+    },
+
+    async clearRecentSearches() {
+      await fetch_('/api/storage/search/history', { method: 'DELETE' });
     },
 
     async copy({ bucket, sourceKeys, destinationPrefix, progress, jobId, signal, callbacks }) {

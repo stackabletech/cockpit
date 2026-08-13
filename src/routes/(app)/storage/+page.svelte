@@ -17,6 +17,7 @@
   import RecentItems from '$lib/components/storage/landing/RecentItems.svelte';
   import AddBucketModal from '$lib/components/storage/landing/AddBucketModal.svelte';
   import IconAdd from 'virtual:icons/material-symbols/add';
+  import StorageSearch from '$lib/components/storage/StorageSearch.svelte';
 
   let { data } = $props();
   const storage = getStorageState();
@@ -135,15 +136,18 @@
     <div class="mb-6">
       <div class="mb-1 flex items-center justify-between gap-4">
         <h1 class="text-xl font-semibold">{m.storage_buckets_label()}</h1>
-        <button
-          type="button"
-          class="btn btn-primary btn-sm shrink-0"
-          onclick={() => (addBucketOpen = true)}
-          aria-label={m.storage_add_bucket()}
-        >
-          <IconAdd class="size-4" aria-hidden="true" />
-          {m.storage_add_bucket()}
-        </button>
+        <div class="flex shrink-0 items-center gap-1">
+          <StorageSearch />
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            onclick={() => (addBucketOpen = true)}
+            aria-label={m.storage_add_bucket()}
+          >
+            <IconAdd class="size-4" aria-hidden="true" />
+            {m.storage_add_bucket()}
+          </button>
+        </div>
       </div>
       <p class="text-base-content/60 text-sm">{m.storage_buckets_subtitle()}</p>
     </div>
