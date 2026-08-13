@@ -101,6 +101,24 @@ function makeApi(overrides?: Partial<StorageApi>): StorageApi {
     async pollJob() {
       return { status: 'done' };
     },
+    async createDownloadJob() {
+      return {
+        id: 'download-job',
+        status: 'ready' as const,
+        totalBytes: 0,
+        progress: { completedCount: 0, completedBytes: 0 },
+        files: []
+      };
+    },
+    async pollDownloadJob() {
+      return {
+        id: 'download-job',
+        status: 'ready' as const,
+        totalBytes: 0,
+        progress: { completedCount: 0, completedBytes: 0 },
+        files: []
+      };
+    },
     async checkObjectExists() {
       return false;
     },

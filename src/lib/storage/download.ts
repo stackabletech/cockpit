@@ -92,7 +92,7 @@ export async function startDownload(
   connectionId: string,
   onCreated: (job: DownloadJobStatus) => void,
   onUpdate: (job: DownloadJobStatus) => void,
-  onComplete: (jobId: string) => void
+  onComplete: (job: DownloadJobStatus) => void
 ): Promise<void> {
   const job = await api.createDownloadJob({ bucket, prefix, keys });
   saveJob({ id: job.id, connectionId, startedAt: Date.now() });
@@ -105,7 +105,7 @@ export async function reacquireDownloads(
   api: StorageApi,
   connectionId: string,
   onUpdate: (job: DownloadJobStatus) => void,
-  onComplete: (jobId: string) => void
+  onComplete: (job: DownloadJobStatus) => void
 ): Promise<void> {
   const jobs = loadJobs().filter((job) => job.connectionId === connectionId);
   await Promise.all(

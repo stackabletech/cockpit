@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { downloadsNeedArchive, startDownload } from './download.js';
-import type { StorageApi } from './api.js';
+import { createMemoryStorageApi } from './api.test-utils.js';
 
 describe('downloadsNeedArchive', () => {
   it('keeps up to three file-only selections as individual downloads', () => {
@@ -21,7 +21,7 @@ describe('downloadsNeedArchive', () => {
       getItem: (key: string) => values.get(key) ?? null,
       setItem: (key: string, value: string) => values.set(key, value)
     });
-    const api = {
+    const api = createMemoryStorageApi({
       createDownloadJob: async () => ({
         id: 'job-1',
         status: 'ready' as const,
@@ -38,7 +38,7 @@ describe('downloadsNeedArchive', () => {
         progress: { completedCount: 2, completedBytes: 10 },
         files: []
       })
-    } as StorageApi;
+    });
     const completed: Array<{ id: string }> = [];
 
     await startDownload(
