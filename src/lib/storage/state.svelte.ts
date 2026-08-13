@@ -460,7 +460,7 @@ export class StorageState {
         this.openModal('preview', { key });
         return;
 
-      case 'download':
+      case 'download': {
         const downloadItems = [...this.selectedFolders, ...this.selectedFiles];
         if (downloadItems.length === 0) {
           addToast('warning', m.storage_action_download_no_selection());
@@ -519,6 +519,7 @@ export class StorageState {
           }
         }
         return;
+      }
 
       case 'pin':
         this.bookmarks.pin(this.bucket, ctxKey ?? this.prefix);

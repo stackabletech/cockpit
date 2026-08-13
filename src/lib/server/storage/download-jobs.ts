@@ -403,6 +403,7 @@ export function createDownloadJob(
 function publicJob(job: JobInternal): DownloadJob {
   return {
     ...job,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     files: job.files.map(({ path: _path, ...file }) => file),
     ...(job.status === 'ready' ? { expiresAt: job.updatedAt + downloadRetentionMs } : {})
   };
