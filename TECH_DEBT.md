@@ -78,6 +78,14 @@ Bookmarks are embedded as full-page iframes without a `sandbox` attribute, so th
 
 ---
 
+### Airflow's startup version check misses the proxy prefix
+
+**File:** `src/lib/server/embedded-services.ts`
+
+Airflow's OpenAPI client derives its base URL from the document `<base>` tag at `queryClient` initialisation (`OpenAPI.BASE = document.querySelector("head>base")?.getAttribute("href")`). One call, `VersionService.getVersion()` in the i18n bootstrap (`src/i18n/config.ts`), fires at module import time — before `queryClient.ts` sets `OpenAPI.BASE` from the rewritten `<base href="/api/services/airflow/">` — so it requests the origin-rooted `/api/v2/version` and 404s through the proxy. The failure is swallowed by the UI (`.catch(() => fut(''))`), so only the version badge in the top bar is affected; nothing else breaks. Acceptable while embedding the stock UI; the robust fix would be rewriting the response to inject the service prefix into the version call or patching the upstream bundle.
+
+---
+
 ### Single-file download limit
 
 **File:** `src/lib/storage/download.ts`, `src/lib/components/storage/FileExplorer.svelte`
