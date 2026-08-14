@@ -7,8 +7,8 @@ describe('download jobs', () => {
   });
 
   it('uses a normal archive name until multipart output is required', () => {
-    expect(archiveFileName('reports', 'zip')).toBe('reports.zip');
-    expect(archiveFileName('reports', 'zip', 1)).toBe('reports.z01');
-    expect(archiveFileName('reports', 'tar.gz', 12)).toBe('reports.part012.tar.gz');
+    expect(archiveFileName('reports')).toBe('reports.zip');
+    expect(archiveFileName('reports', 1)).toBe('reports.z01');
+    expect(archiveFileName('reports', 12)).toBe('reports.z12');
   });
 });

@@ -8,7 +8,6 @@ import { finished } from 'node:stream/promises';
 import archiver from 'archiver';
 import { logger } from '$lib/server/logging';
 import {
-  downloadArchiveFormat,
   downloadJobConcurrency,
   downloadPartSizeBytes,
   downloadRetentionMs
@@ -31,7 +30,7 @@ export interface DownloadJob {
   bucket: string;
   prefix: string;
   keys: string[];
-  format: 'zip' | 'tar.gz';
+  format: 'zip';
   status: DownloadJobStatus;
   createdAt: number;
   updatedAt: number;
@@ -84,11 +83,9 @@ function archiveBaseName(job: JobInternal): string {
   return fileName(job.prefix).replace(/\/$/, '') || job.bucket;
 }
 
-export function archiveFileName(base: string, format: 'zip' | 'tar.gz', part?: number): string {
-  if (part === undefined) return `${base}.${format}`;
-  return format === 'zip'
-    ? `${base}.z${String(part).padStart(2, '0')}`
-    : `${base}.part${String(part).padStart(3, '0')}.${format}`;
+export function archiveFileName(base: string, part?: number): string {
+  if (part === undefined) return `${base}.zip`;
+  return `${base}.z${String(part).padStart(2, '0')}`;
 }
 
 function jobDirectory(id: string): string {
@@ -180,10 +177,7 @@ async function writeArchive(
   entries: ArchiveEntry[],
   path: string
 ): Promise<void> {
-  const archive = archiver(
-    job.format === 'zip' ? 'zip' : 'tar',
-    job.format === 'zip' ? { zlib: { level: 6 } } : { gzip: true, gzipOptions: { level: 6 } }
-  );
+  const archive = archiver('zip', { zlib: { level: 6 } });
   const output = createWriteStream(path);
   archive.pipe(output);
   for (const entry of entries) {
@@ -240,15 +234,15 @@ async function runSplitZip(stagingDirectory: string, archivePath: string): Promi
 async function prepareArchive(job: JobInternal, provider: StorageProvider): Promise<void> {
   const directory = jobDirectory(job.id);
   const entries = await expandKeys(provider, job.keys);
-  const archivePath = join(directory, archiveFileName(archiveBaseName(job), job.format));
+  const archivePath = join(directory, archiveFileName(archiveBaseName(job)));
   const totalSize = entries.reduce((total, entry) => total + entry.size, 0);
   job.totalBytes = totalSize;
 
-  if (job.format !== 'zip' || totalSize <= downloadPartSizeBytes) {
+  if (totalSize <= downloadPartSizeBytes) {
     await writeArchive(job, provider, entries, archivePath);
     const size = (await stat(archivePath)).size;
     job.files.push({
-      filename: archiveFileName(archiveBaseName(job), job.format),
+      filename: archiveFileName(archiveBaseName(job)),
       path: archivePath,
       size,
       part: 1,
@@ -384,7 +378,7 @@ export function createDownloadJob(
     bucket,
     prefix,
     keys,
-    format: downloadArchiveFormat,
+    format: 'zip',
     status: 'queued',
     createdAt: now,
     updatedAt: now,

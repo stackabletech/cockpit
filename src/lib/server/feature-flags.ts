@@ -147,15 +147,8 @@ export const storageMoveEnabled =
 
 // ── Storage browser: downloads ─────────────────────────────────────────────
 
-/** Archive format used when a storage download contains a directory or more
- * than three files. Controlled by `STACKABLE_COCKPIT_DOWNLOAD_ARCHIVE_FORMAT`.
- * Supported values are `zip` and `tar.gz`; the default is `zip`. */
-export const downloadArchiveFormat =
-  env.STACKABLE_COCKPIT_DOWNLOAD_ARCHIVE_FORMAT === 'tar.gz' ? 'tar.gz' : 'zip';
-
 /** Maximum size of each standard split-ZIP volume. ZIP downloads use the
- * interoperable `.z01`, `.z02`, …, `.zip` layout. TAR.GZ remains a single
- * archive because it has no Windows-compatible split-volume convention.
+ * interoperable `.z01`, `.z02`, …, `.zip` layout.
  * Controlled by `STACKABLE_COCKPIT_DOWNLOAD_PART_SIZE_MB`. */
 export const downloadPartSizeBytes =
   parseInt(env.STACKABLE_COCKPIT_DOWNLOAD_PART_SIZE_MB ?? '', 10) * 1024 * 1024 ||
