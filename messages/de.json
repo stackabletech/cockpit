@@ -698,7 +698,7 @@
   "storage_search_status_done": "Fertig",
   "storage_search_status_error": "Fehler",
   "storage_search_regex_placeholder": "Regulärer Ausdruck",
-  "storage_search_regex_badge": "Regex",
+  "storage_search_regex_badge": ".*",
   "storage_search_file_types": "Dateitypen",
   "storage_search_file_type_input": "Dateityp hinzufügen",
   "storage_search_file_type_placeholder": ".parquet",

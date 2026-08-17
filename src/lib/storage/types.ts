@@ -234,6 +234,11 @@ export interface StorageSearchResponse {
   truncated: boolean;
 }
 
+export type StorageSearchUpdate = StorageSearchResponse & {
+  /** A snapshot replaces earlier results for this bucket; batches are additive. */
+  snapshot: boolean;
+};
+
 /** A single entry in the per-connection recent search history. */
 export interface RecentSearchEntry {
   bucket: string;

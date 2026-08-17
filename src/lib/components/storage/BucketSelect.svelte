@@ -142,7 +142,9 @@
           <span>{m.storage_search_scope_all()}</span>
         </button>
       </li>
-      <li><hr class="border-base-300 my-1" /></li>
+      <li class="pointer-events-none" role="presentation">
+        <hr class="border-base-300 my-1" aria-hidden="true" />
+      </li>
       {#if filteredBuckets.length === 0}
         <li>
           <span class="text-base-content/40 pointer-events-none block px-3 py-2 text-sm italic"

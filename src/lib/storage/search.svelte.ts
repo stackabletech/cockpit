@@ -132,16 +132,30 @@ export class StorageSearchState {
               query: session.query.trim(),
               prefix: session.searchPath,
               maxDepth: session.maxDepth,
-              signal: controller.signal
+              useRegex: session.useRegex,
+              excludePatterns: session.excludePatterns,
+              signal: controller.signal,
+              onUpdate: (update) => {
+                if (controller.signal.aborted) return;
+                const otherResults =
+                  this.sessions
+                    .find((item) => item.id === id)
+                    ?.results.filter((result) => result.bucket !== bucket) ?? [];
+                this.updateSession(id, {
+                  results: [
+                    ...otherResults,
+                    ...update.results.map((result) => ({ ...result, bucket }))
+                  ],
+                  truncated: update.truncated
+                });
+              }
             })
             .then((response) => ({ bucket, ...response }))
         )
       );
       if (controller.signal.aborted) return;
       const results = responses.flatMap(({ bucket, results }) =>
-        results
-          .filter((result) => this.matches(session, result))
-          .map((result) => ({ ...result, bucket }))
+        results.map((result) => ({ ...result, bucket }))
       );
       this.updateSession(id, {
         status: 'done',
@@ -176,15 +190,5 @@ export class StorageSearchState {
       elapsed: 0,
       truncated: false
     };
-  }
-
-  private matches(session: SearchSession, result: SearchResultItem): boolean {
-    if (session.excludePatterns.some((pattern) => result.key.includes(pattern))) return false;
-    if (!session.useRegex) return true;
-    try {
-      return new RegExp(session.query, 'i').test(result.key);
-    } catch {
-      return false;
-    }
   }
 }

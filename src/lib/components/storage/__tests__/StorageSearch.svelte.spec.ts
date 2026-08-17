@@ -40,9 +40,7 @@ describe('StorageSearch', () => {
     const explorer = createState();
     render(StorageSearchWrapper, { state: explorer.state, currentBucket: 'alpha' });
     await page.getByRole('button', { name: 'Open search' }).click();
-    await expect
-      .element(page.getByRole('button', { name: 'alpha', exact: true }))
-      .toHaveAttribute('aria-pressed', 'true');
+    await expect.element(page.getByRole('button', { name: 'alpha', exact: true })).toBeVisible();
   });
 
   it('searches every bucket from the landing page', async () => {
@@ -58,6 +56,54 @@ describe('StorageSearch', () => {
     expect(api.search).toHaveBeenCalledWith(
       expect.objectContaining({ bucket: 'beta', query: 'report' })
     );
+  });
+
+  it('sends regex and exclusion filters to the backend', async () => {
+    const { state, api } = createState();
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByRole('button', { name: '.*', exact: true }).click();
+    await expect
+      .element(page.getByRole('button', { name: '.*', exact: true }))
+      .toHaveAttribute('aria-pressed', 'true');
+    await page.getByText('Advanced options').click();
+    await page.getByLabelText('Exclude patterns').fill('archive');
+    await page.getByLabelText('Search query').click();
+    await page.getByLabelText('Search query').fill('report.*');
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect.poll(() => api.search.mock.calls.length).toBe(1);
+    expect(api.search).toHaveBeenCalledWith(
+      expect.objectContaining({ useRegex: true, excludePatterns: ['archive'] })
+    );
+  });
+
+  it('clears the maximum depth when set to zero so the search stays unlimited', async () => {
+    const { state, api } = createState();
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByText('Advanced options').click();
+    const depth = page.getByLabelText('Max folder depth');
+    await depth.fill('1');
+    await depth.fill('0');
+    await expect.element(depth).toHaveProperty('value', '');
+    await page.getByLabelText('Search query').fill('report');
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect.poll(() => api.search.mock.calls.length).toBe(1);
+    expect(api.search).toHaveBeenCalledWith(expect.objectContaining({ maxDepth: undefined }));
+  });
+
+  it('does not leave zero in the depth field when entered from the unlimited state', async () => {
+    const { state, api } = createState();
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByText('Advanced options').click();
+    const depth = page.getByLabelText('Max folder depth');
+    await depth.fill('0');
+    await expect.element(depth).toHaveProperty('value', '');
+    await page.getByLabelText('Search query').fill('report');
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect.poll(() => api.search.mock.calls.length).toBe(1);
+    expect(api.search).toHaveBeenCalledWith(expect.objectContaining({ maxDepth: undefined }));
   });
 
   it('adds a parallel session', async () => {

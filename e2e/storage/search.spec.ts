@@ -113,4 +113,34 @@ test.describe('Storage Search', () => {
       await deleteKnownKeys(client, credentials.bucket, [file]);
     }
   });
+
+  test('uses the regex toggle and server-side exclusion filters', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'regex-search');
+    const matching = `${prefix}report-2026.txt`;
+    const excluded = `${prefix}report-archive.txt`;
+
+    try {
+      await putTextObject(client, credentials.bucket, matching, 'matching result');
+      await putTextObject(client, credentials.bucket, excluded, 'excluded result');
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await page.getByRole('button', { name: 'Open search' }).click();
+      const regexToggle = page.getByRole('button', { name: '.*', exact: true });
+      await regexToggle.click();
+      await expect(regexToggle).toHaveAttribute('aria-pressed', 'true');
+      await page.getByText('Advanced options').click();
+      await page.getByLabel('Exclude patterns').fill('archive');
+      await page.getByLabel('Exclude patterns').press('Enter');
+      await page.getByLabel('Search query').fill('report-[0-9]+');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+      const searchDialog = page.getByRole('dialog');
+      await expect(searchDialog.getByRole('button', { name: /^report-2026\.txt/ })).toBeVisible();
+      await expect(searchDialog.getByRole('button', { name: /^report-archive\.txt/ })).toHaveCount(
+        0
+      );
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [matching, excluded]);
+    }
+  });
 });

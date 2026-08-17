@@ -41,10 +41,16 @@
           : m.storage_search_query_placeholder()}
         autocomplete="off"
       />
-      {#if session.useRegex}<span class="badge badge-primary badge-xs font-mono"
-          >{m.storage_search_regex_badge()}</span
-        >{/if}
     </div>
+    <button
+      type="button"
+      class:btn-primary={session.useRegex}
+      class="btn"
+      aria-pressed={session.useRegex}
+      title={m.storage_search_regex_label()}
+      onclick={() => update({ useRegex: !session.useRegex })}
+      >{m.storage_search_regex_badge()}</button
+    >
     <button
       type="submit"
       class="btn btn-primary"
@@ -77,14 +83,6 @@
       >{m.storage_search_advanced_options()}</summary
     >
     <div class="collapse-content flex flex-col gap-3 pt-1">
-      <label class="text-base-content/60 flex items-center justify-between gap-3 text-xs"
-        >{m.storage_search_regex_label()}<input
-          type="checkbox"
-          class="toggle toggle-primary toggle-sm"
-          checked={session.useRegex}
-          onchange={(event) => update({ useRegex: event.currentTarget.checked })}
-        /></label
-      >
       <div>
         <label for="{id}-exclude" class="text-base-content/60 mb-1 block text-xs"
           >{m.storage_search_exclude_patterns()}</label
@@ -135,11 +133,15 @@
             id="{id}-depth"
             class="input input-sm w-full font-mono"
             type="number"
-            min="1"
+            min="0"
             max="20"
             value={session.maxDepth ?? ''}
-            oninput={(event) =>
-              update({ maxDepth: event.currentTarget.valueAsNumber || undefined })}
+            oninput={(event) => {
+              const input = event.currentTarget;
+              const maxDepth = input.valueAsNumber > 0 ? input.valueAsNumber : undefined;
+              input.value = maxDepth === undefined ? '' : String(maxDepth);
+              update({ maxDepth });
+            }}
             placeholder={m.storage_search_depth_placeholder()}
           />
         </div>
