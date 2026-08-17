@@ -4,7 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import StorageSearchWrapper from './StorageSearchWrapper.svelte';
 import { StorageState } from '$lib/storage/state.svelte.js';
 import type { StorageApi } from '$lib/storage/api.js';
-import type { RecentSearchEntry, StorageSearchResponse } from '$lib/storage/types.js';
+import type { StorageSearchResponse } from '$lib/storage/types.js';
 
 const { goto, invalidateAll } = vi.hoisted(() => ({ goto: vi.fn(), invalidateAll: vi.fn() }));
 
@@ -16,20 +16,14 @@ vi.mock('$app/paths', () => ({
 
 type SearchApiMock = {
   search: ReturnType<typeof vi.fn>;
-  listRecentSearches: ReturnType<typeof vi.fn>;
-  recordRecentSearch: ReturnType<typeof vi.fn>;
-  clearRecentSearches: ReturnType<typeof vi.fn>;
 };
 
-function createState(options?: {
-  history?: RecentSearchEntry[];
-  response?: StorageSearchResponse;
-}): { state: StorageState; api: SearchApiMock } {
+function createState(options?: { response?: StorageSearchResponse }): {
+  state: StorageState;
+  api: SearchApiMock;
+} {
   const api = {
-    search: vi.fn().mockResolvedValue(options?.response ?? { results: [], truncated: false }),
-    listRecentSearches: vi.fn().mockResolvedValue(options?.history ?? []),
-    recordRecentSearch: vi.fn().mockResolvedValue(undefined),
-    clearRecentSearches: vi.fn().mockResolvedValue(undefined)
+    search: vi.fn().mockResolvedValue(options?.response ?? { results: [], truncated: false })
   } satisfies SearchApiMock;
   return {
     state: new StorageState({
@@ -46,44 +40,33 @@ describe('StorageSearch', () => {
     const explorer = createState();
     render(StorageSearchWrapper, { state: explorer.state, currentBucket: 'alpha' });
     await page.getByRole('button', { name: 'Open search' }).click();
-    await expect.element(page.getByLabelText('Bucket')).toHaveValue('alpha');
+    await expect
+      .element(page.getByRole('button', { name: 'alpha', exact: true }))
+      .toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('opens landing search without a scope and disables submission', async () => {
-    const { state } = createState();
+  it('searches every bucket from the landing page', async () => {
+    const { state, api } = createState();
     render(StorageSearchWrapper, { state });
     await page.getByRole('button', { name: 'Open search' }).click();
-    await expect.element(page.getByLabelText('Bucket')).toHaveValue('');
-    await expect.element(page.getByRole('button', { name: 'Search', exact: true })).toBeDisabled();
+    await page.getByLabelText('Search query').fill('report');
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect.poll(() => api.search.mock.calls.length).toBe(2);
+    expect(api.search).toHaveBeenCalledWith(
+      expect.objectContaining({ bucket: 'alpha', query: 'report' })
+    );
+    expect(api.search).toHaveBeenCalledWith(
+      expect.objectContaining({ bucket: 'beta', query: 'report' })
+    );
   });
 
-  it('shows and clears recent searches, and repeats a selected search', async () => {
-    const history = [
-      { bucket: 'alpha', query: 'one' },
-      { bucket: 'alpha', query: 'two' },
-      { bucket: 'beta', query: 'three' },
-      { bucket: 'beta', query: 'four' }
-    ];
-    const { state, api } = createState({ history });
+  it('adds a parallel session', async () => {
+    const { state } = createState();
     render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
     await page.getByRole('button', { name: 'Open search' }).click();
-    await expect.element(page.getByText('four')).not.toBeInTheDocument();
-    await page.getByRole('button', { name: 'Show all' }).click();
-    await expect.element(page.getByText('four')).toBeInTheDocument();
-    await page.getByRole('button', { name: 'Clear recent searches' }).click();
-    await expect.poll(() => api.clearRecentSearches.mock.calls.length).toBe(1);
-    await expect
-      .element(page.getByText('Your recent searches will appear here.'))
-      .toBeInTheDocument();
-
-    api.listRecentSearches.mockResolvedValue(history);
-    await page.getByRole('button', { name: 'Close search' }).click();
-    await page.getByRole('button', { name: 'Open search' }).click();
-    await page.getByRole('button', { name: 'two' }).click();
-    await expect.poll(() => api.search.mock.calls.length).toBe(1);
-    expect(api.search).toHaveBeenCalledWith(
-      expect.objectContaining({ bucket: 'alpha', query: 'two' })
-    );
+    await page.getByRole('button', { name: 'Parallel search' }).click();
+    await expect.element(page.getByRole('navigation', { name: 'Search sessions' })).toBeVisible();
+    await expect.element(page.getByRole('button', { name: 'Search 2', exact: true })).toBeVisible();
   });
 
   it('renders truncated results and opens directories or file previews', async () => {
@@ -104,7 +87,7 @@ describe('StorageSearch', () => {
     await expect
       .element(page.getByText('Only the first matching results are shown.'))
       .toBeInTheDocument();
-    await page.getByRole('button', { name: /reports alpha\/reports\/$/ }).click();
+    await page.getByRole('button', { name: /reportsreports\// }).click();
     expect(goto).toHaveBeenCalledWith('/storage/alpha/reports');
 
     render(StorageSearchWrapper, { state, currentBucket: 'alpha' });

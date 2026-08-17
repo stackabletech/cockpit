@@ -8,7 +8,7 @@ import { storageSearchTotal } from '$lib/server/metrics.js';
 import type { RequestHandler } from './$types';
 
 /**
- * GET /api/storage/search?bucket=<bucket>&q=<query>
+ * GET /api/storage/search?bucket=<bucket>&q=<query>&prefix=<prefix>&maxDepth=<depth>
  *
  * Runs a bounded, bucket-scoped substring search against the storage provider.
  * Requires the `x-storage-connection-id` header (handled by the storage hook).
@@ -22,8 +22,14 @@ export const GET: RequestHandler = async (event) => {
     throw error(400, 'Missing required query parameter: q');
   }
   const log = event.locals.logger;
+  const prefix = event.url.searchParams.get('prefix') ?? '';
+  const maxDepthParam = event.url.searchParams.get('maxDepth');
+  const maxDepth = maxDepthParam === null ? undefined : Number(maxDepthParam);
+  if (maxDepth !== undefined && (!Number.isInteger(maxDepth) || maxDepth < 1 || maxDepth > 20)) {
+    throw error(400, 'maxDepth must be an integer between 1 and 20');
+  }
 
-  log.debug({ bucket, query }, 'running storage search');
+  log.debug({ bucket, query, prefix, max_depth: maxDepth }, 'running storage search');
 
   try {
     const additionalBuckets = event.locals.storageConfig?.additionalBuckets ?? [];
@@ -35,13 +41,22 @@ export const GET: RequestHandler = async (event) => {
     const result = await provider.search(query, {
       maxResults: SEARCH_DEFAULT_MAX_RESULTS,
       maxKeysScanned: SEARCH_DEFAULT_MAX_KEYS_SCANNED,
+      prefix,
+      maxDepth,
       signal: event.request.signal
     });
 
     storageSearchTotal.inc({ outcome: 'success', truncated: String(result.truncated) });
 
     log.info(
-      { bucket, query, result_count: result.results.length, truncated: result.truncated },
+      {
+        bucket,
+        query,
+        prefix,
+        max_depth: maxDepth,
+        result_count: result.results.length,
+        truncated: result.truncated
+      },
       'storage search completed'
     );
 

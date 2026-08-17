@@ -50,6 +50,8 @@ export interface StorageApi {
   search(params: {
     bucket: string;
     query: string;
+    prefix?: string;
+    maxDepth?: number;
     signal?: AbortSignal;
   }): Promise<StorageSearchResponse>;
 
@@ -156,8 +158,10 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       return (await res.json()) as StoragePage;
     },
 
-    async search({ bucket, query, signal }) {
+    async search({ bucket, query, prefix, maxDepth, signal }) {
       const params = new URLSearchParams({ bucket, q: query });
+      if (prefix) params.set('prefix', prefix);
+      if (maxDepth !== undefined) params.set('maxDepth', String(maxDepth));
       const res = await fetch_(`/api/storage/search?${params}`, { signal });
       const response = (await res.json()) as StorageSearchResponse;
       return {

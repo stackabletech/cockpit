@@ -40,7 +40,9 @@ describe('GET /api/storage/search', () => {
       truncated: false
     });
 
-    const response = await GET(mockEvent('bucket=documents&q=report', controller.signal));
+    const response = await GET(
+      mockEvent('bucket=documents&q=report&prefix=reports%2F&maxDepth=2', controller.signal)
+    );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
@@ -50,6 +52,8 @@ describe('GET /api/storage/search', () => {
     expect(mockProvider.search).toHaveBeenCalledWith('report', {
       maxResults: 50,
       maxKeysScanned: 10000,
+      prefix: 'reports/',
+      maxDepth: 2,
       signal: expect.any(AbortSignal)
     });
     expect(storageSearchTotal.inc).toHaveBeenCalledWith({ outcome: 'success', truncated: 'false' });
@@ -71,6 +75,12 @@ describe('GET /api/storage/search', () => {
   it('rejects a missing or blank query', async () => {
     await expect(GET(mockEvent('bucket=documents'))).rejects.toMatchObject({ status: 400 });
     await expect(GET(mockEvent('bucket=documents&q=%20%20'))).rejects.toMatchObject({
+      status: 400
+    });
+  });
+
+  it('rejects an invalid maximum depth', async () => {
+    await expect(GET(mockEvent('bucket=documents&q=report&maxDepth=0'))).rejects.toMatchObject({
       status: 400
     });
   });

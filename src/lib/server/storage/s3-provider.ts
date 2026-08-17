@@ -454,9 +454,18 @@ export class S3StorageProvider implements StorageProvider {
     const maxResults = options?.maxResults ?? SEARCH_DEFAULT_MAX_RESULTS;
     const maxKeysScanned = options?.maxKeysScanned ?? SEARCH_DEFAULT_MAX_KEYS_SCANNED;
     const signal = options?.signal;
+    const prefix = options?.prefix ?? '';
+    const maxDepth = options?.maxDepth;
 
     log.trace(
-      { bucket: this.bucket, query, max_results: maxResults, max_keys_scanned: maxKeysScanned },
+      {
+        bucket: this.bucket,
+        query,
+        prefix,
+        max_depth: maxDepth,
+        max_results: maxResults,
+        max_keys_scanned: maxKeysScanned
+      },
       'S3 ListObjectsV2 (search)'
     );
 
@@ -470,13 +479,21 @@ export class S3StorageProvider implements StorageProvider {
     let truncated = false;
 
     await this.listAllKeysProgressively(
-      '',
+      prefix,
       (batch) => {
         for (const item of batch) {
           if (signal?.aborted) {
             throw new DOMException('The operation was aborted', 'AbortError');
           }
           scanned++;
+          const relativeKey = item.key.slice(prefix.length);
+          if (maxDepth !== undefined && relativeKey.split('/').filter(Boolean).length > maxDepth) {
+            if (scanned >= maxKeysScanned) {
+              truncated = true;
+              return false;
+            }
+            continue;
+          }
           if (item.key.toLowerCase().includes(needle)) {
             results.push({
               key: item.key,
