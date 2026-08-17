@@ -87,7 +87,10 @@ describe('GET /api/storage/search', () => {
     });
 
     const response = await GET(mockEvent('bucket=documents&q=report'));
-    const updates = (await response.text()).trim().split('\n').map((line) => JSON.parse(line));
+    const updates = (await response.text())
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
 
     expect(updates).toEqual(
       expect.arrayContaining([
