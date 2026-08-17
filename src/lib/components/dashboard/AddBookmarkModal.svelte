@@ -7,10 +7,12 @@
 
   let {
     open = $bindable(false),
-    bookmark = null
+    bookmark = null,
+    isAdmin = false
   }: {
     open: boolean;
     bookmark?: Bookmark | null;
+    isAdmin?: boolean;
   } = $props();
 
   let selectedProduct = $state<Product>(PRODUCTS[0]);
@@ -20,6 +22,7 @@
   let environment = $state('');
   let url = $state('');
   let pinned = $state(false);
+  let pinnedForEveryone = $state(false);
   let confirmDeleteOpen = $state(false);
   let wasOpen = $state(false);
   let skipInitOnOpen = $state(false);
@@ -27,6 +30,45 @@
   let uid = $props.id();
 
   let isEditing = $derived(bookmark !== null);
+  let pinEveryoneDisabled = $derived(!isAdmin);
+
+  let pinSectionEl = $state<HTMLDivElement>();
+  let parentPinCheckbox = $state<HTMLInputElement>();
+  let childPinCheckbox = $state<HTMLInputElement>();
+  let connectorPath = $state('');
+
+  $effect(() => {
+    if (pinEveryoneDisabled) {
+      pinnedForEveryone = false;
+    }
+  });
+
+  $effect(() => {
+    if (!open) {
+      connectorPath = '';
+      return;
+    }
+    const section = pinSectionEl;
+    const parent = parentPinCheckbox;
+    const child = childPinCheckbox;
+    if (!section || !parent || !child) return;
+
+    const compute = () => {
+      const sectionRect = section.getBoundingClientRect();
+      const parentRect = parent.getBoundingClientRect();
+      const childRect = child.getBoundingClientRect();
+      if (sectionRect.width === 0 || sectionRect.height === 0) return;
+      const gap = 8;
+      const x1 = parentRect.left + parentRect.width / 2 - sectionRect.left;
+      const yStart = parentRect.bottom - sectionRect.top + gap;
+      const x2 = childRect.left - sectionRect.left - gap;
+      const y2 = childRect.top + childRect.height / 2 - sectionRect.top;
+      connectorPath = `M ${x1} ${yStart} V ${y2} H ${x2}`;
+    };
+
+    const frame = requestAnimationFrame(compute);
+    return () => cancelAnimationFrame(frame);
+  });
 
   function resetForm() {
     selectedProduct = PRODUCTS[0];
@@ -36,6 +78,7 @@
     environment = '';
     url = '';
     pinned = false;
+    pinnedForEveryone = false;
   }
 
   function initForm(target: Bookmark | null) {
@@ -47,6 +90,7 @@
       environment = target.environment;
       url = target.url;
       pinned = target.pinned;
+      pinnedForEveryone = target.pinnedForEveryone ?? false;
     } else {
       resetForm();
     }
@@ -102,7 +146,10 @@
       environment: environment.trim(),
       url: url.trim(),
       openIn,
-      pinned
+      pinned,
+      // Only admins can set the "pin for everyone" flag; non-admins keep the
+      // existing value (e.g. when editing a bookmark pinned by an admin).
+      pinnedForEveryone: isAdmin ? pinnedForEveryone : (bookmark?.pinnedForEveryone ?? false)
     };
 
     if (bookmark) {
@@ -290,14 +337,61 @@
       </div>
 
       <!-- Section 6: Pinned checkbox -->
-      <label class="flex cursor-pointer items-center gap-2">
-        <input
-          type="checkbox"
-          bind:checked={pinned}
-          class="checkbox checkbox-primary checkbox-sm"
-        />
-        <span class="text-base-content/80 text-sm">{m.bookmark_pin_checkbox_label()}</span>
-      </label>
+      <div class="relative" bind:this={pinSectionEl}>
+        <label class="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            bind:this={parentPinCheckbox}
+            bind:checked={pinned}
+            class="checkbox checkbox-primary checkbox-sm"
+          />
+          <span class="text-base-content/80 text-sm"
+            >{isAdmin ? m.bookmark_pinned_label() : m.bookmark_pinned_label_basic()}</span
+          >
+        </label>
+
+        {#if isAdmin}
+          <!-- Section 6b: Pin for everyone (admin only) -->
+          <div class="mt-6 ml-8">
+            <label
+              for="{uid}-pin-everyone"
+              class="flex items-center gap-2 {pinEveryoneDisabled
+                ? 'cursor-not-allowed opacity-50'
+                : 'cursor-pointer'}"
+            >
+              <input
+                id="{uid}-pin-everyone"
+                type="checkbox"
+                bind:this={childPinCheckbox}
+                bind:checked={pinnedForEveryone}
+                disabled={pinEveryoneDisabled}
+                class="checkbox checkbox-primary checkbox-sm"
+              />
+              <span
+                class="text-sm {pinEveryoneDisabled
+                  ? 'text-base-content/50'
+                  : 'text-base-content/80'}">{m.bookmark_pin_everyone()}</span
+              >
+            </label>
+            <p
+              class="mt-1 text-xs {pinEveryoneDisabled
+                ? 'text-base-content/40'
+                : 'text-base-content/50'}"
+            >
+              {m.bookmark_pin_everyone_hint()}
+            </p>
+          </div>
+
+          <svg
+            class="pointer-events-none absolute inset-0 overflow-visible"
+            fill="none"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path d={connectorPath} class="text-base-content/30" stroke-width="1.5" />
+          </svg>
+        {/if}
+      </div>
 
       <!-- Section 7: Preview -->
       {#if selectedProduct}

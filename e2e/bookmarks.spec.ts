@@ -52,7 +52,7 @@ test.describe('Dashboard bookmarks', () => {
     await expect(page.getByLabel('URL')).toBeVisible();
 
     // Pinned checkbox label
-    await expect(page.getByText('Pin this bookmark for all users?')).toBeVisible();
+    await expect(page.getByText('Pin bookmark')).toBeVisible();
 
     // Preview section
     await expect(page.getByText('Preview')).toBeVisible();
@@ -168,7 +168,7 @@ test.describe('Dashboard bookmarks', () => {
 
     await page.getByLabel('Name').fill('Dashboards');
     await page.getByLabel('URL').fill('https://superset.example.com');
-    await page.getByText('Pin this bookmark for all users?').click();
+    await page.locator('dialog[open]').getByRole('checkbox', { name: 'Pin bookmark' }).click();
 
     await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
 
@@ -189,7 +189,7 @@ test.describe('Dashboard bookmarks', () => {
 
     await page.getByLabel('Name').fill('Dashboards');
     await page.getByLabel('URL').fill('https://superset.example.com');
-    await page.getByText('Pin this bookmark for all users?').click();
+    await page.locator('dialog[open]').getByRole('checkbox', { name: 'Pin bookmark' }).click();
 
     await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
 
@@ -197,9 +197,7 @@ test.describe('Dashboard bookmarks', () => {
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await expect(
-      page
-        .locator('dialog[open]')
-        .getByRole('checkbox', { name: 'Pin this bookmark for all users?' })
+      page.locator('dialog[open]').getByRole('checkbox', { name: 'Pin bookmark' })
     ).toBeChecked();
   });
 

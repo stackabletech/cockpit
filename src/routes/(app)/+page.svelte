@@ -48,7 +48,11 @@
   }
 </script>
 
-<AddBookmarkModal bind:open={addModalOpen} bookmark={editingBookmark} />
+<AddBookmarkModal
+  bind:open={addModalOpen}
+  bookmark={editingBookmark}
+  isAdmin={props.data.isAdmin}
+/>
 
 <div class="mx-auto max-w-6xl space-y-6">
   <div class="flex items-start justify-between">
@@ -122,7 +126,7 @@
       {#if pinnedBookmarks.length > 0}
         <div class="mt-4 space-y-2">
           <p class="text-base-content/50 text-xs font-medium tracking-wider uppercase">
-            {m.bookmark_pinned_label()}
+            {m.bookmark_pinned_section_title()}
           </p>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {#each pinnedBookmarks as bookmark (bookmark.id)}

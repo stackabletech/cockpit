@@ -13,10 +13,32 @@ interface OpaInput {
   };
 }
 
-const client = opaEnabled ? new OPAClient(opaUrl, { sdk: { timeoutMs: opaTimeout } }) : null;
+/** Minimal surface of the OPA SDK client used by `checkAdmin`. Kept narrow so
+ *  unit tests can inject a fake evaluator without a running OPA server. */
+export interface OpaEvaluator {
+  evaluate<Input, Result>(
+    path: string,
+    input: Input,
+    opts: { fromResult: (result: unknown) => Result }
+  ): Promise<Result>;
+}
 
-export async function checkAdmin(input: OpaInput): Promise<boolean> {
-  if (!client) {
+const client: OpaEvaluator | null = opaEnabled
+  ? (new OPAClient(opaUrl, { sdk: { timeoutMs: opaTimeout } }) as unknown as OpaEvaluator)
+  : null;
+
+/**
+ * Evaluate the `stackable/admin` policy for a user.
+ *
+ * Fail-closed: returns `false` when OPA is disabled, denies, or errors.
+ * The `evaluator` parameter defaults to the module-level singleton so tests
+ * can pass a fake client and exercise every outcome branch.
+ */
+export async function checkAdmin(
+  input: OpaInput,
+  evaluator: OpaEvaluator | null = client
+): Promise<boolean> {
+  if (!evaluator) {
     opaRequestDuration.observe({ outcome: 'disabled' }, 0);
     opaRequestTotal.inc({ outcome: 'disabled' });
     log.debug('OPA disabled, returning non-admin');
@@ -25,7 +47,7 @@ export async function checkAdmin(input: OpaInput): Promise<boolean> {
 
   const start = performance.now();
   try {
-    const isAdmin = await client.evaluate<OpaInput, boolean>('stackable/admin', input, {
+    const isAdmin = await evaluator.evaluate<OpaInput, boolean>('stackable/admin', input, {
       fromResult: (r) => r === true || (r as Record<string, unknown>)?.admin === true
     });
 
