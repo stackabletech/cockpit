@@ -74,7 +74,7 @@
       <label class="sr-only" for="{uid}-value">{m.storage_search_filter_value_size()}</label>
       <input
         id="{uid}-value"
-        class="min-w-0 grow bg-transparent px-1 py-1 text-sm focus:outline-none"
+        class="h-8 min-w-0 grow bg-transparent px-1 text-sm focus:outline-none"
         type="text"
         inputmode="decimal"
         autocomplete="off"

@@ -115,10 +115,10 @@
   }
 </script>
 
-<div class={`flex min-w-0 items-stretch ${className}`}>
+<div class={`flex min-w-0 items-center ${className}`}>
   <input
     {id}
-    class="min-w-0 grow bg-transparent px-1 text-sm focus:outline-none"
+    class="h-8 min-w-0 grow bg-transparent px-1 text-sm focus:outline-none"
     type="text"
     inputmode="text"
     autocomplete="off"
