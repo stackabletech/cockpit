@@ -60,7 +60,7 @@
     <label class="sr-only" for="{uid}-operator">{m.storage_search_filter_operator()}</label>
     <select
       id="{uid}-operator"
-      class="select select-sm border-base-300/0 h-auto min-h-0 w-14 flex-shrink-0 border-0 pe-7 ps-2 text-center font-mono text-sm"
+      class="select select-sm border-base-300/0 h-auto min-h-0 w-14 flex-shrink-0 border-0 ps-2 pe-7 text-center font-mono text-sm"
       value={filter.operator}
       onchange={(event) => setOperator(event.currentTarget.value as SearchFilterOperator)}
     >
