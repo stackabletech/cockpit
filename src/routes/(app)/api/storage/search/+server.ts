@@ -5,6 +5,7 @@ import {
   SEARCH_DEFAULT_MAX_KEYS_SCANNED
 } from '$lib/server/storage/provider.js';
 import { createSafeSearchRegex, UnsafeSearchRegexError } from '$lib/server/storage/search-regex.js';
+import { compileFilterPredicates, parseFilterParam } from '$lib/storage/search-filter.js';
 import { storageSearchTotal } from '$lib/server/metrics.js';
 import type { SearchResultItem } from '$lib/storage/types.js';
 import type { RequestHandler } from './$types';
@@ -12,7 +13,7 @@ import type { RequestHandler } from './$types';
 const SNAPSHOT_INTERVAL = 10;
 
 /**
- * GET /api/storage/search?bucket=<bucket>&q=<query>&prefix=<prefix>&maxDepth=<depth>&regex=<boolean>&exclude=<pattern>
+ * GET /api/storage/search?bucket=<bucket>&q=<query>&prefix=<prefix>&maxDepth=<depth>&regex=<boolean>&exclude=<pattern>&filter=<field><op><value>
  *
  * Runs a bounded, bucket-scoped search and streams NDJSON result updates.
  * Requires the `x-storage-connection-id` header (handled by the storage hook).
@@ -21,10 +22,7 @@ const SNAPSHOT_INTERVAL = 10;
  */
 export const GET: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
-  const query = event.url.searchParams.get('q')?.trim();
-  if (!query) {
-    throw error(400, 'Missing required query parameter: q');
-  }
+  const query = event.url.searchParams.get('q')?.trim() ?? '';
   const log = event.locals.logger;
   const prefix = event.url.searchParams.get('prefix') ?? '';
   const maxDepthParam = event.url.searchParams.get('maxDepth');
@@ -34,6 +32,10 @@ export const GET: RequestHandler = async (event) => {
   }
   const useRegex = event.url.searchParams.get('regex') === 'true';
   const excludePatterns = event.url.searchParams.getAll('exclude').filter(Boolean);
+  const filters = event.url.searchParams
+    .getAll('filter')
+    .map((raw) => parseFilterParam(raw))
+    .filter((filter): filter is NonNullable<typeof filter> => filter !== null);
   let regex: RegExp | undefined;
   if (useRegex) {
     try {
@@ -43,6 +45,7 @@ export const GET: RequestHandler = async (event) => {
       throw err;
     }
   }
+  const matchesFilters = compileFilterPredicates(filters);
 
   log.debug(
     {
@@ -51,7 +54,8 @@ export const GET: RequestHandler = async (event) => {
       prefix,
       max_depth: maxDepth,
       use_regex: useRegex,
-      exclude_count: excludePatterns.length
+      exclude_count: excludePatterns.length,
+      filter_count: filters.length
     },
     'running storage search'
   );
@@ -89,7 +93,11 @@ export const GET: RequestHandler = async (event) => {
               const matched = regex
                 ? regex.test(item.key)
                 : item.key.toLowerCase().includes(query.toLowerCase());
-              return matched && !excludePatterns.some((pattern) => item.key.includes(pattern));
+              return (
+                matched &&
+                !excludePatterns.some((pattern) => item.key.includes(pattern)) &&
+                matchesFilters(item)
+              );
             },
             onMatch: (item) => {
               results.push(item);

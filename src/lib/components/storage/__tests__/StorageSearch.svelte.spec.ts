@@ -115,6 +115,65 @@ describe('StorageSearch', () => {
     await expect.element(page.getByRole('button', { name: 'Search 2', exact: true })).toBeVisible();
   });
 
+  it('sends date and size filters to the backend', async () => {
+    const { state, api } = createState();
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByText('Advanced options').click();
+    await page.getByLabelText('Size value').fill('10');
+    await page.getByLabelText('Date value').fill('15.03.2027');
+    await page.getByLabelText('Search query').fill('report');
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect.poll(() => api.search.mock.calls.length).toBe(1);
+    expect(api.search).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: [
+          { field: 'date', operator: '>', value: '15.03.2027' },
+          { field: 'size', operator: '>', value: '10' }
+        ]
+      })
+    );
+  });
+
+  it('adds and removes filter rows', async () => {
+    const { state } = createState();
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByText('Advanced options').click();
+    await expect.poll(() => page.getByLabelText('Filter field').elements().length).toBe(2);
+    await page.getByRole('button', { name: 'Add filter' }).click();
+    await expect.poll(() => page.getByLabelText('Filter field').elements().length).toBe(3);
+    await page.getByLabelText('Filter field').last().selectOptions('size');
+    await page.getByRole('button', { name: 'Remove filter' }).last().click();
+    await expect.poll(() => page.getByLabelText('Filter field').elements().length).toBe(2);
+  });
+
+  it('disables search while a filter value is invalid', async () => {
+    const { state } = createState();
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByText('Advanced options').click();
+    await page.getByLabelText('Search query').fill('report');
+    const search = page.getByRole('button', { name: 'Search', exact: true });
+    await expect.element(search).toBeEnabled();
+    await page.getByLabelText('Size value').fill('not-a-size');
+    await expect.element(search).toBeDisabled();
+  });
+
+  it('opens the date picker at a valid typed date and writes the picked date back', async () => {
+    const { state } = createState();
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByText('Advanced options').click();
+    await page.getByLabelText('Date value').fill('15.03.2027');
+    await page.getByRole('button', { name: 'Pick a date' }).click();
+    const picker = page.getByRole('dialog', { name: 'Date picker' });
+    await expect.element(picker).toBeVisible();
+    await expect.element(picker).toHaveTextContent('March 2027');
+    await picker.getByRole('button', { name: /Select March 20, 2027/ }).click();
+    await expect.element(page.getByLabelText('Date value')).toHaveProperty('value', '2027-03-20');
+  });
+
   it('renders truncated results and opens directories or file previews', async () => {
     const { state, api } = createState({
       response: {

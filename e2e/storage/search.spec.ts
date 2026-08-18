@@ -143,4 +143,77 @@ test.describe('Storage Search', () => {
       await deleteKnownKeys(client, credentials.bucket, [matching, excluded]);
     }
   });
+
+  test('adds and removes date/size filter rows, jumping the date picker to a typed date', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'filter-search');
+    const big = `${prefix}report-big.txt`;
+    const small = `${prefix}report-small.txt`;
+    const folder = `${prefix}archive/`;
+
+    try {
+      await putTextObject(client, credentials.bucket, big, 'x'.repeat(12 * 1024 * 1024));
+      await putTextObject(client, credentials.bucket, small, 'x');
+      await putDirectoryMarker(client, credentials.bucket, folder);
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await page.getByRole('button', { name: 'Open search' }).click();
+      await page.getByText('Advanced options').click();
+
+      // Each new session starts with a Date and a Size filter row.
+      await expect(page.getByLabel('Size value')).toBeVisible();
+      await expect(page.getByLabel('Date value')).toBeVisible();
+
+      // Size filter: "size > 10" (MB) keeps only the big report.
+      await page.getByLabel('Size value').fill('10');
+      await page.getByLabel('Search query').fill('report');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+      await expect(page.getByRole('button', { name: /^report-big\.txt/ })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^report-small\.txt/ })).toHaveCount(0);
+
+      // Add a new filter row and change its field, then remove it again.
+      await page.getByRole('button', { name: 'Add filter' }).click();
+      await expect(page.getByLabel('Filter field')).toHaveCount(3);
+      await page.getByLabel('Filter field').last().selectOption('size');
+      await page.getByRole('button', { name: 'Remove filter' }).last().click();
+      await expect(page.getByLabel('Filter field')).toHaveCount(2);
+
+      // A valid typed date makes the picker open on that month.
+      const dateInput = page.getByLabel('Date value');
+      await dateInput.fill('15.03.2027');
+      await page.getByRole('button', { name: 'Pick a date' }).click();
+      const picker = page.getByRole('dialog', { name: 'Date picker' });
+      await expect(picker).toBeVisible();
+      await expect(picker).toContainText('March 2027');
+      await page.keyboard.press('Escape');
+
+      // Invalid size values disable the search button.
+      await page.getByLabel('Size value').fill('not-a-size');
+      await expect(page.getByRole('button', { name: 'Search', exact: true })).toBeDisabled();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [big, small, folder]);
+    }
+  });
+
+  test('parses a comma decimal separator in a size filter', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'comma-filter');
+    const file = `${prefix}report-comma.txt`;
+
+    try {
+      await putTextObject(client, credentials.bucket, file, 'x'.repeat(2 * 1024 * 1024));
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await page.getByRole('button', { name: 'Open search' }).click();
+      await page.getByText('Advanced options').click();
+      await page.getByLabel('Size value').fill('1,5'); // = 1.5 MB; 2 MB > 1.5 MB
+      await page.getByLabel('Search query').fill('report');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+      await expect(page.getByRole('button', { name: /^report-comma\.txt/ })).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [file]);
+    }
+  });
 });

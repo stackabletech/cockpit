@@ -14,6 +14,7 @@
 import { STORAGE_CONNECTION_ID_HEADER } from './connection-id-header.js';
 import { createStorageFetch } from './storage-fetch.js';
 import { readNdjsonStream, type NdjsonStreamCallbacks } from './ndjson-stream.js';
+import { serializeFilter, type SearchFilterSpec } from './search-filter.js';
 import type {
   StoragePage,
   ArchiveListingResponse,
@@ -55,6 +56,7 @@ export interface StorageApi {
     maxDepth?: number;
     useRegex?: boolean;
     excludePatterns?: string[];
+    filters?: SearchFilterSpec[];
     signal?: AbortSignal;
     onUpdate?: (update: StorageSearchUpdate) => void;
   }): Promise<StorageSearchResponse>;
@@ -162,12 +164,25 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       return (await res.json()) as StoragePage;
     },
 
-    async search({ bucket, query, prefix, maxDepth, useRegex, excludePatterns, signal, onUpdate }) {
+    async search({
+      bucket,
+      query,
+      prefix,
+      maxDepth,
+      useRegex,
+      excludePatterns,
+      filters,
+      signal,
+      onUpdate
+    }) {
       const params = new URLSearchParams({ bucket, q: query });
       if (prefix) params.set('prefix', prefix);
       if (maxDepth !== undefined) params.set('maxDepth', String(maxDepth));
       if (useRegex) params.set('regex', 'true');
       for (const pattern of excludePatterns ?? []) params.append('exclude', pattern);
+      for (const filter of filters ?? []) {
+        if (filter.value.trim()) params.append('filter', serializeFilter(filter));
+      }
       const res = await fetch_(`/api/storage/search?${params}`, { signal });
       const { readSearchStream } = await import('./search-stream.js');
       return readSearchStream(res.body, onUpdate);

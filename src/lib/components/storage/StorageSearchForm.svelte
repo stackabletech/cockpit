@@ -1,7 +1,14 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import type { SearchSession, StorageSearchState } from '$lib/storage/search.svelte.js';
+  import {
+    parseDateFilterValue,
+    parseSizeFilterValue,
+    type SearchFilter
+  } from '$lib/storage/search-filter.js';
   import BucketSelect from '$lib/components/storage/BucketSelect.svelte';
+  import SearchFilterRow from '$lib/components/storage/SearchFilterRow.svelte';
+  import IconAdd from 'virtual:icons/material-symbols/add';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconSearch from 'virtual:icons/material-symbols/search';
 
@@ -17,6 +24,19 @@
   function update(patch: Partial<SearchSession>): void {
     state.updateSession(session.id, patch);
   }
+
+  function updateFilter(filterId: string, patch: Partial<SearchFilter>): void {
+    state.updateFilter(filterId, patch);
+  }
+
+  const hasInvalidFilter = $derived(
+    session.filters.some((filter) => {
+      if (filter.value.trim() === '') return false;
+      return filter.field === 'date'
+        ? parseDateFilterValue(filter) === null
+        : parseSizeFilterValue(filter) === null;
+    })
+  );
 </script>
 
 <form
@@ -54,7 +74,7 @@
     <button
       type="submit"
       class="btn btn-primary"
-      disabled={session.status === 'running' || !session.query.trim()}
+      disabled={session.status === 'running' || hasInvalidFilter}
       >{#if session.status === 'running'}<span
           class="loading loading-spinner loading-sm"
           aria-hidden="true"
@@ -83,6 +103,27 @@
       >{m.storage_search_advanced_options()}</summary
     >
     <div class="collapse-content flex flex-col gap-3 pt-1">
+      <fieldset>
+        <legend class="text-base-content/60 mb-1 block text-xs"
+          >{m.storage_search_filters_label()}</legend
+        >
+        <div class="flex flex-col gap-2">
+          {#each session.filters as filter (filter.id)}
+            <SearchFilterRow
+              {filter}
+              onupdate={(patch) => updateFilter(filter.id, patch)}
+              onremove={() => state.removeFilter(filter.id)}
+            />
+          {/each}
+        </div>
+        <button
+          type="button"
+          class="btn btn-ghost btn-xs mt-2 gap-1"
+          aria-label={m.storage_search_filter_add()}
+          onclick={() => state.addFilter()}
+          ><IconAdd class="size-3.5" aria-hidden="true" />{m.storage_search_filter_add()}</button
+        >
+      </fieldset>
       <div>
         <label for="{id}-exclude" class="text-base-content/60 mb-1 block text-xs"
           >{m.storage_search_exclude_patterns()}</label

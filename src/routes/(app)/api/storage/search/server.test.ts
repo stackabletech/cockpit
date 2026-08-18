@@ -74,6 +74,55 @@ describe('GET /api/storage/search', () => {
     expect(storageSearchTotal.inc).toHaveBeenCalledWith({ outcome: 'success', truncated: 'true' });
   });
 
+  it('applies date and size filters to matches', async () => {
+    mockProvider.search.mockResolvedValue({ results: [], truncated: false });
+    const MB = 1024 ** 2;
+
+    const response = await GET(
+      mockEvent(
+        'bucket=documents&q=report&filter=' +
+          encodeURIComponent('size>2') +
+          '&filter=' +
+          encodeURIComponent('date>17.08.2026')
+      )
+    );
+    await expect(response.text()).resolves.toContain('"type":"complete"');
+    expect(mockProvider.search).toHaveBeenCalledWith('report', expect.objectContaining({}));
+    const { matches } = mockProvider.search.mock.calls[0][1];
+    expect(
+      matches({
+        key: 'reports/x.pdf',
+        size: 3 * MB,
+        lastModified: new Date(2026, 7, 18),
+        isDirectory: false
+      })
+    ).toBe(true);
+    expect(
+      matches({
+        key: 'reports/x.pdf',
+        size: MB,
+        lastModified: new Date(2026, 7, 18),
+        isDirectory: false
+      })
+    ).toBe(false);
+    expect(
+      matches({
+        key: 'reports/x.pdf',
+        size: 3 * MB,
+        lastModified: new Date(2026, 7, 17),
+        isDirectory: false
+      })
+    ).toBe(false);
+    expect(
+      matches({
+        key: 'reports/archive/',
+        size: 0,
+        lastModified: new Date(2026, 7, 18),
+        isDirectory: true
+      })
+    ).toBe(false);
+  });
+
   it('sends a periodic full snapshot as results are found', async () => {
     mockProvider.search.mockImplementation(async (_query, options) => {
       const results = Array.from({ length: 10 }, (_, index) => ({
@@ -104,11 +153,17 @@ describe('GET /api/storage/search', () => {
     await expect(GET(mockEvent('q=report'))).rejects.toMatchObject({ status: 400 });
   });
 
-  it('rejects a missing or blank query', async () => {
-    await expect(GET(mockEvent('bucket=documents'))).rejects.toMatchObject({ status: 400 });
-    await expect(GET(mockEvent('bucket=documents&q=%20%20'))).rejects.toMatchObject({
-      status: 400
-    });
+  it('accepts missing or blank queries for filters-only searches', async () => {
+    mockProvider.search.mockResolvedValue({ results: [], truncated: false });
+
+    const response = await GET(mockEvent('bucket=documents'));
+    await expect(response.text()).resolves.toContain('"type":"complete"');
+    expect(mockProvider.search).toHaveBeenCalledWith('', expect.anything());
+    mockProvider.search.mockClear();
+
+    const blank = await GET(mockEvent('bucket=documents&q=%20%20'));
+    await expect(blank.text()).resolves.toContain('"type":"complete"');
+    expect(mockProvider.search).toHaveBeenCalledWith('', expect.anything());
   });
 
   it('rejects an invalid maximum depth', async () => {
