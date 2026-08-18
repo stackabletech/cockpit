@@ -60,7 +60,7 @@
   </div>
 
   <div class="flex flex-col gap-3">
-    <fieldset class="flex flex-col gap-2 sm:flex-row sm:items-center">
+    <fieldset class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
       <legend class="text-base-content/60 w-24 shrink-0 text-xs font-medium"
         >{m.storage_search_scope_label()}</legend
       >

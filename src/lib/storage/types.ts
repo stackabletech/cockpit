@@ -234,10 +234,16 @@ export interface StorageSearchResponse {
   truncated: boolean;
 }
 
-/** A single entry in the per-connection recent search history. */
+/** A single entry in the per-connection recent search history. One entry
+ *  represents one logical search grouped across all buckets it ran against.
+ *  `maxDepth` is NULL when no depth limit was set. */
 export interface RecentSearchEntry {
-  bucket: string;
+  buckets: string[];
   query: string;
+  useRegex: boolean;
+  excludePatterns: string[];
+  searchPath: string;
+  maxDepth: number | null;
 }
 
 // ── Archive navigation ───────────────────────────────────────────────────────

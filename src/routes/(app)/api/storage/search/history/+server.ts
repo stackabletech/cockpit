@@ -3,7 +3,8 @@ import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.
 import {
   clearRecentSearches,
   listRecentSearches,
-  recordRecentSearch
+  recordRecentSearch,
+  type RecentSearchOptions
 } from '$lib/server/storage/recent-searches-db.js';
 import { storageSearchHistoryTotal } from '$lib/server/metrics.js';
 import type { RequestHandler } from './$types';
@@ -38,18 +39,47 @@ export const GET: RequestHandler = async ({ request, locals }) => {
 export const POST: RequestHandler = async ({ request, locals }) => {
   const userId = locals.user!.id;
   const connectionId = connectionIdFromRequest(request);
-  const body = (await request.json()) as { bucket?: unknown; query?: unknown };
-  const bucket = typeof body.bucket === 'string' ? body.bucket.trim() : '';
+  const body = (await request.json()) as {
+    buckets?: unknown;
+    query?: unknown;
+    useRegex?: unknown;
+    excludePatterns?: unknown;
+    searchPath?: unknown;
+    maxDepth?: unknown;
+  };
+  const buckets = Array.isArray(body.buckets)
+    ? [...new Set(body.buckets.map((b) => (typeof b === 'string' ? b.trim() : '')).filter(Boolean))]
+    : [];
   const query = typeof body.query === 'string' ? body.query.trim() : '';
-  if (!bucket || !query) {
-    throw error(400, 'Bucket and query are required');
+  if (buckets.length === 0 || !query) {
+    throw error(400, 'At least one bucket and a query are required');
   }
+  const options: RecentSearchOptions = {
+    useRegex: typeof body.useRegex === 'boolean' ? body.useRegex : false,
+    excludePatterns:
+      Array.isArray(body.excludePatterns) &&
+      body.excludePatterns.every((i) => typeof i === 'string')
+        ? body.excludePatterns
+        : [],
+    searchPath: typeof body.searchPath === 'string' ? body.searchPath.trim() : '',
+    maxDepth:
+      typeof body.maxDepth === 'number' && Number.isInteger(body.maxDepth) && body.maxDepth > 0
+        ? body.maxDepth
+        : null
+  };
 
   try {
-    await recordRecentSearch(userId, connectionId, bucket, query);
+    await recordRecentSearch(userId, connectionId, buckets, query, options);
     storageSearchHistoryTotal.inc({ operation: 'record', outcome: 'success' });
     locals.logger.info(
-      { user_id: userId, connection_id: connectionId, bucket, query },
+      {
+        user_id: userId,
+        connection_id: connectionId,
+        buckets,
+        query,
+        use_regex: options.useRegex,
+        max_depth: options.maxDepth
+      },
       'recent storage search recorded'
     );
     return new Response(null, { status: 204 });

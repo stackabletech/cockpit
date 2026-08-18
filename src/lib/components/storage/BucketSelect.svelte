@@ -70,7 +70,7 @@
   }
 </script>
 
-<div class="relative flex-1">
+<div class="relative min-w-0 flex-1">
   <button
     type="button"
     class="input focus:border-primary cursor-pointer gap-2 pe-2 text-left font-normal"

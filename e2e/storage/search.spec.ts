@@ -113,4 +113,33 @@ test.describe('Storage Search', () => {
       await deleteKnownKeys(client, credentials.bucket, [file]);
     }
   });
+
+  test('shows recent searches in the recent view and reuses one', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'recent');
+    const file = `${prefix}recent-report.txt`;
+
+    try {
+      await putTextObject(client, credentials.bucket, file, 'recent search');
+      await connectToStorage(page, credentials);
+
+      await page.getByRole('button', { name: 'Open search' }).click();
+      await page.getByLabel('Search query').fill('recent-report');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'recent-report.txt' })).toBeVisible();
+
+      await page.getByRole('button', { name: 'Close search' }).click();
+      await page.getByRole('button', { name: 'Open search' }).click();
+      await page.getByRole('tab', { name: 'Recent', exact: true }).click();
+      await expect(page.getByRole('button', { name: /recent-report/ })).toBeVisible();
+
+      await page.getByRole('button', { name: /recent-report/ }).click();
+      await expect(page.getByLabel('Search query')).toHaveValue('recent-report');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'recent-report.txt' })).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [file]);
+    }
+  });
 });

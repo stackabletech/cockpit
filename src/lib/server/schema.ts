@@ -1,4 +1,14 @@
-import { pgTable, text, timestamp, uuid, jsonb, index, unique } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  jsonb,
+  index,
+  unique,
+  boolean,
+  integer
+} from 'drizzle-orm/pg-core';
 
 /**
  * User storage connections table.
@@ -28,8 +38,14 @@ export const userStorageConnections = pgTable(
 
 /**
  * Recent storage searches table.
- * Stores the most recently executed storage searches per user and connection,
- * keyed by the unique combination of user, connection, bucket and query.
+ * Stores the most recently executed storage searches per user and connection.
+ * A single row represents one logical search — the query and advanced options
+ * plus the ordered list of buckets it ran against. Buckets are kept sorted so
+ * the unique key below is order-independent. Postgres treats NULLs as distinct
+ * in unique constraints by default, so identical searches with a NULL
+ * `max_depth` ("no limit") would not conflict; the migration recreates this
+ * constraint with `NULLS NOT DISTINCT` so they always resolve to a single row.
+ * The modifier is not modelled in the Drizzle schema.
  */
 export const userRecentSearches = pgTable(
   'user_recent_searches',
@@ -39,16 +55,24 @@ export const userRecentSearches = pgTable(
     connectionId: uuid('connection_id')
       .notNull()
       .references(() => userStorageConnections.id, { onDelete: 'cascade' }),
-    bucket: text('bucket').notNull(),
+    buckets: jsonb('buckets').$type<string[]>().notNull().default([]),
     query: text('query').notNull(),
+    useRegex: boolean('use_regex').notNull().default(false),
+    excludePatterns: text('exclude_patterns').array().notNull().default([]),
+    searchPath: text('search_path').notNull().default(''),
+    maxDepth: integer('max_depth'),
     updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull()
   },
   (table) => [
-    unique('user_recent_searches_user_connection_bucket_query').on(
+    unique('user_recent_searches_connection_query').on(
       table.userId,
       table.connectionId,
-      table.bucket,
-      table.query
+      table.query,
+      table.useRegex,
+      table.excludePatterns,
+      table.searchPath,
+      table.maxDepth,
+      table.buckets
     ),
     index('user_recent_searches_connection_idx').on(table.userId, table.connectionId)
   ]

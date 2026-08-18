@@ -81,18 +81,22 @@ describe('recent-searches-db', () => {
   beforeEach(() => vi.clearAllMocks());
 
   describe('listRecentSearches', () => {
-    it('selects bucket+query for the user+connection, newest first', async () => {
+    it('selects buckets+query+options for the user+connection, newest first', async () => {
       const rows = [
-        { bucket: 'b1', query: 'q2' },
-        { bucket: 'b1', query: 'q1' }
+        { buckets: ['b1', 'b2'], query: 'q2' },
+        { buckets: ['b1'], query: 'q1' }
       ];
       mockDb.select.mockReturnValue(buildChain(rows, 'select id from user_recent_searches'));
 
       const result = await listRecentSearches(USER_ID, CONNECTION_ID);
 
       expect(mockDb.select).toHaveBeenCalledWith({
-        bucket: userRecentSearches.bucket,
-        query: userRecentSearches.query
+        buckets: userRecentSearches.buckets,
+        query: userRecentSearches.query,
+        useRegex: userRecentSearches.useRegex,
+        excludePatterns: userRecentSearches.excludePatterns,
+        searchPath: userRecentSearches.searchPath,
+        maxDepth: userRecentSearches.maxDepth
       });
 
       const selectChain = mockDb.select.mock.results[0].value;
@@ -122,8 +126,20 @@ describe('recent-searches-db', () => {
       mockDb.select.mockReturnValue(subqueryChain);
       mockDb.delete.mockReturnValue(deleteChain);
 
+      const options = {
+        useRegex: false,
+        excludePatterns: ['_temp'],
+        searchPath: 'events/',
+        maxDepth: 3
+      };
       const before = Date.now();
-      await recordRecentSearch(USER_ID, CONNECTION_ID, 'bucket-1', 'query-1');
+      await recordRecentSearch(
+        USER_ID,
+        CONNECTION_ID,
+        ['bucket-1', 'beta', 'bucket-1'],
+        'query-1',
+        options
+      );
       const after = Date.now();
 
       expect(mockDb.insert).toHaveBeenCalledWith(userRecentSearches);
@@ -131,15 +147,23 @@ describe('recent-searches-db', () => {
       const insertValues = insertChain.values.mock.calls[0][0] as {
         userId: string;
         connectionId: string;
-        bucket: string;
+        buckets: string[];
         query: string;
+        useRegex: boolean;
+        excludePatterns: string[];
+        searchPath: string;
+        maxDepth: number;
         updatedAt: Date;
       };
       expect(insertValues).toMatchObject({
         userId: USER_ID,
         connectionId: CONNECTION_ID,
-        bucket: 'bucket-1',
-        query: 'query-1'
+        buckets: ['beta', 'bucket-1'],
+        query: 'query-1',
+        useRegex: false,
+        excludePatterns: ['_temp'],
+        searchPath: 'events/',
+        maxDepth: 3
       });
       expect(insertValues.updatedAt.getTime()).toBeGreaterThanOrEqual(before);
       expect(insertValues.updatedAt.getTime()).toBeLessThanOrEqual(after);
@@ -151,8 +175,12 @@ describe('recent-searches-db', () => {
       expect(conflict.target).toEqual([
         userRecentSearches.userId,
         userRecentSearches.connectionId,
-        userRecentSearches.bucket,
-        userRecentSearches.query
+        userRecentSearches.query,
+        userRecentSearches.useRegex,
+        userRecentSearches.excludePatterns,
+        userRecentSearches.searchPath,
+        userRecentSearches.maxDepth,
+        userRecentSearches.buckets
       ]);
 
       expect(conflict.set.updatedAt.getTime()).toBeGreaterThanOrEqual(before);
@@ -180,10 +208,11 @@ describe('recent-searches-db', () => {
       mockDb.delete.mockReturnValue(deleteChain);
       vi.spyOn(Date, 'now').mockReturnValue(1_000);
 
-      await recordRecentSearch(USER_ID, CONNECTION_ID, 'bucket-1', 'query-1');
+      const options = { useRegex: true, excludePatterns: [], searchPath: '', maxDepth: null };
+      await recordRecentSearch(USER_ID, CONNECTION_ID, ['bucket-1'], 'query-1', options);
       const firstTimestamp = (insertChain.values.mock.calls[0][0] as { updatedAt: Date }).updatedAt;
 
-      await recordRecentSearch(USER_ID, CONNECTION_ID, 'bucket-1', 'query-2');
+      await recordRecentSearch(USER_ID, CONNECTION_ID, ['bucket-1'], 'query-2', options);
       const secondTimestamp = (insertChain.values.mock.calls[1][0] as { updatedAt: Date })
         .updatedAt;
 

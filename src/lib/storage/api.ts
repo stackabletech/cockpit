@@ -57,7 +57,14 @@ export interface StorageApi {
 
   listRecentSearches(): Promise<RecentSearchEntry[]>;
 
-  recordRecentSearch(params: { bucket: string; query: string }): Promise<void>;
+  recordRecentSearch(params: {
+    buckets: string[];
+    query: string;
+    useRegex?: boolean;
+    excludePatterns?: string[];
+    searchPath?: string;
+    maxDepth?: number | null;
+  }): Promise<void>;
 
   clearRecentSearches(): Promise<void>;
 
@@ -178,11 +185,11 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       return (await res.json()) as RecentSearchEntry[];
     },
 
-    async recordRecentSearch({ bucket, query }) {
+    async recordRecentSearch({ buckets, query, useRegex, excludePatterns, searchPath, maxDepth }) {
       await fetch_('/api/storage/search/history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bucket, query })
+        body: JSON.stringify({ buckets, query, useRegex, excludePatterns, searchPath, maxDepth })
       });
     },
 

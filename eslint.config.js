@@ -62,7 +62,8 @@ export default ts.config(
             'menu-disabled',
             'tab-active',
             'tab-strip',
-            'preview-scroll'
+            'preview-scroll',
+            'modal-top-search'
           ]
         }
       ]

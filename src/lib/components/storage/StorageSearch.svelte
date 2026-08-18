@@ -3,13 +3,16 @@
   import { resolve } from '$app/paths';
   import Modal from '$lib/components/Modal.svelte';
   import StorageSearchForm from '$lib/components/storage/StorageSearchForm.svelte';
+  import StorageSearchHistory from '$lib/components/storage/StorageSearchHistory.svelte';
   import StorageSearchResults from '$lib/components/storage/StorageSearchResults.svelte';
   import StorageSearchSessions from '$lib/components/storage/StorageSearchSessions.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { StorageSearchState, type SearchResult } from '$lib/storage/search.svelte.js';
   import { getStorageState } from '$lib/storage/context.js';
+  import type { RecentSearchEntry } from '$lib/storage/types.js';
   import IconAdd from 'virtual:icons/material-symbols/add';
   import IconClose from 'virtual:icons/material-symbols/close';
+  import IconHistory from 'virtual:icons/material-symbols/history';
   import IconSearch from 'virtual:icons/material-symbols/search';
 
   interface Props {
@@ -20,15 +23,27 @@
   const storage = getStorageState();
   let { currentBucket }: Props = $props();
   let open = $state(false);
+  let view = $state<'search' | 'recent'>('search');
   const search = new StorageSearchState({
     api: storage.api,
     getBuckets: () => storage.buckets,
     getCurrentBucket: () => currentBucket
   });
 
+  function openSearch(): void {
+    view = 'search';
+    open = true;
+    void search.open();
+  }
+
   function closeSearch(): void {
     search.close();
     open = false;
+  }
+
+  function useRecentEntry(entry: RecentSearchEntry, buckets?: string[]): void {
+    search.useRecentEntry(entry, buckets);
+    view = 'search';
   }
 
   function locationUrl(bucket: string, prefix: string): string {
@@ -48,13 +63,14 @@
     if (!result.isDirectory)
       storage.openModal('preview', { key: result.key, bucket: result.bucket });
     closeSearch();
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path is built with resolve() in locationUrl()
     void goto(locationUrl(result.bucket, prefix));
   }
 
   function handleKeydown(event: KeyboardEvent): void {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
-      open = true;
+      openSearch();
     }
     if (open && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 't') {
       event.preventDefault();
@@ -70,7 +86,7 @@
   class="btn btn-ghost btn-xs gap-1"
   aria-label={m.storage_search_open()}
   title={m.storage_search_open()}
-  onclick={() => (open = true)}
+  onclick={openSearch}
   ><IconSearch class="size-3.5" aria-hidden="true" />{m.storage_search_open()}</button
 >
 
@@ -106,20 +122,51 @@
         >
       </div>
     </header>
-    <StorageSearchSessions
-      sessions={search.sessions}
-      activeId={search.activeId}
-      onSelect={(id) => (search.activeId = id)}
-      onRemove={(id) => search.removeSession(id)}
-    />
-    {#if search.active}<div class="flex-1 overflow-y-auto p-5">
+    <div
+      role="tablist"
+      class="tabs border-base-300 tabs-border bg-base-300/30 mb-0 px-5"
+      aria-label={m.storage_search_view_label()}
+    >
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1 {view === 'search' ? 'tab-active' : ''}"
+        aria-selected={view === 'search'}
+        onclick={() => (view = 'search')}
+        ><IconSearch class="size-3.5" aria-hidden="true" />{m.storage_search_tab_search()}</button
+      ><button
+        type="button"
+        role="tab"
+        class="tab gap-1 {view === 'recent' ? 'tab-active' : ''}"
+        aria-selected={view === 'recent'}
+        onclick={() => (view = 'recent')}
+        ><IconHistory class="size-3.5" aria-hidden="true" />{m.storage_search_tab_recent()}</button
+      >
+    </div>
+    {#if view === 'search'}
+      <StorageSearchSessions
+        sessions={search.sessions}
+        activeId={search.activeId}
+        onSelect={(id) => (search.activeId = id)}
+        onRemove={(id) => search.removeSession(id)}
+      />
+    {/if}
+    <div class="flex-1 overflow-y-auto p-5">
+      {#if view === 'recent'}
+        <StorageSearchHistory
+          entries={search.history}
+          onUse={useRecentEntry}
+          onClear={() => void search.clearHistory()}
+        />
+      {:else if search.active}
         <StorageSearchForm
           id={uid}
           session={search.active}
           buckets={storage.buckets}
           state={search}
         /><StorageSearchResults session={search.active} onOpen={openResult} />
-      </div>{/if}
+      {/if}
+    </div>
     <footer
       class="border-base-300 bg-base-300/30 text-base-content/50 flex flex-wrap gap-x-4 gap-y-1 border-t px-5 py-2 text-xs"
       aria-label={m.storage_search_keyboard_hint()}
@@ -128,7 +175,7 @@
         <kbd class="kbd kbd-xs">{m.storage_search_key_enter()}</kbd
         >{m.storage_search_shortcut_search()}
       </span>
-      ><span class="flex items-center gap-1"
+      <span class="flex items-center gap-1"
         ><kbd class="kbd kbd-xs">{m.storage_search_key_escape()}</kbd
         >{m.storage_search_shortcut_close()}</span
       >
