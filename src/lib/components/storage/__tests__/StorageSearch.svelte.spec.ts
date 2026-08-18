@@ -43,6 +43,13 @@ describe('StorageSearch', () => {
     await expect.element(page.getByRole('button', { name: 'alpha', exact: true })).toBeVisible();
   });
 
+  it('focuses the query input when the modal opens', async () => {
+    const { state } = createState();
+    render(StorageSearchWrapper, { state });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await expect.element(page.getByLabelText('Search query')).toHaveFocus();
+  });
+
   it('searches every bucket from the landing page', async () => {
     const { state, api } = createState();
     render(StorageSearchWrapper, { state });
@@ -158,6 +165,44 @@ describe('StorageSearch', () => {
     await expect.element(search).toBeEnabled();
     await page.getByLabelText('Size value').fill('not-a-size');
     await expect.element(search).toBeDisabled();
+  });
+
+  it('replaces the submit button with Cancel while a search is running', async () => {
+    // A search that never settles keeps the session in the running state.
+    const pending = new StorageState({
+      connected: true,
+      buckets: ['alpha', 'beta'],
+      api: {
+        search: vi.fn().mockReturnValue(new Promise(() => {}))
+      } as unknown as StorageApi
+    });
+    render(StorageSearchWrapper, { state: pending, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByLabelText('Search query').fill('report');
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    const cancel = page.getByRole('button', { name: 'Cancel', exact: true });
+    const search = page.getByRole('button', { name: 'Search', exact: true });
+    await expect.element(cancel).toBeVisible();
+    await expect.poll(() => search.elements().length).toBe(0);
+    await cancel.click();
+    await expect.element(search).toBeVisible();
+    await expect.poll(() => cancel.elements().length).toBe(0);
+  });
+
+  it('blocks unsafe regular expressions from running', async () => {
+    const { state, api } = createState();
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByRole('button', { name: '.*', exact: true }).click();
+    const search = page.getByRole('button', { name: 'Search', exact: true });
+    await page.getByLabelText('Search query').fill('(a+)+');
+    await expect.element(search).toBeDisabled();
+    await expect.element(page.getByText(/unsupported constructs/)).toBeVisible();
+    await page.getByLabelText('Search query').fill('report-[0-9]+');
+    await expect.element(search).toBeEnabled();
+    await expect.poll(() => page.getByText(/unsupported constructs/).elements().length).toBe(0);
+    await search.click();
+    await expect.poll(() => api.search.mock.calls.length).toBe(1);
   });
 
   it('opens the date picker at a valid typed date and writes the picked date back', async () => {

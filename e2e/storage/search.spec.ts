@@ -144,6 +144,32 @@ test.describe('Storage Search', () => {
     }
   });
 
+  test('blocks unsafe regexes client-side and re-enables on a valid pattern', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'regex-validation');
+    const file = `${prefix}report.txt`;
+
+    try {
+      await putTextObject(client, credentials.bucket, file, 'regex validation');
+      await connectToStorage(page, credentials);
+
+      await page.getByRole('button', { name: 'Open search' }).click();
+      await page.getByRole('button', { name: '.*', exact: true }).click();
+      await page.getByLabel('Search query').fill('(a+)+');
+      await expect(page.getByRole('button', { name: 'Search', exact: true })).toBeDisabled();
+      await expect(page.getByText(/unsupported constructs/)).toBeVisible();
+
+      await page.getByLabel('Search query').fill('report');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+      await expect(page.getByRole('button', { name: /report\.txt/ })).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [file]);
+    }
+  });
+
   test('adds and removes date/size filter rows, jumping the date picker to a typed date', async ({
     page
   }, testInfo) => {

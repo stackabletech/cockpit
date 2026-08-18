@@ -4,7 +4,7 @@ import {
   SEARCH_DEFAULT_MAX_RESULTS,
   SEARCH_DEFAULT_MAX_KEYS_SCANNED
 } from '$lib/server/storage/provider.js';
-import { createSafeSearchRegex, UnsafeSearchRegexError } from '$lib/server/storage/search-regex.js';
+import { createSafeSearchRegex, UnsafeSearchRegexError } from '$lib/storage/search-regex.js';
 import { compileFilterPredicates, parseFilterParam } from '$lib/storage/search-filter.js';
 import { storageSearchTotal } from '$lib/server/metrics.js';
 import type { SearchResultItem } from '$lib/storage/types.js';

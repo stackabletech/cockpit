@@ -25,6 +25,18 @@
 
   const selectedCount = $derived(session.selectedBuckets.length);
   const selectedSummary = $derived(session.selectedBuckets.join(', '));
+  const FIRST_BUCKETS_IN_SUMMARY = 2;
+  const selectedLabel = $derived(
+    selectedCount === 0
+      ? ''
+      : selectedCount > FIRST_BUCKETS_IN_SUMMARY
+        ? `${session.selectedBuckets
+            .slice(0, FIRST_BUCKETS_IN_SUMMARY)
+            .join(', ')}, ${m.storage_search_scope_more({
+            count: selectedCount - FIRST_BUCKETS_IN_SUMMARY
+          })}`
+        : selectedSummary
+  );
   const filteredBuckets = $derived(
     buckets.filter((bucket) => bucket.toLowerCase().includes(filter.trim().toLowerCase()))
   );
@@ -78,6 +90,7 @@
     style={`anchor-name:${anchorName}`}
     aria-expanded={open}
     aria-controls={popoverId}
+    title={selectedCount === 0 ? m.storage_search_all_buckets() : selectedSummary}
     onkeydown={handleTriggerKeydown}
   >
     {#if selectedCount === 0}
@@ -85,7 +98,7 @@
         {m.storage_search_all_buckets()}
       </span>
     {:else}
-      <span class="min-w-0 flex-1 truncate">{selectedSummary}</span>
+      <span class="min-w-0 flex-1 truncate">{selectedLabel}</span>
     {/if}
     {#if open}
       <IconArrowDropUp

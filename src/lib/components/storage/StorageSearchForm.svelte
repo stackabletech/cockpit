@@ -6,11 +6,13 @@
     parseSizeFilterValue,
     type SearchFilter
   } from '$lib/storage/search-filter.js';
+  import { createSafeSearchRegex } from '$lib/storage/search-regex.js';
   import BucketSelect from '$lib/components/storage/BucketSelect.svelte';
   import SearchFilterRow from '$lib/components/storage/SearchFilterRow.svelte';
   import IconAdd from 'virtual:icons/material-symbols/add';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconSearch from 'virtual:icons/material-symbols/search';
+  import IconStop from 'virtual:icons/material-symbols/stop';
 
   interface Props {
     id: string;
@@ -20,6 +22,15 @@
   }
 
   let { id, session, buckets, state }: Props = $props();
+
+  /**
+   * Focus the query input shortly after the modal mounts. The delay defers past
+   * the native <dialog>.showModal() focus, which would otherwise land on the
+   * first focusable element (the header button).
+   */
+  function autofocus(node: HTMLInputElement): void {
+    setTimeout(() => node.focus(), 0);
+  }
 
   function update(patch: Partial<SearchSession>): void {
     state.updateSession(session.id, patch);
@@ -37,6 +48,19 @@
         : parseSizeFilterValue(filter) === null;
     })
   );
+
+  const regexValid = $derived(
+    !session.useRegex || session.query.trim() === '' || isSafeRegex(session.query.trim())
+  );
+
+  function isSafeRegex(pattern: string): boolean {
+    try {
+      createSafeSearchRegex(pattern);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 </script>
 
 <form
@@ -54,6 +78,7 @@
         id="{id}-query"
         class="min-w-0 grow font-mono text-sm"
         type="search"
+        use:autofocus
         value={session.query}
         oninput={(event) => update({ query: event.currentTarget.value })}
         placeholder={session.useRegex
@@ -71,19 +96,19 @@
       onclick={() => update({ useRegex: !session.useRegex })}
       >{m.storage_search_regex_badge()}</button
     >
-    <button
-      type="submit"
-      class="btn btn-primary"
-      disabled={session.status === 'running' || hasInvalidFilter}
-      >{#if session.status === 'running'}<span
-          class="loading loading-spinner loading-sm"
-          aria-hidden="true"
-        ></span>{:else}<IconSearch
-          class="size-4"
-          aria-hidden="true"
-        />{/if}{m.storage_search_submit()}</button
-    >
+    {#if session.status === 'running'}
+      <button type="button" class="btn btn-outline" onclick={() => state.cancel(session.id)}
+        ><IconStop class="size-4" aria-hidden="true" />{m.storage_search_cancel()}</button
+      >
+    {:else}
+      <button type="submit" class="btn btn-primary" disabled={hasInvalidFilter || !regexValid}
+        ><IconSearch class="size-4" aria-hidden="true" />{m.storage_search_submit()}</button
+      >
+    {/if}
   </div>
+  {#if !regexValid}
+    <p class="text-error text-xs" role="alert">{m.storage_search_regex_invalid()}</p>
+  {/if}
 
   <div class="flex flex-col gap-3">
     <fieldset class="flex flex-col gap-2 sm:flex-row sm:items-center">

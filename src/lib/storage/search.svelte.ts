@@ -34,6 +34,7 @@ export class StorageSearchState {
   private sessionCounter = 1;
   private filterCounter = 0;
   private controllers = new SvelteMap<string, AbortController>();
+  private started = new SvelteMap<string, number>();
   private readonly api: StorageApi;
   private readonly getBuckets: () => string[];
   private readonly getCurrentBucket: () => string | undefined;
@@ -156,6 +157,7 @@ export class StorageSearchState {
     this.controllers.set(id, controller);
     this.updateSession(id, { status: 'running', results: [], elapsed: 0, truncated: false });
     const started = performance.now();
+    this.started.set(id, started);
     const buckets =
       session.selectedBuckets.length > 0 ? session.selectedBuckets : this.getBuckets();
 
@@ -212,7 +214,24 @@ export class StorageSearchState {
       }
     } finally {
       if (this.controllers.get(id) === controller) this.controllers.delete(id);
+      this.started.delete(id);
     }
+  }
+
+  /**
+   * Abort a running search. Partial results (if any) are kept visible and the
+   * session is marked done; a session that produced no results returns to idle.
+   */
+  cancel(id: string): void {
+    const session = this.sessions.find((item) => item.id === id);
+    if (!session || session.status !== 'running') return;
+    this.controllers.get(id)?.abort();
+    const startedAt = this.started.get(id);
+    const elapsed = startedAt === undefined ? 0 : Math.round(performance.now() - startedAt);
+    this.updateSession(id, {
+      status: session.results.length > 0 ? 'done' : 'idle',
+      elapsed
+    });
   }
 
   private makeSession(id: string, number: number): SearchSession {
