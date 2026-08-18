@@ -25,7 +25,7 @@
 
   /**
    * Focus the query input shortly after the modal mounts. The delay defers past
-   * the native <dialog>.showModal() focus, which would otherwise land on the
+   * the native dialog's showModal() focus, which would otherwise land on the
    * first focusable element (the header button).
    */
   function autofocus(node: HTMLInputElement): void {
