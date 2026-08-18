@@ -83,7 +83,7 @@
 
 <button
   type="button"
-  class="btn btn-ghost btn-xs gap-1"
+  class="btn btn-ghost btn-xs gap-1 {currentBucket ? 'text-white' : ''}"
   aria-label={m.storage_search_open()}
   title={m.storage_search_open()}
   onclick={openSearch}
