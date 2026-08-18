@@ -1,6 +1,10 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import type { SearchSession, StorageSearchState } from '$lib/storage/search.svelte.js';
+  import {
+    positionPopoverRelativeToTrigger,
+    supportsAnchorPositioning
+  } from '$lib/components/popover-position.js';
   import IconArrowDropDown from 'virtual:icons/material-symbols/arrow-drop-down';
   import IconArrowDropUp from 'virtual:icons/material-symbols/arrow-drop-up';
   import IconCheck from 'virtual:icons/material-symbols/check';
@@ -19,6 +23,7 @@
   const anchorName = `--bucket-select-${uid}`;
 
   let popoverEl = $state<HTMLDivElement>();
+  let triggerEl = $state<HTMLButtonElement>();
   let open = $state(false);
   let filter = $state('');
   let filterInput = $state<HTMLInputElement>();
@@ -53,6 +58,12 @@
     const newState = (event as Event & { newState: 'open' | 'closed' }).newState;
     open = newState === 'open';
     if (newState === 'open') {
+      if (!supportsAnchorPositioning() && triggerEl && popoverEl) {
+        positionPopoverRelativeToTrigger(triggerEl, popoverEl, {
+          align: 'end',
+          matchWidth: true
+        });
+      }
       filterInput?.focus();
     } else {
       filter = '';
@@ -82,10 +93,11 @@
   }
 </script>
 
-<div class="relative flex-1">
+<div class="flex-1">
   <button
     type="button"
     class="input focus:border-primary cursor-pointer gap-2 pe-2 text-left font-normal"
+    bind:this={triggerEl}
     popovertarget={popoverId}
     style={`anchor-name:${anchorName}`}
     aria-expanded={open}

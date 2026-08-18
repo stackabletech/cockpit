@@ -3,6 +3,10 @@
   import { getLocale } from '$lib/paraglide/runtime.js';
   import * as m from '$lib/paraglide/messages.js';
   import { formatDateValue, parseDateInput } from '$lib/storage/search-filter.js';
+  import {
+    positionPopoverRelativeToTrigger,
+    supportsAnchorPositioning
+  } from '$lib/components/popover-position.js';
   import IconCalendar from 'virtual:icons/material-symbols/calendar-today';
   import IconChevronLeft from 'virtual:icons/material-symbols/chevron-left';
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
@@ -54,6 +58,7 @@
   const selectedIso = $derived(parsedDate ? formatDateValue(parsedDate) : '');
 
   let popoverEl = $state<HTMLDivElement>();
+  let triggerEl = $state<HTMLButtonElement>();
   let open = $state(false);
   let viewYear = $state(0);
   let viewMonth = $state(0);
@@ -87,6 +92,9 @@
       const base = parsedDate ?? new Date();
       viewYear = base.getFullYear();
       viewMonth = base.getMonth();
+      if (!supportsAnchorPositioning() && triggerEl && popoverEl) {
+        positionPopoverRelativeToTrigger(triggerEl, popoverEl, { align: 'end' });
+      }
     }
   }
 
@@ -123,6 +131,7 @@
   <button
     type="button"
     class="btn btn-ghost btn-xs btn-square shrink-0"
+    bind:this={triggerEl}
     style={`anchor-name:${anchorName}`}
     popovertarget={popoverId}
     aria-haspopup="dialog"
@@ -138,7 +147,7 @@
   bind:this={popoverEl}
   role="dialog"
   aria-label={m.datepicker_label()}
-  class="border-base-300 bg-base-100 w-72 rounded-lg border p-3 shadow-lg"
+  class="dropdown dropdown-end border-base-300 bg-base-100 w-72 rounded-lg border p-3 shadow-lg"
   style={`position-anchor:${anchorName}`}
   ontoggle={handleToggle}
 >
