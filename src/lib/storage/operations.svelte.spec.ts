@@ -223,16 +223,27 @@ describe('OperationsState lifecycle', () => {
     expect(controller.signal.aborted).toBe(true);
   });
 
-  it('updateOpProgress updates completedCount, completedBytes, currentFileName', () => {
+  it('updateOpProgress updates completedCount, completedBytes, activeFiles', () => {
     const state = new OperationsState(makeMockApi(), makeOpts());
     state.startOp('op-1', 'Copy: file.txt', 'paste', 3, undefined, undefined, undefined, 500);
 
-    state.updateOpProgress('op-1', 2, 300, 'file2.txt');
+    state.updateOpProgress('op-1', 2, 300, undefined, ['file1.txt', 'file2.txt']);
 
     const op = state.operations[0];
     expect(op.completedCount).toBe(2);
     expect(op.completedBytes).toBe(300);
-    expect(op.currentFileName).toBe('file2.txt');
+    expect(op.activeFiles).toEqual(['file1.txt', 'file2.txt']);
+  });
+
+  it('updateOpProgress clears activeFiles when empty', () => {
+    const state = new OperationsState(makeMockApi(), makeOpts());
+    state.startOp('op-1', 'Download', 'download', 3, undefined, undefined, undefined, 500);
+    state.updateOpProgress('op-1', 2, 300, undefined, ['file1.txt']);
+
+    state.updateOpProgress('op-1', 3, 500, undefined, []);
+
+    const op = state.operations[0];
+    expect(op.activeFiles).toBeUndefined();
   });
 
   it('updateOpProgress does NOT update operations with status cancelled', () => {

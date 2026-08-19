@@ -250,7 +250,8 @@ export class StorageState {
           job.id,
           job.progress.completedCount,
           job.progress.completedBytes,
-          job.progress.currentFileName,
+          undefined,
+          job.progress.activeFiles,
           job.totalBytes,
           job.progress.phase
         );
@@ -504,7 +505,8 @@ export class StorageState {
                 job.id,
                 job.progress.completedCount,
                 job.progress.completedBytes,
-                job.progress.currentFileName,
+                undefined,
+                job.progress.activeFiles,
                 job.totalBytes,
                 job.progress.phase
               );

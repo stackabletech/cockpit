@@ -44,7 +44,7 @@ export interface DownloadJobStatus {
   progress: {
     completedCount: number;
     completedBytes: number;
-    currentFileName?: string;
+    activeFiles?: string[];
     phase?: 'downloading' | 'compressing';
   };
   files: Array<{ filename: string; size: number; part: number; ready: boolean }>;

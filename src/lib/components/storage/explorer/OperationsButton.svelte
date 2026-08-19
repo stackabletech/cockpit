@@ -338,8 +338,12 @@
                   <!-- Expanded detail -->
                   {#if expandedOps[op.id]}
                     <div class="mt-2 space-y-1.5">
-                      <!-- Current file -->
-                      {#if op.currentFileName}
+                      <!-- Active files -->
+                      {#if op.activeFiles && op.activeFiles.length > 0}
+                        <div class="text-base-content/50 truncate pl-5 text-[11px]">
+                          {op.activeFiles.join(', ')}
+                        </div>
+                      {:else if op.currentFileName}
                         <div class="text-base-content/50 truncate pl-5 text-[11px]">
                           {op.currentFileName}
                         </div>
@@ -387,7 +391,7 @@
                         <div class="mt-1.5 space-y-0.5 pl-5">
                           {#each op.sourceNames as name, i (i)}
                             <div class="flex items-center gap-1.5 text-[10px] tabular-nums">
-                              {#if name === op.currentFileName}
+                              {#if op.activeFiles?.includes(name) || name === op.currentFileName}
                                 <span
                                   class="loading loading-spinner loading-xs text-primary"
                                   aria-hidden="true"
@@ -415,8 +419,12 @@
                       </div>
                     </div>
                   {:else}
-                    <!-- Collapsed: current file name on single line -->
-                    {#if op.currentFileName}
+                    <!-- Collapsed: active files on single line -->
+                    {#if op.activeFiles && op.activeFiles.length > 0}
+                      <div class="text-base-content/40 mt-1 truncate pl-5 text-[10px]">
+                        {op.activeFiles.join(', ')}
+                      </div>
+                    {:else if op.currentFileName}
                       <div class="text-base-content/40 mt-1 truncate pl-5 text-[10px]">
                         {op.currentFileName}
                       </div>

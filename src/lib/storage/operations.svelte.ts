@@ -114,6 +114,7 @@ export class OperationsState {
     completedCount: number,
     completedBytes: number,
     currentFileName?: string,
+    activeFiles?: string[],
     totalBytes?: number,
     phase?: 'downloading' | 'compressing'
   ): void {
@@ -124,6 +125,7 @@ export class OperationsState {
             completedCount,
             completedBytes,
             currentFileName,
+            activeFiles: activeFiles && activeFiles.length > 0 ? activeFiles : undefined,
             totalBytes: totalBytes ?? op.totalBytes,
             phase
           }

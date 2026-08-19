@@ -231,4 +231,81 @@ test.describe('Storage S3 — Download', () => {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
   });
+
+  test('shows which files are currently being downloaded in the operations panel', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'dl-active');
+    const cleanupKeys = ['one.txt', 'two.txt', 'three.txt', 'four.txt'].map(
+      (name) => `${prefix}${name}`
+    );
+
+    try {
+      await Promise.all(
+        cleanupKeys.map((key) => putTextObject(client, credentials.bucket, key, key))
+      );
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await page.getByRole('button', { name: 'Toggle selection mode' }).click();
+      for (const name of ['one.txt', 'two.txt', 'three.txt', 'four.txt']) {
+        await page.getByLabel(`Select ${name}`).check();
+      }
+
+      // Keep the job "running" and report a set of files in flight, mimicking
+      // the parallel staging workers of an archive download.
+      await page.route('**/api/storage/download/jobs/*', async (route) => {
+        if (route.request().method() !== 'GET') {
+          return route.continue();
+        }
+        const response = await route.fetch();
+        const job = await response.json();
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ...job,
+            status: 'running',
+            files: [],
+            progress: { ...job.progress, activeFiles: ['one.txt', 'two.txt'] }
+          })
+        });
+      });
+
+      await page.getByRole('button', { name: 'Download', exact: true }).click();
+
+      await expect(page.getByRole('button', { name: 'Operations' })).toBeVisible();
+      await page.getByRole('button', { name: 'Operations' }).click();
+
+      await expect(page.getByText('one.txt, two.txt', { exact: true })).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('downloads a folder via its context menu when not in selection mode', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'dl-folder');
+    const cleanupKeys = [`${prefix}folder1/one.txt`, `${prefix}folder1/two.txt`];
+
+    try {
+      await Promise.all(
+        cleanupKeys.map((key) => putTextObject(client, credentials.bucket, key, key))
+      );
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'folder1').click({ button: 'right' });
+
+      const downloadBtn = page.getByRole('menuitem', { name: 'Download' });
+      await expect(downloadBtn).not.toHaveAttribute('disabled');
+
+      const [download] = await Promise.all([page.waitForEvent('download'), downloadBtn.click()]);
+      expect(download.suggestedFilename()).toMatch(/\.zip$/);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
 });

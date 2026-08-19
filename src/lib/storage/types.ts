@@ -142,8 +142,10 @@ export interface StorageOperation {
   totalBytes: number;
   /** Bytes transferred so far (sum of completed items). */
   completedBytes: number;
-  /** Name of the file currently being transferred. */
+  /** Name of the file currently being transferred (single-item copy/move/paste). */
   currentFileName?: string;
+  /** Names of files currently being transferred in parallel (downloads). */
+  activeFiles?: string[];
   /** Progress phase for archive downloads: download or compression. */
   phase?: 'downloading' | 'compressing';
   /** Server-side job IDs per file for recovering results after reload. */

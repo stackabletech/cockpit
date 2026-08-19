@@ -42,7 +42,8 @@ export interface DownloadJob {
   progress: {
     completedCount: number;
     completedBytes: number;
-    currentFileName?: string;
+    /** Names of files currently being downloaded in parallel. */
+    activeFiles: string[];
     phase?: DownloadPhase;
   };
   files: DownloadFile[];
@@ -84,6 +85,16 @@ cleanupTimer.unref();
 
 function abortError(): Error {
   return new DOMException('Download cancelled', 'AbortError');
+}
+
+function activeFileStart(job: JobInternal, name: string): void {
+  if (!job.progress.activeFiles.includes(name)) job.progress.activeFiles.push(name);
+  job.updatedAt = Date.now();
+}
+
+function activeFileEnd(job: JobInternal, name: string): void {
+  job.progress.activeFiles = job.progress.activeFiles.filter((active) => active !== name);
+  job.updatedAt = Date.now();
 }
 
 function fileName(key: string): string {
@@ -226,18 +237,21 @@ async function writeArchive(
   job.progress.phase = 'downloading';
   for (const entry of entries) {
     if (signal.aborted) throw abortError();
-    job.progress.currentFileName = fileName(entry.key);
-    job.updatedAt = Date.now();
-    await appendEntry(
-      provider,
-      entry,
-      archive,
-      (bytes) => {
-        job.progress.completedBytes += bytes;
-        job.updatedAt = Date.now();
-      },
-      signal
-    );
+    if (!entry.isDirectory) activeFileStart(job, fileName(entry.key));
+    try {
+      await appendEntry(
+        provider,
+        entry,
+        archive,
+        (bytes) => {
+          job.progress.completedBytes += bytes;
+          job.updatedAt = Date.now();
+        },
+        signal
+      );
+    } finally {
+      if (!entry.isDirectory) activeFileEnd(job, fileName(entry.key));
+    }
     if (!entry.isDirectory) job.progress.completedCount++;
   }
   await archive.finalize();
@@ -263,20 +277,24 @@ async function stageZipEntries(
         await mkdir(path, { recursive: true });
         continue;
       }
-      job.progress.currentFileName = fileName(entry.key);
-      job.updatedAt = Date.now();
-      await mkdir(dirname(path), { recursive: true });
-      const download = await provider.getObject(entry.key);
-      await streamToFile(
-        download.stream,
-        path,
-        (bytes) => {
-          job.progress.completedBytes += bytes;
-          job.updatedAt = Date.now();
-        },
-        signal
-      );
-      job.progress.completedCount++;
+      const name = fileName(entry.key);
+      activeFileStart(job, name);
+      try {
+        await mkdir(dirname(path), { recursive: true });
+        const download = await provider.getObject(entry.key);
+        await streamToFile(
+          download.stream,
+          path,
+          (bytes) => {
+            job.progress.completedBytes += bytes;
+            job.updatedAt = Date.now();
+          },
+          signal
+        );
+        job.progress.completedCount++;
+      } finally {
+        activeFileEnd(job, name);
+      }
     }
   };
   await Promise.all(
@@ -344,7 +362,7 @@ async function prepareArchive(
   try {
     await stageZipEntries(job, provider, entries, stagingDirectory, signal);
     job.progress.phase = 'compressing';
-    job.progress.currentFileName = undefined;
+    job.progress.activeFiles = [];
     job.updatedAt = Date.now();
     await runSplitZip(stagingDirectory, archivePath, signal);
   } finally {
@@ -391,22 +409,27 @@ async function prepareFiles(
       const entry = pending.shift();
       if (!entry) return;
       const [index, key] = entry;
-      job.progress.currentFileName = fileName(key);
-      const download = await provider.getObject(key);
-      const path = join(directory, `${index}-${fileName(key)}`);
-      await streamToFile(
-        download.stream,
-        path,
-        (bytes) => {
-          job.progress.completedBytes += bytes;
-          job.updatedAt = Date.now();
-        },
-        signal
-      );
-      const size = (await stat(path)).size;
-      job.files.push({ filename: fileName(key), path, size, part: index + 1, ready: true });
-      job.progress.completedCount++;
-      job.updatedAt = Date.now();
+      const name = fileName(key);
+      activeFileStart(job, name);
+      try {
+        const download = await provider.getObject(key);
+        const path = join(directory, `${index}-${fileName(key)}`);
+        await streamToFile(
+          download.stream,
+          path,
+          (bytes) => {
+            job.progress.completedBytes += bytes;
+            job.updatedAt = Date.now();
+          },
+          signal
+        );
+        const size = (await stat(path)).size;
+        job.files.push({ filename: fileName(key), path, size, part: index + 1, ready: true });
+        job.progress.completedCount++;
+        job.updatedAt = Date.now();
+      } finally {
+        activeFileEnd(job, name);
+      }
     }
   };
   await Promise.all(Array.from({ length: Math.min(3, pending.length) }, worker));
@@ -424,7 +447,7 @@ async function runJob(id: string): Promise<void> {
     if (job.archive) await prepareArchive(job, provider, signal);
     else await prepareFiles(job, provider, signal);
     job.status = 'ready';
-    job.progress.currentFileName = undefined;
+    job.progress.activeFiles = [];
     job.updatedAt = Date.now();
     log.info(
       { job_id: job.id, bucket: job.bucket, file_count: job.files.length },
@@ -433,7 +456,7 @@ async function runJob(id: string): Promise<void> {
   } catch (err) {
     if (signal?.aborted) {
       job.status = 'cancelled';
-      job.progress.currentFileName = undefined;
+      job.progress.activeFiles = [];
       job.updatedAt = Date.now();
       log.info({ job_id: job.id, bucket: job.bucket }, 'download cancelled');
     } else {
@@ -493,7 +516,7 @@ export function createDownloadJob(
     createdAt: now,
     updatedAt: now,
     totalBytes: 0,
-    progress: { completedCount: 0, completedBytes: 0 },
+    progress: { completedCount: 0, completedBytes: 0, activeFiles: [] },
     files: [],
     config,
     archive: shouldArchive(keys)
@@ -513,7 +536,7 @@ export function cancelDownloadJob(userId: string, id: string): boolean {
   const queued = job.status === 'queued';
   job.status = 'cancelled';
   job.updatedAt = Date.now();
-  job.progress.currentFileName = undefined;
+  job.progress.activeFiles = [];
   if (queued) {
     const index = queue.indexOf(id);
     if (index !== -1) queue.splice(index, 1);
