@@ -69,7 +69,7 @@
   type="button"
   class="btn btn-ghost btn-xs gap-1"
   aria-label={m.storage_search_open()}
-  title={m.storage_search_open()}
+  title={`${m.storage_search_open()} (${m.storage_search_key_control()} + ${m.storage_search_key_k()})`}
   onclick={() => (open = true)}
   ><IconSearch class="size-3.5" aria-hidden="true" />{m.storage_search_open()}</button
 >
@@ -128,8 +128,13 @@
         <kbd class="kbd kbd-xs">{m.storage_search_key_enter()}</kbd
         >{m.storage_search_shortcut_search()}
       </span>
-      ><span class="flex items-center gap-1"
-        ><kbd class="kbd kbd-xs">{m.storage_search_key_escape()}</kbd
+      <span class="flex items-center gap-1">
+        <kbd class="kbd kbd-xs">{m.storage_search_key_control()}</kbd>+<kbd class="kbd kbd-xs"
+          >{m.storage_search_key_t()}</kbd
+        >{m.storage_search_shortcut_new_session()}
+      </span>
+      <span class="flex items-center gap-1">
+        <kbd class="kbd kbd-xs">{m.storage_search_key_escape()}</kbd
         >{m.storage_search_shortcut_close()}</span
       >
     </footer>

@@ -1,5 +1,10 @@
 import { SvelteMap } from 'svelte/reactivity';
 import * as m from '$lib/paraglide/messages.js';
+import {
+  isUsableFilter,
+  type SearchFilter,
+  type SearchFilterField
+} from '$lib/storage/search-filter.js';
 import type { StorageApi } from '$lib/storage/api.js';
 import type { SearchResultItem } from '$lib/storage/types.js';
 
@@ -18,6 +23,7 @@ export interface SearchSession {
   excludePatterns: string[];
   searchPath: string;
   maxDepth: number | undefined;
+  filters: SearchFilter[];
   results: SearchResult[];
   status: SearchStatus;
   elapsed: number;
@@ -26,7 +32,9 @@ export interface SearchSession {
 
 export class StorageSearchState {
   private sessionCounter = 1;
+  private filterCounter = 0;
   private controllers = new SvelteMap<string, AbortController>();
+  private started = new SvelteMap<string, number>();
   private readonly api: StorageApi;
   private readonly getBuckets: () => string[];
   private readonly getCurrentBucket: () => string | undefined;
@@ -105,6 +113,35 @@ export class StorageSearchState {
     this.updateSession(active.id, { selectedBuckets: buckets });
   }
 
+  private newFilterId(): string {
+    this.filterCounter += 1;
+    return `f${this.filterCounter}`;
+  }
+
+  addFilter(field: SearchFilterField = 'date'): void {
+    const active = this.active;
+    if (!active) return;
+    this.updateSession(active.id, {
+      filters: [...active.filters, { id: this.newFilterId(), field, operator: '>', value: '' }]
+    });
+  }
+
+  removeFilter(id: string): void {
+    const active = this.active;
+    if (!active) return;
+    this.updateSession(active.id, {
+      filters: active.filters.filter((filter) => filter.id !== id)
+    });
+  }
+
+  updateFilter(id: string, patch: Partial<SearchFilter>): void {
+    const active = this.active;
+    if (!active) return;
+    this.updateSession(active.id, {
+      filters: active.filters.map((filter) => (filter.id === id ? { ...filter, ...patch } : filter))
+    });
+  }
+
   updateSession(id: string, patch: Partial<SearchSession>): void {
     this.sessions = this.sessions.map((session) =>
       session.id === id ? { ...session, ...patch } : session
@@ -113,13 +150,14 @@ export class StorageSearchState {
 
   async run(id: string): Promise<void> {
     const session = this.sessions.find((item) => item.id === id);
-    if (!session || !session.query.trim()) return;
+    if (!session) return;
 
     this.controllers.get(id)?.abort();
     const controller = new AbortController();
     this.controllers.set(id, controller);
     this.updateSession(id, { status: 'running', results: [], elapsed: 0, truncated: false });
     const started = performance.now();
+    this.started.set(id, started);
     const buckets =
       session.selectedBuckets.length > 0 ? session.selectedBuckets : this.getBuckets();
 
@@ -132,16 +170,34 @@ export class StorageSearchState {
               query: session.query.trim(),
               prefix: session.searchPath,
               maxDepth: session.maxDepth,
-              signal: controller.signal
+              useRegex: session.useRegex,
+              excludePatterns: session.excludePatterns,
+              filters: session.filters
+                .filter((filter) => filter.value.trim() !== '')
+                .filter(isUsableFilter)
+                .map(({ field, operator, value }) => ({ field, operator, value })),
+              signal: controller.signal,
+              onUpdate: (update) => {
+                if (controller.signal.aborted) return;
+                const otherResults =
+                  this.sessions
+                    .find((item) => item.id === id)
+                    ?.results.filter((result) => result.bucket !== bucket) ?? [];
+                this.updateSession(id, {
+                  results: [
+                    ...otherResults,
+                    ...update.results.map((result) => ({ ...result, bucket }))
+                  ],
+                  truncated: update.truncated
+                });
+              }
             })
             .then((response) => ({ bucket, ...response }))
         )
       );
       if (controller.signal.aborted) return;
       const results = responses.flatMap(({ bucket, results }) =>
-        results
-          .filter((result) => this.matches(session, result))
-          .map((result) => ({ ...result, bucket }))
+        results.map((result) => ({ ...result, bucket }))
       );
       this.updateSession(id, {
         status: 'done',
@@ -158,7 +214,24 @@ export class StorageSearchState {
       }
     } finally {
       if (this.controllers.get(id) === controller) this.controllers.delete(id);
+      this.started.delete(id);
     }
+  }
+
+  /**
+   * Abort a running search. Partial results (if any) are kept visible and the
+   * session is marked done; a session that produced no results returns to idle.
+   */
+  cancel(id: string): void {
+    const session = this.sessions.find((item) => item.id === id);
+    if (!session || session.status !== 'running') return;
+    this.controllers.get(id)?.abort();
+    const startedAt = this.started.get(id);
+    const elapsed = startedAt === undefined ? 0 : Math.round(performance.now() - startedAt);
+    this.updateSession(id, {
+      status: session.results.length > 0 ? 'done' : 'idle',
+      elapsed
+    });
   }
 
   private makeSession(id: string, number: number): SearchSession {
@@ -171,20 +244,14 @@ export class StorageSearchState {
       excludePatterns: [],
       searchPath: '',
       maxDepth: undefined,
+      filters: [
+        { id: this.newFilterId(), field: 'date', operator: '>', value: '' },
+        { id: this.newFilterId(), field: 'size', operator: '>', value: '' }
+      ],
       results: [],
       status: 'idle',
       elapsed: 0,
       truncated: false
     };
-  }
-
-  private matches(session: SearchSession, result: SearchResultItem): boolean {
-    if (session.excludePatterns.some((pattern) => result.key.includes(pattern))) return false;
-    if (!session.useRegex) return true;
-    try {
-      return new RegExp(session.query, 'i').test(result.key);
-    } catch {
-      return false;
-    }
   }
 }

@@ -456,6 +456,10 @@ export class S3StorageProvider implements StorageProvider {
     const signal = options?.signal;
     const prefix = options?.prefix ?? '';
     const maxDepth = options?.maxDepth;
+    const matches =
+      options?.matches ??
+      ((item: SearchResultItem) => item.key.toLowerCase().includes(query.toLowerCase()));
+    const onMatch = options?.onMatch;
 
     log.trace(
       {
@@ -473,7 +477,6 @@ export class S3StorageProvider implements StorageProvider {
       throw new DOMException('The operation was aborted', 'AbortError');
     }
 
-    const needle = query.toLowerCase();
     const results: SearchResultItem[] = [];
     let scanned = 0;
     let truncated = false;
@@ -494,13 +497,15 @@ export class S3StorageProvider implements StorageProvider {
             }
             continue;
           }
-          if (item.key.toLowerCase().includes(needle)) {
-            results.push({
-              key: item.key,
-              size: item.size,
-              lastModified: item.lastModified ?? new Date(0),
-              isDirectory: item.key.endsWith('/')
-            });
+          const result = {
+            key: item.key,
+            size: item.size,
+            lastModified: item.lastModified ?? new Date(0),
+            isDirectory: item.key.endsWith('/')
+          };
+          if (matches(result)) {
+            results.push(result);
+            onMatch?.(result);
             if (results.length >= maxResults) {
               truncated = true;
               return false;
