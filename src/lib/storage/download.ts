@@ -59,11 +59,25 @@ async function waitForDownload(
   api: StorageApi,
   jobId: string,
   onUpdate: (job: DownloadJobStatus) => void,
-  onComplete: (job: DownloadJobStatus) => void
+  onComplete: (job: DownloadJobStatus) => void,
+  signal?: AbortSignal
 ): Promise<void> {
   const downloaded = new Set<number>();
   while (true) {
-    const job = await api.pollDownloadJob(jobId);
+    if (signal?.aborted) {
+      removeJob(jobId);
+      return;
+    }
+    let job: DownloadJobStatus;
+    try {
+      job = await api.pollDownloadJob(jobId, signal);
+    } catch (err) {
+      if (signal?.aborted) {
+        removeJob(jobId);
+        return;
+      }
+      throw err;
+    }
     onUpdate(job);
     for (const file of job.files) {
       if (file.ready && !downloaded.has(file.part)) {
@@ -80,6 +94,10 @@ async function waitForDownload(
       removeJob(jobId);
       throw new Error(job.error ?? 'Download preparation failed');
     }
+    if (job.status === 'cancelled') {
+      removeJob(jobId);
+      return;
+    }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
 }
@@ -90,14 +108,21 @@ export async function startDownload(
   prefix: string,
   keys: string[],
   connectionId: string,
+  signal: AbortSignal | undefined,
   onCreated: (job: DownloadJobStatus) => void,
   onUpdate: (job: DownloadJobStatus) => void,
   onComplete: (job: DownloadJobStatus) => void
 ): Promise<void> {
-  const job = await api.createDownloadJob({ bucket, prefix, keys });
+  let job: DownloadJobStatus;
+  try {
+    job = await api.createDownloadJob({ bucket, prefix, keys }, signal);
+  } catch (err) {
+    if (signal?.aborted) return;
+    throw err;
+  }
   saveJob({ id: job.id, connectionId, startedAt: Date.now() });
   onCreated(job);
-  await waitForDownload(api, job.id, onUpdate, onComplete);
+  await waitForDownload(api, job.id, onUpdate, onComplete, signal);
 }
 
 /** Reacquire download preparation that outlived the previous tab. */

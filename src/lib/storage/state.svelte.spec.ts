@@ -119,6 +119,7 @@ function makeApi(overrides?: Partial<StorageApi>): StorageApi {
         files: []
       };
     },
+    async cancelDownloadJob() {},
     async checkObjectExists() {
       return false;
     },

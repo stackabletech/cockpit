@@ -144,6 +144,8 @@ export interface StorageOperation {
   completedBytes: number;
   /** Name of the file currently being transferred. */
   currentFileName?: string;
+  /** Progress phase for archive downloads: download or compression. */
+  phase?: 'downloading' | 'compressing';
   /** Server-side job IDs per file for recovering results after reload. */
   fileJobIds?: string[];
   /** Epoch milliseconds when a completed download artefact expires. */

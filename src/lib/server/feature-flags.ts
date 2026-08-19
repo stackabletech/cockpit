@@ -160,6 +160,13 @@ export const downloadPartSizeBytes =
 export const downloadJobConcurrency =
   parseInt(env.STACKABLE_COCKPIT_DOWNLOAD_JOB_CONCURRENCY ?? '', 10) || 2;
 
+/** Number of parallel workers used to stage object downloads to disk before
+ * compressing large archives. Only applies to archives larger than
+ * `STACKABLE_COCKPIT_DOWNLOAD_PART_SIZE_MB`.
+ * Controlled by `STACKABLE_COCKPIT_ARCHIVE_WORKERS`. */
+export const downloadArchiveWorkers =
+  parseInt(env.STACKABLE_COCKPIT_ARCHIVE_WORKERS ?? '', 10) || 4;
+
 /** Minutes that completed download artefacts remain available for browser
  * resume and tab reacquisition. Controlled by
  * `STACKABLE_COCKPIT_DOWNLOAD_RETENTION_MINUTES`. */

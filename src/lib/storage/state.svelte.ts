@@ -251,7 +251,8 @@ export class StorageState {
           job.progress.completedCount,
           job.progress.completedBytes,
           job.progress.currentFileName,
-          job.totalBytes
+          job.totalBytes,
+          job.progress.phase
         );
         this.operations_.setDownloadCacheExpiry(job.id, job.expiresAt);
       },
@@ -480,19 +481,22 @@ export class StorageState {
             return;
           }
           const keys = downloadItems.map((file) => file.key);
+          const abortController = new AbortController();
           await startDownload(
             this._api,
             this.bucket,
             this.prefix,
             keys,
             connectionId,
+            abortController.signal,
             (job) => {
               this.operations_.startDownloadOp(
                 job.id,
                 m.storage_action_download(),
                 keys.length,
                 downloadItems.map((file) => keyToName(file.key)),
-                downloadItems.reduce((total, file) => total + file.size, 0)
+                downloadItems.reduce((total, file) => total + file.size, 0),
+                abortController
               );
             },
             (job) => {
@@ -501,7 +505,8 @@ export class StorageState {
                 job.progress.completedCount,
                 job.progress.completedBytes,
                 job.progress.currentFileName,
-                job.totalBytes
+                job.totalBytes,
+                job.progress.phase
               );
               this.operations_.setDownloadCacheExpiry(job.id, job.expiresAt);
             },

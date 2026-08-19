@@ -8,6 +8,7 @@ import { finished } from 'node:stream/promises';
 import archiver from 'archiver';
 import { logger } from '$lib/server/logging';
 import {
+  downloadArchiveWorkers,
   downloadJobConcurrency,
   downloadPartSizeBytes,
   downloadRetentionMs
@@ -22,7 +23,10 @@ const DOWNLOAD_ROOT = join(tmpdir(), 'stackable-cockpit-downloads');
 const RUNNING_TTL_MS = 30 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 60_000;
 
-export type DownloadJobStatus = 'queued' | 'running' | 'ready' | 'error';
+export type DownloadJobStatus = 'queued' | 'running' | 'ready' | 'error' | 'cancelled';
+
+/** Progress phase of an archive download job. */
+export type DownloadPhase = 'downloading' | 'compressing';
 
 export interface DownloadJob {
   id: string;
@@ -35,7 +39,12 @@ export interface DownloadJob {
   createdAt: number;
   updatedAt: number;
   totalBytes: number;
-  progress: { completedCount: number; completedBytes: number; currentFileName?: string };
+  progress: {
+    completedCount: number;
+    completedBytes: number;
+    currentFileName?: string;
+    phase?: DownloadPhase;
+  };
   files: DownloadFile[];
   /** Epoch milliseconds when this retained artefact is removed unless accessed again. */
   expiresAt?: number;
@@ -66,11 +75,16 @@ interface JobInternal extends Omit<DownloadJob, 'files'> {
 }
 
 const jobs = new Map<string, JobInternal>();
+const jobAbortControllers = new Map<string, AbortController>();
 const queue: string[] = [];
 let running = 0;
 let lastCleanup = Date.now();
 const cleanupTimer = setInterval(cleanupExpired, CLEANUP_INTERVAL_MS);
 cleanupTimer.unref();
+
+function abortError(): Error {
+  return new DOMException('Download cancelled', 'AbortError');
+}
 
 function fileName(key: string): string {
   return key.split('/').filter(Boolean).pop() ?? key;
@@ -99,7 +113,8 @@ function shouldArchive(keys: string[]): boolean {
 async function streamToFile(
   source: ReadableStream,
   path: string,
-  onProgress?: (bytes: number) => void
+  onProgress: ((bytes: number) => void) | undefined,
+  signal: AbortSignal
 ): Promise<void> {
   const output = createWriteStream(path);
   const progress = new Transform({
@@ -108,18 +123,30 @@ async function streamToFile(
       callback(null, chunk);
     }
   });
-  await finished(
-    Readable.fromWeb(source as import('node:stream/web').ReadableStream)
-      .pipe(progress)
-      .pipe(output)
-  );
+  const input = Readable.fromWeb(source as import('node:stream/web').ReadableStream);
+  const abort = () => {
+    input.destroy();
+    progress.destroy();
+    output.destroy();
+  };
+  if (signal.aborted) {
+    abort();
+    throw abortError();
+  }
+  signal.addEventListener('abort', abort, { once: true });
+  try {
+    await finished(input.pipe(progress).pipe(output));
+  } finally {
+    signal.removeEventListener('abort', abort);
+  }
 }
 
 async function appendObject(
   provider: StorageProvider,
   key: string,
   archive: archiver.Archiver,
-  onProgress: (bytes: number) => void
+  onProgress: (bytes: number) => void,
+  signal: AbortSignal
 ): Promise<void> {
   const download = await provider.getObject(key);
   const nodeStream = Readable.fromWeb(download.stream as import('node:stream/web').ReadableStream);
@@ -129,8 +156,22 @@ async function appendObject(
       callback(null, chunk);
     }
   });
-  archive.append(nodeStream.pipe(progress), { name: key });
-  await finished(progress);
+  const piped = nodeStream.pipe(progress);
+  archive.append(piped, { name: key });
+  const abort = () => {
+    nodeStream.destroy();
+    progress.destroy();
+  };
+  if (signal.aborted) {
+    abort();
+    throw abortError();
+  }
+  signal.addEventListener('abort', abort, { once: true });
+  try {
+    await finished(progress);
+  } finally {
+    signal.removeEventListener('abort', abort);
+  }
 }
 
 async function expandKeys(provider: StorageProvider, keys: string[]): Promise<ArchiveEntry[]> {
@@ -160,7 +201,8 @@ async function appendEntry(
   provider: StorageProvider,
   entry: ArchiveEntry,
   archive: archiver.Archiver,
-  onProgress: (bytes: number) => void
+  onProgress: (bytes: number) => void,
+  signal: AbortSignal
 ): Promise<void> {
   if (entry.isDirectory) {
     archive.append(Buffer.alloc(0), {
@@ -168,25 +210,34 @@ async function appendEntry(
     });
     return;
   }
-  await appendObject(provider, entry.key, archive, onProgress);
+  await appendObject(provider, entry.key, archive, onProgress, signal);
 }
 
 async function writeArchive(
   job: JobInternal,
   provider: StorageProvider,
   entries: ArchiveEntry[],
-  path: string
+  path: string,
+  signal: AbortSignal
 ): Promise<void> {
   const archive = archiver('zip', { zlib: { level: 6 } });
   const output = createWriteStream(path);
   archive.pipe(output);
+  job.progress.phase = 'downloading';
   for (const entry of entries) {
+    if (signal.aborted) throw abortError();
     job.progress.currentFileName = fileName(entry.key);
     job.updatedAt = Date.now();
-    await appendEntry(provider, entry, archive, (bytes) => {
-      job.progress.completedBytes += bytes;
-      job.updatedAt = Date.now();
-    });
+    await appendEntry(
+      provider,
+      entry,
+      archive,
+      (bytes) => {
+        job.progress.completedBytes += bytes;
+        job.updatedAt = Date.now();
+      },
+      signal
+    );
     if (!entry.isDirectory) job.progress.completedCount++;
   }
   await archive.finalize();
@@ -197,41 +248,78 @@ async function stageZipEntries(
   job: JobInternal,
   provider: StorageProvider,
   entries: ArchiveEntry[],
-  stagingDirectory: string
+  stagingDirectory: string,
+  signal: AbortSignal
 ): Promise<void> {
-  for (const entry of entries) {
-    const path = safeStagingPath(stagingDirectory, entry.key);
-    if (entry.isDirectory) {
-      await mkdir(path, { recursive: true });
-      continue;
-    }
-    job.progress.currentFileName = fileName(entry.key);
-    job.updatedAt = Date.now();
-    await mkdir(dirname(path), { recursive: true });
-    const download = await provider.getObject(entry.key);
-    await streamToFile(download.stream, path, (bytes) => {
-      job.progress.completedBytes += bytes;
+  job.progress.phase = 'downloading';
+  const pending = [...entries];
+  const worker = async (): Promise<void> => {
+    while (true) {
+      if (signal.aborted) throw abortError();
+      const entry = pending.shift();
+      if (!entry) return;
+      const path = safeStagingPath(stagingDirectory, entry.key);
+      if (entry.isDirectory) {
+        await mkdir(path, { recursive: true });
+        continue;
+      }
+      job.progress.currentFileName = fileName(entry.key);
       job.updatedAt = Date.now();
-    });
-    job.progress.completedCount++;
-  }
+      await mkdir(dirname(path), { recursive: true });
+      const download = await provider.getObject(entry.key);
+      await streamToFile(
+        download.stream,
+        path,
+        (bytes) => {
+          job.progress.completedBytes += bytes;
+          job.updatedAt = Date.now();
+        },
+        signal
+      );
+      job.progress.completedCount++;
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(downloadArchiveWorkers, entries.length) }, worker)
+  );
 }
 
-async function runSplitZip(stagingDirectory: string, archivePath: string): Promise<void> {
+async function runSplitZip(
+  stagingDirectory: string,
+  archivePath: string,
+  signal: AbortSignal
+): Promise<void> {
   const size = `${Math.ceil(downloadPartSizeBytes / 1024)}k`;
   await new Promise<void>((resolve, reject) => {
     const process = spawn('zip', ['-q', '-s', size, archivePath, '-r', '.'], {
       cwd: stagingDirectory
     });
-    process.once('error', () => reject(new Error('Split ZIP support requires the zip executable')));
+    const onAbort = () => process.kill('SIGTERM');
+    const cleanup = () => signal.removeEventListener('abort', onAbort);
+    if (signal.aborted) {
+      process.kill('SIGTERM');
+      reject(abortError());
+      return;
+    }
+    signal.addEventListener('abort', onAbort, { once: true });
+    process.once('error', (err) => {
+      cleanup();
+      reject(err);
+    });
     process.once('exit', (code) => {
+      cleanup();
       if (code === 0) resolve();
+      else if (signal.aborted) reject(abortError());
       else reject(new Error(`zip exited with status ${code ?? 'unknown'}`));
     });
   });
 }
 
-async function prepareArchive(job: JobInternal, provider: StorageProvider): Promise<void> {
+async function prepareArchive(
+  job: JobInternal,
+  provider: StorageProvider,
+  signal: AbortSignal
+): Promise<void> {
   const directory = jobDirectory(job.id);
   const entries = await expandKeys(provider, job.keys);
   const archivePath = join(directory, archiveFileName(archiveBaseName(job)));
@@ -239,7 +327,7 @@ async function prepareArchive(job: JobInternal, provider: StorageProvider): Prom
   job.totalBytes = totalSize;
 
   if (totalSize <= downloadPartSizeBytes) {
-    await writeArchive(job, provider, entries, archivePath);
+    await writeArchive(job, provider, entries, archivePath, signal);
     const size = (await stat(archivePath)).size;
     job.files.push({
       filename: archiveFileName(archiveBaseName(job)),
@@ -254,8 +342,11 @@ async function prepareArchive(job: JobInternal, provider: StorageProvider): Prom
   const stagingDirectory = join(directory, '.zip-staging');
   await mkdir(stagingDirectory, { recursive: true });
   try {
-    await stageZipEntries(job, provider, entries, stagingDirectory);
-    await runSplitZip(stagingDirectory, archivePath);
+    await stageZipEntries(job, provider, entries, stagingDirectory, signal);
+    job.progress.phase = 'compressing';
+    job.progress.currentFileName = undefined;
+    job.updatedAt = Date.now();
+    await runSplitZip(stagingDirectory, archivePath, signal);
   } finally {
     await rm(stagingDirectory, { recursive: true, force: true });
   }
@@ -285,23 +376,33 @@ async function prepareArchive(job: JobInternal, provider: StorageProvider): Prom
   }
 }
 
-async function prepareFiles(job: JobInternal, provider: StorageProvider): Promise<void> {
+async function prepareFiles(
+  job: JobInternal,
+  provider: StorageProvider,
+  signal: AbortSignal
+): Promise<void> {
   const directory = jobDirectory(job.id);
   const metadata = await Promise.all(job.keys.map((key) => provider.getMetadata(key)));
   job.totalBytes = metadata.reduce((total, item) => total + item.size, 0);
   const pending = [...job.keys.entries()];
   const worker = async () => {
     while (pending.length > 0) {
+      if (signal.aborted) throw abortError();
       const entry = pending.shift();
       if (!entry) return;
       const [index, key] = entry;
       job.progress.currentFileName = fileName(key);
       const download = await provider.getObject(key);
       const path = join(directory, `${index}-${fileName(key)}`);
-      await streamToFile(download.stream, path, (bytes) => {
-        job.progress.completedBytes += bytes;
-        job.updatedAt = Date.now();
-      });
+      await streamToFile(
+        download.stream,
+        path,
+        (bytes) => {
+          job.progress.completedBytes += bytes;
+          job.updatedAt = Date.now();
+        },
+        signal
+      );
       const size = (await stat(path)).size;
       job.files.push({ filename: fileName(key), path, size, part: index + 1, ready: true });
       job.progress.completedCount++;
@@ -314,13 +415,14 @@ async function prepareFiles(job: JobInternal, provider: StorageProvider): Promis
 async function runJob(id: string): Promise<void> {
   const job = jobs.get(id);
   if (!job) return;
+  const signal = jobAbortControllers.get(id)?.signal ?? new AbortController().signal;
   job.status = 'running';
   job.updatedAt = Date.now();
   try {
     await mkdir(jobDirectory(job.id), { recursive: true });
     const provider = wrapProvider(getProvider(job.config, job.bucket));
-    if (job.archive) await prepareArchive(job, provider);
-    else await prepareFiles(job, provider);
+    if (job.archive) await prepareArchive(job, provider, signal);
+    else await prepareFiles(job, provider, signal);
     job.status = 'ready';
     job.progress.currentFileName = undefined;
     job.updatedAt = Date.now();
@@ -329,10 +431,17 @@ async function runJob(id: string): Promise<void> {
       'download ready'
     );
   } catch (err) {
-    job.status = 'error';
-    job.error = err instanceof Error ? err.message : 'Download preparation failed';
-    job.updatedAt = Date.now();
-    log.error({ err, job_id: job.id, bucket: job.bucket }, 'download preparation failed');
+    if (signal?.aborted) {
+      job.status = 'cancelled';
+      job.progress.currentFileName = undefined;
+      job.updatedAt = Date.now();
+      log.info({ job_id: job.id, bucket: job.bucket }, 'download cancelled');
+    } else {
+      job.status = 'error';
+      job.error = err instanceof Error ? err.message : 'Download preparation failed';
+      job.updatedAt = Date.now();
+      log.error({ err, job_id: job.id, bucket: job.bucket }, 'download preparation failed');
+    }
   } finally {
     running--;
     void dequeue();
@@ -343,7 +452,7 @@ async function dequeue(): Promise<void> {
   cleanupExpired();
   while (running < Math.max(1, downloadJobConcurrency) && queue.length > 0) {
     const id = queue.shift();
-    if (!id || !jobs.has(id)) continue;
+    if (!id || !jobs.has(id) || jobs.get(id)?.status === 'cancelled') continue;
     running++;
     void runJob(id);
   }
@@ -358,6 +467,7 @@ function cleanupExpired(): void {
       job.status === 'queued' || job.status === 'running' ? RUNNING_TTL_MS : downloadRetentionMs;
     if (now - job.updatedAt <= ttl) continue;
     jobs.delete(id);
+    jobAbortControllers.delete(id);
     void rm(jobDirectory(id), { recursive: true, force: true });
     log.trace({ job_id: id }, 'cleaned up expired download');
   }
@@ -389,9 +499,29 @@ export function createDownloadJob(
     archive: shouldArchive(keys)
   };
   jobs.set(job.id, job);
+  jobAbortControllers.set(job.id, new AbortController());
   queue.push(job.id);
   void dequeue();
   return publicJob(job);
+}
+
+/** Cancel an in-flight or queued download job and clean up its artefact. */
+export function cancelDownloadJob(userId: string, id: string): boolean {
+  const job = jobs.get(id);
+  if (!job || job.userId !== userId) return false;
+  if (job.status === 'ready' || job.status === 'error' || job.status === 'cancelled') return true;
+  const queued = job.status === 'queued';
+  job.status = 'cancelled';
+  job.updatedAt = Date.now();
+  job.progress.currentFileName = undefined;
+  if (queued) {
+    const index = queue.indexOf(id);
+    if (index !== -1) queue.splice(index, 1);
+  }
+  jobAbortControllers.get(id)?.abort();
+  void rm(jobDirectory(id), { recursive: true, force: true });
+  log.info({ job_id: id, bucket: job.bucket }, 'download job cancelled');
+  return true;
 }
 
 function publicJob(job: JobInternal): DownloadJob {
@@ -415,7 +545,13 @@ export function getDownloadFile(
   part: number
 ): DownloadFileInternal | null {
   const job = jobs.get(id);
-  if (!job || job.userId !== userId || job.status === 'queued' || job.status === 'error')
+  if (
+    !job ||
+    job.userId !== userId ||
+    job.status === 'queued' ||
+    job.status === 'error' ||
+    job.status === 'cancelled'
+  )
     return null;
   const file = job.files.find((file) => file.part === part && file.ready) ?? null;
   if (file) job.updatedAt = Date.now();
@@ -432,6 +568,7 @@ export function openDownloadPart(
 
 export async function clearDownloadRootForTests(): Promise<void> {
   jobs.clear();
+  jobAbortControllers.clear();
   queue.splice(0);
   await rm(DOWNLOAD_ROOT, { recursive: true, force: true });
   try {

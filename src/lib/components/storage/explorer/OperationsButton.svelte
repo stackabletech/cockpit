@@ -207,6 +207,7 @@
   }
 
   function speedEtaLabel(op: StorageOperation): string {
+    if (op.phase === 'compressing') return m.storage_operations_compressing();
     const s = speedLabel(op);
     const e = etaLabel(op);
     if (!s && !e) return '';
@@ -356,10 +357,15 @@
                         >
                           <div class="mb-1 flex items-center justify-between">
                             <span class="text-base-content/50 text-[10px] tabular-nums">
-                              {progressLabel(op)}
+                              {op.phase === 'compressing'
+                                ? m.storage_operations_compressing()
+                                : progressLabel(op)}
                             </span>
                             <span class="text-primary text-[10px] font-semibold tabular-nums">
-                              {#if op.totalBytes > 0}
+                              {#if op.phase === 'compressing'}
+                                <span class="loading loading-spinner loading-xs" aria-hidden="true"
+                                ></span>
+                              {:else if op.totalBytes > 0}
                                 {percent(op)}%
                               {:else}
                                 {op.completedCount}/{op.itemCount}
@@ -369,7 +375,8 @@
                           <div class="bg-base-300 h-1.5 w-full overflow-hidden rounded-full">
                             <div
                               class="bg-primary h-full rounded-full"
-                              style="width: {percent(op)}%"
+                              class:animate-pulse={op.phase === 'compressing'}
+                              style="width: {op.phase === 'compressing' ? 100 : percent(op)}%"
                             ></div>
                           </div>
                         </div>

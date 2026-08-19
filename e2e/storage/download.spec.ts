@@ -134,4 +134,101 @@ test.describe('Storage S3 — Download', () => {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
   });
+
+  test('cancels a running download operation from the operations panel', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'dl-cancel');
+    const cleanupKeys = ['one.txt', 'two.txt', 'three.txt', 'four.txt'].map(
+      (name) => `${prefix}${name}`
+    );
+
+    try {
+      await Promise.all(
+        cleanupKeys.map((key) => putTextObject(client, credentials.bucket, key, key))
+      );
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await page.getByRole('button', { name: 'Toggle selection mode' }).click();
+      for (const name of ['one.txt', 'two.txt', 'three.txt', 'four.txt']) {
+        await page.getByLabel(`Select ${name}`).check();
+      }
+
+      // Keep the job "running" so there is time to cancel it before it finishes.
+      await page.route('**/api/storage/download/jobs/*', async (route) => {
+        if (route.request().method() !== 'GET') {
+          return route.continue();
+        }
+        const response = await route.fetch();
+        const job = await response.json();
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ...job, status: 'running', files: [] })
+        });
+      });
+
+      await page.getByRole('button', { name: 'Download', exact: true }).click();
+
+      await expect(page.getByRole('button', { name: 'Operations' })).toBeVisible();
+      await page.getByRole('button', { name: 'Operations' }).click();
+      await page.getByRole('button', { name: 'Cancel operation' }).click();
+
+      await expect(page.getByText('Cancelled', { exact: true })).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('shows a compressing status while the archive is being compressed', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'dl-compress');
+    const cleanupKeys = ['one.txt', 'two.txt', 'three.txt', 'four.txt'].map(
+      (name) => `${prefix}${name}`
+    );
+
+    try {
+      await Promise.all(
+        cleanupKeys.map((key) => putTextObject(client, credentials.bucket, key, key))
+      );
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await page.getByRole('button', { name: 'Toggle selection mode' }).click();
+      for (const name of ['one.txt', 'two.txt', 'three.txt', 'four.txt']) {
+        await page.getByLabel(`Select ${name}`).check();
+      }
+
+      // Keep the job "running" and report the compressing phase so the UI
+      // replaces the download-speed display with "Compressing…".
+      await page.route('**/api/storage/download/jobs/*', async (route) => {
+        if (route.request().method() !== 'GET') {
+          return route.continue();
+        }
+        const response = await route.fetch();
+        const job = await response.json();
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ...job,
+            status: 'running',
+            files: [],
+            progress: { ...job.progress, phase: 'compressing' }
+          })
+        });
+      });
+
+      await page.getByRole('button', { name: 'Download', exact: true }).click();
+
+      await expect(page.getByRole('button', { name: 'Operations' })).toBeVisible();
+      await page.getByRole('button', { name: 'Operations' }).click();
+
+      await expect(page.getByText('Compressing…')).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
 });

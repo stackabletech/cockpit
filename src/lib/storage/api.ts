@@ -39,12 +39,13 @@ export interface JobStatus {
 
 export interface DownloadJobStatus {
   id: string;
-  status: 'queued' | 'running' | 'ready' | 'error';
+  status: 'queued' | 'running' | 'ready' | 'error' | 'cancelled';
   totalBytes: number;
   progress: {
     completedCount: number;
     completedBytes: number;
     currentFileName?: string;
+    phase?: 'downloading' | 'compressing';
   };
   files: Array<{ filename: string; size: number; part: number; ready: boolean }>;
   expiresAt?: number;
@@ -98,13 +99,18 @@ export interface StorageApi {
 
   pollJob(jobId: string): Promise<JobStatus>;
 
-  createDownloadJob(params: {
-    bucket: string;
-    prefix: string;
-    keys: string[];
-  }): Promise<DownloadJobStatus>;
+  createDownloadJob(
+    params: {
+      bucket: string;
+      prefix: string;
+      keys: string[];
+    },
+    signal?: AbortSignal
+  ): Promise<DownloadJobStatus>;
 
-  pollDownloadJob(jobId: string): Promise<DownloadJobStatus>;
+  pollDownloadJob(jobId: string, signal?: AbortSignal): Promise<DownloadJobStatus>;
+
+  cancelDownloadJob(jobId: string): Promise<void>;
 
   checkObjectExists(params: { bucket: string; key: string }): Promise<boolean>;
 
@@ -235,19 +241,28 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       return (await res.json()) as JobStatus;
     },
 
-    async createDownloadJob({ bucket, prefix, keys }) {
+    async createDownloadJob({ bucket, prefix, keys }, signal) {
       const params = new URLSearchParams({ bucket, prefix });
       const res = await fetch_(`/api/storage/download/jobs?${params}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keys })
+        body: JSON.stringify({ keys }),
+        signal
       });
       return (await res.json()) as DownloadJobStatus;
     },
 
-    async pollDownloadJob(jobId) {
-      const res = await fetch_(`/api/storage/download/jobs/${encodeURIComponent(jobId)}`);
+    async pollDownloadJob(jobId, signal) {
+      const res = await fetch_(`/api/storage/download/jobs/${encodeURIComponent(jobId)}`, {
+        signal
+      });
       return (await res.json()) as DownloadJobStatus;
+    },
+
+    async cancelDownloadJob(jobId) {
+      await fetch_(`/api/storage/download/jobs/${encodeURIComponent(jobId)}`, {
+        method: 'DELETE'
+      });
     },
 
     async checkObjectExists({ bucket, key }) {

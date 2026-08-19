@@ -422,6 +422,33 @@ describe('cancelOp', () => {
 
     expect(() => state.cancelOp('nonexistent')).not.toThrow();
   });
+
+  it('cancels the server-side job when a download operation is cancelled', () => {
+    const api = makeMockApi();
+    const cancelDownloadJob = vi.fn().mockResolvedValue(undefined);
+    (api as unknown as { cancelDownloadJob: unknown }).cancelDownloadJob = cancelDownloadJob;
+    const state = new OperationsState(api, makeOpts());
+    const controller = new AbortController();
+    state.startDownloadOp('op-1', 'Download', 2, [], 100, controller);
+
+    state.cancelOp('op-1');
+
+    expect(cancelDownloadJob).toHaveBeenCalledWith('op-1');
+    expect(controller.signal.aborted).toBe(true);
+    expect(state.operations[0].status).toBe('cancelled');
+  });
+
+  it('does not call the download cancel endpoint for non-download ops', () => {
+    const api = makeMockApi();
+    const cancelDownloadJob = vi.fn().mockResolvedValue(undefined);
+    (api as unknown as { cancelDownloadJob: unknown }).cancelDownloadJob = cancelDownloadJob;
+    const state = new OperationsState(api, makeOpts());
+    state.startOp('op-1', 'Copy', 'paste', 1);
+
+    state.cancelOp('op-1');
+
+    expect(cancelDownloadJob).not.toHaveBeenCalled();
+  });
 });
 
 describe('clearOperationHistory', () => {

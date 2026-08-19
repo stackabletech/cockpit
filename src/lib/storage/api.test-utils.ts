@@ -85,6 +85,10 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
       };
     },
 
+    async cancelDownloadJob() {
+      // no-op
+    },
+
     async checkObjectExists() {
       return false;
     },

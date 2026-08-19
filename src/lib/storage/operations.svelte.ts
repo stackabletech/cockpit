@@ -114,7 +114,8 @@ export class OperationsState {
     completedCount: number,
     completedBytes: number,
     currentFileName?: string,
-    totalBytes?: number
+    totalBytes?: number,
+    phase?: 'downloading' | 'compressing'
   ): void {
     this.operations = this.operations.map((op) =>
       op.id === id && op.status !== 'cancelled'
@@ -123,7 +124,8 @@ export class OperationsState {
             completedCount,
             completedBytes,
             currentFileName,
-            totalBytes: totalBytes ?? op.totalBytes
+            totalBytes: totalBytes ?? op.totalBytes,
+            phase
           }
         : op
     );
@@ -165,12 +167,29 @@ export class OperationsState {
     label: string,
     itemCount: number,
     sourceNames: string[],
-    totalBytes: number
+    totalBytes: number,
+    abortController?: AbortController
   ): void {
-    this.startOp(id, label, 'download', itemCount, undefined, undefined, sourceNames, totalBytes);
+    this.startOp(
+      id,
+      label,
+      'download',
+      itemCount,
+      abortController,
+      undefined,
+      sourceNames,
+      totalBytes
+    );
   }
 
   cancelOp(id: string): void {
+    const op = this.operations.find((o) => o.id === id);
+    if (op?.type === 'download') {
+      const request = this._api.cancelDownloadJob?.(id);
+      request?.catch?.(() => {
+        // Best effort — the local op is cancelled regardless.
+      });
+    }
     const controller = this._abortControllers.get(id);
     if (controller) {
       controller.abort();
