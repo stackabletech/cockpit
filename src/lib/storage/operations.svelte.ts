@@ -115,8 +115,7 @@ export class OperationsState {
     completedBytes: number,
     currentFileName?: string,
     activeFiles?: string[],
-    totalBytes?: number,
-    phase?: 'downloading' | 'compressing'
+    totalBytes?: number
   ): void {
     this.operations = this.operations.map((op) =>
       op.id === id && op.status !== 'cancelled'
@@ -126,8 +125,7 @@ export class OperationsState {
             completedBytes,
             currentFileName,
             activeFiles: activeFiles && activeFiles.length > 0 ? activeFiles : undefined,
-            totalBytes: totalBytes ?? op.totalBytes,
-            phase
+            totalBytes: totalBytes ?? op.totalBytes
           }
         : op
     );

@@ -252,8 +252,7 @@ export class StorageState {
           job.progress.completedBytes,
           undefined,
           job.progress.activeFiles,
-          job.totalBytes,
-          job.progress.phase
+          job.totalBytes
         );
         this.operations_.setDownloadCacheExpiry(job.id, job.expiresAt);
       },
@@ -507,8 +506,7 @@ export class StorageState {
                 job.progress.completedBytes,
                 undefined,
                 job.progress.activeFiles,
-                job.totalBytes,
-                job.progress.phase
+                job.totalBytes
               );
               this.operations_.setDownloadCacheExpiry(job.id, job.expiresAt);
             },

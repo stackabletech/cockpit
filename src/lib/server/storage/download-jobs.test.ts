@@ -59,22 +59,20 @@ describe('download jobs', () => {
     });
   });
 
-  it('cleans the on-disk download cache', async () => {
+  it('cleans the in-memory download job cache', async () => {
     await expect(clearDownloadRootForTests()).resolves.toBeUndefined();
   });
 
-  it('uses a normal archive name until multipart output is required', () => {
+  it('always creates a single ZIP archive name', () => {
     expect(archiveFileName('reports')).toBe('reports.zip');
-    expect(archiveFileName('reports', 1)).toBe('reports.z01');
-    expect(archiveFileName('reports', 12)).toBe('reports.z12');
   });
 
-  it('cancels a running job and stops its in-flight download', async () => {
+  it('cancels a prepared job before its stream is requested', async () => {
     const job = createDownloadJob('user-1', 'bucket', 'prefix/', ['file.txt'], config);
     await flush();
     await flush();
 
-    expect(getDownloadJob('user-1', job.id)?.status).toBe('running');
+    expect(getDownloadJob('user-1', job.id)?.status).toBe('ready');
 
     expect(cancelDownloadJob('user-1', job.id)).toBe(true);
     await flush();

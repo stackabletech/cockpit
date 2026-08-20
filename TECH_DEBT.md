@@ -70,22 +70,6 @@ All server-side query state (progress, rows, status) is held in a module-level `
 
 ---
 
-### Download artefacts are process-local
-
-**File:** `src/lib/server/storage/download-jobs.ts`
-
-Prepared download parts and their job metadata are retained on the local filesystem for a configurable period (30 minutes by default). This permits retry and tab reacquisition on one application instance, but a restart or a request routed to another replica loses the artefact. The long-term fix is a shared job store and durable object storage for generated archives.
-
----
-
-### Compression phase of split-ZIP downloads has no progress/ETA and is single-threaded
-
-**File:** `src/lib/server/storage/download-jobs.ts`
-
-For archives larger than the split part size, object downloads to the staging directory run in parallel (`STACKABLE_COCKPIT_ARCHIVE_WORKERS`, default 4), but the subsequent `zip -s` compression step exposes no progress events and the compressed output size is unknown in advance, so the UI only shows "Compressing…" instead of a speed/ETA. The `zip` binary's deflate is also single-threaded, so the CPU-bound part does not benefit from the parallel workers. The correct long-term fix is a worker-thread pool that deflates entries in parallel and writes split-ZIP volumes directly, which would also give exact progress and an ETA.
-
----
-
 ### Completed query results are ephemeral (default 30-minute TTL)
 
 **File:** `src/lib/server/trino/queries.ts:20`

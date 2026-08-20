@@ -147,28 +147,8 @@ export const storageMoveEnabled =
 
 // ── Storage browser: downloads ─────────────────────────────────────────────
 
-/** Maximum size of each standard split-ZIP volume. ZIP downloads use the
- * interoperable `.z01`, `.z02`, …, `.zip` layout.
- * Controlled by `STACKABLE_COCKPIT_DOWNLOAD_PART_SIZE_MB`. */
-export const downloadPartSizeBytes =
-  parseInt(env.STACKABLE_COCKPIT_DOWNLOAD_PART_SIZE_MB ?? '', 10) * 1024 * 1024 ||
-  256 * 1024 * 1024;
-
-/** Number of download preparation jobs allowed to read from object storage at
- * once. This protects ordinary storage-browser requests from large downloads.
- * Controlled by `STACKABLE_COCKPIT_DOWNLOAD_JOB_CONCURRENCY`. */
-export const downloadJobConcurrency =
-  parseInt(env.STACKABLE_COCKPIT_DOWNLOAD_JOB_CONCURRENCY ?? '', 10) || 2;
-
-/** Number of parallel workers used to stage object downloads to disk before
- * compressing large archives. Only applies to archives larger than
- * `STACKABLE_COCKPIT_DOWNLOAD_PART_SIZE_MB`.
- * Controlled by `STACKABLE_COCKPIT_ARCHIVE_WORKERS`. */
-export const downloadArchiveWorkers =
-  parseInt(env.STACKABLE_COCKPIT_ARCHIVE_WORKERS ?? '', 10) || 4;
-
-/** Minutes that completed download artefacts remain available for browser
- * resume and tab reacquisition. Controlled by
+/** Minutes that prepared download metadata remains available for browser
+ * restart and tab reacquisition. Controlled by
  * `STACKABLE_COCKPIT_DOWNLOAD_RETENTION_MINUTES`. */
 export const downloadRetentionMs =
   (parseInt(env.STACKABLE_COCKPIT_DOWNLOAD_RETENTION_MINUTES ?? '', 10) || 30) * 60 * 1000;

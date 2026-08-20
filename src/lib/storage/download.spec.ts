@@ -77,7 +77,7 @@ describe('downloadsNeedArchive', () => {
       pollDownloadJob: poll
     });
     const controller = new AbortController();
-    const updates: Array<{ phase?: 'downloading' | 'compressing'; status: string }> = [];
+    const updates: Array<{ status: string }> = [];
 
     const promise = startDownload(
       api,
