@@ -39,6 +39,14 @@ describe('SelectionToolbar', () => {
     await expect.element(page.getByText('2 selected')).toBeInTheDocument();
   });
 
+  it('shows the cumulative size of selected files', async () => {
+    const files = [makeFile('a.txt'), makeFile('b.txt')];
+    const state = createState(files, ['a.txt', 'b.txt']);
+    render(SelectionToolbarWrapper, { state });
+
+    await expect.element(page.getByText('Selected files: 2.05 kB')).toBeInTheDocument();
+  });
+
   it('should enable preview button when exactly 1 file selected', async () => {
     const files = [makeFile('a.txt')];
     const state = createState(files, ['a.txt']);

@@ -147,8 +147,11 @@ export const storageMoveEnabled =
 
 // ── Storage browser: downloads ─────────────────────────────────────────────
 
-/** Minutes that prepared download metadata remains available for browser
- * restart and tab reacquisition. Controlled by
- * `STACKABLE_COCKPIT_DOWNLOAD_RETENTION_MINUTES`. */
-export const downloadRetentionMs =
-  (parseInt(env.STACKABLE_COCKPIT_DOWNLOAD_RETENTION_MINUTES ?? '', 10) || 30) * 60 * 1000;
+/** Days that a user's download history remains available. Controlled by
+ * `STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS`. */
+export const downloadHistoryRetentionMs =
+  (parseInt(env.STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS ?? '', 10) || 30) *
+  24 *
+  60 *
+  60 *
+  1000;

@@ -37,18 +37,22 @@ export interface JobStatus {
   };
 }
 
-export interface DownloadJobStatus {
+export interface DownloadManifestResponse {
   id: string;
-  status: 'queued' | 'running' | 'ready' | 'error' | 'cancelled';
-  totalBytes: number;
-  progress: {
-    completedCount: number;
-    completedBytes: number;
-    activeFiles?: string[];
-  };
-  files: Array<{ filename: string; size: number; part: number; ready: boolean }>;
-  expiresAt?: number;
-  error?: string;
+  files: Array<{ filename: string; size: number; part: number }>;
+  expiresAt: string;
+}
+
+export interface DownloadHistoryEntry {
+  id: string;
+  bucket: string;
+  connectionId: string;
+  entries: Array<{ key: string; size: number; isDirectory: boolean }>;
+  archive: boolean;
+  archiveFilename: string | null;
+  archiveSize: number | null;
+  createdAt: string;
+  expiresAt: string;
 }
 
 // ── Interface ──────────────────────────────────────────────────────────────
@@ -98,18 +102,18 @@ export interface StorageApi {
 
   pollJob(jobId: string): Promise<JobStatus>;
 
-  createDownloadJob(
+  createDownloadManifest(
     params: {
       bucket: string;
       prefix: string;
       keys: string[];
     },
     signal?: AbortSignal
-  ): Promise<DownloadJobStatus>;
+  ): Promise<DownloadManifestResponse>;
 
-  pollDownloadJob(jobId: string, signal?: AbortSignal): Promise<DownloadJobStatus>;
+  listDownloadHistory(connectionId: string): Promise<DownloadHistoryEntry[]>;
 
-  cancelDownloadJob(jobId: string): Promise<void>;
+  recreateDownloadManifest(manifestId: string, keys: string[]): Promise<DownloadManifestResponse>;
 
   checkObjectExists(params: { bucket: string; key: string }): Promise<boolean>;
 
@@ -240,28 +244,35 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       return (await res.json()) as JobStatus;
     },
 
-    async createDownloadJob({ bucket, prefix, keys }, signal) {
+    async createDownloadManifest({ bucket, prefix, keys }, signal) {
       const params = new URLSearchParams({ bucket, prefix });
-      const res = await fetch_(`/api/storage/download/jobs?${params}`, {
+      const res = await fetch_(`/api/storage/download/manifests?${params}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keys }),
         signal
       });
-      return (await res.json()) as DownloadJobStatus;
+      return (await res.json()) as DownloadManifestResponse;
     },
 
-    async pollDownloadJob(jobId, signal) {
-      const res = await fetch_(`/api/storage/download/jobs/${encodeURIComponent(jobId)}`, {
-        signal
-      });
-      return (await res.json()) as DownloadJobStatus;
+    async listDownloadHistory(connectionId) {
+      const res = await fetch(
+        `/api/storage/download/manifests?${new URLSearchParams({ connectionId })}`
+      );
+      if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
+      return (await res.json()) as DownloadHistoryEntry[];
     },
 
-    async cancelDownloadJob(jobId) {
-      await fetch_(`/api/storage/download/jobs/${encodeURIComponent(jobId)}`, {
-        method: 'DELETE'
-      });
+    async recreateDownloadManifest(manifestId, keys) {
+      const res = await fetch_(
+        `/api/storage/download/manifests/${encodeURIComponent(manifestId)}/redownload`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keys })
+        }
+      );
+      return (await res.json()) as DownloadManifestResponse;
     },
 
     async checkObjectExists({ bucket, key }) {

@@ -6,6 +6,7 @@
   import IconRefresh from 'virtual:icons/material-symbols/refresh';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
+  import { formatFileSize } from '$lib/storage/utils.js';
 
   const storage = getStorageState();
 
@@ -14,6 +15,9 @@
     storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0
   );
   const canDownload = $derived(selectedCount > 0);
+  const selectedFileSize = $derived(
+    storage.selectedFiles.reduce((total, file) => total + file.size, 0)
+  );
 </script>
 
 <tr class="border-primary/20 bg-primary/5 z-30 border-t">
@@ -22,6 +26,11 @@
       <span class="text-base-content/50 mr-1 text-xs">
         {m.storage_selected({ count: selectedCount })}
       </span>
+      {#if storage.selectedFiles.length > 0}
+        <span class="text-base-content/50 text-xs">
+          {m.storage_selected_files_size({ size: formatFileSize(selectedFileSize) })}
+        </span>
+      {/if}
 
       <button
         class="btn btn-ghost btn-xs gap-1"

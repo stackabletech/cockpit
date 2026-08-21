@@ -85,7 +85,8 @@ export class OperationsState {
     abortController?: AbortController,
     destPath?: string,
     sourceNames?: string[],
-    totalBytes = 0
+    totalBytes = 0,
+    persist = true
   ): void {
     this.operations = [
       ...this.operations,
@@ -106,7 +107,7 @@ export class OperationsState {
     if (abortController) {
       this._abortControllers.set(id, abortController);
     }
-    saveOperationsToStorage(this.operations);
+    if (persist) saveOperationsToStorage(this.operations);
   }
 
   updateOpProgress(
@@ -114,7 +115,6 @@ export class OperationsState {
     completedCount: number,
     completedBytes: number,
     currentFileName?: string,
-    activeFiles?: string[],
     totalBytes?: number
   ): void {
     this.operations = this.operations.map((op) =>
@@ -124,27 +124,10 @@ export class OperationsState {
             completedCount,
             completedBytes,
             currentFileName,
-            activeFiles: activeFiles && activeFiles.length > 0 ? activeFiles : undefined,
             totalBytes: totalBytes ?? op.totalBytes
           }
         : op
     );
-  }
-
-  resumeDownloadOp(id: string, totalBytes: number): void {
-    this.operations = this.operations.map((op) =>
-      op.id === id && op.type === 'download' && op.status === 'interrupted'
-        ? { ...op, status: 'running' as const, completedAt: undefined, totalBytes }
-        : op
-    );
-    saveOperationsToStorage(this.operations);
-  }
-
-  setDownloadCacheExpiry(id: string, cacheExpiresAt: number | undefined): void {
-    this.operations = this.operations.map((op) =>
-      op.id === id && op.type === 'download' ? { ...op, cacheExpiresAt } : op
-    );
-    saveOperationsToStorage(this.operations);
   }
 
   updateOpJobIds(id: string, fileJobIds: string[]): void {
@@ -153,43 +136,23 @@ export class OperationsState {
   }
 
   finishOp(id: string, status: 'done' | 'error' | 'cancelled', errorMessage?: string): void {
+    const operation = this.operations.find((op) => op.id === id);
     this.operations = this.operations.map((op) =>
       op.id === id && op.status !== 'cancelled'
         ? { ...op, status, errorMessage, completedAt: Date.now() }
         : op
     );
     this._abortControllers.delete(id);
+    if (operation?.type !== 'download') saveOperationsToStorage(this.operations);
+  }
+
+  removeOp(id: string): void {
+    this.operations = this.operations.filter((op) => op.id !== id);
+    this._abortControllers.delete(id);
     saveOperationsToStorage(this.operations);
   }
 
-  startDownloadOp(
-    id: string,
-    label: string,
-    itemCount: number,
-    sourceNames: string[],
-    totalBytes: number,
-    abortController?: AbortController
-  ): void {
-    this.startOp(
-      id,
-      label,
-      'download',
-      itemCount,
-      abortController,
-      undefined,
-      sourceNames,
-      totalBytes
-    );
-  }
-
   cancelOp(id: string): void {
-    const op = this.operations.find((o) => o.id === id);
-    if (op?.type === 'download') {
-      const request = this._api.cancelDownloadJob?.(id);
-      request?.catch?.(() => {
-        // Best effort — the local op is cancelled regardless.
-      });
-    }
     const controller = this._abortControllers.get(id);
     if (controller) {
       controller.abort();

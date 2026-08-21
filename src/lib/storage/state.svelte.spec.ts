@@ -101,25 +101,19 @@ function makeApi(overrides?: Partial<StorageApi>): StorageApi {
     async pollJob() {
       return { status: 'done' };
     },
-    async createDownloadJob() {
+    async createDownloadManifest() {
       return {
-        id: 'download-job',
-        status: 'ready' as const,
-        totalBytes: 0,
-        progress: { completedCount: 0, completedBytes: 0 },
-        files: []
+        id: 'download-manifest',
+        files: [],
+        expiresAt: new Date().toISOString()
       };
     },
-    async pollDownloadJob() {
-      return {
-        id: 'download-job',
-        status: 'ready' as const,
-        totalBytes: 0,
-        progress: { completedCount: 0, completedBytes: 0 },
-        files: []
-      };
+    async listDownloadHistory() {
+      return [];
     },
-    async cancelDownloadJob() {},
+    async recreateDownloadManifest() {
+      return { id: 'download-manifest', files: [], expiresAt: new Date().toISOString() };
+    },
     async checkObjectExists() {
       return false;
     },

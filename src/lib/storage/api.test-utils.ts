@@ -65,28 +65,20 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
       return { status: 'done' };
     },
 
-    async createDownloadJob() {
+    async createDownloadManifest() {
       return {
-        id: 'download-job',
-        status: 'ready' as const,
-        totalBytes: 0,
-        progress: { completedCount: 0, completedBytes: 0 },
-        files: []
+        id: 'download-manifest',
+        files: [],
+        expiresAt: new Date().toISOString()
       };
     },
 
-    async pollDownloadJob() {
-      return {
-        id: 'download-job',
-        status: 'ready' as const,
-        totalBytes: 0,
-        progress: { completedCount: 0, completedBytes: 0 },
-        files: []
-      };
+    async listDownloadHistory() {
+      return [];
     },
 
-    async cancelDownloadJob() {
-      // no-op
+    async recreateDownloadManifest() {
+      return { id: 'download-manifest', files: [], expiresAt: new Date().toISOString() };
     },
 
     async checkObjectExists() {

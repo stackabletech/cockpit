@@ -184,6 +184,42 @@ function entryName(entry: ZipEntry): Uint8Array {
 }
 
 /**
+ * Computes the exact byte length of the archive that `createZipStream` emits
+ * for the given entries. It mirrors the encoder's zip64 decisions exactly, so
+ * the result can be used as a `Content-Length` header before the stream is
+ * consumed. The archive uses the STORE method and data descriptors, so the
+ * total only depends on the entry sizes and names.
+ */
+export function computeZipArchiveSize(entries: ZipEntry[]): number {
+  let offset = 0;
+  let total = 0;
+  const central: Array<{ nameLength: number; size: number; offset: number }> = [];
+  for (const entry of entries) {
+    const nameLength = entryName(entry).length;
+    const sizeZip64 = entry.size >= UINT32_MAX;
+    const localLength = 30 + nameLength + (sizeZip64 ? 20 : 0);
+    const descriptorLength = sizeZip64 ? 24 : 16;
+    central.push({ nameLength, size: entry.size, offset });
+    offset += localLength + entry.size + descriptorLength;
+    total += localLength + entry.size + descriptorLength;
+  }
+  const centralOffset = offset;
+  for (const entry of central) {
+    const zip64Size = entry.size >= UINT32_MAX;
+    const zip64Offset = entry.offset >= UINT32_MAX;
+    const extraLength =
+      zip64Size || zip64Offset ? 4 + (zip64Size ? 16 : 0) + (zip64Offset ? 8 : 0) : 0;
+    const headerLength = 46 + entry.nameLength + extraLength;
+    offset += headerLength;
+    total += headerLength;
+  }
+  const size = offset - centralOffset;
+  const count = entries.length;
+  const zip64 = count >= UINT16_MAX || size >= UINT32_MAX || centralOffset >= UINT32_MAX;
+  total += zip64 ? 98 : 22;
+  return total;
+}
+/**
  * Creates a standards-compliant, uncompressed ZIP stream. Object bytes are
  * forwarded directly from the provider; only central-directory metadata stays
  * in memory.

@@ -144,12 +144,8 @@ export interface StorageOperation {
   completedBytes: number;
   /** Name of the file currently being transferred (single-item copy/move/paste). */
   currentFileName?: string;
-  /** Names of files currently being transferred in parallel (downloads). */
-  activeFiles?: string[];
-  /** Server-side job IDs per file for recovering results after reload. */
+  /** Server-side job IDs per file for recovering copy/move results after reload. */
   fileJobIds?: string[];
-  /** Epoch milliseconds when a completed download artefact expires. */
-  cacheExpiresAt?: number;
 }
 
 // ── Storage locations ────────────────────────────────────────────────────────

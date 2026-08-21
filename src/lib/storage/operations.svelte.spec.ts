@@ -126,31 +126,6 @@ describe('localStorage persistence', () => {
     expect(stored[0].completedAt).toBeGreaterThan(0);
   });
 
-  it('resumes an interrupted download when its server job is reacquired', () => {
-    const state = new OperationsState(makeMockApi(), makeOpts());
-    state.startDownloadOp('download-1', 'Download', 1, ['report.zip'], 100);
-    state.operations = state.operations.map((operation) =>
-      operation.id === 'download-1' ? { ...operation, status: 'interrupted' as const } : operation
-    );
-
-    state.resumeDownloadOp('download-1', 200);
-
-    expect(state.operations[0]).toMatchObject({ status: 'running', totalBytes: 200 });
-    expect(state.operations[0].completedAt).toBeUndefined();
-  });
-
-  it('persists the download cache expiry for replay visibility', () => {
-    const state = new OperationsState(makeMockApi(), makeOpts());
-    state.startDownloadOp('download-1', 'Download', 1, ['report.zip'], 100);
-    const expiry = Date.now() + 60_000;
-
-    state.setDownloadCacheExpiry('download-1', expiry);
-
-    expect(state.operations[0].cacheExpiresAt).toBe(expiry);
-    const stored = JSON.parse(localStorage.getItem(OPERATIONS_HISTORY_KEY)!) as StorageOperation[];
-    expect(stored[0].cacheExpiresAt).toBe(expiry);
-  });
-
   it('updateOpJobIds persists fileJobIds to localStorage', () => {
     const state = new OperationsState(makeMockApi(), makeOpts());
     state.startOp('op-1', 'Copy: file.txt', 'paste', 3);
@@ -223,27 +198,16 @@ describe('OperationsState lifecycle', () => {
     expect(controller.signal.aborted).toBe(true);
   });
 
-  it('updateOpProgress updates completedCount, completedBytes, activeFiles', () => {
+  it('updateOpProgress updates completedCount, completedBytes, currentFileName', () => {
     const state = new OperationsState(makeMockApi(), makeOpts());
     state.startOp('op-1', 'Copy: file.txt', 'paste', 3, undefined, undefined, undefined, 500);
 
-    state.updateOpProgress('op-1', 2, 300, undefined, ['file1.txt', 'file2.txt']);
+    state.updateOpProgress('op-1', 2, 300, 'file1.txt');
 
     const op = state.operations[0];
     expect(op.completedCount).toBe(2);
     expect(op.completedBytes).toBe(300);
-    expect(op.activeFiles).toEqual(['file1.txt', 'file2.txt']);
-  });
-
-  it('updateOpProgress clears activeFiles when empty', () => {
-    const state = new OperationsState(makeMockApi(), makeOpts());
-    state.startOp('op-1', 'Download', 'download', 3, undefined, undefined, undefined, 500);
-    state.updateOpProgress('op-1', 2, 300, undefined, ['file1.txt']);
-
-    state.updateOpProgress('op-1', 3, 500, undefined, []);
-
-    const op = state.operations[0];
-    expect(op.activeFiles).toBeUndefined();
+    expect(op.currentFileName).toBe('file1.txt');
   });
 
   it('updateOpProgress does NOT update operations with status cancelled', () => {
@@ -432,33 +396,6 @@ describe('cancelOp', () => {
     const state = new OperationsState(makeMockApi(), makeOpts());
 
     expect(() => state.cancelOp('nonexistent')).not.toThrow();
-  });
-
-  it('cancels the server-side job when a download operation is cancelled', () => {
-    const api = makeMockApi();
-    const cancelDownloadJob = vi.fn().mockResolvedValue(undefined);
-    (api as unknown as { cancelDownloadJob: unknown }).cancelDownloadJob = cancelDownloadJob;
-    const state = new OperationsState(api, makeOpts());
-    const controller = new AbortController();
-    state.startDownloadOp('op-1', 'Download', 2, [], 100, controller);
-
-    state.cancelOp('op-1');
-
-    expect(cancelDownloadJob).toHaveBeenCalledWith('op-1');
-    expect(controller.signal.aborted).toBe(true);
-    expect(state.operations[0].status).toBe('cancelled');
-  });
-
-  it('does not call the download cancel endpoint for non-download ops', () => {
-    const api = makeMockApi();
-    const cancelDownloadJob = vi.fn().mockResolvedValue(undefined);
-    (api as unknown as { cancelDownloadJob: unknown }).cancelDownloadJob = cancelDownloadJob;
-    const state = new OperationsState(api, makeOpts());
-    state.startOp('op-1', 'Copy', 'paste', 1);
-
-    state.cancelOp('op-1');
-
-    expect(cancelDownloadJob).not.toHaveBeenCalled();
   });
 });
 
