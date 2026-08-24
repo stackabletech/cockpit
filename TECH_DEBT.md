@@ -165,3 +165,11 @@ The upload endpoint imposes no maximum file size. S3's 5 TB single-object limit 
 **File:** `src/routes/healthz/+server.ts`, `deploy/helm/cockpit/values.yaml`
 
 Both `livenessProbe` and `readinessProbe` point at `/healthz`, which always returns 200. There is currently nothing meaningful to gate readiness on (better-auth uses an in-memory session store, OIDC discovery is fetched lazily on first auth call), so a separate `/readyz` would just be a placeholder. Once one of these lands — a real session store / DB, eager OIDC discovery, or a startup-time cache warm — split into `/healthz` (liveness, trivial) and `/readyz` (readiness, checking the new dependency), and update the helm probes accordingly.
+
+---
+
+### Airflow SSO mode trusts forwarded identity headers
+
+**File:** `src/lib/server/embedded-services.ts`, `~/airflow-proxy/sso_auth_manager.py`
+
+In `STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE=sso` the proxy derives `X-Forwarded-Preferred-Username`/`X-Forwarded-Email` from the cockpit session and forwards them to Airflow's direct port, where the SsoAuthManager middleware turns them into a per-user ADMIN session without verifying them again. This is safe only because the upstream is loopback-only in dev (`127.0.0.1:8089`) and inbound `X-Forwarded-*` headers from the browser are stripped by the proxy. A production deployment must terminate at an authenticating proxy (e.g. oauth2-proxy) on the Airflow side instead of trusting headers from the cockpit, or use a real OIDC auth manager.

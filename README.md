@@ -135,11 +135,11 @@ only by the Cockpit server and never reach the browser.
 To embed Airflow, configure its direct URL and add an Airflow bookmark that opens inside
 Cockpit. The iframe uses `/api/services/airflow/`, rather than the bookmark URL.
 
-| Variable                                 | Description                                                                                            |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `STACKABLE_COCKPIT_AIRFLOW_URL`          | Direct HTTP(S) URL for Airflow's API server. Enables the Airflow proxy.                                |
-| `STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE`    | `bearer` for a dedicated Airflow service token, or `all-admins` for the stock local development stack. |
-| `STACKABLE_COCKPIT_AIRFLOW_BEARER_TOKEN` | Required when `AUTH_MODE=bearer`; remains server-side.                                                 |
+| Variable                                 | Description                                                                                                                                                                                                           |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `STACKABLE_COCKPIT_AIRFLOW_URL`          | Direct HTTP(S) URL for Airflow's API server. Enables the Airflow proxy.                                                                                                                                               |
+| `STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE`    | `sso` forwards the cockpit session identity to Airflow (per-user sessions, no second login — see `~/airflow-proxy`), `bearer` uses a dedicated Airflow service token, `all-admins` is the stock development fallback. |
+| `STACKABLE_COCKPIT_AIRFLOW_BEARER_TOKEN` | Required when `AUTH_MODE=bearer`; remains server-side.                                                                                                                                                                |
 
 `~/airflow-proxy` contains the default Airflow 3.3.0 development stack. It uses
 Airflow's official `simple_auth_manager_all_admins` setting solely for local development;

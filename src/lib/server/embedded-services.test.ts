@@ -108,4 +108,75 @@ describe('embedded service proxy', () => {
     expect(response.headers.get('content-length')).toBeNull();
     expect(response.headers.get('content-type')).toBe('application/javascript');
   });
+
+  it('forwards the session identity instead of a token in sso mode', async () => {
+    process.env.STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE = 'sso';
+    fetchMock.mockResolvedValueOnce(
+      new Response('<head></head>', { headers: { 'content-type': 'text/html' } })
+    );
+
+    const request = new Request('http://cockpit.test/api/services/airflow/', {
+      headers: {
+        'x-forwarded-preferred-username': 'mallory',
+        'x-forwarded-email': 'mallory@example.com',
+        accept: 'text/html'
+      }
+    });
+    const event = {
+      url: new URL('http://cockpit.test/api/services/airflow/'),
+      request,
+      locals: {
+        logger: { debug: vi.fn(), warn: vi.fn() },
+        user: { name: 'Alice Example', email: 'alice@example.com', username: 'alice' }
+      }
+    } as never;
+
+    await proxyEmbeddedService(event, 'airflow');
+
+    // Only one fetch: no /auth/token round-trip in sso mode.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const upstreamHeaders = fetchMock.mock.calls[0][1].headers as Headers;
+    expect(upstreamHeaders.get('authorization')).toBeNull();
+    expect(upstreamHeaders.get('x-forwarded-preferred-username')).toBe('alice');
+    expect(upstreamHeaders.get('x-forwarded-email')).toBe('alice@example.com');
+  });
+
+  it('strips spoofed inbound X-Forwarded-* identity headers', async () => {
+    process.env.STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE = 'sso';
+    fetchMock.mockResolvedValueOnce(
+      new Response('<head></head>', { headers: { 'content-type': 'text/html' } })
+    );
+
+    const request = new Request('http://cockpit.test/api/services/airflow/', {
+      headers: { 'x-forwarded-preferred-username': 'admin' }
+    });
+    const event = {
+      url: new URL('http://cockpit.test/api/services/airflow/'),
+      request,
+      locals: {
+        logger: { debug: vi.fn(), warn: vi.fn() },
+        user: { name: 'Bob', email: 'bob@example.com', username: 'bob' }
+      }
+    } as never;
+
+    await proxyEmbeddedService(event, 'airflow');
+
+    const upstreamHeaders = fetchMock.mock.calls[0][1].headers as Headers;
+    expect(upstreamHeaders.get('x-forwarded-preferred-username')).toBe('bob');
+  });
+
+  it('rejects sso proxying without an authenticated cockpit session', async () => {
+    process.env.STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE = 'sso';
+
+    const event = {
+      url: new URL('http://cockpit.test/api/services/airflow/'),
+      request: new Request('http://cockpit.test/api/services/airflow/'),
+      locals: { logger: { debug: vi.fn(), warn: vi.fn() }, user: null }
+    } as never;
+
+    await expect(proxyEmbeddedService(event, 'airflow')).rejects.toMatchObject({
+      status: 401
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

@@ -2,9 +2,10 @@ import { env } from '$env/dynamic/private';
 import { error, type RequestEvent } from '@sveltejs/kit';
 import { embeddedServiceRequests } from '$lib/server/metrics.js';
 
-type AuthMode = 'all-admins' | 'bearer';
+type AuthMode = 'all-admins' | 'bearer' | 'sso';
 
 interface EmbeddedService {
+  id: string;
   upstreamUrl: URL;
   authMode: AuthMode;
   bearerToken?: string;
@@ -17,9 +18,10 @@ function getServiceConfig(serviceId: string): {
 } | null {
   if (serviceId !== 'airflow') return null;
 
+  const rawAuthMode = env.STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE;
   return {
     url: env.STACKABLE_COCKPIT_AIRFLOW_URL,
-    authMode: env.STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE === 'bearer' ? 'bearer' : 'all-admins',
+    authMode: rawAuthMode === 'bearer' || rawAuthMode === 'sso' ? rawAuthMode : 'all-admins',
     bearerToken: env.STACKABLE_COCKPIT_AIRFLOW_BEARER_TOKEN
   };
 }
@@ -65,7 +67,7 @@ function getService(serviceId: string): EmbeddedService {
     throw error(500, 'Embedded service bearer token is not configured');
   }
 
-  return { upstreamUrl, authMode: config.authMode, bearerToken: config.bearerToken };
+  return { id: serviceId, upstreamUrl, authMode: config.authMode, bearerToken: config.bearerToken };
 }
 
 async function getAirflowToken(service: EmbeddedService): Promise<string> {
@@ -90,17 +92,39 @@ async function getAirflowToken(service: EmbeddedService): Promise<string> {
   return body.access_token;
 }
 
-function proxyRequestHeaders(event: RequestEvent, authorization: string): Headers {
+async function proxyRequestHeaders(
+  event: RequestEvent,
+  service: EmbeddedService
+): Promise<Headers> {
   const headers = new Headers();
   for (const [name, value] of event.request.headers) {
     if (
       !HOP_BY_HOP_HEADERS.has(name) &&
-      !['authorization', 'cookie', 'host', 'origin', 'referer', 'x-forwarded-for'].includes(name)
+      // `x-forwarded-*` is always derived server-side below — never forwarded
+      // from the browser, where it could be spoofed to impersonate a user.
+      !name.startsWith('x-forwarded-') &&
+      !['authorization', 'cookie', 'host', 'origin', 'referer'].includes(name)
     ) {
       headers.set(name, value);
     }
   }
-  headers.set('authorization', authorization);
+
+  if (service.authMode === 'sso') {
+    const user = event.locals.user;
+    const username = user?.username ?? user?.name;
+    if (!user || !username) {
+      event.locals.logger.warn({ service: service.id }, 'No SSO identity in session');
+      throw error(401, 'Embedded service requires an authenticated cockpit session');
+    }
+    // Airflow's SsoAuthManager trusts these oauth2-proxy-style identity headers
+    // and creates the matching Airflow session (per-user identity, no login).
+    headers.set('x-forwarded-preferred-username', username);
+    if (user.email) headers.set('x-forwarded-email', user.email);
+  } else {
+    const token = await getAirflowToken(service);
+    headers.set('authorization', `Bearer ${token}`);
+  }
+
   headers.set('x-forwarded-host', event.url.host);
   headers.set('x-forwarded-proto', event.url.protocol.slice(0, -1));
   return headers;
@@ -163,11 +187,10 @@ export async function proxyEmbeddedService(
   const upstreamUrl = new URL(path, service.upstreamUrl);
   upstreamUrl.search = event.url.search;
 
-  const token = await getAirflowToken(service);
   const method = event.request.method;
   const request: RequestInit & { duplex?: 'half' } = {
     method,
-    headers: proxyRequestHeaders(event, `Bearer ${token}`),
+    headers: await proxyRequestHeaders(event, service),
     body: method === 'GET' || method === 'HEAD' ? undefined : event.request.body,
     redirect: 'manual'
   };
