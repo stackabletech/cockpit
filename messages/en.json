@@ -317,6 +317,7 @@
   "storage_download_history_direct": "Individual files",
   "storage_download_history_show_details": "Show details",
   "storage_download_history_hide_details": "Hide details",
+  "storage_download_history_file_not_found": "Failed: File \"{path}\" cannot be found",
   "storage_download_history_selected_count": "{count} selected",
   "storage_download_history_download_selected": "Download selected",
   "storage_download_history_download_all": "Download all",

@@ -273,10 +273,16 @@ export class StorageState {
       this.operations_.removeOp(operationId);
       await this.refreshDownloadHistory();
     } catch (err) {
-      this.operations_.finishOp(operationId, 'error');
       if (err instanceof StorageError && err.code === 'not_found') {
+        this.operations_.finishOp(
+          operationId,
+          'error',
+          m.storage_download_history_file_not_found({ path: err.message })
+        );
         this.downloadHistory = this.downloadHistory.filter((entry) => entry.id !== manifestId);
         await this.refreshDownloadHistory();
+      } else {
+        this.operations_.finishOp(operationId, 'error');
       }
       throw err;
     }

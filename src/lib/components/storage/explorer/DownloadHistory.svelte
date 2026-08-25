@@ -4,6 +4,8 @@
   import { SvelteSet } from 'svelte/reactivity';
   import { selectedDownloadHistoryPayloadSize } from '$lib/storage/download-history.js';
   import { formatFileSize } from '$lib/storage/utils.js';
+  import IconChevronDown from 'virtual:icons/material-symbols/keyboard-arrow-down';
+  import IconChevronUp from 'virtual:icons/material-symbols/keyboard-arrow-up';
 
   interface Props {
     entries: DownloadHistoryEntry[];
@@ -47,6 +49,7 @@
     <ul class="space-y-2">
       {#each entries as entry (entry.id)}
         {@const chosen = selected[entry.id] ?? []}
+        {@const files = entry.entries.filter((item) => !item.isDirectory)}
         {@const totalSize = entry.entries.reduce((total, item) => total + item.size, 0)}
         {@const selectedSize = selectedDownloadHistoryPayloadSize(entry.entries, chosen)}
         <li class="bg-base-200 rounded-lg p-2.5">
@@ -64,11 +67,16 @@
             <button
               class="btn btn-ghost btn-xs"
               aria-expanded={expanded[entry.id]}
-              onclick={() => toggleDetails(entry.id)}
-            >
-              {expanded[entry.id]
+              aria-label={expanded[entry.id]
                 ? m.storage_download_history_hide_details()
                 : m.storage_download_history_show_details()}
+              onclick={() => toggleDetails(entry.id)}
+            >
+              {#if expanded[entry.id]}
+                <IconChevronUp aria-hidden="true" />
+              {:else}
+                <IconChevronDown aria-hidden="true" />
+              {/if}
             </button>
           </div>
           {#if expanded[entry.id]}
@@ -78,7 +86,7 @@
                   selectedSize
                 )}
               </legend>
-              {#each entry.entries as item (`${entry.id}-${item.key}`)}
+              {#each files as item (`${entry.id}-${item.key}`)}
                 <div class="flex items-center gap-2">
                   <input
                     id={`${uid}-${entry.id}-${item.key}`}
@@ -90,7 +98,7 @@
                   <label
                     for={`${uid}-${entry.id}-${item.key}`}
                     class="text-base-content min-w-0 flex-1 truncate text-xs"
-                    >{item.key}{item.isDirectory && !item.key.endsWith('/') ? '/' : ''}
+                    >{item.key}
                     <span class="text-base-content/50">({formatFileSize(item.size)})</span></label
                   >
                 </div>

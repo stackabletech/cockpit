@@ -1,4 +1,5 @@
 import { and, desc, eq, gt, lte } from 'drizzle-orm';
+import { error, isHttpError } from '@sveltejs/kit';
 import { db } from '$lib/server/db.js';
 import { downloadHistoryRetentionMs } from '$lib/server/feature-flags.js';
 import { logger } from '$lib/server/logging';
@@ -220,8 +221,13 @@ export async function recreateDownloadManifest(
   const entries = await Promise.all(
     expanded.map(async (entry) => {
       if (entry.isDirectory) return { ...entry, size: 0 };
-      const metadata = await provider.getMetadata(entry.key);
-      return { ...entry, size: metadata.size };
+      try {
+        const metadata = await provider.getMetadata(entry.key);
+        return { ...entry, size: metadata.size };
+      } catch (err) {
+        if (isHttpError(err) && err.status === 404) throw error(404, entry.key);
+        throw err;
+      }
     })
   );
   const nonDirectoryEntries = entries.filter((entry) => !entry.isDirectory);

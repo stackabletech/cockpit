@@ -937,13 +937,18 @@ describe('redownloadHistory', () => {
 
   it('marks the operation as failed and drops vanished history entries', async () => {
     const state = makeState({
-      recreateDownloadManifest: vi.fn().mockRejectedValue(new StorageError('not_found', 'Gone'))
+      recreateDownloadManifest: vi
+        .fn()
+        .mockRejectedValue(new StorageError('not_found', 'reports/moved.txt'))
     });
     state.downloadHistory = [makeHistoryEntry()];
 
     await expect(state.redownloadHistory('manifest-1', ['a.txt'])).rejects.toThrow();
 
     expect(state.operations[0]?.status).toBe('error');
+    expect(state.operations[0]?.errorMessage).toBe(
+      'Failed: File "reports/moved.txt" cannot be found'
+    );
     expect(state.downloadHistory).toHaveLength(0);
   });
 });

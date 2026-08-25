@@ -71,6 +71,22 @@ describe('DownloadHistory', () => {
       .not.toBeDisabled();
   });
 
+  it('only lists files in expanded details', async () => {
+    renderHistory([
+      makeEntry({
+        entries: [
+          { key: 'reports/', size: 0, isDirectory: true },
+          { key: 'reports/one.txt', size: 1024, isDirectory: false }
+        ]
+      })
+    ]);
+    await page.getByRole('button', { name: 'Show details' }).click();
+
+    await expect.element(page.getByRole('checkbox')).toHaveLength(1);
+    await expect.element(page.getByLabelText(/reports\/one\.txt/)).toBeInTheDocument();
+    await expect.element(page.getByText('reports/', { exact: true })).not.toBeInTheDocument();
+  });
+
   it('does not overflow horizontally with a long unbreakable object key', async () => {
     const longKey = `very-long-object-name-${'x'.repeat(120)}.bin`;
     const { section } = renderHistory([

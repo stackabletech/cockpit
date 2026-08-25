@@ -87,7 +87,7 @@
       case 'interrupted':
         return m.storage_operation_interrupted();
       default:
-        return op.errorMessage ?? m.storage_operation_failed();
+        return m.storage_operation_failed();
     }
   }
 
