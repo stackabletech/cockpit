@@ -68,6 +68,9 @@ describe('download manifests', () => {
 
     expect(manifest.files).toHaveLength(1);
     expect(manifest.files[0]?.filename).toBe('folder.zip');
+    // The reported size is the uncompressed payload total; no exact archive
+    // size is computed or persisted anywhere.
+    expect(manifest.files[0]?.size).toBe(10);
     const persisted = mocks.insertValues.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(persisted).toMatchObject({
       userId: 'user-1',
@@ -76,6 +79,8 @@ describe('download manifests', () => {
       connectionId: '00000000-0000-4000-8000-000000000001',
       format: 'zip'
     });
+    expect(persisted).not.toHaveProperty('archiveSize');
+    expect(JSON.stringify(persisted)).not.toContain('archive_size');
     expect(JSON.stringify(persisted)).not.toContain('secret-access');
     expect(JSON.stringify(persisted)).not.toContain('secret-key');
     expect(mocks.deleteWhere).toHaveBeenCalledTimes(1);
@@ -105,7 +110,6 @@ describe('download manifests', () => {
           connectionId: '00000000-0000-4000-8000-000000000001',
           entries: [{ key: 'a.txt', size: 5, isDirectory: false }],
           archive: null,
-          archiveSize: null,
           expiresAt: new Date(Date.now() + 60_000)
         }
       ])
@@ -129,7 +133,6 @@ describe('download manifests', () => {
             { key: 'folder/c.txt', size: 8, isDirectory: false }
           ],
           archive: 'original.zip',
-          archiveSize: 20,
           expiresAt: new Date(Date.now() + 60_000),
           createdAt: new Date()
         }

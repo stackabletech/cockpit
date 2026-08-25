@@ -13,12 +13,13 @@ export const GET: RequestHandler = async ({ locals, params }) => {
   if (!download)
     throw error(404, 'Download manifest, storage connection, or object is unavailable');
   const filename = encodeURIComponent(download.file.filename);
-  return new Response(download.stream, {
-    headers: {
-      'Content-Type': 'application/octet-stream',
-      'Content-Length': String(download.file.size),
-      'Content-Disposition': `attachment; filename="${download.file.filename}"; filename*=UTF-8''${filename}`,
-      'Cache-Control': 'private, no-store'
-    }
-  });
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/octet-stream',
+    'Content-Disposition': `attachment; filename="${download.file.filename}"; filename*=UTF-8''${filename}`,
+    'Cache-Control': 'private, no-store'
+  };
+  // A size of 0 means the exact byte length is unknown (streamed ZIP
+  // archives), so no Content-Length is sent and the response is chunked.
+  if (download.file.size > 0) headers['Content-Length'] = String(download.file.size);
+  return new Response(download.stream, { headers });
 };

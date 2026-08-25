@@ -72,7 +72,7 @@
             </button>
           </div>
           {#if expanded[entry.id]}
-            <fieldset class="border-base-300 mt-2 space-y-1 border-t pt-2">
+            <fieldset class="border-base-300 mt-2 min-w-0 space-y-1 border-t pt-2">
               <legend class="text-base-content/70 text-[11px]" aria-live="polite">
                 {m.storage_download_history_selected_count({ count: chosen.length })} · {formatFileSize(
                   selectedSize

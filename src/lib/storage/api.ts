@@ -50,7 +50,6 @@ export interface DownloadHistoryEntry {
   entries: Array<{ key: string; size: number; isDirectory: boolean }>;
   archive: boolean;
   archiveFilename: string | null;
-  archiveSize: number | null;
   createdAt: string;
   expiresAt: string;
 }

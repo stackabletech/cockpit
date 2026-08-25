@@ -19,7 +19,11 @@ import {
   storagePasteEnabled,
   storageRenameEnabled
 } from '$lib/client/feature-flags.js';
-import { startDownload, triggerManifestDownloads } from '$lib/storage/download.js';
+import {
+  estimateArchiveSize,
+  startDownload,
+  triggerManifestDownloads
+} from '$lib/storage/download.js';
 import type { DownloadHistoryEntry } from '$lib/storage/api.js';
 import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
@@ -244,11 +248,32 @@ export class StorageState {
   }
 
   async redownloadHistory(manifestId: string, keys: string[]): Promise<void> {
+    const entry = this.downloadHistory.find((candidate) => candidate.id === manifestId);
+    const selectedEntries = entry ? entry.entries.filter((item) => keys.includes(item.key)) : [];
+    const operationId = crypto.randomUUID();
+    this.operations_.startOp(
+      operationId,
+      m.storage_action_download(),
+      'download',
+      keys.length,
+      new AbortController(),
+      undefined,
+      keys.map(keyToName),
+      estimateArchiveSize(selectedEntries),
+      false
+    );
     try {
       const manifest = await this._api.recreateDownloadManifest(manifestId, keys);
       await triggerManifestDownloads(manifest);
+      this.operations_.updateOpTotalBytes(
+        operationId,
+        manifest.files.reduce((total, file) => total + file.size, 0)
+      );
+      this.operations_.finishOp(operationId, 'done');
+      this.operations_.removeOp(operationId);
       await this.refreshDownloadHistory();
     } catch (err) {
+      this.operations_.finishOp(operationId, 'error');
       if (err instanceof StorageError && err.code === 'not_found') {
         this.downloadHistory = this.downloadHistory.filter((entry) => entry.id !== manifestId);
         await this.refreshDownloadHistory();
@@ -479,10 +504,19 @@ export class StorageState {
             abortController,
             undefined,
             downloadItems.map((file) => keyToName(file.key)),
-            downloadItems.reduce((total, file) => total + file.size, 0),
+            estimateArchiveSize(downloadItems),
             false
           );
-          await startDownload(this._api, this.bucket, this.prefix, keys, abortController.signal);
+          const result = await startDownload(
+            this._api,
+            this.bucket,
+            this.prefix,
+            keys,
+            abortController.signal
+          );
+          // The manifest reports the authoritative payload total, which also
+          // covers folder contents that were unknown before.
+          this.operations_.updateOpTotalBytes(operationId, result.totalBytes);
           await this.refreshDownloadHistory();
           this.operations_.finishOp(operationId, 'done');
           this.operations_.removeOp(operationId);

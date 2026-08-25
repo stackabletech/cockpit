@@ -1,5 +1,27 @@
 import type { StorageApi } from './api.js';
 
+/**
+ * Estimate the byte length of the stored (uncompressed) ZIP that a multi
+ * download will produce. The exact archive size is deliberately not computed
+ * server-side, so this client-side approximation (payload plus per-entry ZIP
+ * structure overhead) drives the size/ETA display while downloading.
+ */
+export function estimateArchiveSize(
+  entries: Array<{ key: string; size: number; isDirectory?: boolean }>
+): number {
+  let payload = 0;
+  // End-of-central-directory record.
+  let overhead = 22;
+  for (const entry of entries) {
+    const nameLength = entry.key.length + (entry.isDirectory && !entry.key.endsWith('/') ? 1 : 0);
+    // Local file header (30) + data descriptor (16) + central directory header
+    // (46), with the entry name stored twice (local header + central directory).
+    overhead += 92 + 2 * nameLength;
+    if (!entry.isDirectory) payload += entry.size;
+  }
+  return payload + overhead;
+}
+
 async function triggerDownload(manifestId: string, part: number, filename: string): Promise<void> {
   const anchor = document.createElement('a');
   anchor.href = `/api/storage/download/manifests/${encodeURIComponent(manifestId)}/${part}`;

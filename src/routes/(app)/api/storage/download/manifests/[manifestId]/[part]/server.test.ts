@@ -20,4 +20,17 @@ describe('GET /api/storage/download/manifests/:manifestId/:part', () => {
     expect(response.headers.get('Cache-Control')).toBe('private, no-store');
     expect(openDownloadManifestPart).toHaveBeenCalledWith('user-1', 'manifest-1', 1);
   });
+
+  it('streams an archived manifest part without Content-Length when its size is unknown', async () => {
+    vi.mocked(openDownloadManifestPart).mockResolvedValue({
+      stream: new ReadableStream({ start: (controller) => controller.close() }),
+      file: { filename: 'reports.zip', size: 0, part: 1 }
+    });
+    const response = await GET({
+      locals: { user: { id: 'user-1' } },
+      params: { manifestId: 'manifest-1', part: '1' }
+    } as Parameters<typeof GET>[0]);
+    expect(response.headers.has('Content-Length')).toBe(false);
+    expect(response.headers.get('Content-Disposition')).toContain('reports.zip');
+  });
 });

@@ -135,6 +135,11 @@ export class OperationsState {
     saveOperationsToStorage(this.operations);
   }
 
+  /** Refine the expected transfer size once the download manifest is known. */
+  updateOpTotalBytes(id: string, totalBytes: number): void {
+    this.operations = this.operations.map((op) => (op.id === id ? { ...op, totalBytes } : op));
+  }
+
   finishOp(id: string, status: 'done' | 'error' | 'cancelled', errorMessage?: string): void {
     const operation = this.operations.find((op) => op.id === id);
     this.operations = this.operations.map((op) =>

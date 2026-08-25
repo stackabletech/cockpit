@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, jsonb, index, unique, bigint } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, jsonb, index, unique } from 'drizzle-orm/pg-core';
 
 /**
  * User storage connections table.
@@ -41,7 +41,6 @@ export const storageDownloadManifests = pgTable(
     entries: jsonb('entries').notNull(),
     format: text('format').notNull(),
     archive: text('archive'),
-    archiveSize: bigint('archive_size', { mode: 'number' }),
     createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
     expiresAt: timestamp('expires_at', { mode: 'date' }).notNull()
   },

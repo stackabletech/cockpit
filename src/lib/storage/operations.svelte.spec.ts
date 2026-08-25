@@ -231,6 +231,17 @@ describe('OperationsState lifecycle', () => {
     expect(state.operations[0].fileJobIds).toEqual(['job-a', 'job-b']);
   });
 
+  it('updateOpTotalBytes refines only the target operation size', () => {
+    const state = new OperationsState(makeMockApi(), makeOpts());
+    state.startOp('op-1', 'Download', 'download', 4, undefined, undefined, undefined, 100);
+    state.startOp('op-2', 'Other', 'download', 1, undefined, undefined, undefined, 200);
+
+    state.updateOpTotalBytes('op-1', 900);
+
+    expect(state.operations[0].totalBytes).toBe(900);
+    expect(state.operations[1].totalBytes).toBe(200);
+  });
+
   it('finishOp with done sets status=done and completedAt', () => {
     const state = new OperationsState(makeMockApi(), makeOpts());
     state.startOp('op-1', 'Test', 'paste', 1);

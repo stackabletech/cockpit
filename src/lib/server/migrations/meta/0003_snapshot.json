@@ -57,12 +57,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "archive_size": {
-          "name": "archive_size",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",

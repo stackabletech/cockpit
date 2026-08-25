@@ -8,7 +8,7 @@ import type { StorageProvider } from './provider.js';
 import type { S3ConnectionConfig } from './types.js';
 import { getProvider } from './utils.js';
 import { wrapProvider } from './wrap-provider.js';
-import { computeZipArchiveSize, createZipStream, type ZipEntry } from './zip-stream.js';
+import { createZipStream, type ZipEntry } from './zip-stream.js';
 
 const log = logger.child({ module: 'storage-download-manifests' });
 
@@ -34,7 +34,6 @@ export interface DownloadHistoryEntry {
   entries: DownloadEntry[];
   archive: boolean;
   archiveFilename: string | null;
-  archiveSize: number | null;
   expiresAt: Date;
   createdAt: Date;
 }
@@ -79,14 +78,20 @@ async function expandKeys(provider: StorageProvider, keys: string[]): Promise<Do
   );
 }
 
-function filesFor(
-  entries: DownloadEntry[],
-  archive: boolean,
-  archiveName: string,
-  archiveSize: number
-): DownloadFile[] {
+/**
+ * Build the manifest file list. For archives the reported size is the
+ * uncompressed payload total — the exact archive size is unknown until the
+ * stream is produced and must not be guessed.
+ */
+function filesFor(entries: DownloadEntry[], archive: boolean, archiveName: string): DownloadFile[] {
   return archive
-    ? [{ filename: archiveName, size: archiveSize, part: 1 }]
+    ? [
+        {
+          filename: archiveName,
+          size: entries.reduce((total, entry) => total + entry.size, 0),
+          part: 1
+        }
+      ]
     : entries.map((entry, index) => ({
         filename: fileName(entry.key),
         size: entry.size,
@@ -103,7 +108,6 @@ async function persistManifest(input: {
   archive: boolean;
   archiveName: string;
 }): Promise<DownloadManifest> {
-  const archiveSize = input.archive ? computeZipArchiveSize(input.entries) : null;
   const expiresAt = new Date(Date.now() + downloadHistoryRetentionMs);
   const [manifest] = await db
     .insert(storageDownloadManifests)
@@ -115,13 +119,12 @@ async function persistManifest(input: {
       entries: input.entries,
       format: 'zip',
       archive: input.archive ? input.archiveName : null,
-      archiveSize,
       expiresAt
     })
     .returning({ id: storageDownloadManifests.id });
   return {
     id: manifest.id,
-    files: filesFor(input.entries, input.archive, input.archiveName, archiveSize ?? 0),
+    files: filesFor(input.entries, input.archive, input.archiveName),
     expiresAt
   };
 }
@@ -177,7 +180,6 @@ async function loadOwnedManifest(userId: string, id: string): Promise<DownloadHi
     entries,
     archive: row.archive !== null,
     archiveFilename: row.archive,
-    archiveSize: row.archiveSize,
     expiresAt: row.expiresAt,
     createdAt: row.createdAt
   };
@@ -265,7 +267,6 @@ export async function listDownloadHistory(
       entries: row.entries as DownloadEntry[],
       archive: row.archive !== null,
       archiveFilename: row.archive,
-      archiveSize: row.archiveSize,
       expiresAt: row.expiresAt,
       createdAt: row.createdAt
     });
@@ -292,10 +293,12 @@ export async function openDownloadManifestPart(
   }
   const provider = wrapProvider(getProvider(config, manifest.bucket));
   if (manifest.archive) {
-    if (part !== 1 || !manifest.archiveFilename || manifest.archiveSize === null) return null;
+    // The exact archive size is only known once the stream has been produced,
+    // so `size` stays 0 and the response is sent without a Content-Length.
+    if (part !== 1 || !manifest.archiveFilename) return null;
     return {
       stream: createZipStream(provider, manifest.entries),
-      file: { filename: manifest.archiveFilename, size: manifest.archiveSize, part: 1 }
+      file: { filename: manifest.archiveFilename, size: 0, part: 1 }
     };
   }
   const entry = manifest.entries[part - 1];

@@ -207,7 +207,7 @@
       <div
         role="menu"
         aria-label={m.storage_operations_label()}
-        class="rounded-box border-base-300 bg-base-100 absolute right-0 z-60 mt-2 w-[min(24rem,calc(100vw-1rem))] origin-top-right border shadow-xl"
+        class="rounded-box border-base-300 bg-base-100 absolute right-0 z-60 mt-2 max-h-[calc(100dvh-6rem)] w-[min(24rem,calc(100vw-1rem))] origin-top-right overflow-y-auto overscroll-contain border shadow-xl"
       >
         <!-- Active operations section -->
         {#if activeOps.length > 0}

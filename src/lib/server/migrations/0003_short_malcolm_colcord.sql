@@ -7,7 +7,6 @@ CREATE TABLE "storage_download_manifests" (
 	"entries" jsonb NOT NULL,
 	"format" text NOT NULL,
 	"archive" text,
-	"archive_size" bigint,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"expires_at" timestamp NOT NULL
 );
