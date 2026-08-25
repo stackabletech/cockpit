@@ -68,9 +68,9 @@ describe('download manifests', () => {
 
     expect(manifest.files).toHaveLength(1);
     expect(manifest.files[0]?.filename).toBe('folder.zip');
-    // The reported size is the uncompressed payload total; no exact archive
-    // size is computed or persisted anywhere.
-    expect(manifest.files[0]?.size).toBe(10);
+    // The reported size includes all ZIP headers and records, so browsers can
+    // report progress against the actual final download size.
+    expect(manifest.files[0]?.size).toBeGreaterThan(10);
     const persisted = mocks.insertValues.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(persisted).toMatchObject({
       userId: 'user-1',

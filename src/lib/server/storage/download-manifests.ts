@@ -9,7 +9,7 @@ import type { StorageProvider } from './provider.js';
 import type { S3ConnectionConfig } from './types.js';
 import { getProvider } from './utils.js';
 import { wrapProvider } from './wrap-provider.js';
-import { createZipStream, type ZipEntry } from './zip-stream.js';
+import { createZipStream, type ZipEntry, zipStreamSize } from './zip-stream.js';
 
 const log = logger.child({ module: 'storage-download-manifests' });
 
@@ -81,15 +81,14 @@ async function expandKeys(provider: StorageProvider, keys: string[]): Promise<Do
 
 /**
  * Build the manifest file list. For archives the reported size is the
- * uncompressed payload total — the exact archive size is unknown until the
- * stream is produced and must not be guessed.
+ * exact output size is derived from the immutable manifest metadata.
  */
 function filesFor(entries: DownloadEntry[], archive: boolean, archiveName: string): DownloadFile[] {
   return archive
     ? [
         {
           filename: archiveName,
-          size: entries.reduce((total, entry) => total + entry.size, 0),
+          size: zipStreamSize(entries),
           part: 1
         }
       ]
@@ -299,12 +298,10 @@ export async function openDownloadManifestPart(
   }
   const provider = wrapProvider(getProvider(config, manifest.bucket));
   if (manifest.archive) {
-    // The exact archive size is only known once the stream has been produced,
-    // so `size` stays 0 and the response is sent without a Content-Length.
     if (part !== 1 || !manifest.archiveFilename) return null;
     return {
       stream: createZipStream(provider, manifest.entries),
-      file: { filename: manifest.archiveFilename, size: 0, part: 1 }
+      file: { filename: manifest.archiveFilename, size: zipStreamSize(manifest.entries), part: 1 }
     };
   }
   const entry = manifest.entries[part - 1];

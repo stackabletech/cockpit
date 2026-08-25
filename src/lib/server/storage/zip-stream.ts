@@ -21,6 +21,28 @@ export interface ZipEntry {
   isDirectory: boolean;
 }
 
+/** Calculate the exact byte length of an uncompressed ZIP for known entries. */
+export function zipStreamSize(entries: ZipEntry[]): number {
+  let offset = 0;
+  let centralDirectorySize = 0;
+
+  for (const entry of entries) {
+    const localOffset = offset;
+    const nameLength = entryName(entry).length;
+    const zip64Size = entry.size >= UINT32_MAX;
+    offset += 30 + nameLength + (zip64Size ? 20 : 0);
+    offset += entry.size + (zip64Size ? 24 : 16);
+
+    const zip64Offset = localOffset >= UINT32_MAX;
+    const extraLength = (zip64Size ? 20 : 0) + (zip64Offset ? 12 : 0);
+    centralDirectorySize += 46 + nameLength + extraLength;
+  }
+
+  const zip64 =
+    entries.length >= UINT16_MAX || centralDirectorySize >= UINT32_MAX || offset >= UINT32_MAX;
+  return offset + centralDirectorySize + (zip64 ? 98 : 22);
+}
+
 interface CentralDirectoryEntry {
   name: Uint8Array;
   crc32: number;

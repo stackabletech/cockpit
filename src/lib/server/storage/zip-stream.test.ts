@@ -1,6 +1,6 @@
 import AdmZip from 'adm-zip';
 import { describe, expect, it } from 'vitest';
-import { createZipStream } from './zip-stream.js';
+import { createZipStream, zipStreamSize } from './zip-stream.js';
 import type { StorageProvider } from './provider.js';
 
 function objectStream(value: string): ReadableStream {
@@ -13,6 +13,15 @@ function objectStream(value: string): ReadableStream {
 }
 
 describe('createZipStream', () => {
+  it('calculates the exact length of the generated stream', async () => {
+    const entries = [{ key: 'file.txt', size: 3, isDirectory: false }];
+    const provider = {
+      getObject: async () => ({ stream: new Response('abc').body! })
+    } as unknown as StorageProvider;
+
+    const stream = createZipStream(provider, entries);
+    expect(zipStreamSize(entries)).toBe((await new Response(stream).arrayBuffer()).byteLength);
+  });
   it('streams readable, uncompressed entries without staging object contents', async () => {
     const objects = new Map([
       ['reports/one.txt', 'first report'],

@@ -834,6 +834,7 @@ describe('executeAction("download")', () => {
       id: string;
       fileCount: number;
       totalBytes: number;
+      jobIds: string[];
     }) => void;
     vi.mocked(startDownload).mockImplementationOnce(
       () =>
@@ -865,13 +866,22 @@ describe('executeAction("download")', () => {
     expect(op.type).toBe('download');
     expect(op.totalBytes).toBe(estimateArchiveSize(downloadItems));
 
-    resolveStartDownload({ id: 'download-manifest', fileCount: 1, totalBytes: 900 });
+    resolveStartDownload({
+      id: 'download-manifest',
+      fileCount: 1,
+      totalBytes: 900,
+      jobIds: ['download-job-1']
+    });
     await vi.waitFor(() => expect(state.operations[0]?.totalBytes).toBe(900));
 
     resolveHistoryFn([]);
     await promise;
 
-    expect(state.operations).toHaveLength(0);
+    expect(state.operations).toHaveLength(1);
+    expect(state.operations[0]).toMatchObject({
+      status: 'running',
+      fileJobIds: ['download-job-1']
+    });
   });
 
   it('marks the operation as failed when the download cannot be started', async () => {
@@ -911,7 +921,7 @@ function makeHistoryEntry(): DownloadHistoryEntry {
 
 describe('redownloadHistory', () => {
   beforeEach(() => {
-    vi.mocked(triggerManifestDownloads).mockResolvedValue(undefined);
+    vi.mocked(triggerManifestDownloads).mockResolvedValue(['download-job-1']);
   });
 
   it('tracks an operation with the estimated size of the selected entries', async () => {
@@ -932,7 +942,11 @@ describe('redownloadHistory', () => {
         files: [{ filename: 'selection.zip', size: 3000, part: 1 }]
       })
     );
-    expect(state.operations).toHaveLength(0);
+    expect(state.operations).toHaveLength(1);
+    expect(state.operations[0]).toMatchObject({
+      status: 'running',
+      fileJobIds: ['download-job-1']
+    });
   });
 
   it('marks the operation as failed and drops vanished history entries', async () => {

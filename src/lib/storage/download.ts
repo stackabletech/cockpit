@@ -22,9 +22,14 @@ export function estimateArchiveSize(
   return payload + overhead;
 }
 
-async function triggerDownload(manifestId: string, part: number, filename: string): Promise<void> {
+async function triggerDownload(
+  manifestId: string,
+  part: number,
+  filename: string,
+  jobId: string
+): Promise<void> {
   const anchor = document.createElement('a');
-  anchor.href = `/api/storage/download/manifests/${encodeURIComponent(manifestId)}/${part}`;
+  anchor.href = `/api/storage/download/manifests/${encodeURIComponent(manifestId)}/${part}?${new URLSearchParams({ jobId })}`;
   anchor.download = filename;
   anchor.style.display = 'none';
   document.body.appendChild(anchor);
@@ -38,8 +43,14 @@ async function triggerDownload(manifestId: string, part: number, filename: strin
 export async function triggerManifestDownloads(manifest: {
   id: string;
   files: Array<{ filename: string; part: number }>;
-}): Promise<void> {
-  for (const file of manifest.files) await triggerDownload(manifest.id, file.part, file.filename);
+}): Promise<string[]> {
+  const jobIds: string[] = [];
+  for (const file of manifest.files) {
+    const jobId = crypto.randomUUID();
+    jobIds.push(jobId);
+    await triggerDownload(manifest.id, file.part, file.filename, jobId);
+  }
+  return jobIds;
 }
 
 /** Prepare a final manifest, then immediately hand its streams to the browser. */
@@ -49,12 +60,13 @@ export async function startDownload(
   prefix: string,
   keys: string[],
   signal?: AbortSignal
-): Promise<{ id: string; fileCount: number; totalBytes: number }> {
+): Promise<{ id: string; fileCount: number; totalBytes: number; jobIds: string[] }> {
   const manifest = await api.createDownloadManifest({ bucket, prefix, keys }, signal);
-  await triggerManifestDownloads(manifest);
+  const jobIds = await triggerManifestDownloads(manifest);
   return {
     id: manifest.id,
     fileCount: manifest.files.length,
-    totalBytes: manifest.files.reduce((total, file) => total + file.size, 0)
+    totalBytes: manifest.files.reduce((total, file) => total + file.size, 0),
+    jobIds
   };
 }

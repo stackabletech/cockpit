@@ -264,13 +264,13 @@ export class StorageState {
     );
     try {
       const manifest = await this._api.recreateDownloadManifest(manifestId, keys);
-      await triggerManifestDownloads(manifest);
+      const jobIds = await triggerManifestDownloads(manifest);
       this.operations_.updateOpTotalBytes(
         operationId,
         manifest.files.reduce((total, file) => total + file.size, 0)
       );
-      this.operations_.finishOp(operationId, 'done');
-      this.operations_.removeOp(operationId);
+      this.operations_.updateOpJobIds(operationId, jobIds);
+      this.operations_.trackDownload(operationId);
       await this.refreshDownloadHistory();
     } catch (err) {
       if (err instanceof StorageError && err.code === 'not_found') {
@@ -523,9 +523,9 @@ export class StorageState {
           // The manifest reports the authoritative payload total, which also
           // covers folder contents that were unknown before.
           this.operations_.updateOpTotalBytes(operationId, result.totalBytes);
+          this.operations_.updateOpJobIds(operationId, result.jobIds);
+          this.operations_.trackDownload(operationId);
           await this.refreshDownloadHistory();
-          this.operations_.finishOp(operationId, 'done');
-          this.operations_.removeOp(operationId);
         } catch (err: unknown) {
           const operation = this.operations.find(
             (candidate) => candidate.type === 'download' && candidate.status === 'running'

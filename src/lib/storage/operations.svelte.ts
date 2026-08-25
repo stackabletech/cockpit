@@ -135,6 +135,16 @@ export class OperationsState {
     saveOperationsToStorage(this.operations);
   }
 
+  trackDownload(id: string): void {
+    const operation = this.operations.find((op) => op.id === id);
+    // Native downloads begin asynchronously after their anchor click. Wait for
+    // the first request to register its server-side job before polling it.
+    if (operation?.fileJobIds?.length) {
+      const timer = setTimeout(() => void this._pollJobStatus(operation), 500);
+      this._pollTimers.set(id, timer);
+    }
+  }
+
   /** Refine the expected transfer size once the download manifest is known. */
   updateOpTotalBytes(id: string, totalBytes: number): void {
     this.operations = this.operations.map((op) => (op.id === id ? { ...op, totalBytes } : op));
@@ -192,15 +202,23 @@ export class OperationsState {
     let completedCount = 0;
     let completedBytes = 0;
     let anyRunning = false;
+    let anyError = false;
+    let currentFileName: string | undefined;
 
     for (const jobId of op.fileJobIds!) {
       try {
         const job = await this._api.pollJob(jobId);
+        completedBytes += job.progress?.completedBytes ?? 0;
         if (job.status === 'done') {
           completedCount++;
         } else if (job.status === 'running') {
           anyRunning = true;
-          completedBytes += job.progress?.completedBytes ?? 0;
+          currentFileName = job.progress?.currentFileName;
+        } else if (job.status === 'not_found') {
+          // The browser may not have opened the native download request yet.
+          anyRunning = true;
+        } else {
+          anyError = true;
         }
       } catch {
         // Job may have expired
@@ -215,6 +233,7 @@ export class OperationsState {
               status: 'running' as const,
               completedCount,
               completedBytes,
+              currentFileName,
               completedAt: undefined
             }
           : o
@@ -226,7 +245,9 @@ export class OperationsState {
         o.id === op.id
           ? {
               ...o,
-              status: (completedCount === op.itemCount ? 'done' : 'error') as 'done' | 'error',
+              status: (anyError || completedCount !== op.itemCount ? 'error' : 'done') as
+                | 'done'
+                | 'error',
               completedCount,
               completedBytes,
               completedAt: Date.now()

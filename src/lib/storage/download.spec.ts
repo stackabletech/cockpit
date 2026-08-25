@@ -59,7 +59,12 @@ describe('startDownload', () => {
     const promise = startDownload(api, 'bucket', '', ['one.txt', 'two.txt']);
     await vi.advanceTimersByTimeAsync(500);
 
-    await expect(promise).resolves.toEqual({ id: 'manifest-1', fileCount: 2, totalBytes: 3 });
+    await expect(promise).resolves.toMatchObject({
+      id: 'manifest-1',
+      fileCount: 2,
+      totalBytes: 3,
+      jobIds: expect.arrayContaining([expect.any(String)])
+    });
     expect(click).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
     vi.unstubAllGlobals();
