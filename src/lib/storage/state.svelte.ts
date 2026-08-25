@@ -891,8 +891,14 @@ export class StorageState {
     this.operations_.cancelOp(id);
   };
 
-  clearOperationHistory = (): void => {
+  clearOperationHistory = async (): Promise<void> => {
     this.operations_.clearOperationHistory();
+    try {
+      await this._api.clearDownloadHistory();
+      this.downloadHistory = [];
+    } catch {
+      await this.refreshDownloadHistory();
+    }
   };
 
   // ────────────────────────────────────────────────────────────────────────────

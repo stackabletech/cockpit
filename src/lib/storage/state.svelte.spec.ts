@@ -115,6 +115,7 @@ function makeApi(overrides?: Partial<StorageApi>): StorageApi {
     async pollJob() {
       return { status: 'done' };
     },
+    async cancelJob() {},
     async createDownloadManifest() {
       return {
         id: 'download-manifest',
@@ -125,6 +126,7 @@ function makeApi(overrides?: Partial<StorageApi>): StorageApi {
     async listDownloadHistory() {
       return [];
     },
+    async clearDownloadHistory() {},
     async recreateDownloadManifest() {
       return { id: 'download-manifest', files: [], expiresAt: new Date().toISOString() };
     },
@@ -964,5 +966,18 @@ describe('redownloadHistory', () => {
       'Failed: File "reports/moved.txt" cannot be found'
     );
     expect(state.downloadHistory).toHaveLength(0);
+  });
+});
+
+describe('clearOperationHistory', () => {
+  it('clears both operation and download history', async () => {
+    const clearDownloadHistory = vi.fn();
+    const state = makeState({ clearDownloadHistory });
+    state.downloadHistory = [makeHistoryEntry()];
+
+    await state.clearOperationHistory();
+
+    expect(clearDownloadHistory).toHaveBeenCalledOnce();
+    expect(state.downloadHistory).toEqual([]);
   });
 });

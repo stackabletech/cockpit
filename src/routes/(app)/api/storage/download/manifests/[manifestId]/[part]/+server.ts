@@ -2,9 +2,11 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { openDownloadManifestPart } from '$lib/server/storage/download-manifests.js';
 import {
+  cancelJobFromStream,
   completeJob,
   createJob,
   failJob,
+  setJobCancellation,
   updateJobProgress
 } from '$lib/server/storage/job-store.js';
 
@@ -32,14 +34,19 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
   if (download.file.size > 0) headers['Content-Length'] = String(download.file.size);
   let completedBytes = 0;
   const reader = download.stream.getReader();
+  if (jobId) setJobCancellation(jobId, () => reader.cancel());
   const stream = new ReadableStream({
     async pull(controller) {
       try {
         const { done, value } = await reader.read();
         if (done) {
           if (jobId) {
-            updateJobProgress(jobId, { completedCount: 1, completedBytes });
-            completeJob(jobId, null);
+            if (download.file.size > 0 && completedBytes < download.file.size) {
+              cancelJobFromStream(jobId);
+            } else {
+              updateJobProgress(jobId, { completedCount: 1, completedBytes });
+              completeJob(jobId, null);
+            }
           }
           controller.close();
           return;
@@ -54,7 +61,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
     },
     async cancel() {
       await reader.cancel();
-      if (jobId) failJob(jobId, 'Download cancelled');
+      if (jobId) cancelJobFromStream(jobId);
     }
   });
   return new Response(stream, { headers });

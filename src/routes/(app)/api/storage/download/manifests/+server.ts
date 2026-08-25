@@ -2,6 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
   createDownloadManifest,
+  clearDownloadHistory,
   listDownloadHistory
 } from '$lib/server/storage/download-manifests.js';
 import {
@@ -43,4 +44,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   const connectionId = url.searchParams.get('connectionId') ?? undefined;
   const history = await listDownloadHistory(locals.user?.id ?? 'anonymous', connectionId);
   return json(history);
+};
+
+export const DELETE: RequestHandler = async (event) => {
+  await clearDownloadHistory(event.locals.user?.id ?? 'anonymous');
+  return new Response(null, { status: 204 });
 };

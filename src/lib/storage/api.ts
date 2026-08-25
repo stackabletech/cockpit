@@ -101,6 +101,8 @@ export interface StorageApi {
 
   pollJob(jobId: string): Promise<JobStatus>;
 
+  cancelJob(jobId: string): Promise<void>;
+
   createDownloadManifest(
     params: {
       bucket: string;
@@ -111,6 +113,8 @@ export interface StorageApi {
   ): Promise<DownloadManifestResponse>;
 
   listDownloadHistory(connectionId: string): Promise<DownloadHistoryEntry[]>;
+
+  clearDownloadHistory(): Promise<void>;
 
   recreateDownloadManifest(manifestId: string, keys: string[]): Promise<DownloadManifestResponse>;
 
@@ -243,6 +247,10 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       return (await res.json()) as JobStatus;
     },
 
+    async cancelJob(jobId) {
+      await fetch_(`/api/storage/copy/job/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
+    },
+
     async createDownloadManifest({ bucket, prefix, keys }, signal) {
       const params = new URLSearchParams({ bucket, prefix });
       const res = await fetch_(`/api/storage/download/manifests?${params}`, {
@@ -260,6 +268,10 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       );
       if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
       return (await res.json()) as DownloadHistoryEntry[];
+    },
+
+    async clearDownloadHistory() {
+      await fetch_('/api/storage/download/manifests', { method: 'DELETE' });
     },
 
     async recreateDownloadManifest(manifestId, keys) {

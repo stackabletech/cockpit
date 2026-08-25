@@ -168,9 +168,13 @@ export class OperationsState {
   }
 
   cancelOp(id: string): void {
+    const operation = this.operations.find((op) => op.id === id);
     const controller = this._abortControllers.get(id);
     if (controller) {
       controller.abort();
+    }
+    if (operation?.type === 'download') {
+      for (const jobId of operation.fileJobIds ?? []) void this._api.cancelJob(jobId);
     }
     const timer = this._pollTimers.get(id);
     if (timer) {
@@ -203,6 +207,7 @@ export class OperationsState {
     let completedBytes = 0;
     let anyRunning = false;
     let anyError = false;
+    let anyCancelled = false;
     let currentFileName: string | undefined;
 
     for (const jobId of op.fileJobIds!) {
@@ -217,6 +222,8 @@ export class OperationsState {
         } else if (job.status === 'not_found') {
           // The browser may not have opened the native download request yet.
           anyRunning = true;
+        } else if (job.status === 'cancelled') {
+          anyCancelled = true;
         } else {
           anyError = true;
         }
@@ -245,9 +252,11 @@ export class OperationsState {
         o.id === op.id
           ? {
               ...o,
-              status: (anyError || completedCount !== op.itemCount ? 'error' : 'done') as
-                | 'done'
-                | 'error',
+              status: (anyCancelled
+                ? 'cancelled'
+                : anyError || completedCount !== op.itemCount
+                  ? 'error'
+                  : 'done') as 'done' | 'error' | 'cancelled',
               completedCount,
               completedBytes,
               completedAt: Date.now()

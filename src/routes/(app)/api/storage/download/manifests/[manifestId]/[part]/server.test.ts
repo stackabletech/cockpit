@@ -35,4 +35,26 @@ describe('GET /api/storage/download/manifests/:manifestId/:part', () => {
     expect(response.headers.get('Content-Length')).toBe('5000');
     expect(response.headers.get('Content-Disposition')).toContain('reports.zip');
   });
+
+  it('marks a stream that ends short of Content-Length as cancelled', async () => {
+    vi.mocked(openDownloadManifestPart).mockResolvedValue({
+      stream: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array([1, 2]));
+          controller.close();
+        }
+      }),
+      file: { filename: 'partial.bin', size: 3, part: 1 }
+    });
+    const response = await GET({
+      locals: { user: { id: 'user-1' } },
+      params: { manifestId: 'manifest-1', part: '1' },
+      url: new URL('https://example.test/api/storage/download/manifests/manifest-1/1?jobId=job-1')
+    } as Parameters<typeof GET>[0]);
+
+    await response.arrayBuffer();
+
+    const { getJob } = await import('$lib/server/storage/job-store.js');
+    expect(getJob('job-1')?.status).toBe('cancelled');
+  });
 });

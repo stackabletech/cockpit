@@ -46,6 +46,7 @@
       .reverse()
   );
   const hasHistory = $derived(historyOps.length > 0);
+  const hasAnyHistory = $derived(hasHistory || storage.downloadHistory.length > 0);
   const hasError = $derived(storage.operations.some((o) => o.status === 'error'));
 
   function statusColor(op: StorageOperation): string {
@@ -360,7 +361,7 @@
         {/if}
 
         <!-- History section -->
-        {#if hasHistory}
+        {#if hasAnyHistory}
           <div class="px-3 pt-2.5 pb-2">
             <div class="mb-2 flex items-center justify-between">
               <p class="text-base-content/50 text-[10px] font-semibold tracking-widest uppercase">
@@ -375,73 +376,75 @@
                 {m.storage_operations_clear_history()}
               </button>
             </div>
-            <ul class="flex flex-col gap-1">
-              {#each historyOps as op (op.id)}
-                {@const TypeIcon = typeIconMap[op.type]}
-                <li role="none" class="rounded-md px-2.5 py-2 {statusBgColor(op)}">
-                  <div class="flex items-center gap-2">
-                    <!-- Status icon -->
-                    <span class="shrink-0 {statusColor(op)}" aria-hidden="true">
-                      {#if op.status === 'done'}
-                        <IconCheckCircle class="size-3.5" />
-                      {:else if op.status === 'error'}
-                        <IconError class="size-3.5" />
-                      {:else if op.status === 'cancelled'}
-                        <IconCancel class="size-3.5" />
-                      {:else}
-                        <IconPowerOff class="size-3.5" />
-                      {/if}
-                    </span>
-                    <!-- Operation type icon -->
-                    <span class="text-base-content/50 shrink-0" aria-hidden="true">
-                      <TypeIcon class="size-3" />
-                    </span>
-                    <span class="text-base-content/80 min-w-0 flex-1 truncate text-[11px]">
-                      {op.label}
-                    </span>
-                    <div class="flex shrink-0 flex-col items-end gap-0.5">
-                      <span class="text-[10px] font-medium {statusColor(op)}">
-                        {statusLabel(op)}
+            {#if hasHistory}
+              <ul class="flex flex-col gap-1">
+                {#each historyOps as op (op.id)}
+                  {@const TypeIcon = typeIconMap[op.type]}
+                  <li role="none" class="rounded-md px-2.5 py-2 {statusBgColor(op)}">
+                    <div class="flex items-center gap-2">
+                      <!-- Status icon -->
+                      <span class="shrink-0 {statusColor(op)}" aria-hidden="true">
+                        {#if op.status === 'done'}
+                          <IconCheckCircle class="size-3.5" />
+                        {:else if op.status === 'error'}
+                          <IconError class="size-3.5" />
+                        {:else if op.status === 'cancelled'}
+                          <IconCancel class="size-3.5" />
+                        {:else}
+                          <IconPowerOff class="size-3.5" />
+                        {/if}
                       </span>
-                      <span class="text-base-content/35 text-[9px] tabular-nums">
-                        {formatElapsed(op.startedAt, op.completedAt)}
+                      <!-- Operation type icon -->
+                      <span class="text-base-content/50 shrink-0" aria-hidden="true">
+                        <TypeIcon class="size-3" />
                       </span>
-                    </div>
-                  </div>
-
-                  <!-- Error detail -->
-                  {#if op.status === 'error' && op.errorMessage}
-                    <div
-                      class="text-error/70 mt-1 truncate pl-5 text-[10px]"
-                      title={op.errorMessage}
-                    >
-                      {op.errorMessage}
-                    </div>
-                  {:else if op.status === 'interrupted'}
-                    <div class="text-warning/60 mt-1 pl-5 text-[10px]">
-                      {m.storage_operations_interrupted_tooltip()}
-                    </div>
-                  {/if}
-
-                  <!-- Partial progress for interrupted / error -->
-                  {#if (op.status === 'interrupted' || op.status === 'error') && op.totalBytes > 0}
-                    <div class="mt-1.5 pl-5">
-                      <div class="bg-base-300 h-1 w-full overflow-hidden rounded-full">
-                        <div
-                          class="h-full rounded-full {op.status === 'interrupted'
-                            ? 'bg-warning'
-                            : 'bg-error'}"
-                          style="width: {percent(op)}%"
-                        ></div>
+                      <span class="text-base-content/80 min-w-0 flex-1 truncate text-[11px]">
+                        {op.label}
+                      </span>
+                      <div class="flex shrink-0 flex-col items-end gap-0.5">
+                        <span class="text-[10px] font-medium {statusColor(op)}">
+                          {statusLabel(op)}
+                        </span>
+                        <span class="text-base-content/35 text-[9px] tabular-nums">
+                          {formatElapsed(op.startedAt, op.completedAt)}
+                        </span>
                       </div>
-                      <span class="text-base-content/35 text-[9px] tabular-nums">
-                        {formatBytes(op.completedBytes)} / {formatBytes(op.totalBytes)}
-                      </span>
                     </div>
-                  {/if}
-                </li>
-              {/each}
-            </ul>
+
+                    <!-- Error detail -->
+                    {#if op.status === 'error' && op.errorMessage}
+                      <div
+                        class="text-error/70 mt-1 truncate pl-5 text-[10px]"
+                        title={op.errorMessage}
+                      >
+                        {op.errorMessage}
+                      </div>
+                    {:else if op.status === 'interrupted'}
+                      <div class="text-warning/60 mt-1 pl-5 text-[10px]">
+                        {m.storage_operations_interrupted_tooltip()}
+                      </div>
+                    {/if}
+
+                    <!-- Partial progress for interrupted / error -->
+                    {#if (op.status === 'interrupted' || op.status === 'error') && op.totalBytes > 0}
+                      <div class="mt-1.5 pl-5">
+                        <div class="bg-base-300 h-1 w-full overflow-hidden rounded-full">
+                          <div
+                            class="h-full rounded-full {op.status === 'interrupted'
+                              ? 'bg-warning'
+                              : 'bg-error'}"
+                            style="width: {percent(op)}%"
+                          ></div>
+                        </div>
+                        <span class="text-base-content/35 text-[9px] tabular-nums">
+                          {formatBytes(op.completedBytes)} / {formatBytes(op.totalBytes)}
+                        </span>
+                      </div>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            {/if}
           </div>
         {:else if activeOps.length === 0}
           <div class="text-base-content/40 flex items-center gap-2 px-4 py-3">

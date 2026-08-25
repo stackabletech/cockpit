@@ -65,6 +65,10 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
       return { status: 'done' };
     },
 
+    async cancelJob() {
+      // no-op
+    },
+
     async createDownloadManifest() {
       return {
         id: 'download-manifest',
@@ -75,6 +79,10 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
 
     async listDownloadHistory() {
       return [];
+    },
+
+    async clearDownloadHistory() {
+      // no-op
     },
 
     async recreateDownloadManifest() {

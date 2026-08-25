@@ -12,6 +12,7 @@ const OPERATIONS_HISTORY_KEY = 'storage_operations_history';
 function makeMockApi(): StorageApi {
   return {
     pollJob: vi.fn().mockResolvedValue({ status: 'done' }),
+    cancelJob: vi.fn(),
     list: vi.fn(),
     copy: vi.fn(),
     move: vi.fn(),
@@ -407,6 +408,18 @@ describe('cancelOp', () => {
     const state = new OperationsState(makeMockApi(), makeOpts());
 
     expect(() => state.cancelOp('nonexistent')).not.toThrow();
+  });
+
+  it('cancels every active browser download job', () => {
+    const api = makeMockApi();
+    const state = new OperationsState(api, makeOpts());
+    state.startOp('op-1', 'Download', 'download', 2);
+    state.updateOpJobIds('op-1', ['job-1', 'job-2']);
+
+    state.cancelOp('op-1');
+
+    expect(api.cancelJob).toHaveBeenCalledWith('job-1');
+    expect(api.cancelJob).toHaveBeenCalledWith('job-2');
   });
 });
 
