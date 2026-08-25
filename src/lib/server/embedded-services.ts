@@ -2,28 +2,82 @@ import { env } from '$env/dynamic/private';
 import { error, type RequestEvent } from '@sveltejs/kit';
 import { embeddedServiceRequests } from '$lib/server/metrics.js';
 
-type AuthMode = 'all-admins' | 'bearer' | 'sso';
+type AuthMode = 'none' | 'all-admins' | 'bearer' | 'sso' | 'simple-users';
 
 interface EmbeddedService {
   id: string;
   upstreamUrl: URL;
   authMode: AuthMode;
   bearerToken?: string;
+  /** username -> password, for the "simple-users" auth mode */
+  simpleUsers?: Map<string, string>;
 }
 
+const SERVICE_ID_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
+
+function parseSimpleUsers(raw: string | undefined): Map<string, string> | undefined {
+  if (!raw) return undefined;
+  const users = new Map<string, string>();
+  for (const entry of raw.split(',')) {
+    const separator = entry.indexOf(':');
+    if (separator <= 0 || separator === entry.length - 1) continue;
+    users.set(entry.slice(0, separator).trim().toLowerCase(), entry.slice(separator + 1).trim());
+  }
+  return users.size > 0 ? users : undefined;
+}
+
+/**
+ * Every embedded service is configured with flat environment variables derived
+ * from its id, e.g. for `airflow`:
+ *
+ *   STACKABLE_COCKPIT_AIRFLOW_URL       (required — presence enables the service)
+ *   STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE "none" (default) | "all-admins" | "bearer" | "sso" | "simple-users"
+ *   STACKABLE_COCKPIT_AIRFLOW_BEARER_TOKEN
+ *   STACKABLE_COCKPIT_AIRFLOW_SIMPLE_USERS  "user:password,user:password" (for "simple-users")
+ */
 function getServiceConfig(serviceId: string): {
   url?: string;
   authMode: AuthMode;
   bearerToken?: string;
+  simpleUsers?: Map<string, string>;
 } | null {
-  if (serviceId !== 'airflow') return null;
+  if (!SERVICE_ID_PATTERN.test(serviceId)) return null;
 
-  const rawAuthMode = env.STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE;
+  // Env var names cannot contain hyphens, so `spark-history` maps to
+  // STACKABLE_COCKPIT_SPARK_HISTORY_URL.
+  const prefix = `STACKABLE_COCKPIT_${serviceId.replaceAll('-', '_').toUpperCase()}_`;
+  const rawAuthMode = env[`${prefix}AUTH_MODE`];
   return {
-    url: env.STACKABLE_COCKPIT_AIRFLOW_URL,
-    authMode: rawAuthMode === 'bearer' || rawAuthMode === 'sso' ? rawAuthMode : 'all-admins',
-    bearerToken: env.STACKABLE_COCKPIT_AIRFLOW_BEARER_TOKEN
+    url: env[`${prefix}URL`],
+    authMode:
+      rawAuthMode === 'bearer' ||
+      rawAuthMode === 'sso' ||
+      rawAuthMode === 'all-admins' ||
+      rawAuthMode === 'simple-users'
+        ? rawAuthMode
+        : 'none',
+    bearerToken: env[`${prefix}BEARER_TOKEN`],
+    simpleUsers: parseSimpleUsers(env[`${prefix}SIMPLE_USERS`])
   };
+}
+
+/** Ids of all embedded services that have an upstream URL configured. */
+export function configuredEmbeddedServices(): string[] {
+  const ids = new Set<string>();
+  for (const key of Object.keys(env)) {
+    const match = /^STACKABLE_COCKPIT_([A-Z0-9_]+)_URL$/.exec(key);
+    if (match) {
+      const serviceId = match[1].toLowerCase().replaceAll('_', '-');
+      // Skip unrelated cockpit settings that merely share the suffix shape.
+      if (SERVICE_ID_PATTERN.test(serviceId)) ids.add(serviceId);
+    }
+  }
+  return [...ids].sort();
+}
+
+/** Test seam: drop all cached simple-users tokens. */
+export function clearEmbeddedServiceTokenCache(): void {
+  simpleUserTokens.clear();
 }
 
 const HOP_BY_HOP_HEADERS = new Set([
@@ -66,13 +120,75 @@ function getService(serviceId: string): EmbeddedService {
   if (config.authMode === 'bearer' && !config.bearerToken) {
     throw error(500, 'Embedded service bearer token is not configured');
   }
+  if (config.authMode === 'simple-users' && !config.simpleUsers) {
+    throw error(
+      500,
+      `Embedded service simple users are not configured (${`STACKABLE_COCKPIT_${serviceId.replaceAll('-', '_').toUpperCase()}_SIMPLE_USERS`})`
+    );
+  }
 
-  return { id: serviceId, upstreamUrl, authMode: config.authMode, bearerToken: config.bearerToken };
+  return {
+    id: serviceId,
+    upstreamUrl,
+    authMode: config.authMode,
+    bearerToken: config.bearerToken,
+    simpleUsers: config.simpleUsers
+  };
 }
 
-async function getAirflowToken(service: EmbeddedService): Promise<string> {
+/**
+ * Cached upstream tokens for the "simple-users" auth mode, keyed by
+ * `<serviceId>:<username>`. Tokens are refreshed shortly before their JWT
+ * `exp` claim.
+ */
+const simpleUserTokens = new Map<string, { token: string; expiresAtMs: number }>();
+
+function jwtExpiresAtMs(token: string): number {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()) as {
+      exp?: number;
+    };
+    return payload.exp ? payload.exp * 1000 : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function fetchSimpleUserToken(service: EmbeddedService, username: string): Promise<string> {
+  const cacheKey = `${service.id}:${username}`;
+  const cached = simpleUserTokens.get(cacheKey);
+  if (cached && cached.expiresAtMs - 60_000 > Date.now()) return cached.token;
+
+  let response: Response;
+  try {
+    response = await fetch(new URL('/auth/token', service.upstreamUrl), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ username, password: service.simpleUsers!.get(username) })
+    });
+  } catch {
+    throw error(502, 'Could not authenticate with embedded Airflow');
+  }
+  if (!response.ok) {
+    throw error(502, 'Could not authenticate with embedded Airflow');
+  }
+
+  const body = (await response.json()) as { access_token?: string };
+  if (!body.access_token) {
+    throw error(502, 'Embedded Airflow did not return an access token');
+  }
+  simpleUserTokens.set(cacheKey, {
+    token: body.access_token,
+    expiresAtMs: jwtExpiresAtMs(body.access_token)
+  });
+  return body.access_token;
+}
+
+async function getUpstreamToken(service: EmbeddedService): Promise<string> {
   if (service.authMode === 'bearer') return service.bearerToken!;
 
+  // "all-admins": stock Airflow dev stack — fetch a token from its
+  // unauthenticated all-admins token endpoint, server-side only.
   let response: Response;
   try {
     response = await fetch(new URL('/auth/token', service.upstreamUrl), {
@@ -116,12 +232,31 @@ async function proxyRequestHeaders(
       event.locals.logger.warn({ service: service.id }, 'No SSO identity in session');
       throw error(401, 'Embedded service requires an authenticated cockpit session');
     }
-    // Airflow's SsoAuthManager trusts these oauth2-proxy-style identity headers
-    // and creates the matching Airflow session (per-user identity, no login).
+    // The upstream must run behind an identity-trusting auth layer (e.g. an
+    // oauth2-proxy-style middleware) that turns these oauth2-proxy-format
+    // headers into a per-user session.
     headers.set('x-forwarded-preferred-username', username);
     if (user.email) headers.set('x-forwarded-email', user.email);
-  } else {
-    const token = await getAirflowToken(service);
+  } else if (service.authMode === 'simple-users') {
+    const user = event.locals.user;
+    const username = (user?.username ?? user?.name)?.toLowerCase();
+    if (!user || !username) {
+      event.locals.logger.warn({ service: service.id }, 'No SSO identity in session');
+      throw error(401, 'Embedded service requires an authenticated cockpit session');
+    }
+    if (!service.simpleUsers!.has(username)) {
+      event.locals.logger.warn(
+        { service: service.id, upstream_user: username },
+        'Session user has no embedded-service account'
+      );
+      throw error(403, `No ${service.id} account is configured for cockpit user "${username}"`);
+    }
+    // Exchange the dex-sourced session identity for a real per-user Airflow
+    // token via stock SimpleAuthManager's /auth/token endpoint.
+    const token = await fetchSimpleUserToken(service, username);
+    headers.set('authorization', `Bearer ${token}`);
+  } else if (service.authMode !== 'none') {
+    const token = await getUpstreamToken(service);
     headers.set('authorization', `Bearer ${token}`);
   }
 

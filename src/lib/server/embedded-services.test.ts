@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$env/dynamic/private', () => ({ env: process.env }));
 
-import { proxyEmbeddedService } from './embedded-services.js';
+import {
+  clearEmbeddedServiceTokenCache,
+  configuredEmbeddedServices,
+  proxyEmbeddedService
+} from './embedded-services.js';
 
 const fetchMock = vi.fn();
 vi.stubGlobal('fetch', fetchMock);
@@ -10,8 +14,10 @@ vi.stubGlobal('fetch', fetchMock);
 describe('embedded service proxy', () => {
   beforeEach(() => {
     fetchMock.mockReset();
+    clearEmbeddedServiceTokenCache();
     process.env.STACKABLE_COCKPIT_AIRFLOW_URL = 'http://airflow.test';
     process.env.STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE = 'all-admins';
+    delete process.env.STACKABLE_COCKPIT_AIRFLOW_SIMPLE_USERS;
   });
 
   it('keeps Airflow browser requests same-origin and adds its token upstream', async () => {
@@ -165,6 +171,104 @@ describe('embedded service proxy', () => {
     expect(upstreamHeaders.get('x-forwarded-preferred-username')).toBe('bob');
   });
 
+  it('mints a per-user token from the session identity in simple-users mode', async () => {
+    process.env.STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE = 'simple-users';
+    process.env.STACKABLE_COCKPIT_AIRFLOW_SIMPLE_USERS = 'Alice:pw-alice,bob:pw-bob';
+    const makeToken = () =>
+      [
+        'e30',
+        Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString(
+          'base64url'
+        ),
+        'sig'
+      ].join('.');
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: makeToken() }), {
+          status: 201,
+          headers: { 'content-type': 'application/json' }
+        })
+      )
+      .mockResolvedValueOnce(new Response('ok'));
+
+    const event = {
+      url: new URL('http://cockpit.test/api/services/airflow/api/v2/dags'),
+      request: new Request('http://cockpit.test/api/services/airflow/api/v2/dags'),
+      locals: {
+        logger: { debug: vi.fn(), warn: vi.fn() },
+        user: { name: 'Alice Example', email: 'alice@example.com', username: 'alice' }
+      }
+    } as never;
+
+    await proxyEmbeddedService(event, 'airflow');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [tokenUrl, tokenInit] = fetchMock.mock.calls[0];
+    expect(tokenUrl).toEqual(new URL('http://airflow.test/auth/token'));
+    expect(tokenInit.method).toBe('POST');
+    expect(JSON.parse(tokenInit.body)).toEqual({ username: 'alice', password: 'pw-alice' });
+    const upstreamHeaders = fetchMock.mock.calls[1][1].headers as Headers;
+    expect(upstreamHeaders.get('authorization')).toMatch(/^Bearer /);
+  });
+
+  it('caches the per-user token across requests until it nears expiry', async () => {
+    process.env.STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE = 'simple-users';
+    process.env.STACKABLE_COCKPIT_AIRFLOW_SIMPLE_USERS = 'alice:pw-alice';
+    const token = [
+      'e30',
+      Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString(
+        'base64url'
+      ),
+      'sig'
+    ].join('.');
+    // Only one /auth/token round-trip is expected; data requests answer plainly.
+    fetchMock.mockImplementation((input: RequestInfo | URL) =>
+      Promise.resolve(
+        String(input).endsWith('/auth/token')
+          ? new Response(JSON.stringify({ access_token: token }), {
+              status: 201,
+              headers: { 'content-type': 'application/json' }
+            })
+          : new Response('ok')
+      )
+    );
+
+    const event = () =>
+      ({
+        url: new URL('http://cockpit.test/api/services/airflow/api/v2/dags'),
+        request: new Request('http://cockpit.test/api/services/airflow/api/v2/dags'),
+        locals: {
+          logger: { debug: vi.fn(), warn: vi.fn() },
+          user: { name: 'alice', username: 'alice' }
+        }
+      }) as never;
+
+    await proxyEmbeddedService(event(), 'airflow');
+    await proxyEmbeddedService(event(), 'airflow');
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/auth/token'))
+    ).toHaveLength(1);
+  });
+
+  it('rejects users without an embedded-service account in simple-users mode', async () => {
+    process.env.STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE = 'simple-users';
+    process.env.STACKABLE_COCKPIT_AIRFLOW_SIMPLE_USERS = 'alice:pw-alice';
+
+    const event = {
+      url: new URL('http://cockpit.test/api/services/airflow/'),
+      request: new Request('http://cockpit.test/api/services/airflow/'),
+      locals: {
+        logger: { debug: vi.fn(), warn: vi.fn() },
+        user: { name: 'Mallory', email: 'mallory@example.com', username: 'mallory' }
+      }
+    } as never;
+
+    await expect(proxyEmbeddedService(event, 'airflow')).rejects.toMatchObject({ status: 403 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('rejects sso proxying without an authenticated cockpit session', async () => {
     process.env.STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE = 'sso';
 
@@ -178,5 +282,57 @@ describe('embedded service proxy', () => {
       status: 401
     });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('proxies any configured product without authentication in none mode', async () => {
+    process.env.STACKABLE_COCKPIT_SUPERSET_URL = 'http://superset.test';
+    delete process.env.STACKABLE_COCKPIT_SUPERSET_AUTH_MODE;
+    fetchMock.mockResolvedValueOnce(
+      new Response('<head></head>', { headers: { 'content-type': 'text/html' } })
+    );
+
+    const event = {
+      url: new URL('http://cockpit.test/api/services/superset/dashboard/1/'),
+      request: new Request('http://cockpit.test/api/services/superset/dashboard/1/'),
+      locals: { logger: { debug: vi.fn(), warn: vi.fn() } }
+    } as never;
+
+    const response = await proxyEmbeddedService(event, 'superset');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://superset.test/dashboard/1/'),
+      expect.objectContaining({ headers: expect.any(Headers) })
+    );
+    const upstreamHeaders = fetchMock.mock.calls[0][1].headers as Headers;
+    expect(upstreamHeaders.get('authorization')).toBeNull();
+    expect(response.status).toBe(200);
+    delete process.env.STACKABLE_COCKPIT_SUPERSET_URL;
+  });
+
+  it('rejects service ids that are not simple identifiers', async () => {
+    const event = {
+      url: new URL('http://cockpit.test/api/services/..%2Fsecret/'),
+      request: new Request('http://cockpit.test/api/services/x/'),
+      locals: { logger: { debug: vi.fn(), warn: vi.fn() } }
+    } as never;
+
+    await expect(proxyEmbeddedService(event, '../secret')).rejects.toMatchObject({
+      status: 404
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('lists every product with a configured upstream URL', () => {
+    process.env.STACKABLE_COCKPIT_SUPERSET_URL = 'http://superset.test';
+    process.env.STACKABLE_COCKPIT_SPARK_HISTORY_URL = 'http://spark.test';
+    delete process.env.STACKABLE_COCKPIT_NIFI_URL;
+
+    expect(configuredEmbeddedServices()).toEqual(
+      expect.arrayContaining(['airflow', 'superset', 'spark-history'])
+    );
+    expect(configuredEmbeddedServices()).not.toContain('nifi');
+    delete process.env.STACKABLE_COCKPIT_SUPERSET_URL;
+    delete process.env.STACKABLE_COCKPIT_SPARK_HISTORY_URL;
   });
 });

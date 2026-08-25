@@ -7,8 +7,12 @@ test.describe('Dashboard bookmarks', () => {
   const addButton = 'Add Bookmark';
 
   test.beforeEach(async ({ page }) => {
+    // Reset bookmarks before each test, but only while navigating the dashboard:
+    // the bookmark embed view itself must still see the stored bookmark.
     await page.addInitScript(() => {
-      localStorage.removeItem('dashboard_bookmarks');
+      if (!location.pathname.startsWith('/bookmark/')) {
+        localStorage.removeItem('dashboard_bookmarks');
+      }
     });
   });
 
@@ -116,6 +120,22 @@ test.describe('Dashboard bookmarks', () => {
       '/bookmark/' + (await page.evaluate(() => JSON.parse(localStorage.dashboard_bookmarks)[0].id))
     );
     await expect(page.locator('iframe')).toHaveAttribute('src', '/api/services/airflow/');
+  });
+
+  test('embeds any configured product through the same-origin service proxy', async ({ page }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    await page.getByRole('button', { name: addButton }).click();
+    await page.locator('button[aria-pressed]').filter({ hasText: 'Superset' }).click();
+    await page.getByLabel('Name').fill('Dashboards');
+    await page.getByLabel('URL').fill('http://superset.example.test');
+    await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
+
+    await page.goto(
+      '/bookmark/' + (await page.evaluate(() => JSON.parse(localStorage.dashboard_bookmarks)[0].id))
+    );
+    await expect(page.locator('iframe')).toHaveAttribute('src', '/api/services/superset/');
   });
 
   test('bookmark persists in localStorage', async ({ page }) => {

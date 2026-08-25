@@ -168,8 +168,8 @@ Both `livenessProbe` and `readinessProbe` point at `/healthz`, which always retu
 
 ---
 
-### Airflow SSO mode trusts forwarded identity headers
+### Embedded-service `sso` auth mode trusts forwarded identity headers
 
-**File:** `src/lib/server/embedded-services.ts`, `~/airflow-proxy/sso_auth_manager.py`
+**File:** `src/lib/server/embedded-services.ts`
 
-In `STACKABLE_COCKPIT_AIRFLOW_AUTH_MODE=sso` the proxy derives `X-Forwarded-Preferred-Username`/`X-Forwarded-Email` from the cockpit session and forwards them to Airflow's direct port, where the SsoAuthManager middleware turns them into a per-user ADMIN session without verifying them again. This is safe only because the upstream is loopback-only in dev (`127.0.0.1:8089`) and inbound `X-Forwarded-*` headers from the browser are stripped by the proxy. A production deployment must terminate at an authenticating proxy (e.g. oauth2-proxy) on the Airflow side instead of trusting headers from the cockpit, or use a real OIDC auth manager.
+In `AUTH_MODE=sso` the proxy derives `X-Forwarded-Preferred-Username`/`X-Forwarded-Email` from the cockpit session and forwards them upstream, where an identity-trusting auth layer turns them into a per-user session without verifying them again. Inbound `X-Forwarded-*` headers from the browser are always stripped by the proxy, so the trust boundary is the cockpit server itself. This is safe for loopback-only dev stacks; a production deployment should instead terminate at an authenticating proxy (e.g. oauth2-proxy) on the service side or use a real OIDC auth manager, and treat the forwarded headers as untrusted input.

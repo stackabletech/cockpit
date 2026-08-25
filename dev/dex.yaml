@@ -1,0 +1,67 @@
+# dex — the OIDC identity broker for the Stackable Cockpit dev stack.
+#
+# dex fronts the "customer" OIDC provider — the Keycloak deployed by
+# dev/setup.sh into the kind/k3s cluster (realm `stackable`, NodePort :30080) —
+# and presents itself as the single OIDC issuer for the cockpit and any
+# embedded external services. Because Stackable controls this dex instance,
+# external service login flows can run inside iframe embeddings without
+# loosening the upstream provider's frame/CSP headers, and one dex session is
+# shared across the whole surface (SSO).
+#
+# It is deliberately served on `http://localhost:5556` — the SAME site as the
+# cockpit (`http://localhost:5173`). That keeps dex's session cookie at
+# SameSite=Lax and still lets Chrome send it on cross-site iframe navigations
+# (SameSite is evaluated against the top-level site), so embedded services can
+# silently reuse the SSO session.
+#
+# dev/setup.sh creates the matching `dex` client in the Keycloak realm and
+# points the cockpit at this broker automatically when it detects
+# http://localhost:5556/.well-known/openid-configuration.
+#
+# NOTE: Keycloak must be up before dex starts — dex opens its connector at
+# startup and exits if discovery fails.
+issuer: http://localhost:5556
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+expiry:
+  idTokens: '24h'
+  signingKeys: '6h'
+
+oauth2:
+  # Never show dex's consent/approval screen — login implies consent, which
+  # would otherwise render inside cockpit iframe embeddings.
+  skipApprovalScreen: true
+  # Single connector, so dex redirects straight to Keycloak (no connector
+  # selection page) unless a session already exists.
+  alwaysShowLoginScreen: false
+
+staticClients:
+  # The Stackable Cockpit (better-auth genericOAuth callback).
+  - id: stackable-cockpit
+    name: Stackable Cockpit
+    secret: lY7rCsg4Ae0Gj1L119CRt1sGw2Z2yEBT
+    redirectURIs:
+      - 'http://localhost:5173/api/auth/oauth2/callback/oidc'
+
+connectors:
+  # The real "customer" OIDC provider — the kind-cluster Keycloak, `stackable`
+  # realm. Keycloak keeps its strict security headers (frame-ancestors 'self',
+  # X-Frame-Options: SAMEORIGIN) — the browser never needs to frame Keycloak
+  # because dex (same-site with the cockpit) brokers the login and reuses the
+  # Keycloak SSO session silently.
+  - type: oidc
+    id: keycloak
+    name: Keycloak
+    config:
+      issuer: http://localhost:30080/realms/stackable
+      clientID: dex
+      clientSecret: dex-secret
+      redirectURI: http://localhost:5556/callback
+      insecureSkipEmailVerified: true
+
+enablePasswordDB: false

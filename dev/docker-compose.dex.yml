@@ -1,0 +1,30 @@
+# Runs the shared dex OIDC identity broker for the Stackable Cockpit dev stack.
+#
+#   docker compose -f dev/docker-compose.dex.yml up -d
+#
+# Start the Keycloak/Trino cluster (dev/setup.sh) FIRST — dex opens its
+# Keycloak connector at startup and exits if discovery fails. dev/setup.sh
+# auto-detects dex on localhost:5556 and uses it as the cockpit's OIDC provider,
+# so one dex session covers the cockpit login and any embedded services (SSO).
+name: stackable-cockpit-dex
+
+services:
+  dex:
+    image: ghcr.io/dexidp/dex:v2.45.1
+    command: ['dex', 'serve', '/etc/dex/config.yaml']
+    volumes:
+      - ./dex.yaml:/etc/dex/config.yaml:ro
+    ports:
+      - '5556:5556'
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:5556/.well-known/openid-configuration']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    extra_hosts:
+      # dex reaches Keycloak (cluster NodePort on the host) server-to-server via
+      # the host gateway; Go's resolver falls through the container loopback to
+      # this mapping when Keycloak is reachable there.
+      - 'localhost:host-gateway'

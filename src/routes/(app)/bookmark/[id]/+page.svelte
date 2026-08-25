@@ -5,8 +5,12 @@
 
   const id = $derived(page.params.id);
   const bookmark = $derived(getBookmarks().find((b) => b.id === id));
+  // Product bookmarks whose upstream is configured on the server are embedded
+  // through the same-origin service proxy; anything else uses the raw URL.
   const embedUrl = $derived(
-    bookmark?.productId === 'airflow' ? '/api/services/airflow/' : bookmark?.url
+    bookmark && page.data.embeddedServices.includes(bookmark.productId)
+      ? `/api/services/${bookmark.productId}/`
+      : bookmark?.url
   );
 </script>
 
