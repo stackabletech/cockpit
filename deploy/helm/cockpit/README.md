@@ -96,7 +96,7 @@ OIDC is the only supported auth mechanism. Disable for local testing.
 | `auth.oidc.clientId` | OIDC client ID. Required when enabled. | `""` |
 | `auth.oidc.clientSecret.secretKeyRef.name` | Name of the Secret holding the OIDC client secret. Required when enabled. | `""` |
 | `auth.oidc.clientSecret.secretKeyRef.key` | Key inside the Secret. | `oidc-client-secret` |
-| `auth.oidc.usernameClaim` | OIDC claim used as the username for Trino impersonation. | `preferred_username` |
+| `auth.oidc.usernameClaim` | OIDC claim used as the username for Trino impersonation. | `preferred_username` (application default) |
 
 ### Trino Connection Parameters
 
