@@ -2,8 +2,10 @@
   import { Handle, Position } from '@xyflow/svelte';
   import * as m from '$lib/paraglide/messages.js';
   import {
+    AGGREGATE_FUNCTIONS,
     JOIN_TYPES,
     WHERE_OPERATORS,
+    type AggregateFn,
     type CommandType,
     type JoinType
   } from '$lib/sql-diagram/types.js';
@@ -25,12 +27,15 @@
       value: string;
     }[];
     orderClauses: { edgeId: string; table: string; column: string; direction: 'ASC' | 'DESC' }[];
+    /** Optional aggregate per connected column (GROUP BY only). */
+    aggregateClauses?: { edgeId: string; fn: AggregateFn }[];
     limitValue: number;
     joinType?: JoinType;
     onWhereUpdate: (edgeId: string, field: 'operator' | 'value', val: string) => void;
     onOrderUpdate: (edgeId: string, direction: 'ASC' | 'DESC') => void;
     onLimitUpdate: (val: number) => void;
     onJoinUpdate: (nodeId: string, joinType: JoinType) => void;
+    onAggregateUpdate?: (edgeId: string, fn: AggregateFn) => void;
   }
 
   interface Props {
@@ -78,8 +83,7 @@
     class="relative flex items-center gap-2 rounded-t-lg border-b border-current/20 px-3 py-2 {commandHeader[
       data.command
     ]}"
-  >
-    <!-- Input handle (left) – accepts column connections and cmd→cmd chains.
+  >    <!-- Input handle (left) – accepts column connections and cmd→cmd chains.
 		     JOIN has two dedicated entrypoints (A here, B in the footer). -->
     {#if data.command === 'JOIN'}
       <Handle
@@ -218,11 +222,31 @@
         <p class="text-base-content/40 text-[11px] italic">{m.sql_diagram_connect_prompt()}</p>
       {:else}
         {#each data.connectedColumns as col (col.edgeId)}
-          <div class="flex items-center gap-1.5">
-            <span class="shrink-0">◆</span>
-            <span class="truncate font-mono text-[11px]">{colLabel(col)}</span>
+          {@const agg = data.aggregateClauses?.find((a) => a.edgeId === col.edgeId)?.fn ?? 'NONE'}
+          <div class="bg-base-200/60 flex items-center gap-1.5 rounded px-1.5 py-1">
+            <span class="flex-1 truncate font-mono text-[11px]" title={colLabel(col)}
+              >{colLabel(col)}</span
+            >
+            <select
+              class="select select-xs border-base-300 bg-base-100 w-20 flex-none border font-mono text-[10px]"
+              aria-label={m.sql_diagram_aggregate_aria({ column: colLabel(col) })}
+              value={agg}
+              onchange={(e) =>
+                data.onAggregateUpdate?.(
+                  col.edgeId,
+                  (e.target as HTMLSelectElement).value as AggregateFn
+                )}
+            >
+              <option value="NONE">{m.sql_diagram_aggregate_none()}</option>
+              {#each AGGREGATE_FUNCTIONS as fn (fn)}
+                <option value={fn}>{fn}</option>
+              {/each}
+            </select>
           </div>
         {/each}
+        <p class="text-base-content/40 text-[10px] italic">
+          {m.sql_diagram_group_hint()}
+        </p>
       {/if}
     {:else if data.command === 'LIMIT'}
       <div class="flex items-center gap-2">

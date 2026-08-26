@@ -11,7 +11,7 @@ async function loadDiagram(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Load tables' }).click();
 }
 
-test.describe('SQL query builder', () => {
+test.describe('SQL Query Builder', () => {
   test.use({ locale: 'en-US' });
 
   test.beforeEach(async ({ page }) => {
@@ -73,6 +73,31 @@ test.describe('SQL query builder', () => {
     // Untick again → back to the empty hint.
     await customerNode.getByRole('checkbox', { name: 'Select column customer.custkey' }).uncheck();
     await expect(emptyHint).toBeVisible();
+  });
+
+  test('can collapse and expand the assembled SQL section', async ({ page }) => {
+    await loadDiagram(page);
+
+    const customerNode = page.locator('.svelte-flow__node', { hasText: 'customer' }).first();
+    await customerNode.getByRole('checkbox', { name: 'Select column customer.custkey' }).check();
+
+    const toggle = page.getByTestId('toggle-assembled-sql');
+    const sqlPanel = page.getByTestId('assembled-sql');
+    await expect(sqlPanel).toBeVisible();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(sqlPanel).toHaveCount(0);
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(sqlPanel).toContainText('SELECT customer.custkey');
+  });
+
+  test('opens the saved queries modal', async ({ page }) => {
+    await page.getByTestId('diagram-open-queries').click();
+    const modal = page.getByTestId('saved-queries-modal');
+    await expect(modal).toBeVisible();
+    await expect(modal.getByLabel('Query name')).toBeVisible();
+    await expect(modal.getByTestId('diagram-save-query')).toBeDisabled();
   });
 
   test('runs the assembled query against Trino and shows results', async ({ page }) => {

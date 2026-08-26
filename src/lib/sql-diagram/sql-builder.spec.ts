@@ -153,6 +153,31 @@ describe('buildSql', () => {
     expect(sql).toBe('SELECT t.status\nFROM t\nGROUP BY t.status');
   });
 
+  it('renders configured aggregate functions and groups remaining selected columns', () => {
+    const sql = buildSql(
+      buildQuerySpec([
+        tableNode('orders', ['status', 'total']),
+        commandNode(
+          {
+            command: 'GROUP BY',
+            connectedColumns: [
+              { edgeId: 'status', table: 'orders', column: 'status' },
+              { edgeId: 'total', table: 'orders', column: 'total' }
+            ],
+            aggregateClauses: [
+              { edgeId: 'status', fn: 'NONE' },
+              { edgeId: 'total', fn: 'SUM' }
+            ]
+          },
+          'cmd-group'
+        )
+      ])
+    );
+    expect(sql).toBe(
+      'SELECT orders.status, SUM(orders.total) AS sum_orders_total\nFROM orders\nGROUP BY orders.status'
+    );
+  });
+
   it('applies command-box ORDER BY before priority-sorted inline ORDER BY', () => {
     const spec = buildQuerySpec([
       tableNode('t', ['id', 'created_at'], {

@@ -1,4 +1,4 @@
-/** Shared types for the visual SQL query builder (/sql-diagram). */
+/** Shared types for the visual SQL Query Builder (/sql-diagram). */
 
 export type WhereOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
 
@@ -9,6 +9,19 @@ export type JoinType = 'INNER' | 'LEFT' | 'RIGHT' | 'FULL';
 export const JOIN_TYPES: JoinType[] = ['INNER', 'LEFT', 'RIGHT', 'FULL'];
 
 export type SortDirection = 'ASC' | 'DESC';
+
+/** Aggregate functions applicable to a column connected to a GROUP BY node. */
+export type AggregateFn = 'NONE' | 'COUNT' | 'SUM' | 'MIN' | 'MAX' | 'AVG';
+
+/** NONE is the default and never rendered. */
+export const AGGREGATE_FUNCTIONS: AggregateFn[] = ['COUNT', 'SUM', 'MIN', 'MAX', 'AVG'];
+
+export interface ColumnAggregate {
+  edgeId: string;
+  table: string;
+  column: string;
+  fn: AggregateFn;
+}
 
 export type CommandType = 'WHERE' | 'ORDER BY' | 'LIMIT' | 'GROUP BY' | 'JOIN';
 
@@ -64,6 +77,8 @@ export interface JoinClause {
 
 export interface QuerySpec {
   selectColumns: { edgeId: string; table: string; column: string }[];
+  /** Columns wrapped in an aggregate function (rendered in SELECT). */
+  aggregateColumns: ColumnAggregate[];
   joinTables: string[];
   joins?: JoinClause[];
   whereClauses: WhereCondition[];

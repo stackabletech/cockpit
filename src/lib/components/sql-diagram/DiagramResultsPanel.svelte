@@ -18,6 +18,24 @@
 
   let currentPage = $state(0);
   let pageSize = $state<PageSize>(initPageSize(STORAGE_KEY));
+  let sqlCollapsed = $state(
+    (() => {
+      try {
+        return localStorage.getItem('sql_diagram_sql_collapsed') === '1';
+      } catch {
+        return false;
+      }
+    })()
+  );
+
+  function toggleSqlCollapsed() {
+    sqlCollapsed = !sqlCollapsed;
+    try {
+      localStorage.setItem('sql_diagram_sql_collapsed', sqlCollapsed ? '1' : '0');
+    } catch {
+      // Private browsing – collapse state simply is not persisted
+    }
+  }
 
   // Reset to the first page whenever a new result arrives.
   $effect(() => {
@@ -36,19 +54,35 @@
 </script>
 
 <div class="flex h-full min-h-0 flex-col overflow-hidden" data-testid="sql-diagram-panel">
-  <!-- Permanent assembled SQL preview -->
+  <!-- Permanent assembled SQL preview (collapsible) -->
   <div class="border-base-200 shrink-0 border-b px-4 py-2">
     <div class="mb-1 flex items-center justify-between">
       <span class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
         {m.sql_diagram_assembled_sql()}
       </span>
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs"
+        aria-expanded={!sqlCollapsed}
+        aria-label={sqlCollapsed ? m.sql_diagram_show_sql() : m.sql_diagram_hide_sql()}
+        onclick={toggleSqlCollapsed}
+        data-testid="toggle-assembled-sql"
+      >
+        {sqlCollapsed ? '▸' : '▾'}
+      </button>
     </div>
-    {#if previewSql}
-      <pre
-        class="text-base-content/80 max-h-24 overflow-auto font-mono text-[11px] whitespace-pre-wrap"
-        data-testid="assembled-sql">{previewSql}</pre>
-    {:else}
-      <p class="text-base-content/30 text-[11px] italic">{m.sql_diagram_empty_sql()}</p>
+    {#if !sqlCollapsed}
+      {#if previewSql}
+        <pre
+          class="text-base-content/80 max-h-24 overflow-auto font-mono text-[11px] whitespace-pre-wrap"
+          data-testid="assembled-sql">{previewSql}</pre>
+      {:else}
+        <p class="text-base-content/30 text-[11px] italic">{m.sql_diagram_empty_sql()}</p>
+      {/if}
+    {:else if previewSql}
+      <p class="text-base-content/40 truncate font-mono text-[10px] italic" title={previewSql}>
+        {previewSql.split('\n')[0]}
+      </p>
     {/if}
   </div>
 

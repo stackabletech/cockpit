@@ -7,7 +7,9 @@
  */
 
 import type {
+  AggregateFn,
   CommandType,
+  ColumnAggregate,
   ConnectedColumn,
   JoinClause,
   OrderByClause,
@@ -40,6 +42,7 @@ interface CommandData {
   connectedColumns?: unknown;
   whereClauses?: unknown;
   orderClauses?: unknown;
+  aggregateClauses?: unknown;
   limitValue?: unknown;
   joinType?: unknown;
 }
@@ -55,6 +58,7 @@ function asStringArray(value: unknown): string[] {
 /** Build the declarative QuerySpec from the current diagram state. */
 export function buildQuerySpec(nodes: BuilderNode[], context: QueryContext = {}): QuerySpec {
   const selectColumns: QuerySpec['selectColumns'] = [];
+  const aggregates: ColumnAggregate[] = [];
   const joins: JoinClause[] = [];
   const whereAll: WhereCondition[] = [];
   const groupAll: ConnectedColumn[] = [];
@@ -139,6 +143,7 @@ export function buildQuerySpec(nodes: BuilderNode[], context: QueryContext = {})
       orderAll.push(...asOrderList(d.orderClauses));
     } else if (command === 'GROUP BY') {
       groupAll.push(...asConnectedColumns(d.connectedColumns));
+      aggregates.push(...asAggregateList(d.aggregateClauses));
     } else if (command === 'LIMIT') {
       const val = Number(d.limitValue);
       if (Number.isFinite(val) && val > 0) limitVal = val;
@@ -153,12 +158,14 @@ export function buildQuerySpec(nodes: BuilderNode[], context: QueryContext = {})
   const joinTables = [
     ...new Set([
       ...selectColumns.map((c) => c.table),
+      ...aggregates.map((a) => a.table),
       ...joins.flatMap((j) => [j.leftTable, j.rightTable])
     ])
   ];
 
   return {
     selectColumns,
+    aggregateColumns: aggregates.filter((a) => a.fn !== 'NONE'),
     joinTables,
     joins,
     whereClauses: whereAll,
@@ -196,6 +203,20 @@ function asOrderList(value: unknown): OrderByClause[] {
   );
 }
 
+const AGGREGATE_FNS: AggregateFn[] = ['NONE', 'COUNT', 'SUM', 'MIN', 'MAX', 'AVG'];
+
+function asAggregateList(value: unknown): ColumnAggregate[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (c): c is ColumnAggregate =>
+      isRecord(c) &&
+      typeof c.edgeId === 'string' &&
+      typeof c.table === 'string' &&
+      typeof c.column === 'string' &&
+      AGGREGATE_FNS.includes(c.fn as AggregateFn)
+  );
+}
+
 /** Escape single quotes in a literal value. */
 function escapeValue(value: string): string {
   return value.replace(/'/g, "''");
@@ -217,7 +238,13 @@ function qualify(name: string, spec: QuerySpec): string {
 
 /** Render the QuerySpec as a Trino SQL statement (empty string when nothing is selected). */
 export function buildSql(spec: QuerySpec): string {
-  if (spec.selectColumns.length === 0 && !(spec.joins && spec.joins.length > 0)) return '';
+  const aggregateColumns = spec.aggregateColumns ?? [];
+  if (
+    spec.selectColumns.length === 0 &&
+    aggregateColumns.length === 0 &&
+    !(spec.joins && spec.joins.length > 0)
+  )
+    return '';
 
   const tableAliases = new Map<string, string>();
   const usedTables = new Set<string>();
@@ -226,6 +253,7 @@ export function buildSql(spec: QuerySpec): string {
   for (const w of spec.whereClauses) usedTables.add(w.table);
   for (const g of spec.groupByColumns) usedTables.add(g.table);
   for (const o of spec.orderBy) usedTables.add(o.table);
+  for (const a of aggregateColumns) usedTables.add(a.table);
   for (const j of spec.joins ?? []) {
     usedTables.add(j.leftTable);
     usedTables.add(j.rightTable);
@@ -242,10 +270,27 @@ export function buildSql(spec: QuerySpec): string {
   const ref = (t: string, c: string) =>
     tableAliases.get(t) ? `${tableAliases.get(t)}.${c}` : `${t}.${c}`;
 
+  // Columns with an aggregate are rendered as FUNC(col); the plain select of
+  // the same column is dropped in favour of its aggregate version.
+  const aggregatedKeys = new Set(aggregateColumns.map((a) => `${a.table}.${a.column}`));
+  const plainSelects = spec.selectColumns.filter((c) => !aggregatedKeys.has(`${c.table}.${c.column}`));
+
+  const aggExpr = (a: ColumnAggregate): string => {
+    const inner = ref(a.table, a.column);
+    const outName = tableAliases.get(a.table) ?? a.table;
+    return `${a.fn}(${inner}) AS ${a.fn.toLowerCase()}_${outName}_${a.column}`;
+  };
+
   const selectParts =
-    spec.selectColumns.length > 0
-      ? spec.selectColumns.map((c) => ref(c.table, c.column)).join(', ')
+    plainSelects.length > 0 || aggregateColumns.length > 0
+      ? [...plainSelects.map((c) => ref(c.table, c.column)), ...aggregateColumns.map(aggExpr)].join(
+          ', '
+        )
       : '*';
+
+  // Grouping is active when GROUP BY columns exist or any aggregate is used;
+  // every plain selected column then automatically becomes a grouping key.
+  const groupingActive = spec.groupByColumns.length > 0 || aggregateColumns.length > 0;
 
   const primaryTable = spec.selectColumns[0]?.table ?? spec.joins?.[0]?.leftTable ?? tableList[0];
 
@@ -263,7 +308,14 @@ export function buildSql(spec: QuerySpec): string {
     return `${col} ${w.operator} ${val}`;
   });
 
-  const groupParts = spec.groupByColumns.map((g) => ref(g.table, g.column));
+  const groupParts = groupingActive
+    ? [
+        ...new Set([
+          ...spec.groupByColumns.map((g) => ref(g.table, g.column)),
+          ...plainSelects.map((c) => ref(c.table, c.column))
+        ])
+      ]
+    : [];
   const orderParts = spec.orderBy.map((o) => `${ref(o.table, o.column)} ${o.direction}`);
 
   let sql = `SELECT ${selectParts}\nFROM ${alias(primaryTable)}`;

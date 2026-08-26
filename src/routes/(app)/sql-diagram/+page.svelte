@@ -20,7 +20,13 @@
   import DiagramResultsPanel from '$lib/components/sql-diagram/DiagramResultsPanel.svelte';
   import { buildQuerySpec, buildSql } from '$lib/sql-diagram/sql-builder.js';
   import {
+    deserializeDiagram,
+    serializeDiagram,
+    type SavedDiagramQuery
+  } from '$lib/sql-diagram/serialization.js';
+  import {
     WHERE_OPERATORS,
+    type AggregateFn,
     type CommandType,
     type DiagramColumn,
     type DiagramQueryResult,
@@ -59,6 +65,7 @@
       connectedColumns: [],
       whereClauses: [],
       orderClauses: [],
+      aggregateClauses: [],
       limitValue: 10,
       joinType: 'INNER',
       onWhereUpdate(edgeId, field, val) {
@@ -72,6 +79,9 @@
       },
       onJoinUpdate(id, joinType) {
         updateNodeJoinType(id, joinType);
+      },
+      onAggregateUpdate(edgeId, fn) {
+        updateNodeAggregate(nodeId, edgeId, fn);
       }
     };
   }
@@ -317,6 +327,16 @@
     replaceNodeData(node.id, { ...d, limitValue: val });
   }
 
+  function updateNodeAggregate(nodeId: string, edgeId: string, fn: AggregateFn) {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    const d = node.data as CommandNodeData;
+    const clauses = (d.aggregateClauses ?? []).some((a) => a.edgeId === edgeId)
+      ? d.aggregateClauses!.map((a) => (a.edgeId === edgeId ? { ...a, fn } : a))
+      : [...d.aggregateClauses!, { edgeId, fn }];
+    replaceNodeData(nodeId, { ...d, aggregateClauses: clauses });
+  }
+
   function updateNodeJoinType(nodeId: string, joinType: JoinType) {
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return;
@@ -451,14 +471,33 @@
 
   const commandEdgeStyle = 'stroke:var(--color-accent);stroke-width:1.5;';
 
+  /** Centre point of a node (falls back to an estimate before first render). */
+  function nodeCentre(n: Node): { x: number; y: number } {
+    const w = n.measured?.width ?? n.width ?? 220;
+    const h = n.measured?.height ?? n.height ?? 240;
+    return { x: n.position.x + w / 2, y: n.position.y + h / 2 };
+  }
+
   /**
-   * Pick the source handle side so the edge leaves from the side of the
-   * origin column facing the destination (right when the destination sits
-   * right of the origin, left otherwise). Handles use a `|l` suffix for the
-   * left-side duplicate.
+   * Resolve which source-side handle an edge should leave from.
+   * When the user explicitly dragged from one of the column's two endpoints
+   * (left/right), that choice is honoured; otherwise the edge leaves from
+   * the side of the origin column facing the destination, comparing node
+   * centres so nodes of different sizes are handled symmetrically.
    */
-  function sourceHandleFor(from: Node, to: Node, table: string, column: string): string {
-    return to.position.x >= from.position.x ? `${table}.${column}` : `${table}.${column}|l`;
+  function resolveSourceHandle(
+    dragged: string | null | undefined,
+    from: Node,
+    to: Node,
+    table: string,
+    column: string
+  ): string {
+    const right = `${table}.${column}`;
+    const left = `${right}|l`;
+    if (dragged === right || dragged === left) return dragged;
+    const cFrom = nodeCentre(from);
+    const cTo = nodeCentre(to);
+    return cTo.x >= cFrom.x ? right : left;
   }
 
   function makeJoinInputEdge(
@@ -486,10 +525,11 @@
     b: { table: string; column: string },
     nodeA: Node,
     nodeB: Node,
-    removeEdgeId: string
+    removeEdgeId: string,
+    draggedSourceHandle: string | null | undefined
   ) {
-    const posA = nodeA.position;
-    const posB = nodeB.position;
+    const posA = nodeCentre(nodeA);
+    const posB = nodeCentre(nodeB);
     const joinId = `cmd-JOIN-${++cmdCounter}`;
     const cmdData = makeCommandData(joinId, 'JOIN');
     cmdData.joinType = 'INNER';
@@ -501,7 +541,9 @@
     const newNode: Node = {
       id: joinId,
       type: 'commandNode',
-      position: { x: (posA.x + posB.x) / 2 + 40, y: (posA.y + posB.y) / 2 + 40 },
+      // Centre the JOIN box on the midpoint between the two columns so the
+      // incoming edges from both sides stay short and balanced.
+      position: { x: (posA.x + posB.x) / 2 - 110, y: (posA.y + posB.y) / 2 - 55 },
       data: cmdData as unknown as Record<string, unknown>,
       draggable: true
     };
@@ -509,20 +551,21 @@
     nodes = [...nodes, newNode];
     // Drop the direct column→column edge XYFlow added; route through JOIN instead,
     // one connection per entrypoint (A = top, B = bottom). Each edge leaves from
-    // the side of its origin column facing the other end.
+    // the endpoint the user dragged from when possible, otherwise from the side
+    // of its origin column facing the other end.
     edges = [
       ...edges.filter((e) => e.id !== removeEdgeId),
       makeJoinInputEdge(
         `${joinId}-edge-a`,
         `table-${a.table}`,
-        sourceHandleFor(nodeA, nodeB, a.table, a.column),
+        resolveSourceHandle(draggedSourceHandle, nodeA, nodeB, a.table, a.column),
         joinId,
         'join-input-a'
       ),
       makeJoinInputEdge(
         `${joinId}-edge-b`,
         `table-${b.table}`,
-        sourceHandleFor(nodeB, nodeA, b.table, b.column),
+        resolveSourceHandle(undefined, nodeB, nodeA, b.table, b.column),
         joinId,
         'join-input-b'
       )
@@ -547,7 +590,7 @@
       const srcNode = nodes.find((n) => n.id === params.source);
       const tgtNode = nodes.find((n) => n.id === params.target);
       if (!srcNode || !tgtNode) return;
-      createJoinBetween(srcCol, tgtCol, srcNode, tgtNode, xyEdgeId(params));
+      createJoinBetween(srcCol, tgtCol, srcNode, tgtNode, xyEdgeId(params), params.sourceHandle);
       return;
     }
 
@@ -565,7 +608,8 @@
         srcNode,
         targetNode!,
         edgeId,
-        params.targetHandle ?? 'cmd-input'
+        params.targetHandle ?? 'cmd-input',
+        params.sourceHandle
       );
     } else if (!srcCol && !tgtCol && isCmdInput) {
       // Command → command chain: just restyle the edge XYFlow added
@@ -582,13 +626,14 @@
     sourceNode: Node,
     targetNode: Node,
     edgeId: string,
-    targetHandle: string
+    targetHandle: string,
+    draggedSourceHandle: string | null | undefined
   ) {
     const cmd = targetNode.data?.command as CommandType;
     const currentData = targetNode.data as CommandNodeData;
 
     // Restyle the edge XYFlow already added and re-anchor its source to the
-    // side of the origin column facing the command node.
+    // endpoint the user dragged from (or the side facing the command node).
     edges = edges.map((e) =>
       e.id === edgeId
         ? {
@@ -596,23 +641,33 @@
             type: 'smoothstep',
             animated: true,
             style: commandEdgeStyle,
-            sourceHandle: sourceHandleFor(sourceNode, targetNode, colRef.table, colRef.column)
+            sourceHandle: resolveSourceHandle(
+              draggedSourceHandle,
+              sourceNode,
+              targetNode,
+              colRef.table,
+              colRef.column
+            )
           }
         : e
     );
 
     let updatedCols: (ConnectedColumn | null)[];
+    let updatedAggregates = [...(currentData.aggregateClauses ?? [])];
 
     if (cmd === 'JOIN') {
-      // Each JOIN entrypoint holds exactly one connection
-      const slot = targetHandle === 'join-input-b' ? 1 : 0;
       const cols: (ConnectedColumn | null)[] = [
         currentData.connectedColumns[0] ?? null,
         currentData.connectedColumns[1] ?? null
       ];
+      let slot = targetHandle === 'join-input-b' ? 1 : 0;
+      // Prefer the free entrypoint when the dropped-onto one is occupied, so
+      // both endpoints behave identically regardless of which one was used.
+      if (cols[slot] && !cols[1 - slot]) slot = 1 - slot;
       if (cols[slot]) {
-        // Entry point already occupied – drop the old edge it held
+        // Both entry points occupied – drop the old edge of the chosen slot
         edges = edges.filter((e) => e.id !== cols[slot]!.edgeId);
+        updatedAggregates = updatedAggregates.filter((a) => a.edgeId !== cols[slot]!.edgeId);
       }
       cols[slot] = { edgeId, table: colRef.table, column: colRef.column };
       updatedCols = cols;
@@ -621,6 +676,12 @@
         ...(currentData.connectedColumns ?? []),
         { edgeId, table: colRef.table, column: colRef.column }
       ];
+      if (cmd === 'GROUP BY') {
+        updatedAggregates.push({ edgeId, fn: 'NONE' });
+      } else {
+        // Entry points of other commands don't keep aggregates
+        updatedAggregates = [];
+      }
     }
 
     let updatedWhere = [...(currentData.whereClauses ?? [])];
@@ -642,7 +703,8 @@
       ...currentData,
       connectedColumns: updatedCols,
       whereClauses: updatedWhere,
-      orderClauses: updatedOrder
+      orderClauses: updatedOrder,
+      aggregateClauses: updatedAggregates
     });
   }
 
@@ -671,17 +733,22 @@
       );
       const newWhere = d.whereClauses.filter((c) => !allDeletedEdgeIds.has(c.edgeId));
       const newOrder = d.orderClauses.filter((c) => !allDeletedEdgeIds.has(c.edgeId));
+      const newAggregates = (d.aggregateClauses ?? []).filter(
+        (c) => !allDeletedEdgeIds.has(c.edgeId)
+      );
 
       if (
         newCols.length !== d.connectedColumns.length ||
         newWhere.length !== d.whereClauses.length ||
-        newOrder.length !== d.orderClauses.length
+        newOrder.length !== d.orderClauses.length ||
+        newAggregates.length !== (d.aggregateClauses ?? []).length
       ) {
         replaceNodeData(node.id, {
           ...d,
           connectedColumns: newCols,
           whereClauses: newWhere,
-          orderClauses: newOrder
+          orderClauses: newOrder,
+          aggregateClauses: newAggregates
         });
       }
     }
@@ -722,6 +789,135 @@
     } finally {
       isRunning = false;
     }
+  }
+
+  // ─── Saved queries (persisted in Postgres) ──────────────────────────────
+  let queriesModalOpen = $state(false);
+  let savedQueries = $state<SavedDiagramQuery[]>([]);
+  let queriesLoading = $state(false);
+  let savingQuery = $state(false);
+  let saveName = $state('');
+  let queriesError = $state<string | null>(null);
+
+  async function refreshSavedQueries() {
+    queriesLoading = true;
+    try {
+      const res = await fetch('/api/sql-diagram/queries');
+      if (!res.ok) throw new Error(await res.text());
+      savedQueries = (await res.json()) as SavedDiagramQuery[];
+      queriesError = null;
+    } catch (err) {
+      queriesError = err instanceof Error ? err.message : m.sql_diagram_load_failed();
+    } finally {
+      queriesLoading = false;
+    }
+  }
+
+  function openQueriesModal() {
+    saveName = '';
+    void refreshSavedQueries();
+    queriesModalOpen = true;
+  }
+
+  async function saveCurrentQuery() {
+    const name = saveName.trim();
+    if (!name || savingQuery) return;
+    savingQuery = true;
+    try {
+      const serialised = serializeDiagram(nodes, edges, catalog, schema);
+      const res = await fetch('/api/sql-diagram/queries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          catalog,
+          schema,
+          nodes: serialised.nodes,
+          edges: serialised.edges,
+          sqlPreview: previewSql
+        })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await refreshSavedQueries();
+    } catch (err) {
+      queriesError = err instanceof Error ? err.message : m.sql_diagram_save_failed();
+    } finally {
+      savingQuery = false;
+    }
+  }
+
+  async function deleteSavedQuery(id: string) {
+    try {
+      const res = await fetch(`/api/sql-diagram/queries?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error(await res.text());
+      savedQueries = savedQueries.filter((q) => q.id !== id);
+    } catch (err) {
+      queriesError = err instanceof Error ? err.message : m.sql_diagram_delete_failed();
+    }
+  }
+
+  /** Rebuild a stored diagram into live nodes/edges with callbacks attached. */
+  function restoreDiagram(saved: SavedDiagramQuery) {
+    const restored = deserializeDiagram(saved.diagram);
+    if (!restored || restored.nodes.length === 0) return;
+
+    const restoredNodes: Node[] = restored.nodes.map((n) => {
+      if (n.type === 'tableNode') {
+        const d = makeTableData(String(n.data.tableName ?? ''), []);
+        return {
+          id: n.id,
+          type: n.type,
+          position: n.position,
+          data: {
+            ...n.data,
+            onToggleColumn: d.onToggleColumn,
+            onToggleAllColumns: d.onToggleAllColumns,
+            onColumnContextMenu: d.onColumnContextMenu,
+            onGetOrderRank: d.onGetOrderRank
+          } as unknown as Record<string, unknown>,
+          draggable: true
+        };
+      }
+      const cmd = (n.data.command as CommandType | undefined) ?? 'WHERE';
+      const d = makeCommandData(n.id, cmd);
+      return {
+        id: n.id,
+        type: n.type,
+        position: n.position,
+        data: {
+          ...d,
+          ...n.data,
+          // Callbacks always come from this session, never from storage
+          onWhereUpdate: d.onWhereUpdate,
+          onOrderUpdate: d.onOrderUpdate,
+          onLimitUpdate: d.onLimitUpdate,
+          onJoinUpdate: d.onJoinUpdate,
+          onAggregateUpdate: d.onAggregateUpdate
+        } as unknown as Record<string, unknown>,
+        draggable: true
+      };
+    });
+
+    nodes = restoredNodes;
+    edges = restored.edges.map((e) => ({ ...e })) as Edge[];
+
+    // Keep counters ahead of any ids present in the restored diagram.
+    let maxCmd = 0;
+    for (const id of [...nodes.map((n) => n.id), ...edges.map((e) => String(e.id))]) {
+      const match = /-(\d+)$/.exec(id);
+      if (match) maxCmd = Math.max(maxCmd, Number(match[1]));
+    }
+    cmdCounter = maxCmd;
+
+    // Restore the catalogue context of the saved query.
+    catalog = saved.catalog;
+    schema = saved.schema;
+    schemas = saved.schema ? [saved.schema] : [];
+    if (catalog && !catalogs.includes(catalog)) catalogs = [...catalogs, catalog];
+
+    queriesModalOpen = false;
   }
 
   // ─── Results panel resize ────────────────────────────────────────────────
@@ -829,6 +1025,14 @@
         </span>
         <button
           type="button"
+          class="btn btn-sm btn-ghost"
+          onclick={openQueriesModal}
+          data-testid="diagram-open-queries"
+        >
+          {m.sql_diagram_saved_queries()}
+        </button>
+        <button
+          type="button"
           class="btn btn-primary btn-sm"
           onclick={runQuery}
           disabled={isRunning || !previewSql}
@@ -877,6 +1081,7 @@
           deleteKey={['Delete', 'Backspace']}
           fitView
           class="bg-base-200"
+          proOptions={{ hideAttribution: true }}
         >
           <Background gap={20} size={1} class="opacity-30" />
           <Controls />
@@ -1046,6 +1251,108 @@
     </form>
   </Modal>
 {/if}
+
+<!-- Saved queries modal -->
+<Modal bind:open={queriesModalOpen} class="modal">
+  <div class="modal-box max-w-md" data-testid="saved-queries-modal">
+    <h3 class="text-base font-semibold">{m.sql_diagram_saved_queries()}</h3>
+
+    <!-- Save current diagram -->
+    <form
+      class="mt-3 flex items-end gap-2"
+      onsubmit={(e) => {
+        e.preventDefault();
+        void saveCurrentQuery();
+      }}
+    >
+      <div class="flex-1">
+        <label
+          for="{uid}-query-name"
+          class="text-base-content/60 mb-0.5 block text-[11px] font-medium"
+        >
+          {m.sql_diagram_query_name()}
+        </label>
+        <input
+          id="{uid}-query-name"
+          type="text"
+          class="input input-sm w-full"
+          placeholder={m.sql_diagram_query_name()}
+          maxlength="100"
+          bind:value={saveName}
+        />
+      </div>
+      <button
+        type="submit"
+        class="btn btn-primary btn-sm"
+        disabled={savingQuery || saveName.trim() === ''}
+        data-testid="diagram-save-query"
+      >
+        {#if savingQuery}
+          <span class="loading loading-spinner loading-xs"></span>
+        {/if}
+        {m.sql_diagram_save()}
+      </button>
+    </form>
+
+    {#if queriesError}
+      <p role="alert" class="text-error mt-2 text-xs">{queriesError}</p>
+    {/if}
+
+    <!-- Saved query list -->
+    <div class="border-base-200 mt-4 border-t pt-3">
+      {#if queriesLoading}
+        <div class="flex justify-center py-4">
+          <span class="loading loading-dots loading-sm"></span>
+        </div>
+      {:else if savedQueries.length === 0}
+        <p class="text-base-content/40 py-4 text-center text-sm italic">
+          {m.sql_diagram_no_saved_queries()}
+        </p>
+      {:else}
+        <ul class="space-y-1">
+          {#each savedQueries as q (q.id)}
+            <li
+              class="border-base-200 hover:bg-base-200/50 flex items-center gap-2 rounded-lg border px-2 py-1.5"
+            >
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium">{q.name}</p>
+                <p class="text-base-content/40 font-mono text-[10px]">
+                  {q.catalog}{q.schema ? `.${q.schema}` : ''} · {new Date(
+                    q.updatedAt
+                  ).toLocaleDateString()} · {q.nodeCount}
+                  {m.sql_diagram_nodes()}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                onclick={() => restoreDiagram(q)}
+                data-testid="diagram-load-query"
+              >
+                {m.sql_diagram_load()}
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-circle hover:bg-error/10 text-error btn-xs"
+                aria-label={m.sql_diagram_delete_query_aria({ name: q.name })}
+                onclick={() => void deleteSavedQuery(q.id)}
+                data-testid="diagram-delete-query"
+              >
+                ×
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
+
+    <div class="modal-action">
+      <button type="button" class="btn btn-ghost btn-sm" onclick={() => (queriesModalOpen = false)}>
+        {m.sql_diagram_cancel()}
+      </button>
+    </div>
+  </div>
+</Modal>
 
 <style>
   :global(.svelte-flow) {

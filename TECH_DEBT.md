@@ -112,7 +112,7 @@ The query action sends whatever SQL the user provides to the configured connecti
 
 ---
 
-### SQL query builder: WHERE values are quoted heuristically
+### SQL Query Builder: WHERE values are quoted heuristically
 
 **File:** `src/lib/sql-diagram/sql-builder.ts`
 
