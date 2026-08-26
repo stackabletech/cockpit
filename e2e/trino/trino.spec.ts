@@ -14,7 +14,7 @@ test.describe('Trino query editor', () => {
 
   test('page renders with editor and results sections', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Trino' })).toBeVisible();
-    await expect(page.getByText('SQL editor')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'SQL editor' })).toBeVisible();
     await expect(page.getByText('Query results')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
     await expect(page.getByText('No results')).toBeVisible();

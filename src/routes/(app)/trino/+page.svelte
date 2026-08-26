@@ -9,6 +9,7 @@
   import { superForm } from 'sveltekit-superforms';
   import { ConnectionSchema, type ConnectionMessage } from './validation.js';
   import TabBar from '$lib/components/TabBar.svelte';
+  import ModuleTabs from '$lib/components/trino/ModuleTabs.svelte';
   import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
   import { getOrCreateQueryRunner, destroyQueryRunner } from './query-runner.svelte.js';
   import { isTerminal } from '$lib/types/query';
@@ -599,6 +600,9 @@
         </div>
       </form>
     {/if}
+
+    <!-- Editor / query builder tabs -->
+    <ModuleTabs />
 
     <!-- Tab bar -->
     <div class="px-2 pt-1">

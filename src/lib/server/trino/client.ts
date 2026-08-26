@@ -201,12 +201,15 @@ export function resolveTrinoServerUrl(userId: string): string | null {
 /**
  * Submit a SQL query and drain all pages, returning columns and rows.
  * Used for simple metadata queries (catalog browser).
+ *
+ * When `maxRows` is set, collection stops once the cap is reached, the
+ * query is cancelled upstream, and `truncated: true` is returned.
  */
 export async function trinoMetadataQuery(
   client: TrinoClient,
   sql: string,
-  options: { user: string; catalog?: string; schema?: string }
-): Promise<{ columns: TrinoColumn[]; rows: unknown[][] }> {
+  options: { user: string; catalog?: string; schema?: string; maxRows?: number }
+): Promise<{ columns: TrinoColumn[]; rows: unknown[][]; truncated: boolean }> {
   let result = await client.submit(sql, options);
 
   let columns: TrinoColumn[] = result.columns ?? [];
@@ -216,7 +219,14 @@ export async function trinoMetadataQuery(
     throw new Error(result.error.message);
   }
 
+  let truncated = false;
+
   while (result.nextUri) {
+    if (options.maxRows !== undefined && rows.length >= options.maxRows) {
+      truncated = true;
+      break;
+    }
+
     result = await client.poll(result.nextUri);
 
     if (result.error) {
@@ -230,5 +240,13 @@ export async function trinoMetadataQuery(
     }
   }
 
-  return { columns, rows };
+  if (truncated && result.nextUri) {
+    try {
+      await client.cancel(result.id);
+    } catch (err) {
+      log.debug({ err }, 'failed to cancel query after reaching row limit');
+    }
+  }
+
+  return { columns, rows, truncated };
 }

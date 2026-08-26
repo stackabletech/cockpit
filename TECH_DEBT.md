@@ -112,6 +112,14 @@ The query action sends whatever SQL the user provides to the configured connecti
 
 ---
 
+### SQL query builder: WHERE values are quoted heuristically
+
+**File:** `src/lib/sql-diagram/sql-builder.ts`
+
+Values entered in WHERE conditions (inline or via command nodes) are emitted unquoted when they parse as a number and single-quoted otherwise. This means `IN` with a comma-separated list (`1,2,3`) is emitted as one quoted string rather than a list literal, and non-numeric literals (dates, identifiers) need manual quoting. Acceptable for the initial visual query builder since it only produces SELECT statements against the user's own connection. Long-term: type-aware quoting based on the column data types already available from `DESCRIBE`, or ANTLR-based validation of the assembled statement.
+
+---
+
 ## Testing
 
 ### Mobile viewport E2E tests skipped in CI

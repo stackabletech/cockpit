@@ -27,7 +27,8 @@
 
   const pageTitles: Record<string, () => string> = {
     '/': m.page_title_dashboard,
-    '/trino': m.page_title_trino
+    '/trino': m.page_title_trino,
+    '/sql-diagram': m.page_title_sql_diagram
   };
 
   let title = $derived(

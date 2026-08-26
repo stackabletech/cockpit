@@ -47,3 +47,7 @@ project.inlang/cache/
 # Garage
 .garage.log
 s3-config.json
+
+# Local Trino port-forward
+.trino-port-forward.log
+.trino-port-forward.pid

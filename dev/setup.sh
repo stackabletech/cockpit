@@ -69,4 +69,5 @@ trino::probe
 env::write
 secret::create
 trino::wait_for_ready
+trino::forward
 summary::print
