@@ -31,7 +31,6 @@ podLabels: {}
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 782252253
-  runAsGroup: 574654813
   fsGroup: 782252253
   seccompProfile:
     type: RuntimeDefault
