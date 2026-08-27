@@ -120,7 +120,8 @@ COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
 COPY --from=sbom      --chown=${STACKABLE_USER_UID}:0 /build/cockpit.cdx.json ./cockpit.cdx.json
 COPY --chown=${STACKABLE_USER_UID}:0 LICENSE /licenses/LICENSE
-RUN chmod -R g=u /stackable/app
+RUN chown -R ${STACKABLE_USER_UID}:0 /stackable && \
+    chmod -R g=u /stackable
 
 USER ${STACKABLE_USER_UID}
 
