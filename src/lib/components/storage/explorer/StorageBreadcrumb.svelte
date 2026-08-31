@@ -15,7 +15,6 @@
   import IconContentCopy from 'virtual:icons/material-symbols/content-copy';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { getTabsState } from '$lib/storage/context.js';
   import type { StorageLocation } from '$lib/storage/types.js';
   import { keyToName } from '$lib/storage/utils.js';
   import { invalidateAll } from '$app/navigation';
@@ -27,7 +26,6 @@
   import type { ContextMenuAction } from '$lib/storage/types.js';
 
   const storage = getStorageState();
-  const tabsState = getTabsState();
 
   const breadcrumbParts = $derived(
     storage.prefix

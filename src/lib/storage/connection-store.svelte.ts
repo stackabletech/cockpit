@@ -5,6 +5,8 @@
  * This module is client-safe. It never imports server-only code.
  */
 
+import { SvelteURL } from 'svelte/reactivity';
+
 export interface ConnectionListItem {
   id: string;
   name: string;
@@ -17,7 +19,7 @@ export interface ConnectionListItem {
 export function connectionHostname(connection: ConnectionListItem | null): string {
   if (!connection?.endpoint) return '';
   try {
-    return new URL(
+    return new SvelteURL(
       connection.endpoint.includes('://') ? connection.endpoint : `//${connection.endpoint}`,
       'http://localhost'
     ).hostname;
