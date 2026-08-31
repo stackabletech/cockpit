@@ -61,14 +61,14 @@ spec:
               value: {{ .Values.config.nodeEnv | quote }}
             - name: PORT
               value: {{ .Values.service.targetPort | quote }}
-            {{- if eq (index $completion "enabled") false }}
+            {{- if hasKey $completion "enabled" }}
             - name: STACKABLE_COCKPIT_COMPLETION_ENABLED
-              value: "false"
+              value: {{ index $completion "enabled" | quote }}
             {{- end }}
             {{- with (index $features "storage") }}
-            {{- if .enabled }}
+            {{- if hasKey . "enabled" }}
             - name: STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED
-              value: "true"
+              value: {{ .enabled | quote }}
             {{- end }}
             {{- if .autoConnect }}
             - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT
