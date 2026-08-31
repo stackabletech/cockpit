@@ -33,7 +33,7 @@ test.describe('App navigation', () => {
 
     // Delay the connections page's data fetch. Even while it is in flight the
     // global progress bar must stay hidden: it only appears between apps.
-    await page.route('**/storage/connections/__data.json*', async (route) => {
+    await page.route('**/settings/connections/__data.json*', async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       await route.continue();
     });

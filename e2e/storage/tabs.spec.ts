@@ -20,22 +20,18 @@ test.describe('Storage — Explorer tab bar', () => {
     );
   });
 
-  test('tab bar is hidden when there is only one tab', async ({ page }) => {
+  test('tab bar is visible when there is only one tab', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectAndOpenPrefix(page, credentials);
 
-    await expect(page.getByRole('tablist', { name: 'Explorer tabs' })).not.toBeVisible();
+    await expect(page.getByRole('tablist', { name: 'Explorer tabs' })).toBeVisible();
   });
 
   test('add tab via + button shows the tab bar with two tabs', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectAndOpenPrefix(page, credentials);
 
-    await page.getByRole('button', { name: 'More options' }).click();
-
-    const menu = page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    await menu.getByRole('menuitem', { name: 'New Tab' }).click();
+    await page.getByRole('button', { name: 'New Tab' }).click();
 
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
     await expect(tablist).toBeVisible();
@@ -48,11 +44,7 @@ test.describe('Storage — Explorer tab bar', () => {
     const credentials = requireGarageCredentials();
     await connectAndOpenPrefix(page, credentials);
 
-    await page.getByRole('button', { name: 'More options' }).click();
-
-    const menu = page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    await menu.getByRole('menuitem', { name: 'New Tab' }).click();
+    await page.getByRole('button', { name: 'New Tab' }).click();
 
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
     const tabs = tablist.getByRole('tab');
@@ -63,15 +55,26 @@ test.describe('Storage — Explorer tab bar', () => {
     await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'false');
   });
 
-  test('closing a tab removes it and hides the tab bar when only one remains', async ({ page }) => {
+  test('tabs retain separate bucket locations', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectAndOpenPrefix(page, credentials);
 
-    await page.getByRole('button', { name: 'More options' }).click();
+    const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
+    await page.getByRole('button', { name: 'New Tab' }).click();
+    await page.getByRole('link', { name: credentials.bucket, exact: true }).last().click();
 
-    const menu = page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    await menu.getByRole('menuitem', { name: 'New Tab' }).click();
+    await expect(tablist.getByRole('tab').nth(1)).toHaveAttribute('title', credentials.bucket);
+    await tablist.getByRole('tab').nth(0).click();
+    await expect(page).toHaveURL(
+      bucketRoute(new URL(credentials.endpoint).hostname, credentials.bucket)
+    );
+  });
+
+  test('closing a tab leaves the tab bar visible when one remains', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectAndOpenPrefix(page, credentials);
+
+    await page.getByRole('button', { name: 'New Tab' }).click();
 
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
     await expect(tablist.getByRole('tab')).toHaveCount(2);
@@ -81,7 +84,8 @@ test.describe('Storage — Explorer tab bar', () => {
     await firstTab.hover();
     await firstTab.getByRole('button', { name: 'Close tab' }).click();
 
-    await expect(tablist).not.toBeVisible();
+    await expect(tablist).toBeVisible();
+    await expect(tablist.getByRole('tab')).toHaveCount(1);
   });
 
   test('close button is absent when only one tab exists', async ({ page }) => {
@@ -95,29 +99,21 @@ test.describe('Storage — Explorer tab bar', () => {
     const credentials = requireGarageCredentials();
     await connectAndOpenPrefix(page, credentials);
 
-    await page.getByRole('button', { name: 'More options' }).click();
-
-    const menu = page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    await menu.getByRole('menuitem', { name: 'New Tab' }).click();
+    await page.getByRole('button', { name: 'New Tab' }).click();
 
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
     await expect(tablist.getByRole('tab')).toHaveCount(2);
 
     await tablist.getByRole('tab').nth(1).click({ button: 'middle' });
 
-    await expect(tablist).not.toBeVisible();
+    await expect(tablist).toBeVisible();
   });
 
   test('double-click on a tab starts inline rename', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectAndOpenPrefix(page, credentials);
 
-    await page.getByRole('button', { name: 'More options' }).click();
-
-    const menu = page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    await menu.getByRole('menuitem', { name: 'New Tab' }).click();
+    await page.getByRole('button', { name: 'New Tab' }).click();
 
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
     await tablist.getByRole('tab').nth(0).dblclick();
@@ -135,11 +131,7 @@ test.describe('Storage — Explorer tab bar', () => {
     const credentials = requireGarageCredentials();
     await connectAndOpenPrefix(page, credentials);
 
-    await page.getByRole('button', { name: 'More options' }).click();
-
-    const menu = page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    await menu.getByRole('menuitem', { name: 'New Tab' }).click();
+    await page.getByRole('button', { name: 'New Tab' }).click();
 
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
     const firstTab = tablist.getByRole('tab').nth(0);
@@ -160,11 +152,7 @@ test.describe('Storage — Explorer tab bar', () => {
     const credentials = requireGarageCredentials();
     await connectAndOpenPrefix(page, credentials);
 
-    await page.getByRole('button', { name: 'More options' }).click();
-
-    const menu = page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    await menu.getByRole('menuitem', { name: 'New Tab' }).click();
+    await page.getByRole('button', { name: 'New Tab' }).click();
 
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
     await tablist.getByRole('tab').nth(0).click({ button: 'right' });
@@ -179,11 +167,7 @@ test.describe('Storage — Explorer tab bar', () => {
     const credentials = requireGarageCredentials();
     await connectAndOpenPrefix(page, credentials);
 
-    await page.getByRole('button', { name: 'More options' }).click();
-
-    const menu = page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    await menu.getByRole('menuitem', { name: 'New Tab' }).click();
+    await page.getByRole('button', { name: 'New Tab' }).click();
 
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
     await tablist.getByRole('tab').nth(0).click({ button: 'right' });
@@ -201,11 +185,7 @@ test.describe('Storage — Explorer tab bar', () => {
     const credentials = requireGarageCredentials();
     await connectAndOpenPrefix(page, credentials);
 
-    await page.getByRole('button', { name: 'More options' }).click();
-
-    const menu = page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    await menu.getByRole('menuitem', { name: 'New Tab' }).click();
+    await page.getByRole('button', { name: 'New Tab' }).click();
 
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
     await expect(tablist.getByRole('tab')).toHaveCount(2);
@@ -213,24 +193,15 @@ test.describe('Storage — Explorer tab bar', () => {
     await tablist.getByRole('tab').nth(0).click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Close tab' }).click();
 
-    // Closing down to one tab hides the tablist (hasTabs is false when only one tab remains)
-    await expect(tablist).not.toBeVisible();
+    await expect(tablist).toBeVisible();
+    await expect(tablist.getByRole('tab')).toHaveCount(1);
   });
 
-  test('New Tab via breadcrumb More Options adds a tab and closes the dropdown', async ({
-    page
-  }) => {
+  test('New Tab button adds a tab', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectAndOpenPrefix(page, credentials);
 
-    await page.getByRole('button', { name: 'More options' }).click();
-
-    const menu = page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    await menu.getByRole('menuitem', { name: 'New Tab' }).click();
-
-    // Dropdown must close after the click
-    await expect(menu).not.toBeVisible();
+    await page.getByRole('button', { name: 'New Tab' }).click();
 
     // Tab bar must appear with 2 tabs
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
@@ -328,11 +299,7 @@ test.describe('Storage — Restore tabs banner', () => {
     // Step 1: navigate to bucket and add a second tab via natural interaction
     await connectAndOpenPrefix(page, credentials);
 
-    await page.getByRole('button', { name: 'More options' }).click();
-
-    const menu = page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    await menu.getByRole('menuitem', { name: 'New Tab' }).click();
+    await page.getByRole('button', { name: 'New Tab' }).click();
     await expect(page.getByRole('tablist', { name: 'Explorer tabs' }).getByRole('tab')).toHaveCount(
       2
     );
@@ -362,11 +329,7 @@ test.describe('Storage — Restore tabs banner', () => {
 
     // Step 1: navigate to bucket and add a second tab via natural interaction
     await connectAndOpenPrefix(page, credentials);
-    await page.getByRole('button', { name: 'More options' }).click();
-
-    const menu = page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    await menu.getByRole('menuitem', { name: 'New Tab' }).click();
+    await page.getByRole('button', { name: 'New Tab' }).click();
     await expect(page.getByRole('tablist', { name: 'Explorer tabs' }).getByRole('tab')).toHaveCount(
       2
     );
@@ -380,7 +343,9 @@ test.describe('Storage — Restore tabs banner', () => {
     await page.getByRole('button', { name: 'Restore tabs' }).click();
 
     // Should navigate to the bucket route
-    await expect(page).toHaveURL(bucketRoute(credentials.bucket));
+    await expect(page).toHaveURL(
+      bucketRoute(new URL(credentials.endpoint).hostname, credentials.bucket)
+    );
 
     // Step 4: tab bar must render with 2 restored tabs
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });

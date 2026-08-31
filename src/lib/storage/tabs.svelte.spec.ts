@@ -9,6 +9,7 @@ function makeStorage(bucket = 'test-bucket', prefix = ''): StorageState {
   const state = new StorageState({ connected: true });
   state.bucket = bucket;
   state.prefix = prefix;
+  state.connectionHostname = 's3.example.com';
   state.objects = { objects: [], hasNextPage: false, currentPage: 1, pageSize: 25 };
   return state;
 }
@@ -70,12 +71,12 @@ describe('TabsState', () => {
   // ── hasTabs ───────────────────────────────────────────────────────────────
 
   describe('hasTabs', () => {
-    it('returns false with one tab', () => {
+    it('returns true with one tab', () => {
       const storage = makeStorage();
       const { ts } = makeTabs(storage);
       ts.ensureInitialTab();
 
-      expect(ts.hasTabs).toBe(false);
+      expect(ts.hasTabs).toBe(true);
     });
 
     it('returns true with two or more tabs', () => {
@@ -150,7 +151,7 @@ describe('TabsState', () => {
       ts.switchTo(ts.tabs[0].id);
 
       expect(storage.prefix).toBe('a/');
-      expect(replaceLocationUrl).toHaveBeenCalledWith('bucket', 'a/');
+      expect(replaceLocationUrl).toHaveBeenCalledWith('s3.example.com', 'bucket', 'a/');
     });
 
     it('calls navigateToLocation for a stub tab', () => {
@@ -170,7 +171,7 @@ describe('TabsState', () => {
 
       ts.switchTo(ts.tabs[1].id);
 
-      expect(navigateToLocation).toHaveBeenCalledWith('bucket', 'b/');
+      expect(navigateToLocation).toHaveBeenCalledWith('s3.example.com', 'bucket', 'b/');
     });
 
     it('sets activeTabId to the switched-to tab', () => {
@@ -282,6 +283,20 @@ describe('TabsState', () => {
   // ── syncActiveTab ─────────────────────────────────────────────────────────
 
   describe('syncActiveTab', () => {
+    it('keeps other tabs at their own bucket when the active tab changes bucket', () => {
+      const storage = makeStorage('bucket-a', '');
+      const { ts } = makeTabs(storage);
+      ts.ensureInitialTab();
+      ts.addTab();
+
+      storage.bucket = 'bucket-b';
+      storage.prefix = '';
+      ts.syncActiveTab();
+
+      expect(ts.tabs[0].snapshot.bucket).toBe('bucket-a');
+      expect(ts.tabs[1].snapshot.bucket).toBe('bucket-b');
+    });
+
     it('updates snapshot bucket and prefix from current storage state', () => {
       const storage = makeStorage('bucket', 'old/');
       const { ts } = makeTabs(storage);
@@ -514,7 +529,7 @@ describe('TabsState', () => {
       ts.restorePersistedTabs(saved);
 
       // Active tab (b/) is a stub and storage is at a/ → navigate is called
-      expect(navigateToLocation).toHaveBeenCalledWith('bucket', 'b/');
+      expect(navigateToLocation).toHaveBeenCalledWith('s3.example.com', 'bucket', 'b/');
     });
   });
 

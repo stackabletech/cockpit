@@ -2,16 +2,20 @@ import { resolve } from '$app/paths';
 import type { ResolvedPathname } from '$app/types';
 import type { PinnedLocation, RecentFile, RecentLocation } from './types.js';
 
-const STORAGE_ROUTE = '/(app)/storage/[bucket]/[...prefix]' as const;
+const STORAGE_ROUTE = '/(app)/storage/browse/[connection]/[bucket]/[...prefix]' as const;
 
 // ── URL helpers ──────────────────────────────────────────────────────────────
 
-export function storageHref(bucket: string, prefix: string): ResolvedPathname {
+export function storageHref(connection: string, bucket: string, prefix: string): ResolvedPathname {
   const encodedBucket = encodeURIComponent(bucket);
   const encodedPrefix = prefix
     ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
     : '';
-  return resolve(STORAGE_ROUTE, { bucket: encodedBucket, prefix: encodedPrefix });
+  return resolve(STORAGE_ROUTE, {
+    connection: encodeURIComponent(connection),
+    bucket: encodedBucket,
+    prefix: encodedPrefix
+  });
 }
 
 // ── Pinned location helpers ──────────────────────────────────────────────────
@@ -22,8 +26,8 @@ export function pinnedLabel(pin: PinnedLocation): string {
   return parts[parts.length - 1] ?? pin.bucket;
 }
 
-export function pinnedHref(pin: PinnedLocation): ResolvedPathname {
-  return storageHref(pin.bucket, pin.prefix);
+export function pinnedHref(connection: string, pin: PinnedLocation): ResolvedPathname {
+  return storageHref(connection, pin.bucket, pin.prefix);
 }
 
 // ── Recent file helpers ──────────────────────────────────────────────────────
@@ -39,11 +43,12 @@ export function fileLocation(file: RecentFile): string {
   return parts.length > 0 ? `${file.bucket} / ${parts.join(' / ')}` : file.bucket;
 }
 
-export function fileHref(file: RecentFile): ResolvedPathname {
+export function fileHref(connection: string, file: RecentFile): ResolvedPathname {
   const parts = file.key.split('/').filter(Boolean);
   parts.pop();
   const encodedPrefix = parts.map(encodeURIComponent).join('/');
   return resolve(STORAGE_ROUTE, {
+    connection: encodeURIComponent(connection),
     bucket: encodeURIComponent(file.bucket),
     prefix: encodedPrefix
   });
@@ -63,6 +68,6 @@ export function locationPath(loc: RecentLocation): string {
   return `${loc.bucket} / ${parts.join(' / ')}`;
 }
 
-export function locationHref(loc: RecentLocation): ResolvedPathname {
-  return storageHref(loc.bucket, loc.prefix);
+export function locationHref(connection: string, loc: RecentLocation): ResolvedPathname {
+  return storageHref(connection, loc.bucket, loc.prefix);
 }

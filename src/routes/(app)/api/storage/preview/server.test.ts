@@ -109,20 +109,18 @@ describe('GET /api/storage/preview', () => {
     );
   });
 
-  it('normalises Excel TSV content type', async () => {
+  it('normalises Excel TSV content type for text preview', async () => {
     mockGetMetadata.mockResolvedValue({ contentType: 'application/vnd.ms-excel', size: 200 });
 
     await GET(mockEvent('bucket=b1&key=data.tsv'));
 
-    expect(getCsvPreview).toHaveBeenCalledWith(
+    expect(streamPreview).toHaveBeenCalledWith(
       expect.anything(),
       'data.tsv',
-      0,
-      250,
       'text/tab-separated-values',
       200,
-      expect.anything(),
-      false
+      'client',
+      expect.anything()
     );
   });
 
@@ -149,19 +147,17 @@ describe('GET /api/storage/preview', () => {
 
     await GET(mockEvent('bucket=b1&key=data.tsv'));
 
-    expect(getCsvPreview).toHaveBeenCalledWith(
+    expect(streamPreview).toHaveBeenCalledWith(
       expect.anything(),
       'data.tsv',
-      0,
-      250,
       'text/tab-separated-values',
       150,
-      expect.anything(),
-      false
+      'client',
+      expect.anything()
     );
   });
 
-  it('streams TSV file with .tsv extension and generic content type', async () => {
+  it('uses text preview for TSV files with generic content types', async () => {
     mockGetMetadata.mockResolvedValue({
       contentType: 'application/octet-stream',
       size: 75
@@ -169,15 +165,13 @@ describe('GET /api/storage/preview', () => {
 
     await GET(mockEvent('bucket=b1&key=report.tsv'));
 
-    expect(getCsvPreview).toHaveBeenCalledWith(
+    expect(streamPreview).toHaveBeenCalledWith(
       expect.anything(),
       'report.tsv',
-      0,
-      250,
       'application/octet-stream',
       75,
-      expect.anything(),
-      false
+      'client',
+      expect.anything()
     );
   });
 

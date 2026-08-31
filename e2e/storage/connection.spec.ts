@@ -124,7 +124,9 @@ test.describe('Storage S3 — Connection', () => {
     await expect(bucketLink).toBeVisible();
     await bucketLink.click();
 
-    await expect(page).toHaveURL(bucketRoute(credentials.bucket));
+    await expect(page).toHaveURL(
+      bucketRoute(new URL(credentials.endpoint).hostname, credentials.bucket)
+    );
     await expect(page.locator('nav[aria-label="breadcrumb"] [aria-current="page"]')).toContainText(
       credentials.bucket
     );

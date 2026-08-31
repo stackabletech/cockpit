@@ -1,12 +1,16 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import BucketList from '$lib/components/storage/sidebar/BucketList.svelte';
   import { StorageState } from '$lib/storage/state.svelte.js';
-  import { setStorageState } from '$lib/storage/context.js';
+  import { setStorageState, setTabsState } from '$lib/storage/context.js';
   import StorageModals from '$lib/components/storage/modals/StorageModals.svelte';
-  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+  import { connectionHostname, connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { createFetchStorageApi } from '$lib/storage/api.js';
+  import { TabsState } from '$lib/storage/tabs.svelte.js';
+  import { storageRestoreTabsEnabled } from '$lib/client/feature-flags.js';
 
   let { children, data } = $props();
 
@@ -23,6 +27,26 @@
   );
   setStorageState(storage);
 
+  function locationPath(connection: string, bucket: string, prefix: string): string {
+    return resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
+      connection: encodeURIComponent(connection),
+      bucket: encodeURIComponent(bucket),
+      prefix: prefix ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/') : ''
+    });
+  }
+
+  const tabsState = new TabsState(storage, {
+    persistEnabled: storageRestoreTabsEnabled,
+    connectionId: storage.connectionId,
+    navigateToLocation: (connection, bucket, prefix) => {
+      void goto(locationPath(connection, bucket, prefix));
+    },
+    replaceLocationUrl: (connection, bucket, prefix) => {
+      history.replaceState(history.state, '', locationPath(connection, bucket, prefix));
+    }
+  });
+  setTabsState(tabsState);
+
   // Keep layout-level data in sync when SvelteKit re-runs the load function
   $effect(() => {
     storage.connected = data.connected;
@@ -32,10 +56,11 @@
 
   $effect(() => {
     storage.connectionId = connectionStore.activeConnectionId;
+    storage.connectionHostname = connectionHostname(connectionStore.activeConnection);
   });
 
   // Connections management pages have their own full-page layout — no sidebar.
-  const isConnectionsRoute = $derived(page.url.pathname.startsWith('/storage/connections'));
+  const isConnectionsRoute = $derived(page.url.pathname.startsWith('/settings/connections'));
 </script>
 
 {#if !isConnectionsRoute && (data.connected || (data.hydrating && data.hasActiveConnection))}

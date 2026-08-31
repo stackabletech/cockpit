@@ -349,7 +349,7 @@
         }}
       >
         <table
-          class="table-xs table table-fixed"
+          class="table-xs table"
           style={totalTableWidth > 0 ? `width: ${totalTableWidth}px` : ''}
           aria-label="CSV preview"
         >

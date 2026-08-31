@@ -8,6 +8,7 @@ import { keyToName } from './utils.js';
 // ── Tab data ─────────────────────────────────────────────────────────────────
 
 export interface TabSnapshot {
+  connection: string;
   bucket: string;
   prefix: string;
   objects: StoragePage;
@@ -41,6 +42,7 @@ export interface PersistedTab {
   label: string;
   bucket: string;
   prefix: string;
+  connection?: string;
 }
 
 export interface PersistedTabsState {
@@ -65,11 +67,11 @@ export class TabsState {
   private storage: StorageState;
   private persistEnabled: boolean;
   private connectionId: string | null;
-  private navigateToLocation: ((bucket: string, prefix: string) => void) | null;
-  private replaceLocationUrl: ((bucket: string, prefix: string) => void) | null;
+  private navigateToLocation: ((connection: string, bucket: string, prefix: string) => void) | null;
+  private replaceLocationUrl: ((connection: string, bucket: string, prefix: string) => void) | null;
 
   get hasTabs(): boolean {
-    return this.tabs.length > 1;
+    return this.tabs.length > 0;
   }
 
   constructor(
@@ -77,8 +79,8 @@ export class TabsState {
     options?: {
       persistEnabled?: boolean;
       connectionId?: string | null;
-      navigateToLocation?: (bucket: string, prefix: string) => void;
-      replaceLocationUrl?: (bucket: string, prefix: string) => void;
+      navigateToLocation?: (connection: string, bucket: string, prefix: string) => void;
+      replaceLocationUrl?: (connection: string, bucket: string, prefix: string) => void;
     }
   ) {
     this.storage = storage;
@@ -92,6 +94,7 @@ export class TabsState {
 
   private captureSnapshot(): TabSnapshot {
     return {
+      connection: this.storage.connectionHostname,
       bucket: this.storage.bucket,
       prefix: this.storage.prefix,
       objects: this.storage.objects,
@@ -120,6 +123,7 @@ export class TabsState {
 
   private restoreSnapshot(snapshot: TabSnapshot): void {
     this.storage.bucket = snapshot.bucket;
+    this.storage.connectionHostname = snapshot.connection;
     this.storage.prefix = snapshot.prefix;
     this.storage.objects = snapshot.objects;
     this.storage.prevTokens = [...snapshot.prevTokens];
@@ -134,7 +138,7 @@ export class TabsState {
     });
     this.storage.loading = false;
     this.storage.clearSelection();
-    this.replaceLocationUrl?.(snapshot.bucket, snapshot.prefix);
+    this.replaceLocationUrl?.(snapshot.connection, snapshot.bucket, snapshot.prefix);
   }
 
   // ── Persistence ──────────────────────────────────────────────────────────
@@ -146,7 +150,8 @@ export class TabsState {
         id: t.id,
         label: t.label,
         bucket: t.snapshot.bucket,
-        prefix: t.snapshot.prefix
+        prefix: t.snapshot.prefix,
+        connection: t.snapshot.connection
       })),
       activeTabId: this.activeTabId ?? '',
       connectionId: this.connectionId ?? undefined
@@ -189,6 +194,7 @@ export class TabsState {
       label: pt.label,
       stub: true,
       snapshot: {
+        connection: pt.connection ?? this.storage.connectionHostname,
         bucket: pt.bucket,
         prefix: pt.prefix,
         objects: EMPTY_PAGE,
@@ -215,12 +221,17 @@ export class TabsState {
     const activeTab = this.tabs.find((t) => t.id === mappedActiveId)!;
 
     if (
+      this.storage.connectionHostname === activeTab.snapshot.connection &&
       this.storage.bucket === activeTab.snapshot.bucket &&
       this.storage.prefix === activeTab.snapshot.prefix
     ) {
       this.markActiveTabLoaded();
     } else if (this.navigateToLocation) {
-      this.navigateToLocation(activeTab.snapshot.bucket, activeTab.snapshot.prefix);
+      this.navigateToLocation(
+        activeTab.snapshot.connection,
+        activeTab.snapshot.bucket,
+        activeTab.snapshot.prefix
+      );
     } else {
       this.markActiveTabLoaded();
     }
@@ -250,6 +261,8 @@ export class TabsState {
         const activeTab = activeIdx >= 0 ? saved.tabs[activeIdx] : saved.tabs[0];
         if (
           activeTab &&
+          this.storage.connectionHostname ===
+            (activeTab.connection ?? this.storage.connectionHostname) &&
           this.storage.bucket === activeTab.bucket &&
           this.storage.prefix === activeTab.prefix
         ) {
@@ -320,7 +333,7 @@ export class TabsState {
     this.saveToPersistence();
 
     if (tab.stub && this.navigateToLocation) {
-      this.navigateToLocation(tab.snapshot.bucket, tab.snapshot.prefix);
+      this.navigateToLocation(tab.snapshot.connection, tab.snapshot.bucket, tab.snapshot.prefix);
     } else {
       this.restoreSnapshot(tab.snapshot);
     }
@@ -341,7 +354,11 @@ export class TabsState {
       const nextTab = newTabs[newIdx];
       this.activeTabId = nextTab.id;
       if (nextTab.stub && this.navigateToLocation) {
-        this.navigateToLocation(nextTab.snapshot.bucket, nextTab.snapshot.prefix);
+        this.navigateToLocation(
+          nextTab.snapshot.connection,
+          nextTab.snapshot.bucket,
+          nextTab.snapshot.prefix
+        );
       } else {
         this.restoreSnapshot(nextTab.snapshot);
       }

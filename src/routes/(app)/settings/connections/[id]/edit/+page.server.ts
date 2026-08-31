@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   if (rows.length === 0) {
     locals.logger.debug({ connection_id: params.id }, 'connection not found, redirecting');
-    throw redirect(303, '/storage/connections');
+    throw redirect(303, '/settings/connections');
   }
 
   const row = rows[0];

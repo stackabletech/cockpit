@@ -9,19 +9,32 @@
   let { data } = $props();
   const storage = getStorageState();
 
+  const routePath = $derived(
+    resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
+      connection: encodeURIComponent(data.connection),
+      bucket: encodeURIComponent(data.bucket),
+      prefix: data.prefix
+        ? data.prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
+        : ''
+    })
+  );
+  const isCurrentRoute = $derived(page.url.pathname === routePath);
+
   // Set bucket/prefix immediately so breadcrumb renders correctly during SSR
   // ($effect doesn't run on the server, but data is available from the load function)
   // svelte-ignore state_referenced_locally
-  storage.bucket = data.bucket;
+  if (!browser || isCurrentRoute) storage.connectionHostname = data.connection;
   // svelte-ignore state_referenced_locally
-  storage.prefix = data.prefix;
+  if (!browser || isCurrentRoute) storage.bucket = data.bucket;
+  // svelte-ignore state_referenced_locally
+  if (!browser || isCurrentRoute) storage.prefix = data.prefix;
 
   // During SSR, $effect doesn't run, so storage.loading stays false and the
   // empty state renders instead of the loading overlay. Setting loading here
   // when hydrating ensures the loading spinner is present in the SSR HTML,
   // preventing a flash of empty state on F5 reload before the client load completes.
   // svelte-ignore state_referenced_locally
-  if (data.hydrating) storage.loading = true;
+  if (data.hydrating && (!browser || isCurrentRoute)) storage.loading = true;
 
   let hydrated = false;
 
@@ -31,8 +44,9 @@
       ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
       : '';
 
-    const basePath = resolve('/(app)/storage/[bucket]/[...prefix]', {
-      bucket: encodeURIComponent(data.bucket),
+    const basePath = resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
+      connection: encodeURIComponent(storage.connectionHostname),
+      bucket: encodeURIComponent(storage.bucket),
       prefix: encodedPrefix
     });
 
@@ -51,7 +65,8 @@
       ? storage.prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
       : '';
 
-    const basePath = resolve('/(app)/storage/[bucket]/[...prefix]', {
+    const basePath = resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
+      connection: encodeURIComponent(storage.connectionHostname),
       bucket: encodeURIComponent(storage.bucket),
       prefix: encodedPrefix
     });
@@ -72,6 +87,7 @@
   // so the spinner shows while the client-side load re-runs. Subsequent renders
   // from client navigation call syncFromServer normally.
   $effect(() => {
+    if (!isCurrentRoute) return;
     if (!hydrated) {
       hydrated = true;
       // First client render — SSR data has hydrating:true. Set loading so the

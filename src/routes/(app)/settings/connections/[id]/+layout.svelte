@@ -11,7 +11,7 @@
   const connectionId = $derived(page.params.id);
 
   function handleSelect(conn: ConnectionMetadata) {
-    goto(resolve(`/storage/connections/${conn.id}/edit`));
+    goto(resolve(`/settings/connections/${conn.id}/edit`));
   }
 </script>
 

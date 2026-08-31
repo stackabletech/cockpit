@@ -81,7 +81,8 @@
 
     savedTabs = null;
     goto(
-      resolve('/(app)/storage/[bucket]/[...prefix]', {
+      resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
+        connection: encodeURIComponent(storage.connectionHostname),
         bucket: encodeURIComponent(active.bucket),
         prefix: encodedPrefix
       })
@@ -98,7 +99,7 @@
   });
 </script>
 
-{#if data.connected || (data.hydrating && data.hasActiveConnection)}
+{#if data.connected && storage.connectionHostname}
   <div class="relative flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto p-2">
     {#if navigating?.to?.url.pathname.startsWith('/storage/')}
       <div
@@ -151,13 +152,13 @@
       </div>
       <p class="text-base-content/60 text-sm">{m.storage_buckets_subtitle()}</p>
     </div>
-    <BucketGrid buckets={storage.buckets} loading={data.hydrating} />
+    <BucketGrid buckets={storage.buckets} loading={data.hydrating || !storage.connectionHostname} />
   </div>
   <div class="relative flex h-full min-h-0 flex-col overflow-y-auto p-2">
     <RecentItems loading={data.hydrating} />
   </div>
   <AddBucketModal bind:open={addBucketOpen} />
-{:else if data.hydrating && !data.hasActiveConnection}
+{:else if data.connected || (data.hydrating && data.hasActiveConnection)}
   <div class="flex h-full items-center justify-center">
     <span class="loading loading-lg loading-spinner text-primary" aria-hidden="true"></span>
   </div>

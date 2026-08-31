@@ -102,6 +102,7 @@ export class StorageState {
 
   // ── Connection identity ──
   connectionId = $state<string | null>(null);
+  connectionHostname = $state('');
 
   // ── Pagination ──
   prevTokens = $state<(string | null)[]>([]);
