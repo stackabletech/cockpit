@@ -185,6 +185,21 @@ describe('TabsState', () => {
 
       expect(ts.activeTabId).toBe(firstId);
     });
+
+    it('does not let a pending navigation overwrite a tab switched to in the meantime', () => {
+      const storage = makeStorage('first-bucket', 'first/');
+      const { ts } = makeTabs(storage);
+      ts.ensureInitialTab();
+      const firstTabId = ts.activeTabId!;
+      ts.addTab();
+
+      ts.prepareActiveTabForNavigation('s3.example.com', 'second-bucket', 'second/');
+      ts.switchTo(firstTabId);
+
+      expect(ts.canSyncServerLocation('s3.example.com', 'second-bucket', 'second/')).toBe(false);
+      expect(storage.bucket).toBe('first-bucket');
+      expect(storage.prefix).toBe('first/');
+    });
   });
 
   // ── closeTab ──────────────────────────────────────────────────────────────

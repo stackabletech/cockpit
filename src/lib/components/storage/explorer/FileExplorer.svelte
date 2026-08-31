@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import { untrack } from 'svelte';
+  import { beforeNavigate } from '$app/navigation';
   import { navigating } from '$app/state';
   import { getStorageState } from '$lib/storage/context.js';
   import { getTabsState } from '$lib/storage/context.js';
@@ -34,6 +35,16 @@
   const storage = getStorageState();
 
   const tabsState = getTabsState();
+
+  beforeNavigate((navigation) => {
+    const params = navigation.to?.params;
+    const connection = params?.connection;
+    const bucket = params?.bucket;
+    if (!connection || !bucket) return;
+
+    const prefix = params.prefix ? `${params.prefix}/` : '';
+    tabsState.prepareActiveTabForNavigation(connection, bucket, prefix);
+  });
 
   // Wire up source-tab invalidation so that after a move, source tabs refetch.
   storage.setTabsInvalidationHandler((prefix: string) => {
