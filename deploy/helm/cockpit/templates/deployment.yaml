@@ -143,6 +143,8 @@ spec:
                   name: {{ required "trino.auth.password.secretKeyRef.name is required for basic auth" .Values.trino.auth.password.secretKeyRef.name | quote }}
                   key: {{ .Values.trino.auth.password.secretKeyRef.key | quote }}
             {{- end }}
+            - name: STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION
+              value: {{ .Values.trino.userImpersonation | quote }}
             {{- if .Values.trino.tls.insecure }}
             - name: STACKABLE_COCKPIT_TRINO_TLS_INSECURE
               value: "true"
