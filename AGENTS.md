@@ -189,10 +189,10 @@ The application uses **Paraglide-JS v2** for type-safe, compiler-based internati
 
 ### Node.js Version
 
-The required Node.js version is pinned in `.node-version`. Use `nvm` to install and activate it before running any `npm` commands — `npm` will hard-fail with engine errors otherwise (`.npmrc` sets `engine-strict=true`).
+The required Node.js version is pinned in `.node-version` for CI and `.nvmrc` for NVM. Keep both files synchronised. Use `nvm` to install and activate it before running any `npm` commands — `npm` will hard-fail with engine errors otherwise (`.npmrc` sets `engine-strict=true`).
 
 ```bash
-nvm install   # installs the version from .node-version
+nvm install   # installs the version from .nvmrc
 nvm use       # activates it in the current shell
 ```
 
