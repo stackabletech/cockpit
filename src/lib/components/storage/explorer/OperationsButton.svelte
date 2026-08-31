@@ -222,7 +222,7 @@
   {/if}
   <div bind:this={dropdownEl} class="relative z-50 inline-flex">
     <!-- Trigger button -->
-    <div class="tooltip tooltip-top" data-tip={m.storage_operations_label()}>
+    <div class="tooltip tooltip-bottom" data-tip={m.storage_operations_label()}>
       <button
         class="
           btn btn-ghost btn-xs relative size-7 rounded-full p-0

@@ -824,7 +824,7 @@
               <span class="badge badge-soft badge-warning badge-sm">
                 {m.storage_preview_parquet_blocked_title()}
               </span>
-            {:else if preview.truncated}
+            {:else if preview.truncated && parquetTab === 'data'}
               <span class="badge badge-soft badge-warning badge-sm">
                 {m.storage_preview_parquet_rows({
                   count: parquetShowingRowsCount.toLocaleString(getLocale()),
