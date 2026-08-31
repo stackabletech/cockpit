@@ -256,7 +256,7 @@
       <div
         role="menu"
         aria-label={m.storage_operations_label()}
-        class="rounded-box border-base-300 bg-base-100 absolute right-0 z-60 mt-2 w-96 origin-top-right border shadow-xl"
+        class="rounded-box border-base-300 bg-base-100 absolute right-0 z-60 mt-2 flex max-h-[calc(100dvh-8rem)] w-96 flex-col overflow-hidden border shadow-xl"
       >
         <!-- Active operations section -->
         {#if activeOps.length > 0}
@@ -410,7 +410,7 @@
 
         <!-- History section -->
         {#if hasHistory}
-          <div class="px-3 pt-2.5 pb-2">
+          <div class="flex min-h-0 flex-1 flex-col px-3 pt-2.5 pb-2">
             <div class="mb-2 flex items-center justify-between">
               <p class="text-base-content/50 text-[10px] font-semibold tracking-widest uppercase">
                 {m.storage_operations_history()}
@@ -424,7 +424,7 @@
                 {m.storage_operations_clear_history()}
               </button>
             </div>
-            <ul class="flex flex-col gap-1">
+            <ul class="mb-10 min-h-0 flex-1 space-y-1 overflow-y-auto">
               {#each historyOps as op (op.id)}
                 {@const TypeIcon = typeIconMap[op.type]}
                 <li role="none" class="rounded-md px-2.5 py-2 {statusBgColor(op)}">

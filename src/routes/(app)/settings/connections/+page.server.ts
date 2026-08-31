@@ -35,6 +35,6 @@ export const actions: Actions = {
     await deleteConnection(userId, connectionId);
     log.info({ connectionId }, 'storage connection deleted from management page');
 
-    throw redirect(303, '/storage/connections');
+    throw redirect(303, '/settings/connections');
   }
 };

@@ -49,7 +49,7 @@
   </button>
 </FloatingMenu>
 
-{#if loading}
+{#if loading || !storage.connectionHostname}
   <div
     class="
       grid grid-cols-2 gap-3
@@ -81,7 +81,8 @@
     {#each buckets as bucket (bucket)}
       <TooltipTrigger text={bucket} orientation="down">
         <a
-          href={resolve('/(app)/storage/[bucket]/[...prefix]', {
+          href={resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
+            connection: encodeURIComponent(storage.connectionHostname),
             bucket: encodeURIComponent(bucket),
             prefix: ''
           })}

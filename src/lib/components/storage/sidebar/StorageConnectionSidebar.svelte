@@ -130,7 +130,7 @@
   >
     <li role="none">
       <a
-        href={resolve(`/storage/connections/${menuConn.id}/edit`)}
+        href={resolve(`/settings/connections/${menuConn.id}/edit`)}
         role="menuitem"
         onclick={closeContextMenu}
         class="justify-start"
@@ -233,7 +233,7 @@
       {/each}
     </div>
     <div class="mt-2 text-right">
-      <a href={resolve('/storage/connections')} class="link link-primary text-xs">
+      <a href={resolve('/settings/connections')} class="link link-primary text-xs">
         {m.storage_connect_manage()}
       </a>
     </div>
@@ -338,7 +338,7 @@
 
   <div class="border-base-300 border-t p-2">
     <a
-      href={resolve('/storage/connections')}
+      href={resolve('/settings/connections')}
       class="btn btn-ghost btn-xs w-full justify-start text-xs"
     >
       {m.storage_connect_manage()}

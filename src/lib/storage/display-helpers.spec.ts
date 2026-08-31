@@ -14,28 +14,35 @@ import type { PinnedLocation, RecentFile, RecentLocation } from './types.js';
 
 vi.mock('$app/paths', () => ({
   resolve: (_route: string, params: Record<string, string>) => {
+    const connection = params.connection ?? '';
     const bucket = params.bucket ?? '';
     const prefix = params.prefix ?? '';
-    return `/storage/${bucket}${prefix ? '/' + prefix : ''}` as never;
+    return `/storage/browse/${connection}/${bucket}${prefix ? '/' + prefix : ''}` as never;
   }
 }));
 
 describe('storageHref', () => {
   it('generates href for bucket root', () => {
-    expect(storageHref('my-bucket', '')).toBe('/storage/my-bucket');
+    expect(storageHref('s3.example.com', 'my-bucket', '')).toBe(
+      '/storage/browse/s3.example.com/my-bucket'
+    );
   });
 
   it('generates href with prefix', () => {
-    expect(storageHref('my-bucket', 'some/path')).toBe('/storage/my-bucket/some/path');
+    expect(storageHref('s3.example.com', 'my-bucket', 'some/path')).toBe(
+      '/storage/browse/s3.example.com/my-bucket/some/path'
+    );
   });
 
   it('encodes special characters in bucket', () => {
-    expect(storageHref('my bucket', '')).toBe('/storage/my%20bucket');
+    expect(storageHref('s3.example.com', 'my bucket', '')).toBe(
+      '/storage/browse/s3.example.com/my%20bucket'
+    );
   });
 
   it('encodes special characters in prefix segments', () => {
-    expect(storageHref('bucket', 'path/with spaces/file.txt')).toBe(
-      '/storage/bucket/path/with%20spaces/file.txt'
+    expect(storageHref('s3.example.com', 'bucket', 'path/with spaces/file.txt')).toBe(
+      '/storage/browse/s3.example.com/bucket/path/with%20spaces/file.txt'
     );
   });
 });
@@ -59,7 +66,9 @@ describe('pinnedLabel', () => {
 describe('pinnedHref', () => {
   it('generates href from pinned location', () => {
     const pin: PinnedLocation = { connectionId: 'c1', bucket: 'my-bucket', prefix: 'some/path' };
-    expect(pinnedHref(pin)).toBe('/storage/my-bucket/some/path');
+    expect(pinnedHref('s3.example.com', pin)).toBe(
+      '/storage/browse/s3.example.com/my-bucket/some/path'
+    );
   });
 });
 
@@ -110,7 +119,7 @@ describe('fileHref', () => {
       visitedAt: '2024-01-01',
       connectionId: 'c1'
     };
-    expect(fileHref(file)).toBe('/storage/my-bucket/a/b');
+    expect(fileHref('s3.example.com', file)).toBe('/storage/browse/s3.example.com/my-bucket/a/b');
   });
 
   it('generates href to bucket root for top-level file', () => {
@@ -121,7 +130,7 @@ describe('fileHref', () => {
       visitedAt: '2024-01-01',
       connectionId: 'c1'
     };
-    expect(fileHref(file)).toBe('/storage/my-bucket');
+    expect(fileHref('s3.example.com', file)).toBe('/storage/browse/s3.example.com/my-bucket');
   });
 });
 
@@ -177,6 +186,8 @@ describe('locationHref', () => {
       visitedAt: '',
       connectionId: 'c1'
     };
-    expect(locationHref(loc)).toBe('/storage/my-bucket/some/path');
+    expect(locationHref('s3.example.com', loc)).toBe(
+      '/storage/browse/s3.example.com/my-bucket/some/path'
+    );
   });
 });

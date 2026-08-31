@@ -11,6 +11,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import { getLocale } from '$lib/paraglide/runtime.js';
   import Modal from '$lib/components/Modal.svelte';
+  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
   import TextEditor from '$lib/components/editor/TextEditor.svelte';
   import UnsavedConfirmDialog from './UnsavedConfirmDialog.svelte';
   import CsvPreview from './preview/CsvPreview.svelte';
@@ -33,7 +34,6 @@
     archivePath?: string;
     nestedArchivePath?: string;
   }
-
   interface ColumnStats {
     nullCount: number | null;
     distinctCount: number | null;
@@ -115,19 +115,16 @@
   }: Props = $props();
 
   const storage = getStorageState();
-
-  let preview: PreviewKind = $state({ kind: 'idle' });
-  let blobUrls: string[] = [];
+  let preview: PreviewKind = $state({ kind: 'idle' }),
+    blobUrls: string[] = [];
   let maximized = $state(false);
-  let imageNaturalWidth = $state(0);
-  let imageNaturalHeight = $state(0);
-  let parquetShowingRowsCount = $state(0);
-  let csvShowingRowsCount = $state(0);
+  let imageNaturalWidth = $state(0),
+    imageNaturalHeight = $state(0);
+  let parquetShowingRowsCount = $state(0),
+    csvShowingRowsCount = $state(0);
   let csvTotalRows = $state(0);
-  let parquetTab: 'metadata' | 'data' = $state('metadata');
-  let parquetDataLoading = $state(false);
-
-  // ── Text editor state ──
+  let parquetTab: 'metadata' | 'data' = $state('metadata'),
+    parquetDataLoading = $state(false);
   let editorText = $state('');
   let originalText = $state('');
   let saving = $state(false);
@@ -136,7 +133,6 @@
 
   const dirty = $derived(editorText !== originalText);
 
-  // Prevent accidental browser tab/window close when there are unsaved changes.
   $effect(() => {
     if (!dirty) return;
 
@@ -149,7 +145,6 @@
   });
 
   const filename = $derived(objectKey ? keyToName(objectKey) : '');
-
   function isTooLargeToEdit(): boolean {
     if (preview.kind !== 'text') return false;
     return preview.totalSize > maxEditableFileSize;
@@ -848,7 +843,7 @@
       </div>
 
       {#if maximized}
-        <div class="tooltip tooltip-bottom" data-tip={m.storage_preview_restore()}>
+        <TooltipTrigger text={m.storage_preview_restore()} orientation="down">
           <button
             class="btn btn-ghost btn-sm btn-square"
             onclick={toggleMaximized}
@@ -856,9 +851,9 @@
           >
             <IconCloseFullscreen class="size-4" aria-hidden="true" />
           </button>
-        </div>
+        </TooltipTrigger>
       {:else}
-        <div class="tooltip tooltip-bottom" data-tip={m.storage_preview_maximise()}>
+        <TooltipTrigger text={m.storage_preview_maximise()} orientation="down">
           <button
             class="btn btn-ghost btn-sm btn-square"
             onclick={toggleMaximized}
@@ -866,10 +861,10 @@
           >
             <IconOpenInFull class="size-4" aria-hidden="true" />
           </button>
-        </div>
+        </TooltipTrigger>
       {/if}
 
-      <div class="tooltip tooltip-bottom" data-tip={m.storage_preview_close()}>
+      <TooltipTrigger text={m.storage_preview_close()} orientation="down">
         <button
           class="btn btn-ghost btn-sm btn-square"
           onclick={handleCloseClick}
@@ -877,7 +872,7 @@
         >
           <IconClose class="size-5" aria-hidden="true" />
         </button>
-      </div>
+      </TooltipTrigger>
     </div>
 
     {#if preview.kind === 'parquet'}
@@ -1075,6 +1070,15 @@
               <IconSave class="size-4" aria-hidden="true" />
               {m.storage_editor_save()}
             {/if}
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm gap-1.5"
+            onclick={handleSaveAndClose}
+            disabled={!dirty || saving}
+          >
+            <IconSave class="size-4" aria-hidden="true" />
+            {m.storage_editor_save_and_close()}
           </button>
         {/if}
         <button class="btn btn-ghost btn-sm" onclick={handleCloseClick}>

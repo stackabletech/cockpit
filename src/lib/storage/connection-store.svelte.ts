@@ -14,6 +14,18 @@ export interface ConnectionListItem {
   updatedAt: string;
 }
 
+export function connectionHostname(connection: ConnectionListItem | null): string {
+  if (!connection?.endpoint) return '';
+  try {
+    return new URL(
+      connection.endpoint.includes('://') ? connection.endpoint : `//${connection.endpoint}`,
+      'http://localhost'
+    ).hostname;
+  } catch {
+    return connection.endpoint.split(':')[0] ?? '';
+  }
+}
+
 class ConnectionStore {
   activeConnectionId = $state<string | null>(null);
   connections = $state<ConnectionListItem[]>([]);

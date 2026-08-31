@@ -132,7 +132,7 @@
           </td>
           <td>
             <a
-              href={rr(fileHref(file))}
+              href={rr(fileHref(storage.connectionHostname, file))}
               data-sveltekit-preload-data="off"
               class="text-base-content/60 hover:text-primary truncate text-xs"
             >
@@ -158,7 +158,7 @@
               </div>
               <div class="tooltip tooltip-left" data-tip={m.storage_recent_open_folder()}>
                 <a
-                  href={rr(fileHref(file))}
+                  href={rr(fileHref(storage.connectionHostname, file))}
                   data-sveltekit-preload-data="off"
                   class="btn btn-ghost btn-xs"
                   aria-label="{m.storage_recent_open_folder()} — {fileName(file.key)}"
@@ -195,7 +195,7 @@
                 <IconFolderOutline class="text-warning size-4 shrink-0" aria-hidden="true" />
               {/if}
               <a
-                href={rr(locationHref(loc))}
+                href={rr(locationHref(storage.connectionHostname, loc))}
                 data-sveltekit-preload-data="off"
                 class="hover:text-primary font-medium">{locationName(loc)}</a
               >
@@ -203,7 +203,7 @@
           </td>
           <td>
             <a
-              href={rr(locationHref(loc))}
+              href={rr(locationHref(storage.connectionHostname, loc))}
               data-sveltekit-preload-data="off"
               class="text-base-content/60 hover:text-primary truncate text-xs"
             >
@@ -216,7 +216,7 @@
           <td>
             <div class="tooltip tooltip-left" data-tip={m.storage_recent_go_to_location()}>
               <a
-                href={rr(locationHref(loc))}
+                href={rr(locationHref(storage.connectionHostname, loc))}
                 data-sveltekit-preload-data="off"
                 class="btn btn-ghost btn-xs"
                 aria-label="{m.storage_recent_go_to_location()} — {locationName(loc)}"

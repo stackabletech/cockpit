@@ -10,14 +10,11 @@
   const storage = getStorageState();
   storage.loading = false;
 
-  const bucket = $derived(
-    page.params.bucket ||
-      decodeURIComponent(page.url?.pathname?.split('/').filter(Boolean)[1] ?? '')
-  );
+  const bucket = $derived(page.params.bucket ?? '');
 
   const prefixParts = $derived.by(() => {
     const segments = page.url?.pathname?.split('/').filter(Boolean) ?? [];
-    return decodeURIComponent(segments.slice(2).join('/') || '');
+    return decodeURIComponent(segments.slice(4).join('/') || '');
   });
 
   function bucketErrorMessage(status: number, name: string): string | null {
@@ -39,7 +36,8 @@
     >
       <span class="flex shrink-0 items-center gap-1">
         <a
-          href={resolve('/(app)/storage/[bucket]/[...prefix]', {
+          href={resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
+            connection: encodeURIComponent(storage.connectionHostname),
             bucket: encodeURIComponent(bucket),
             prefix: ''
           })}

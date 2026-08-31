@@ -67,7 +67,8 @@
         open = false;
         reset();
         await goto(
-          resolve('/(app)/storage/[bucket]/[...prefix]', {
+          resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
+            connection: encodeURIComponent(storage.connectionHostname),
             bucket: encodeURIComponent(name),
             prefix: ''
           })

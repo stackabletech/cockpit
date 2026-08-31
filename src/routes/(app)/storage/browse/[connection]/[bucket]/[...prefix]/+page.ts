@@ -1,6 +1,6 @@
 import { browser } from '$app/environment';
 import { error, redirect } from '@sveltejs/kit';
-import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+import { connectionHostname, connectionStore } from '$lib/storage/connection-store.svelte.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import * as m from '$lib/paraglide/messages.js';
 import type { PageLoad } from './$types';
@@ -23,10 +23,13 @@ const EMPTY_PAGE: StoragePage = {
  * and updates the page after hydration.
  */
 export const load: PageLoad = async ({ fetch, url, data }) => {
-  const { bucket, prefix } = data;
+  const { connection, bucket, prefix } = data;
 
   const connectionId = connectionStore.activeConnectionId ?? data.activeConnectionId;
   if (!connectionId) throw redirect(303, '/storage');
+  if (browser && connectionHostname(connectionStore.activeConnection) !== connection) {
+    throw redirect(303, '/storage');
+  }
 
   const query = new URLSearchParams({ bucket, prefix: prefix ?? '' });
 
@@ -42,7 +45,7 @@ export const load: PageLoad = async ({ fetch, url, data }) => {
       throw error(res.status, body.message ?? 'Failed to load objects');
     }
 
-    return { bucket, prefix, objects: EMPTY_PAGE, hydrating: true };
+    return { connection, bucket, prefix, objects: EMPTY_PAGE, hydrating: true };
   }
 
   const continuationToken = url.searchParams.get('continuationToken');
@@ -63,5 +66,5 @@ export const load: PageLoad = async ({ fetch, url, data }) => {
   }
 
   const objects = (await res.json()) as StoragePage;
-  return { bucket, prefix, objects, hydrating: false };
+  return { connection, bucket, prefix, objects, hydrating: false };
 };

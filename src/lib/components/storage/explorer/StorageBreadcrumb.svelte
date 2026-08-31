@@ -7,11 +7,9 @@
   import IconCheckBox from 'virtual:icons/material-symbols/check-box';
   import IconCheckBoxOutlineBlank from 'virtual:icons/material-symbols/check-box-outline-blank';
   import IconUpload from 'virtual:icons/material-symbols/upload';
-  import IconMoreVert from 'virtual:icons/material-symbols/more-vert';
   import IconPushPin from 'virtual:icons/material-symbols/push-pin';
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
   import IconFolderZip from 'virtual:icons/material-symbols/folder-zip';
-  import IconTab from 'virtual:icons/material-symbols/tab';
   import IconAdd from 'virtual:icons/material-symbols/add';
   import IconFileCopy from 'virtual:icons/material-symbols/file-copy-outline';
   import IconContentCopy from 'virtual:icons/material-symbols/content-copy';
@@ -74,8 +72,6 @@
   const visibleParts = $derived(
     breadcrumbParts.length > MAX_TAIL ? breadcrumbParts.slice(-MAX_TAIL) : breadcrumbParts
   );
-
-  const currentIsPinned = $derived(storage.bookmarks.isPinned(storage.bucket, storage.prefix));
 
   // ── Create menu (inline dropdown) ─────────────────────────────────────
   let createOpen = $state(false);
@@ -685,70 +681,4 @@
 
   <!-- Operations progress indicator -->
   <OperationsButton />
-
-  <!-- More options (pin current location) — hidden in archive mode -->
-  <div class="dropdown dropdown-end">
-    <button
-      tabindex="0"
-      class="btn btn-ghost btn-xs"
-      title={m.storage_more_options()}
-      aria-label={m.storage_more_options()}
-      aria-haspopup="menu"
-    >
-      <IconMoreVert class="size-3.5" aria-hidden="true" />
-    </button>
-    <ul
-      tabindex="0"
-      role="menu"
-      class="
-        dropdown-content menu rounded-box border-base-300 bg-base-100 z-30 w-52
-        border p-1 shadow-lg
-      "
-    >
-      <li role="none">
-        <button
-          role="menuitem"
-          class="justify-start text-sm"
-          onclick={() => {
-            tabsState.addTab();
-            (document.activeElement as HTMLElement | null)?.blur();
-          }}
-        >
-          <IconTab class="size-4 shrink-0" aria-hidden="true" />
-          {m.storage_tab_new()}
-        </button>
-      </li>
-      {#if !storage.archive.isInArchive}
-        <li role="none">
-          {#if currentIsPinned}
-            {@const PinIcon2 = IconPushPin}
-            <button
-              role="menuitem"
-              class="justify-start text-sm"
-              title={m.storage_action_unpin()}
-              onclick={() => {
-                storage.bookmarks.unpin(storage.bucket, storage.prefix);
-              }}
-            >
-              <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
-              {m.storage_action_unpin()}
-            </button>
-          {:else}
-            {@const PinIcon2 = IconPushPinOutline}
-            <button
-              role="menuitem"
-              class="justify-start text-sm"
-              title={m.storage_action_pin()}
-              onclick={() => {
-                storage.bookmarks.pin(storage.bucket, storage.prefix);
-              }}
-            >
-              <PinIcon2 class="size-4 shrink-0" aria-hidden="true" />
-              {m.storage_action_pin()}
-            </button>
-          {/if}
-        </li>
-      {/if}
-    </ul>
-  </div>
 </div>

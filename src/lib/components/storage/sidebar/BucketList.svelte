@@ -44,8 +44,7 @@
   // with optional chaining to avoid crashing the layout and escalating the
   // error to the root fallback handler.
   const activeBucket = $derived.by(() => {
-    const match = page.url?.pathname?.match(/^\/storage\/([^/]+)/);
-    return match ? decodeURIComponent(match[1]) : null;
+    return page.params.bucket ?? null;
   });
   const activePrefix = $derived(page.params.prefix ? page.params.prefix + '/' : '');
 
@@ -189,7 +188,7 @@
   style="width: var(--storage-sidebar-width, {resize.width}px)"
   aria-label={m.storage_buckets_label()}
 >
-  {#if !storage.connected}
+  {#if !storage.connected || !storage.connectionHostname}
     <div class="flex flex-1 items-center justify-center">
       <span class="loading loading-md loading-spinner text-primary" aria-hidden="true"></span>
     </div>
@@ -209,7 +208,7 @@
               <!-- eslint-disable svelte/no-navigation-without-resolve -->
               <TooltipTrigger text={pinnedLabel(pin)} orientation="right">
                 <a
-                  href={pinnedHref(pin)}
+                  href={pinnedHref(storage.connectionHostname, pin)}
                   data-sveltekit-preload-data="off"
                   class="
                     hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
@@ -286,7 +285,8 @@
             <li role="none">
               <TooltipTrigger text={bucket} orientation="right">
                 <a
-                  href={resolve('/(app)/storage/[bucket]/[...prefix]', {
+                  href={resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
+                    connection: encodeURIComponent(storage.connectionHostname),
                     bucket: encodeURIComponent(bucket),
                     prefix: ''
                   })}

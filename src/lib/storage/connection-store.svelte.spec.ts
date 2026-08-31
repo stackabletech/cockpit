@@ -1,7 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { connectionStore, type ConnectionListItem } from './connection-store.svelte.js';
+import {
+  connectionHostname,
+  connectionStore,
+  type ConnectionListItem
+} from './connection-store.svelte.js';
 
 describe('connectionStore', () => {
+  it('extracts the hostname from a connection endpoint', () => {
+    expect(connectionHostname({ endpoint: 's3.example.com:9000' } as ConnectionListItem)).toBe(
+      's3.example.com'
+    );
+  });
   it('starts with null activeConnectionId', () => {
     expect(connectionStore.activeConnectionId).toBeNull();
   });

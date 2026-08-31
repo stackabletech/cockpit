@@ -38,7 +38,7 @@ test.describe('Storage S3 — Recent Items', () => {
 
     await connectToStorage(page, credentials);
     await expect(page).toHaveURL('/storage');
-    await page.goto(bucketRoute(credentials.bucket));
+    await page.goto(bucketRoute(new URL(credentials.endpoint).hostname, credentials.bucket));
     await waitForObjectsLoaded(page);
 
     await page.goto('/storage');
@@ -94,7 +94,9 @@ test.describe('Storage S3 — Recent Items', () => {
       await expect(page.locator('tbody').getByText('to-delete.txt')).toBeVisible();
 
       // Delete the file via the UI
-      await page.goto(bucketRoute(credentials.bucket, prefix));
+      await page.goto(
+        bucketRoute(new URL(credentials.endpoint).hostname, credentials.bucket, prefix)
+      );
       await waitForObjectsLoaded(page);
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel('Select to-delete.txt').check();
@@ -137,7 +139,9 @@ test.describe('Storage S3 — Recent Items', () => {
       await expect(page.locator('tbody').getByText('sub', { exact: true })).toBeVisible();
 
       // Delete the parent directory via the UI
-      await page.goto(bucketRoute(credentials.bucket, prefix));
+      await page.goto(
+        bucketRoute(new URL(credentials.endpoint).hostname, credentials.bucket, prefix)
+      );
       await waitForObjectsLoaded(page);
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel('Select sub').check();

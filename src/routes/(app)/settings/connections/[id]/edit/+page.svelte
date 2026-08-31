@@ -33,7 +33,7 @@
         if (result.type === 'success' && result.data?.form?.message === 'ok') {
           cancel();
           bypassDirtyCheck = true;
-          goto(resolve('/storage/connections'));
+          goto(resolve('/settings/connections'));
         }
       }
     }
@@ -321,7 +321,7 @@
   </form>
 
   <div class="mt-3 flex items-center gap-3">
-    <a href={resolve('/storage/connections')} class="btn btn-ghost">
+    <a href={resolve('/settings/connections')} class="btn btn-ghost">
       ← {m.storage_connections_title()}
     </a>
   </div>

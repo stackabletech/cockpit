@@ -5,6 +5,7 @@ import { load } from './+page.server.js';
 function mockEvent(
   opts: {
     bucket?: string;
+    connection?: string;
     prefix?: string;
     activeConnectionId?: string | null;
     session?: Record<string, unknown> | null;
@@ -23,14 +24,23 @@ function mockEvent(
       user: { id: 'test-user' },
       session
     },
-    params: { bucket: opts.bucket ?? 'my-bucket', prefix: opts.prefix ?? '' }
+    params: {
+      connection: opts.connection ?? 's3.example.com',
+      bucket: opts.bucket ?? 'my-bucket',
+      prefix: opts.prefix ?? ''
+    }
   } as unknown as Parameters<typeof load>[0];
 }
 
 describe('bucket page server load', () => {
   it('returns bucket and prefix when an active connection exists', async () => {
     const result = await load(mockEvent({ activeConnectionId: 'conn-123' }));
-    expect(result).toEqual({ bucket: 'my-bucket', prefix: '', activeConnectionId: 'conn-123' });
+    expect(result).toEqual({
+      connection: 's3.example.com',
+      bucket: 'my-bucket',
+      prefix: '',
+      activeConnectionId: 'conn-123'
+    });
   });
 
   it('redirects to /storage when no active connection', async () => {
@@ -48,6 +58,7 @@ describe('bucket page server load', () => {
   it('adds trailing slash to prefix', async () => {
     const result = await load(mockEvent({ prefix: 'data/2024', activeConnectionId: 'conn-123' }));
     expect(result).toEqual({
+      connection: 's3.example.com',
       bucket: 'my-bucket',
       prefix: 'data/2024/',
       activeConnectionId: 'conn-123'
@@ -58,6 +69,11 @@ describe('bucket page server load', () => {
     const result = await load(
       mockEvent({ bucket: 'test-bucket', prefix: '', activeConnectionId: 'conn-123' })
     );
-    expect(result).toEqual({ bucket: 'test-bucket', prefix: '', activeConnectionId: 'conn-123' });
+    expect(result).toEqual({
+      connection: 's3.example.com',
+      bucket: 'test-bucket',
+      prefix: '',
+      activeConnectionId: 'conn-123'
+    });
   });
 });

@@ -25,9 +25,9 @@ export function uniqueBucketName(testInfo: TestInfo, scope: string): string {
   return `garage-${slug}-${testInfo.project.name.toLowerCase()}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
-export function bucketRoute(bucket: string, prefix = ''): string {
+export function bucketRoute(connection: string, bucket: string, prefix = ''): string {
   if (!prefix) {
-    return `/storage/${encodeURIComponent(bucket)}`;
+    return `/storage/browse/${encodeURIComponent(connection)}/${encodeURIComponent(bucket)}`;
   }
 
   const trimmed = prefix.replace(/\/$/, '');
@@ -37,7 +37,7 @@ export function bucketRoute(bucket: string, prefix = ''): string {
     .map((segment) => encodeURIComponent(segment))
     .join('/');
 
-  return `/storage/${encodeURIComponent(bucket)}/${encoded}`;
+  return `/storage/browse/${encodeURIComponent(connection)}/${encodeURIComponent(bucket)}/${encoded}`;
 }
 
 export async function clearSavedConnections(page: Page) {
@@ -138,13 +138,14 @@ export async function connectAndOpenPrefix(
   prefix = ''
 ) {
   await connectToStorage(page, credentials);
-  await page.goto(bucketRoute(credentials.bucket, prefix));
+  const connection = new URL(credentials.endpoint).hostname;
+  await page.goto(bucketRoute(connection, credentials.bucket, prefix));
   // If a parallel worker's disconnect raced with this navigation the page will
   // have been redirected back to /storage.  Detect that and reconnect once.
   await waitForHydration(page);
   if (!page.url().includes(encodeURIComponent(credentials.bucket))) {
     await connectToStorage(page, credentials);
-    await page.goto(bucketRoute(credentials.bucket, prefix));
+    await page.goto(bucketRoute(connection, credentials.bucket, prefix));
   }
   await waitForObjectsLoaded(page);
 }
@@ -267,7 +268,7 @@ export { expect };
 export async function seedStorageTabsState(
   page: Page,
   state: {
-    tabs: Array<{ id: string; label: string; bucket: string; prefix: string }>;
+    tabs: Array<{ id: string; label: string; bucket: string; prefix: string; connection?: string }>;
     activeTabId: string;
   }
 ): Promise<void> {

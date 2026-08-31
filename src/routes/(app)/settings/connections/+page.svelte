@@ -160,7 +160,7 @@
   >
     <li role="none">
       <a
-        href={resolve(`/storage/connections/${menuConn.id}/edit`)}
+        href={resolve(`/settings/connections/${menuConn.id}/edit`)}
         role="menuitem"
         onclick={closeContextMenu}
       >

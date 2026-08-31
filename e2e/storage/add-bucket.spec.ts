@@ -52,7 +52,9 @@ test.describe('Storage S3 — Add bucket manually', () => {
     await modalBox(page).getByLabel('Bucket name').fill(credentials.bucket);
     await modalBox(page).getByRole('button', { name: 'Connect' }).click();
 
-    await expect(page).toHaveURL(`/storage/${encodeURIComponent(credentials.bucket)}`);
+    await expect(page).toHaveURL(
+      `/storage/browse/${encodeURIComponent(new URL(credentials.endpoint).hostname)}/${encodeURIComponent(credentials.bucket)}`
+    );
   });
 
   test('bucket appears in the bucket grid after successful connection', async ({
@@ -90,7 +92,9 @@ test.describe('Storage S3 — Add bucket manually', () => {
     await modalBox(page).getByRole('button', { name: 'Connect' }).click();
 
     // Should navigate into the bucket
-    await expect(page).toHaveURL(`/storage/${encodeURIComponent(extraBucketName)}`);
+    await expect(page).toHaveURL(
+      `/storage/browse/${encodeURIComponent(new URL(baseCredentials.endpoint).hostname)}/${encodeURIComponent(extraBucketName)}`
+    );
 
     // Go back to the bucket grid and confirm the bucket is now shown
     await page.goto('/storage');

@@ -9,6 +9,7 @@ function createState(): StorageState {
   const state = new StorageState({ connected: true, buckets: [] });
   state.bucket = '';
   state.prefix = '';
+  state.connectionHostname = 's3.example.com';
   return state;
 }
 

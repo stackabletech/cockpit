@@ -50,6 +50,14 @@ describe('CsvPreview', () => {
     await expect.element(page.getByRole('cell', { name: '95' })).toBeInTheDocument();
   });
 
+  it('keeps TSV columns wide enough for their content', async () => {
+    const tsv = 'name\tdescription\nAlice\tA description that needs horizontal space';
+    const { container } = render(CsvPreview, { text: tsv });
+
+    const table = container.querySelector('table');
+    expect(table?.className).toContain('min-w-max');
+  });
+
   it('should handle CSV with quoted fields containing commas', async () => {
     const csv =
       'name,address,country\n"Smith, John","123 Main St, Apt 4",Germany\n"Doe, Jane","456 Oak Ave",Austria';

@@ -170,7 +170,11 @@ test.describe('Storage S3 — Archive preview', () => {
 
       // Should be at the bucket root (archive exited)
       // eslint-disable-next-line security/detect-non-literal-regexp
-      await expect(page).toHaveURL(new RegExp(`/storage/${credentials.bucket}(\\?|$)`));
+      await expect(page).toHaveURL(
+        new RegExp(
+          `/storage/browse/${new URL(credentials.endpoint).hostname}/${credentials.bucket}(\\?|$)`
+        )
+      );
       await expect(page.getByText('archive.zip')).not.toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);

@@ -65,15 +65,10 @@ export const GET: RequestHandler = async (event) => {
       else if (lowerKey.endsWith('.tsv')) contentType = 'text/tab-separated-values';
     }
 
-    // CSV files — use row-based NDJSON streaming (regardless of flag, so the
-    // client always receives structured data). The offset/limit cap above
-    // restricts chunked loading when the feature is disabled.
+    // CSV files use row-based NDJSON streaming. TSV is deliberately handled by
+    // the text preview below so CsvPreview can parse its tab delimiter directly.
     const isCsv =
-      contentType === 'text/csv' ||
-      contentType === 'application/csv' ||
-      contentType === 'text/tab-separated-values' ||
-      lowerKey.endsWith('.csv') ||
-      lowerKey.endsWith('.tsv');
+      contentType === 'text/csv' || contentType === 'application/csv' || lowerKey.endsWith('.csv');
 
     if (isCsv) {
       return await getCsvPreview(
