@@ -1081,9 +1081,6 @@
             {m.storage_editor_save_and_close()}
           </button>
         {/if}
-        <button class="btn btn-ghost btn-sm" onclick={handleCloseClick}>
-          {m.storage_preview_close()}
-        </button>
       </div>
     {/if}
   </div>
