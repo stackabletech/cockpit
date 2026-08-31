@@ -65,6 +65,12 @@ export class TabsState {
   activeTabId = $state<string | null>(null);
 
   private storage: StorageState;
+  private pendingNavigation: {
+    tabId: string;
+    connection: string;
+    bucket: string;
+    prefix: string;
+  } | null = null;
   private persistEnabled: boolean;
   private connectionId: string | null;
   private navigateToLocation: ((connection: string, bucket: string, prefix: string) => void) | null;
@@ -298,6 +304,9 @@ export class TabsState {
   /** Updates the active tab's snapshot to reflect current storage state. */
   syncActiveTab(): void {
     if (!this.activeTabId) return;
+    // The shared storage state still contains the previous location until the
+    // destination load completes, so it must not overwrite this tab's snapshot.
+    if (this.pendingNavigation?.tabId === this.activeTabId) return;
     const idx = this.tabs.findIndex((t) => t.id === this.activeTabId);
     if (idx === -1) return;
     // eslint-disable-next-line security/detect-object-injection
@@ -310,6 +319,41 @@ export class TabsState {
     };
     this.tabs = [...this.tabs.slice(0, idx), updatedTab, ...this.tabs.slice(idx + 1)];
     this.saveToPersistence();
+  }
+
+  /** Associates an in-flight route navigation with the current tab. */
+  prepareActiveTabForNavigation(connection: string, bucket: string, prefix: string): void {
+    if (!this.activeTabId) return;
+    this.pendingNavigation = { tabId: this.activeTabId, connection, bucket, prefix };
+  }
+
+  /** Returns whether the current tab owns server data for this location. */
+  canSyncServerLocation(connection: string, bucket: string, prefix: string): boolean {
+    if (!this.activeTabId) return true;
+
+    if (this.pendingNavigation) {
+      const pending = this.pendingNavigation;
+      return (
+        pending.tabId === this.activeTabId &&
+        pending.connection === connection &&
+        pending.bucket === bucket &&
+        pending.prefix === prefix
+      );
+    }
+
+    const activeTab = this.tabs.find((tab) => tab.id === this.activeTabId);
+    return (
+      activeTab?.snapshot.connection === connection &&
+      activeTab.snapshot.bucket === bucket &&
+      activeTab.snapshot.prefix === prefix
+    );
+  }
+
+  /** Marks the active tab's pending navigation as complete. */
+  completeNavigation(): void {
+    if (this.pendingNavigation?.tabId === this.activeTabId) {
+      this.pendingNavigation = null;
+    }
   }
 
   /** Adds a new tab at the current location and switches to it. */
@@ -330,6 +374,7 @@ export class TabsState {
     if (!tab) return;
     this.syncActiveTab();
     this.activeTabId = id;
+    this.pendingNavigation = null;
     this.saveToPersistence();
 
     if (tab.stub && this.navigateToLocation) {
@@ -353,6 +398,7 @@ export class TabsState {
       // eslint-disable-next-line security/detect-object-injection
       const nextTab = newTabs[newIdx];
       this.activeTabId = nextTab.id;
+      this.pendingNavigation = null;
       if (nextTab.stub && this.navigateToLocation) {
         this.navigateToLocation(
           nextTab.snapshot.connection,

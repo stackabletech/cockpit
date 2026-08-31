@@ -4,10 +4,12 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { getStorageState } from '$lib/storage/context.js';
+  import { getTabsState } from '$lib/storage/context.js';
   import FileExplorer from '$lib/components/storage/explorer/FileExplorer.svelte';
 
   let { data } = $props();
   const storage = getStorageState();
+  const tabsState = getTabsState();
 
   const routePath = $derived(
     resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
@@ -98,7 +100,9 @@
         return;
       }
     }
+    if (!tabsState.canSyncServerLocation(data.connection, data.bucket, data.prefix)) return;
     storage.syncFromServer(data.bucket, data.prefix, data.objects);
+    tabsState.completeNavigation();
   });
 </script>
 
