@@ -70,9 +70,9 @@ spec:
             - name: STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED
               value: {{ .enabled | quote }}
             {{- end }}
-            {{- if .autoConnect }}
+            {{- if hasKey . "autoConnect" }}
             - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT
-              value: "true"
+              value: {{ .autoConnect | quote }}
             {{- end }}
             {{- with .pageSizes }}
             - name: PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES
