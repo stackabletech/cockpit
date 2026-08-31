@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { goto } from '$app/navigation';
+  import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import BucketList from '$lib/components/storage/sidebar/BucketList.svelte';
@@ -42,7 +42,7 @@
       void goto(locationPath(connection, bucket, prefix));
     },
     replaceLocationUrl: (connection, bucket, prefix) => {
-      history.replaceState(history.state, '', locationPath(connection, bucket, prefix));
+      replaceState(locationPath(connection, bucket, prefix), page.state);
     }
   });
   setTabsState(tabsState);
