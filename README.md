@@ -3,20 +3,18 @@
 [![License OSL 3.0](https://img.shields.io/badge/license-OSL--3.0-blue)](./LICENSE)
 
 Stackable Cockpit is the unified web UI for the [Stackable Data Platform (SDP)](https://stackable.tech/).
-It provides a single place to work with the data services running on your platform. The first (and currently only)
-module is a **Trino SQL query editor** with single sign-on, per-user authorisation and catalogue
-browsing.
-More modules will be added over time.
+It provides a single place to work with the data services running on your platform.
 
-This is currently an experimental part of the Stackable Data Platform.
+> [!WARNING]
+> Stackable Cockpit is experimental.
 
 ## About The Stackable Data Platform
 
-This application is part of the Stackable Data Platform, a curated selection of best-of-breed data
-applications and tools that you can deploy and operate on Kubernetes. The platform builds on
-open-source Apache projects and provides Kubernetes operators to manage them, including:
+This application is part of the Stackable Data Platform, a curated selection of best-of-breed data applications and tools that you can deploy and operate on Kubernetes.
+The platform builds on open-source projects and provides Kubernetes operators to manage them, including:
 
 - [Apache Airflow](https://github.com/stackabletech/airflow-operator)
+- [Apache Druid](https://github.com/stackabletech/druid-operator)
 - [Apache HBase](https://github.com/stackabletech/hbase-operator)
 - [Apache Hadoop HDFS](https://github.com/stackabletech/hdfs-operator)
 - [Apache Hive](https://github.com/stackabletech/hive-operator)
@@ -28,7 +26,14 @@ open-source Apache projects and provides Kubernetes operators to manage them, in
 - [Trino](https://github.com/stackabletech/trino-operator)
 - [Apache ZooKeeper](https://github.com/stackabletech/zookeeper-operator)
 
-Read more about the platform in the [documentation](https://docs.stackable.tech/).
+Read more about the platform in the [documentation](https://docs.stackable.tech/) and on the [Stackable Hub](https://hub.stackable.tech/).
+
+## Features
+
+- Single sign-on via any OIDC provider
+- Trino SQL query editor and schema browser, with queries submitted under the logged-in user's name
+
+More modules will be added over time.
 
 ## Quick Start
 
@@ -42,9 +47,8 @@ npm install
 npm run dev
 ```
 
-Copy [`.env.example`](./.env.example) to `.env` and adjust the values for your OIDC provider and
-Trino endpoint. For a fully pre-configured local environment (Keycloak and Trino on a local kind
-cluster), see [`dev/setup.sh`](./dev/setup.sh).
+Copy [`.env.example`](./.env.example) to `.env` and adjust the values for your OIDC provider and Trino endpoint.
+For a fully pre-configured local environment (Keycloak and Trino on a local kind cluster), see [`dev/setup.sh`](./dev/setup.sh).
 
 ## Development
 
@@ -85,7 +89,8 @@ docker run -p 3000:3000 cockpit:0.0.0-dev
 
 ## Configuration
 
-The application is configured via environment variables. Create a `.env` file at the project root (or set these in your deployment environment).
+The application is configured via environment variables.
+Create a `.env` file at the project root, or set them in your deployment environment.
 
 ### Feature Flags
 
@@ -107,11 +112,13 @@ The application is configured via environment variables. Create a `.env` file at
 
 - Platform documentation: <https://docs.stackable.tech/>
 - Stackable website: <https://stackable.tech/>
+- Stackable Hub: <https://hub.stackable.tech/>
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or pull request. Before submitting changes, run the
-quality checks:
+Contributions are welcome!
+Please open an issue or pull request.
+Before submitting changes, run the quality checks:
 
 ```bash
 npm run format
@@ -120,8 +127,8 @@ npm run lint
 npm run test:e2e
 ```
 
-Contributions require agreeing to a Contributor License Agreement (CLA). When you open your first
-pull request, the CLA assistant will guide you through signing it.
+Contributions require agreeing to a Contributor License Agreement (CLA).
+When you open your first pull request, the CLA assistant will guide you through signing it.
 
 ## Support
 
@@ -135,7 +142,6 @@ If you find this project useful, consider [sponsoring Stackable](https://github.
 
 ## License
 
-Licensed under the [Open Software License version 3.0](./LICENSE). This project bundles the Trino
-SQL grammar and code derived from it, which are licensed under the
-[Apache License, Version 2.0](./LICENSE-Apache-2.0); the relevant source files carry upstream
-attribution headers.
+Licensed under the [Open Software License version 3.0](./LICENSE).
+This project bundles the Trino SQL grammar and code derived from it, which are licensed under the [Apache License, Version 2.0](./LICENSE-Apache-2.0).
+The relevant source files carry upstream attribution headers.
