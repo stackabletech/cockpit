@@ -77,7 +77,8 @@
         </button>
       {/if}
 
-      <div class="ml-auto">
+      <div class="ml-auto flex items-center gap-1">
+        <StorageSearch currentBucket={storage.bucket} />
         <button
           class="btn btn-ghost btn-xs gap-1 text-white"
           title={m.storage_action_refresh()}

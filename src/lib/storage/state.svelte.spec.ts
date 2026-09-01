@@ -95,6 +95,14 @@ function makeApi(overrides?: Partial<StorageApi>): StorageApi {
     async list() {
       return makePage();
     },
+    async search() {
+      return { results: [], truncated: false };
+    },
+    async listRecentSearches() {
+      return [];
+    },
+    async recordRecentSearch() {},
+    async clearRecentSearches() {},
     async copy(): Promise<CopyMoveResult> {
       return { results: [], failed: 0 };
     },
@@ -727,6 +735,25 @@ describe('handleKeydown', () => {
     dispatch(state, 'v', true);
 
     expect(addToast).not.toHaveBeenCalled();
+  });
+
+  it('does not handle Ctrl+A from an open dialog', () => {
+    const state = makeState();
+    const dialog = document.createElement('dialog');
+    const input = document.createElement('input');
+    dialog.setAttribute('open', '');
+    dialog.appendChild(input);
+    document.body.appendChild(dialog);
+    state.selectedKeys = new SvelteSet<string>(['file.txt']);
+
+    const event = new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true });
+    input.dispatchEvent(event);
+    state.handleKeydown(event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(state.selectedKeys).toEqual(new SvelteSet(['file.txt']));
+
+    dialog.remove();
   });
 
   it('F2 triggers rename when one item is selected', () => {

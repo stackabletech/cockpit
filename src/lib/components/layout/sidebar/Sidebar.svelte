@@ -105,6 +105,7 @@
             <TooltipTrigger text={collapsed ? item.label : null} orientation="right">
               <a
                 href={resolveRoute(item.href as any)}
+                data-sveltekit-preload-data="hover"
                 onclick={(e) => handleNavClick(e, item)}
                 onkeydown={(e) => handleNavKeydown(e, item)}
                 aria-label={collapsed ? item.label : undefined}

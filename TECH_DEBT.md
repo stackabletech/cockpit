@@ -114,6 +114,14 @@ Mobile viewport tests (393×851, touch-enabled) are excluded from CI runs to red
 
 ## Infrastructure
 
+### Storage search is a bounded provider scan, not an index
+
+**Files:** `src/lib/server/storage/s3-provider.ts`, `src/routes/(app)/api/storage/search/+server.ts`
+
+Bucket-scoped object search recursively lists provider keys and matches paths in process. The 50-result and 10,000-scanned-key caps, plus request abort support, bound resource use for now but can miss later matches in very large buckets. The long-term fix is an optional, provider-aware search index or asynchronously maintained object catalogue.
+
+---
+
 ### No Content Security Policy headers
 
 No CSP headers are set anywhere. This leaves the app exposed to XSS in ways that a strict CSP would mitigate. Should be added in a SvelteKit hook once the app stabilises.
