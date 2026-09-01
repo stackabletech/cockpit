@@ -50,7 +50,8 @@
     const encodedPrefix = prefix
       ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
       : '';
-    return resolve('/(app)/storage/[bucket]/[...prefix]', {
+    return resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
+      connection: storage.connectionId ?? '',
       bucket: encodeURIComponent(bucket),
       prefix: encodedPrefix
     });
