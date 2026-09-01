@@ -70,14 +70,6 @@ All server-side query state (progress, rows, status) is held in a module-level `
 
 ---
 
-### Single-file download limit
-
-**File:** `src/lib/storage/download.ts`, `src/lib/components/storage/FileExplorer.svelte`
-
-The Download action is intentionally restricted to a single file at a time. Multi-file or folder downloads (e.g. zipping selected items on the fly) are deferred to a future ticket. Until then, the Download button is disabled whenever more than one item is selected and is always disabled for directories.
-
----
-
 ### Completed query results are ephemeral (default 30-minute TTL)
 
 **File:** `src/lib/server/trino/queries.ts:20`
@@ -141,6 +133,14 @@ No CSP headers are set anywhere. This leaves the app exposed to XSS in ways that
 **File:** `vite.config.ts`
 
 The dev server accepts requests from any host. This enables DNS rebinding attacks against local development environments. Should be restricted to `localhost` / `127.0.0.1` unless remote dev access is explicitly needed.
+
+---
+
+### Archived downloads are sent without Content-Length
+
+**File:** `src/lib/server/storage/download-manifests.ts`
+
+The exact byte size of a streamed ZIP archive is only known after it has been produced, so the server no longer pre-computes or persists an archive size (`computeZipArchiveSize` and the `archive_size` column were removed). Archive part responses are therefore sent chunked without `Content-Length`; browsers show an indeterminate download size for `.zip` files. The download history UI reports the uncompressed payload total instead. Acceptable now because ZIP archives use the STORE method (no compression) and progress display is not critical. Long-term fix, if size reporting is wanted: compute the exact archive length server-side in a single pass before responding, e.g. by streaming to a temp file, at the cost of doubled I/O.
 
 ---
 

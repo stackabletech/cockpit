@@ -80,4 +80,84 @@ test.describe('Storage S3 — Download', () => {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
   });
+
+  test('downloads up to three selected files individually', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'dl-multiple');
+    const cleanupKeys = ['one.txt', 'two.txt', 'three.txt'].map((name) => `${prefix}${name}`);
+
+    try {
+      await Promise.all(
+        cleanupKeys.map((key) => putTextObject(client, credentials.bucket, key, key))
+      );
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await page.getByRole('button', { name: 'Toggle selection mode' }).click();
+      for (const name of ['one.txt', 'two.txt', 'three.txt']) {
+        await page.getByLabel(`Select ${name}`).check();
+      }
+
+      const downloads: string[] = [];
+      page.on('download', (download) => downloads.push(download.suggestedFilename()));
+      await page.getByRole('button', { name: 'Download', exact: true }).click();
+      await expect.poll(() => downloads.sort()).toEqual(['one.txt', 'three.txt', 'two.txt']);
+      expect(downloads.sort()).toEqual(['one.txt', 'three.txt', 'two.txt']);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('archives a selection larger than three files', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'dl-archive');
+    const cleanupKeys = ['one.txt', 'two.txt', 'three.txt', 'four.txt'].map(
+      (name) => `${prefix}${name}`
+    );
+
+    try {
+      await Promise.all(
+        cleanupKeys.map((key) => putTextObject(client, credentials.bucket, key, key))
+      );
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await page.getByRole('button', { name: 'Toggle selection mode' }).click();
+      for (const name of ['one.txt', 'two.txt', 'three.txt', 'four.txt']) {
+        await page.getByLabel(`Select ${name}`).check();
+      }
+
+      const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        page.getByRole('button', { name: 'Download', exact: true }).click()
+      ]);
+      expect(download.suggestedFilename()).toMatch(/\.zip$/);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('downloads a folder via its context menu when not in selection mode', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'dl-folder');
+    const cleanupKeys = [`${prefix}folder1/one.txt`, `${prefix}folder1/two.txt`];
+
+    try {
+      await Promise.all(
+        cleanupKeys.map((key) => putTextObject(client, credentials.bucket, key, key))
+      );
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'folder1').click({ button: 'right' });
+
+      const downloadBtn = page.getByRole('menuitem', { name: 'Download' });
+      await expect(downloadBtn).not.toHaveAttribute('disabled');
+
+      const [download] = await Promise.all([page.waitForEvent('download'), downloadBtn.click()]);
+      expect(download.suggestedFilename()).toMatch(/\.zip$/);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
 });

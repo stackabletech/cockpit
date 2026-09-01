@@ -123,7 +123,7 @@ export interface ClipboardData {
 
 export type OperationStatus = 'running' | 'done' | 'error' | 'cancelled' | 'interrupted';
 
-export type OperationType = 'paste' | 'move' | 'rename' | 'delete';
+export type OperationType = 'paste' | 'move' | 'rename' | 'delete' | 'download';
 
 export interface StorageOperation {
   id: string;
@@ -143,9 +143,9 @@ export interface StorageOperation {
   totalBytes: number;
   /** Bytes transferred so far (sum of completed items). */
   completedBytes: number;
-  /** Name of the file currently being transferred. */
+  /** Name of the file currently being transferred (single-item copy/move/paste). */
   currentFileName?: string;
-  /** Server-side job IDs per file for recovering results after reload. */
+  /** Server-side job IDs per file for recovering copy/move results after reload. */
   fileJobIds?: string[];
 }
 

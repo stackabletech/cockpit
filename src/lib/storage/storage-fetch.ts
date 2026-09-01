@@ -54,7 +54,18 @@ export function createStorageFetch(
 
     if (!response.ok) {
       const code = mapStatusToCode(response.status);
-      throw new StorageError(code, `Request failed with status ${response.status}`);
+      const body = await response
+        .clone()
+        .json()
+        .catch(() => null);
+      const message =
+        typeof body === 'object' &&
+        body !== null &&
+        'message' in body &&
+        typeof body.message === 'string'
+          ? body.message
+          : `Request failed with status ${response.status}`;
+      throw new StorageError(code, message);
     }
 
     return response;

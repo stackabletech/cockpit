@@ -81,6 +81,30 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
       return { status: 'done' };
     },
 
+    async cancelJob() {
+      // no-op
+    },
+
+    async createDownloadManifest() {
+      return {
+        id: 'download-manifest',
+        files: [],
+        expiresAt: new Date().toISOString()
+      };
+    },
+
+    async listDownloadHistory() {
+      return [];
+    },
+
+    async clearDownloadHistory() {
+      // no-op
+    },
+
+    async recreateDownloadManifest() {
+      return { id: 'download-manifest', files: [], expiresAt: new Date().toISOString() };
+    },
+
     async checkObjectExists() {
       return false;
     },

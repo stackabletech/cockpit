@@ -37,15 +37,8 @@ export const userStorageConnections = pgTable(
 );
 
 /**
- * Recent storage searches table.
- * Stores the most recently executed storage searches per user and connection.
- * A single row represents one logical search — the query and advanced options
- * plus the ordered list of buckets it ran against. Buckets are kept sorted so
- * the unique key below is order-independent. Postgres treats NULLs as distinct
- * in unique constraints by default, so identical searches with a NULL
- * `max_depth` ("no limit") would not conflict; the migration recreates this
- * constraint with `NULLS NOT DISTINCT` so they always resolve to a single row.
- * The modifier is not modelled in the Drizzle schema.
+ * Recent storage searches per user and connection. Buckets are sorted before
+ * persistence so their order does not affect the unique search identity.
  */
 export const userRecentSearches = pgTable(
   'user_recent_searches',
@@ -76,4 +69,25 @@ export const userRecentSearches = pgTable(
     ),
     index('user_recent_searches_connection_idx').on(table.userId, table.connectionId)
   ]
+);
+
+/**
+ * Immutable user download-history metadata. Connection credentials remain solely
+ * in user_storage_connections.
+ */
+export const storageDownloadManifests = pgTable(
+  'storage_download_manifests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').notNull(),
+    connectionId: uuid('connection_id').notNull(),
+    bucket: text('bucket').notNull(),
+    prefix: text('prefix').notNull(),
+    entries: jsonb('entries').notNull(),
+    format: text('format').notNull(),
+    archive: text('archive'),
+    createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+    expiresAt: timestamp('expires_at', { mode: 'date' }).notNull()
+  },
+  (table) => [index('storage_download_manifests_user_expiry_idx').on(table.userId, table.expiresAt)]
 );

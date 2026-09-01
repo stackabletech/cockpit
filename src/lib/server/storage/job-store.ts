@@ -9,11 +9,12 @@ export interface JobProgress {
 }
 
 interface JobEntry<T> {
-  status: 'running' | 'done' | 'error';
+  status: 'running' | 'done' | 'error' | 'cancelled';
   result: T | null;
   error?: string;
   createdAt: number;
   progress: JobProgress;
+  cancel?: () => Promise<void> | void;
 }
 
 const store = new Map<string, JobEntry<unknown>>();
@@ -52,6 +53,22 @@ export function createJob(id: string): void {
   });
 }
 
+/** Attach a response stream's cancellation callback to a running job. */
+export function setJobCancellation(id: string, cancel: () => Promise<void> | void): void {
+  const entry = store.get(id);
+  if (entry?.status === 'running') entry.cancel = cancel;
+}
+
+/** Cancel a job and its active response stream. */
+export async function cancelJob(id: string): Promise<boolean> {
+  const entry = store.get(id);
+  if (!entry || entry.status !== 'running') return false;
+  entry.status = 'cancelled';
+  await entry.cancel?.();
+  log.trace({ job_id: id }, 'job cancelled');
+  return true;
+}
+
 /**
  * Update the progress of a running job.
  */
@@ -71,7 +88,7 @@ export function updateJobProgress(id: string, progress: Partial<JobProgress>): v
  */
 export function completeJob<T>(id: string, result: T): void {
   const entry = store.get(id);
-  if (!entry) return;
+  if (!entry || entry.status !== 'running') return;
   entry.status = 'done' as const;
   (entry as JobEntry<T>).result = result;
   log.trace({ job_id: id }, 'job completed');
@@ -82,10 +99,18 @@ export function completeJob<T>(id: string, result: T): void {
  */
 export function failJob(id: string, error: string): void {
   const entry = store.get(id);
-  if (!entry) return;
+  if (!entry || entry.status !== 'running') return;
   entry.status = 'error' as const;
   entry.error = error;
   log.trace({ job_id: id, error }, 'job failed');
+}
+
+/** Mark a job cancelled when the browser abandons its native download. */
+export function cancelJobFromStream(id: string): void {
+  const entry = store.get(id);
+  if (!entry || entry.status !== 'running') return;
+  entry.status = 'cancelled';
+  log.trace({ job_id: id }, 'job cancelled by download stream');
 }
 
 /**
