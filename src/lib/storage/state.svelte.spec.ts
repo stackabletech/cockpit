@@ -194,10 +194,6 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-// ────────────────────────────────────────────────────────────────────────────
-// executeAction – cut
-// ────────────────────────────────────────────────────────────────────────────
-
 describe('executeAction("cut")', () => {
   it('sets clipboard with action="cut" and selected keys', async () => {
     const state = makeState();
@@ -239,10 +235,6 @@ describe('executeAction("cut")', () => {
   });
 });
 
-// ────────────────────────────────────────────────────────────────────────────
-// executeAction – copy
-// ────────────────────────────────────────────────────────────────────────────
-
 describe('executeAction("copy")', () => {
   it('sets clipboard with action="copy" and selected keys', async () => {
     const state = makeState();
@@ -272,10 +264,6 @@ describe('executeAction("copy")', () => {
     expect(state.clipboard).toBeNull();
   });
 });
-
-// ────────────────────────────────────────────────────────────────────────────
-// isCutKey
-// ────────────────────────────────────────────────────────────────────────────
 
 describe('isCutKey', () => {
   it('returns true when key is in clipboard with cut action and matching bucket', () => {
@@ -338,10 +326,6 @@ describe('isCutKey', () => {
     expect(state.isCutKey('file.txt')).toBe(false);
   });
 });
-
-// ────────────────────────────────────────────────────────────────────────────
-// executeAction – paste
-// ────────────────────────────────────────────────────────────────────────────
 
 describe('executeAction("paste")', () => {
   it('shows warning when inside an archive', async () => {

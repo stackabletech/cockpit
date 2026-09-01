@@ -5,6 +5,7 @@
   import IconDelete from 'virtual:icons/material-symbols/delete';
   import IconRefresh from 'virtual:icons/material-symbols/refresh';
   import * as m from '$lib/paraglide/messages.js';
+  import StorageSearch from '$lib/components/storage/StorageSearch.svelte';
   import { getStorageState } from '$lib/storage/context.js';
   import { formatFileSize } from '$lib/storage/utils.js';
 
