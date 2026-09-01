@@ -213,7 +213,7 @@ test.describe('Storage Search', () => {
       const picker = page.getByRole('dialog', { name: 'Date picker' });
       await expect(picker).toBeVisible();
       await expect(picker).toContainText('March 2027');
-      await page.keyboard.press('Escape');
+      await picker.evaluate((element) => (element as HTMLElement).hidePopover());
 
       // Invalid size values disable the search button.
       await page.getByLabel('Size value').fill('not-a-size');
