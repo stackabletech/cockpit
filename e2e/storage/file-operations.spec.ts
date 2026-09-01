@@ -353,7 +353,8 @@ test.describe('Storage S3 — File Operations', () => {
     const prefix = uniquePrefix(testInfo, 'kb-cut-paste');
     const srcKey = `${prefix}cutsrc/`;
     const srcFile = `${srcKey}cut-kb.txt`;
-    const cleanupKeys = [srcFile];
+    const destFile = `${prefix}cut-kb.txt`;
+    const cleanupKeys = [srcFile, destFile];
 
     try {
       await putDirectoryMarker(client, credentials.bucket, srcKey);
@@ -379,7 +380,7 @@ test.describe('Storage S3 — File Operations', () => {
       await page.waitForTimeout(1000);
 
       // File should exist at destination
-      expect(await objectExists(client, credentials.bucket, `${prefix}cut-kb.txt`)).toBe(true);
+      expect(await objectExists(client, credentials.bucket, destFile)).toBe(true);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
