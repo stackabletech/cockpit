@@ -25,10 +25,6 @@ export interface SearchOptions {
   maxDepth?: number;
   /** Abort the in-flight search; throws `AbortError` when signalled. */
   signal?: AbortSignal;
-  /** Decide whether a scanned key matches the search. */
-  matches?: (item: SearchResultItem) => boolean;
-  /** Called immediately after each accepted result. */
-  onMatch?: (item: SearchResultItem) => void;
 }
 
 /** Options for progressive key listing. */

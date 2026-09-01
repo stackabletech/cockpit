@@ -1,18 +1,9 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import type { SearchSession, StorageSearchState } from '$lib/storage/search.svelte.js';
-  import {
-    parseDateFilterValue,
-    parseSizeFilterValue,
-    type SearchFilter
-  } from '$lib/storage/search-filter.js';
-  import { createSafeSearchRegex } from '$lib/storage/search-regex.js';
   import BucketSelect from '$lib/components/storage/BucketSelect.svelte';
-  import SearchFilterRow from '$lib/components/storage/SearchFilterRow.svelte';
-  import IconAdd from 'virtual:icons/material-symbols/add';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconSearch from 'virtual:icons/material-symbols/search';
-  import IconStop from 'virtual:icons/material-symbols/stop';
 
   interface Props {
     id: string;
@@ -23,43 +14,8 @@
 
   let { id, session, buckets, state }: Props = $props();
 
-  /**
-   * Focus the query input shortly after the modal mounts. The delay defers past
-   * the native dialog's showModal() focus, which would otherwise land on the
-   * first focusable element (the header button).
-   */
-  function autofocus(node: HTMLInputElement): void {
-    setTimeout(() => node.focus(), 0);
-  }
-
   function update(patch: Partial<SearchSession>): void {
     state.updateSession(session.id, patch);
-  }
-
-  function updateFilter(filterId: string, patch: Partial<SearchFilter>): void {
-    state.updateFilter(filterId, patch);
-  }
-
-  const hasInvalidFilter = $derived(
-    session.filters.some((filter) => {
-      if (filter.value.trim() === '') return false;
-      return filter.field === 'date'
-        ? parseDateFilterValue(filter) === null
-        : parseSizeFilterValue(filter) === null;
-    })
-  );
-
-  const regexValid = $derived(
-    !session.useRegex || session.query.trim() === '' || isSafeRegex(session.query.trim())
-  );
-
-  function isSafeRegex(pattern: string): boolean {
-    try {
-      createSafeSearchRegex(pattern);
-      return true;
-    } catch {
-      return false;
-    }
   }
 </script>
 
@@ -78,7 +34,6 @@
         id="{id}-query"
         class="min-w-0 grow font-mono text-sm"
         type="search"
-        use:autofocus
         value={session.query}
         oninput={(event) => update({ query: event.currentTarget.value })}
         placeholder={session.useRegex
@@ -86,32 +41,26 @@
           : m.storage_search_query_placeholder()}
         autocomplete="off"
       />
+      {#if session.useRegex}<span class="badge badge-primary badge-xs font-mono"
+          >{m.storage_search_regex_badge()}</span
+        >{/if}
     </div>
     <button
-      type="button"
-      class:btn-primary={session.useRegex}
-      class="btn"
-      aria-pressed={session.useRegex}
-      title={m.storage_search_regex_label()}
-      onclick={() => update({ useRegex: !session.useRegex })}
-      >{m.storage_search_regex_badge()}</button
+      type="submit"
+      class="btn btn-primary"
+      disabled={session.status === 'running' || !session.query.trim()}
+      >{#if session.status === 'running'}<span
+          class="loading loading-spinner loading-sm"
+          aria-hidden="true"
+        ></span>{:else}<IconSearch
+          class="size-4"
+          aria-hidden="true"
+        />{/if}{m.storage_search_submit()}</button
     >
-    {#if session.status === 'running'}
-      <button type="button" class="btn btn-outline" onclick={() => state.cancel(session.id)}
-        ><IconStop class="size-4" aria-hidden="true" />{m.storage_search_cancel()}</button
-      >
-    {:else}
-      <button type="submit" class="btn btn-primary" disabled={hasInvalidFilter || !regexValid}
-        ><IconSearch class="size-4" aria-hidden="true" />{m.storage_search_submit()}</button
-      >
-    {/if}
   </div>
-  {#if !regexValid}
-    <p class="text-error text-xs" role="alert">{m.storage_search_regex_invalid()}</p>
-  {/if}
 
   <div class="flex flex-col gap-3">
-    <fieldset class="flex flex-col gap-2 sm:flex-row sm:items-center">
+    <fieldset class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
       <legend class="text-base-content/60 w-24 shrink-0 text-xs font-medium"
         >{m.storage_search_scope_label()}</legend
       >
@@ -128,27 +77,14 @@
       >{m.storage_search_advanced_options()}</summary
     >
     <div class="collapse-content flex flex-col gap-3 pt-1">
-      <fieldset>
-        <legend class="text-base-content/60 mb-1 block text-xs"
-          >{m.storage_search_filters_label()}</legend
-        >
-        <div class="flex flex-col gap-2">
-          {#each session.filters as filter (filter.id)}
-            <SearchFilterRow
-              {filter}
-              onupdate={(patch) => updateFilter(filter.id, patch)}
-              onremove={() => state.removeFilter(filter.id)}
-            />
-          {/each}
-        </div>
-        <button
-          type="button"
-          class="btn btn-ghost btn-xs mt-2 gap-1"
-          aria-label={m.storage_search_filter_add()}
-          onclick={() => state.addFilter()}
-          ><IconAdd class="size-3.5" aria-hidden="true" />{m.storage_search_filter_add()}</button
-        >
-      </fieldset>
+      <label class="text-base-content/60 flex items-center justify-between gap-3 text-xs"
+        >{m.storage_search_regex_label()}<input
+          type="checkbox"
+          class="toggle toggle-primary toggle-sm"
+          checked={session.useRegex}
+          onchange={(event) => update({ useRegex: event.currentTarget.checked })}
+        /></label
+      >
       <div>
         <label for="{id}-exclude" class="text-base-content/60 mb-1 block text-xs"
           >{m.storage_search_exclude_patterns()}</label
@@ -199,15 +135,11 @@
             id="{id}-depth"
             class="input input-sm w-full font-mono"
             type="number"
-            min="0"
+            min="1"
             max="20"
             value={session.maxDepth ?? ''}
-            oninput={(event) => {
-              const input = event.currentTarget;
-              const maxDepth = input.valueAsNumber > 0 ? input.valueAsNumber : undefined;
-              input.value = maxDepth === undefined ? '' : String(maxDepth);
-              update({ maxDepth });
-            }}
+            oninput={(event) =>
+              update({ maxDepth: event.currentTarget.valueAsNumber || undefined })}
             placeholder={m.storage_search_depth_placeholder()}
           />
         </div>

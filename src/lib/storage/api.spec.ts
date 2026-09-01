@@ -128,20 +128,17 @@ describe('createFetchStorageApi', () => {
       const api = createFetchStorageApi(() => 'conn-1');
       const controller = new AbortController();
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        ndjsonResponse([
-          JSON.stringify({
-            type: 'complete',
-            results: [
-              {
-                key: 'report.txt',
-                size: 1,
-                lastModified: '2026-08-12T12:00:00.000Z',
-                isDirectory: false
-              }
-            ],
-            truncated: false
-          })
-        ])
+        jsonResponse({
+          results: [
+            {
+              key: 'report.txt',
+              size: 1,
+              lastModified: '2026-08-12T12:00:00.000Z',
+              isDirectory: false
+            }
+          ],
+          truncated: false
+        })
       );
 
       const result = await api.search({
@@ -161,11 +158,11 @@ describe('createFetchStorageApi', () => {
     it('lists recent searches', async () => {
       const api = createFetchStorageApi(() => 'conn-1');
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        jsonResponse([{ bucket: 'documents', query: 'report' }])
+        jsonResponse([{ buckets: ['documents'], query: 'report' }])
       );
 
       await expect(api.listRecentSearches()).resolves.toEqual([
-        { bucket: 'documents', query: 'report' }
+        { buckets: ['documents'], query: 'report' }
       ]);
       expect(vi.mocked(globalThis.fetch).mock.calls[0]![0]).toBe('/api/storage/search/history');
     });
@@ -174,10 +171,27 @@ describe('createFetchStorageApi', () => {
       const api = createFetchStorageApi(() => 'conn-1');
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
 
-      await api.recordRecentSearch({ bucket: 'documents', query: 'report' });
+      await api.recordRecentSearch({
+        buckets: ['documents', 'archive'],
+        query: 'report',
+        useRegex: true,
+        excludePatterns: ['_temp'],
+        searchPath: 'events/',
+        maxDepth: 3
+      });
       await api.clearRecentSearches();
 
-      expect(vi.mocked(globalThis.fetch).mock.calls[0]![1]).toMatchObject({ method: 'POST' });
+      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      expect(url).toBe('/api/storage/search/history');
+      expect(init).toMatchObject({ method: 'POST' });
+      expect(JSON.parse(String(init?.body))).toEqual({
+        buckets: ['documents', 'archive'],
+        query: 'report',
+        useRegex: true,
+        excludePatterns: ['_temp'],
+        searchPath: 'events/',
+        maxDepth: 3
+      });
       expect(vi.mocked(globalThis.fetch).mock.calls[1]![1]).toMatchObject({ method: 'DELETE' });
     });
   });

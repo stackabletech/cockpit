@@ -1,10 +1,6 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import type { SearchSession, StorageSearchState } from '$lib/storage/search.svelte.js';
-  import {
-    positionPopoverRelativeToTrigger,
-    supportsAnchorPositioning
-  } from '$lib/components/popover-position.js';
   import IconArrowDropDown from 'virtual:icons/material-symbols/arrow-drop-down';
   import IconArrowDropUp from 'virtual:icons/material-symbols/arrow-drop-up';
   import IconCheck from 'virtual:icons/material-symbols/check';
@@ -23,25 +19,12 @@
   const anchorName = `--bucket-select-${uid}`;
 
   let popoverEl = $state<HTMLDivElement>();
-  let triggerEl = $state<HTMLButtonElement>();
   let open = $state(false);
   let filter = $state('');
   let filterInput = $state<HTMLInputElement>();
 
   const selectedCount = $derived(session.selectedBuckets.length);
   const selectedSummary = $derived(session.selectedBuckets.join(', '));
-  const FIRST_BUCKETS_IN_SUMMARY = 2;
-  const selectedLabel = $derived(
-    selectedCount === 0
-      ? ''
-      : selectedCount > FIRST_BUCKETS_IN_SUMMARY
-        ? `${session.selectedBuckets
-            .slice(0, FIRST_BUCKETS_IN_SUMMARY)
-            .join(', ')}, ${m.storage_search_scope_more({
-            count: selectedCount - FIRST_BUCKETS_IN_SUMMARY
-          })}`
-        : selectedSummary
-  );
   const filteredBuckets = $derived(
     buckets.filter((bucket) => bucket.toLowerCase().includes(filter.trim().toLowerCase()))
   );
@@ -58,12 +41,6 @@
     const newState = (event as Event & { newState: 'open' | 'closed' }).newState;
     open = newState === 'open';
     if (newState === 'open') {
-      if (!supportsAnchorPositioning() && triggerEl && popoverEl) {
-        positionPopoverRelativeToTrigger(triggerEl, popoverEl, {
-          align: 'end',
-          matchWidth: true
-        });
-      }
       filterInput?.focus();
     } else {
       filter = '';
@@ -93,16 +70,14 @@
   }
 </script>
 
-<div class="flex-1">
+<div class="relative min-w-0 flex-1">
   <button
     type="button"
     class="input focus:border-primary cursor-pointer gap-2 pe-2 text-left font-normal"
-    bind:this={triggerEl}
     popovertarget={popoverId}
     style={`anchor-name:${anchorName}`}
     aria-expanded={open}
     aria-controls={popoverId}
-    title={selectedCount === 0 ? m.storage_search_all_buckets() : selectedSummary}
     onkeydown={handleTriggerKeydown}
   >
     {#if selectedCount === 0}
@@ -110,7 +85,7 @@
         {m.storage_search_all_buckets()}
       </span>
     {:else}
-      <span class="min-w-0 flex-1 truncate">{selectedLabel}</span>
+      <span class="min-w-0 flex-1 truncate">{selectedSummary}</span>
     {/if}
     {#if open}
       <IconArrowDropUp
@@ -167,9 +142,7 @@
           <span>{m.storage_search_scope_all()}</span>
         </button>
       </li>
-      <li class="pointer-events-none" role="presentation">
-        <hr class="border-base-300 my-1" aria-hidden="true" />
-      </li>
+      <li><hr class="border-base-300 my-1" /></li>
       {#if filteredBuckets.length === 0}
         <li>
           <span class="text-base-content/40 pointer-events-none block px-3 py-2 text-sm italic"

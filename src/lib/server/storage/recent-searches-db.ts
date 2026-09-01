@@ -9,10 +9,24 @@ let lastRecordedAt = 0;
 /** Maximum number of recent searches kept per user and connection. */
 export const RECENT_SEARCHES_CAP = 20;
 
-/** A single stored recent search. */
+/** The advanced options recorded alongside a recent search. */
+export interface RecentSearchOptions {
+  useRegex: boolean;
+  excludePatterns: string[];
+  searchPath: string;
+  maxDepth: number | null;
+}
+
+/** A single stored recent search: the query and advanced options plus the
+ *  ordered list of buckets it ran against. Only `maxDepth` can be NULL
+ *  (meaning "no limit"). */
 export interface RecentSearch {
-  bucket: string;
+  buckets: string[];
   query: string;
+  useRegex: boolean;
+  excludePatterns: string[];
+  searchPath: string;
+  maxDepth: number | null;
 }
 
 /**
@@ -24,7 +38,14 @@ export async function listRecentSearches(
   connectionId: string
 ): Promise<RecentSearch[]> {
   const rows = await db
-    .select({ bucket: userRecentSearches.bucket, query: userRecentSearches.query })
+    .select({
+      buckets: userRecentSearches.buckets,
+      query: userRecentSearches.query,
+      useRegex: userRecentSearches.useRegex,
+      excludePatterns: userRecentSearches.excludePatterns,
+      searchPath: userRecentSearches.searchPath,
+      maxDepth: userRecentSearches.maxDepth
+    })
     .from(userRecentSearches)
     .where(
       and(eq(userRecentSearches.userId, userId), eq(userRecentSearches.connectionId, connectionId))
@@ -36,31 +57,51 @@ export async function listRecentSearches(
 }
 
 /**
- * Record a search for a user and connection. If an identical search already
- * exists it is bumped to the top, otherwise a new row is inserted. Afterwards
- * the history is pruned down to RECENT_SEARCHES_CAP entries.
+ * Record a search for a user and connection. If an identical search — same
+ * buckets, query and advanced options — already exists it is bumped to the top,
+ * otherwise a new row is inserted. Afterwards the history is pruned down to
+ * RECENT_SEARCHES_CAP entries.
+ *
+ * `buckets` is stored sorted so the unique key is independent of the order in
+ * which the user selected the buckets.
  */
 export async function recordRecentSearch(
   userId: string,
   connectionId: string,
-  bucket: string,
-  query: string
+  buckets: string[],
+  query: string,
+  options: RecentSearchOptions
 ): Promise<void> {
   // JavaScript dates have millisecond precision. Keep writes strictly ordered
   // so replaying a search always moves it ahead of an earlier same-ms record.
   lastRecordedAt = Math.max(Date.now(), lastRecordedAt + 1);
   const now = new Date(lastRecordedAt);
+  const sortedBuckets = [...new Set(buckets)].sort();
 
-  // Upsert on the unique (user, connection, bucket, query) key.
+  // Upsert on the unique (user, connection, buckets, query, options) key.
   await db
     .insert(userRecentSearches)
-    .values({ userId, connectionId, bucket, query, updatedAt: now })
+    .values({
+      userId,
+      connectionId,
+      buckets: sortedBuckets,
+      query,
+      useRegex: options.useRegex,
+      excludePatterns: options.excludePatterns,
+      searchPath: options.searchPath,
+      maxDepth: options.maxDepth,
+      updatedAt: now
+    })
     .onConflictDoUpdate({
       target: [
         userRecentSearches.userId,
         userRecentSearches.connectionId,
-        userRecentSearches.bucket,
-        userRecentSearches.query
+        userRecentSearches.query,
+        userRecentSearches.useRegex,
+        userRecentSearches.excludePatterns,
+        userRecentSearches.searchPath,
+        userRecentSearches.maxDepth,
+        userRecentSearches.buckets
       ],
       set: { updatedAt: now }
     });

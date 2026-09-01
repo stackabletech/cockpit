@@ -752,6 +752,7 @@ export class StorageState {
 
   handleKeydown = (e: KeyboardEvent): void => {
     if (this.activeModal) return;
+    if (e.target instanceof Element && e.target.closest('dialog[open]')) return;
     if (this.archive.isInArchive && e.key !== 'Escape') return;
 
     const isCtrl = e.ctrlKey || e.metaKey;
