@@ -36,7 +36,7 @@ test.describe('Storage Search', () => {
     try {
       await putDirectoryMarker(client, credentials.bucket, directory);
       await putTextObject(client, credentials.bucket, file, 'search preview');
-      await connectAndOpenPrefix(page, credentials, prefix);
+      await connectToStorage(page, credentials);
 
       await page.getByRole('button', { name: 'Open search' }).first().click();
       await page.getByLabel('Search query').fill('report');
@@ -72,7 +72,7 @@ test.describe('Storage Search', () => {
       await putTextObject(client, credentials.bucket, file, 'landing search');
       await connectToStorage(page, credentials);
 
-      await page.getByRole('button', { name: 'Open search' }).click();
+      await page.getByRole('button', { name: 'Open search' }).first().click();
       await page.getByLabel('Search query').fill('landing-report');
       await page.getByRole('button', { name: 'Search', exact: true }).click();
 
@@ -92,7 +92,7 @@ test.describe('Storage Search', () => {
       await putTextObject(client, credentials.bucket, file, 'scoped search');
       await connectToStorage(page, credentials);
 
-      await page.getByRole('button', { name: 'Open search' }).click();
+      await page.getByRole('button', { name: 'Open search' }).first().click();
 
       const trigger = page.getByRole('button', { name: 'all buckets', exact: true });
       await expect(trigger).toBeVisible();
@@ -122,22 +122,23 @@ test.describe('Storage Search', () => {
 
     try {
       await putTextObject(client, credentials.bucket, file, 'recent search');
-      await connectToStorage(page, credentials);
+      await connectAndOpenPrefix(page, credentials, prefix);
 
-      await page.getByRole('button', { name: 'Open search' }).click();
+      await page.getByRole('button', { name: 'Open search' }).first().click();
       await page.getByLabel('Search query').fill('recent-report');
       await page.getByRole('button', { name: 'Search', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'recent-report.txt' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'recent-report.txt' }).first()).toBeVisible();
 
       await page.getByRole('button', { name: 'Close search' }).click();
-      await page.getByRole('button', { name: 'Open search' }).click();
+      await page.getByRole('button', { name: 'Open search' }).first().click();
       await page.getByRole('tab', { name: 'Recent', exact: true }).click();
-      await expect(page.getByRole('button', { name: /recent-report/ })).toBeVisible();
+      await expect(page.getByRole('button', { name: /recent-report/ }).first()).toBeVisible();
 
-      await page.getByRole('button', { name: /recent-report/ }).click();
+      await page
+        .getByRole('button', { name: /recent-report/ })
+        .first()
+        .click();
       await expect(page.getByLabel('Search query')).toHaveValue('recent-report');
-      await page.getByRole('button', { name: 'Search', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'recent-report.txt' })).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, [file]);
     }

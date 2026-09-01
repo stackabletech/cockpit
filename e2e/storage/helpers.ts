@@ -158,6 +158,7 @@ export async function connectAndOpenPrefix(
  */
 export async function waitForObjectsLoaded(page: Page) {
   await waitForHydration(page);
+  await page.getByLabel('Loading…').waitFor({ state: 'hidden', timeout: 15_000 });
   await page
     .locator('tbody tr')
     .or(page.getByText('This bucket is empty'))
