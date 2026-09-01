@@ -38,7 +38,7 @@ test.describe('Storage Search', () => {
       await putTextObject(client, credentials.bucket, file, 'search preview');
       await connectAndOpenPrefix(page, credentials, prefix);
 
-      await page.getByRole('button', { name: 'Open search' }).click();
+      await page.getByRole('button', { name: 'Open search' }).first().click();
       await page.getByLabel('Search query').fill('report');
       await page.getByRole('button', { name: 'Search', exact: true }).click();
 
@@ -46,7 +46,7 @@ test.describe('Storage Search', () => {
       await page.getByRole('button', { name: /reports.*\/reports\// }).click();
       await expect(page).toHaveURL(bucketRoute(credentials.bucket, directory));
 
-      await page.getByRole('button', { name: 'Open search' }).click();
+      await page.getByRole('button', { name: 'Open search' }).first().click();
       await page.getByRole('button', { name: 'Parallel search' }).click();
       await expect(page.getByRole('navigation', { name: 'Search sessions' })).toBeVisible();
       await page.getByLabel('Search query').fill('final-report');
