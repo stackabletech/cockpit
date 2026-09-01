@@ -128,17 +128,20 @@ describe('createFetchStorageApi', () => {
       const api = createFetchStorageApi(() => 'conn-1');
       const controller = new AbortController();
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        jsonResponse({
-          results: [
-            {
-              key: 'report.txt',
-              size: 1,
-              lastModified: '2026-08-12T12:00:00.000Z',
-              isDirectory: false
-            }
-          ],
-          truncated: false
-        })
+        ndjsonResponse([
+          JSON.stringify({
+            type: 'complete',
+            results: [
+              {
+                key: 'report.txt',
+                size: 1,
+                lastModified: '2026-08-12T12:00:00.000Z',
+                isDirectory: false
+              }
+            ],
+            truncated: false
+          })
+        ])
       );
 
       const result = await api.search({

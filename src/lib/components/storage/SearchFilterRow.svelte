@@ -91,7 +91,8 @@
         class="grow"
         placeholder={m.storage_search_filter_date_placeholder()}
         invalid={hasError}
-        bind:value={filter.value}
+        value={filter.value}
+        onchange={(value) => onupdate({ value })}
       />
     {/if}
   </div>

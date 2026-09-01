@@ -31,7 +31,7 @@ describe('GET /api/storage/search', () => {
     mockProvider.listContainers.mockResolvedValue(['documents']);
   });
 
-  it('delegates a bounded search with the request abort signal', async () => {
+  it('streams a bounded search with backend filtering and the request abort signal', async () => {
     const controller = new AbortController();
     mockProvider.search.mockResolvedValue({
       results: [
@@ -41,21 +41,36 @@ describe('GET /api/storage/search', () => {
     });
 
     const response = await GET(
-      mockEvent('bucket=documents&q=report&prefix=reports%2F&maxDepth=2', controller.signal)
+      mockEvent(
+        'bucket=documents&q=report&prefix=reports%2F&maxDepth=2&regex=true&exclude=archive',
+        controller.signal
+      )
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      results: [{ key: 'reports/final.pdf' }],
-      truncated: false
-    });
+    expect(response.headers.get('Content-Type')).toContain('application/x-ndjson');
+    await expect(response.text()).resolves.toContain('"type":"complete"');
     expect(mockProvider.search).toHaveBeenCalledWith('report', {
       maxResults: 50,
       maxKeysScanned: 10000,
       prefix: 'reports/',
       maxDepth: 2,
-      signal: expect.any(AbortSignal)
+      signal: expect.any(AbortSignal),
+      matches: expect.any(Function),
+      onMatch: expect.any(Function)
     });
+    const { matches } = mockProvider.search.mock.calls[0][1];
+    expect(
+      matches({ key: 'reports/final.pdf', size: 42, lastModified: new Date(), isDirectory: false })
+    ).toBe(true);
+    expect(
+      matches({
+        key: 'reports/archive.pdf',
+        size: 42,
+        lastModified: new Date(),
+        isDirectory: false
+      })
+    ).toBe(false);
     expect(storageSearchTotal.inc).toHaveBeenCalledWith({ outcome: 'success', truncated: 'false' });
   });
 
@@ -64,7 +79,7 @@ describe('GET /api/storage/search', () => {
 
     const response = await GET(mockEvent('bucket=documents&q=report'));
 
-    await expect(response.json()).resolves.toEqual({ results: [], truncated: true });
+    await expect(response.text()).resolves.toContain('"truncated":true');
     expect(storageSearchTotal.inc).toHaveBeenCalledWith({ outcome: 'success', truncated: 'true' });
   });
 
@@ -85,12 +100,11 @@ describe('GET /api/storage/search', () => {
     });
   });
 
-  it('maps an unexpected provider failure to 502', async () => {
+  it('streams an unexpected provider failure', async () => {
     mockProvider.search.mockRejectedValue(new Error('connection reset'));
 
-    await expect(GET(mockEvent('bucket=documents&q=report'))).rejects.toMatchObject({
-      status: 502
-    });
+    const response = await GET(mockEvent('bucket=documents&q=report'));
+    await expect(response.text()).resolves.toContain('"type":"error"');
     expect(storageSearchTotal.inc).toHaveBeenCalledWith({ outcome: 'error', truncated: 'false' });
   });
 

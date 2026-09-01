@@ -1,5 +1,10 @@
 import { SvelteMap } from 'svelte/reactivity';
 import * as m from '$lib/paraglide/messages.js';
+import {
+  isUsableFilter,
+  type SearchFilter,
+  type SearchFilterField
+} from '$lib/storage/search-filter.js';
 import type { StorageApi } from '$lib/storage/api.js';
 import type { RecentSearchEntry, SearchResultItem } from '$lib/storage/types.js';
 
@@ -18,6 +23,7 @@ export interface SearchSession {
   excludePatterns: string[];
   searchPath: string;
   maxDepth: number | undefined;
+  filters: SearchFilter[];
   results: SearchResult[];
   status: SearchStatus;
   elapsed: number;
@@ -26,7 +32,9 @@ export interface SearchSession {
 
 export class StorageSearchState {
   private sessionCounter = 1;
+  private filterCounter = 0;
   private controllers = new SvelteMap<string, AbortController>();
+  private started = new SvelteMap<string, number>();
   private readonly api: StorageApi;
   private readonly getBuckets: () => string[];
   private readonly getCurrentBucket: () => string | undefined;
@@ -148,6 +156,35 @@ export class StorageSearchState {
     this.updateSession(active.id, { selectedBuckets: buckets });
   }
 
+  private newFilterId(): string {
+    this.filterCounter += 1;
+    return `f${this.filterCounter}`;
+  }
+
+  addFilter(field: SearchFilterField = 'date'): void {
+    const active = this.active;
+    if (!active) return;
+    this.updateSession(active.id, {
+      filters: [...active.filters, { id: this.newFilterId(), field, operator: '>', value: '' }]
+    });
+  }
+
+  removeFilter(id: string): void {
+    const active = this.active;
+    if (!active) return;
+    this.updateSession(active.id, {
+      filters: active.filters.filter((filter) => filter.id !== id)
+    });
+  }
+
+  updateFilter(id: string, patch: Partial<SearchFilter>): void {
+    const active = this.active;
+    if (!active) return;
+    this.updateSession(active.id, {
+      filters: active.filters.map((filter) => (filter.id === id ? { ...filter, ...patch } : filter))
+    });
+  }
+
   updateSession(id: string, patch: Partial<SearchSession>): void {
     this.sessions = this.sessions.map((session) =>
       session.id === id ? { ...session, ...patch } : session
@@ -183,6 +220,7 @@ export class StorageSearchState {
     this.controllers.set(id, controller);
     this.updateSession(id, { status: 'running', results: [], elapsed: 0, truncated: false });
     const started = performance.now();
+    this.started.set(id, started);
 
     try {
       const responses = await Promise.all(
@@ -193,6 +231,12 @@ export class StorageSearchState {
               query: trimmedQuery,
               prefix: session.searchPath,
               maxDepth: session.maxDepth,
+              useRegex: session.useRegex,
+              excludePatterns: session.excludePatterns,
+              filters: session.filters
+                .filter((filter) => filter.value.trim() !== '')
+                .filter(isUsableFilter)
+                .map(({ field, operator, value }) => ({ field, operator, value })),
               signal: controller.signal
             })
             .then((response) => ({ bucket, ...response }))
@@ -219,7 +263,17 @@ export class StorageSearchState {
       }
     } finally {
       if (this.controllers.get(id) === controller) this.controllers.delete(id);
+      this.started.delete(id);
     }
+  }
+
+  cancel(id: string): void {
+    const session = this.sessions.find((item) => item.id === id);
+    if (!session || session.status !== 'running') return;
+    this.controllers.get(id)?.abort();
+    const startedAt = this.started.get(id);
+    const elapsed = startedAt === undefined ? 0 : Math.round(performance.now() - startedAt);
+    this.updateSession(id, { status: session.results.length > 0 ? 'done' : 'idle', elapsed });
   }
 
   private makeSession(id: string, number: number): SearchSession {
@@ -232,6 +286,10 @@ export class StorageSearchState {
       excludePatterns: [],
       searchPath: '',
       maxDepth: undefined,
+      filters: [
+        { id: this.newFilterId(), field: 'date', operator: '>', value: '' },
+        { id: this.newFilterId(), field: 'size', operator: '>', value: '' }
+      ],
       results: [],
       status: 'idle',
       elapsed: 0,

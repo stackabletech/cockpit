@@ -14,10 +14,12 @@
 import { STORAGE_CONNECTION_ID_HEADER } from './connection-id-header.js';
 import { createStorageFetch } from './storage-fetch.js';
 import { readNdjsonStream, type NdjsonStreamCallbacks } from './ndjson-stream.js';
+import { serializeFilter, type SearchFilterSpec } from './search-filter.js';
 import type {
   StoragePage,
   ArchiveListingResponse,
   StorageSearchResponse,
+  StorageSearchUpdate,
   RecentSearchEntry
 } from './types.js';
 import type { FileDetails, DirectoryMetadata, BucketDetails } from './details-types.js';
@@ -52,7 +54,11 @@ export interface StorageApi {
     query: string;
     prefix?: string;
     maxDepth?: number;
+    useRegex?: boolean;
+    excludePatterns?: string[];
+    filters?: SearchFilterSpec[];
     signal?: AbortSignal;
+    onUpdate?: (update: StorageSearchUpdate) => void;
   }): Promise<StorageSearchResponse>;
 
   listRecentSearches(): Promise<RecentSearchEntry[]>;
@@ -165,19 +171,26 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       return (await res.json()) as StoragePage;
     },
 
-    async search({ bucket, query, prefix, maxDepth, signal }) {
+    async search({
+      bucket,
+      query,
+      prefix,
+      maxDepth,
+      useRegex,
+      excludePatterns,
+      filters,
+      signal,
+      onUpdate
+    }) {
       const params = new URLSearchParams({ bucket, q: query });
       if (prefix) params.set('prefix', prefix);
       if (maxDepth !== undefined) params.set('maxDepth', String(maxDepth));
+      if (useRegex) params.set('regex', 'true');
+      for (const pattern of excludePatterns ?? []) params.append('exclude', pattern);
+      for (const filter of filters ?? []) params.append('filter', serializeFilter(filter));
       const res = await fetch_(`/api/storage/search?${params}`, { signal });
-      const response = (await res.json()) as StorageSearchResponse;
-      return {
-        ...response,
-        results: response.results.map((result) => ({
-          ...result,
-          lastModified: new Date(result.lastModified)
-        }))
-      };
+      const { readSearchStream } = await import('./search-stream.js');
+      return readSearchStream(res.body, onUpdate);
     },
 
     async listRecentSearches() {

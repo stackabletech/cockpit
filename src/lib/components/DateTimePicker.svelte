@@ -20,6 +20,7 @@
     /** Marks the control as invalid so it can be styled by the parent. */
     invalid?: boolean;
     class?: string;
+    onchange?: (value: string) => void;
   }
 
   let {
@@ -27,7 +28,8 @@
     id,
     placeholder,
     invalid = false,
-    class: className = ''
+    class: className = '',
+    onchange
   }: Props = $props();
 
   const uid = $props.id();
@@ -111,6 +113,7 @@
 
   function selectDate(date: Date): void {
     value = formatDateValue(date);
+    onchange?.(value);
     popoverEl?.hidePopover();
   }
 </script>
@@ -124,7 +127,10 @@
     autocomplete="off"
     spellcheck="false"
     {value}
-    oninput={(event) => (value = event.currentTarget.value)}
+    oninput={(event) => {
+      value = event.currentTarget.value;
+      onchange?.(value);
+    }}
     aria-invalid={invalid || undefined}
     {placeholder}
   />

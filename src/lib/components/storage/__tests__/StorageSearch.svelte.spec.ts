@@ -76,6 +76,39 @@ describe('StorageSearch', () => {
     await expect.element(page.getByRole('button', { name: 'Search 2', exact: true })).toBeVisible();
   });
 
+  it('uses the regex button and sends date and size filters', async () => {
+    const { state, api } = createState();
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    const regex = page.getByRole('button', { name: '.*', exact: true });
+    await regex.click();
+    await expect.element(regex).toHaveAttribute('aria-pressed', 'true');
+    await page.getByText('Advanced options').click();
+    await page.getByLabelText('Size filter value').fill('10');
+    await page.getByLabelText('Date filter value').fill('15.03.2027');
+    await page.getByLabelText('Search query').fill('report-[0-9]+');
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect.poll(() => api.search.mock.calls.length).toBe(1);
+    expect(api.search).toHaveBeenCalledWith(
+      expect.objectContaining({
+        useRegex: true,
+        filters: [
+          { field: 'date', operator: '>', value: '15.03.2027' },
+          { field: 'size', operator: '>', value: '10' }
+        ]
+      })
+    );
+  });
+
+  it('makes the bucket dropdown divider non-interactive', async () => {
+    const { state } = createState();
+    render(StorageSearchWrapper, { state });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByRole('button', { name: 'all buckets', exact: true }).click();
+    const divider = page.getByRole('presentation');
+    await expect.element(divider).toHaveClass('pointer-events-none');
+  });
+
   it('renders truncated results and opens directories or file previews', async () => {
     const { state, api } = createState({
       response: {
