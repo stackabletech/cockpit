@@ -114,6 +114,10 @@ spec:
                   key: oidc-client-id
             - name: STACKABLE_COCKPIT_OIDC_USERNAME_CLAIM
               value: {{ .Values.auth.oidc.usernameClaim | quote }}
+            {{- with .Values.auth.oidc.extraScopes }}
+            - name: STACKABLE_COCKPIT_OIDC_EXTRA_SCOPES
+              value: {{ join " " . | quote }}
+            {{- end }}
             {{- end }}
             {{- if .Values.trino.url }}
             - name: STACKABLE_COCKPIT_TRINO_URL

@@ -12,6 +12,15 @@ const getRequestEvent = appServer?.getRequestEvent ?? (() => undefined as unknow
 
 const usernameClaim = env.STACKABLE_COCKPIT_OIDC_USERNAME_CLAIM ?? 'preferred_username';
 
+const defaultScopes = ['openid', 'profile', 'email'];
+
+const extraScopes = (env.STACKABLE_COCKPIT_OIDC_EXTRA_SCOPES ?? '')
+  .split(/[\s,]+/)
+  .map((scope) => scope.trim())
+  .filter(Boolean);
+
+const oidcScopes = [...new Set([...defaultScopes, ...extraScopes])];
+
 // OIDC is enabled only when all required OIDC env vars are present.
 export const oidcEnabled = !!(
   env.STACKABLE_COCKPIT_OIDC_DISCOVERY_URL &&
@@ -45,7 +54,7 @@ export const auth = betterAuth({
                 discoveryUrl: env.STACKABLE_COCKPIT_OIDC_DISCOVERY_URL,
                 clientId: env.STACKABLE_COCKPIT_OIDC_CLIENT_ID!,
                 clientSecret: env.STACKABLE_COCKPIT_OIDC_CLIENT_SECRET!,
-                scopes: ['openid', 'profile', 'email'],
+                scopes: oidcScopes,
                 pkce: true,
                 mapProfileToUser: async (profile) => {
                   const fullName = [profile.given_name, profile.family_name]
