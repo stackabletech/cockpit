@@ -6,6 +6,7 @@
   import IconRefresh from 'virtual:icons/material-symbols/refresh';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
+  import StorageSearch from '$lib/components/storage/StorageSearch.svelte';
 
   const storage = getStorageState();
 
@@ -70,7 +71,8 @@
         </button>
       {/if}
 
-      <div class="ml-auto">
+      <div class="ml-auto flex items-center gap-1">
+        <StorageSearch currentBucket={storage.bucket} />
         <button
           class="btn btn-ghost btn-xs gap-1 text-white"
           title={m.storage_action_refresh()}

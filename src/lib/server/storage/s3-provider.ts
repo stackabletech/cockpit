@@ -454,9 +454,22 @@ export class S3StorageProvider implements StorageProvider {
     const maxResults = options?.maxResults ?? SEARCH_DEFAULT_MAX_RESULTS;
     const maxKeysScanned = options?.maxKeysScanned ?? SEARCH_DEFAULT_MAX_KEYS_SCANNED;
     const signal = options?.signal;
+    const prefix = options?.prefix ?? '';
+    const maxDepth = options?.maxDepth;
+    const matches =
+      options?.matches ??
+      ((item: SearchResultItem) => item.key.toLowerCase().includes(query.toLowerCase()));
+    const onMatch = options?.onMatch;
 
     log.trace(
-      { bucket: this.bucket, query, max_results: maxResults, max_keys_scanned: maxKeysScanned },
+      {
+        bucket: this.bucket,
+        query,
+        prefix,
+        max_depth: maxDepth,
+        max_results: maxResults,
+        max_keys_scanned: maxKeysScanned
+      },
       'S3 ListObjectsV2 (search)'
     );
 
@@ -464,26 +477,35 @@ export class S3StorageProvider implements StorageProvider {
       throw new DOMException('The operation was aborted', 'AbortError');
     }
 
-    const needle = query.toLowerCase();
     const results: SearchResultItem[] = [];
     let scanned = 0;
     let truncated = false;
 
     await this.listAllKeysProgressively(
-      '',
+      prefix,
       (batch) => {
         for (const item of batch) {
           if (signal?.aborted) {
             throw new DOMException('The operation was aborted', 'AbortError');
           }
           scanned++;
-          if (item.key.toLowerCase().includes(needle)) {
-            results.push({
-              key: item.key,
-              size: item.size,
-              lastModified: item.lastModified ?? new Date(0),
-              isDirectory: item.key.endsWith('/')
-            });
+          const relativeKey = item.key.slice(prefix.length);
+          if (maxDepth !== undefined && relativeKey.split('/').filter(Boolean).length > maxDepth) {
+            if (scanned >= maxKeysScanned) {
+              truncated = true;
+              return false;
+            }
+            continue;
+          }
+          const result = {
+            key: item.key,
+            size: item.size,
+            lastModified: item.lastModified ?? new Date(0),
+            isDirectory: item.key.endsWith('/')
+          };
+          if (matches(result)) {
+            results.push(result);
+            onMatch?.(result);
             if (results.length >= maxResults) {
               truncated = true;
               return false;

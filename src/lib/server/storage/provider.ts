@@ -19,8 +19,16 @@ export interface SearchOptions {
   maxResults?: number;
   /** Maximum number of keys scanned before stopping (default 10 000). */
   maxKeysScanned?: number;
+  /** Limit the S3 listing to this key prefix. */
+  prefix?: string;
+  /** Maximum key depth relative to `prefix`. */
+  maxDepth?: number;
   /** Abort the in-flight search; throws `AbortError` when signalled. */
   signal?: AbortSignal;
+  /** Decide whether a scanned key matches the search. */
+  matches?: (item: SearchResultItem) => boolean;
+  /** Called immediately after each accepted result. */
+  onMatch?: (item: SearchResultItem) => void;
 }
 
 /** Options for progressive key listing. */

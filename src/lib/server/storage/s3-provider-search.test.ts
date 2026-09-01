@@ -179,6 +179,25 @@ describe('S3StorageProvider.search', () => {
     expect(result.truncated).toBe(true);
   });
 
+  it('lists only the requested prefix and filters depth relative to it', async () => {
+    send.mockResolvedValue({
+      Contents: [
+        { Key: 'reports/final.pdf', Size: 1 },
+        { Key: 'reports/2026/final.pdf', Size: 1 },
+        { Key: 'reports/2026/q1/final.pdf', Size: 1 }
+      ],
+      IsTruncated: false
+    });
+
+    const result = await provider.search('final', { prefix: 'reports/', maxDepth: 2 });
+
+    expect(result.results.map((item) => item.key)).toEqual([
+      'reports/final.pdf',
+      'reports/2026/final.pdf'
+    ]);
+    expect(send.mock.calls[0][0].input.Prefix).toBe('reports/');
+  });
+
   it('stops paging when the scanned-keys cap is reached', async () => {
     send.mockResolvedValue({
       Contents: [

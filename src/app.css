@@ -61,11 +61,10 @@ progress.progress.progress-smooth::-moz-progress-bar {
   background-color: color-mix(in oklch, currentColor 50%, transparent);
 }
 
-@keyframes nav-progress-slide {
-  0% {
-    transform: translateX(-110%);
-  }
-  100% {
-    transform: translateX(350%);
-  }
+/* Align a modal to the top of the viewport like a command palette while
+   keeping it horizontally centred. DaisyUI's .modal uses a grid with
+   place-items:center, so only the vertical alignment and top inset change. */
+dialog.modal-top-search {
+  align-items: start;
+  padding-top: 2vh;
 }
