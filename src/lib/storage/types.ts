@@ -16,6 +16,7 @@ export interface ModalPayloads {
   delete: { keys: string[] };
   preview: {
     key: string;
+    bucket?: string;
     archiveKey?: string;
     archivePath?: string;
     nestedArchivePath?: string;
@@ -214,6 +215,29 @@ export interface StoragePage {
 /** Result of a bulk-delete operation. `failed` lists keys that could not be deleted. */
 export interface DeleteObjectsResult {
   failed: Array<{ key: string; code?: string; message?: string }>;
+}
+
+// ── Search ───────────────────────────────────────────────────────────────────
+
+/** A single match from a bucket-scoped storage search. */
+export interface SearchResultItem {
+  key: string;
+  size: number;
+  lastModified: Date;
+  isDirectory: boolean;
+}
+
+/** Response from the storage search API. */
+export interface StorageSearchResponse {
+  results: SearchResultItem[];
+  /** True when the results cap or the scanned-keys cap was reached. */
+  truncated: boolean;
+}
+
+/** A single entry in the per-connection recent search history. */
+export interface RecentSearchEntry {
+  bucket: string;
+  query: string;
 }
 
 // ── Archive navigation ───────────────────────────────────────────────────────

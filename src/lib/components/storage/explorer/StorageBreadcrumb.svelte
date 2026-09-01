@@ -27,6 +27,7 @@
   import ContextMenu from './ContextMenu.svelte';
   import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
   import type { ContextMenuAction } from '$lib/storage/types.js';
+  import StorageSearch from '$lib/components/storage/StorageSearch.svelte';
 
   const storage = getStorageState();
   const tabsState = getTabsState();
@@ -672,6 +673,8 @@
   </div>
 
   <!-- Upload button (hidden inside archives) -->
+  <StorageSearch currentBucket={storage.bucket} />
+
   {#if !storage.archive.isInArchive}
     <button
       class="btn btn-primary btn-xs gap-1"

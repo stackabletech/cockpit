@@ -104,7 +104,7 @@
 {#if storage.activeModal?.type === 'preview'}
   <PreviewModal
     bind:open={previewOpen}
-    bucket={storage.bucket}
+    bucket={storage.activeModal.payload.bucket ?? storage.bucket}
     objectKey={storage.activeModal.payload.key}
     archiveKey={storage.activeModal.payload.archiveKey}
     archivePath={storage.activeModal.payload.archivePath}

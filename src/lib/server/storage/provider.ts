@@ -1,7 +1,40 @@
-import type { StoragePage, StorageMetadata, DeleteObjectsResult } from '$lib/storage/types.js';
+import type {
+  StoragePage,
+  StorageMetadata,
+  DeleteObjectsResult,
+  SearchResultItem
+} from '$lib/storage/types.js';
 import type { LifecycleRule, BucketAcl } from '$lib/storage/details-types.js';
 
 export type { DeleteObjectsResult };
+
+/** Default result cap for a bucket-scoped search. */
+export const SEARCH_DEFAULT_MAX_RESULTS = 50;
+/** Default scanned-keys cap for a bucket-scoped search. */
+export const SEARCH_DEFAULT_MAX_KEYS_SCANNED = 10000;
+
+/** Options accepted by {@link StorageProvider.search}. */
+export interface SearchOptions {
+  /** Maximum number of matching results to return (default 50). */
+  maxResults?: number;
+  /** Maximum number of keys scanned before stopping (default 10 000). */
+  maxKeysScanned?: number;
+  /** Abort the in-flight search; throws `AbortError` when signalled. */
+  signal?: AbortSignal;
+}
+
+/** Options for progressive key listing. */
+export interface ProgressiveListOptions {
+  /** Abort the currently pending provider page request. */
+  signal?: AbortSignal;
+}
+
+/** Result of a bucket-scoped search. */
+export interface SearchResult {
+  results: SearchResultItem[];
+  /** True when the results cap or the scanned-keys cap was reached. */
+  truncated: boolean;
+}
 
 /** Metadata and body stream returned when fetching a storage object. */
 export interface ObjectDownload {
@@ -48,8 +81,16 @@ export interface StorageProvider {
   listAllKeys(prefix: string): Promise<string[]>;
   listAllKeysProgressively(
     prefix: string,
-    onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void
+    onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void | boolean,
+    options?: ProgressiveListOptions
   ): Promise<void>;
+  /**
+   * Case-insensitive substring search across all keys in this bucket. Both
+   * files (plain keys) and directories (keys ending in `/`) match. The scan
+   * stops early — reporting `truncated: true` — once the results cap or the
+   * scanned-keys cap is reached.
+   */
+  search(query: string, options?: SearchOptions): Promise<SearchResult>;
   getBucketVersioning(): Promise<string>;
   getBucketLifecycleRules(): Promise<LifecycleRule[]>;
   getBucketTags(): Promise<Record<string, string>>;

@@ -33,6 +33,22 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
       return emptyPage;
     },
 
+    async search() {
+      return { results: [], truncated: false };
+    },
+
+    async listRecentSearches() {
+      return [];
+    },
+
+    async recordRecentSearch() {
+      // no-op
+    },
+
+    async clearRecentSearches() {
+      // no-op
+    },
+
     async copy(): Promise<CopyMoveResult> {
       return { results: [], failed: 0 };
     },

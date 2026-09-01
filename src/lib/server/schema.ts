@@ -25,3 +25,31 @@ export const userStorageConnections = pgTable(
     unique('user_storage_connections_user_id_name_unique').on(table.userId, table.name)
   ]
 );
+
+/**
+ * Recent storage searches table.
+ * Stores the most recently executed storage searches per user and connection,
+ * keyed by the unique combination of user, connection, bucket and query.
+ */
+export const userRecentSearches = pgTable(
+  'user_recent_searches',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').notNull(),
+    connectionId: uuid('connection_id')
+      .notNull()
+      .references(() => userStorageConnections.id, { onDelete: 'cascade' }),
+    bucket: text('bucket').notNull(),
+    query: text('query').notNull(),
+    updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull()
+  },
+  (table) => [
+    unique('user_recent_searches_user_connection_bucket_query').on(
+      table.userId,
+      table.connectionId,
+      table.bucket,
+      table.query
+    ),
+    index('user_recent_searches_connection_idx').on(table.userId, table.connectionId)
+  ]
+);
