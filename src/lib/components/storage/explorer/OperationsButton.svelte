@@ -38,16 +38,18 @@
     expandedOps = { ...expandedOps, [opId]: !expandedOps[opId] };
   }
 
-  const activeOps = $derived(storage.operations.filter((op) => op.status === 'running'));
+  const visibleOps = $derived(storage.operations.filter((op) => op.type !== 'download'));
+  const activeOps = $derived(visibleOps.filter((op) => op.status === 'running'));
   const historyOps = $derived(
-    storage.operations
+    visibleOps
       .filter((op) => op.status !== 'running')
       .slice()
       .reverse()
   );
   const hasHistory = $derived(historyOps.length > 0);
   const hasAnyHistory = $derived(hasHistory || storage.downloadHistory.length > 0);
-  const hasError = $derived(storage.operations.some((o) => o.status === 'error'));
+  const hasRunningOps = $derived(activeOps.length > 0);
+  const hasError = $derived(visibleOps.some((op) => op.status === 'error'));
 
   function statusColor(op: StorageOperation): string {
     switch (op.status) {
@@ -163,7 +165,7 @@
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (dropdownOpen = false)} />
 
-{#if storage.operations.length > 0 || storage.downloadHistory.length > 0 || storage.downloadHistoryLoading}
+{#if visibleOps.length > 0 || storage.downloadHistory.length > 0 || storage.downloadHistoryLoading}
   {#if dropdownOpen}
     <div
       class="fixed inset-0 z-40"
@@ -178,14 +180,14 @@
       <button
         class="
           btn btn-ghost btn-xs relative size-7 rounded-full p-0
-          {storage.hasRunningOps ? 'text-primary' : hasError ? 'text-error' : 'text-success'}
+          {hasRunningOps ? 'text-primary' : hasError ? 'text-error' : 'text-success'}
         "
         aria-label={m.storage_operations_label()}
         aria-expanded={dropdownOpen}
         aria-haspopup="menu"
         onclick={toggleDropdown}
       >
-        {#if storage.hasRunningOps}
+        {#if hasRunningOps}
           <span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
           {#if activeOps.length > 1}
             <span
