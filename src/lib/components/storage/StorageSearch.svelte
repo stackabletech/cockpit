@@ -108,13 +108,15 @@
           >{/if}
       </div>
       <div class="flex items-center gap-1">
-        <button
-          type="button"
-          class="btn btn-ghost btn-xs gap-1"
-          title={m.storage_search_add_session()}
-          onclick={() => search.addSession()}
-          ><IconAdd class="size-4" aria-hidden="true" />{m.storage_search_add_session()}</button
-        ><button
+        {#if view === 'search'}
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs gap-1"
+            title={m.storage_search_add_session()}
+            onclick={() => search.addSession()}
+            ><IconAdd class="size-4" aria-hidden="true" />{m.storage_search_add_session()}</button
+          >
+        {/if}<button
           type="button"
           class="btn btn-ghost btn-xs btn-square"
           aria-label={m.storage_search_close()}
