@@ -9,7 +9,10 @@
   }
 
   let { state }: Props = $props();
-  untrack(() => setStorageState(state));
+  untrack(() => {
+    state.connectionHostname = 'storage.example.com';
+    setStorageState(state);
+  });
 </script>
 
 <RecentItems />

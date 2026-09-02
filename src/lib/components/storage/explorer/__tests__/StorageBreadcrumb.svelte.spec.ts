@@ -4,7 +4,6 @@ import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import StorageBreadcrumbWrapper from './StorageBreadcrumbWrapper.svelte';
 import { StorageState } from '$lib/storage/state.svelte.js';
-import { TabsState } from '$lib/storage/tabs.svelte.js';
 import type { StorageObject } from '$lib/storage/types.js';
 
 function makeFolders(count: number): StorageObject[] {
@@ -192,16 +191,14 @@ describe('StorageBreadcrumb', () => {
   });
 
   describe('pin/unpin', () => {
-    it('should show pin option in more options menu', async () => {
+    it('should show a pin control for the current location', async () => {
       const state = createState();
       render(StorageBreadcrumbWrapper, { state });
 
-      // The more options button exists
-      const moreBtn = page.getByRole('button', { name: /more options/i });
-      await expect.element(moreBtn).toBeInTheDocument();
+      await expect.element(page.getByRole('button', { name: 'Pin' })).toBeInTheDocument();
     });
 
-    it('should show unpin when current location is pinned', async () => {
+    it('should show unpin control when current location is pinned', async () => {
       const state = createState({
         bucket: 'test-bucket',
         prefix: 'data/',
@@ -209,35 +206,20 @@ describe('StorageBreadcrumb', () => {
       });
       render(StorageBreadcrumbWrapper, { state });
 
-      // The more menu should contain unpin
-      const menuItems = page.getByRole('menuitem');
-      await expect.element(menuItems.first()).toBeInTheDocument();
+      await expect.element(page.getByRole('button', { name: 'Unpin' })).toBeInTheDocument();
     });
 
-    it('should call pin via more options menu when not pinned', async () => {
+    it('should pin the current location', async () => {
       const state = createState({ bucket: 'test-bucket', prefix: 'data/' });
       const spy = vi.spyOn(state.bookmarks, 'pin');
       render(StorageBreadcrumbWrapper, { state });
 
-      // Open the dropdown by focusing/clicking the trigger
-      const moreBtn = page.getByRole('button', { name: /more options/i });
-      await moreBtn.click();
-
-      // The more-options dropdown now has: 0="New Tab", 1="Pin this location"
-      // Use .nth(1) to target the pin item, with direct DOM dispatch as fallback
-      const menuItems = page.getByRole('menuitem');
-      const el = menuItems.nth(1);
-      await el.click();
-
-      // If DaisyUI dropdown prevents click, try direct dispatch
-      if (!spy.mock.calls.length) {
-        const domEl = (await el.element()) as HTMLElement;
-        domEl.click();
-      }
+      const pinButton = page.getByRole('button', { name: 'Pin' }).last();
+      ((await pinButton.element()) as HTMLElement).click();
       expect(spy).toHaveBeenCalledWith('test-bucket', 'data/');
     });
 
-    it('should call unpin via more options menu when pinned', async () => {
+    it('should unpin the current location', async () => {
       const state = createState({
         bucket: 'test-bucket',
         prefix: 'data/',
@@ -246,13 +228,8 @@ describe('StorageBreadcrumb', () => {
       const spy = vi.spyOn(state.bookmarks, 'unpin');
       render(StorageBreadcrumbWrapper, { state });
 
-      // Open the dropdown first
-      const moreBtn = page.getByRole('button', { name: /more options/i });
-      await moreBtn.click();
-
-      // Click the unpin menuitem specifically (not the first one which is now "New Tab")
-      const menuItem = page.getByRole('menuitem', { name: /unpin/i });
-      await menuItem.click();
+      const unpinButton = page.getByRole('button', { name: 'Unpin' });
+      ((await unpinButton.element()) as HTMLElement).click();
       expect(spy).toHaveBeenCalledWith('test-bucket', 'data/');
     });
   });
@@ -393,9 +370,8 @@ describe('StorageBreadcrumb', () => {
       const backdrop = menuUl.previousElementSibling as HTMLElement;
       backdrop.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
 
-      // Context menu should be closed - menuitem from ctx menu should be gone
-      // The remaining menuitems should be from the more options dropdown (New Tab + Pin)
-      await expect.element(page.getByRole('menuitem').first()).toBeInTheDocument(); // the one in more options
+      // Context menu should be closed.
+      await expect.element(page.getByRole('menuitem').first()).not.toBeInTheDocument();
     });
 
     it('should open context menu on right-click of bucket with prefix', async () => {
@@ -519,32 +495,6 @@ describe('StorageBreadcrumb', () => {
       render(StorageBreadcrumbWrapper, { state });
 
       await expect.element(page.getByRole('button', { name: /upload/i })).not.toBeInTheDocument();
-    });
-  });
-
-  describe('new tab', () => {
-    it('should show "New Tab" option in the more options menu', async () => {
-      const state = createState();
-      render(StorageBreadcrumbWrapper, { state });
-
-      const moreBtn = page.getByRole('button', { name: /more options/i });
-      await moreBtn.click();
-
-      await expect.element(page.getByRole('menuitem', { name: 'New Tab' })).toBeInTheDocument();
-    });
-
-    it('should call tabsState.addTab when "New Tab" is clicked', async () => {
-      const state = createState({ bucket: 'test-bucket', prefix: 'data/' });
-      const tabsState = new TabsState(state);
-      const spy = vi.spyOn(tabsState, 'addTab');
-      render(StorageBreadcrumbWrapper, { state, tabsState });
-
-      const moreBtn = page.getByRole('button', { name: /more options/i });
-      await moreBtn.click();
-
-      await page.getByRole('menuitem', { name: 'New Tab' }).click();
-
-      expect(spy).toHaveBeenCalled();
     });
   });
 });
