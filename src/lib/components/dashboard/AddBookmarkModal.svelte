@@ -44,6 +44,12 @@
   });
 
   $effect(() => {
+    if (pinnedForEveryone) {
+      pinned = true;
+    }
+  });
+
+  $effect(() => {
     if (!open) {
       connectorPath = '';
       return;
@@ -338,11 +344,18 @@
 
       <!-- Section 6: Pinned checkbox -->
       <div class="relative" bind:this={pinSectionEl}>
-        <label class="flex cursor-pointer items-center gap-2">
+        <label
+          for="{uid}-pin"
+          class="flex items-center gap-2 {pinnedForEveryone
+            ? 'cursor-not-allowed opacity-50'
+            : 'cursor-pointer'}"
+        >
           <input
+            id="{uid}-pin"
             type="checkbox"
             bind:this={parentPinCheckbox}
             bind:checked={pinned}
+            disabled={pinnedForEveryone}
             class="checkbox checkbox-primary checkbox-sm"
           />
           <span class="text-base-content/80 text-sm"
@@ -428,6 +441,13 @@
                 {name || getDefaultName() || selectedProduct.name}
               </p>
               <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
+                <span
+                  class="rounded-full px-1.5 py-0.5 text-[10.5px] font-bold {openIn === 'cockpit'
+                    ? 'bg-primary/10 text-primary'
+                    : 'bg-base-300 text-base-content/70'}"
+                >
+                  {openIn === 'cockpit' ? m.bookmark_mode_cockpit() : m.bookmark_mode_new_tab()}
+                </span>
                 <span class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]">
                   {selectedProduct.name}
                 </span>

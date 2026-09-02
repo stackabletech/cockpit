@@ -121,7 +121,7 @@
                   >
                 {/if}
               </div>
-              <div class="mt-1 flex min-w-0 items-center gap-1.5">
+              <div class="mt-1 flex flex-wrap items-center gap-1.5">
                 <span
                   class="rounded-full px-1.5 py-0.5 text-[10.5px] font-bold {bookmark.openIn ===
                   'cockpit'
@@ -132,6 +132,18 @@
                     ? m.bookmark_mode_cockpit()
                     : m.bookmark_mode_new_tab()}
                 </span>
+                <span class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]">
+                  {product.name}
+                </span>
+                {#if bookmark.environment}
+                  <span
+                    class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]"
+                  >
+                    {bookmark.environment}
+                  </span>
+                {/if}
+              </div>
+              <div class="min-w-0">
                 <span class="text-base-content/70 truncate font-mono text-[11.5px]">
                   {extractHostname(bookmark.url)}
                 </span>
