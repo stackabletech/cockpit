@@ -73,23 +73,19 @@
     </button>
   </div>
 
-  <div
-    class="
-      grid grid-cols-1 gap-4
-      sm:grid-cols-2
-      lg:grid-cols-3
-    "
-  >
-    <div class="border-base-300 bg-base-100 rounded-xl border p-5">
-      <p
-        class="
-          text-base-content/60 text-xs font-medium tracking-wider uppercase
-        "
+  <section aria-labelledby="bookmarks-heading">
+    <div class="mb-2.5 flex items-baseline gap-2.5">
+      <h3
+        id="bookmarks-heading"
+        class="text-base-content/70 text-xs font-bold tracking-wider uppercase"
       >
-        {m.dashboard_services()}
-      </p>
-      <p class="text-base-content mt-2 text-3xl font-bold">{props.data.serviceCount}</p>
-      <p class="text-base-content/60 mt-1 text-sm">{m.dashboard_services_empty()}</p>
+        {m.bookmark_section_title()}
+      </h3>
+      {#if bookmarks.length > 0}
+        <span class="text-base-content/70 text-xs">
+          {m.bookmark_count_links({ count: bookmarks.length })}
+        </span>
+      {/if}
     </div>
 
     <div class="border-base-300 bg-base-100 rounded-xl border p-5">

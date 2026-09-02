@@ -1,19 +1,8 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "dashboard_welcome": "Welcome back",
-  "dashboard_subtitle": "Stackable Unified Data Platform overview",
-  "dashboard_services": "Services",
-  "dashboard_services_empty": "No services discovered",
-  "dashboard_queries": "Active Queries",
-  "dashboard_queries_empty": "Connect Trino to begin",
-  "dashboard_health": "Health",
-  "dashboard_health_ok": "OK",
-  "dashboard_health_status": "All systems operational",
-  "dashboard_getting_started": "Getting started",
-  "dashboard_getting_started_description": "The Stackable Unified Data Platform UI provides a central interface for your data infrastructure. Once Trino instances are discovered or configured, you'll be able to browse catalogs, write SQL queries, and view results, all from this interface.",
-  "dashboard_step_oidc": "Configure OIDC authentication",
-  "dashboard_step_trino": "Connect Trino instances",
-  "dashboard_step_browse": "Browse catalogs and query",
+  "dashboard_welcome": "Stackable Unified Data Platform overview",
+  "dashboard_subtitle": "The tools you've bookmarked. Bookmarks are added by hand — Cockpit doesn't discover anything yet.",
+  "dashboard_bookmarks_empty": "No bookmarks yet. Add your first bookmark to get started.",
   "nav_platform": "Platform",
   "nav_dashboard": "Dashboard",
   "nav_trino": "Trino",
@@ -39,7 +28,18 @@
   "page_title_default": "Stackable",
   "page_title_suffix": "Stackable",
   "page_title_trino": "Trino",
-  "setup_steps_label": "Setup steps",
+  "bookmark_count_links": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 link",
+        "countPlural=other": "{count} links"
+      }
+    }
+  ],
+  "bookmark_mode_cockpit": "Cockpit",
+  "bookmark_mode_new_tab": "New tab",
   "language_label": "Language",
   "language_en": "English",
   "language_de": "Deutsch",

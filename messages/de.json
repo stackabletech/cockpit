@@ -1,19 +1,8 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "dashboard_welcome": "Willkommen zurück",
-  "dashboard_subtitle": "Stackable Unified Data Platform – Übersicht",
-  "dashboard_services": "Dienste",
-  "dashboard_services_empty": "Keine Dienste gefunden",
-  "dashboard_queries": "Aktive Abfragen",
-  "dashboard_queries_empty": "Trino verbinden, um zu beginnen",
-  "dashboard_health": "Zustand",
-  "dashboard_health_ok": "OK",
-  "dashboard_health_status": "Alle Systeme betriebsbereit",
-  "dashboard_getting_started": "Erste Schritte",
-  "dashboard_getting_started_description": "Die Stackable Unified Data Platform UI bietet eine zentrale Oberfläche für Ihre Dateninfrastruktur. Sobald Trino-Instanzen erkannt oder konfiguriert sind, können Sie Kataloge durchsuchen, SQL-Abfragen schreiben und Ergebnisse anzeigen – alles über diese Oberfläche.",
-  "dashboard_step_oidc": "OIDC-Authentifizierung konfigurieren",
-  "dashboard_step_trino": "Trino-Instanzen verbinden",
-  "dashboard_step_browse": "Kataloge durchsuchen und abfragen",
+  "dashboard_welcome": "Ihre Plattform",
+  "dashboard_subtitle": "Die Werkzeuge, die Sie sich als Lesezeichen gespeichert haben. Lesezeichen werden von Hand hinzugefügt – Cockpit erkennt noch nichts automatisch.",
+  "dashboard_bookmarks_empty": "Noch keine Lesezeichen. Fügen Sie Ihr erstes Lesezeichen hinzu, um zu starten.",
   "nav_platform": "Plattform",
   "nav_dashboard": "Dashboard",
   "nav_trino": "Trino",
@@ -39,7 +28,18 @@
   "page_title_default": "Stackable",
   "page_title_suffix": "Stackable",
   "page_title_trino": "Trino",
-  "setup_steps_label": "Einrichtungsschritte",
+  "bookmark_count_links": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 Link",
+        "countPlural=other": "{count} Links"
+      }
+    }
+  ],
+  "bookmark_mode_cockpit": "Cockpit",
+  "bookmark_mode_new_tab": "Neuer Tab",
   "language_label": "Sprache",
   "language_en": "English",
   "language_de": "Deutsch",
