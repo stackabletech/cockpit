@@ -152,8 +152,6 @@ auth:
       secretKeyRef:
         name: ""
         key: oidc-client-secret
-    # OIDC claim used as the username for Trino impersonation.
-    usernameClaim: preferred_username
     # Extra OIDC scopes requested in addition to openid/profile/email.
     extraScopes: []
 
@@ -163,9 +161,12 @@ auth:
 trino:
   # Trino coordinator URL (e.g. https://trino.example.com:8443)
   url: ""
-  # Forward the logged-in user to Trino as X-Trino-User. When false, all queries
-  # run as trino.auth.username instead (requires basic auth).
-  userImpersonation: true
+  userImpersonation:
+    # Forward the logged-in user to Trino as X-Trino-User. When false, all queries
+    # run as trino.auth.username instead (requires basic auth).
+    enabled: true
+    # OIDC claim used as the Trino user. Only consumed when enabled and OIDC is on.
+    userClaim: preferred_username
   auth:
     # Authentication type: "none" or "basic"
     type: ""
