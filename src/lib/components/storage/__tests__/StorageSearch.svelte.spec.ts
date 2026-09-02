@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import StorageSearchWrapper from './StorageSearchWrapper.svelte';
 import { StorageState } from '$lib/storage/state.svelte.js';
 import type { StorageApi } from '$lib/storage/api.js';
+import { StorageError } from '$lib/storage/errors.js';
 import type { RecentSearchEntry, StorageSearchResponse } from '$lib/storage/types.js';
 
 const { goto, invalidateAll } = vi.hoisted(() => ({ goto: vi.fn(), invalidateAll: vi.fn() }));
@@ -65,6 +66,29 @@ describe('StorageSearch', () => {
     expect(api.search).toHaveBeenCalledWith(
       expect.objectContaining({ bucket: 'beta', query: 'report' })
     );
+  });
+
+  it('retains results and identifies buckets that fail during a multi-bucket search', async () => {
+    const { state, api } = createState();
+    api.search.mockImplementation(({ bucket }: { bucket: string }) => {
+      if (bucket === 'beta')
+        return Promise.reject(new StorageError('access_denied', 'Access denied'));
+      return Promise.resolve({
+        results: [{ key: 'report.csv', size: 1, lastModified: new Date(), isDirectory: false }],
+        truncated: false
+      });
+    });
+    render(StorageSearchWrapper, { state });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByLabelText('Search query').fill('report');
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+
+    await expect
+      .element(page.getByRole('alert'))
+      .toHaveTextContent('Access to one or more selected buckets was denied.');
+    await expect.element(page.getByRole('alert')).not.toHaveTextContent('beta');
+    await expect.element(page.getByRole('button', { name: 'report.csv' })).toBeVisible();
+    await expect.element(page.getByText('Partial', { exact: true })).toBeVisible();
   });
 
   it('adds a parallel session', async () => {

@@ -1,4 +1,4 @@
-import { error } from '@sveltejs/kit';
+import { error, isHttpError } from '@sveltejs/kit';
 import { createStorageProvider } from '$lib/server/storage/request-context.js';
 import {
   SEARCH_DEFAULT_MAX_RESULTS,
@@ -119,10 +119,20 @@ export const GET: RequestHandler = async (event) => {
           );
         } catch (err) {
           storageSearchTotal.inc({ outcome: 'error', truncated: 'false' });
+          const code = isHttpError(err)
+            ? err.status === 403
+              ? 'access_denied'
+              : err.status === 404
+                ? 'not_found'
+                : err.status >= 500
+                  ? 'server_error'
+                  : 'unknown'
+            : 'unknown';
           controller.enqueue(
             encoder.encode(
               JSON.stringify({
                 type: 'error',
+                code,
                 message: err instanceof Error ? err.message : 'Search failed'
               }) + '\n'
             )

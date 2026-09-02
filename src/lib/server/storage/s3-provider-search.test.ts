@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { S3Client } from '@aws-sdk/client-s3';
+import { S3ServiceException } from '@aws-sdk/client-s3';
 
 vi.mock('$lib/server/logging', () => ({
   logger: { child: () => ({ trace: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }) }
@@ -96,6 +97,19 @@ describe('S3StorageProvider.search', () => {
 
   beforeEach(() => {
     ({ provider, send } = makeProvider());
+  });
+
+  it('maps an S3 access-denied error to HTTP 403', async () => {
+    send.mockRejectedValue(
+      new S3ServiceException({
+        name: 'AccessDenied',
+        $fault: 'client',
+        $metadata: { httpStatusCode: 403 },
+        message: 'Access denied'
+      })
+    );
+
+    await expect(provider.search('report')).rejects.toMatchObject({ status: 403 });
   });
 
   it('matches case-insensitively anywhere in the full key path', async () => {

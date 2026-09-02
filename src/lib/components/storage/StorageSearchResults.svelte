@@ -52,6 +52,13 @@
     });
   });
 
+  const failureMessage = $derived.by(() => {
+    if (session.failures.length === 0) return undefined;
+    return session.failures.every((failure) => failure.code === 'access_denied')
+      ? m.storage_search_failure_access_denied()
+      : m.storage_search_failure_generic();
+  });
+
   function formatSize(size: number): string {
     if (size < 1024) return `${size} B`;
     if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KB`;
@@ -85,16 +92,18 @@
       >
       {#if session.status === 'running'}<span class="badge badge-warning badge-sm"
           >{m.storage_search_status_running()}</span
-        >{:else if session.status === 'done'}<span class="badge badge-success badge-sm"
-          >{m.storage_search_status_done()}</span
+        >{:else if session.status === 'done' && session.failures.length === 0}<span
+          class="badge badge-success badge-sm">{m.storage_search_status_done()}</span
+        >{:else if session.status === 'done'}<span class="badge badge-warning badge-sm"
+          >{m.storage_search_status_partial()}</span
         >{:else}<span class="badge badge-error badge-sm">{m.storage_search_status_error()}</span
         >{/if}
     </div>
     {#if session.status === 'running'}<progress class="progress progress-primary w-full"
       ></progress>{/if}
-    {#if session.status === 'error'}<p class="text-error text-sm" role="alert">
-        {m.storage_search_error()}
-      </p>{/if}
+    {#if failureMessage}
+      <p class="alert alert-warning mt-2 text-sm" role="alert">{failureMessage}</p>
+    {/if}
     {#if session.truncated}<p class="alert alert-warning mt-2 text-sm" role="alert">
         {m.storage_search_truncated()}
       </p>{/if}

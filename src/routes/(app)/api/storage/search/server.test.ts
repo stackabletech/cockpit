@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { error } from '@sveltejs/kit';
 
 const { mockProvider, storageSearchTotal } = vi.hoisted(() => ({
   mockProvider: { search: vi.fn(), listContainers: vi.fn() },
@@ -106,6 +107,20 @@ describe('GET /api/storage/search', () => {
     const response = await GET(mockEvent('bucket=documents&q=report'));
     await expect(response.text()).resolves.toContain('"type":"error"');
     expect(storageSearchTotal.inc).toHaveBeenCalledWith({ outcome: 'error', truncated: 'false' });
+  });
+
+  it('includes access-denied classification in streamed provider failures', async () => {
+    let accessDeniedError: unknown;
+    try {
+      error(403, 'Access denied');
+    } catch (err) {
+      accessDeniedError = err;
+    }
+    mockProvider.search.mockRejectedValue(accessDeniedError);
+
+    const response = await GET(mockEvent('bucket=documents&q=report'));
+
+    await expect(response.text()).resolves.toContain('"code":"access_denied"');
   });
 
   it('rejects buckets outside the active connection', async () => {

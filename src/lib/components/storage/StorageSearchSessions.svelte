@@ -34,8 +34,11 @@
               class="loading loading-spinner loading-xs"
               aria-label={m.storage_search_status_running()}
             ></span>{/if}
-          {#if session.status === 'done'}<span class="badge badge-success badge-xs"
-              >{m.storage_search_status_done()}</span
+          {#if session.status === 'done' && session.failures.length === 0}<span
+              class="badge badge-success badge-xs">{m.storage_search_status_done()}</span
+            >{/if}
+          {#if session.status === 'done' && session.failures.length > 0}<span
+              class="badge badge-warning badge-xs">{m.storage_search_status_partial()}</span
             >{/if}
           {#if session.status === 'error'}<span class="badge badge-error badge-xs"
               >{m.storage_search_status_error()}</span

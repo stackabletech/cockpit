@@ -1,9 +1,11 @@
 import type { SearchResultItem, StorageSearchResponse, StorageSearchUpdate } from './types.js';
+import { StorageError, type StorageErrorCode } from './errors.js';
 
 interface SearchStreamEvent {
   type: 'batch' | 'snapshot' | 'complete' | 'error';
   results?: SearchResultItem[];
   truncated?: boolean;
+  code?: StorageErrorCode;
   message?: string;
 }
 
@@ -41,7 +43,9 @@ export async function readSearchStream(
       for (const line of lines) {
         if (!line.trim()) continue;
         const event = JSON.parse(line) as SearchStreamEvent;
-        if (event.type === 'error') throw new Error(event.message ?? 'Search failed');
+        if (event.type === 'error') {
+          throw new StorageError(event.code ?? 'unknown', event.message ?? 'Search failed');
+        }
         if (event.type === 'batch') apply(event, false);
         if (event.type === 'snapshot' || event.type === 'complete') apply(event, true);
       }

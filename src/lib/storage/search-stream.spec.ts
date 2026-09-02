@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readSearchStream } from './search-stream.js';
+import { StorageError } from './errors.js';
 
 function createStream(events: object[]): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
@@ -41,5 +42,11 @@ describe('readSearchStream', () => {
     await expect(
       readSearchStream(createStream([{ type: 'error', message: 'Failed' }]))
     ).rejects.toThrow('Failed');
+  });
+
+  it('preserves a streamed error classification', async () => {
+    await expect(
+      readSearchStream(createStream([{ type: 'error', code: 'access_denied', message: 'Denied' }]))
+    ).rejects.toMatchObject(new StorageError('access_denied', 'Denied'));
   });
 });

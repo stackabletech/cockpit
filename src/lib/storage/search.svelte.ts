@@ -6,12 +6,17 @@ import {
   type SearchFilterField
 } from '$lib/storage/search-filter.js';
 import type { StorageApi } from '$lib/storage/api.js';
+import { StorageError } from '$lib/storage/errors.js';
 import type { RecentSearchEntry, SearchResultItem } from '$lib/storage/types.js';
 
 export type SearchStatus = 'idle' | 'running' | 'done' | 'error';
 
 export interface SearchResult extends SearchResultItem {
   bucket: string;
+}
+
+export interface SearchFailure {
+  code: string;
 }
 
 export interface SearchSession {
@@ -28,6 +33,7 @@ export interface SearchSession {
   status: SearchStatus;
   elapsed: number;
   truncated: boolean;
+  failures: SearchFailure[];
 }
 
 export class StorageSearchState {
@@ -47,6 +53,10 @@ export class StorageSearchState {
   active = $derived(this.sessions.find((session) => session.id === this.activeId));
   runningCount = $derived(this.sessions.filter((session) => session.status === 'running').length);
   completedCount = $derived(this.sessions.filter((session) => session.status === 'done').length);
+  partialCount = $derived(
+    this.sessions.filter((session) => session.status === 'done' && session.failures.length > 0)
+      .length
+  );
 
   constructor(options: {
     api: StorageApi;
@@ -102,7 +112,8 @@ export class StorageSearchState {
       results: [],
       status: 'idle',
       elapsed: 0,
-      truncated: false
+      truncated: false,
+      failures: []
     });
   }
 
@@ -218,12 +229,18 @@ export class StorageSearchState {
     this.controllers.get(id)?.abort();
     const controller = new AbortController();
     this.controllers.set(id, controller);
-    this.updateSession(id, { status: 'running', results: [], elapsed: 0, truncated: false });
+    this.updateSession(id, {
+      status: 'running',
+      results: [],
+      elapsed: 0,
+      truncated: false,
+      failures: []
+    });
     const started = performance.now();
     this.started.set(id, started);
 
     try {
-      const responses = await Promise.all(
+      const responses = await Promise.allSettled(
         buckets.map((bucket) =>
           this.api
             .search({
@@ -243,16 +260,26 @@ export class StorageSearchState {
         )
       );
       if (controller.signal.aborted) return;
-      const results = responses.flatMap(({ bucket, results }) =>
+      const successfulResponses = responses
+        .filter((response) => response.status === 'fulfilled')
+        .map((response) => response.value);
+      const failures: SearchFailure[] = responses.flatMap((response) => {
+        if (response.status !== 'rejected') return [];
+        return [
+          { code: response.reason instanceof StorageError ? response.reason.code : 'unknown' }
+        ];
+      });
+      const results = successfulResponses.flatMap(({ bucket, results }) =>
         results
           .filter((result) => this.matches(session, result))
           .map((result) => ({ ...result, bucket }))
       );
       this.updateSession(id, {
-        status: 'done',
+        status: successfulResponses.length > 0 ? 'done' : 'error',
         results,
         elapsed: Math.round(performance.now() - started),
-        truncated: responses.some((response) => response.truncated)
+        truncated: successfulResponses.some((response) => response.truncated),
+        failures
       });
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) {
@@ -293,7 +320,8 @@ export class StorageSearchState {
       results: [],
       status: 'idle',
       elapsed: 0,
-      truncated: false
+      truncated: false,
+      failures: []
     };
   }
 

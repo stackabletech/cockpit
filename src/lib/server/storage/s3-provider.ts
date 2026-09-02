@@ -481,44 +481,51 @@ export class S3StorageProvider implements StorageProvider {
     let scanned = 0;
     let truncated = false;
 
-    await this.listAllKeysProgressively(
-      prefix,
-      (batch) => {
-        for (const item of batch) {
-          if (signal?.aborted) {
-            throw new DOMException('The operation was aborted', 'AbortError');
-          }
-          scanned++;
-          const relativeKey = item.key.slice(prefix.length);
-          if (maxDepth !== undefined && relativeKey.split('/').filter(Boolean).length > maxDepth) {
-            if (scanned >= maxKeysScanned) {
-              truncated = true;
-              return false;
+    await withS3Errors(
+      () =>
+        this.listAllKeysProgressively(
+          prefix,
+          (batch) => {
+            for (const item of batch) {
+              if (signal?.aborted) {
+                throw new DOMException('The operation was aborted', 'AbortError');
+              }
+              scanned++;
+              const relativeKey = item.key.slice(prefix.length);
+              if (
+                maxDepth !== undefined &&
+                relativeKey.split('/').filter(Boolean).length > maxDepth
+              ) {
+                if (scanned >= maxKeysScanned) {
+                  truncated = true;
+                  return false;
+                }
+                continue;
+              }
+              const result = {
+                key: item.key,
+                size: item.size,
+                lastModified: item.lastModified ?? new Date(0),
+                isDirectory: item.key.endsWith('/')
+              };
+              if (matches(result)) {
+                results.push(result);
+                onMatch?.(result);
+                if (results.length >= maxResults) {
+                  truncated = true;
+                  return false;
+                }
+              }
+              if (scanned >= maxKeysScanned) {
+                truncated = true;
+                return false;
+              }
             }
-            continue;
-          }
-          const result = {
-            key: item.key,
-            size: item.size,
-            lastModified: item.lastModified ?? new Date(0),
-            isDirectory: item.key.endsWith('/')
-          };
-          if (matches(result)) {
-            results.push(result);
-            onMatch?.(result);
-            if (results.length >= maxResults) {
-              truncated = true;
-              return false;
-            }
-          }
-          if (scanned >= maxKeysScanned) {
-            truncated = true;
-            return false;
-          }
-        }
-        return undefined;
-      },
-      { signal }
+            return undefined;
+          },
+          { signal }
+        ),
+      { bucket: this.bucket, operation: 'search' }
     );
 
     log.info(

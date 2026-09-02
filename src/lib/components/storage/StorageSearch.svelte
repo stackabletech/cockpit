@@ -103,6 +103,8 @@
         {#if search.runningCount > 0}<span class="badge badge-warning badge-sm gap-1"
             ><span class="loading loading-spinner loading-xs" aria-hidden="true"
             ></span>{m.storage_search_running({ count: search.runningCount })}</span
+          >{:else if search.partialCount > 0}<span class="badge badge-warning badge-sm"
+            >{m.storage_search_partial_count({ count: search.partialCount })}</span
           >{:else if search.completedCount > 0}<span class="badge badge-success badge-sm"
             >{m.storage_search_completed({ count: search.completedCount })}</span
           >{/if}
