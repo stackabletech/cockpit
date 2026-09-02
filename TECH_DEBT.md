@@ -70,6 +70,14 @@ All server-side query state (progress, rows, status) is held in a module-level `
 
 ---
 
+### Bookmark tools embedded via unsandboxed iframe
+
+**File:** `src/routes/(app)/bookmark/[id]/+page.svelte`
+
+Bookmarks are embedded as full-page iframes without a `sandbox` attribute, so the embedded tool can run scripts, navigate the top frame, and read cookies in its own origin context. A `sandbox` attribute would break legitimate tools that need scripts/forms, and most external services will refuse framing anyway via `X-Frame-Options`/CSP. Acceptable for the current stage; long-term, consider a configurable sandbox policy per bookmark and validation of the URL scheme (http/https only).
+
+---
+
 ### Single-file download limit
 
 **File:** `src/lib/storage/download.ts`, `src/lib/components/storage/FileExplorer.svelte`

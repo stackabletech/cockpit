@@ -5,6 +5,7 @@
   import Sidebar from '$lib/components/layout/sidebar/Sidebar.svelte';
   import Header from '$lib/components/layout/header/Header.svelte';
   import ToastHost from '$lib/components/ToastHost.svelte';
+  import { getBookmarks } from '$lib/dashboard/bookmarks.svelte.js';
 
   let { children, data } = $props();
 
@@ -31,10 +32,13 @@
   };
 
   let title = $derived(
-    (
-      pageTitles[page.url.pathname] ??
-      (page.url.pathname.startsWith('/storage') ? m.page_title_storage : m.page_title_default)
-    )()
+    page.url.pathname.startsWith('/bookmark/')
+      ? (getBookmarks().find((b) => b.id === page.url.pathname.split('/')[2])?.name ??
+          m.page_title_default())
+      : (
+          pageTitles[page.url.pathname] ??
+          (page.url.pathname.startsWith('/storage') ? m.page_title_storage : m.page_title_default)
+        )()
   );
 </script>
 

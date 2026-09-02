@@ -52,7 +52,7 @@ test.describe('Dashboard bookmarks', () => {
     await expect(page.getByLabel('URL')).toBeVisible();
 
     // Pinned checkbox label
-    await expect(page.getByText('Pinned to the sidebar by default')).toBeVisible();
+    await expect(page.getByText('Pin bookmark')).toBeVisible();
 
     // Preview section
     await expect(page.getByText('Preview')).toBeVisible();
@@ -106,14 +106,14 @@ test.describe('Dashboard bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.getByRole('button', { name: addButton }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await page.locator('button[aria-pressed]').filter({ hasText: 'Superset' }).click();
     await page.getByLabel('Name').fill('Dashboards');
     await page.getByLabel('URL').fill('https://superset.example.com');
 
-    await page.locator('dialog[open]').getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
 
     const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
     expect(stored).toBeTruthy();
@@ -121,6 +121,84 @@ test.describe('Dashboard bookmarks', () => {
     const bookmarks = JSON.parse(stored!);
     expect(bookmarks).toHaveLength(1);
     expect(bookmarks[0].name).toBe('Dashboards');
+  });
+
+  test('pins a bookmark from the dashboard with the star button', async ({ page }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    await page.getByRole('button', { name: addButton }).click();
+    await expect(page.locator('dialog[open]')).toBeVisible();
+
+    await page.getByLabel('Name').fill('Dashboards');
+    await page.getByLabel('URL').fill('https://superset.example.com');
+
+    await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
+
+    // Bookmark appears in the regular section without a pinned heading
+    await expect(page.getByText('Dashboards')).toBeVisible();
+    await expect(page.getByText('Pinned')).not.toBeVisible();
+
+    await page.getByRole('button', { name: 'Pin bookmark' }).click();
+
+    // Pinned section appears above and contains the bookmark
+    await expect(page.getByText('Pinned')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Unpin bookmark' })).toBeVisible();
+
+    const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
+    const bookmarks = JSON.parse(stored!);
+    expect(bookmarks[0].pinned).toBe(true);
+
+    // Unpinning moves the bookmark back to the regular section
+    await page.getByRole('button', { name: 'Unpin bookmark' }).click();
+    await expect(page.getByText('Pinned')).not.toBeVisible();
+    await expect(page.getByRole('button', { name: 'Pin bookmark' })).toBeVisible();
+
+    const storedAfter = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
+    const bookmarksAfter = JSON.parse(storedAfter!);
+    expect(bookmarksAfter[0].pinned).toBe(false);
+  });
+
+  test('pins a bookmark via the checkbox in the modal', async ({ page }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    await page.getByRole('button', { name: addButton }).click();
+    await expect(page.locator('dialog[open]')).toBeVisible();
+
+    await page.getByLabel('Name').fill('Dashboards');
+    await page.getByLabel('URL').fill('https://superset.example.com');
+    await page.locator('dialog[open]').getByRole('checkbox', { name: 'Pin bookmark' }).click();
+
+    await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
+
+    await expect(page.getByText('Pinned')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Unpin bookmark' })).toBeVisible();
+
+    const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
+    const bookmarks = JSON.parse(stored!);
+    expect(bookmarks[0].pinned).toBe(true);
+  });
+
+  test('pinned state is preserved when editing a bookmark', async ({ page }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    await page.getByRole('button', { name: addButton }).click();
+    await expect(page.locator('dialog[open]')).toBeVisible();
+
+    await page.getByLabel('Name').fill('Dashboards');
+    await page.getByLabel('URL').fill('https://superset.example.com');
+    await page.locator('dialog[open]').getByRole('checkbox', { name: 'Pin bookmark' }).click();
+
+    await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
+
+    await page.getByRole('button', { name: 'Edit bookmark' }).click();
+    await expect(page.locator('dialog[open]')).toBeVisible();
+
+    await expect(
+      page.locator('dialog[open]').getByRole('checkbox', { name: 'Pin bookmark' })
+    ).toBeChecked();
   });
 
   test('edits a bookmark', async ({ page }) => {
