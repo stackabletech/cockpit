@@ -1,8 +1,10 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import IconEdit from 'virtual:icons/material-symbols/edit';
+  import IconStar from 'virtual:icons/material-symbols/star';
+  import IconStarOutline from 'virtual:icons/material-symbols/star-outline';
   import AddBookmarkModal from '$lib/components/dashboard/AddBookmarkModal.svelte';
-  import { getBookmarks } from '$lib/dashboard/bookmarks.svelte.js';
+  import { getBookmarks, togglePinBookmark } from '$lib/dashboard/bookmarks.svelte.js';
   import { PRODUCTS } from '$lib/dashboard/products';
   import type { Bookmark } from '$lib/dashboard/types';
   import type { PageData } from './$types';
@@ -11,7 +13,6 @@
 
   let addModalOpen = $state(false);
   let editingBookmark: Bookmark | null = $state(null);
-
   let bookmarks = $derived(getBookmarks());
 
   function openEditBookmark(bookmark: Bookmark) {
@@ -94,10 +95,7 @@
                 onerror={handleLogoError}
               />
               <span
-                class="
-                  flex hidden size-[38px] shrink-0 items-center justify-center rounded-md font-mono
-                  text-xs font-bold text-white
-                "
+                class="flex hidden size-[38px] shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold text-white"
                 style="background-color: {product.color}"
                 aria-hidden="true"
               >
@@ -105,10 +103,7 @@
               </span>
             {:else}
               <span
-                class="
-                  flex size-[38px] shrink-0 items-center justify-center rounded-md font-mono
-                  text-xs font-bold text-white
-                "
+                class="flex size-[38px] shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold text-white"
                 style="background-color: {product.color}"
                 aria-hidden="true"
               >
@@ -121,19 +116,17 @@
                   {bookmark.name}
                 </span>
                 {#if bookmark.environment}
-                  <span class="text-base-content/70 shrink-0 text-[13px]">
-                    {bookmark.environment}
-                  </span>
+                  <span class="text-base-content/70 shrink-0 text-[13px]"
+                    >{bookmark.environment}</span
+                  >
                 {/if}
               </div>
               <div class="mt-1 flex min-w-0 items-center gap-1.5">
                 <span
-                  class="
-                    rounded-full px-1.5 py-0.5 text-[10.5px] font-bold
-                    {bookmark.openIn === 'cockpit'
+                  class="rounded-full px-1.5 py-0.5 text-[10.5px] font-bold {bookmark.openIn ===
+                  'cockpit'
                     ? 'bg-primary/10 text-primary'
-                    : 'bg-base-300 text-base-content/70'}
-                  "
+                    : 'bg-base-300 text-base-content/70'}"
                 >
                   {bookmark.openIn === 'cockpit'
                     ? m.bookmark_mode_cockpit()
@@ -144,6 +137,18 @@
                 </span>
               </div>
             </div>
+            <button
+              type="button"
+              class="btn btn-ghost btn-circle btn-sm size-7 shrink-0"
+              aria-label={bookmark.pinned ? m.bookmark_unpin_label() : m.bookmark_pin_label()}
+              onclick={() => togglePinBookmark(bookmark.id)}
+            >
+              {#if bookmark.pinned}
+                <IconStar class="text-warning size-3.5" />
+              {:else}
+                <IconStarOutline class="size-3.5" />
+              {/if}
+            </button>
             <button
               type="button"
               class="btn btn-ghost btn-circle btn-sm size-7 shrink-0"

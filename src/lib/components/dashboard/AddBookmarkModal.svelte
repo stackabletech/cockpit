@@ -155,7 +155,7 @@
     if (bookmark) {
       updateBookmark({ ...bookmark, ...values });
     } else {
-      addBookmark({ id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...values });
+      addBookmark({ createdAt: new Date().toISOString(), ...values });
     }
     resetForm();
     open = false;
