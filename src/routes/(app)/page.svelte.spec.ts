@@ -43,15 +43,11 @@ describe('/(app)/+page.svelte', () => {
 
   it('should hide pin-for-everyone in the modal for non-admins', async () => {
     render(Page, {
-      params: {},
       data: {
         user: null,
         storageBrowserEnabled: true,
-        isAdmin: false,
-        serviceCount: 0,
-        healthy: true
-      },
-      form: null
+        isAdmin: false
+      }
     });
 
     await page.getByRole('button', { name: 'Add Bookmark' }).click();
@@ -63,15 +59,11 @@ describe('/(app)/+page.svelte', () => {
 
   it('should enable pin-for-everyone in the modal for admins', async () => {
     render(Page, {
-      params: {},
       data: {
         user: null,
         storageBrowserEnabled: true,
-        isAdmin: true,
-        serviceCount: 0,
-        healthy: true
-      },
-      form: null
+        isAdmin: true
+      }
     });
 
     await page.getByRole('button', { name: 'Add Bookmark' }).click();

@@ -5,6 +5,9 @@
   import { getBookmarks } from '$lib/dashboard/bookmarks.svelte.js';
   import { PRODUCTS } from '$lib/dashboard/products';
   import type { Bookmark } from '$lib/dashboard/types';
+  import type { PageData } from './$types';
+
+  let { data = { isAdmin: false } as PageData }: { data?: PageData } = $props();
 
   let addModalOpen = $state(false);
   let editingBookmark: Bookmark | null = $state(null);
@@ -41,11 +44,7 @@
   }
 </script>
 
-<AddBookmarkModal
-  bind:open={addModalOpen}
-  bookmark={editingBookmark}
-  isAdmin={props.data.isAdmin}
-/>
+<AddBookmarkModal bind:open={addModalOpen} bookmark={editingBookmark} isAdmin={data.isAdmin} />
 
 <div class="mx-auto max-w-6xl space-y-5">
   <div class="flex flex-wrap items-end justify-between gap-4">
