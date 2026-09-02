@@ -112,8 +112,12 @@ spec:
                 configMapKeyRef:
                   name: {{ include "cockpit.fullname" . }}
                   key: oidc-client-id
-            - name: STACKABLE_COCKPIT_OIDC_USERNAME_CLAIM
-              value: {{ .Values.auth.oidc.usernameClaim | quote }}
+            - name: STACKABLE_COCKPIT_TRINO_USER_CLAIM
+              value: {{ .Values.trino.userImpersonation.userClaim | quote }}
+            {{- with .Values.auth.oidc.extraScopes }}
+            - name: STACKABLE_COCKPIT_OIDC_EXTRA_SCOPES
+              value: {{ join " " . | quote }}
+            {{- end }}
             {{- end }}
             {{- if .Values.trino.url }}
             - name: STACKABLE_COCKPIT_TRINO_URL
@@ -144,7 +148,7 @@ spec:
                   key: {{ .Values.trino.auth.password.secretKeyRef.key | quote }}
             {{- end }}
             - name: STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION
-              value: {{ .Values.trino.userImpersonation | quote }}
+              value: {{ .Values.trino.userImpersonation.enabled | quote }}
             {{- if .Values.trino.tls.insecure }}
             - name: STACKABLE_COCKPIT_TRINO_TLS_INSECURE
               value: "true"
