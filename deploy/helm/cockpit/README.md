@@ -105,6 +105,7 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 | Parameter | Description | Default |
 | --- | --- | --- |
 | `trino.url` | Trino coordinator URL. | `""` |
+| `trino.userImpersonation` | Forward the logged-in user to Trino as `X-Trino-User`. When `false`, all queries run as `trino.auth.username` (no per-user authorization/audit in Trino). | `true` |
 | `trino.auth.type` | `"none"` or `"basic"`. | `""` |
 | `trino.auth.username` | Username for basic auth. | `""` |
 | `trino.auth.password.secretKeyRef.name` | Name of the Secret holding the Trino password. Required when `type=basic`. | `""` |

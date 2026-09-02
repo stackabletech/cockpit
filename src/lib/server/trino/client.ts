@@ -43,16 +43,22 @@ interface TrinoClientOptions {
   authorization?: string;
   dispatcher?: Agent;
   source?: string;
+  /** Forward the user as `X-Trino-User` (impersonation). Default true. */
+  impersonate?: boolean;
 }
 
 export class TrinoClient {
   private readonly serverUrl: string;
   private readonly commonHeaders: Record<string, string>;
   private readonly dispatcher?: Agent;
+  private readonly impersonate: boolean;
+  private readonly authenticated: boolean;
 
   constructor(options: TrinoClientOptions) {
     this.serverUrl = options.serverUrl.replace(/\/+$/, '');
     this.dispatcher = options.dispatcher;
+    this.impersonate = options.impersonate ?? true;
+    this.authenticated = !!options.authorization;
 
     this.commonHeaders = {
       'X-Trino-Source': options.source ?? 'stackable-cockpit'
@@ -69,9 +75,12 @@ export class TrinoClient {
   ): Promise<TrinoQueryResult> {
     const headers: Record<string, string> = {
       ...this.commonHeaders,
-      'X-Trino-User': options.user,
       'Content-Type': 'text/plain'
     };
+    // Skip X-Trino-User only when not impersonating and Trino can fall back to the authenticated principal.
+    if (this.impersonate || !this.authenticated) {
+      headers['X-Trino-User'] = options.user;
+    }
     if (options.catalog) headers['X-Trino-Catalog'] = options.catalog;
     if (options.schema) headers['X-Trino-Schema'] = options.schema;
 
@@ -141,6 +150,8 @@ const authPassword = env.STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD;
 const tlsInsecure = env.STACKABLE_COCKPIT_TRINO_TLS_INSECURE === 'true';
 const tlsCaCertPath = env.STACKABLE_COCKPIT_TRINO_TLS_CA_CERT;
 
+export const trinoUserImpersonation = env.STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION !== 'false';
+
 /** True when the Trino connection is pre-configured via environment variables. */
 export const trinoConfigured = !!trinoUrl;
 
@@ -172,11 +183,17 @@ if (trinoConfigured) {
   singleton = new TrinoClient({
     serverUrl: trinoUrl!,
     authorization,
-    dispatcher
+    dispatcher,
+    impersonate: trinoUserImpersonation
   });
 
   log.info(
-    { trino_url: trinoUrl, auth_type: authType, tls_insecure: tlsInsecure },
+    {
+      trino_url: trinoUrl,
+      auth_type: authType,
+      tls_insecure: tlsInsecure,
+      user_impersonation: trinoUserImpersonation
+    },
     'Trino connection configured via environment'
   );
 }

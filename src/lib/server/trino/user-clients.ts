@@ -1,5 +1,5 @@
 import { logger } from '$lib/server/logging';
-import { TrinoClient, buildBasicAuthHeader } from './client.js';
+import { TrinoClient, buildBasicAuthHeader, trinoUserImpersonation } from './client.js';
 
 const log = logger.child({ module: 'trino-user-clients' });
 
@@ -26,7 +26,8 @@ export function createUserTrinoClient(userId: string, config: UserConnectionConf
 
   const client = new TrinoClient({
     serverUrl: config.url,
-    authorization
+    authorization,
+    impersonate: trinoUserImpersonation
   });
 
   userClients.set(userId, { client, url: config.url });
