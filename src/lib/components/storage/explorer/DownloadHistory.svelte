@@ -39,7 +39,10 @@
   }
 </script>
 
-<section class="border-base-300 border-t px-3 py-3" aria-label={m.storage_download_history_title()}>
+<section
+  class="border-base-300 min-h-0 flex-1 overflow-y-auto border-t px-3 py-3"
+  aria-label={m.storage_download_history_title()}
+>
   <h2 class="text-base-content/50 mb-2 text-[10px] font-semibold tracking-widest uppercase">
     {m.storage_download_history_title()}
   </h2>
@@ -53,32 +56,34 @@
         {@const totalSize = entry.entries.reduce((total, item) => total + item.size, 0)}
         {@const selectedSize = selectedDownloadHistoryPayloadSize(entry.entries, chosen)}
         <li class="bg-base-200 rounded-lg p-2.5">
-          <div class="flex flex-wrap items-center gap-2">
-            <div class="min-w-0 flex-1">
-              <p class="text-base-content truncate text-xs font-medium">{entry.bucket}</p>
-              <p class="text-base-content/60 text-[10px]">
+          <button
+            class="hover:bg-base-300/50 focus-visible:outline-primary flex w-full cursor-pointer items-center gap-2 rounded text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+            aria-expanded={expanded[entry.id]}
+            aria-label={expanded[entry.id]
+              ? m.storage_download_history_hide_details()
+              : m.storage_download_history_show_details()}
+            onclick={() => toggleDetails(entry.id)}
+          >
+            <span class="min-w-0 flex-1">
+              <span class="text-base-content block truncate text-xs font-medium"
+                >{entry.bucket}</span
+              >
+              <span class="text-base-content/60 block text-[10px]">
                 {new Date(entry.createdAt).toLocaleString()} · {m.storage_download_history_file_count(
                   { count: entry.entries.length }
                 )} · {formatFileSize(totalSize)} · {entry.archive
                   ? m.storage_download_history_zip()
                   : m.storage_download_history_direct()}
-              </p>
-            </div>
-            <button
-              class="btn btn-ghost btn-xs"
-              aria-expanded={expanded[entry.id]}
-              aria-label={expanded[entry.id]
-                ? m.storage_download_history_hide_details()
-                : m.storage_download_history_show_details()}
-              onclick={() => toggleDetails(entry.id)}
-            >
+              </span>
+            </span>
+            <span class="btn btn-ghost btn-xs" aria-hidden="true">
               {#if expanded[entry.id]}
                 <IconChevronUp aria-hidden="true" />
               {:else}
                 <IconChevronDown aria-hidden="true" />
               {/if}
-            </button>
-          </div>
+            </span>
+          </button>
           {#if expanded[entry.id]}
             <fieldset class="border-base-300 mt-2 min-w-0 space-y-1 border-t pt-2">
               <legend class="text-base-content/70 text-[11px]" aria-live="polite">
