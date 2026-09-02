@@ -31,7 +31,6 @@ podLabels: {}
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 782252253
-  runAsGroup: 574654813
   fsGroup: 782252253
   seccompProfile:
     type: RuntimeDefault
@@ -162,6 +161,9 @@ auth:
 trino:
   # Trino coordinator URL (e.g. https://trino.example.com:8443)
   url: ""
+  # Forward the logged-in user to Trino as X-Trino-User. When false, all queries
+  # run as trino.auth.username instead (requires basic auth).
+  userImpersonation: true
   auth:
     # Authentication type: "none" or "basic"
     type: ""
