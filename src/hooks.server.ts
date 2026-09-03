@@ -89,13 +89,14 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
     event.locals.storageConfig = null;
   }
   // The connections management endpoint itself does not require a connection header —
-  // it is used to list/create connections before one is selected.
-  // The copy/job polling endpoint also does not require a connection header —
-  // it reads job status from the server-side job store.
+  // it is used to list/create connections before one is selected. Manifest stream and
+  // re-download routes load the manifest's owned connection at request time instead.
   const requiresConnectionHeader =
     event.route.id?.startsWith('/(app)/api/storage/') &&
     !event.route.id?.startsWith('/(app)/api/storage/connections') &&
-    !event.route.id?.startsWith('/(app)/api/storage/copy/job/');
+    !event.route.id?.startsWith('/(app)/api/storage/copy/job/') &&
+    !event.route.id?.startsWith('/(app)/api/storage/download/manifests/[manifestId]/') &&
+    event.route.id !== '/(app)/api/storage/download/manifests';
   if (event.locals.storageConfig === null && requiresConnectionHeader) {
     throw error(401, 'No storage connection configured');
   }

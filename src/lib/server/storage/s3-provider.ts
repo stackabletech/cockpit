@@ -19,9 +19,21 @@ import {
   type ListObjectsV2CommandOutput
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
-import type { StorageProvider, ObjectDownload, DeleteObjectsResult } from './provider.js';
+import type {
+  StorageProvider,
+  ObjectDownload,
+  DeleteObjectsResult,
+  SearchOptions,
+  SearchResult,
+  ProgressiveListOptions
+} from './provider.js';
 import type { S3Config } from './types.js';
-import type { StoragePage, StorageObject, StorageMetadata } from '$lib/storage/types.js';
+import type {
+  StoragePage,
+  StorageObject,
+  StorageMetadata,
+  SearchResultItem
+} from '$lib/storage/types.js';
 import type { LifecycleRule, BucketAcl } from '$lib/storage/details-types.js';
 import { logger } from '$lib/server/logging';
 import { createS3Client } from './s3-client.js';
@@ -389,7 +401,8 @@ export class S3StorageProvider implements StorageProvider {
 
   async listAllKeysProgressively(
     prefix: string,
-    onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void
+    onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void | boolean,
+    options?: ProgressiveListOptions
   ): Promise<void> {
     log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (progressive, concurrent)');
 
@@ -404,7 +417,8 @@ export class S3StorageProvider implements StorageProvider {
           Bucket: this.bucket,
           Prefix: prefix,
           ContinuationToken: token
-        })
+        }),
+        { abortSignal: options?.signal }
       );
 
     // Seed the first fetch
@@ -420,7 +434,8 @@ export class S3StorageProvider implements StorageProvider {
         }
       }
       if (batch.length > 0) {
-        onBatch(batch);
+        const shouldStop = onBatch(batch) === false;
+        if (shouldStop) break;
       }
 
       // If truncated, chain the next fetch so it starts while we process the
@@ -432,6 +447,69 @@ export class S3StorageProvider implements StorageProvider {
     }
 
     log.trace({ bucket: this.bucket, prefix }, 'progressive listing complete');
+  }
+
+  async search(query: string, options?: SearchOptions): Promise<SearchResult> {
+    const signal = options?.signal;
+    const prefix = options?.prefix ?? '';
+    const maxDepth = options?.maxDepth;
+    const matches =
+      options?.matches ??
+      ((item: SearchResultItem) => item.key.toLowerCase().includes(query.toLowerCase()));
+    const onMatch = options?.onMatch;
+
+    log.trace(
+      {
+        bucket: this.bucket,
+        query,
+        prefix,
+        max_depth: maxDepth
+      },
+      'S3 ListObjectsV2 (search)'
+    );
+
+    if (signal?.aborted) {
+      throw new DOMException('The operation was aborted', 'AbortError');
+    }
+
+    const results: SearchResultItem[] = [];
+
+    await withS3Errors(
+      () =>
+        this.listAllKeysProgressively(
+          prefix,
+          (batch) => {
+            for (const item of batch) {
+              if (signal?.aborted) {
+                throw new DOMException('The operation was aborted', 'AbortError');
+              }
+              const relativeKey = item.key.slice(prefix.length);
+              if (
+                maxDepth !== undefined &&
+                relativeKey.split('/').filter(Boolean).length > maxDepth
+              ) {
+                continue;
+              }
+              const result = {
+                key: item.key,
+                size: item.size,
+                lastModified: item.lastModified ?? new Date(0),
+                isDirectory: item.key.endsWith('/')
+              };
+              if (matches(result)) {
+                results.push(result);
+                onMatch?.(result);
+              }
+            }
+            return undefined;
+          },
+          { signal }
+        ),
+      { bucket: this.bucket, operation: 'search' }
+    );
+
+    log.info({ bucket: this.bucket, query, result_count: results.length }, 'search complete');
+    return { results };
   }
 
   async listAllKeys(prefix: string): Promise<string[]> {

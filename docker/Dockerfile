@@ -28,7 +28,7 @@ RUN NODEJS_VERSION=$(cat /tmp/.node-version) && \
         *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
     esac && \
     microdnf update -y && \
-    microdnf install -y curl tar gzip && \
+    microdnf install -y curl tar gzip zip && \
     microdnf clean all && \
     curl -fsSL "https://nodejs.org/dist/v${NODEJS_VERSION}/node-v${NODEJS_VERSION}-linux-${NODEJS_ARCH}.tar.gz" \
         | tar -xzf - --strip-components=1 -C /usr/local

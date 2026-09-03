@@ -1,56 +1,72 @@
-/**
- * Client-side utility for downloading a single S3 object via the server proxy.
- *
- * Strategy:
- *  1. Fetch the object via `storageFetch` which injects the connection header
- *     and maps HTTP errors to `StorageError`.
- *  3. On success: create a Blob URL and trigger a native browser download via a
- *     programmatic anchor click.
- *
- * Note: The response body is buffered as a Blob before the download link is
- * constructed. This avoids exposing credentials in the URL (query-param approach)
- * while keeping the implementation simple. For very large files this will use
- * proportional browser memory — see TECH_DEBT.md for the long-term fix.
- */
-
-import { createStorageFetch } from '$lib/storage/storage-fetch.js';
-import type { StorageErrorCode } from '$lib/storage/errors.js';
-
-export type DownloadErrorCode = StorageErrorCode;
+import type { StorageApi } from './api.js';
 
 /**
- * Download a single S3 object.
- *
- * Fetches the object with the connection ID header, buffers it as a Blob,
- * then triggers a native browser download via a programmatic anchor click.
- *
- * @throws {StorageError} when the server returns a non-2xx response.
+ * Estimate the byte length of the stored (uncompressed) ZIP that a multi
+ * download will produce. The exact archive size is deliberately not computed
+ * server-side, so this client-side approximation (payload plus per-entry ZIP
+ * structure overhead) drives the size/ETA display while downloading.
  */
-export async function downloadObject(
-  bucket: string,
-  key: string,
-  connectionId: string
+export function estimateArchiveSize(
+  entries: Array<{ key: string; size: number; isDirectory?: boolean }>
+): number {
+  let payload = 0;
+  // End-of-central-directory record.
+  let overhead = 22;
+  for (const entry of entries) {
+    const nameLength = entry.key.length + (entry.isDirectory && !entry.key.endsWith('/') ? 1 : 0);
+    // Local file header (30) + data descriptor (16) + central directory header
+    // (46), with the entry name stored twice (local header + central directory).
+    overhead += 92 + 2 * nameLength;
+    if (!entry.isDirectory) payload += entry.size;
+  }
+  return payload + overhead;
+}
+
+async function triggerDownload(
+  manifestId: string,
+  part: number,
+  filename: string,
+  jobId: string
 ): Promise<void> {
-  const fetch_ = createStorageFetch(() => connectionId);
-  const url = `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
-
-  const response = await fetch_(url);
-
-  const blob = await response.blob();
-  const blobUrl = URL.createObjectURL(blob);
-
-  // Derive filename from the key (last path segment).
-  const filename = key.split('/').filter(Boolean).pop() ?? key;
-
   const anchor = document.createElement('a');
-  anchor.href = blobUrl;
+  anchor.href = `/api/storage/download/manifests/${encodeURIComponent(manifestId)}/${part}?${new URLSearchParams({ jobId })}`;
   anchor.download = filename;
   anchor.style.display = 'none';
   document.body.appendChild(anchor);
   anchor.click();
-  document.body.removeChild(anchor);
+  // Keep concurrent native downloads initiated by this user gesture alive long enough
+  // for Firefox and Chromium to accept them.
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  setTimeout(() => anchor.remove(), 10_000);
+}
 
-  // Release the object URL after a short delay to allow the browser to initiate
-  // the download before the URL is revoked.
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+export async function triggerManifestDownloads(manifest: {
+  id: string;
+  files: Array<{ filename: string; part: number }>;
+}): Promise<string[]> {
+  const jobIds: string[] = [];
+  for (const file of manifest.files) {
+    const jobId = crypto.randomUUID();
+    jobIds.push(jobId);
+    await triggerDownload(manifest.id, file.part, file.filename, jobId);
+  }
+  return jobIds;
+}
+
+/** Prepare a final manifest, then immediately hand its streams to the browser. */
+export async function startDownload(
+  api: StorageApi,
+  bucket: string,
+  prefix: string,
+  keys: string[],
+  signal?: AbortSignal
+): Promise<{ id: string; fileCount: number; totalBytes: number; jobIds: string[] }> {
+  const manifest = await api.createDownloadManifest({ bucket, prefix, keys }, signal);
+  const jobIds = await triggerManifestDownloads(manifest);
+  return {
+    id: manifest.id,
+    fileCount: manifest.files.length,
+    totalBytes: manifest.files.reduce((total, file) => total + file.size, 0),
+    jobIds
+  };
 }

@@ -24,15 +24,29 @@ vi.mock('$app/navigation', () => ({
   invalidateAll: vi.fn()
 }));
 
+vi.mock('$lib/storage/download.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/storage/download.js')>();
+  return {
+    ...actual,
+    startDownload: vi.fn(),
+    triggerManifestDownloads: vi.fn()
+  };
+});
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SvelteSet } from 'svelte/reactivity';
 import { StorageState } from './state.svelte.js';
 import type { StorageObject, StoragePage } from './types.js';
-import type { StorageApi, CopyMoveResult, DeleteResult } from './api.js';
+import type { StorageApi, CopyMoveResult, DeleteResult, DownloadHistoryEntry } from './api.js';
 import type { FileDetails, DirectoryMetadata, BucketDetails } from './details-types.js';
 import { StorageError } from './errors.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import { invalidateAll } from '$app/navigation';
+import {
+  estimateArchiveSize,
+  startDownload,
+  triggerManifestDownloads
+} from '$lib/storage/download.js';
 
 function makeObjects(): StorageObject[] {
   return [
@@ -81,6 +95,14 @@ function makeApi(overrides?: Partial<StorageApi>): StorageApi {
     async list() {
       return makePage();
     },
+    async search() {
+      return { results: [] };
+    },
+    async listRecentSearches() {
+      return [];
+    },
+    async recordRecentSearch() {},
+    async clearRecentSearches() {},
     async copy(): Promise<CopyMoveResult> {
       return { results: [], failed: 0 };
     },
@@ -100,6 +122,21 @@ function makeApi(overrides?: Partial<StorageApi>): StorageApi {
     },
     async pollJob() {
       return { status: 'done' };
+    },
+    async cancelJob() {},
+    async createDownloadManifest() {
+      return {
+        id: 'download-manifest',
+        files: [],
+        expiresAt: new Date().toISOString()
+      };
+    },
+    async listDownloadHistory() {
+      return [];
+    },
+    async clearDownloadHistory() {},
+    async recreateDownloadManifest() {
+      return { id: 'download-manifest', files: [], expiresAt: new Date().toISOString() };
     },
     async checkObjectExists() {
       return false;
@@ -157,10 +194,6 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-// ────────────────────────────────────────────────────────────────────────────
-// executeAction – cut
-// ────────────────────────────────────────────────────────────────────────────
-
 describe('executeAction("cut")', () => {
   it('sets clipboard with action="cut" and selected keys', async () => {
     const state = makeState();
@@ -202,10 +235,6 @@ describe('executeAction("cut")', () => {
   });
 });
 
-// ────────────────────────────────────────────────────────────────────────────
-// executeAction – copy
-// ────────────────────────────────────────────────────────────────────────────
-
 describe('executeAction("copy")', () => {
   it('sets clipboard with action="copy" and selected keys', async () => {
     const state = makeState();
@@ -235,10 +264,6 @@ describe('executeAction("copy")', () => {
     expect(state.clipboard).toBeNull();
   });
 });
-
-// ────────────────────────────────────────────────────────────────────────────
-// isCutKey
-// ────────────────────────────────────────────────────────────────────────────
 
 describe('isCutKey', () => {
   it('returns true when key is in clipboard with cut action and matching bucket', () => {
@@ -301,10 +326,6 @@ describe('isCutKey', () => {
     expect(state.isCutKey('file.txt')).toBe(false);
   });
 });
-
-// ────────────────────────────────────────────────────────────────────────────
-// executeAction – paste
-// ────────────────────────────────────────────────────────────────────────────
 
 describe('executeAction("paste")', () => {
   it('shows warning when inside an archive', async () => {
@@ -700,6 +721,25 @@ describe('handleKeydown', () => {
     expect(addToast).not.toHaveBeenCalled();
   });
 
+  it('does not handle Ctrl+A from an open dialog', () => {
+    const state = makeState();
+    const dialog = document.createElement('dialog');
+    const input = document.createElement('input');
+    dialog.setAttribute('open', '');
+    dialog.appendChild(input);
+    document.body.appendChild(dialog);
+    state.selectedKeys = new SvelteSet<string>(['file.txt']);
+
+    const event = new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true });
+    input.dispatchEvent(event);
+    state.handleKeydown(event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(state.selectedKeys).toEqual(new SvelteSet(['file.txt']));
+
+    dialog.remove();
+  });
+
   it('F2 triggers rename when one item is selected', () => {
     const state = makeState();
     state.selectedKeys = new SvelteSet<string>(['file.txt']);
@@ -794,5 +834,161 @@ describe('performDelete clipboard cleanup', () => {
 
     expect(state.clipboard).not.toBeNull();
     expect(state.clipboard!.keys).toEqual(['file.txt']);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// executeAction – download (archive size estimation)
+// ────────────────────────────────────────────────────────────────────────────
+
+describe('executeAction("download")', () => {
+  it('starts an operation with an estimated archive size, then refines it from the manifest', async () => {
+    let resolveStartDownload!: (value: {
+      id: string;
+      fileCount: number;
+      totalBytes: number;
+      jobIds: string[];
+    }) => void;
+    vi.mocked(startDownload).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveStartDownload = resolve;
+        })
+    );
+    let resolveHistoryFn!: (entries: DownloadHistoryEntry[]) => void;
+    const state = makeState({
+      listDownloadHistory: () =>
+        new Promise((resolve) => {
+          resolveHistoryFn = resolve;
+        })
+    });
+    state.connectionId = 'test-connection-id';
+    state.selectionMode = true;
+    state.selectedKeys = new SvelteSet(['dir/', 'file.txt', 'photo.jpg', 'nested/file.js']);
+
+    const promise = state.executeAction('download');
+    await vi.waitFor(() => expect(state.operations).toHaveLength(1));
+
+    const op = state.operations[0]!;
+    const downloadItems = [
+      { key: 'dir/', size: 0, isDirectory: true },
+      { key: 'file.txt', size: 100, isDirectory: false },
+      { key: 'photo.jpg', size: 500, isDirectory: false },
+      { key: 'nested/file.js', size: 200, isDirectory: false }
+    ];
+    expect(op.type).toBe('download');
+    expect(op.totalBytes).toBe(estimateArchiveSize(downloadItems));
+
+    resolveStartDownload({
+      id: 'download-manifest',
+      fileCount: 1,
+      totalBytes: 900,
+      jobIds: ['download-job-1']
+    });
+    await vi.waitFor(() => expect(state.operations[0]?.totalBytes).toBe(900));
+
+    resolveHistoryFn([]);
+    await promise;
+
+    expect(state.operations).toHaveLength(1);
+    expect(state.operations[0]).toMatchObject({
+      status: 'running',
+      fileJobIds: ['download-job-1']
+    });
+  });
+
+  it('marks the operation as failed when the download cannot be started', async () => {
+    vi.mocked(startDownload).mockRejectedValueOnce(new StorageError('server_error', 'Boom'));
+    const state = makeState();
+    state.selectionMode = true;
+    state.selectedKeys = new SvelteSet(['file.txt', 'photo.jpg']);
+
+    await state.executeAction('download');
+
+    expect(state.operations).toHaveLength(1);
+    expect(state.operations[0]?.status).toBe('error');
+    expect(addToast).toHaveBeenCalledWith('error', expect.any(String));
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// redownloadHistory
+// ────────────────────────────────────────────────────────────────────────────
+
+function makeHistoryEntry(): DownloadHistoryEntry {
+  return {
+    id: 'manifest-1',
+    bucket: 'test-bucket',
+    connectionId: 'test-connection-id',
+    entries: [
+      { key: 'a.txt', size: 1000, isDirectory: false },
+      { key: 'b.txt', size: 2000, isDirectory: false },
+      { key: 'c.txt', size: 4000, isDirectory: false }
+    ],
+    archive: true,
+    archiveFilename: 'test-bucket.zip',
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 86_400_000).toISOString()
+  };
+}
+
+describe('redownloadHistory', () => {
+  beforeEach(() => {
+    vi.mocked(triggerManifestDownloads).mockResolvedValue(['download-job-1']);
+  });
+
+  it('tracks an operation with the estimated size of the selected entries', async () => {
+    const recreateSpy = vi.fn().mockResolvedValue({
+      id: 'manifest-2',
+      files: [{ filename: 'selection.zip', size: 3000, part: 1 }],
+      expiresAt: new Date().toISOString()
+    });
+    const state = makeState({ recreateDownloadManifest: recreateSpy });
+    state.downloadHistory = [makeHistoryEntry()];
+
+    await state.redownloadHistory('manifest-1', ['a.txt', 'b.txt']);
+
+    expect(recreateSpy).toHaveBeenCalledWith('manifest-1', ['a.txt', 'b.txt']);
+    expect(triggerManifestDownloads).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'manifest-2',
+        files: [{ filename: 'selection.zip', size: 3000, part: 1 }]
+      })
+    );
+    expect(state.operations).toHaveLength(1);
+    expect(state.operations[0]).toMatchObject({
+      status: 'running',
+      fileJobIds: ['download-job-1']
+    });
+  });
+
+  it('marks the operation as failed and drops vanished history entries', async () => {
+    const state = makeState({
+      recreateDownloadManifest: vi
+        .fn()
+        .mockRejectedValue(new StorageError('not_found', 'reports/moved.txt'))
+    });
+    state.downloadHistory = [makeHistoryEntry()];
+
+    await expect(state.redownloadHistory('manifest-1', ['a.txt'])).rejects.toThrow();
+
+    expect(state.operations[0]?.status).toBe('error');
+    expect(state.operations[0]?.errorMessage).toBe(
+      'Failed: File "reports/moved.txt" cannot be found'
+    );
+    expect(state.downloadHistory).toHaveLength(0);
+  });
+});
+
+describe('clearOperationHistory', () => {
+  it('clears both operation and download history', async () => {
+    const clearDownloadHistory = vi.fn();
+    const state = makeState({ clearDownloadHistory });
+    state.downloadHistory = [makeHistoryEntry()];
+
+    await state.clearOperationHistory();
+
+    expect(clearDownloadHistory).toHaveBeenCalledOnce();
+    expect(state.downloadHistory).toEqual([]);
   });
 });

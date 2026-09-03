@@ -60,7 +60,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   );
 
   locals.logger.debug({ connection_id: params.id }, 'loading storage connection edit page');
-  return { editForm, connectionId: params.id };
+  return {
+    editForm,
+    connectionId: params.id,
+    activeConnectionId: locals.session?.activeStorageConnectionId ?? null
+  };
 };
 
 export const actions: Actions = {

@@ -33,6 +33,22 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
       return emptyPage;
     },
 
+    async search() {
+      return { results: [] };
+    },
+
+    async listRecentSearches() {
+      return [];
+    },
+
+    async recordRecentSearch() {
+      // no-op
+    },
+
+    async clearRecentSearches() {
+      // no-op
+    },
+
     async copy(): Promise<CopyMoveResult> {
       return { results: [], failed: 0 };
     },
@@ -63,6 +79,30 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
 
     async pollJob(): Promise<JobStatus> {
       return { status: 'done' };
+    },
+
+    async cancelJob() {
+      // no-op
+    },
+
+    async createDownloadManifest() {
+      return {
+        id: 'download-manifest',
+        files: [],
+        expiresAt: new Date().toISOString()
+      };
+    },
+
+    async listDownloadHistory() {
+      return [];
+    },
+
+    async clearDownloadHistory() {
+      // no-op
+    },
+
+    async recreateDownloadManifest() {
+      return { id: 'download-manifest', files: [], expiresAt: new Date().toISOString() };
     },
 
     async checkObjectExists() {

@@ -24,3 +24,17 @@ export const trinoActiveQueries = new Gauge({
   help: 'Number of active Trino queries submitted through Stackable UI',
   registers: [register]
 });
+
+export const storageSearchTotal = new Counter({
+  name: 'storage_search_total',
+  help: 'Bucket-scoped storage searches executed through the Stackable UI',
+  labelNames: ['outcome'],
+  registers: [register]
+});
+
+export const storageSearchHistoryTotal = new Counter({
+  name: 'storage_search_history_total',
+  help: 'Recent storage search history operations executed through the Stackable UI',
+  labelNames: ['operation', 'outcome'],
+  registers: [register]
+});

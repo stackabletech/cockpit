@@ -16,6 +16,7 @@ export interface ModalPayloads {
   delete: { keys: string[] };
   preview: {
     key: string;
+    bucket?: string;
     archiveKey?: string;
     archivePath?: string;
     nestedArchivePath?: string;
@@ -122,7 +123,7 @@ export interface ClipboardData {
 
 export type OperationStatus = 'running' | 'done' | 'error' | 'cancelled' | 'interrupted';
 
-export type OperationType = 'paste' | 'move' | 'rename' | 'delete';
+export type OperationType = 'paste' | 'move' | 'rename' | 'delete' | 'download';
 
 export interface StorageOperation {
   id: string;
@@ -142,9 +143,9 @@ export interface StorageOperation {
   totalBytes: number;
   /** Bytes transferred so far (sum of completed items). */
   completedBytes: number;
-  /** Name of the file currently being transferred. */
+  /** Name of the file currently being transferred (single-item copy/move/paste). */
   currentFileName?: string;
-  /** Server-side job IDs per file for recovering results after reload. */
+  /** Server-side job IDs per file for recovering copy/move results after reload. */
   fileJobIds?: string[];
 }
 
@@ -214,6 +215,39 @@ export interface StoragePage {
 /** Result of a bulk-delete operation. `failed` lists keys that could not be deleted. */
 export interface DeleteObjectsResult {
   failed: Array<{ key: string; code?: string; message?: string }>;
+}
+
+// ── Search ───────────────────────────────────────────────────────────────────
+
+/** A single match from a bucket-scoped storage search. */
+export interface SearchResultItem {
+  key: string;
+  size: number;
+  lastModified: Date;
+  isDirectory: boolean;
+}
+
+/** Response from the storage search API. */
+export interface StorageSearchResponse {
+  results: SearchResultItem[];
+}
+
+/** An incremental update emitted while a storage search is in progress. */
+export interface StorageSearchUpdate extends StorageSearchResponse {
+  /** True when this update replaces rather than appends to the current result set. */
+  snapshot: boolean;
+}
+
+/** A single entry in the per-connection recent search history. One entry
+ *  represents one logical search grouped across all buckets it ran against.
+ *  `maxDepth` is NULL when no depth limit was set. */
+export interface RecentSearchEntry {
+  buckets: string[];
+  query: string;
+  useRegex: boolean;
+  excludePatterns: string[];
+  searchPath: string;
+  maxDepth: number | null;
 }
 
 // ── Archive navigation ───────────────────────────────────────────────────────

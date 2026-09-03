@@ -12,6 +12,7 @@ const OPERATIONS_HISTORY_KEY = 'storage_operations_history';
 function makeMockApi(): StorageApi {
   return {
     pollJob: vi.fn().mockResolvedValue({ status: 'done' }),
+    cancelJob: vi.fn(),
     list: vi.fn(),
     copy: vi.fn(),
     move: vi.fn(),
@@ -202,12 +203,12 @@ describe('OperationsState lifecycle', () => {
     const state = new OperationsState(makeMockApi(), makeOpts());
     state.startOp('op-1', 'Copy: file.txt', 'paste', 3, undefined, undefined, undefined, 500);
 
-    state.updateOpProgress('op-1', 2, 300, 'file2.txt');
+    state.updateOpProgress('op-1', 2, 300, 'file1.txt');
 
     const op = state.operations[0];
     expect(op.completedCount).toBe(2);
     expect(op.completedBytes).toBe(300);
-    expect(op.currentFileName).toBe('file2.txt');
+    expect(op.currentFileName).toBe('file1.txt');
   });
 
   it('updateOpProgress does NOT update operations with status cancelled', () => {
@@ -229,6 +230,17 @@ describe('OperationsState lifecycle', () => {
     state.updateOpJobIds('op-1', ['job-a', 'job-b']);
 
     expect(state.operations[0].fileJobIds).toEqual(['job-a', 'job-b']);
+  });
+
+  it('updateOpTotalBytes refines only the target operation size', () => {
+    const state = new OperationsState(makeMockApi(), makeOpts());
+    state.startOp('op-1', 'Download', 'download', 4, undefined, undefined, undefined, 100);
+    state.startOp('op-2', 'Other', 'download', 1, undefined, undefined, undefined, 200);
+
+    state.updateOpTotalBytes('op-1', 900);
+
+    expect(state.operations[0].totalBytes).toBe(900);
+    expect(state.operations[1].totalBytes).toBe(200);
   });
 
   it('finishOp with done sets status=done and completedAt', () => {
@@ -396,6 +408,18 @@ describe('cancelOp', () => {
     const state = new OperationsState(makeMockApi(), makeOpts());
 
     expect(() => state.cancelOp('nonexistent')).not.toThrow();
+  });
+
+  it('cancels every active browser download job', () => {
+    const api = makeMockApi();
+    const state = new OperationsState(api, makeOpts());
+    state.startOp('op-1', 'Download', 'download', 2);
+    state.updateOpJobIds('op-1', ['job-1', 'job-2']);
+
+    state.cancelOp('op-1');
+
+    expect(api.cancelJob).toHaveBeenCalledWith('job-1');
+    expect(api.cancelJob).toHaveBeenCalledWith('job-2');
   });
 });
 

@@ -9,14 +9,13 @@
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
   import { EditStorageConnectionSchema } from '$lib/storage/schemas.js';
-  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
 
   let { data } = $props();
 
   const uid = $props.id();
 
   let loaded = $state(false);
-  let isActiveConnection = $derived(connectionStore.activeConnectionId === data.connectionId);
+  let isActiveConnection = $derived(data.activeConnectionId === data.connectionId);
 
   // Unsaved-changes guard
   let initialSnapshot = $state.raw('');

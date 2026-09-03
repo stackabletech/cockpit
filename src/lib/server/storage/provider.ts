@@ -1,7 +1,37 @@
-import type { StoragePage, StorageMetadata, DeleteObjectsResult } from '$lib/storage/types.js';
+import type {
+  StoragePage,
+  StorageMetadata,
+  DeleteObjectsResult,
+  SearchResultItem
+} from '$lib/storage/types.js';
 import type { LifecycleRule, BucketAcl } from '$lib/storage/details-types.js';
 
 export type { DeleteObjectsResult };
+
+/** Options accepted by {@link StorageProvider.search}. */
+export interface SearchOptions {
+  /** Limit the S3 listing to this key prefix. */
+  prefix?: string;
+  /** Maximum key depth relative to `prefix`. */
+  maxDepth?: number;
+  /** Abort the in-flight search; throws `AbortError` when signalled. */
+  signal?: AbortSignal;
+  /** Decide whether a scanned key matches the search. */
+  matches?: (item: SearchResultItem) => boolean;
+  /** Called immediately after each accepted result. */
+  onMatch?: (item: SearchResultItem) => void;
+}
+
+/** Options for progressive key listing. */
+export interface ProgressiveListOptions {
+  /** Abort the currently pending provider page request. */
+  signal?: AbortSignal;
+}
+
+/** Result of a bucket-scoped search. */
+export interface SearchResult {
+  results: SearchResultItem[];
+}
 
 /** Metadata and body stream returned when fetching a storage object. */
 export interface ObjectDownload {
@@ -48,8 +78,14 @@ export interface StorageProvider {
   listAllKeys(prefix: string): Promise<string[]>;
   listAllKeysProgressively(
     prefix: string,
-    onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void
+    onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void | boolean,
+    options?: ProgressiveListOptions
   ): Promise<void>;
+  /**
+   * Case-insensitive substring search across all keys in this bucket. Both
+   * files (plain keys) and directories (keys ending in `/`) match.
+   */
+  search(query: string, options?: SearchOptions): Promise<SearchResult>;
   getBucketVersioning(): Promise<string>;
   getBucketLifecycleRules(): Promise<LifecycleRule[]>;
   getBucketTags(): Promise<Record<string, string>>;
