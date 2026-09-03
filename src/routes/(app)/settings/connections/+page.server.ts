@@ -5,10 +5,44 @@ import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { ConnectionIdSchema } from '$lib/storage/schemas.js';
 import { deleteConnection } from '$lib/server/storage/connections-db.js';
 import { auth } from '$lib/server/auth.js';
+import { desc, eq } from 'drizzle-orm';
+import { db } from '$lib/server/db.js';
+import { userStorageConnections } from '$lib/server/schema.js';
+import { decrypt } from '$lib/server/storage/encryption.js';
+import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
+import type { ConnectionListItem } from '$lib/storage/connection-store.svelte.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   locals.logger.debug('loading storage connections management page');
-  return {};
+  const rows = await db
+    .select()
+    .from(userStorageConnections)
+    .where(eq(userStorageConnections.userId, locals.user!.id))
+    .orderBy(desc(userStorageConnections.updatedAt));
+
+  const connections: ConnectionListItem[] = rows.map((row) => {
+    let endpoint: string | null = null;
+    try {
+      const payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey())) as {
+        host?: string;
+        port?: number;
+      };
+      endpoint =
+        payload.host && payload.port ? `${payload.host}:${payload.port}` : (payload.host ?? null);
+    } catch (err) {
+      locals.logger.warn({ err, connection_id: row.id }, 'failed to decrypt storage connection');
+    }
+    return {
+      id: row.id,
+      name: row.name,
+      endpoint,
+      additionalBuckets: (row.additionalBuckets as string[]) ?? [],
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString()
+    };
+  });
+
+  return { connections };
 };
 
 export const actions: Actions = {

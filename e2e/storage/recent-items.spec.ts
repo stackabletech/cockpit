@@ -19,7 +19,10 @@ import {
 async function previewFile(page: Page, name: string) {
   await rowByName(page, name).dblclick();
   await expect(page.getByRole('heading', { name })).toBeVisible();
-  await page.getByRole('button', { name: 'Close' }).last().click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Close', exact: true })
+    .click();
   await expect(page.getByRole('heading', { name })).not.toBeVisible();
 }
 
@@ -63,7 +66,10 @@ test.describe('Storage S3 — Recent Items', () => {
       await connectAndOpenPrefix(page, credentials, prefix);
       await rowByName(page, 'recent.txt').dblclick();
       await expect(page.getByRole('heading', { name: 'recent.txt' })).toBeVisible();
-      await page.getByRole('button', { name: 'Close' }).last().click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: 'Close', exact: true })
+        .click();
 
       await page.goto('/storage');
       await waitForStorageConnected(page);

@@ -67,18 +67,6 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 }
       }
     },
-    ...(!process.env.CI
-      ? [
-          {
-            name: 'setup-mobile',
-            testMatch: /auth\.setup\.ts/,
-            use: {
-              browserName: 'chromium' as const,
-              viewport: { width: 393, height: 851 }
-            }
-          }
-        ]
-      : []),
     {
       name: 'firefox',
       use: {
@@ -97,24 +85,6 @@ export default defineConfig({
         ...(chromiumExecutablePath && { launchOptions: { executablePath: chromiumExecutablePath } })
       },
       dependencies: ['setup-chromium']
-    },
-    ...(!process.env.CI
-      ? [
-          {
-            name: 'mobile',
-            use: {
-              browserName: 'chromium' as const,
-              viewport: { width: 393, height: 851 },
-              isMobile: true,
-              hasTouch: true,
-              storageState: 'e2e/.auth/user-setup-mobile.json',
-              ...(chromiumExecutablePath && {
-                launchOptions: { executablePath: chromiumExecutablePath }
-              })
-            },
-            dependencies: ['setup-mobile']
-          }
-        ]
-      : [])
+    }
   ]
 });

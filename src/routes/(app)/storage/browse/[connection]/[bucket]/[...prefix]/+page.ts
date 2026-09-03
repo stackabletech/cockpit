@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import { error, redirect } from '@sveltejs/kit';
+import { error, isHttpError, redirect } from '@sveltejs/kit';
 import { connectionHostname, connectionStore } from '$lib/storage/connection-store.svelte.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import * as m from '$lib/paraglide/messages.js';
@@ -34,9 +34,17 @@ export const load: PageLoad = async ({ fetch, url, data }) => {
   const query = new URLSearchParams({ bucket, prefix: prefix ?? '' });
 
   if (!browser) {
-    const res = await fetch(`/api/storage/list?${query}`, {
-      headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
-    });
+    let res: Response;
+    try {
+      res = await fetch(`/api/storage/list?${query}`, {
+        headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
+      });
+    } catch (err) {
+      if (isHttpError(err) && err.status === 403) {
+        throw error(403, m.storage_error_access_denied({ bucket }));
+      }
+      throw err;
+    }
 
     if (!res.ok) {
       if (res.status === 401) throw redirect(303, '/storage');

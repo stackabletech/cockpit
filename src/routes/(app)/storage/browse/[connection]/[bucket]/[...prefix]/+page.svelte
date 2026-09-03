@@ -3,6 +3,7 @@
   import { goto, invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { untrack } from 'svelte';
   import { getStorageState } from '$lib/storage/context.js';
   import { getTabsState } from '$lib/storage/context.js';
   import FileExplorer from '$lib/components/storage/explorer/FileExplorer.svelte';
@@ -100,9 +101,11 @@
         return;
       }
     }
-    if (!tabsState.canSyncServerLocation(data.connection, data.bucket, data.prefix)) return;
+    if (!untrack(() => tabsState.canSyncServerLocation(data.connection, data.bucket, data.prefix))) {
+      return;
+    }
     storage.syncFromServer(data.bucket, data.prefix, data.objects);
-    tabsState.completeNavigation();
+    untrack(() => tabsState.completeNavigation());
   });
 </script>
 
