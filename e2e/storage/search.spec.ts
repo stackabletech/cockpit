@@ -82,6 +82,38 @@ test.describe('Storage Search', () => {
     }
   });
 
+  test('paginates search results', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'paginate-search');
+    const keys: string[] = [];
+
+    try {
+      for (let index = 1; index <= 30; index += 1) {
+        const key = `${prefix}report-${String(index).padStart(2, '0')}.txt`;
+        keys.push(key);
+        await putTextObject(client, credentials.bucket, key, `report ${index}`);
+      }
+      await connectToStorage(page, credentials);
+
+      await page.getByRole('button', { name: 'Open search' }).first().click();
+      await page.getByLabel('Search query').fill('report-');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+      await page.getByLabel('Items per page').selectOption('25');
+
+      await expect(page.getByText('Page 1', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'report-01.txt' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'report-26.txt' })).not.toBeVisible();
+
+      await page.getByRole('button', { name: 'Next page' }).click();
+      await expect(page.getByText('Page 2', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'report-26.txt' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'report-01.txt' })).not.toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, keys);
+    }
+  });
+
   test('filters and selects buckets via the bucket dropdown', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);

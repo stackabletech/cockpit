@@ -34,7 +34,7 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
     },
 
     async search() {
-      return { results: [], truncated: false };
+      return { results: [] };
     },
 
     async listRecentSearches() {

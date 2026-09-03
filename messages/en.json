@@ -699,7 +699,6 @@
   "storage_search_tab_search": "Search",
   "storage_search_tab_recent": "Recent",
   "storage_search_no_results": "No results found.",
-  "storage_search_truncated": "Only the first matching results are shown.",
   "storage_search_failure_access_denied": "Access to one or more selected buckets was denied.",
   "storage_search_failure_generic": "One or more selected buckets could not be searched. Please try again.",
   "storage_search_session_label": "Search {number}",

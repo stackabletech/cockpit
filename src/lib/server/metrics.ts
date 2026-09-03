@@ -28,7 +28,7 @@ export const trinoActiveQueries = new Gauge({
 export const storageSearchTotal = new Counter({
   name: 'storage_search_total',
   help: 'Bucket-scoped storage searches executed through the Stackable UI',
-  labelNames: ['outcome', 'truncated'],
+  labelNames: ['outcome'],
   registers: [register]
 });
 

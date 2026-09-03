@@ -27,7 +27,6 @@ import type {
   SearchResult,
   ProgressiveListOptions
 } from './provider.js';
-import { SEARCH_DEFAULT_MAX_RESULTS, SEARCH_DEFAULT_MAX_KEYS_SCANNED } from './provider.js';
 import type { S3Config } from './types.js';
 import type {
   StoragePage,
@@ -451,8 +450,6 @@ export class S3StorageProvider implements StorageProvider {
   }
 
   async search(query: string, options?: SearchOptions): Promise<SearchResult> {
-    const maxResults = options?.maxResults ?? SEARCH_DEFAULT_MAX_RESULTS;
-    const maxKeysScanned = options?.maxKeysScanned ?? SEARCH_DEFAULT_MAX_KEYS_SCANNED;
     const signal = options?.signal;
     const prefix = options?.prefix ?? '';
     const maxDepth = options?.maxDepth;
@@ -466,9 +463,7 @@ export class S3StorageProvider implements StorageProvider {
         bucket: this.bucket,
         query,
         prefix,
-        max_depth: maxDepth,
-        max_results: maxResults,
-        max_keys_scanned: maxKeysScanned
+        max_depth: maxDepth
       },
       'S3 ListObjectsV2 (search)'
     );
@@ -478,8 +473,6 @@ export class S3StorageProvider implements StorageProvider {
     }
 
     const results: SearchResultItem[] = [];
-    let scanned = 0;
-    let truncated = false;
 
     await withS3Errors(
       () =>
@@ -490,16 +483,11 @@ export class S3StorageProvider implements StorageProvider {
               if (signal?.aborted) {
                 throw new DOMException('The operation was aborted', 'AbortError');
               }
-              scanned++;
               const relativeKey = item.key.slice(prefix.length);
               if (
                 maxDepth !== undefined &&
                 relativeKey.split('/').filter(Boolean).length > maxDepth
               ) {
-                if (scanned >= maxKeysScanned) {
-                  truncated = true;
-                  return false;
-                }
                 continue;
               }
               const result = {
@@ -511,14 +499,6 @@ export class S3StorageProvider implements StorageProvider {
               if (matches(result)) {
                 results.push(result);
                 onMatch?.(result);
-                if (results.length >= maxResults) {
-                  truncated = true;
-                  return false;
-                }
-              }
-              if (scanned >= maxKeysScanned) {
-                truncated = true;
-                return false;
               }
             }
             return undefined;
@@ -528,11 +508,8 @@ export class S3StorageProvider implements StorageProvider {
       { bucket: this.bucket, operation: 'search' }
     );
 
-    log.info(
-      { bucket: this.bucket, query, result_count: results.length, truncated },
-      'search complete'
-    );
-    return { results, truncated };
+    log.info({ bucket: this.bucket, query, result_count: results.length }, 'search complete');
+    return { results };
   }
 
   async listAllKeys(prefix: string): Promise<string[]> {

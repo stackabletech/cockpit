@@ -230,8 +230,6 @@ export interface SearchResultItem {
 /** Response from the storage search API. */
 export interface StorageSearchResponse {
   results: SearchResultItem[];
-  /** True when the results cap or the scanned-keys cap was reached. */
-  truncated: boolean;
 }
 
 /** An incremental update emitted while a storage search is in progress. */

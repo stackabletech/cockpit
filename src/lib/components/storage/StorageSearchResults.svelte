@@ -1,6 +1,8 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
+  import Pagination from '$lib/components/Pagination.svelte';
   import type { SearchResult, SearchSession } from '$lib/storage/search.svelte.js';
+  import { initPageSize, type PageSize } from '$lib/types/pagination.js';
   import { keyToName } from '$lib/storage/utils.js';
   import IconArrowUpward from 'virtual:icons/material-symbols/arrow-upward';
   import IconArrowDownward from 'virtual:icons/material-symbols/arrow-downward';
@@ -20,6 +22,9 @@
 
   let sortKey = $state<SortKey>('name');
   let sortDir = $state<SortDir>('asc');
+  let pageSize = $state<PageSize>(initPageSize('storage_search_page_size'));
+  let currentPage = $state(0);
+  let resultsContainer = $state<HTMLDivElement>();
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -29,6 +34,7 @@
       // Default direction: size → desc, everything else → asc
       sortDir = key === 'size' ? 'desc' : 'asc';
     }
+    currentPage = 0;
   }
 
   function sortAria(key: SortKey): 'ascending' | 'descending' | 'none' {
@@ -58,6 +64,30 @@
       ? m.storage_search_failure_access_denied()
       : m.storage_search_failure_generic();
   });
+
+  const totalPages = $derived(Math.ceil(sortedResults.length / pageSize));
+  const paginatedResults = $derived(
+    sortedResults.slice(currentPage * pageSize, (currentPage + 1) * pageSize)
+  );
+
+  $effect(() => {
+    void [session.id, session.results];
+    currentPage = 0;
+  });
+
+  function changePageSize() {
+    currentPage = 0;
+    scrollResultsToTop();
+  }
+
+  function changePage(page: number) {
+    currentPage = page;
+    scrollResultsToTop();
+  }
+
+  function scrollResultsToTop() {
+    if (resultsContainer) resultsContainer.scrollTop = 0;
+  }
 
   function formatSize(size: number): string {
     if (size < 1024) return `${size} B`;
@@ -104,16 +134,16 @@
     {#if failureMessage}
       <p class="alert alert-warning mt-2 text-sm" role="alert">{failureMessage}</p>
     {/if}
-    {#if session.truncated}<p class="alert alert-warning mt-2 text-sm" role="alert">
-        {m.storage_search_truncated()}
-      </p>{/if}
     {#if session.status === 'done' && session.results.length === 0}<p
         class="text-base-content/50 py-8 text-center text-sm"
       >
         {m.storage_search_no_results()}
       </p>{/if}
     {#if session.results.length > 0}
-      <div class="border-base-300 mt-2 max-h-64 overflow-auto rounded-lg border">
+      <div
+        bind:this={resultsContainer}
+        class="border-base-300 mt-2 max-h-64 overflow-auto rounded-lg border"
+      >
         <table class="table-xs table-pin-rows table">
           <thead
             ><tr
@@ -149,7 +179,7 @@
             ></thead
           >
           <tbody
-            >{#each sortedResults as result (result.bucket + result.key)}<tr
+            >{#each paginatedResults as result (result.bucket + result.key)}<tr
                 class="group hover:bg-base-300 cursor-pointer [&_td]:cursor-pointer"
                 onclick={() => onOpen(result)}
                 ><td
@@ -181,6 +211,21 @@
               >{/each}</tbody
           >
         </table>
+      </div>
+      <div class="mt-2">
+        <Pagination
+          bind:pageSize
+          storageKey="storage_search_page_size"
+          pageSizeLabel={m.storage_page_size()}
+          infoLabel="{m.storage_page()} {currentPage + 1}"
+          current={currentPage}
+          total={totalPages}
+          onfirst={() => changePage(0)}
+          onprev={() => changePage(currentPage - 1)}
+          onnext={() => changePage(currentPage + 1)}
+          onlast={() => changePage(totalPages - 1)}
+          onpagesizechange={changePageSize}
+        />
       </div>
     {/if}
   </section>

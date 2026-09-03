@@ -1,9 +1,5 @@
 import { error, isHttpError } from '@sveltejs/kit';
 import { createStorageProvider } from '$lib/server/storage/request-context.js';
-import {
-  SEARCH_DEFAULT_MAX_RESULTS,
-  SEARCH_DEFAULT_MAX_KEYS_SCANNED
-} from '$lib/server/storage/provider.js';
 import { createSafeSearchRegex, UnsafeSearchRegexError } from '$lib/storage/search-regex.js';
 import { compileFilterPredicates, parseFilterParam } from '$lib/storage/search-filter.js';
 import { storageSearchTotal } from '$lib/server/metrics.js';
@@ -68,18 +64,15 @@ export const GET: RequestHandler = async (event) => {
         let matchesSinceSnapshot = 0;
         const send = (
           type: 'batch' | 'snapshot' | 'complete',
-          eventResults: SearchResultItem[],
-          truncated?: boolean
+          eventResults: SearchResultItem[]
         ) => {
           controller.enqueue(
-            encoder.encode(JSON.stringify({ type, results: eventResults, truncated }) + '\n')
+            encoder.encode(JSON.stringify({ type, results: eventResults }) + '\n')
           );
         };
 
         try {
           const result = await provider.search(query, {
-            maxResults: SEARCH_DEFAULT_MAX_RESULTS,
-            maxKeysScanned: SEARCH_DEFAULT_MAX_KEYS_SCANNED,
             prefix,
             maxDepth,
             signal: event.request.signal,
@@ -104,21 +97,20 @@ export const GET: RequestHandler = async (event) => {
               }
             }
           });
-          send('complete', result.results, result.truncated);
-          storageSearchTotal.inc({ outcome: 'success', truncated: String(result.truncated) });
+          send('complete', result.results);
+          storageSearchTotal.inc({ outcome: 'success' });
           log.info(
             {
               bucket,
               query,
               prefix,
               max_depth: maxDepth,
-              result_count: result.results.length,
-              truncated: result.truncated
+              result_count: result.results.length
             },
             'storage search completed'
           );
         } catch (err) {
-          storageSearchTotal.inc({ outcome: 'error', truncated: 'false' });
+          storageSearchTotal.inc({ outcome: 'error' });
           const code = isHttpError(err)
             ? err.status === 403
               ? 'access_denied'
@@ -151,7 +143,7 @@ export const GET: RequestHandler = async (event) => {
       }
     });
   } catch (err) {
-    storageSearchTotal.inc({ outcome: 'error', truncated: 'false' });
+    storageSearchTotal.inc({ outcome: 'error' });
     throw err;
   }
 };

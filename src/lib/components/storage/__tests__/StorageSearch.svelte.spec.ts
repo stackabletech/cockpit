@@ -30,7 +30,7 @@ function createState(options?: {
   api: SearchApiMock;
 } {
   const api = {
-    search: vi.fn().mockResolvedValue(options?.response ?? { results: [], truncated: false }),
+    search: vi.fn().mockResolvedValue(options?.response ?? { results: [] }),
     listRecentSearches: vi.fn().mockResolvedValue(options?.history ?? []),
     recordRecentSearch: vi.fn().mockResolvedValue(undefined),
     clearRecentSearches: vi.fn().mockResolvedValue(undefined)
@@ -74,8 +74,7 @@ describe('StorageSearch', () => {
       if (bucket === 'beta')
         return Promise.reject(new StorageError('access_denied', 'Access denied'));
       return Promise.resolve({
-        results: [{ key: 'report.csv', size: 1, lastModified: new Date(), isDirectory: false }],
-        truncated: false
+        results: [{ key: 'report.csv', size: 1, lastModified: new Date(), isDirectory: false }]
       });
     });
     render(StorageSearchWrapper, { state });
@@ -133,10 +132,9 @@ describe('StorageSearch', () => {
     await expect.element(divider).toHaveClass('pointer-events-none');
   });
 
-  it('renders truncated results and opens directories or file previews', async () => {
+  it('renders results and opens directories or file previews', async () => {
     const { state, api } = createState({
       response: {
-        truncated: true,
         results: [
           { key: 'reports/', size: 0, lastModified: new Date(), isDirectory: true },
           { key: 'reports/data.csv', size: 1, lastModified: new Date(), isDirectory: false }
@@ -148,9 +146,7 @@ describe('StorageSearch', () => {
     await page.getByRole('button', { name: 'Open search' }).click();
     await page.getByLabelText('Search query').fill('report');
     await page.getByRole('button', { name: 'Search', exact: true }).click();
-    await expect
-      .element(page.getByText('Only the first matching results are shown.'))
-      .toBeInTheDocument();
+    await expect.element(page.getByText('2 results ·')).toBeVisible();
     await page.getByRole('button', { name: /reportsreports\// }).click();
     expect(goto).toHaveBeenCalledWith('/storage/alpha/reports');
 

@@ -4,7 +4,6 @@ import { StorageError, type StorageErrorCode } from './errors.js';
 interface SearchStreamEvent {
   type: 'batch' | 'snapshot' | 'complete' | 'error';
   results?: SearchResultItem[];
-  truncated?: boolean;
   code?: StorageErrorCode;
   message?: string;
 }
@@ -18,7 +17,6 @@ export async function readSearchStream(
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   const results = new Map<string, SearchResultItem>();
-  let truncated = false;
   let buffer = '';
 
   const apply = (event: SearchStreamEvent, snapshot: boolean): void => {
@@ -28,8 +26,7 @@ export async function readSearchStream(
     }));
     if (snapshot) results.clear();
     for (const result of eventResults) results.set(result.key, result);
-    truncated = event.truncated ?? truncated;
-    onUpdate?.({ results: [...results.values()], truncated, snapshot });
+    onUpdate?.({ results: [...results.values()], snapshot });
   };
 
   try {
@@ -54,5 +51,5 @@ export async function readSearchStream(
     reader.releaseLock();
   }
 
-  return { results: [...results.values()], truncated };
+  return { results: [...results.values()] };
 }

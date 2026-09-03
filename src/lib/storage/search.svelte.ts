@@ -32,7 +32,6 @@ export interface SearchSession {
   results: SearchResult[];
   status: SearchStatus;
   elapsed: number;
-  truncated: boolean;
   failures: SearchFailure[];
 }
 
@@ -112,7 +111,6 @@ export class StorageSearchState {
       results: [],
       status: 'idle',
       elapsed: 0,
-      truncated: false,
       failures: []
     });
   }
@@ -233,7 +231,6 @@ export class StorageSearchState {
       status: 'running',
       results: [],
       elapsed: 0,
-      truncated: false,
       failures: []
     });
     const started = performance.now();
@@ -278,7 +275,6 @@ export class StorageSearchState {
         status: successfulResponses.length > 0 ? 'done' : 'error',
         results,
         elapsed: Math.round(performance.now() - started),
-        truncated: successfulResponses.some((response) => response.truncated),
         failures
       });
     } catch (error) {
@@ -320,7 +316,6 @@ export class StorageSearchState {
       results: [],
       status: 'idle',
       elapsed: 0,
-      truncated: false,
       failures: []
     };
   }

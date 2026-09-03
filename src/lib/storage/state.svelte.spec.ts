@@ -96,7 +96,7 @@ function makeApi(overrides?: Partial<StorageApi>): StorageApi {
       return makePage();
     },
     async search() {
-      return { results: [], truncated: false };
+      return { results: [] };
     },
     async listRecentSearches() {
       return [];

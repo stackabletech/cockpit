@@ -130,7 +130,6 @@ describe('S3StorageProvider.search', () => {
       'reports/2026/Q3/final.pdf',
       'notes/report.txt'
     ]);
-    expect(result.truncated).toBe(false);
   });
 
   it('returns files and directories, flagging keys ending in "/"', async () => {
@@ -169,28 +168,15 @@ describe('S3StorageProvider.search', () => {
     expect(result.results[0].lastModified).toEqual(new Date(0));
   });
 
-  it('respects maxResults and reports truncated', async () => {
+  it('returns every matching result', async () => {
     send.mockResolvedValue({
       Contents: Array.from({ length: 10 }, (_, i) => ({ Key: `match-${i}.txt`, Size: 1 })),
       IsTruncated: false
     });
 
-    const result = await provider.search('match', { maxResults: 3 });
+    const result = await provider.search('match');
 
-    expect(result.results).toHaveLength(3);
-    expect(result.truncated).toBe(true);
-  });
-
-  it('respects maxKeysScanned and reports truncated', async () => {
-    send.mockResolvedValue({
-      Contents: Array.from({ length: 100 }, (_, i) => ({ Key: `key-${i}.txt`, Size: 1 })),
-      IsTruncated: false
-    });
-
-    const result = await provider.search('nomatch', { maxKeysScanned: 10 });
-
-    expect(result.results).toHaveLength(0);
-    expect(result.truncated).toBe(true);
+    expect(result.results).toHaveLength(10);
   });
 
   it('lists only the requested prefix and filters depth relative to it', async () => {
@@ -212,22 +198,18 @@ describe('S3StorageProvider.search', () => {
     expect(send.mock.calls[0][0].input.Prefix).toBe('reports/');
   });
 
-  it('stops paging when the scanned-keys cap is reached', async () => {
-    send.mockResolvedValue({
-      Contents: [
-        { Key: 'a.txt', Size: 1 },
-        { Key: 'b.txt', Size: 1 },
-        { Key: 'c.txt', Size: 1 }
-      ],
+  it('continues paging until all keys have been searched', async () => {
+    send.mockResolvedValueOnce({
+      Contents: [{ Key: 'a.txt', Size: 1 }],
       IsTruncated: true,
       NextContinuationToken: 'token-1'
     });
+    send.mockResolvedValueOnce({ Contents: [{ Key: 'match.txt', Size: 1 }], IsTruncated: false });
 
-    const result = await provider.search('nomatch', { maxKeysScanned: 2 });
+    const result = await provider.search('match');
 
-    expect(result.results).toEqual([]);
-    expect(result.truncated).toBe(true);
-    expect(send).toHaveBeenCalledTimes(1);
+    expect(result.results).toHaveLength(1);
+    expect(send).toHaveBeenCalledTimes(2);
   });
 
   it('uses defaults when options are omitted', async () => {
@@ -235,7 +217,7 @@ describe('S3StorageProvider.search', () => {
 
     const result = await provider.search('x');
 
-    expect(result).toEqual({ results: [], truncated: false });
+    expect(result).toEqual({ results: [] });
   });
 
   it('aborts before scanning when the signal is already aborted', async () => {

@@ -8,17 +8,8 @@ import type { LifecycleRule, BucketAcl } from '$lib/storage/details-types.js';
 
 export type { DeleteObjectsResult };
 
-/** Default result cap for a bucket-scoped search. */
-export const SEARCH_DEFAULT_MAX_RESULTS = 50;
-/** Default scanned-keys cap for a bucket-scoped search. */
-export const SEARCH_DEFAULT_MAX_KEYS_SCANNED = 10000;
-
 /** Options accepted by {@link StorageProvider.search}. */
 export interface SearchOptions {
-  /** Maximum number of matching results to return (default 50). */
-  maxResults?: number;
-  /** Maximum number of keys scanned before stopping (default 10 000). */
-  maxKeysScanned?: number;
   /** Limit the S3 listing to this key prefix. */
   prefix?: string;
   /** Maximum key depth relative to `prefix`. */
@@ -40,8 +31,6 @@ export interface ProgressiveListOptions {
 /** Result of a bucket-scoped search. */
 export interface SearchResult {
   results: SearchResultItem[];
-  /** True when the results cap or the scanned-keys cap was reached. */
-  truncated: boolean;
 }
 
 /** Metadata and body stream returned when fetching a storage object. */
@@ -94,9 +83,7 @@ export interface StorageProvider {
   ): Promise<void>;
   /**
    * Case-insensitive substring search across all keys in this bucket. Both
-   * files (plain keys) and directories (keys ending in `/`) match. The scan
-   * stops early — reporting `truncated: true` — once the results cap or the
-   * scanned-keys cap is reached.
+   * files (plain keys) and directories (keys ending in `/`) match.
    */
   search(query: string, options?: SearchOptions): Promise<SearchResult>;
   getBucketVersioning(): Promise<string>;

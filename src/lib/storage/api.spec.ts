@@ -138,8 +138,7 @@ describe('createFetchStorageApi', () => {
                 lastModified: '2026-08-12T12:00:00.000Z',
                 isDirectory: false
               }
-            ],
-            truncated: false
+            ]
           })
         ])
       );

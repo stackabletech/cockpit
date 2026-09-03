@@ -25,17 +25,16 @@ describe('readSearchStream', () => {
           type: 'snapshot',
           results: [{ key: 'new.txt', size: 2, lastModified: '2026-01-02', isDirectory: false }]
         },
-        { type: 'complete', results: [], truncated: false }
+        { type: 'complete', results: [] }
       ]),
       onUpdate
     );
 
     expect(onUpdate).toHaveBeenNthCalledWith(2, {
       snapshot: true,
-      truncated: false,
       results: [expect.objectContaining({ key: 'new.txt', lastModified: expect.any(Date) })]
     });
-    expect(result).toEqual({ results: [], truncated: false });
+    expect(result).toEqual({ results: [] });
   });
 
   it('throws a streamed error', async () => {

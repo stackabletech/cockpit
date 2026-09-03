@@ -32,13 +32,12 @@ describe('GET /api/storage/search', () => {
     mockProvider.listContainers.mockResolvedValue(['documents']);
   });
 
-  it('streams a bounded search with backend filtering and the request abort signal', async () => {
+  it('streams a complete search with backend filtering and the request abort signal', async () => {
     const controller = new AbortController();
     mockProvider.search.mockResolvedValue({
       results: [
         { key: 'reports/final.pdf', size: 42, lastModified: new Date(), isDirectory: false }
-      ],
-      truncated: false
+      ]
     });
 
     const response = await GET(
@@ -52,8 +51,6 @@ describe('GET /api/storage/search', () => {
     expect(response.headers.get('Content-Type')).toContain('application/x-ndjson');
     await expect(response.text()).resolves.toContain('"type":"complete"');
     expect(mockProvider.search).toHaveBeenCalledWith('report', {
-      maxResults: 50,
-      maxKeysScanned: 10000,
       prefix: 'reports/',
       maxDepth: 2,
       signal: expect.any(AbortSignal),
@@ -72,16 +69,7 @@ describe('GET /api/storage/search', () => {
         isDirectory: false
       })
     ).toBe(false);
-    expect(storageSearchTotal.inc).toHaveBeenCalledWith({ outcome: 'success', truncated: 'false' });
-  });
-
-  it('passes through a truncated result', async () => {
-    mockProvider.search.mockResolvedValue({ results: [], truncated: true });
-
-    const response = await GET(mockEvent('bucket=documents&q=report'));
-
-    await expect(response.text()).resolves.toContain('"truncated":true');
-    expect(storageSearchTotal.inc).toHaveBeenCalledWith({ outcome: 'success', truncated: 'true' });
+    expect(storageSearchTotal.inc).toHaveBeenCalledWith({ outcome: 'success' });
   });
 
   it('rejects a missing bucket', async () => {
@@ -106,7 +94,7 @@ describe('GET /api/storage/search', () => {
 
     const response = await GET(mockEvent('bucket=documents&q=report'));
     await expect(response.text()).resolves.toContain('"type":"error"');
-    expect(storageSearchTotal.inc).toHaveBeenCalledWith({ outcome: 'error', truncated: 'false' });
+    expect(storageSearchTotal.inc).toHaveBeenCalledWith({ outcome: 'error' });
   });
 
   it('includes access-denied classification in streamed provider failures', async () => {
