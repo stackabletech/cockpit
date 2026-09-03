@@ -139,14 +139,31 @@ export async function connectAndOpenPrefix(
 ) {
   await connectToStorage(page, credentials);
   const connection = new URL(credentials.endpoint).hostname;
-  await page.goto(bucketRoute(connection, credentials.bucket, prefix));
-  // If a parallel worker's disconnect raced with this navigation the page will
-  // have been redirected back to /storage.  Detect that and reconnect once.
-  await waitForHydration(page);
-  if (!page.url().includes(encodeURIComponent(credentials.bucket))) {
+  const route = bucketRoute(connection, credentials.bucket, prefix);
+
+  // A session update can redirect a just-opened bucket route to the storage
+  // overview after hydration. Retry once if that happens while loading.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await page.goto(route);
+    await waitForHydration(page);
+
+    const objectsLoaded = page
+      .locator('tbody tr')
+      .or(page.getByText('This bucket is empty'))
+      .first()
+      .waitFor({ timeout: 15_000 });
+    const storageOverview = page.getByRole('heading', { name: 'Buckets', exact: true }).waitFor({
+      timeout: 15_000
+    });
+
+    await Promise.race([objectsLoaded, storageOverview]);
+    if (page.url().includes(encodeURIComponent(credentials.bucket))) {
+      return;
+    }
+
     await connectToStorage(page, credentials);
-    await page.goto(bucketRoute(connection, credentials.bucket, prefix));
   }
+
   await waitForObjectsLoaded(page);
 }
 

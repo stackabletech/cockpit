@@ -44,10 +44,7 @@ test.describe('Storage S3 — Preview', () => {
       await expect(page.getByText('Preview line one')).toBeVisible();
       await expect(page.getByText('Preview line two')).toBeVisible();
 
-      await page
-        .getByRole('dialog')
-        .getByRole('button', { name: 'Close', exact: true })
-        .click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
       await expect(page.getByRole('heading', { name: 'preview.txt' })).not.toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);

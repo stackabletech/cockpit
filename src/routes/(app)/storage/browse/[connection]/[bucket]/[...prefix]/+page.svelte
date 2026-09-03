@@ -101,7 +101,9 @@
         return;
       }
     }
-    if (!untrack(() => tabsState.canSyncServerLocation(data.connection, data.bucket, data.prefix))) {
+    if (
+      !untrack(() => tabsState.canSyncServerLocation(data.connection, data.bucket, data.prefix))
+    ) {
       return;
     }
     storage.syncFromServer(data.bucket, data.prefix, data.objects);

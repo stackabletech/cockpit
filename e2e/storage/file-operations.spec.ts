@@ -57,13 +57,14 @@ test.describe('Storage S3 — File Operations', () => {
       await page.locator('table').click();
       await page.keyboard.press('Control+v');
 
-      // Wait for paste to complete
-      await page.waitForTimeout(1000);
+      await expect(page.getByText('1 item pasted')).toBeVisible();
 
       // File should exist at dest (moved)
-      expect(await objectExists(client, credentials.bucket, `${prefix}cut-me.txt`)).toBe(true);
+      await expect
+        .poll(() => objectExists(client, credentials.bucket, `${prefix}cut-me.txt`))
+        .toBe(true);
       // Original should be deleted (cut = move)
-      expect(await objectExists(client, credentials.bucket, srcFile)).toBe(false);
+      await expect.poll(() => objectExists(client, credentials.bucket, srcFile)).toBe(false);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

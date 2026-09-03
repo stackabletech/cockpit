@@ -135,6 +135,7 @@ test.describe('Storage S3 — Delete & Selection', () => {
 
       // Select the file by clicking on the row
       await rowByName(page, 'delete-me.txt').click();
+      await expect(page.getByLabel('Select delete-me.txt')).toBeChecked();
 
       // Press Delete key
       await page.keyboard.press('Delete');
