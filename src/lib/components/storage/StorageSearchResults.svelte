@@ -25,6 +25,7 @@
   let pageSize = $state<PageSize>(initPageSize('storage_search_page_size'));
   let currentPage = $state(0);
   let resultsContainer = $state<HTMLDivElement>();
+  let displayedSessionId = $state(session.id);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -71,8 +72,10 @@
   );
 
   $effect(() => {
-    void [session.id, session.results];
-    currentPage = 0;
+    if (displayedSessionId !== session.id) {
+      displayedSessionId = session.id;
+      currentPage = 0;
+    }
   });
 
   function changePageSize() {

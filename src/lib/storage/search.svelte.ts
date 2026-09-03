@@ -251,7 +251,21 @@ export class StorageSearchState {
                 .filter((filter) => filter.value.trim() !== '')
                 .filter(isUsableFilter)
                 .map(({ field, operator, value }) => ({ field, operator, value })),
-              signal: controller.signal
+              signal: controller.signal,
+              onUpdate: (update) => {
+                if (this.controllers.get(id) !== controller || controller.signal.aborted) return;
+                const results = update.results
+                  .filter((result) => this.matches(session, result))
+                  .map((result) => ({ ...result, bucket }));
+                const current = this.sessions.find((item) => item.id === id);
+                if (!current) return;
+                this.updateSession(id, {
+                  results: [
+                    ...current.results.filter((result) => result.bucket !== bucket),
+                    ...results
+                  ]
+                });
+              }
             })
             .then((response) => ({ bucket, ...response }))
         )
@@ -266,10 +280,16 @@ export class StorageSearchState {
           { code: response.reason instanceof StorageError ? response.reason.code : 'unknown' }
         ];
       });
-      const results = successfulResponses.flatMap(({ bucket, results }) =>
-        results
-          .filter((result) => this.matches(session, result))
-          .map((result) => ({ ...result, bucket }))
+      const current = this.sessions.find((item) => item.id === id);
+      if (!current) return;
+      const results = successfulResponses.reduce(
+        (accumulated, { bucket, results }) => [
+          ...accumulated.filter((result) => result.bucket !== bucket),
+          ...results
+            .filter((result) => this.matches(session, result))
+            .map((result) => ({ ...result, bucket }))
+        ],
+        current.results
       );
       this.updateSession(id, {
         status: successfulResponses.length > 0 ? 'done' : 'error',
