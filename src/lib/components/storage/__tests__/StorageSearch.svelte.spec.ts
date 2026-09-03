@@ -85,23 +85,22 @@ describe('StorageSearch', () => {
     await page.getByRole('button', { name: 'Open search' }).click();
     const query = page.getByLabelText('Search query');
     await query.fill('draft');
-    await userEvent.keyboard('{ArrowDown}');
-    await expect.element(query).toHaveValue('newest');
-    await userEvent.keyboard('{ArrowDown}');
-    await expect.element(query).toHaveValue('older');
-    await userEvent.keyboard('{ArrowDown}');
-    await expect.element(query).toHaveValue('older');
     await userEvent.keyboard('{ArrowUp}');
     await expect.element(query).toHaveValue('newest');
     await userEvent.keyboard('{ArrowUp}');
+    await expect.element(query).toHaveValue('older');
+    await userEvent.keyboard('{ArrowUp}');
+    await expect.element(query).toHaveValue('older');
+    await userEvent.keyboard('{ArrowDown}');
+    await expect.element(query).toHaveValue('newest');
+    await userEvent.keyboard('{ArrowDown}');
     await expect.element(query).toHaveValue('draft');
-    await userEvent.keyboard('{ArrowUp}');
+    await userEvent.keyboard('{ArrowDown}');
     await expect.element(query).toHaveValue('draft');
     await expect.element(page.getByRole('button', { name: 'alpha', exact: true })).toBeVisible();
-    await expect.element(page.getByRole('button', { name: '.*', exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'false'
-    );
+    await expect
+      .element(page.getByRole('button', { name: '.*', exact: true }))
+      .toHaveAttribute('aria-pressed', 'false');
   });
 
   it('searches every bucket from the landing page', async () => {
