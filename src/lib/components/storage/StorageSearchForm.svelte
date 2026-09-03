@@ -22,6 +22,8 @@
   }
 
   let { id, session, buckets, state }: Props = $props();
+  let queryCycleTerms: string[] = [];
+  let queryCycleIndex = -1;
 
   function update(patch: Partial<SearchSession>): void {
     state.updateSession(session.id, patch);
@@ -29,6 +31,27 @@
 
   function updateFilter(filterId: string, patch: Partial<SearchFilter>): void {
     state.updateFilter(filterId, patch);
+  }
+
+  function resetQueryCycle(): void {
+    queryCycleTerms = [];
+    queryCycleIndex = -1;
+  }
+
+  function cycleRecentQuery(direction: 1 | -1): void {
+    if (queryCycleTerms.length === 0) {
+      queryCycleTerms = [
+        ...(session.query ? [session.query] : ['']),
+        ...state.history.map((entry) => entry.query)
+      ].filter((query, index, terms) => terms.indexOf(query) === index);
+      queryCycleIndex = queryCycleTerms.indexOf(session.query);
+    }
+    if (queryCycleTerms.length === 0) return;
+
+    const nextIndex = queryCycleIndex + direction;
+    if (nextIndex < 0 || nextIndex >= queryCycleTerms.length) return;
+    queryCycleIndex = nextIndex;
+    update({ query: queryCycleTerms[queryCycleIndex]! });
   }
 
   const hasInvalidFilter = $derived(
@@ -70,7 +93,15 @@
         class="min-w-0 grow font-mono text-sm"
         type="search"
         value={session.query}
-        oninput={(event) => update({ query: event.currentTarget.value })}
+        oninput={(event) => {
+          resetQueryCycle();
+          update({ query: event.currentTarget.value });
+        }}
+        onkeydown={(event) => {
+          if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+          event.preventDefault();
+          cycleRecentQuery(event.key === 'ArrowDown' ? -1 : 1);
+        }}
         placeholder={session.useRegex
           ? m.storage_search_regex_placeholder()
           : m.storage_search_query_placeholder()}

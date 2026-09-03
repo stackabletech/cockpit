@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import StorageSearchWrapper from './StorageSearchWrapper.svelte';
@@ -51,6 +51,57 @@ describe('StorageSearch', () => {
     render(StorageSearchWrapper, { state: explorer.state, currentBucket: 'alpha' });
     await page.getByRole('button', { name: 'Open search' }).click();
     await expect.element(page.getByRole('button', { name: 'alpha', exact: true })).toBeVisible();
+  });
+
+  it('loads recent searches when the search modal opens', async () => {
+    const { state, api } = createState();
+    render(StorageSearchWrapper, { state });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await expect.poll(() => api.listRecentSearches.mock.calls.length).toBe(1);
+  });
+
+  it('cycles query text through recent searches without changing search options', async () => {
+    const { state } = createState({
+      history: [
+        {
+          buckets: ['beta'],
+          query: 'newest',
+          useRegex: true,
+          excludePatterns: ['_temp'],
+          searchPath: 'archive/',
+          maxDepth: 2
+        },
+        {
+          buckets: ['alpha'],
+          query: 'older',
+          useRegex: false,
+          excludePatterns: [],
+          searchPath: '',
+          maxDepth: null
+        }
+      ]
+    });
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    const query = page.getByLabelText('Search query');
+    await query.fill('draft');
+    await userEvent.keyboard('{ArrowDown}');
+    await expect.element(query).toHaveValue('newest');
+    await userEvent.keyboard('{ArrowDown}');
+    await expect.element(query).toHaveValue('older');
+    await userEvent.keyboard('{ArrowDown}');
+    await expect.element(query).toHaveValue('older');
+    await userEvent.keyboard('{ArrowUp}');
+    await expect.element(query).toHaveValue('newest');
+    await userEvent.keyboard('{ArrowUp}');
+    await expect.element(query).toHaveValue('draft');
+    await userEvent.keyboard('{ArrowUp}');
+    await expect.element(query).toHaveValue('draft');
+    await expect.element(page.getByRole('button', { name: 'alpha', exact: true })).toBeVisible();
+    await expect.element(page.getByRole('button', { name: '.*', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
   });
 
   it('searches every bucket from the landing page', async () => {
