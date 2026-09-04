@@ -1,11 +1,21 @@
 import { redirect } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 import type { PageServerLoad } from './$types';
 
-function sanitiseRedirectTo(value: string | null): string {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) {
-    return '/';
+// better-auth 1.5 rejects percent-encoded relative callback URLs.
+function resolveRedirectTo(value: string | null, baseUrl: string): string {
+  const home = new URL('/', baseUrl);
+
+  if (!value) {
+    return home.href;
   }
-  return value;
+
+  try {
+    const target = new URL(value, home);
+    return target.origin === home.origin ? target.href : home.href;
+  } catch {
+    return home.href;
+  }
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -13,7 +23,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     throw redirect(302, '/');
   }
 
-  const redirectTo = sanitiseRedirectTo(url.searchParams.get('redirectTo'));
-
-  return { redirectTo };
+  return {
+    redirectTo: resolveRedirectTo(
+      url.searchParams.get('redirectTo'),
+      env.STACKABLE_COCKPIT_BASE_URL ?? url.origin
+    )
+  };
 };
