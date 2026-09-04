@@ -117,11 +117,20 @@ export class TrinoClient {
     return res.json() as Promise<TrinoQueryResult>;
   }
 
+  /** commonHeaders plus X-Trino-User for the given user when impersonating. */
+  private headersForUser(user: string | undefined): Record<string, string> {
+    const headers = { ...this.commonHeaders };
+    if (user && (this.impersonate || !this.authenticated)) {
+      headers['X-Trino-User'] = user;
+    }
+    return headers;
+  }
+
   /** DELETE /v1/query/{queryId} — cancel a running query. */
-  async cancel(queryId: string): Promise<void> {
+  async cancel(queryId: string, user?: string): Promise<void> {
     const res = await fetch(`${this.serverUrl}/v1/query/${queryId}`, {
       method: 'DELETE',
-      headers: this.commonHeaders,
+      headers: this.headersForUser(user),
       // @ts-expect-error — Node fetch supports dispatcher via undici
       dispatcher: this.dispatcher
     });
@@ -130,6 +139,21 @@ export class TrinoClient {
     if (!res.ok && res.status !== 404) {
       const text = await res.text().catch(() => '');
       throw new Error(`Trino DELETE /v1/query failed (${res.status}): ${text}`);
+    }
+  }
+
+  /** DELETE nextUri — client-protocol cancel (no kill-query permission needed). */
+  async cancelViaUri(uri: string, user?: string): Promise<void> {
+    const res = await fetch(uri, {
+      method: 'DELETE',
+      headers: this.headersForUser(user),
+      // @ts-expect-error — Node fetch supports dispatcher via undici
+      dispatcher: this.dispatcher
+    });
+
+    if (!res.ok && res.status !== 404 && res.status !== 410) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Trino DELETE nextUri failed (${res.status}): ${text}`);
     }
   }
 }

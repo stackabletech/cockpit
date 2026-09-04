@@ -34,6 +34,7 @@ export interface TrinoQuery {
   nextUri: string | undefined;
   client: TrinoClient;
   userId: string;
+  trinoUser: string;
   completedAt: number | null;
 }
 
@@ -169,6 +170,7 @@ async function submitStatement(
     nextUri: submitResult.nextUri,
     client,
     userId,
+    trinoUser: options.user,
     completedAt: null
   };
 
@@ -283,7 +285,11 @@ export async function cancelQuery(userId: string, tabId: string): Promise<boolea
   );
 
   try {
-    await query.client.cancel(query.trinoQueryId);
+    if (query.nextUri) {
+      await query.client.cancelViaUri(query.nextUri, query.trinoUser);
+    } else {
+      await query.client.cancel(query.trinoQueryId, query.trinoUser);
+    }
   } catch (err) {
     log.warn({ err, trino_query_id: query.trinoQueryId }, 'failed to cancel query in Trino');
   }
