@@ -141,8 +141,6 @@ jobs:
       contents: read
       id-token: write
     runs-on: ubuntu-latest
-    outputs:
-      oci-index-digest: ${{ steps.publish-oci.outputs.image-index-manifest-digest }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -150,7 +148,6 @@ jobs:
           persist-credentials: false
 
       - name: Publish and Sign Image Index
-        id: publish-oci
         uses: stackabletech/actions/publish-image-index-manifest@e8aed001d347bcf693e41b61f4098b0cb94b4ab6 # v0.18.0
         with:
           image-registry-uri: oci.stackable.tech
@@ -158,39 +155,6 @@ jobs:
           image-registry-password: ${{ secrets.HARBOR_ROBOT_SDP_GITHUB_ACTION_BUILD_SECRET }}
           image-repository: sdp/${{ env.IMAGE_NAME }}
           canonical-image-index-manifest-tag: ${{ needs.build-container-image.outputs.image-version }}
-
-  # Generate SLSA build provenance for the multi-arch image index and attach it
-  # to the published image. The reusable workflow signs the provenance with
-  # keyless signing (GitHub Actions as the OIDC identity) and pushes the
-  # attestation next to the image.
-  provenance-oci:
-    name: Generate Provenance for ${{ needs.build-container-image.outputs.image-version }} (oci.stackable.tech)
-    # The SLSA container generator explicitly does not support the pull_request
-    # event (it fails checking out the merge ref), so provenance is only
-    # generated for images published on push, tags and the scheduled build.
-    if: (github.event_name != 'merge_group') && (github.event_name != 'pull_request') && needs.detect-changes.outputs.detected == 'true'
-    needs:
-      - detect-changes
-      - build-container-image
-      - publish-index-manifest
-    permissions:
-      actions: read # detect the build workflow that generated the image
-      id-token: write # mint the OIDC token for keyless signing
-      packages: write # needed until https://github.com/slsa-framework/slsa-github-generator/issues/1257 is resolved
-    # MUST be referenced by a @vX.Y.Z tag (not a SHA), otherwise the reusable
-    # workflow cannot verify its own provenance.
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
-    with:
-      # The 'env' context is not available in job-level 'with' inputs of
-      # reusable workflow calls (unlike step-level 'with'), so IMAGE_NAME
-      # can't be used here and the image name is set directly.
-      image: oci.stackable.tech/sdp/cockpit
-      digest: ${{ needs.publish-index-manifest.outputs.oci-index-digest }}
-      registry-username: robot$sdp+github-action-build
-      # The following can be removed once this repository is public
-      private-repository: true
-    secrets:
-      registry-password: ${{ secrets.HARBOR_ROBOT_SDP_GITHUB_ACTION_BUILD_SECRET }}
 
   publish-helm-chart:
     name: Package/Publish ${{ needs.build-container-image.outputs.image-version }} Helm Chart
@@ -250,13 +214,12 @@ jobs:
     needs:
       - openshift-preflight-check
       - publish-helm-chart
-      - provenance-oci
     runs-on: ubuntu-latest
     steps:
       - name: Check results
         run: |
           set -euo pipefail
-          if [[ "${{ needs.openshift-preflight-check.result }}" == "failure" || "${{ needs.publish-helm-chart.result }}" == "failure" || "${{ needs.provenance-oci.result }}" == "failure" ]]; then
+          if [[ "${{ needs.openshift-preflight-check.result }}" == "failure" || "${{ needs.publish-helm-chart.result }}" == "failure" ]]; then
             echo "One or more required jobs failed"
             exit 1
           fi
