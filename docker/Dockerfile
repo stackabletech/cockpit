@@ -120,6 +120,7 @@ COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
 COPY --from=sbom      --chown=${STACKABLE_USER_UID}:0 /build/cockpit.cdx.json ./cockpit.cdx.json
 COPY --chown=${STACKABLE_USER_UID}:0 LICENSE /licenses/LICENSE
+COPY --chown=${STACKABLE_USER_UID}:0 LICENSE-Apache-2.0 /licenses/LICENSE-Apache-2.0
 RUN chown -R ${STACKABLE_USER_UID}:0 /stackable && \
     chmod -R g=u /stackable
 
@@ -149,6 +150,6 @@ LABEL org.opencontainers.image.authors="info@stackable.tech"
 LABEL org.opencontainers.image.url="https://stackable.tech"
 LABEL org.opencontainers.image.source="https://github.com/stackabletech/cockpit/"
 LABEL org.opencontainers.image.vendor="Stackable GmbH"
-LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.licenses="OSL-3.0"
 
 CMD ["node", "build/index.js"]
