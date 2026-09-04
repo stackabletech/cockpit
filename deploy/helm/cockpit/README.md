@@ -96,7 +96,7 @@ OIDC is the only supported auth mechanism. Disable for local testing.
 | `auth.oidc.clientId` | OIDC client ID. Required when enabled. | `""` |
 | `auth.oidc.clientSecret.secretKeyRef.name` | Name of the Secret holding the OIDC client secret. Required when enabled. | `""` |
 | `auth.oidc.clientSecret.secretKeyRef.key` | Key inside the Secret. | `oidc-client-secret` |
-| `auth.oidc.usernameClaim` | OIDC claim used as the username for Trino impersonation. | `preferred_username` |
+| `auth.oidc.extraScopes` | List of extra OIDC scopes to request in addition to `openid profile email`. Set when the claim to use as identifier in Trino is only released under a custom scope. | `[]` |
 
 ### Trino Connection Parameters
 
@@ -105,7 +105,8 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 | Parameter | Description | Default |
 | --- | --- | --- |
 | `trino.url` | Trino coordinator URL. | `""` |
-| `trino.userImpersonation` | Forward the logged-in user to Trino as `X-Trino-User`. When `false`, all queries run as `trino.auth.username` (no per-user authorization/audit in Trino). | `true` |
+| `trino.userImpersonation.enabled` | Forward the logged-in user to Trino as `X-Trino-User`. When `false`, all queries run as `trino.auth.username` (no per-user authorization/audit in Trino). | `true` |
+| `trino.userImpersonation.userClaim` | OIDC claim used as the Trino user. Only consumed when impersonation is enabled and OIDC is configured. | `preferred_username` |
 | `trino.auth.type` | `"none"` or `"basic"`. | `""` |
 | `trino.auth.username` | Username for basic auth. | `""` |
 | `trino.auth.password.secretKeyRef.name` | Name of the Secret holding the Trino password. Required when `type=basic`. | `""` |
