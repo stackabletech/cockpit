@@ -45,6 +45,7 @@
   "header_sign_out": "Sign out",
   "trino_results_empty": "No results",
   "trino_query_error": "Query error",
+  "trino_query_connection_lost": "Lost connection to the server.",
   "trino_running": "Running...",
   "trino_connection_url_placeholder": "https://trino.example.com:8443",
   "trino_editor_label": "SQL editor",

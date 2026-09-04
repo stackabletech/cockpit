@@ -867,6 +867,9 @@
                 {stateBadgeClass}">{stateLabel}</span
             >
           {/if}
+          {#if runner.state === 'FAILED' && runner.error}
+            <span class="text-error text-xs" role="alert">{runner.error}</span>
+          {/if}
           {#if runner.state === 'RUNNING'}
             <span class="text-base-content/60 text-xs tabular-nums"
               >{Math.round(runner.progress.progressPercentage)}%</span
