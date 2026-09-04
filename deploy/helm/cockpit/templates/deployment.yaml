@@ -126,6 +126,13 @@ spec:
                   name: {{ include "cockpit.fullname" . }}
                   key: trino-url
             {{- end }}
+            {{- if .Values.trino.publicUrl }}
+            - name: STACKABLE_COCKPIT_TRINO_PUBLIC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "cockpit.fullname" . }}
+                  key: trino-public-url
+            {{- end }}
             {{- if .Values.trino.auth.type }}
             - name: STACKABLE_COCKPIT_TRINO_AUTH_TYPE
               valueFrom:

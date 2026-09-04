@@ -25,7 +25,7 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
 
     let result;
     try {
-      result = await query.client.poll(nextUri);
+      result = await query.client.poll(nextUri, { user: query.trinoUser });
     } catch (err) {
       if (isTerminal(query.state)) return;
 

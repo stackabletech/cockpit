@@ -71,7 +71,7 @@ export class TrinoClient {
   /** POST /v1/statement — submit a new query. */
   async submit(
     sql: string,
-    options: { user: string; catalog?: string; schema?: string }
+    options: { user: string; catalog?: string; schema?: string; signal?: AbortSignal }
   ): Promise<TrinoQueryResult> {
     const headers: Record<string, string> = {
       ...this.commonHeaders,
@@ -88,6 +88,7 @@ export class TrinoClient {
       method: 'POST',
       headers,
       body: sql,
+      signal: options.signal,
       // @ts-expect-error — Node fetch supports dispatcher via undici
       dispatcher: this.dispatcher
     });
@@ -101,10 +102,14 @@ export class TrinoClient {
   }
 
   /** GET nextUri — poll for the next page of results. */
-  async poll(nextUri: string): Promise<TrinoQueryResult> {
+  async poll(
+    nextUri: string,
+    opts: { user?: string; signal?: AbortSignal } = {}
+  ): Promise<TrinoQueryResult> {
     const res = await fetch(nextUri, {
       method: 'GET',
-      headers: this.commonHeaders,
+      headers: this.headersForUser(opts.user),
+      signal: opts.signal,
       // @ts-expect-error — Node fetch supports dispatcher via undici
       dispatcher: this.dispatcher
     });
@@ -168,6 +173,7 @@ export function buildBasicAuthHeader(username: string, password: string): string
 // --- Singleton & env config ---
 
 const trinoUrl = env.STACKABLE_COCKPIT_TRINO_URL;
+const trinoPublicUrl = env.STACKABLE_COCKPIT_TRINO_PUBLIC_URL;
 const authType = (env.STACKABLE_COCKPIT_TRINO_AUTH_TYPE ?? 'none') as 'none' | 'basic';
 const authUsername = env.STACKABLE_COCKPIT_TRINO_AUTH_USERNAME;
 const authPassword = env.STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD;
@@ -213,6 +219,7 @@ if (trinoConfigured) {
   log.info(
     {
       trino_url: trinoUrl,
+      trino_public_url: trinoPublicUrl,
       auth_type: authType,
       tls_insecure: tlsInsecure,
       user_impersonation: trinoUserImpersonation
@@ -230,24 +237,34 @@ export function resolveTrinoClient(userId: string): TrinoClient | null {
   return getUserTrinoClient(userId);
 }
 
-/** Returns the Trino server URL for a user (for building UI links). */
+/** Returns the Trino server URL used for server-side queries. */
 export function resolveTrinoServerUrl(userId: string): string | null {
   if (trinoUrl) return trinoUrl.replace(/\/+$/, '');
   return getUserTrinoUrl(userId);
 }
 
+/** Public (browser-facing) Trino URL for UI deep links; falls back to the query URL. */
+export function resolveTrinoPublicUrl(userId: string): string | null {
+  if (trinoPublicUrl) return trinoPublicUrl.replace(/\/+$/, '');
+  return resolveTrinoServerUrl(userId);
+}
+
 // --- Metadata helper ---
+
+/** Save-time connection-test timeout. */
+export const CONN_TEST_TIMEOUT_MS = 10_000;
 
 /**
  * Submit a SQL query and drain all pages, returning columns and rows.
- * Used for simple metadata queries (catalog browser).
+ * An optional AbortSignal bounds the whole submit/poll run.
  */
 export async function trinoMetadataQuery(
   client: TrinoClient,
   sql: string,
-  options: { user: string; catalog?: string; schema?: string }
+  options: { user: string; catalog?: string; schema?: string },
+  signal?: AbortSignal
 ): Promise<{ columns: TrinoColumn[]; rows: unknown[][] }> {
-  let result = await client.submit(sql, options);
+  let result = await client.submit(sql, { ...options, signal });
 
   let columns: TrinoColumn[] = result.columns ?? [];
   const rows: unknown[][] = result.data ? [...result.data] : [];
@@ -257,7 +274,7 @@ export async function trinoMetadataQuery(
   }
 
   while (result.nextUri) {
-    result = await client.poll(result.nextUri);
+    result = await client.poll(result.nextUri, { user: options.user, signal });
 
     if (result.error) {
       throw new Error(result.error.message);

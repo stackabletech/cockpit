@@ -16,6 +16,9 @@ data:
   {{- with .Values.trino.url }}
   trino-url: {{ . | quote }}
   {{- end }}
+  {{- with .Values.trino.publicUrl }}
+  trino-public-url: {{ . | quote }}
+  {{- end }}
   {{- with .Values.trino.auth.type }}
   trino-auth-type: {{ . | quote }}
   {{- end }}

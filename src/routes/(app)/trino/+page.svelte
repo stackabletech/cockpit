@@ -135,7 +135,8 @@
   const {
     enhance: connectionEnhance,
     errors: connectionErrors,
-    message: connectionMessage
+    message: connectionMessage,
+    submitting: connectionSubmitting
   } = superForm(
     untrack(() => data.connectionForm),
     {
@@ -581,7 +582,10 @@
 
             <!-- Save button -->
             <div class="flex justify-end">
-              <button type="submit" class="btn btn-sm btn-primary">
+              <button type="submit" class="btn btn-sm btn-primary" disabled={$connectionSubmitting}>
+                {#if $connectionSubmitting}
+                  <span class="loading loading-spinner loading-xs"></span>
+                {/if}
                 {m.trino_save_connection()}
               </button>
             </div>
