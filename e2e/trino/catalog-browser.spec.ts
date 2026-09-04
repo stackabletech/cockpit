@@ -129,6 +129,63 @@ test.describe('Catalog browser', () => {
     await schemaSelect.selectOption('sf1');
   });
 
+  test('long schema lists scroll instead of being clipped', async ({ page }) => {
+    // Inject many schemas so the tree must scroll within its bounded panel height.
+    await page.route(
+      (url) =>
+        url.pathname.endsWith('/api/trino/catalog') && url.searchParams.get('level') === 'schemas',
+      async (route) => {
+        const schemas = Array.from({ length: 60 }, (_, i) => [
+          `schema_${String(i).padStart(2, '0')}`
+        ]);
+        await route.fulfill({ json: schemas });
+      }
+    );
+
+    await ensureCatalogBrowserOpen(page);
+    const browser = page.getByRole('navigation', { name: 'Catalog browser' });
+
+    await browser.getByRole('button', { name: 'tpch' }).click();
+    await expect(browser.getByText('schema_00', { exact: true })).toBeVisible();
+    await expect(browser.getByText('schema_59', { exact: true })).toBeAttached();
+
+    // The tree container must have a bounded height and actually scroll.
+    const scrollable = browser.locator('div.overflow-auto').first();
+    const canScroll = await scrollable.evaluate((el) => el.scrollHeight > el.clientHeight + 1);
+    expect(canScroll).toBe(true);
+
+    const scrolled = await scrollable.evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+      return el.scrollTop > 0;
+    });
+    expect(scrolled).toBe(true);
+  });
+
+  test('catalog browser width is resizable and persists across reload', async ({ page }) => {
+    await ensureCatalogBrowserOpen(page);
+
+    const handle = page.getByRole('separator', { name: 'Resize catalog browser' });
+    await expect(handle).toBeVisible();
+
+    const before = Number(await handle.getAttribute('aria-valuenow'));
+    await handle.focus();
+    await page.keyboard.press('Shift+ArrowRight'); // +20px
+
+    await expect(handle).toHaveAttribute('aria-valuenow', String(before + 20));
+
+    const stored = await page.evaluate(() => localStorage.getItem('trino_catalog_browser_width'));
+    expect(Number(stored)).toBe(before + 20);
+
+    // Width persists across reload.
+    await page.reload();
+    await waitForHydration(page);
+    await ensureCatalogBrowserOpen(page);
+    await expect(page.getByRole('separator', { name: 'Resize catalog browser' })).toHaveAttribute(
+      'aria-valuenow',
+      String(before + 20)
+    );
+  });
+
   test('browser is hidden by default on mobile', async ({ page }) => {
     // Set mobile viewport.
     await page.setViewportSize({ width: 375, height: 667 });
