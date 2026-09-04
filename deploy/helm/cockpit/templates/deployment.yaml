@@ -167,12 +167,8 @@ spec:
                 configMapKeyRef:
                   name: {{ include "cockpit.fullname" . }}
                   key: oidc-client-id
-            {{- with .Values.auth.oidc.usernameClaim }}
-            - name: STACKABLE_COCKPIT_OIDC_USERNAME_CLAIM
-              value: {{ . | quote }}
             - name: STACKABLE_COCKPIT_TRINO_USER_CLAIM
               value: {{ .Values.trino.userImpersonation.userClaim | quote }}
-            {{- end }}
             {{- with .Values.auth.oidc.extraScopes }}
             - name: STACKABLE_COCKPIT_OIDC_EXTRA_SCOPES
               value: {{ join " " . | quote }}
