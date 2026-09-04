@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
-import { downloadObject, getObjectMetadata } from '$lib/server/storage/service.js';
-import { requireBucketKey } from '../params.js';
+import { error } from '@sveltejs/kit';
+import { createStorageProvider } from '$lib/server/storage/request-context.js';
 
 /** Derive the bare filename from a (possibly path-prefixed) object key. */
 function filenameFromKey(key: string): string {
@@ -8,22 +8,43 @@ function filenameFromKey(key: string): string {
 }
 
 /**
- * GET /storage/api/download?bucket=<bucket>&key=<object-key>
+ * GET /api/storage/download?bucket=<bucket>&key=<object-key>
  *
  * Proxies an S3 object directly to the client as a streaming download.
  * Authentication is enforced by the app-level auth guard in hooks.server.ts.
  * The S3 body stream is piped straight to the HTTP response — no server-side
  * buffering occurs.
  *
- * The connection config is parsed and validated by the `handleStorageConnection`
- * middleware in hooks.server.ts before this handler runs.
+ * The connection config is resolved from `locals.storageConfig` which is set
+ * by the handleStorageConnection middleware using the x-storage-connection-id
+ * header and a database lookup.
  */
-export const GET: RequestHandler = async ({ locals, url }) => {
-  const { bucket, key } = requireBucketKey(url);
+export const GET: RequestHandler = async (event) => {
+  const { provider, bucket } = createStorageProvider(event);
+  const key = event.url.searchParams.get('key')?.trim();
+  if (!key) throw error(400, 'Missing required query parameter: key');
+  const { locals, request } = event;
 
   locals.logger.debug({ bucket, key }, 'download request received');
 
-  const download = await downloadObject(locals.storageConfig!, bucket, key);
+  const download = await provider.getObject(key);
+
+  // When the client cancels the download (closes the connection), abort the S3
+  // stream proactively so the backend stops fetching data from S3.
+  const abortController = new AbortController();
+  request.signal.addEventListener(
+    'abort',
+    () => {
+      locals.logger.info({ bucket, key }, 'client cancelled download — aborting S3 stream');
+      abortController.abort();
+    },
+    { once: true }
+  );
+
+  // Pipe the S3 stream through a TransformStream that honours the abort signal.
+  // This ensures the S3 SDK stops reading when the client disconnects.
+  const { readable, writable } = new TransformStream();
+  download.stream.pipeTo(writable, { signal: abortController.signal }).catch(() => {});
 
   const filename = filenameFromKey(key);
   // RFC 5987 encoding for non-ASCII filenames in Content-Disposition
@@ -46,11 +67,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
   locals.logger.info({ bucket, key, filename }, 'streaming object download');
 
-  return new Response(download.stream, { status: 200, headers });
+  return new Response(readable, { status: 200, headers });
 };
 
 /**
- * HEAD /storage/api/download?bucket=<bucket>&key=<object-key>
+ * HEAD /api/storage/download?bucket=<bucket>&key=<object-key>
  *
  * Lightweight pre-flight that validates credentials and access rights using
  * a HeadObject call (no object body transferred). The client uses this before
@@ -59,12 +80,14 @@ export const GET: RequestHandler = async ({ locals, url }) => {
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.
  */
-export const HEAD: RequestHandler = async ({ locals, url }) => {
-  const { bucket, key } = requireBucketKey(url);
+export const HEAD: RequestHandler = async (event) => {
+  const { provider, bucket } = createStorageProvider(event);
+  const key = event.url.searchParams.get('key')?.trim();
+  if (!key) throw error(400, 'Missing required query parameter: key');
 
-  locals.logger.debug({ bucket, key }, 'download pre-flight check');
+  event.locals.logger.debug({ bucket, key }, 'download pre-flight check');
 
-  const meta = await getObjectMetadata(locals.storageConfig!, bucket, key);
+  const meta = await provider.getMetadata(key);
 
   return new Response(null, {
     status: 200,

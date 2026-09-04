@@ -1,0 +1,178 @@
+import { test, expect } from '@playwright/test';
+import {
+  createS3Client,
+  hasGarageCredentials,
+  requireGarageCredentials
+} from '../support/garage.js';
+import {
+  bucketRoute,
+  connectAndOpenPrefix,
+  connectToStorage,
+  deleteKnownKeys,
+  putDirectoryMarker,
+  putTextObject,
+  uniquePrefix
+} from './helpers.js';
+
+test.describe('Storage Search', () => {
+  test.use({ locale: 'en-US' });
+
+  test.beforeEach(() => {
+    test.skip(
+      !hasGarageCredentials(),
+      'Skipped: no s3-config.json found (requires a running Garage instance)'
+    );
+  });
+
+  test('searches the current bucket, runs parallel sessions, and opens matching results', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'search');
+    const directory = `${prefix}reports/`;
+    const file = `${directory}final-report.txt`;
+
+    try {
+      await putDirectoryMarker(client, credentials.bucket, directory);
+      await putTextObject(client, credentials.bucket, file, 'search preview');
+      await connectToStorage(page, credentials);
+
+      await page.getByRole('button', { name: 'Open search' }).first().click();
+      await page.getByLabel('Search query').fill('report');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+
+      await expect(page.getByText(/2 results/)).toBeVisible();
+      await page.getByRole('button', { name: /reports.*\/reports\// }).click();
+      await expect(page).toHaveURL(bucketRoute(credentials.bucket, directory));
+
+      await page.getByRole('button', { name: 'Open search' }).first().click();
+      await page.getByRole('button', { name: 'Parallel search' }).click();
+      await expect(page.getByRole('navigation', { name: 'Search sessions' })).toBeVisible();
+      await page.getByLabel('Search query').fill('final-report');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+      await page
+        .getByRole('button', { name: /final-report\.txt.*\/reports\/final-report\.txt/ })
+        .click();
+      const previewDialog = page.getByRole('dialog').filter({ hasText: 'final-report.txt' });
+      await expect(previewDialog).toContainText('final-report.txt');
+      await previewDialog.getByLabel('Close', { exact: true }).click();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [directory, file]);
+    }
+  });
+
+  test('searches all buckets from the landing page', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'landing-search');
+    const file = `${prefix}landing-report.txt`;
+
+    try {
+      await putTextObject(client, credentials.bucket, file, 'landing search');
+      await connectToStorage(page, credentials);
+
+      await page.getByRole('button', { name: 'Open search' }).first().click();
+      await page.getByLabel('Search query').fill('landing-report');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+
+      await expect(page.getByRole('button', { name: 'landing-report.txt' })).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [file]);
+    }
+  });
+
+  test('paginates search results', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'paginate-search');
+    const keys: string[] = [];
+
+    try {
+      for (let index = 1; index <= 30; index += 1) {
+        const key = `${prefix}report-${String(index).padStart(2, '0')}.txt`;
+        keys.push(key);
+        await putTextObject(client, credentials.bucket, key, `report ${index}`);
+      }
+      await connectToStorage(page, credentials);
+
+      await page.getByRole('button', { name: 'Open search' }).first().click();
+      await page.getByLabel('Search query').fill('report-');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+      await page.getByLabel('Items per page').selectOption('25');
+
+      await expect(page.getByText('Page 1', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'report-01.txt' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'report-26.txt' })).not.toBeVisible();
+
+      await page.getByRole('button', { name: 'Next page' }).click();
+      await expect(page.getByText('Page 2', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'report-26.txt' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'report-01.txt' })).not.toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, keys);
+    }
+  });
+
+  test('filters and selects buckets via the bucket dropdown', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'bucket-scope');
+    const file = `${prefix}scoped-report.txt`;
+
+    try {
+      await putTextObject(client, credentials.bucket, file, 'scoped search');
+      await connectToStorage(page, credentials);
+
+      await page.getByRole('button', { name: 'Open search' }).first().click();
+
+      const trigger = page.getByRole('button', { name: 'all buckets', exact: true });
+      await expect(trigger).toBeVisible();
+      await trigger.click();
+
+      await page.getByLabel('Filter buckets').fill(credentials.bucket);
+      await page
+        .getByRole('button', { name: `Include ${credentials.bucket} in search`, exact: true })
+        .click();
+      await expect(
+        page.getByRole('button', { name: credentials.bucket, exact: true })
+      ).toBeVisible();
+
+      await page.getByLabel('Search query').fill('scoped-report');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'scoped-report.txt' })).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [file]);
+    }
+  });
+
+  test('shows recent searches in the recent view and reuses one', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'recent');
+    const file = `${prefix}recent-report.txt`;
+
+    try {
+      await putTextObject(client, credentials.bucket, file, 'recent search');
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await page.getByRole('button', { name: 'Open search' }).first().click();
+      await page.getByLabel('Search query').fill('recent-report');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'recent-report.txt' }).first()).toBeVisible();
+
+      await page.getByRole('button', { name: 'Close search' }).click();
+      await page.getByRole('button', { name: 'Open search' }).first().click();
+      await page.getByRole('tab', { name: 'Recent', exact: true }).click();
+      await expect(page.getByRole('button', { name: /recent-report/ }).first()).toBeVisible();
+
+      await page
+        .getByRole('button', { name: /recent-report/ })
+        .first()
+        .click();
+      await expect(page.getByLabel('Search query')).toHaveValue('recent-report');
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [file]);
+    }
+  });
+});

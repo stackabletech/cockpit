@@ -67,3 +67,7 @@ export const EditStorageConnectionSchema = baseStorageConnectionObject.superRefi
     });
   }
 });
+
+export const ConnectionIdSchema = z.object({
+  connectionId: z.string().uuid()
+});

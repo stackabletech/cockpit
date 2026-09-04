@@ -49,7 +49,24 @@ export default ts.config(
       }
     },
     rules: {
-      'better-tailwindcss/no-unknown-classes': ['warn', { detectComponentClasses: true }]
+      'better-tailwindcss/no-unknown-classes': [
+        'warn',
+        {
+          detectComponentClasses: true,
+          ignore: [
+            'dropdown-content',
+            'dropdown-open',
+            'swap-on',
+            'swap-off',
+            'label-text',
+            'menu-disabled',
+            'tab-active',
+            'tab-strip',
+            'preview-scroll',
+            'modal-top-search'
+          ]
+        }
+      ]
     }
   }
 );

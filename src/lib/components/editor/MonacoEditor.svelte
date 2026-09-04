@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import { theme } from '$lib/theme.svelte';
+  import { getLocale } from '$lib/paraglide/runtime.js';
   import {
     registerTrinoSql,
     setCompletionDefaultsGetter,
@@ -133,7 +134,6 @@
   // Start loading in parallel with the rest of the page — not deferred to onMount.
   // Guarded by `browser` because SvelteKit evaluates component scripts on the server too.
   const workerImport = browser ? import('monaco-editor/esm/vs/editor/editor.worker?worker') : null;
-  const monacoImport = browser ? import('monaco-editor') : null;
 
   function toMonacoTheme(t: string): string {
     return t === 'dark' ? 'vs-dark' : 'vs';
@@ -143,14 +143,23 @@
     monaco?.editor.setTheme(toMonacoTheme(theme.current));
   });
 
+  const cleanups: (() => void)[] = [];
+
   onMount(async () => {
+    // Load Monaco's NLS bundle for the active locale. Static import strings are
+    // required — Vite cannot bundle bare-specifier template literals at build time.
+    if (getLocale() === 'de') {
+      // @ts-expect-error — Monaco ESM nls bundle has no types
+      await import('monaco-editor/esm/nls.messages.de.js');
+    }
+
     // By the time onMount fires the imports are likely already resolved.
     const EditorWorker = (await workerImport!).default;
     self.MonacoEnvironment = {
       getWorker: () => new EditorWorker()
     };
 
-    monaco = await monacoImport!;
+    monaco = await import('monaco-editor');
 
     setCompletionDefaultsGetter(() => ({
       catalog: defaultCatalog || undefined,
@@ -227,9 +236,86 @@
         run: onExecuteAll
       });
     }
+
+    // Ctrl+Mouse Wheel — zoom via built-in command (capture phase on document,
+    // because Monaco's internal handler calls stopPropagation on wheel events,
+    // so a container-level listener never fires)
+    const onWheel = (e: WheelEvent) => {
+      if ((e.ctrlKey || e.metaKey) && container.contains(e.target as Node)) {
+        e.preventDefault();
+        editor?.trigger(
+          'keyboard',
+          e.deltaY < 0 ? 'editor.action.fontZoomIn' : 'editor.action.fontZoomOut',
+          {}
+        );
+      }
+    };
+    document.addEventListener('wheel', onWheel, { capture: true, passive: false });
+    cleanups.push(() => document.removeEventListener('wheel', onWheel, { capture: true }));
+
+    // Prevent browser zoom & invoke font zoom for any keys Monaco doesn't handle
+    const handleZoomKeys = (e: KeyboardEvent) => {
+      if (!editor?.hasTextFocus()) return;
+      if (!(e.ctrlKey || e.metaKey)) return;
+      let command: string | null = null;
+      if (e.key === '=' || e.key === '+' || e.code === 'NumpadAdd') {
+        command = 'editor.action.fontZoomIn';
+      } else if (e.key === '-' || e.code === 'NumpadSubtract') {
+        command = 'editor.action.fontZoomOut';
+      } else if (e.key === '0' || e.code === 'Numpad0') {
+        command = 'editor.action.fontZoomReset';
+      }
+      if (command) {
+        if (!e.defaultPrevented) editor?.trigger('keyboard', command, {});
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('keydown', handleZoomKeys);
+    cleanups.push(() => document.removeEventListener('keydown', handleZoomKeys));
+
+    // Bind keyboard shortcuts to the built-in font zoom commands
+    const zoomDisposable = monaco!.editor.addKeybindingRules([
+      {
+        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyCode.Equal,
+        command: 'editor.action.fontZoomIn',
+        when: 'editorFocus'
+      },
+      {
+        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyMod.Shift | monaco!.KeyCode.Equal,
+        command: 'editor.action.fontZoomIn',
+        when: 'editorFocus'
+      },
+      {
+        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyCode.NumpadAdd,
+        command: 'editor.action.fontZoomIn',
+        when: 'editorFocus'
+      },
+      {
+        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyCode.Minus,
+        command: 'editor.action.fontZoomOut',
+        when: 'editorFocus'
+      },
+      {
+        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyCode.NumpadSubtract,
+        command: 'editor.action.fontZoomOut',
+        when: 'editorFocus'
+      },
+      {
+        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyCode.Digit0,
+        command: 'editor.action.fontZoomReset',
+        when: 'editorFocus'
+      },
+      {
+        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyCode.Numpad0,
+        command: 'editor.action.fontZoomReset',
+        when: 'editorFocus'
+      }
+    ]);
+    cleanups.push(() => zoomDisposable.dispose());
   });
 
   onDestroy(() => {
+    cleanups.forEach((fn) => fn());
     editor?.dispose();
   });
 </script>

@@ -1,16 +1,48 @@
-import { listBuckets } from '$lib/server/storage/service.js';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import type { BucketDetails } from '$lib/storage/details-types.js';
+import { getConnectionProvider } from '$lib/server/storage/utils.js';
+import { createStorageProvider } from '$lib/server/storage/request-context.js';
 
-/**
- * GET /storage/api/buckets
- *
- * Returns the list of buckets accessible with the connection config supplied in
- * the `X-Storage-Connection` request header (base64-encoded JSON).
- * The config is parsed and validated by the `handleStorageConnection` middleware
- * in hooks.server.ts before this handler runs.
- */
-export const GET: RequestHandler = async ({ locals }) => {
-  const buckets = await listBuckets(locals.storageConfig!);
-  locals.logger.debug({ bucket_count: buckets.length }, 'bucket list returned');
-  return Response.json(buckets);
+export const GET: RequestHandler = async (event) => {
+  const detailsParam = event.url.searchParams.get('details');
+  const prefix = event.url.searchParams.get('prefix');
+
+  if (detailsParam === 'true') {
+    const { provider, bucket } = createStorageProvider(event);
+
+    event.locals.logger.debug({ bucket }, 'fetching bucket details');
+
+    const [versioning, lifecycleRules, tags, acl] = await Promise.all([
+      provider.getBucketVersioning(),
+      provider.getBucketLifecycleRules(),
+      provider.getBucketTags(),
+      provider.getBucketAcl()
+    ]);
+
+    const details: BucketDetails = {
+      name: bucket,
+      versioning: versioning as 'Enabled' | 'Suspended' | 'Disabled',
+      lifecycleRules,
+      tags,
+      acl
+    };
+
+    return json(details);
+  }
+
+  if (!prefix) {
+    const config = event.locals.storageConfig;
+    if (!config) {
+      throw error(401, 'No storage connection configured');
+    }
+
+    const listedBuckets = await getConnectionProvider(config).listContainers();
+    const additional = config.additionalBuckets ?? [];
+    const allBuckets = [...new Set([...listedBuckets, ...additional])];
+    event.locals.logger.debug({ bucket_count: allBuckets.length }, 'bucket list returned');
+    return json(allBuckets);
+  }
+
+  return json([]);
 };

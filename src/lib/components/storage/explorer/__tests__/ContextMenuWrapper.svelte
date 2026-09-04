@@ -6,10 +6,11 @@
 
   interface Props {
     state: StorageState;
+    title?: string;
   }
 
-  let { state }: Props = $props();
+  let { state, title }: Props = $props();
   untrack(() => setStorageState(state));
 </script>
 
-<ContextMenu />
+<ContextMenu {title} />

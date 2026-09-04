@@ -21,14 +21,19 @@
   });
 </script>
 
-<button
-  onclick={() => (dark = !dark)}
-  class="btn btn-ghost btn-sm btn-square"
-  aria-label={dark ? m.theme_switch_light() : m.theme_switch_dark()}
+<div
+  class="tooltip tooltip-bottom z-150 before:z-200"
+  data-tip={dark ? m.theme_switch_light() : m.theme_switch_dark()}
 >
-  {#if dark}
-    <IconLightMode class="h-5 w-5" aria-hidden="true" />
-  {:else}
-    <IconDarkMode class="h-5 w-5" aria-hidden="true" />
-  {/if}
-</button>
+  <button
+    onclick={() => (dark = !dark)}
+    class="btn btn-ghost btn-sm btn-square"
+    aria-label={dark ? m.theme_switch_light() : m.theme_switch_dark()}
+  >
+    {#if dark}
+      <IconLightMode class="h-5 w-5" aria-hidden="true" />
+    {:else}
+      <IconDarkMode class="h-5 w-5" aria-hidden="true" />
+    {/if}
+  </button>
+</div>

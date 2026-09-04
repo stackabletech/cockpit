@@ -22,6 +22,9 @@
     }
   });
 
+  const lines = $derived(formatted.split('\n'));
+  const lastLineNumber = $derived(lines.length);
+
   const language = $derived.by(() => {
     if (isJson) return 'json';
     if (contentType === 'text/css') return 'css';
@@ -34,7 +37,18 @@
   });
 </script>
 
-<pre
-  class="text-base-content/90 bg-base-200/50 min-h-full p-4 font-mono text-xs leading-relaxed whitespace-pre"
-  data-language={language}
-  aria-label="File content preview">{formatted}</pre>
+<div class="bg-base-200/50 flex min-h-full">
+  <div
+    class="text-base-content/30 p-4 pr-2 pb-4 text-right font-mono text-xs leading-relaxed select-none"
+    aria-hidden="true"
+  >
+    <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+    {#each Array(lastLineNumber) as _n, i (i)}
+      {i + 1}<br />
+    {/each}
+  </div>
+  <pre
+    class="text-base-content/90 min-h-full flex-1 overflow-x-auto p-4 pl-0 font-mono text-xs leading-relaxed whitespace-pre"
+    data-language={language}
+    aria-label="File content preview">{formatted}</pre>
+</div>

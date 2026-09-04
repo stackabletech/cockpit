@@ -1,10 +1,9 @@
 import { error } from '@sveltejs/kit';
-import { uploadObject } from '$lib/server/storage/service.js';
-import { requireBucketKey } from '../params.js';
+import { createStorageProvider } from '$lib/server/storage/request-context.js';
 import type { RequestHandler } from './$types';
 
 /**
- * POST /storage/api/upload?bucket=<bucket>&key=<object-key>
+ * POST /api/storage/upload?bucket=<bucket>&key=<object-key>
  *
  * Streams an uploaded file directly to S3 using multipart upload (via
  * @aws-sdk/lib-storage). The request body is piped to the S3 SDK without
@@ -13,9 +12,12 @@ import type { RequestHandler } from './$types';
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.
  */
-export const POST: RequestHandler = async ({ locals, url, request }) => {
+export const POST: RequestHandler = async (event) => {
+  const { provider, bucket } = createStorageProvider(event);
+  const key = event.url.searchParams.get('key')?.trim();
+  if (!key) throw error(400, 'Missing required query parameter: key');
+  const { locals, request } = event;
   const log = locals.logger;
-  const { bucket, key } = requireBucketKey(url);
 
   if (!request.body) {
     throw error(400, 'Missing request body');
@@ -33,7 +35,7 @@ export const POST: RequestHandler = async ({ locals, url, request }) => {
     'upload request received'
   );
 
-  await uploadObject(locals.storageConfig!, bucket, key, request.body, contentType, contentLength);
+  await provider.putObject(key, request.body, contentType, contentLength);
 
   log.info(
     { bucket, key, content_type: contentType, content_length: contentLength },

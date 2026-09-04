@@ -1,6 +1,7 @@
 import prettyBytes from 'pretty-bytes';
 import type { Options } from 'pretty-bytes';
 import { getLocale } from '$lib/paraglide/runtime.js';
+import { ARCHIVE_EXTENSIONS } from './types.js';
 
 export type FileIconKind = 'image' | 'pdf' | 'code' | 'archive' | 'text' | 'document';
 
@@ -13,7 +14,12 @@ const CODE_TYPES = new Set([
   'text/markdown'
 ]);
 
-const ARCHIVE_TYPES = new Set(['application/gzip', 'application/zip', 'application/x-tar']);
+const ARCHIVE_TYPES = new Set([
+  'application/gzip',
+  'application/zip',
+  'application/x-tar',
+  'application/x-gzip'
+]);
 
 export function fileIconKind(contentType: string | undefined): FileIconKind {
   if (!contentType) return 'document';
@@ -55,4 +61,10 @@ export function formatFileSize(
   options: Options = { fixedWidth: 9 }
 ): string {
   return prettyBytes(bytes, { locale, ...options });
+}
+
+/** Check if a filename/path has a navigable archive extension. */
+export function isArchiveExtension(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return ARCHIVE_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }

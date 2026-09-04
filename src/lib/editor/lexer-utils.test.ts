@@ -8,9 +8,13 @@ import { DOT, LPAREN, RPAREN, COMMA, lexSql, readQualifiedName } from './lexer-u
 describe('implicit token constants match the generated grammar', () => {
   const names = SqlBaseLexer.literalNames;
 
+  // eslint-disable-next-line security/detect-object-injection
   it('DOT is "."', () => expect(names[DOT]).toBe("'.'"));
+  // eslint-disable-next-line security/detect-object-injection
   it('LPAREN is "("', () => expect(names[LPAREN]).toBe("'('"));
+  // eslint-disable-next-line security/detect-object-injection
   it('RPAREN is ")"', () => expect(names[RPAREN]).toBe("')'"));
+  // eslint-disable-next-line security/detect-object-injection
   it('COMMA is ","', () => expect(names[COMMA]).toBe("','"));
 });
 

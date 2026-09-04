@@ -12,6 +12,7 @@ function buildEndpointUrl(config: S3ConnectionConfig): string {
 export function createS3Client(config: S3ConnectionConfig): S3Client {
   return new S3Client({
     region: config.region.name,
+    requestChecksumCalculation: 'WHEN_REQUIRED',
     endpoint: buildEndpointUrl(config),
     forcePathStyle: config.accessStyle === 'Path',
     ...(config.tls?.verification === 'None' && {
@@ -19,7 +20,6 @@ export function createS3Client(config: S3ConnectionConfig): S3Client {
         httpsAgent: new Agent({ rejectUnauthorized: false })
       })
     }),
-    requestChecksumCalculation: 'WHEN_REQUIRED',
     ...(config.credentials && {
       credentials: {
         accessKeyId: config.credentials.accessKey,
