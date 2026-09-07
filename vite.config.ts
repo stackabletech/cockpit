@@ -16,7 +16,6 @@ export default defineConfig({
       strategy: ['cookie', 'preferredLanguage', 'baseLocale']
     })
   ],
-  server: { allowedHosts: true },
   test: {
     coverage: {
       provider: 'v8',
