@@ -102,10 +102,35 @@ startupProbe:
 
 terminationGracePeriodSeconds: 30
 
-features:
-  trino:
-    completion:
-      enabled: true
+# Optional application feature overrides. All defaults below are applied by the application when omitted.
+# features:
+#   trino:
+#     completion:
+#       # Enable SQL code completion. Default: true (application default).
+#       enabled: true
+#   storage:
+#     # Show the S3/HDFS file browser and enable routes under /storage. Default: false (application default).
+#     enabled: false
+#     # Reconnect to the most recently used storage connection on the storage page. Default: false (application default).
+#     autoConnect: false
+#     # Comma-separated page size options for paginated list views. Default: "25,50,100" (application default).
+#     pageSizes: "25,50,100"
+#     # Page size selected when no user preference is stored. Must be included in pageSizes. Default: first page size (application default).
+#     defaultPageSize: 25
+#     # Number of recently visited storage locations retained in local storage. Default: 15 (application default).
+#     maxRecentFiles: 15
+#     # Maximum parallel requests for file uploads. Default: 3 (application default).
+#     uploadConcurrency: 3
+#     # Maximum bytes fetched for text, CSV, and JSON previews. Default: 262144 (application default).
+#     textPreviewBytes: 262144
+#     # Maximum bytes fetched for image previews. Default: 5242880 (application default).
+#     imagePreviewBytes: 5242880
+#     # Maximum bytes fetched for PDF previews. Default: 26214400 (application default).
+#     pdfPreviewBytes: 26214400
+#     # Maximum rows in tabular file previews. Default: 250 (application default).
+#     filePreviewRows: 250
+#     # Maximum columns in tabular file previews. Default: 50 (application default).
+#     filePreviewColumns: 50
 
 logging:
   level: ""
@@ -186,3 +211,5 @@ trino:
     # Stackable SecretClass name for provisioning the Trino CA certificate.
     # The Secret Operator mounts ca.crt into /stackable/trino-tls.
     secretClass: ""
+  # Query result TTL in seconds. Default: 1800 (application default).
+  # queryTtl: 1800
