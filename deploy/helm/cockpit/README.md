@@ -124,6 +124,7 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 | Parameter | Description | Default |
 | --- | --- | --- |
 | `trino.url` | Trino coordinator URL. | `""` |
+| `trino.publicUrl` | Browser-facing URL for "View in Trino" deep links. Defaults to `trino.url`. | `""` |
 | `trino.userImpersonation.enabled` | Forward the logged-in user to Trino as `X-Trino-User`. When `false`, all queries run as `trino.auth.username` (no per-user authorization/audit in Trino). | `true` |
 | `trino.userImpersonation.userClaim` | OIDC claim used as the Trino user. Only consumed when impersonation is enabled and OIDC is configured. | `preferred_username` |
 | `trino.auth.type` | `"none"` or `"basic"`. | `""` |

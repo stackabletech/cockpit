@@ -5,6 +5,8 @@
   import * as m from '$lib/paraglide/messages.js';
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
+  import ResizeHandle from '$lib/components/storage/sidebar/ResizeHandle.svelte';
+  import { createResizablePanel } from '$lib/components/storage/sidebar/resizable-panel.svelte.js';
   import Modal from '$lib/components/Modal.svelte';
   import { superForm } from 'sveltekit-superforms';
   import { ConnectionSchema, type ConnectionMessage } from './validation.js';
@@ -39,6 +41,14 @@
   let authUsername = $state('');
   let authPassword = $state('');
   let connectionOpen = $state(false);
+
+  // Drag-to-resize state for the desktop catalog browser panel (width persisted).
+  const catalogResize = createResizablePanel({
+    storageKey: 'trino_catalog_browser_width',
+    defaultWidth: 288, // matches the previous fixed w-72
+    minWidth: 240,
+    maxWidth: 560
+  });
 
   let sql = $state(tabStore.activeTab.sql);
   let defaultCatalog = $state('');
@@ -135,7 +145,8 @@
   const {
     enhance: connectionEnhance,
     errors: connectionErrors,
-    message: connectionMessage
+    message: connectionMessage,
+    submitting: connectionSubmitting
   } = superForm(
     untrack(() => data.connectionForm),
     {
@@ -405,31 +416,36 @@
 {/snippet}
 
 <div class="flex h-full gap-4">
-  <!-- Catalog browser panel (desktop) — always in DOM, collapses via width transition -->
-  <aside
-    class="
-      border-base-300 bg-base-100 hidden shrink-0 flex-col overflow-hidden rounded-xl
-      border transition-[width] duration-200 ease-out
-      lg:flex
-      {catalogBrowserOpen ? 'w-72' : 'invisible w-0 border-0'}"
-  >
-    <div
+  <!-- Wrapper positions the resize handle outside the aside's overflow-hidden. -->
+  <div class="relative hidden h-full shrink-0 lg:block">
+    <aside
       class="
-        border-base-300 flex w-72 items-center justify-between border-b px-3
-        py-2
-      "
+        border-base-300 bg-base-100 flex h-full flex-col overflow-hidden rounded-xl
+        border ease-out
+        {catalogResize.isDragging ? '' : 'transition-[width] duration-200'}
+        {catalogBrowserOpen ? '' : 'invisible border-0'}"
+      style="width: {catalogBrowserOpen ? catalogResize.width : 0}px"
     >
-      <span class="text-base-content/60 text-sm font-medium">{m.trino_catalog_browser()}</span>
-    </div>
-    <div class="w-72">
-      <CatalogBrowser
-        connectionVersion={catalogVersion}
-        bind:defaultCatalog
-        bind:defaultSchema
-        onInsert={(name) => monacoEditor?.insertAtCursor(name)}
-      />
-    </div>
-  </aside>
+      <!-- Fixed open width so content doesn't reflow while the aside animates to 0. -->
+      <div
+        class="border-base-300 flex items-center justify-between border-b px-3 py-2"
+        style="width: {catalogResize.width}px"
+      >
+        <span class="text-base-content/60 text-sm font-medium">{m.trino_catalog_browser()}</span>
+      </div>
+      <div class="min-h-0 flex-1" style="width: {catalogResize.width}px">
+        <CatalogBrowser
+          connectionVersion={catalogVersion}
+          bind:defaultCatalog
+          bind:defaultSchema
+          onInsert={(name) => monacoEditor?.insertAtCursor(name)}
+        />
+      </div>
+    </aside>
+    {#if catalogBrowserOpen}
+      <ResizeHandle panel={catalogResize} label={m.trino_catalog_resize_handle()} />
+    {/if}
+  </div>
 
   <!-- Mobile catalog browser overlay -->
   <Modal
@@ -454,15 +470,18 @@
           {@render closeIcon()}
         </button>
       </div>
-      <CatalogBrowser
-        connectionVersion={catalogVersion}
-        bind:defaultCatalog
-        bind:defaultSchema
-        onInsert={(name) => {
-          monacoEditor?.insertAtCursor(name);
-          mobileCatalogOpen = false;
-        }}
-      />
+      <!-- Bounded height so the tree scrolls. -->
+      <div class="min-h-0 flex-1">
+        <CatalogBrowser
+          connectionVersion={catalogVersion}
+          bind:defaultCatalog
+          bind:defaultSchema
+          onInsert={(name) => {
+            monacoEditor?.insertAtCursor(name);
+            mobileCatalogOpen = false;
+          }}
+        />
+      </div>
     </div>
   </Modal>
 
@@ -581,7 +600,10 @@
 
             <!-- Save button -->
             <div class="flex justify-end">
-              <button type="submit" class="btn btn-sm btn-primary">
+              <button type="submit" class="btn btn-sm btn-primary" disabled={$connectionSubmitting}>
+                {#if $connectionSubmitting}
+                  <span class="loading loading-spinner loading-xs"></span>
+                {/if}
                 {m.trino_save_connection()}
               </button>
             </div>
@@ -844,6 +866,9 @@
                 badge
                 {stateBadgeClass}">{stateLabel}</span
             >
+          {/if}
+          {#if runner.state === 'FAILED' && runner.error}
+            <span class="text-error text-xs" role="alert">{runner.error}</span>
           {/if}
           {#if runner.state === 'RUNNING'}
             <span class="text-base-content/60 text-xs tabular-nums"
