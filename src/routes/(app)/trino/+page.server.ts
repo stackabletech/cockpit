@@ -62,11 +62,10 @@ export const actions: Actions = {
       );
     } catch (err) {
       const name = (err as { name?: string })?.name;
-      const detail = (err as { message?: string })?.message ?? 'unknown error';
       const reason =
         name === 'TimeoutError' || name === 'AbortError'
           ? 'Connection test timed out'
-          : `Could not connect to Trino: ${detail}`;
+          : 'Could not connect to Trino — check the URL and credentials.';
       log.info({ err, trino_url: connectionUrl }, 'connection test failed');
       return message(form, { type: 'error', message: reason } satisfies ConnectionMessage, {
         status: 400
