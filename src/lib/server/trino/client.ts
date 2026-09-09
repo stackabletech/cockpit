@@ -74,13 +74,9 @@ export class TrinoClient {
     options: { user: string; catalog?: string; schema?: string; signal?: AbortSignal }
   ): Promise<TrinoQueryResult> {
     const headers: Record<string, string> = {
-      ...this.commonHeaders,
+      ...this.headersForUser(options.user),
       'Content-Type': 'text/plain'
     };
-    // Skip X-Trino-User only when not impersonating and Trino can fall back to the authenticated principal.
-    if (this.impersonate || !this.authenticated) {
-      headers['X-Trino-User'] = options.user;
-    }
     if (options.catalog) headers['X-Trino-Catalog'] = options.catalog;
     if (options.schema) headers['X-Trino-Schema'] = options.schema;
 
