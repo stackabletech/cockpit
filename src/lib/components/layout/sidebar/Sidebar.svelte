@@ -1,11 +1,16 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import { page } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
   import type { Component } from 'svelte';
   import IconChevronLeft from 'virtual:icons/material-symbols/chevron-left';
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
+  import IconExpandMore from 'virtual:icons/material-symbols/expand-more';
   import type { NavItem } from '$lib/types/navigation.js';
-  import { getNavSections } from './nav-items.js';
+  import { getPlatformSection, getToolsSection } from './nav-items.js';
+  import { getBookmarks } from '$lib/dashboard/bookmarks.svelte.js';
+  import { PRODUCTS } from '$lib/dashboard/products';
+  import type { Bookmark } from '$lib/dashboard/types';
 
   let {
     collapsed = $bindable(false),
@@ -17,7 +22,28 @@
     storageBrowserEnabled?: boolean;
   } = $props();
 
-  const sections = $derived(getNavSections({ storageBrowserEnabled }));
+  const platformSection = $derived(getPlatformSection());
+  const toolsSection = $derived(getToolsSection({ storageBrowserEnabled }));
+
+  const bookmarks = $derived(getBookmarks());
+  const pinnedBookmarks = $derived(bookmarks.filter((b) => b.pinned));
+  const unpinnedBookmarks = $derived(bookmarks.filter((b) => !b.pinned));
+
+  function getInitialToolsOpen(): boolean {
+    if (!browser) return true;
+    try {
+      return localStorage.getItem('sidebar_tools_open') !== 'false';
+    } catch {
+      return true;
+    }
+  }
+
+  let toolsOpen = $state(getInitialToolsOpen());
+
+  $effect(() => {
+    if (!browser) return;
+    localStorage.setItem('sidebar_tools_open', String(toolsOpen));
+  });
 
   function isActive(href: string): boolean {
     if (href === '/') return page.url.pathname === '/';
@@ -38,11 +64,69 @@
     }
   }
 
+  function getProduct(productId: string) {
+    return PRODUCTS.find((p) => p.id === productId) ?? PRODUCTS[PRODUCTS.length - 1];
+  }
+
+  function handleLogoError(e: Event) {
+    const el = e.currentTarget as HTMLImageElement;
+    el.style.display = 'none';
+    const next = el.nextElementSibling;
+    if (next) next.classList.remove('hidden');
+  }
+
   let sidebarEl: HTMLElement | undefined = $state();
 </script>
 
 {#snippet navIcon(IconComponent: Component)}
   <IconComponent class="h-5 w-5 shrink-0" aria-hidden="true" />
+{/snippet}
+
+{#snippet bookmarkIcon(bookmark: Bookmark)}
+  {@const product = getProduct(bookmark.productId)}
+  {#if product.logo}
+    <enhanced:img
+      src={product.logo}
+      alt=""
+      class="size-5 shrink-0 rounded-full bg-white object-contain p-0.5"
+      onerror={handleLogoError}
+    />
+    <span
+      class="flex hidden size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
+      style="background-color: {product.color}"
+    >
+      {product.initials}
+    </span>
+  {:else}
+    <span
+      class="flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
+      style="background-color: {product.color}"
+    >
+      {product.initials}
+    </span>
+  {/if}
+{/snippet}
+
+{#snippet bookmarkItem(bookmark: Bookmark)}
+  <li class="group relative">
+    <a
+      href={bookmark.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onclick={() => (mobileOpen = false)}
+      title={collapsed ? bookmark.name : undefined}
+      class="text-base-content/70 hover:bg-base-content/5 hover:text-base-content flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2
+        text-sm font-medium transition-colors
+        {collapsed ? 'justify-center' : 'pr-9'}"
+    >
+      <span class="flex shrink-0 items-center">
+        {@render bookmarkIcon(bookmark)}
+      </span>
+      {#if !collapsed}
+        <span class="truncate">{bookmark.name}</span>
+      {/if}
+    </a>
+  </li>
 {/snippet}
 
 <!-- Mobile backdrop -->
@@ -79,19 +163,81 @@
     class="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4"
     aria-label={m.sidebar_nav_label()}
   >
-    {#each sections as section, sectionIdx (section.title)}
-      {#if sectionIdx > 0}
-        <div class="my-3"></div>
-      {/if}
+    <!-- Platform -->
+    {#if !collapsed}
+      <div class="text-base-content/60 mb-2 px-3 text-xs font-semibold tracking-wider uppercase">
+        {platformSection.title}
+      </div>
+    {/if}
+    <ul class="flex flex-col gap-1">
+      {#each platformSection.items as item (item.label)}
+        {@const active = isActive(item.href)}
+        <li>
+          <a
+            href={item.href}
+            onclick={(e) => handleNavClick(e, item)}
+            onkeydown={(e) => handleNavKeydown(e, item)}
+            title={collapsed ? item.label : undefined}
+            class="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
+              {active
+              ? 'bg-primary/10 text-primary'
+              : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
+              {item.disabled ? 'opacity-40' : ''}
+              {collapsed ? 'justify-center' : ''}"
+            aria-current={active ? 'page' : undefined}
+            aria-disabled={item.disabled ? 'true' : undefined}
+          >
+            {@render navIcon(item.icon)}
+            {#if !collapsed}
+              <span class="truncate">{item.label}</span>
+              {#if item.badge}
+                <span
+                  class="bg-base-300 text-base-content/60 ml-auto rounded-md px-1.5 py-0.5 text-xs font-semibold tracking-wider uppercase"
+                >
+                  {item.badge}
+                </span>
+              {/if}
+            {/if}
+          </a>
+        </li>
+      {/each}
+    </ul>
 
+    <!-- Favourites (pinned bookmarks) -->
+    {#if pinnedBookmarks.length > 0}
+      <div class="my-3"></div>
       {#if !collapsed}
         <div class="text-base-content/60 mb-2 px-3 text-xs font-semibold tracking-wider uppercase">
-          {section.title}
+          {m.sidebar_favourites()}
         </div>
       {/if}
-
       <ul class="flex flex-col gap-1">
-        {#each section.items as item (item.label)}
+        {#each pinnedBookmarks as bookmark (bookmark.id)}
+          {@render bookmarkItem(bookmark)}
+        {/each}
+      </ul>
+    {/if}
+
+    <!-- Tools (inbuilt tools + remaining bookmarks, collapsible) -->
+    <div class="my-3"></div>
+    {#if !collapsed}
+      <button
+        type="button"
+        onclick={() => (toolsOpen = !toolsOpen)}
+        class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content mb-2 flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-semibold tracking-wider uppercase transition-colors hover:cursor-pointer"
+        aria-expanded={toolsOpen}
+        aria-label={toolsOpen ? m.sidebar_tools_collapse() : m.sidebar_tools_expand()}
+      >
+        {toolsSection.title}
+        <IconExpandMore
+          class="h-4 w-4 transition-transform {toolsOpen ? '' : 'rotate-180'}"
+          aria-hidden="true"
+        />
+      </button>
+    {/if}
+    {#if toolsOpen || collapsed}
+      <ul class="flex flex-col gap-1">
+        {#each toolsSection.items as item (item.label)}
           {@const active = isActive(item.href)}
           <li>
             <a
@@ -122,8 +268,11 @@
             </a>
           </li>
         {/each}
+        {#each unpinnedBookmarks as bookmark (bookmark.id)}
+          {@render bookmarkItem(bookmark)}
+        {/each}
       </ul>
-    {/each}
+    {/if}
   </nav>
 
   <!-- Footer: collapse toggle (desktop only) -->
