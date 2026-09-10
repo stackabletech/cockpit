@@ -42,9 +42,9 @@ test.describe('Dashboard bookmarks', () => {
       page.locator('button[aria-pressed]').filter({ hasText: 'Superset' })
     ).toBeVisible();
 
-    // Open in options
-    await expect(page.getByText('Inside Cockpit')).toBeVisible();
-    await expect(page.getByText('New Tab')).toBeVisible();
+    // Bookmarks always open externally; no launch mode is configurable.
+    await expect(page.getByText('Inside Cockpit')).not.toBeVisible();
+    await expect(page.getByText('New Tab')).not.toBeVisible();
 
     // Form fields
     await expect(page.getByLabel('Name')).toBeVisible();
@@ -52,7 +52,9 @@ test.describe('Dashboard bookmarks', () => {
     await expect(page.getByLabel('URL')).toBeVisible();
 
     // Pinned checkbox label
-    await expect(page.getByText('Pin bookmark')).toBeVisible();
+    await expect(
+      page.getByRole('checkbox', { name: /pin bookmark(?: for yourself)?$/i })
+    ).toBeVisible();
 
     // Preview section
     await expect(page.getByText('Preview')).toBeVisible();
@@ -98,7 +100,7 @@ test.describe('Dashboard bookmarks', () => {
 
     // Bookmark section is visible
     await expect(page.getByRole('heading', { name: 'Bookmarks' })).toBeVisible();
-    await expect(page.getByText('Dashboards')).toBeVisible();
+    await expect(page.getByLabel('Bookmarks').getByText('Dashboards')).toBeVisible();
     await expect(page.getByText('superset.example.com')).toBeVisible();
   });
 
@@ -135,14 +137,11 @@ test.describe('Dashboard bookmarks', () => {
 
     await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
 
-    // Bookmark appears in the regular section without a pinned heading
-    await expect(page.getByText('Dashboards')).toBeVisible();
-    await expect(page.getByText('Pinned')).not.toBeVisible();
+    // Bookmark appears in the regular section unpinned.
+    await expect(page.getByLabel('Bookmarks').getByText('Dashboards')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Pin bookmark' }).click();
+    await page.getByRole('button', { name: /pin bookmark/i }).click();
 
-    // Pinned section appears above and contains the bookmark
-    await expect(page.getByText('Pinned')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Unpin bookmark' })).toBeVisible();
 
     const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
@@ -151,8 +150,7 @@ test.describe('Dashboard bookmarks', () => {
 
     // Unpinning moves the bookmark back to the regular section
     await page.getByRole('button', { name: 'Unpin bookmark' }).click();
-    await expect(page.getByText('Pinned')).not.toBeVisible();
-    await expect(page.getByRole('button', { name: 'Pin bookmark' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /pin bookmark/i })).toBeVisible();
 
     const storedAfter = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
     const bookmarksAfter = JSON.parse(storedAfter!);
@@ -168,11 +166,13 @@ test.describe('Dashboard bookmarks', () => {
 
     await page.getByLabel('Name').fill('Dashboards');
     await page.getByLabel('URL').fill('https://superset.example.com');
-    await page.locator('dialog[open]').getByRole('checkbox', { name: 'Pin bookmark' }).click();
+    await page
+      .locator('dialog[open]')
+      .getByRole('checkbox', { name: /pin bookmark(?: for yourself)?$/i })
+      .click();
 
     await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
 
-    await expect(page.getByText('Pinned')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Unpin bookmark' })).toBeVisible();
 
     const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
@@ -189,7 +189,10 @@ test.describe('Dashboard bookmarks', () => {
 
     await page.getByLabel('Name').fill('Dashboards');
     await page.getByLabel('URL').fill('https://superset.example.com');
-    await page.locator('dialog[open]').getByRole('checkbox', { name: 'Pin bookmark' }).click();
+    await page
+      .locator('dialog[open]')
+      .getByRole('checkbox', { name: /pin bookmark(?: for yourself)?$/i })
+      .click();
 
     await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
 
@@ -197,7 +200,9 @@ test.describe('Dashboard bookmarks', () => {
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await expect(
-      page.locator('dialog[open]').getByRole('checkbox', { name: 'Pin bookmark' })
+      page
+        .locator('dialog[open]')
+        .getByRole('checkbox', { name: /pin bookmark(?: for yourself)?$/i })
     ).toBeChecked();
   });
 
@@ -228,8 +233,8 @@ test.describe('Dashboard bookmarks', () => {
 
     await page.locator('dialog[open]').getByRole('button', { name: 'Save changes' }).click();
 
-    await expect(page.getByText('Renamed Dashboard')).toBeVisible();
-    await expect(page.getByText('Dashboards')).not.toBeVisible();
+    await expect(page.getByLabel('Bookmarks').getByText('Renamed Dashboard')).toBeVisible();
+    await expect(page.getByLabel('Bookmarks').getByText('Dashboards')).not.toBeVisible();
 
     const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
     const bookmarks = JSON.parse(stored!);
@@ -257,8 +262,8 @@ test.describe('Dashboard bookmarks', () => {
     await page.locator('dialog[open]').getByRole('button', { name: 'Cancel' }).click();
 
     await expect(page.locator('dialog[open]')).not.toBeVisible();
-    await expect(page.getByText('Dashboards')).toBeVisible();
-    await expect(page.getByText('Not Saved')).not.toBeVisible();
+    await expect(page.getByLabel('Bookmarks').getByText('Dashboards')).toBeVisible();
+    await expect(page.getByLabel('Bookmarks').getByText('Not Saved')).not.toBeVisible();
 
     // Reopening the edit modal prefills the bookmark values again
     await page.getByRole('button', { name: 'Edit bookmark' }).click();
@@ -299,6 +304,6 @@ test.describe('Dashboard bookmarks', () => {
     await page.locator('dialog[open]').getByRole('button', { name: 'Delete' }).click();
     await page.locator('dialog[open]').getByRole('button', { name: 'Delete' }).click();
 
-    await expect(page.getByText('Dashboards')).not.toBeVisible();
+    await expect(page.getByLabel('Bookmarks').getByText('Dashboards')).not.toBeVisible();
   });
 });

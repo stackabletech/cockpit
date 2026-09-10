@@ -16,7 +16,6 @@
   } = $props();
 
   let selectedProduct = $state<Product>(PRODUCTS[0]);
-  let openIn = $state<'cockpit' | 'new-tab'>('cockpit');
   let name = $state('');
   let userEditedName = $state(false);
   let environment = $state('');
@@ -78,7 +77,6 @@
 
   function resetForm() {
     selectedProduct = PRODUCTS[0];
-    openIn = 'cockpit';
     name = '';
     userEditedName = false;
     environment = '';
@@ -90,7 +88,6 @@
   function initForm(target: Bookmark | null) {
     if (target) {
       selectedProduct = PRODUCTS.find((p) => p.id === target.productId) ?? PRODUCTS[0];
-      openIn = target.openIn;
       name = target.name;
       userEditedName = true;
       environment = target.environment;
@@ -151,7 +148,6 @@
       name: name.trim(),
       environment: environment.trim(),
       url: url.trim(),
-      openIn,
       pinned,
       // Only admins can set the "pin for everyone" flag; non-admins keep the
       // existing value (e.g. when editing a bookmark pinned by an admin).
@@ -254,52 +250,7 @@
         </div>
       </fieldset>
 
-      <!-- Section 2: Open in -->
-      <fieldset>
-        <legend class="text-base-content/80 mb-2 text-sm font-medium"
-          >{m.bookmark_open_in_label()}</legend
-        >
-        <div class="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onclick={() => (openIn = 'cockpit')}
-            class="
-              flex cursor-pointer flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors
-              {openIn === 'cockpit'
-              ? 'border-primary bg-primary/5 ring-primary ring-1'
-              : 'border-base-300 bg-base-200 hover:border-base-content/30'}
-            "
-            aria-pressed={openIn === 'cockpit'}
-          >
-            <span class="text-base-content text-sm font-semibold"
-              >{m.bookmark_open_in_cockpit()}</span
-            >
-            <span class="text-base-content/50 text-xs leading-tight"
-              >{m.bookmark_open_in_cockpit_desc()}</span
-            >
-          </button>
-          <button
-            type="button"
-            onclick={() => (openIn = 'new-tab')}
-            class="
-              flex cursor-pointer flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors
-              {openIn === 'new-tab'
-              ? 'border-primary bg-primary/5 ring-primary ring-1'
-              : 'border-base-300 bg-base-200 hover:border-base-content/30'}
-            "
-            aria-pressed={openIn === 'new-tab'}
-          >
-            <span class="text-base-content text-sm font-semibold"
-              >{m.bookmark_open_in_new_tab()}</span
-            >
-            <span class="text-base-content/50 text-xs leading-tight"
-              >{m.bookmark_open_in_new_tab_desc()}</span
-            >
-          </button>
-        </div>
-      </fieldset>
-
-      <!-- Section 3 & 4: Product Name + Environment -->
+      <!-- Product name and environment -->
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label for="{uid}-name" class="text-base-content/80 mb-1 block text-sm font-medium">
@@ -328,7 +279,7 @@
         </div>
       </div>
 
-      <!-- Section 5: URL -->
+      <!-- URL -->
       <div>
         <label for="{uid}-url" class="text-base-content/80 mb-1 block text-sm font-medium">
           {m.bookmark_url_label()}
@@ -342,7 +293,7 @@
         />
       </div>
 
-      <!-- Section 6: Pinned checkbox -->
+      <!-- Pinned checkbox -->
       <div class="relative" bind:this={pinSectionEl}>
         <label
           for="{uid}-pin"
@@ -406,7 +357,7 @@
         {/if}
       </div>
 
-      <!-- Section 7: Preview -->
+      <!-- Preview -->
       {#if selectedProduct}
         <div>
           <p class="text-base-content/60 mb-2 text-xs font-medium tracking-wider uppercase">
@@ -441,13 +392,6 @@
                 {name || getDefaultName() || selectedProduct.name}
               </p>
               <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
-                <span
-                  class="rounded-full px-1.5 py-0.5 text-[10.5px] font-bold {openIn === 'cockpit'
-                    ? 'bg-primary/10 text-primary'
-                    : 'bg-base-300 text-base-content/70'}"
-                >
-                  {openIn === 'cockpit' ? m.bookmark_mode_cockpit() : m.bookmark_mode_new_tab()}
-                </span>
                 <span class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]">
                   {selectedProduct.name}
                 </span>

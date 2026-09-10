@@ -86,7 +86,6 @@ describe('AddBookmarkModal', () => {
       name: 'Shared Dashboard',
       environment: '',
       url: 'https://superset.example.com',
-      openIn: 'cockpit',
       pinned: false,
       pinnedForEveryone: true,
       createdAt: '2026-01-01T00:00:00.000Z'
