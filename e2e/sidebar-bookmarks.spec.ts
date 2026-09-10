@@ -5,7 +5,7 @@ test.describe('Sidebar bookmarks', () => {
   test.use({ locale: 'en-US' });
 
   const BOOKMARK_ID = 'b6d6c7b6-8f24-4c4a-9c64-4f3b7c19e6a1';
-  const EMBED_URL = 'data:text/html,%3Ch1%3EEmbedded%20Tool%3C/h1%3E';
+  const BOOKMARK_URL = 'https://superset.example.com';
 
   test.skip(
     ({ viewport }) => (viewport?.width ?? 1280) < 1024,
@@ -14,7 +14,7 @@ test.describe('Sidebar bookmarks', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(
-      ({ bookmarkId, embedUrl }) => {
+      ({ bookmarkId, bookmarkUrl }) => {
         localStorage.removeItem('dashboard_bookmarks');
         localStorage.removeItem('sidebar_tools_open');
         localStorage.setItem(
@@ -25,8 +25,7 @@ test.describe('Sidebar bookmarks', () => {
               productId: 'superset',
               name: 'Dashboards',
               environment: '',
-              url: embedUrl,
-              openIn: 'cockpit',
+              url: bookmarkUrl,
               pinned: false,
               createdAt: new Date().toISOString()
             },
@@ -36,14 +35,13 @@ test.describe('Sidebar bookmarks', () => {
               name: 'Pipelines',
               environment: '',
               url: 'https://airflow.example.com',
-              openIn: 'cockpit',
               pinned: true,
               createdAt: new Date().toISOString()
             }
           ])
         );
       },
-      { bookmarkId: BOOKMARK_ID, embedUrl: EMBED_URL }
+      { bookmarkId: BOOKMARK_ID, bookmarkUrl: BOOKMARK_URL }
     );
   });
 
@@ -53,36 +51,33 @@ test.describe('Sidebar bookmarks', () => {
 
     await expect(page.getByText('Favourites')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Pipelines' })).toBeVisible();
-
     await expect(page.getByRole('button', { name: 'Collapse tools section' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Dashboards' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Trino' })).toBeVisible();
   });
 
-  test('opens a bookmark inside the application as an iframe', async ({ page }) => {
+  test('opens each bookmark in a new tab', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('link', { name: 'Dashboards' }).click();
-
-    await expect(page).toHaveURL(new RegExp(`/bookmark/${BOOKMARK_ID}`));
-
-    const frame = page.frameLocator('iframe');
-    await expect(frame.getByRole('heading', { name: 'Embedded Tool' })).toBeVisible();
+    const dashboardsLink = page.getByRole('link', { name: 'Dashboards' });
+    await expect(dashboardsLink).toHaveAttribute('href', BOOKMARK_URL);
+    await expect(dashboardsLink).toHaveAttribute('target', '_blank');
+    await expect(dashboardsLink).toHaveAttribute('rel', /noopener/);
+    await expect(dashboardsLink).not.toHaveAttribute('aria-current');
   });
 
-  test('external link button opens the bookmark URL in a new tab', async ({ page }) => {
+  test('removes the obsolete embedded launch preference from saved bookmarks', async ({ page }) => {
+    await page.addInitScript(() => {
+      const bookmarks = JSON.parse(localStorage.getItem('dashboard_bookmarks')!);
+      bookmarks[0].openIn = 'cockpit';
+      localStorage.setItem('dashboard_bookmarks', JSON.stringify(bookmarks));
+    });
     await page.goto('/');
     await waitForHydration(page);
 
-    const externalLinks = page.getByRole('link', { name: 'Open in new tab' });
-    await expect(externalLinks).toHaveCount(2);
-
-    const dashboardsItem = page.getByRole('link', { name: 'Dashboards' }).locator('..');
-    const dashboardsExternal = dashboardsItem.getByRole('link', { name: 'Open in new tab' });
-    await expect(dashboardsExternal).toHaveAttribute('href', EMBED_URL);
-    await expect(dashboardsExternal).toHaveAttribute('target', '_blank');
-    await expect(dashboardsExternal).toHaveAttribute('rel', /noopener/);
+    const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
+    expect(JSON.parse(stored!)[0]).not.toHaveProperty('openIn');
   });
 
   test('inbuilt tools have no external link button', async ({ page }) => {
@@ -91,84 +86,7 @@ test.describe('Sidebar bookmarks', () => {
 
     const trinoLink = page.getByRole('link', { name: 'Trino' });
     await expect(trinoLink).toBeVisible();
-    const trinoItem = trinoLink.locator('..');
-    await expect(trinoItem.getByRole('link', { name: 'Open in new tab' })).toHaveCount(0);
-  });
-
-  test('migrates a custom link bookmark whose id is the URL literal so it can be opened', async ({
-    page
-  }) => {
-    await page.addInitScript(
-      ({ embedUrl }) => {
-        localStorage.setItem(
-          'dashboard_bookmarks',
-          JSON.stringify([
-            {
-              id: embedUrl,
-              productId: 'custom',
-              name: 'Custom Tool',
-              environment: '',
-              url: embedUrl,
-              openIn: 'cockpit',
-              pinned: false,
-              createdAt: new Date().toISOString()
-            }
-          ])
-        );
-      },
-      { embedUrl: EMBED_URL }
-    );
-    await page.goto('/');
-    await waitForHydration(page);
-
-    const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
-    const [migrated] = JSON.parse(stored!);
-    expect(migrated.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-    expect(migrated.id).not.toBe(EMBED_URL);
-
-    await page.getByRole('link', { name: 'Custom Tool' }).click();
-    await expect(page).toHaveURL(new RegExp(`/bookmark/${migrated.id}`));
-
-    const frame = page.frameLocator('iframe');
-    await expect(frame.getByRole('heading', { name: 'Embedded Tool' })).toBeVisible();
-  });
-
-  test('bookmark set to open in a new tab links externally and the side button opens the cockpit', async ({
-    page
-  }) => {
-    await page.addInitScript(
-      ({ bookmarkId, embedUrl }) => {
-        localStorage.setItem(
-          'dashboard_bookmarks',
-          JSON.stringify([
-            {
-              id: bookmarkId,
-              productId: 'superset',
-              name: 'Dashboards',
-              environment: '',
-              url: embedUrl,
-              openIn: 'new-tab',
-              pinned: false,
-              createdAt: new Date().toISOString()
-            }
-          ])
-        );
-      },
-      { bookmarkId: BOOKMARK_ID, embedUrl: EMBED_URL }
-    );
-    await page.goto('/');
-    await waitForHydration(page);
-
-    const dashboardsLink = page.getByRole('link', { name: 'Dashboards' });
-    await expect(dashboardsLink).toHaveAttribute('href', EMBED_URL);
-    await expect(dashboardsLink).toHaveAttribute('target', '_blank');
-    await expect(dashboardsLink).toHaveAttribute('rel', /noopener/);
-    await expect(dashboardsLink).not.toHaveAttribute('aria-current', 'page');
-
-    const dashboardsItem = dashboardsLink.locator('..');
-    const cockpitButton = dashboardsItem.getByRole('link', { name: 'Open in Cockpit' });
-    await expect(cockpitButton).toHaveAttribute('href', `/bookmark/${BOOKMARK_ID}`);
-    await expect(cockpitButton).not.toHaveAttribute('target', '_blank');
+    await expect(trinoLink.locator('..').getByRole('link')).toHaveCount(1);
   });
 
   test('tools section is collapsible', async ({ page }) => {
@@ -186,18 +104,5 @@ test.describe('Sidebar bookmarks', () => {
     await page.getByRole('button', { name: 'Expand tools section' }).click();
     await expect(page.getByRole('link', { name: 'Dashboards' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Trino' })).toBeVisible();
-  });
-
-  test('active bookmark is highlighted in the sidebar', async ({ page }) => {
-    await page.goto('/');
-    await waitForHydration(page);
-
-    await page.getByRole('link', { name: 'Dashboards' }).click();
-    await expect(page).toHaveURL(new RegExp(`/bookmark/${BOOKMARK_ID}`));
-
-    await expect(page.getByRole('link', { name: 'Dashboards' })).toHaveAttribute(
-      'aria-current',
-      'page'
-    );
   });
 });

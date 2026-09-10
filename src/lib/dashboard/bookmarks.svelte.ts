@@ -24,11 +24,16 @@ function loadBookmarks(): Bookmark[] {
       .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
       .map((item) => {
         const bookmark = item as unknown as Bookmark;
+        const bookmarkWithoutOpenIn = { ...bookmark } as Bookmark & { openIn?: unknown };
+        if ('openIn' in bookmarkWithoutOpenIn) {
+          delete bookmarkWithoutOpenIn.openIn;
+          migrated = true;
+        }
         if (typeof bookmark.id === 'string' && isValidBookmarkId(bookmark.id)) {
-          return bookmark;
+          return bookmarkWithoutOpenIn;
         }
         migrated = true;
-        return { ...bookmark, id: generateBookmarkId() };
+        return { ...bookmarkWithoutOpenIn, id: generateBookmarkId() };
       });
     if (migrated) {
       localStorage.setItem(LS_KEY, JSON.stringify(normalized));
