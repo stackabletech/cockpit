@@ -99,7 +99,7 @@
               onclick={(e) => handleNavClick(e, item)}
               onkeydown={(e) => handleNavKeydown(e, item)}
               title={collapsed ? item.label : undefined}
-              class="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
+              class="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
                 {active
                 ? 'bg-primary/10 text-primary'
                 : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}

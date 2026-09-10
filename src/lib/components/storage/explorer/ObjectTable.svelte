@@ -58,7 +58,7 @@
     <tbody>
       <!-- Parent directory row -->
       {#if storage.prefix}
-        <tr class="hover cursor-pointer" onclick={navigateUp}>
+        <tr class="cursor-pointer" onclick={navigateUp}>
           <td class="pr-0"></td>
           <td colspan={3}>
             <div class="text-base-content/50 flex items-center gap-2">
