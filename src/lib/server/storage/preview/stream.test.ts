@@ -7,6 +7,7 @@ const mockLog = { info: vi.fn(), debug: vi.fn(), warn: vi.fn() } as unknown as p
 
 function makeProvider(overrides: Partial<StorageProvider> = {}): StorageProvider {
   return {
+    listContainers: vi.fn(),
     listObjects: vi.fn(),
     getObject: vi
       .fn()
@@ -17,6 +18,12 @@ function makeProvider(overrides: Partial<StorageProvider> = {}): StorageProvider
     putObject: vi.fn(),
     deleteObjects: vi.fn(),
     listAllKeys: vi.fn(),
+    listAllKeysProgressively: vi.fn(),
+    getBucketVersioning: vi.fn(),
+    getBucketLifecycleRules: vi.fn(),
+    getBucketTags: vi.fn(),
+    getBucketAcl: vi.fn(),
+    copyObject: vi.fn(),
     ...overrides
   };
 }

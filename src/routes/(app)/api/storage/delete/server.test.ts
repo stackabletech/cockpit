@@ -1,19 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { faker } from '@faker-js/faker';
 
-vi.mock('$lib/server/storage/service.js', () => ({
-  deleteObjects: vi.fn()
+const mockProvider = { deleteObjects: vi.fn() };
+vi.mock('$lib/server/storage/utils.js', () => ({
+  getProvider: () => mockProvider
 }));
 
 import { DELETE } from './+server.js';
-import { deleteObjects } from '$lib/server/storage/service.js';
 
 const CONNECTION_HEADER = {
   'x-storage-connection': btoa(JSON.stringify({ type: 's3', region: 'us-east-1' }))
 };
 
 function mockEvent(searchParams: Record<string, string | string[]>) {
-  const url = new URL('http://localhost/storage/api/delete');
+  const url = new URL('http://localhost/api/storage/delete');
   for (const [k, v] of Object.entries(searchParams)) {
     if (Array.isArray(v)) {
       v.forEach((val) => url.searchParams.append(k, val));
@@ -27,12 +27,12 @@ function mockEvent(searchParams: Record<string, string | string[]>) {
     locals: {
       logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
       user: { id: 'test-user' },
-      storageConfig: { type: 's3', region: 'us-east-1' }
+      storageConfig: { type: 's3', region: { name: 'us-east-1' } }
     }
   } as unknown as Parameters<typeof DELETE>[0];
 }
 
-describe('DELETE /storage/api/delete', () => {
+describe('DELETE /api/storage/delete', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('throws 400 when bucket is missing', async () => {
@@ -50,12 +50,10 @@ describe('DELETE /storage/api/delete', () => {
   it('deletes objects and returns JSON result', async () => {
     const keys = [faker.system.fileName(), faker.system.fileName()];
     const result = { deleted: keys, failed: [] };
-    vi.mocked(deleteObjects).mockResolvedValue(
-      result as unknown as Awaited<ReturnType<typeof deleteObjects>>
-    );
+    mockProvider.deleteObjects.mockResolvedValue(result);
 
     const response = await DELETE(mockEvent({ bucket: 'b1', keys }));
-    expect(deleteObjects).toHaveBeenCalledWith(expect.objectContaining({ type: 's3' }), 'b1', keys);
+    expect(mockProvider.deleteObjects).toHaveBeenCalledWith(keys);
     expect(await response.json()).toEqual(result);
   });
 });

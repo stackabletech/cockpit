@@ -19,7 +19,8 @@ import {
 async function previewFile(page: Page, name: string) {
   await rowByName(page, name).dblclick();
   await expect(page.getByRole('heading', { name })).toBeVisible();
-  await page.getByRole('button', { name: 'Close' }).last().click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByRole('heading', { name })).not.toBeVisible();
 }
 
 test.describe('Storage S3 — Recent Items', () => {
@@ -37,7 +38,7 @@ test.describe('Storage S3 — Recent Items', () => {
 
     await connectToStorage(page, credentials);
     await expect(page).toHaveURL('/storage');
-    await page.goto(bucketRoute(credentials.bucket));
+    await page.goto(bucketRoute(new URL(credentials.endpoint).hostname, credentials.bucket));
     await waitForObjectsLoaded(page);
 
     await page.goto('/storage');
@@ -62,7 +63,7 @@ test.describe('Storage S3 — Recent Items', () => {
       await connectAndOpenPrefix(page, credentials, prefix);
       await rowByName(page, 'recent.txt').dblclick();
       await expect(page.getByRole('heading', { name: 'recent.txt' })).toBeVisible();
-      await page.getByRole('button', { name: 'Close' }).last().click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
 
       await page.goto('/storage');
       await waitForStorageConnected(page);
@@ -74,6 +75,7 @@ test.describe('Storage S3 — Recent Items', () => {
   });
 
   test('removes a deleted file from Recent Files', async ({ page }, testInfo) => {
+    test.slow(); // multiple navigations + deletion; Firefox is slow in CI
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'recent-delete-file');
@@ -92,7 +94,9 @@ test.describe('Storage S3 — Recent Items', () => {
       await expect(page.locator('tbody').getByText('to-delete.txt')).toBeVisible();
 
       // Delete the file via the UI
-      await page.goto(bucketRoute(credentials.bucket, prefix));
+      await page.goto(
+        bucketRoute(new URL(credentials.endpoint).hostname, credentials.bucket, prefix)
+      );
       await waitForObjectsLoaded(page);
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel('Select to-delete.txt').check();
@@ -112,6 +116,7 @@ test.describe('Storage S3 — Recent Items', () => {
   test('removes files and location from recent lists when a directory is deleted', async ({
     page
   }, testInfo) => {
+    test.slow(); // multiple navigations + directory deletion; Firefox is slow
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'recent-delete-dir');
@@ -134,7 +139,9 @@ test.describe('Storage S3 — Recent Items', () => {
       await expect(page.locator('tbody').getByText('sub', { exact: true })).toBeVisible();
 
       // Delete the parent directory via the UI
-      await page.goto(bucketRoute(credentials.bucket, prefix));
+      await page.goto(
+        bucketRoute(new URL(credentials.endpoint).hostname, credentials.bucket, prefix)
+      );
       await waitForObjectsLoaded(page);
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel('Select sub').check();

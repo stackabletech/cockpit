@@ -66,33 +66,36 @@ describe('BucketList', () => {
   });
 
   describe('active bucket highlighting', () => {
-    it('should highlight the active bucket based on URL', async () => {
+    it('should highlight the active bucket based on storage state', async () => {
       setPageState({
-        url: new URL('http://localhost/storage/active-bucket'),
-        params: { bucket: 'active-bucket', prefix: '' }
+        url: new URL('http://localhost/storage/other-bucket'),
+        params: { bucket: 'other-bucket', prefix: '' }
       });
       const state = createState({ buckets: ['active-bucket', 'other-bucket'] });
+      state.bucket = 'active-bucket';
       render(BucketListWrapper, { state });
 
       const activeLink = page.getByRole('link', { name: /active-bucket/ });
       await expect.element(activeLink.first()).toHaveAttribute('aria-current', 'page');
     });
 
-    it('should not set aria-current on bucket when navigated into a prefix', async () => {
+    it('should not set aria-current on bucket when storage is in a prefix', async () => {
       setPageState({
-        url: new URL('http://localhost/storage/my-bucket/some/prefix'),
-        params: { bucket: 'my-bucket', prefix: 'some/prefix' }
+        url: new URL('http://localhost/storage/my-bucket'),
+        params: { bucket: 'my-bucket', prefix: '' }
       });
       const state = createState({ buckets: ['my-bucket'] });
+      state.prefix = 'some/prefix/';
       render(BucketListWrapper, { state });
 
       const link = page.getByRole('link', { name: /my-bucket/ });
       await expect.element(link.first()).not.toHaveAttribute('aria-current');
     });
 
-    it('should not highlight any bucket when URL does not match storage', async () => {
+    it('should not highlight any bucket without an active storage location', async () => {
       setPageState({ url: new URL('http://localhost/other-page') });
       const state = createState({ buckets: ['bucket-a', 'bucket-b'] });
+      state.bucket = '';
       render(BucketListWrapper, { state });
 
       const linkA = page.getByRole('link', { name: /bucket-a/ });
@@ -103,8 +106,8 @@ describe('BucketList', () => {
 
     it('should apply active styling to the matching bucket', async () => {
       setPageState({
-        url: new URL('http://localhost/storage/styled-bucket'),
-        params: { bucket: 'styled-bucket', prefix: '' }
+        url: new URL('http://localhost/storage/other-bucket'),
+        params: { bucket: 'other-bucket', prefix: '' }
       });
       const state = createState({ buckets: ['styled-bucket'] });
       render(BucketListWrapper, { state });
@@ -156,13 +159,14 @@ describe('BucketList', () => {
 
     it('should highlight active pinned location', async () => {
       setPageState({
-        url: new URL('http://localhost/storage/test-bucket/data/'),
-        params: { bucket: 'test-bucket', prefix: 'data' }
+        url: new URL('http://localhost/storage/test-bucket/other/'),
+        params: { bucket: 'test-bucket', prefix: 'other' }
       });
       const state = createState({
         buckets: ['test-bucket'],
         pinned: [{ bucket: 'test-bucket', prefix: 'data/' }]
       });
+      state.prefix = 'data/';
       render(BucketListWrapper, { state });
 
       const pinnedLinks = page.getByRole('link', { name: /^data$/i });
@@ -178,6 +182,7 @@ describe('BucketList', () => {
         buckets: ['test-bucket'],
         pinned: [{ bucket: 'test-bucket', prefix: 'data/' }]
       });
+      state.prefix = 'other/';
       render(BucketListWrapper, { state });
 
       const pinnedLinks = page.getByRole('link', { name: /^data$/i });
@@ -193,6 +198,7 @@ describe('BucketList', () => {
         buckets: ['test-bucket', 'other-bucket'],
         pinned: [{ bucket: 'test-bucket', prefix: '' }]
       });
+      state.bucket = 'other-bucket';
       render(BucketListWrapper, { state });
 
       const pinnedLinks = page.getByRole('link', { name: /test-bucket/ });

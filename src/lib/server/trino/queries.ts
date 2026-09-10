@@ -257,6 +257,7 @@ export function getAllQuerySummaries(userId: string): Record<string, QuerySnapsh
   const trinoPublicUrl = resolveTrinoPublicUrl(userId);
   const result: Record<string, QuerySnapshot[]> = {};
   for (const [tabId, queries] of tabMap) {
+    // eslint-disable-next-line security/detect-object-injection
     result[tabId] = queries.map((q) => buildSnapshot(q, trinoPublicUrl, true));
   }
   return result;

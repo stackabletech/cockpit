@@ -22,6 +22,7 @@
   } from '$lib/editor/split-statements.js';
   import type { PageData } from './$types';
   import StatementResult from '$lib/components/trino/StatementResult.svelte';
+  import { getLocale } from '$lib/paraglide/runtime.js';
 
   let { data }: { data: PageData } = $props();
 
@@ -716,7 +717,9 @@
           <span class="text-base-content/60 text-sm font-medium">{m.trino_editor_label()}</span>
           {#if charLimitReached}
             <span class="text-warning text-xs" role="status"
-              >{m.trino_editor_char_limit_reached({ limit: MAX_SQL_LENGTH.toLocaleString() })}</span
+              >{m.trino_editor_char_limit_reached({
+                limit: MAX_SQL_LENGTH.toLocaleString(getLocale())
+              })}</span
             >
           {/if}
         </div>
@@ -775,8 +778,9 @@
                 type="button"
                 class="
                   btn join-item border-l-primary-content/20 btn-primary
-                  self-stretch border-l px-2
+                  tooltip tooltip-bottom z-150 self-stretch border-l px-2 before:z-200
                 "
+                data-tip={m.trino_run_mode_select()}
                 class:pointer-events-none={isActive}
                 aria-haspopup="true"
                 aria-label={m.trino_run_mode_select()}
@@ -799,7 +803,7 @@
               <button
                 type="button"
                 class="
-                  rounded-btn hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
+                  hover:bg-primary-content/20 cursor-pointer rounded-md px-3 py-1.5
                   text-left
                   {runMode === 'cursor' ? 'bg-primary-content/15' : ''}"
                 onclick={() => selectRunMode('cursor')}
@@ -809,7 +813,7 @@
               <button
                 type="button"
                 class="
-                  rounded-btn hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
+                  hover:bg-primary-content/20 cursor-pointer rounded-md px-3 py-1.5
                   text-left
                   {runMode === 'all' ? 'bg-primary-content/15' : ''}"
                 onclick={() => selectRunMode('all')}
@@ -884,18 +888,20 @@
           {#if runner.progress.processedRows > 0 || runner.progress.elapsedTimeMillis > 0}
             <span class="text-base-content/60 text-xs">
               {m.trino_progress_info({
-                rows: runner.progress.processedRows.toLocaleString(),
+                rows: runner.progress.processedRows.toLocaleString(getLocale()),
                 elapsed: (runner.progress.elapsedTimeMillis / 1000).toFixed(1)
               })}
             </span>
           {/if}
           {#if runner.currentTrinoQueryUrl}
+            <!-- eslint-disable svelte/no-navigation-without-resolve -->
             <a
               href={runner.currentTrinoQueryUrl}
               target="_blank"
               rel="noopener noreferrer"
               class="btn btn-ghost btn-xs"
             >
+              <!-- eslint-enable svelte/no-navigation-without-resolve -->
               {m.trino_view_in_trino()}
               <svg
                 xmlns="http://www.w3.org/2000/svg"

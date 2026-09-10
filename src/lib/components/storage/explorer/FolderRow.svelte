@@ -4,6 +4,13 @@
   import { keyToName } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
   import { getStorageState } from '$lib/storage/context.js';
+  import { storageCutCopyEnabled } from '$lib/client/feature-flags.js';
+  import {
+    handleRowDragStart,
+    parseStorageDropKeys,
+    canStorageDrop
+  } from '$lib/storage/drag-handlers.js';
+  import * as m from '$lib/paraglide/messages.js';
 
   interface Props {
     folder: StorageObject;
@@ -15,26 +22,73 @@
 
   const selected = $derived(storage.selectedKeys.has(folder.key));
   const isCtx = $derived(storage.contextMenu?.key === folder.key);
+  const isCut = $derived(storage.isCutKey(folder.key));
+
+  let dragOver = $state(false);
+
+  function handleDragStart(e: DragEvent) {
+    handleRowDragStart(e, folder.key, storage);
+  }
+
+  function handleDragOver(e: DragEvent) {
+    if (!canStorageDrop(storage)) return;
+    // Don't allow dropping onto a selected folder (moving into itself)
+    if (storage.selectedKeys.has(folder.key)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    dragOver = true;
+  }
+
+  function handleDragLeave() {
+    dragOver = false;
+  }
+
+  function handleDrop(e: DragEvent) {
+    dragOver = false;
+    if (!canStorageDrop(storage)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const keys = parseStorageDropKeys(e);
+    if (!keys) return;
+    // Don't drop onto a selected folder
+    if (keys.includes(folder.key)) return;
+    // Move items into this folder
+    void storage.performMove(folder.key, keys);
+  }
 </script>
 
 <tr
   class="
     group cursor-pointer select-none
+    {isCut ? 'opacity-40' : ''}
+    {dragOver ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2' : ''}
     {isCtx
     ? 'bg-base-300 outline-base-content/30 outline -outline-offset-2'
     : selected
       ? 'bg-primary/10 hover:bg-primary/15'
       : 'hover:bg-base-200/60'}"
+  draggable={storageCutCopyEnabled && !storage.archive.isInArchive}
+  ondragstart={handleDragStart}
+  ondragover={handleDragOver}
+  ondragleave={handleDragLeave}
+  ondrop={handleDrop}
   onclick={(e) => {
     if (storage.selectionMode || e.ctrlKey || e.metaKey) {
       storage.toggleSelect(folder.key, true);
+    } else if (storage.archive.isInArchive) {
+      storage.archive.navigateInArchive(folder.key);
     } else {
       storage.navigate(folder.key);
     }
   }}
   ondblclick={(e) => {
     if (e.ctrlKey || e.metaKey) {
-      storage.navigate(folder.key);
+      if (storage.archive.isInArchive) {
+        storage.archive.navigateInArchive(folder.key);
+      } else {
+        storage.navigate(folder.key);
+      }
     }
   }}
   oncontextmenu={(e) => storage.openContextMenu(e, folder.key)}
@@ -52,20 +106,21 @@
   </td>
   <td>
     <div class="flex items-center gap-2.5">
-      <IconFolder class="text-warning size-5 shrink-0" aria-hidden="true" />
+      <IconFolder class="text-warning pointer-events-none size-5 shrink-0" aria-hidden="true" />
       <span class="font-medium">{keyToName(folder.key)}</span>
     </div>
   </td>
   <td class="text-base-content/30 text-right">—</td>
   <td class="text-base-content/30">—</td>
   <td class="w-10 py-0 pr-2 text-right">
-    <button
-      class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100"
-      title="Actions"
-      aria-label="Actions for {keyToName(folder.key)}"
-      onclick={(e) => storage.openContextMenu(e, folder.key)}
-    >
-      <IconMoreHoriz class="size-4" aria-hidden="true" />
-    </button>
+    <div class="tooltip tooltip-left" data-tip={m.storage_context_menu_actions()}>
+      <button
+        class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100"
+        aria-label={m.storage_action_actions_for({ name: keyToName(folder.key) })}
+        onclick={(e) => storage.openContextMenu(e, folder.key)}
+      >
+        <IconMoreHoriz class="size-4" aria-hidden="true" />
+      </button>
+    </div>
   </td>
 </tr>

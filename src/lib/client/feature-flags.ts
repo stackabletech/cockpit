@@ -11,12 +11,38 @@ import { env } from '$env/dynamic/public';
 export const storageAutoConnectEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT ?? 'false') === 'true';
 
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RESTORE_TABS=true`, the file browser
+ *  saves open tabs (their name, order, and location) to localStorage and
+ *  restores them the next time the user navigates to `/storage`.
+ *  Disabled by default. */
+export const storageRestoreTabsEnabled =
+  (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_RESTORE_TABS ??
+    env.PUBLIC_STACKABLE_UI_STORAGE_RESTORE_TABS ??
+    'false') === 'true';
+
+/** Timeout in milliseconds for the storage auto-connect attempt. Default: 15 000 (15 s).
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT_TIMEOUT_MS`. */
+export const storageAutoConnectTimeoutMs: number = (() => {
+  const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT_TIMEOUT_MS ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 15_000;
+})();
+
+// ── Infinite scroll preview ───────────────────────────────────────────────────
+
+/** When `PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED=false`, the CSV and
+ *  Parquet file previews load a fixed number of rows without virtual scrolling /
+ *  infinite loading. Enabled by default — the previews fetch row chunks lazily
+ *  as the user scrolls, reducing S3 costs and browser memory for large files.
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED`. Default: `true`. */
+export const infiniteScrollEnabled =
+  (env.PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED ?? 'true') === 'true';
+
 // ── Pagination ───────────────────────────────────────────────────────────────
 
 /** Parse a comma-separated page-sizes string into a deduplicated, sorted list
  *  of positive integers. Falls back to [25, 50, 100] when the value is absent
  *  or produces no valid entries. */
-function parsePageSizes(raw: string | undefined): readonly number[] {
+export function parsePageSizes(raw: string | undefined): readonly number[] {
   if (raw) {
     const parsed = raw
       .split(',')
@@ -47,6 +73,18 @@ export const defaultPageSize: number = (() => {
   return allowedPageSizes.includes(parsed) ? parsed : (allowedPageSizes[0] ?? 25);
 })();
 
+// ── Storage browser: Text editor ─────────────────────────────────────────────
+
+/** Maximum file size (in bytes) that can be edited inline in the text editor.
+ *  Files larger than this will show a read-only preview without the save button.
+ *  Controlled by `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`. Default: 5242880 (5 MiB).
+ *  Raise to allow editing larger files; lower to avoid excessive S3 bandwidth
+ *  when saving truncated files (the full file must be re-uploaded). */
+export const maxEditableFileSize: number = (() => {
+  const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5 * 1024 * 1024;
+})();
+
 // ── Storage browser ──────────────────────────────────────────────────────────
 
 /** Maximum number of recently visited files and locations kept in localStorage
@@ -69,3 +107,32 @@ export const uploadConcurrency: number = (() => {
   const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_UPLOAD_CONCURRENCY ?? '', 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 3;
 })();
+
+// ── Storage browser: Context actions (cut, copy, paste, rename) ────────────
+
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED=true`, the context
+ *  menu shows "Cut" and "Copy" actions and Ctrl+X / Ctrl+C keyboard shortcuts
+ *  are active. These are costly S3 operations (list + copy) on most backends.
+ *  Disabled by default. */
+export const storageCutCopyEnabled =
+  (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED ?? 'false') === 'true';
+
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED=true`, the context
+ *  menu shows "Paste" (when clipboard is non-empty) and Ctrl+V is active
+ *  to paste cut/copied items into the current prefix. Disabled by default. */
+export const storagePasteEnabled =
+  (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED ?? 'false') === 'true';
+
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED=true`, the context
+ *  menu shows "Rename" and F2 is active to rename the selected item.
+ *  Disabled by default. */
+export const storageRenameEnabled =
+  (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED ?? 'false') === 'true';
+
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED=true`, drag-and-drop
+ *  move is active (folder-row, breadcrumb, sidebar, and tab drop targets).
+ *  This is a separate flag from paste because move is a costly S3 operation
+ *  (list + copy + delete per directory level) and may be undesirable in
+ *  high-egress-cost environments. Disabled by default. */
+export const storageMoveEnabled =
+  (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED ?? 'false') === 'true';

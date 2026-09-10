@@ -25,9 +25,9 @@ export function uniqueBucketName(testInfo: TestInfo, scope: string): string {
   return `garage-${slug}-${testInfo.project.name.toLowerCase()}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
-export function bucketRoute(bucket: string, prefix = ''): string {
+export function bucketRoute(connection: string, bucket: string, prefix = ''): string {
   if (!prefix) {
-    return `/storage/${encodeURIComponent(bucket)}`;
+    return `/storage/browse/${encodeURIComponent(connection)}/${encodeURIComponent(bucket)}`;
   }
 
   const trimmed = prefix.replace(/\/$/, '');
@@ -37,10 +37,41 @@ export function bucketRoute(bucket: string, prefix = ''): string {
     .map((segment) => encodeURIComponent(segment))
     .join('/');
 
-  return `/storage/${encodeURIComponent(bucket)}/${encoded}`;
+  return `/storage/browse/${encodeURIComponent(connection)}/${encodeURIComponent(bucket)}/${encoded}`;
 }
 
-export async function openConnectForm(page: Page) {
+export async function clearSavedConnections(page: Page) {
+  const savedList = page.getByRole('list', { name: 'Saved connections' });
+  while (await savedList.isVisible().catch(() => false)) {
+    const items = savedList.getByRole('listitem');
+    if ((await items.count()) === 0) break;
+    if (
+      await items
+        .first()
+        .filter({ hasText: 'No saved connections yet' })
+        .isVisible()
+        .catch(() => false)
+    )
+      break;
+    // Click the last button in the first list item. On desktop this is the
+    // "more options" button (opacity-0, so use force). On mobile it's the
+    // X delete button which submits the form directly.
+    await items.first().getByRole('button').last().click({ force: true });
+    // Desktop: a context menu appears — click Delete to open the modal.
+    // Mobile: the form submitted directly (no context menu), skip to hydration.
+    const deleteMenuItem = page.getByRole('menuitem', { name: 'Delete', exact: true });
+    if (await deleteMenuItem.isVisible().catch(() => false)) {
+      await deleteMenuItem.click();
+      // Confirm in the modal
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    }
+    // The form action POSTs and the server redirects back to /storage;
+    // wait for the page to re-hydrate before checking the list again.
+    await waitForHydration(page);
+  }
+}
+
+export async function openConnectForm(page: Page, { clearSaved = true } = {}) {
   await page.goto('/');
   if (new URL(page.url()).pathname.startsWith('/auth/login')) {
     await waitForHydration(page);
@@ -49,7 +80,7 @@ export async function openConnectForm(page: Page) {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   }
 
-  await page.goto('/storage?disconnected=1');
+  await page.goto('/storage');
   await waitForHydration(page);
 
   const connectHeading = page.getByRole('heading', { name: 'Connect to storage' });
@@ -59,14 +90,17 @@ export async function openConnectForm(page: Page) {
     (await disconnectButton.isVisible().catch(() => false))
   ) {
     await disconnectButton.click();
-    // A confirmation modal was added — confirm the disconnection if the modal appears.
-    const confirmButton = page.locator('.modal-box').getByRole('button', { name: 'Disconnect' });
-    if (await confirmButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await confirmButton.click();
-    }
+    // Confirm the disconnect dialog
+    await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
   }
 
   await expect(connectHeading).toBeVisible();
+
+  // Clear all saved connections so each test starts from a clean state and
+  // cannot be disrupted by connections left over from previous tests or retries.
+  if (clearSaved) {
+    await clearSavedConnections(page);
+  }
 }
 
 export async function connectToStorage(page: Page, credentials: GarageCredentials) {
@@ -90,11 +124,12 @@ export async function connectToStorage(page: Page, credentials: GarageCredential
   await page.getByLabel('Region').fill(credentials.region);
   await page.getByLabel('Access key').fill(credentials.accessKeyId);
   await page.getByLabel('Secret key').fill(credentials.secretAccessKey);
-  await page.getByRole('button', { name: 'Connect' }).click();
-  // Wait for the redirect to /storage so that saveConnectionLocally() has been called
-  // before the test navigates elsewhere. Without this, a fast page.goto() call can race
-  // with the in-flight form-submission fetch and the connection is never persisted.
-  await page.waitForURL((url) => url.pathname === '/storage', { timeout: 15_000 });
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  // Wait for the client-side connected state to be established before returning.
+  // This confirms the session's activeStorageConnectionId is set and the layout
+  // has fetched the bucket list — reducing the window for session race conditions
+  // when parallel workers share the same server-side session.
+  await waitForStorageConnected(page);
 }
 
 export async function connectAndOpenPrefix(
@@ -103,8 +138,32 @@ export async function connectAndOpenPrefix(
   prefix = ''
 ) {
   await connectToStorage(page, credentials);
-  await expect(page).toHaveURL('/storage');
-  await page.goto(bucketRoute(credentials.bucket, prefix));
+  const connection = new URL(credentials.endpoint).hostname;
+  const route = bucketRoute(connection, credentials.bucket, prefix);
+
+  // A session update can redirect a just-opened bucket route to the storage
+  // overview after hydration. Retry once if that happens while loading.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await page.goto(route);
+    await waitForHydration(page);
+
+    const objectsLoaded = page
+      .locator('tbody tr')
+      .or(page.getByText('This bucket is empty'))
+      .first()
+      .waitFor({ timeout: 15_000 });
+    const storageOverview = page.getByRole('heading', { name: 'Buckets', exact: true }).waitFor({
+      timeout: 15_000
+    });
+
+    await Promise.race([objectsLoaded, storageOverview]);
+    if (page.url().includes(encodeURIComponent(credentials.bucket))) {
+      return;
+    }
+
+    await connectToStorage(page, credentials);
+  }
+
   await waitForObjectsLoaded(page);
 }
 
@@ -218,3 +277,19 @@ export async function headObject(client: S3Client, bucket: string, key: string) 
 
 // Re-export expect for convenience
 export { expect };
+
+/** Seeds the `storage_tabs` localStorage key before the first page load of a
+ *  test, simulating a previous session's saved tab state. Because this uses
+ *  `addInitScript` it runs on every navigation within the test context, so the
+ *  data is available regardless of which page triggers the initial load. */
+export async function seedStorageTabsState(
+  page: Page,
+  state: {
+    tabs: Array<{ id: string; label: string; bucket: string; prefix: string; connection?: string }>;
+    activeTabId: string;
+  }
+): Promise<void> {
+  await page.addInitScript((data) => {
+    localStorage.setItem('storage_tabs', JSON.stringify(data));
+  }, state);
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { S3ServiceException } from '@aws-sdk/client-s3';
+import { S3ServiceException, PutObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
 
 vi.mock('$lib/server/logging', () => ({
   logger: { child: () => ({ trace: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }) }
@@ -369,6 +369,36 @@ describe('S3StorageProvider.putObject', () => {
     expect(opts.queueSize).toBe(4);
     expect(opts.partSize).toBe(5 * 1024 * 1024);
   });
+
+  it('uses PutObjectCommand for empty files instead of multipart Upload', async () => {
+    const { send } = makeProvider();
+    // Re-create provider with the send mock we can inspect
+    const client = { send } as unknown as import('@aws-sdk/client-s3').S3Client;
+    const config = {
+      type: 's3' as const,
+      host: 'localhost',
+      accessStyle: 'Path' as const,
+      region: { name: 'us-east-1' },
+      bucket: 'test-bucket'
+    };
+    const emptyProvider = new S3StorageProvider(config, client);
+    send.mockResolvedValue({});
+
+    await emptyProvider.putObject('empty.txt', new ReadableStream(), 'text/plain', 0);
+
+    expect(MockUpload).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledOnce();
+    const cmd = send.mock.calls[0][0];
+    expect(cmd).toBeInstanceOf(PutObjectCommand);
+    expect(cmd.input).toMatchObject({
+      Bucket: 'test-bucket',
+      Key: 'empty.txt',
+      ContentType: 'text/plain',
+      ContentLength: 0
+    });
+    expect(Buffer.isBuffer(cmd.input.Body)).toBe(true);
+    expect((cmd.input.Body as Buffer).length).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -490,6 +520,133 @@ describe('S3StorageProvider.listAllKeys', () => {
 });
 
 // ---------------------------------------------------------------------------
+// copyObject
+// ---------------------------------------------------------------------------
+
+describe('S3StorageProvider.copyObject', () => {
+  let provider: S3StorageProvider;
+  let send: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    ({ provider, send } = makeProvider());
+    mockUploadDone.mockResolvedValue(undefined);
+    MockUpload.mockClear();
+  });
+
+  it('uses CopyObjectCommand for files under 5 GB', async () => {
+    // HeadObject returns ContentLength = 1000
+    send.mockResolvedValueOnce({ ContentLength: 1000 });
+    // CopyObject succeeds
+    send.mockResolvedValueOnce({});
+
+    await provider.copyObject('src/file.txt', 'dst/file.txt');
+
+    expect(send).toHaveBeenCalledTimes(2);
+    const copyCmd = send.mock.calls[1][0];
+    expect(copyCmd).toBeInstanceOf(CopyObjectCommand);
+    expect(copyCmd.input).toMatchObject({
+      Bucket: 'test-bucket',
+      CopySource: '/test-bucket/src%2Ffile.txt',
+      Key: 'dst/file.txt'
+    });
+    expect(MockUpload).not.toHaveBeenCalled();
+  });
+
+  it('uses server-side multipart copy for files over 5 GB', async () => {
+    const fiveGB = 5 * 1024 * 1024 * 1024;
+    const largeSize = fiveGB + 1;
+    // PART_SIZE = 256 MiB → 21 parts for (5GB + 1)
+    const numParts = 21;
+    const partSize = 256 * 1024 * 1024;
+
+    // HeadObject
+    send.mockResolvedValueOnce({
+      ContentLength: largeSize,
+      ContentType: 'application/octet-stream'
+    });
+    // CreateMultipartUpload
+    send.mockResolvedValueOnce({ UploadId: 'test-upload-id' });
+    // UploadPartCopy × numParts
+    for (let i = 0; i < numParts; i++) {
+      send.mockResolvedValueOnce({ CopyPartResult: { ETag: `etag-${i + 1}` } });
+    }
+    // CompleteMultipartUpload
+    send.mockResolvedValueOnce({});
+
+    await provider.copyObject('src/large.parquet', 'dst/large.parquet');
+
+    // Total calls: 1 Head + 1 Create + numParts UploadPartCopy + 1 Complete = 24
+    expect(send).toHaveBeenCalledTimes(1 + 1 + numParts + 1);
+
+    const createCmd = send.mock.calls[1][0];
+    expect(createCmd.constructor.name).toBe('CreateMultipartUploadCommand');
+    expect(createCmd.input).toMatchObject({
+      Bucket: 'test-bucket',
+      Key: 'dst/large.parquet',
+      ContentType: 'application/octet-stream'
+    });
+
+    for (let i = 0; i < numParts; i++) {
+      const partCmd = send.mock.calls[2 + i][0];
+      expect(partCmd.constructor.name).toBe('UploadPartCopyCommand');
+      const startByte = i * partSize;
+      const endByte = Math.min(startByte + partSize - 1, largeSize - 1);
+      expect(partCmd.input).toMatchObject({
+        Bucket: 'test-bucket',
+        Key: 'dst/large.parquet',
+        UploadId: 'test-upload-id',
+        PartNumber: i + 1,
+        CopySource: '/test-bucket/src%2Flarge.parquet',
+        CopySourceRange: `bytes=${startByte}-${endByte}`
+      });
+    }
+
+    const completeCmd = send.mock.calls[1 + 1 + numParts][0];
+    expect(completeCmd.constructor.name).toBe('CompleteMultipartUploadCommand');
+    expect(completeCmd.input).toMatchObject({
+      Bucket: 'test-bucket',
+      Key: 'dst/large.parquet',
+      UploadId: 'test-upload-id',
+      MultipartUpload: {
+        Parts: Array.from({ length: numParts }, (_, i) => ({
+          PartNumber: i + 1,
+          ETag: `etag-${i + 1}`
+        }))
+      }
+    });
+  });
+
+  it('reports progress during server-side multipart copy', async () => {
+    const size = 6 * 1024 * 1024 * 1024; // exactly 24 parts of 256 MiB
+    const partSize = 256 * 1024 * 1024;
+    const numParts = Math.ceil(size / partSize); // 24
+
+    const onProgress = vi.fn();
+
+    // HeadObject
+    send.mockResolvedValueOnce({ ContentLength: size, ContentType: 'video/mp4' });
+    // CreateMultipartUpload
+    send.mockResolvedValueOnce({ UploadId: 'upload-2' });
+    // UploadPartCopy × numParts
+    for (let i = 0; i < numParts; i++) {
+      send.mockResolvedValueOnce({ CopyPartResult: { ETag: `e${i}` } });
+    }
+    // CompleteMultipartUpload
+    send.mockResolvedValueOnce({});
+
+    await provider.copyObject('src/video.mp4', 'dst/video.mp4', onProgress);
+
+    expect(onProgress).toHaveBeenCalledTimes(numParts);
+    // Each call reports cumulative progress
+    for (let i = 0; i < numParts; i++) {
+      expect(onProgress).toHaveBeenNthCalledWith(i + 1, (i + 1) * partSize, size);
+    }
+    // Last call reports total size
+    expect(onProgress).toHaveBeenLastCalledWith(size, size);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Constructor — uses createS3Client when no client injected
 // ---------------------------------------------------------------------------
 
@@ -525,5 +682,186 @@ describe('S3StorageProvider constructor', () => {
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({ region: { name: 'us-east-1' }, bucket: 'b' })
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listContainers
+// ---------------------------------------------------------------------------
+
+describe('S3StorageProvider.listContainers', () => {
+  let provider: S3StorageProvider;
+  let send: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    ({ provider, send } = makeProvider());
+  });
+
+  it('returns bucket names', async () => {
+    send.mockResolvedValue({ Buckets: [{ Name: 'a' }, { Name: 'b' }] });
+    expect(await provider.listContainers()).toEqual(['a', 'b']);
+  });
+
+  it('filters out buckets with no name', async () => {
+    send.mockResolvedValue({ Buckets: [{ Name: 'a' }, { Name: undefined }, { Name: '' }] });
+    expect(await provider.listContainers()).toEqual(['a']);
+  });
+
+  it('handles null Buckets in response', async () => {
+    send.mockResolvedValue({ Buckets: null });
+    expect(await provider.listContainers()).toEqual([]);
+  });
+
+  it('maps AccessDenied S3 error to HTTP 403', async () => {
+    send.mockRejectedValue(makeS3Error('AccessDenied', 403));
+    await expect(provider.listContainers()).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('re-throws non-S3 errors', async () => {
+    const err = new Error('network');
+    send.mockRejectedValue(err);
+    await expect(provider.listContainers()).rejects.toThrow('network');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Error handling — S3ServiceException → HTTP error mapping
+// ---------------------------------------------------------------------------
+
+describe('S3StorageProvider error handling', () => {
+  let provider: S3StorageProvider;
+  let send: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    ({ provider, send } = makeProvider());
+  });
+
+  it('listObjects: maps AccessDenied to HTTP 403', async () => {
+    send.mockRejectedValue(makeS3Error('AccessDenied', 403));
+    await expect(provider.listObjects('', 10)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('listObjects: maps NoSuchBucket to HTTP 404', async () => {
+    send.mockRejectedValue(makeS3Error('NoSuchBucket', 404));
+    await expect(provider.listObjects('', 10)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('listObjects: re-throws non-S3 errors', async () => {
+    send.mockRejectedValue(new Error('timeout'));
+    await expect(provider.listObjects('', 10)).rejects.toThrow('timeout');
+  });
+
+  it('getObject: maps NoSuchKey to HTTP 404', async () => {
+    send.mockRejectedValue(makeS3Error('NoSuchKey', 404));
+    await expect(provider.getObject('k')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('getObject: maps AccessDenied to HTTP 403', async () => {
+    send.mockRejectedValue(makeS3Error('AccessDenied', 403));
+    await expect(provider.getObject('k')).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('getObject: re-throws non-S3 errors', async () => {
+    send.mockRejectedValue(new Error('gone'));
+    await expect(provider.getObject('k')).rejects.toThrow('gone');
+  });
+
+  it('getObjectRange: maps S3 error to HTTP error', async () => {
+    send.mockRejectedValue(makeS3Error('NoSuchKey', 404));
+    await expect(provider.getObjectRange('k', 0, 100)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('getObjectRange: re-throws non-S3 errors', async () => {
+    send.mockRejectedValue(new Error('network'));
+    await expect(provider.getObjectRange('k', 0, 100)).rejects.toThrow('network');
+  });
+
+  it('getMetadata: maps NoSuchKey to HTTP 404', async () => {
+    send.mockRejectedValue(makeS3Error('NoSuchKey', 404));
+    await expect(provider.getMetadata('k')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('getMetadata: re-throws non-S3 errors', async () => {
+    send.mockRejectedValue(new Error('gone'));
+    await expect(provider.getMetadata('k')).rejects.toThrow('gone');
+  });
+
+  it('putObject: maps AccessDenied to HTTP 403', async () => {
+    mockUploadDone.mockRejectedValue(makeS3Error('AccessDenied', 403));
+    MockUpload.mockImplementationOnce(function (this: { done: typeof mockUploadDone }) {
+      this.done = mockUploadDone;
+    });
+    await expect(provider.putObject('k', Buffer.from('x'), 'text/plain')).rejects.toMatchObject({
+      status: 403
+    });
+  });
+
+  it('putObject: re-throws non-S3 errors', async () => {
+    mockUploadDone.mockRejectedValue(new Error('disk full'));
+    MockUpload.mockImplementationOnce(function (this: { done: typeof mockUploadDone }) {
+      this.done = mockUploadDone;
+    });
+    await expect(provider.putObject('k', Buffer.from('x'), 'text/plain')).rejects.toThrow(
+      'disk full'
+    );
+  });
+
+  it('deleteObjects: maps AccessDenied to HTTP 403', async () => {
+    send.mockRejectedValue(makeS3Error('AccessDenied', 403));
+    await expect(provider.deleteObjects(['file.txt'])).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('deleteObjects: re-throws non-S3 errors', async () => {
+    send.mockRejectedValue(new Error('network'));
+    await expect(provider.deleteObjects(['file.txt'])).rejects.toThrow('network');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deleteObjects — directory expansion
+// ---------------------------------------------------------------------------
+
+describe('S3StorageProvider.deleteObjects directory expansion', () => {
+  let provider: S3StorageProvider;
+  let send: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    ({ provider, send } = makeProvider());
+  });
+
+  it('expands directory prefixes and deletes all contained keys', async () => {
+    // First call: ListObjectsV2 for dir/
+    send.mockResolvedValueOnce({
+      Contents: [{ Key: 'dir/a.txt' }, { Key: 'dir/b.txt' }],
+      IsTruncated: false
+    });
+    // Second call: DeleteObjects
+    send.mockResolvedValueOnce({ Errors: [] });
+
+    const result = await provider.deleteObjects(['file.txt', 'dir/']);
+
+    const deleteCall = send.mock.calls[1][0];
+    expect(deleteCall.input.Delete.Objects).toEqual([
+      { Key: 'file.txt' },
+      { Key: 'dir/a.txt' },
+      { Key: 'dir/b.txt' }
+    ]);
+    expect(result).toEqual({ failed: [] });
+  });
+
+  it('uses directory key itself when no children found', async () => {
+    send.mockResolvedValueOnce({ IsTruncated: false }); // listAllKeys returns []
+    send.mockResolvedValueOnce({ Errors: [] }); // deleteObjects
+
+    await provider.deleteObjects(['empty/']);
+
+    const deleteCall = send.mock.calls[1][0];
+    expect(deleteCall.input.Delete.Objects).toEqual([{ Key: 'empty/' }]);
+  });
+
+  it('returns empty result for no keys', async () => {
+    const result = await provider.deleteObjects([]);
+    expect(result).toEqual({ failed: [] });
+    expect(send).not.toHaveBeenCalled();
   });
 });

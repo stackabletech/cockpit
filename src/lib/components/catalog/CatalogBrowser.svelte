@@ -260,27 +260,28 @@
   <!-- Tree view -->
   <div class="border-base-300 flex items-center justify-between border-b px-3 py-1">
     <span class="text-base-content/60 text-xs font-medium">{m.trino_catalog_browser()}</span>
-    <button
-      class="btn btn-ghost btn-xs"
-      aria-label={m.trino_catalog_refresh()}
-      title={m.trino_catalog_refresh()}
-      onclick={handleRefresh}
-      disabled={catalogsLoading}
-    >
-      <svg
-        class="h-3.5 w-3.5"
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+    <div class="tooltip tooltip-bottom" data-tip={m.trino_catalog_refresh()}>
+      <button
+        class="btn btn-ghost btn-xs"
+        aria-label={m.trino_catalog_refresh()}
+        onclick={handleRefresh}
+        disabled={catalogsLoading}
       >
-        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-        <path d="M21 3v5h-5" />
-      </svg>
-    </button>
+        <svg
+          class="h-3.5 w-3.5"
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+          <path d="M21 3v5h-5" />
+        </svg>
+      </button>
+    </div>
   </div>
   <div class="min-h-0 flex-1 overflow-auto p-2">
     {#if catalogsLoading}

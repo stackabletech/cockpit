@@ -106,43 +106,47 @@
     <div class="flex items-center gap-3">
       {#if showNavButtons}
         <nav class="flex items-center" aria-label={m.pagination_nav()}>
-          <button
-            class="btn btn-ghost btn-xs"
-            onclick={onfirst}
-            disabled={!canGoFirst}
-            aria-label={m.pagination_first_page()}
-            title={m.pagination_first_page()}
-          >
-            <IconFirstPage class="size-4 {canGoFirst ? '' : 'opacity-40'}" aria-hidden="true" />
-          </button>
-          <button
-            class="btn btn-ghost btn-xs"
-            onclick={onprev}
-            disabled={!canGoPrev}
-            aria-label={m.pagination_prev_page()}
-            title={m.pagination_prev_page()}
-          >
-            <IconChevronLeft class="size-4 {canGoPrev ? '' : 'opacity-40'}" aria-hidden="true" />
-          </button>
-          <button
-            class="btn btn-ghost btn-xs"
-            onclick={onnext}
-            disabled={!canGoNext}
-            aria-label={m.pagination_next_page()}
-            title={m.pagination_next_page()}
-          >
-            <IconChevronRight class="size-4 {canGoNext ? '' : 'opacity-40'}" aria-hidden="true" />
-          </button>
-          {#if showLast}
+          <div class="tooltip tooltip-top" data-tip={m.pagination_first_page()}>
             <button
               class="btn btn-ghost btn-xs"
-              onclick={onlast}
-              disabled={!canGoLast}
-              aria-label={m.pagination_last_page()}
-              title={m.pagination_last_page()}
+              onclick={onfirst}
+              disabled={!canGoFirst}
+              aria-label={m.pagination_first_page()}
             >
-              <IconLastPage class="size-4 {canGoLast ? '' : 'opacity-40'}" aria-hidden="true" />
+              <IconFirstPage class="size-4 {canGoFirst ? '' : 'opacity-40'}" aria-hidden="true" />
             </button>
+          </div>
+          <div class="tooltip tooltip-top" data-tip={m.pagination_prev_page()}>
+            <button
+              class="btn btn-ghost btn-xs"
+              onclick={onprev}
+              disabled={!canGoPrev}
+              aria-label={m.pagination_prev_page()}
+            >
+              <IconChevronLeft class="size-4 {canGoPrev ? '' : 'opacity-40'}" aria-hidden="true" />
+            </button>
+          </div>
+          <div class="tooltip tooltip-top" data-tip={m.pagination_next_page()}>
+            <button
+              class="btn btn-ghost btn-xs"
+              onclick={onnext}
+              disabled={!canGoNext}
+              aria-label={m.pagination_next_page()}
+            >
+              <IconChevronRight class="size-4 {canGoNext ? '' : 'opacity-40'}" aria-hidden="true" />
+            </button>
+          </div>
+          {#if showLast}
+            <div class="tooltip tooltip-top" data-tip={m.pagination_last_page()}>
+              <button
+                class="btn btn-ghost btn-xs"
+                onclick={onlast}
+                disabled={!canGoLast}
+                aria-label={m.pagination_last_page()}
+              >
+                <IconLastPage class="size-4 {canGoLast ? '' : 'opacity-40'}" aria-hidden="true" />
+              </button>
+            </div>
           {/if}
         </nav>
       {/if}
@@ -162,43 +166,47 @@
       <span class="text-base-content/60 mr-1 text-xs">{infoLabel}</span>
     {/if}
     <nav class="flex items-center gap-1" aria-label={m.pagination_nav()}>
-      <button
-        class="btn btn-ghost btn-sm"
-        onclick={onfirst}
-        disabled={!canGoFirst}
-        aria-label={m.pagination_first_page()}
-        title={m.pagination_first_page()}
-      >
-        <IconFirstPage class="size-4 {canGoFirst ? '' : 'opacity-40'}" aria-hidden="true" />
-      </button>
-      <button
-        class="btn btn-ghost btn-sm"
-        onclick={onprev}
-        disabled={!canGoPrev}
-        aria-label={m.pagination_prev_page()}
-        title={m.pagination_prev_page()}
-      >
-        <IconChevronLeft class="size-4 {canGoPrev ? '' : 'opacity-40'}" aria-hidden="true" />
-      </button>
-      <button
-        class="btn btn-ghost btn-sm"
-        onclick={onnext}
-        disabled={!canGoNext}
-        aria-label={m.pagination_next_page()}
-        title={m.pagination_next_page()}
-      >
-        <IconChevronRight class="size-4 {canGoNext ? '' : 'opacity-40'}" aria-hidden="true" />
-      </button>
-      {#if showLast}
+      <div class="tooltip tooltip-top" data-tip={m.pagination_first_page()}>
         <button
           class="btn btn-ghost btn-sm"
-          onclick={onlast}
-          disabled={!canGoLast}
-          aria-label={m.pagination_last_page()}
-          title={m.pagination_last_page()}
+          onclick={onfirst}
+          disabled={!canGoFirst}
+          aria-label={m.pagination_first_page()}
         >
-          <IconLastPage class="size-4 {canGoLast ? '' : 'opacity-40'}" aria-hidden="true" />
+          <IconFirstPage class="size-4 {canGoFirst ? '' : 'opacity-40'}" aria-hidden="true" />
         </button>
+      </div>
+      <div class="tooltip tooltip-top" data-tip={m.pagination_prev_page()}>
+        <button
+          class="btn btn-ghost btn-sm"
+          onclick={onprev}
+          disabled={!canGoPrev}
+          aria-label={m.pagination_prev_page()}
+        >
+          <IconChevronLeft class="size-4 {canGoPrev ? '' : 'opacity-40'}" aria-hidden="true" />
+        </button>
+      </div>
+      <div class="tooltip tooltip-top" data-tip={m.pagination_next_page()}>
+        <button
+          class="btn btn-ghost btn-sm"
+          onclick={onnext}
+          disabled={!canGoNext}
+          aria-label={m.pagination_next_page()}
+        >
+          <IconChevronRight class="size-4 {canGoNext ? '' : 'opacity-40'}" aria-hidden="true" />
+        </button>
+      </div>
+      {#if showLast}
+        <div class="tooltip tooltip-top" data-tip={m.pagination_last_page()}>
+          <button
+            class="btn btn-ghost btn-sm"
+            onclick={onlast}
+            disabled={!canGoLast}
+            aria-label={m.pagination_last_page()}
+          >
+            <IconLastPage class="size-4 {canGoLast ? '' : 'opacity-40'}" aria-hidden="true" />
+          </button>
+        </div>
       {/if}
     </nav>
   </div>
