@@ -49,7 +49,15 @@ export default ts.config(
       }
     },
     rules: {
-      'better-tailwindcss/no-unknown-classes': ['warn', { detectComponentClasses: true }]
+      'better-tailwindcss/no-unknown-classes': [
+        'warn',
+        {
+          detectComponentClasses: true,
+          // DaisyUIs nestes selectors are not detected by this rule.
+          // Ignore them to catch outdated classes from DaisyUI v4 Agents seem to love.
+          ignore: ['dropdown-content', 'tab-active', 'swap-on', 'swap-off', 'menu-disabled']
+        }
+      ]
     }
   }
 );

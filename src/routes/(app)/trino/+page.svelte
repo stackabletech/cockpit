@@ -799,7 +799,7 @@
               <button
                 type="button"
                 class="
-                  rounded-btn hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
+                  rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
                   text-left
                   {runMode === 'cursor' ? 'bg-primary-content/15' : ''}"
                 onclick={() => selectRunMode('cursor')}
@@ -809,7 +809,7 @@
               <button
                 type="button"
                 class="
-                  rounded-btn hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
+                  rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
                   text-left
                   {runMode === 'all' ? 'bg-primary-content/15' : ''}"
                 onclick={() => selectRunMode('all')}
