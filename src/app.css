@@ -1,6 +1,16 @@
 @import 'tailwindcss';
 @plugin 'daisyui';
 
+/*
+ * DaisyUI's shipped dark-theme --color-primary (oklch(58% 0.233 277.117)) only reaches
+ * ~3.3:1 contrast against base-100/base-200, failing WCAG AA (4.5:1) for text-primary used
+ * as body text (e.g. active nav labels). This keeps the same hue while satisfying contrast.
+ */
+[data-theme='dark'] {
+  --color-primary: oklch(70% 0.17 277.117);
+  --color-primary-content: oklch(24% 0.12 277.117);
+}
+
 /* Subtle highlight for the currently executing statement in the Monaco editor */
 .highlighted-statement {
   background-color: oklch(from var(--color-primary) l c h / 0.08);
