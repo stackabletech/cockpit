@@ -9,7 +9,7 @@ import {
   type QuerySnapshot,
   type QueryState
 } from '$lib/types/query.js';
-import { type TrinoClient, type TrinoQueryStats, resolveTrinoServerUrl } from './client.js';
+import { type TrinoClient, type TrinoQueryStats, resolveTrinoPublicUrl } from './client.js';
 import { collectResults } from './result-collector.js';
 
 const log = logger.child({ module: 'trino-queries' });
@@ -34,6 +34,7 @@ export interface TrinoQuery {
   nextUri: string | undefined;
   client: TrinoClient;
   userId: string;
+  trinoUser: string;
   completedAt: number | null;
 }
 
@@ -110,11 +111,11 @@ function getActiveQuery(userId: string, tabId: string): TrinoQuery | undefined {
 
 function buildSnapshot(
   query: TrinoQuery,
-  trinoServerUrl: string | null,
+  trinoPublicUrl: string | null,
   lightweight = false
 ): QuerySnapshot {
   return {
-    trinoQueryUrl: trinoServerUrl ? `${trinoServerUrl}/ui/query.html?${query.trinoQueryId}` : null,
+    trinoQueryUrl: trinoPublicUrl ? `${trinoPublicUrl}/ui/query.html?${query.trinoQueryId}` : null,
     state: query.state,
     progress: query.progress,
     columns: lightweight ? [] : query.columns,
@@ -169,6 +170,7 @@ async function submitStatement(
     nextUri: submitResult.nextUri,
     client,
     userId,
+    trinoUser: options.user,
     completedAt: null
   };
 
@@ -244,19 +246,19 @@ export function getQuerySnapshots(
   lightweight = false
 ): QuerySnapshot[] {
   touchTab(userId, tabId);
-  const trinoServerUrl = resolveTrinoServerUrl(userId);
-  return getTabQueries(userId, tabId).map((q) => buildSnapshot(q, trinoServerUrl, lightweight));
+  const trinoPublicUrl = resolveTrinoPublicUrl(userId);
+  return getTabQueries(userId, tabId).map((q) => buildSnapshot(q, trinoPublicUrl, lightweight));
 }
 
 /** Lightweight summaries without rows/columns — used for SSR to keep the payload small. */
 export function getAllQuerySummaries(userId: string): Record<string, QuerySnapshot[]> {
   const tabMap = userQueries.get(userId);
   if (!tabMap) return {};
-  const trinoServerUrl = resolveTrinoServerUrl(userId);
+  const trinoPublicUrl = resolveTrinoPublicUrl(userId);
   const result: Record<string, QuerySnapshot[]> = {};
   for (const [tabId, queries] of tabMap) {
     // eslint-disable-next-line security/detect-object-injection
-    result[tabId] = queries.map((q) => buildSnapshot(q, trinoServerUrl, true));
+    result[tabId] = queries.map((q) => buildSnapshot(q, trinoPublicUrl, true));
   }
   return result;
 }
@@ -284,7 +286,11 @@ export async function cancelQuery(userId: string, tabId: string): Promise<boolea
   );
 
   try {
-    await query.client.cancel(query.trinoQueryId);
+    if (query.nextUri) {
+      await query.client.cancelViaUri(query.nextUri, query.trinoUser);
+    } else {
+      await query.client.cancel(query.trinoQueryId, query.trinoUser);
+    }
   } catch (err) {
     log.warn({ err, trino_query_id: query.trinoQueryId }, 'failed to cancel query in Trino');
   }

@@ -17,19 +17,23 @@ interface UserEntry {
 
 const userClients = new Map<string, UserEntry>();
 
-/** Create or replace the per-user Trino connection. */
-export function createUserTrinoClient(userId: string, config: UserConnectionConfig): void {
+/** Build a per-user Trino client from a connection config without storing it. */
+export function buildUserTrinoClient(config: UserConnectionConfig): TrinoClient {
   const authorization =
     config.authType === 'basic' && config.username && config.password
       ? buildBasicAuthHeader(config.username, config.password)
       : undefined;
 
-  const client = new TrinoClient({
+  return new TrinoClient({
     serverUrl: config.url,
     authorization,
     impersonate: trinoUserImpersonation
   });
+}
 
+/** Create or replace the per-user Trino connection. */
+export function createUserTrinoClient(userId: string, config: UserConnectionConfig): void {
+  const client = buildUserTrinoClient(config);
   userClients.set(userId, { client, url: config.url });
   log.info({ user_id: userId, trino_url: config.url }, 'user connection created');
 }

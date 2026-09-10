@@ -186,6 +186,8 @@ auth:
 trino:
   # Trino coordinator URL (e.g. https://trino.example.com:8443)
   url: ""
+  # Browser-facing URL for "View in Trino" deep links. Defaults to trino.url.
+  publicUrl: ""
   userImpersonation:
     # Forward the logged-in user to Trino as X-Trino-User. When false, all queries
     # run as trino.auth.username instead (requires basic auth).
