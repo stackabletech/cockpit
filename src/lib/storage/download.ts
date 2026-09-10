@@ -12,7 +12,7 @@
  * Note: The response body is buffered as a Blob before the download link is
  * constructed. This avoids exposing credentials in the URL (query-param approach)
  * while keeping the implementation simple. For very large files this will use
- * proportional browser memory — see TECH_DEBT.md for the long-term fix.
+ * proportional browser memory.
  */
 
 import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';

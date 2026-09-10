@@ -84,6 +84,25 @@ The following table lists the configurable parameters of the Cockpit chart and t
 | --- | --- | --- |
 | `config.nodeEnv` | Node.js environment | `production` |
 
+### Feature Parameters
+
+All feature parameters are optional. Omit them to use the application defaults.
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `features.trino.completion.enabled` | Enable SQL code completion. | `true` (application default) |
+| `features.storage.enabled` | Show the S3/HDFS file browser and enable routes under `/storage`. | `false` (application default) |
+| `features.storage.autoConnect` | Reconnect to the most recently used storage connection when visiting the storage page. | `false` (application default) |
+| `features.storage.pageSizes` | Comma-separated page size options. | `25,50,100` (application default) |
+| `features.storage.defaultPageSize` | Default page size; must be included in `pageSizes`. | First configured page size (application default) |
+| `features.storage.maxRecentFiles` | Number of recently visited storage locations retained locally. | `15` (application default) |
+| `features.storage.uploadConcurrency` | Maximum parallel requests for file uploads. | `3` (application default) |
+| `features.storage.textPreviewBytes` | Maximum bytes fetched for text, CSV, and JSON previews. | `262144` (application default) |
+| `features.storage.imagePreviewBytes` | Maximum bytes fetched for image previews. | `5242880` (application default) |
+| `features.storage.pdfPreviewBytes` | Maximum bytes fetched for PDF previews. | `26214400` (application default) |
+| `features.storage.filePreviewRows` | Maximum rows in tabular file previews. | `250` (application default) |
+| `features.storage.filePreviewColumns` | Maximum columns in tabular file previews. | `50` (application default) |
+
 ### Authentication Parameters
 
 OIDC is the only supported auth mechanism. Disable for local testing.
@@ -96,7 +115,7 @@ OIDC is the only supported auth mechanism. Disable for local testing.
 | `auth.oidc.clientId` | OIDC client ID. Required when enabled. | `""` |
 | `auth.oidc.clientSecret.secretKeyRef.name` | Name of the Secret holding the OIDC client secret. Required when enabled. | `""` |
 | `auth.oidc.clientSecret.secretKeyRef.key` | Key inside the Secret. | `oidc-client-secret` |
-| `auth.oidc.usernameClaim` | OIDC claim used as the username for Trino impersonation. | `preferred_username` |
+| `auth.oidc.extraScopes` | List of extra OIDC scopes to request in addition to `openid profile email`. Set when the claim to use as identifier in Trino is only released under a custom scope. | `[]` |
 
 ### Trino Connection Parameters
 
@@ -105,7 +124,9 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 | Parameter | Description | Default |
 | --- | --- | --- |
 | `trino.url` | Trino coordinator URL. | `""` |
-| `trino.userImpersonation` | Forward the logged-in user to Trino as `X-Trino-User`. When `false`, all queries run as `trino.auth.username` (no per-user authorization/audit in Trino). | `true` |
+| `trino.publicUrl` | Browser-facing URL for "View in Trino" deep links. Defaults to `trino.url`. | `""` |
+| `trino.userImpersonation.enabled` | Forward the logged-in user to Trino as `X-Trino-User`. When `false`, all queries run as `trino.auth.username` (no per-user authorization/audit in Trino). | `true` |
+| `trino.userImpersonation.userClaim` | OIDC claim used as the Trino user. Only consumed when impersonation is enabled and OIDC is configured. | `preferred_username` |
 | `trino.auth.type` | `"none"` or `"basic"`. | `""` |
 | `trino.auth.username` | Username for basic auth. | `""` |
 | `trino.auth.password.secretKeyRef.name` | Name of the Secret holding the Trino password. Required when `type=basic`. | `""` |
@@ -113,6 +134,7 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 | `trino.tls.insecure` | Skip TLS certificate verification. | `false` |
 | `trino.tls.caCert` | Path to a custom CA certificate file. | `""` |
 | `trino.tls.secretClass` | Stackable SecretClass that provides the Trino CA certificate. | `""` |
+| `trino.queryTtl` | Query result TTL in seconds. | `1800` (application default) |
 
 ### Security Parameters
 

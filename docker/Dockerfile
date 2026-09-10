@@ -74,17 +74,33 @@ WORKDIR /build
 
 COPY package.json package-lock.json .npmrc ./
 
-# Install only production dependencies; --ignore-scripts skips the prepare script
-# (which would fail because antlr-ng is a devDependency and not available here)
-RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --ignore-scripts
+# Install only production dependencies.
+#
+# --ignore-scripts skips the prepare script (which would fail because antlr-ng
+# is a devDependency and not available here).
+#
+# --omit=optional is required on top of --omit=dev: better-auth declares svelte,
+# @sveltejs/kit and vitest as optional peerDependencies. Because we also list
+# them in devDependencies, npm marks them (and their trees: vite, rollup,
+# typescript, ...) as "devOptional" in package-lock.json, and --omit=dev alone
+# keeps devOptional entries. That pulled build tooling into the runtime image
+# and into the generated SBOM.
+#
+# The adapter-node output bundles its dependencies, so none of the omitted
+# packages are needed at runtime.
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev --omit=optional --ignore-scripts
 
 #
 # SBOM stage - generate CycloneDX from the clean prod-only dependency tree
 #
 FROM prod-deps AS sbom
 
-RUN npm ls --omit=dev && \
-    npx @cyclonedx/cyclonedx-npm --omit dev --output-file /build/cockpit.cdx.json
+# The omit flags must match those of the prod-deps stage so that the SBOM
+# describes the dependency tree that is actually shipped.
+RUN npm ls --omit=dev --omit=optional && \
+    npx @cyclonedx/cyclonedx-npm --omit dev --omit optional \
+        --output-file /build/cockpit.cdx.json
 
 #
 # Production stage - minimal runtime image
@@ -120,6 +136,7 @@ COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
 COPY --from=sbom      --chown=${STACKABLE_USER_UID}:0 /build/cockpit.cdx.json ./cockpit.cdx.json
 COPY --chown=${STACKABLE_USER_UID}:0 LICENSE /licenses/LICENSE
+COPY --chown=${STACKABLE_USER_UID}:0 LICENSE-Apache-2.0 /licenses/LICENSE-Apache-2.0
 RUN chown -R ${STACKABLE_USER_UID}:0 /stackable && \
     chmod -R g=u /stackable
 
@@ -149,6 +166,6 @@ LABEL org.opencontainers.image.authors="info@stackable.tech"
 LABEL org.opencontainers.image.url="https://stackable.tech"
 LABEL org.opencontainers.image.source="https://github.com/stackabletech/cockpit/"
 LABEL org.opencontainers.image.vendor="Stackable GmbH"
-LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.licenses="OSL-3.0"
 
 CMD ["node", "build/index.js"]

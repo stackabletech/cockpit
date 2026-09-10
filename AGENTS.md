@@ -35,13 +35,12 @@ This is a **single SvelteKit application** (not a monorepo).
 ├── e2e/                  # Playwright E2E tests
 ├── static/               # Static assets
 ├── docker/Dockerfile     # Production container image
-├── CLAUDE.md             # AI assistant instructions
-└── TECH_DEBT.md          # Known tech debt and deferred security concerns
+└── CLAUDE.md             # AI assistant instructions
 ```
 
 ## Tech Debt
 
-When introducing shortcuts, known issues, or deferred security work, add an entry to `TECH_DEBT.md`. Keep entries concise: what the issue is, why it is acceptable now, and what the correct long-term fix is.
+When introducing shortcuts, known issues, or deferred security work, file an issue with the `tech-debt` label. Keep it concise: what the issue is, why it is acceptable now, and what the correct long-term fix is.
 
 ## Development Guidelines
 

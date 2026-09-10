@@ -60,6 +60,24 @@ test.describe('Trino query editor', () => {
     await expect(alert.getByText('syntax error at position 7')).toBeVisible();
   });
 
+  test('a transport-level submit failure surfaces the reason, not just a Failed badge', async ({
+    page
+  }) => {
+    // Force the submit endpoint to fail with a server-provided reason.
+    await page.route('**/api/trino/query', async (route, request) => {
+      if (request.method() === 'POST') {
+        await route.fulfill({ status: 400, json: { error: 'Could not reach Trino' } });
+      } else {
+        await route.continue();
+      }
+    });
+
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+
+    // The reason is shown in the status display.
+    await expect(page.getByText('Could not reach Trino')).toBeVisible();
+  });
+
   test('pagination navigates between pages', async ({ page }) => {
     await setTabSql(page, 'SELECT id, name FROM large_table');
     await page.goto('/trino');

@@ -53,13 +53,68 @@ spec:
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- $features := index .Values "features" | default dict }}
+          {{- $trinoFeatures := index $features "trino" | default dict }}
+          {{- $completion := index $trinoFeatures "completion" | default dict }}
           env:
             - name: NODE_ENV
               value: {{ .Values.config.nodeEnv | quote }}
             - name: PORT
               value: {{ .Values.service.targetPort | quote }}
+            {{- if hasKey $completion "enabled" }}
             - name: STACKABLE_COCKPIT_COMPLETION_ENABLED
-              value: {{ .Values.features.trino.completion.enabled | quote }}
+              value: {{ index $completion "enabled" | quote }}
+            {{- end }}
+            {{- with (index $features "storage") }}
+            {{- if hasKey . "enabled" }}
+            - name: STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED
+              value: {{ .enabled | quote }}
+            {{- end }}
+            {{- if hasKey . "autoConnect" }}
+            - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT
+              value: {{ .autoConnect | quote }}
+            {{- end }}
+            {{- with .pageSizes }}
+            - name: PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .defaultPageSize }}
+            - name: PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- with .maxRecentFiles }}
+            - name: PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- with .uploadConcurrency }}
+            - name: PUBLIC_STACKABLE_COCKPIT_UPLOAD_CONCURRENCY
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- with .textPreviewBytes }}
+            - name: STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- with .imagePreviewBytes }}
+            - name: STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- with .pdfPreviewBytes }}
+            - name: STACKABLE_COCKPIT_PDF_PREVIEW_BYTES
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- with .filePreviewRows }}
+            - name: STACKABLE_COCKPIT_FILE_PREVIEW_ROWS
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- with .filePreviewColumns }}
+            - name: STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.trino.queryTtl }}
+            - name: STACKABLE_COCKPIT_QUERY_TTL
+              value: {{ .Values.trino.queryTtl | int64 |quote }}
+            {{- end }}
             {{- if .Values.logging.level }}
             - name: LOG_LEVEL
               value: {{ .Values.logging.level | quote }}
@@ -112,8 +167,12 @@ spec:
                 configMapKeyRef:
                   name: {{ include "cockpit.fullname" . }}
                   key: oidc-client-id
-            - name: STACKABLE_COCKPIT_OIDC_USERNAME_CLAIM
-              value: {{ .Values.auth.oidc.usernameClaim | quote }}
+            - name: STACKABLE_COCKPIT_TRINO_USER_CLAIM
+              value: {{ .Values.trino.userImpersonation.userClaim | quote }}
+            {{- with .Values.auth.oidc.extraScopes }}
+            - name: STACKABLE_COCKPIT_OIDC_EXTRA_SCOPES
+              value: {{ join " " . | quote }}
+            {{- end }}
             {{- end }}
             {{- if .Values.trino.url }}
             - name: STACKABLE_COCKPIT_TRINO_URL
@@ -121,6 +180,13 @@ spec:
                 configMapKeyRef:
                   name: {{ include "cockpit.fullname" . }}
                   key: trino-url
+            {{- end }}
+            {{- if .Values.trino.publicUrl }}
+            - name: STACKABLE_COCKPIT_TRINO_PUBLIC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "cockpit.fullname" . }}
+                  key: trino-public-url
             {{- end }}
             {{- if .Values.trino.auth.type }}
             - name: STACKABLE_COCKPIT_TRINO_AUTH_TYPE
@@ -144,7 +210,7 @@ spec:
                   key: {{ .Values.trino.auth.password.secretKeyRef.key | quote }}
             {{- end }}
             - name: STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION
-              value: {{ .Values.trino.userImpersonation | quote }}
+              value: {{ .Values.trino.userImpersonation.enabled | quote }}
             {{- if .Values.trino.tls.insecure }}
             - name: STACKABLE_COCKPIT_TRINO_TLS_INSECURE
               value: "true"

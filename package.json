@@ -2,7 +2,7 @@
   "name": "@stackable/stackable-cockpit",
   "private": true,
   "version": "0.0.1",
-  "license": "Apache-2.0",
+  "license": "OSL-3.0",
   "type": "module",
   "scripts": {
     "dev": "vite dev --host",
@@ -53,6 +53,7 @@
     "svelte-check": "^4.4.3",
     "sveltekit-superforms": "^2.30.0",
     "tailwindcss": "^4.2.1",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1",
     "unplugin-icons": "^23.0.1",

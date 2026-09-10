@@ -27,6 +27,21 @@ test.describe('Authentication', () => {
     await context.close();
   });
 
+  test('sign in preserves an encoded redirect path', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await context.newPage();
+
+    try {
+      await page.goto('/some%20page?foo=bar');
+      await waitForHydration(page);
+      await page.getByRole('button', { name: /sign in with sso/i }).click();
+
+      await expect(page).toHaveURL('/some%20page?foo=bar');
+    } finally {
+      await context.close();
+    }
+  });
+
   test('authenticated user sees dashboard', async ({ page }) => {
     await page.goto('/');
     await expect(page).toHaveURL('/');
