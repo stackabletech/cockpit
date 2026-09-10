@@ -137,7 +137,7 @@ describe('TabsState', () => {
       expect(navigateToLocation).not.toHaveBeenCalled();
     });
 
-    it('restores snapshot and calls replaceLocationUrl for non-stub tab', () => {
+    it('navigates with replaceState for a non-stub tab', () => {
       const storage = makeStorage('bucket', 'a/');
       const { ts, replaceLocationUrl } = makeTabs(storage);
       ts.ensureInitialTab(); // tabs[0] = {prefix:'a/'}, active
@@ -150,7 +150,7 @@ describe('TabsState', () => {
       // Now: tabs[0]={prefix:'a/'}, tabs[1]={prefix:'b/'} (active)
       ts.switchTo(ts.tabs[0].id);
 
-      expect(storage.prefix).toBe('a/');
+      expect(storage.prefix).toBe('b/');
       expect(replaceLocationUrl).toHaveBeenCalledWith('s3.example.com', 'bucket', 'a/');
     });
 

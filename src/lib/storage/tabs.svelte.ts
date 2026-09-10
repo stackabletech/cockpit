@@ -367,7 +367,7 @@ export class TabsState {
     this.saveToPersistence();
   }
 
-  /** Switches to a tab by id. Stub tabs trigger a navigation to load fresh data. */
+  /** Switches to a tab by id. Route navigation keeps SvelteKit state in sync. */
   switchTo(id: string): void {
     if (id === this.activeTabId) return;
     const tab = this.tabs.find((t) => t.id === id);
@@ -379,6 +379,8 @@ export class TabsState {
 
     if (tab.stub && this.navigateToLocation) {
       this.navigateToLocation(tab.snapshot.connection, tab.snapshot.bucket, tab.snapshot.prefix);
+    } else if (this.replaceLocationUrl) {
+      this.replaceLocationUrl(tab.snapshot.connection, tab.snapshot.bucket, tab.snapshot.prefix);
     } else {
       this.restoreSnapshot(tab.snapshot);
     }
@@ -401,6 +403,12 @@ export class TabsState {
       this.pendingNavigation = null;
       if (nextTab.stub && this.navigateToLocation) {
         this.navigateToLocation(
+          nextTab.snapshot.connection,
+          nextTab.snapshot.bucket,
+          nextTab.snapshot.prefix
+        );
+      } else if (this.replaceLocationUrl) {
+        this.replaceLocationUrl(
           nextTab.snapshot.connection,
           nextTab.snapshot.bucket,
           nextTab.snapshot.prefix

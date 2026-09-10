@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { beforeNavigate } from '$app/navigation';
   import IconClose from 'virtual:icons/material-symbols/close';
@@ -39,17 +38,13 @@
     disconnectForm?.requestSubmit();
   }
 
-  // page.url may be undefined in the error boundary state (when a client-side
-  // universal load throws and SvelteKit transitions to the error state). Guard
-  // with optional chaining to avoid crashing the layout and escalating the
-  // error to the root fallback handler.
-  const activeBucket = $derived.by(() => {
-    return page.params.bucket ?? null;
-  });
-  const activePrefix = $derived(page.params.prefix ? page.params.prefix + '/' : '');
+  // Storage state remains current when switching tabs via shallow routing,
+  // whereas page.params still reflects the most recent full route navigation.
+  const activeBucket = $derived(storage.bucket || null);
+  const activePrefix = $derived(storage.prefix);
 
   function isPinnedActive(pin: PinnedLocation): boolean {
-    return page.params.bucket === pin.bucket && activePrefix === pin.prefix;
+    return activeBucket === pin.bucket && activePrefix === pin.prefix;
   }
 
   // ── Unpin context menu ────────────────────────────────────────────────────
@@ -298,7 +293,7 @@
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-base-content'}
                     {dropSidebarTarget === '' && activeBucket === bucket ? 'bg-primary/20' : ''}"
-                  aria-current={activeBucket === bucket && !page.params.prefix ? 'page' : undefined}
+                  aria-current={activeBucket === bucket && !activePrefix ? 'page' : undefined}
                   oncontextmenu={(e) => openBucketContextMenu(e, bucket)}
                   ondragover={(e) => handleSidebarDragOver(e, '')}
                   ondragleave={handleSidebarDragLeave}
