@@ -1,3 +1,4 @@
+import { resolve } from '$app/paths';
 import * as m from '$lib/paraglide/messages.js';
 import type { NavItem, NavSection } from '$lib/types/navigation.js';
 import IconDashboard from 'virtual:icons/material-symbols/dashboard';
@@ -16,7 +17,7 @@ export function getNavSections(flags: NavFlags = {}): NavSection[] {
   const dataToolsItems: NavItem[] = [
     {
       label: m.nav_trino(),
-      href: '/trino',
+      href: resolve('/trino'),
       icon: IconDatabase
     }
   ];
@@ -24,7 +25,7 @@ export function getNavSections(flags: NavFlags = {}): NavSection[] {
   if (storageBrowserEnabled) {
     dataToolsItems.push({
       label: m.nav_storage(),
-      href: '/storage',
+      href: resolve('/storage'),
       icon: IconFolder
     });
   }
