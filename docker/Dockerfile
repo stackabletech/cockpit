@@ -13,6 +13,19 @@ FROM registry.access.redhat.com/ubi10/ubi-minimal@sha256:a74a7a92d3069bfac09c688
 # "-c": Allows the execution of commands passed as a string
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
+#
+# Node.js stage - the complete Node.js distribution, including npm.
+#
+# Only the build stages inherit from this. The final image deliberately does
+# not: npm, npx and corepack ship their own vendored dependency trees under
+# /usr/local/lib/node_modules/, which are not needed at runtime.
+#
+FROM base AS node
+
+# Docker inherits SHELL from the parent stage, but hadolint tracks it per stage
+# and would otherwise flag the piped RUN below (DL4006).
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
 ARG TARGETARCH=amd64
 
 COPY .node-version /tmp/.node-version
@@ -36,7 +49,7 @@ RUN NODEJS_VERSION=$(cat /tmp/.node-version) && \
 #
 # Build stage - compiles the SvelteKit application with full dependencies
 #
-FROM base AS builder
+FROM node AS builder
 
 ARG VERSION
 
@@ -68,7 +81,7 @@ RUN STACKABLE_COCKPIT_SESSION_SECRET="build-time-placeholder" \
 #
 # Production dependencies stage - clean prod-only install
 #
-FROM base AS prod-deps
+FROM node AS prod-deps
 
 WORKDIR /build
 
@@ -114,8 +127,15 @@ ENV STACKABLE_USER_UID=782252253 \
     STACKABLE_USER_NAME=stackable \
     NODE_ENV=production
 
+# The runtime only needs the node binary itself: the adapter-node output is
+# started with `node build/index.js` and never shells out to npm. Copying just
+# the binary keeps npm/npx/corepack and their bundled dependencies out of the
+# image, so scanners no longer report CVEs for those packages.
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+
 # hadolint ignore=DL3041
-RUN microdnf install -y shadow-utils && \
+RUN microdnf update -y && \
+    microdnf install -y shadow-utils && \
     groupadd --gid ${STACKABLE_USER_GID} --system ${STACKABLE_USER_NAME} && \
     useradd \
         --no-log-init \
