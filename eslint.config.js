@@ -1,6 +1,7 @@
 import prettier from 'eslint-config-prettier';
 import js from '@eslint/js';
 import { includeIgnoreFile } from '@eslint/compat';
+import { defineConfig } from 'eslint/config';
 import svelte from 'eslint-plugin-svelte';
 import betterTailwindcss from 'eslint-plugin-better-tailwindcss';
 import security from 'eslint-plugin-security';
@@ -10,7 +11,7 @@ import ts from 'typescript-eslint';
 
 const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
-export default ts.config(
+export default defineConfig(
   includeIgnoreFile(gitignorePath),
   { ignores: ['src/lib/editor/generated/**'] },
   js.configs.recommended,
