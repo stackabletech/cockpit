@@ -38,6 +38,7 @@ describe('PdfPreview', () => {
     const name = `${faker.system.fileName()}.pdf`;
     render(PdfPreview, { src: 'blob:http://localhost/id', name });
 
+    // eslint-disable-next-line security/detect-non-literal-regexp
     const iframe = page.getByTitle(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     await expect.element(iframe).toBeInTheDocument();
   });
