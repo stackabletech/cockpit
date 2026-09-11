@@ -59,7 +59,7 @@
     </thead>
     <tbody>
       {#each storage.bookmarks.recentFiles as file (file.bucket + '::' + file.key)}
-        <tr class="hover">
+        <tr>
           <td>
             <div class="flex items-center gap-2">
               <IconDescriptionOutline class="text-primary size-4 shrink-0" aria-hidden="true" />
@@ -126,7 +126,7 @@
     </thead>
     <tbody>
       {#each storage.bookmarks.recentLocations as loc (loc.bucket + '::' + loc.prefix)}
-        <tr class="hover">
+        <tr>
           <td>
             <div class="flex items-center gap-2">
               {#if loc.prefix === ''}

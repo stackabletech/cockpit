@@ -16,7 +16,7 @@ export function getNavSections(flags: NavFlags = {}): NavSection[] {
   const dataToolsItems: NavItem[] = [
     {
       label: m.nav_trino(),
-      href: '/trino',
+      route: '/trino',
       icon: IconDatabase
     }
   ];
@@ -24,7 +24,7 @@ export function getNavSections(flags: NavFlags = {}): NavSection[] {
   if (storageBrowserEnabled) {
     dataToolsItems.push({
       label: m.nav_storage(),
-      href: '/storage',
+      route: '/storage',
       icon: IconFolder
     });
   }
@@ -32,7 +32,7 @@ export function getNavSections(flags: NavFlags = {}): NavSection[] {
   return [
     {
       title: m.nav_platform(),
-      items: [{ label: m.nav_dashboard(), href: '/', icon: IconDashboard }]
+      items: [{ label: m.nav_dashboard(), route: '/', icon: IconDashboard }]
     },
     {
       title: m.nav_data_tools(),

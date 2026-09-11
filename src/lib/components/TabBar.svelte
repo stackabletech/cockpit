@@ -124,72 +124,74 @@
   }
 </script>
 
-<div class="flex items-end gap-1 overflow-x-auto px-0.5" role="tablist">
-  {#each items as item, index (item.id)}
-    {@const isActive = item.id === activeId}
-    {@const isDragOver =
-      dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index}
-    <div
-      class="group has-[:focus-visible]:ring-primary flex max-w-56 items-center rounded-t-lg border-x border-t transition-colors has-[:focus-visible]:ring-2
-        {isActive
-        ? 'border-base-300 bg-base-100 text-base-content'
-        : 'bg-base-200/50 text-base-content/60 hover:bg-base-200 hover:text-base-content/80 border-transparent'}
-        {isDragOver ? 'ring-primary ring-2' : ''}"
-    >
-      <button
-        type="button"
-        id="tab-{item.id}"
-        class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-t-lg px-3 py-1.5 text-sm select-none focus-visible:outline-none"
-        role="tab"
-        aria-selected={isActive}
-        tabindex={isActive ? 0 : -1}
-        draggable={onReorder ? 'true' : 'false'}
-        ondragstart={(e) => handleDragStart(e, index)}
-        ondragover={(e) => handleDragOver(e, index)}
-        ondrop={(e) => handleDrop(e, index)}
-        ondragend={handleDragEnd}
-        onclick={() => onSelect(item.id)}
-        onkeydown={(e) => handleTabKeydown(e, index)}
-        ondblclick={() => startRename(item.id, item.label)}
+<div class="flex items-end gap-1 overflow-x-auto px-0.5">
+  <div class="flex items-end gap-1" role="tablist">
+    {#each items as item, index (item.id)}
+      {@const isActive = item.id === activeId}
+      {@const isDragOver =
+        dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index}
+      <div
+        class="group has-[:focus-visible]:ring-primary flex max-w-56 items-center rounded-t-lg border-x border-t transition-colors has-[:focus-visible]:ring-2
+          {isActive
+          ? 'border-base-300 bg-base-100 text-base-content'
+          : 'bg-base-200/50 text-base-content/60 hover:bg-base-200 hover:text-base-content/80 border-transparent'}
+          {isDragOver ? 'ring-primary ring-2' : ''}"
       >
-        {#if editingId === item.id}
-          <input
-            bind:this={editInput}
-            bind:value={editValue}
-            class="w-24 min-w-0 border-b border-current bg-transparent text-sm outline-none"
-            aria-label={m.trino_tab_rename()}
-            onblur={commitRename}
-            onkeydown={handleEditKeydown}
-            onclick={(e: MouseEvent) => e.stopPropagation()}
-          />
-        {:else}
-          <span class="truncate">{item.label}</span>
-        {/if}
-      </button>
-
-      {#if showClose && item.closable !== false}
         <button
           type="button"
-          class="btn btn-ghost btn-xs mr-1 h-5 min-h-0 w-5 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100
-            {isActive ? 'opacity-60' : ''}"
+          id="tab-{item.id}"
+          class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-t-lg px-3 py-1.5 text-sm select-none focus-visible:outline-none"
+          role="tab"
+          aria-selected={isActive}
           tabindex={isActive ? 0 : -1}
-          aria-label={m.trino_tab_close({ name: item.label })}
-          onclick={() => onClose?.(item.id)}
+          draggable={onReorder ? 'true' : 'false'}
+          ondragstart={(e) => handleDragStart(e, index)}
+          ondragover={(e) => handleDragOver(e, index)}
+          ondrop={(e) => handleDrop(e, index)}
+          ondragend={handleDragEnd}
+          onclick={() => onSelect(item.id)}
+          onkeydown={(e) => handleTabKeydown(e, index)}
+          ondblclick={() => startRename(item.id, item.label)}
         >
-          <svg
-            class="h-3 w-3"
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
-          >
+          {#if editingId === item.id}
+            <input
+              bind:this={editInput}
+              bind:value={editValue}
+              class="w-24 min-w-0 border-b border-current bg-transparent text-sm outline-none"
+              aria-label={m.trino_tab_rename()}
+              onblur={commitRename}
+              onkeydown={handleEditKeydown}
+              onclick={(e: MouseEvent) => e.stopPropagation()}
+            />
+          {:else}
+            <span class="truncate">{item.label}</span>
+          {/if}
         </button>
-      {/if}
-    </div>
-  {/each}
+
+        {#if showClose && item.closable !== false}
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs mr-1 h-5 min-h-0 w-5 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100
+              {isActive ? 'opacity-60' : ''}"
+            tabindex={isActive ? 0 : -1}
+            aria-label={m.trino_tab_close({ name: item.label })}
+            onclick={() => onClose?.(item.id)}
+          >
+            <svg
+              class="h-3 w-3"
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
+            >
+          </button>
+        {/if}
+      </div>
+    {/each}
+  </div>
 
   {#if onAdd && showAdd}
     <button

@@ -145,7 +145,7 @@
   {#each actions as act (act.key)}
     {#if !act.hidden}
       {@const ActIcon = act.icon}
-      <li role="none" class:menu-disabled={act.disabled}>
+      <li role="none" class={{ 'menu-disabled': act.disabled }}>
         <button
           role="menuitem"
           class="justify-start"
