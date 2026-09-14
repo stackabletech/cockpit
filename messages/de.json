@@ -382,6 +382,7 @@
   "bookmark_env_label": "Umgebung (optional)",
   "bookmark_env_placeholder": "z.B. dev, prod",
   "bookmark_url_label": "URL",
+  "bookmark_url_error": "Geben Sie eine gültige HTTP- oder HTTPS-URL ein.",
   "bookmark_pinned_section_title": "Angeheftet",
   "bookmark_pinned_label": "Lesezeichen für dich anheften",
   "bookmark_pinned_label_basic": "Lesezeichen anheften",

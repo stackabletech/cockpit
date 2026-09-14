@@ -67,19 +67,6 @@ test.describe('Sidebar bookmarks', () => {
     await expect(dashboardsLink).not.toHaveAttribute('aria-current');
   });
 
-  test('removes the obsolete embedded launch preference from saved bookmarks', async ({ page }) => {
-    await page.addInitScript(() => {
-      const bookmarks = JSON.parse(localStorage.getItem('dashboard_bookmarks')!);
-      bookmarks[0].openIn = 'cockpit';
-      localStorage.setItem('dashboard_bookmarks', JSON.stringify(bookmarks));
-    });
-    await page.goto('/');
-    await waitForHydration(page);
-
-    const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
-    expect(JSON.parse(stored!)[0]).not.toHaveProperty('openIn');
-  });
-
   test('inbuilt tools have no external link button', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);

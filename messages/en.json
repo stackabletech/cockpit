@@ -382,6 +382,7 @@
   "bookmark_env_label": "Environment (optional)",
   "bookmark_env_placeholder": "e.g. dev, prod",
   "bookmark_url_label": "URL",
+  "bookmark_url_error": "Enter a valid HTTP or HTTPS URL.",
   "bookmark_pinned_section_title": "Pinned",
   "bookmark_pinned_label": "Pin bookmark for yourself",
   "bookmark_pinned_label_basic": "Pin bookmark",
