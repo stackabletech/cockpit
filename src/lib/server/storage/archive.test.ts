@@ -432,4 +432,48 @@ describe('Caching', () => {
 
     clearArchiveCache();
   });
+
+  it('does not share cached archives between connections', async () => {
+    clearArchiveCache();
+    const archiveStream = (contents: string) => {
+      const zip = new AdmZip();
+      zip.addFile('file.txt', Buffer.from(contents));
+      const data = zip.toBuffer();
+      return new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(data));
+          controller.close();
+        }
+      });
+    };
+    const firstDownload = vi.fn(async () => archiveStream('first connection'));
+    const secondDownload = vi.fn(async () => archiveStream('second connection'));
+
+    const first = await listArchiveContents(
+      'shared-bucket',
+      'archive.zip',
+      '',
+      firstDownload,
+      vi.fn(),
+      undefined,
+      undefined,
+      'connection-a'
+    );
+    const second = await listArchiveContents(
+      'shared-bucket',
+      'archive.zip',
+      '',
+      secondDownload,
+      vi.fn(),
+      undefined,
+      undefined,
+      'connection-b'
+    );
+
+    expect(firstDownload).toHaveBeenCalledOnce();
+    expect(secondDownload).toHaveBeenCalledOnce();
+    expect(first.entries).toHaveLength(1);
+    expect(second.entries).toHaveLength(1);
+    clearArchiveCache();
+  });
 });

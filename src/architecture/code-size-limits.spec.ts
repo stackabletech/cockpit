@@ -7,11 +7,6 @@
  * Thresholds are set above current maximums to pass today but act as guardrails
  * against further growth. Tighten them as large files are split during normal
  * refactoring cycles.
- *
- * Current maximums (non-generated):
- *   src/lib/storage/state.svelte.ts              ~2 331 LOC  ← split candidate
- *   src/lib/server/storage/archive.ts              ~919 LOC
- *   src/lib/components/storage/modals/PreviewModal.svelte ~1 065 LOC
  */
 
 import { readFileSync } from 'node:fs';

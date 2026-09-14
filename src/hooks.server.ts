@@ -13,6 +13,7 @@ import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { auth, oidcEnabled } from '$lib/server/auth';
 import { requestLogger, logger } from '$lib/server/logging';
 import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
+import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
 
@@ -85,8 +86,12 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
   const userId = event.locals.user?.id ?? null;
   if (userId && event.route.id?.startsWith('/(app)/api/storage/')) {
     event.locals.storageConfig = await getConnectionFromHeader(event.request, userId);
+    event.locals.storageConnectionId = event.locals.storageConfig
+      ? event.request.headers.get(STORAGE_CONNECTION_ID_HEADER)
+      : null;
   } else {
     event.locals.storageConfig = null;
+    event.locals.storageConnectionId = null;
   }
   // The connections management endpoint itself does not require a connection header —
   // it is used to list/create connections before one is selected.

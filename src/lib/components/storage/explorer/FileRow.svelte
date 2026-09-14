@@ -56,7 +56,7 @@
       onchange={() => storage.toggleSelect(file.key, true)}
       onclick={(e) => e.stopPropagation()}
       disabled={!storage.showCheckboxes}
-      aria-label="Select {keyToName(file.key)}"
+      aria-label={m.storage_select_item({ name: keyToName(file.key) })}
     />
   </td>
   <td>

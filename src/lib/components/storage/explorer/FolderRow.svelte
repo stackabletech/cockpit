@@ -101,7 +101,7 @@
       onchange={() => storage.toggleSelect(folder.key, true)}
       onclick={(e) => e.stopPropagation()}
       disabled={!storage.showCheckboxes}
-      aria-label="Select {keyToName(folder.key)}"
+      aria-label={m.storage_select_item({ name: keyToName(folder.key) })}
     />
   </td>
   <td>

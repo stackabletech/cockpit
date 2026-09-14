@@ -298,7 +298,7 @@
 <div class="border-base-300 flex flex-wrap items-center gap-3 border-b px-6 py-3">
   <!-- Breadcrumbs -->
   <nav
-    aria-label="breadcrumb"
+    aria-label={m.storage_breadcrumb_label()}
     class="
     flex min-w-0 flex-1 items-center gap-1 text-sm
   "

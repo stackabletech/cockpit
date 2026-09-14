@@ -65,22 +65,27 @@ const cleanupTimer = setInterval(() => {
 
 if (cleanupTimer.unref) cleanupTimer.unref();
 
-function cacheKey(bucket: string, key: string): string {
-  return `${bucket}:${key}`;
+function cacheKey(connectionId: string, bucket: string, key: string): string {
+  return `${connectionId}:${bucket}:${key}`;
 }
 
-function getCachedPath(bucket: string, key: string): string | null {
-  const entry = archiveCache.get(cacheKey(bucket, key));
+function getCachedPath(connectionId: string, bucket: string, key: string): string | null {
+  const entry = archiveCache.get(cacheKey(connectionId, bucket, key));
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (entry && Date.now() < entry.expiresAt && existsSync(entry.path)) {
     return entry.path;
   }
-  if (entry) archiveCache.delete(cacheKey(bucket, key));
+  if (entry) archiveCache.delete(cacheKey(connectionId, bucket, key));
   return null;
 }
 
-function cacheArchive(bucket: string, key: string, path: string): void {
-  archiveCache.set(cacheKey(bucket, key), { path, expiresAt: Date.now() + CACHE_TTL, bucket, key });
+function cacheArchive(connectionId: string, bucket: string, key: string, path: string): void {
+  archiveCache.set(cacheKey(connectionId, bucket, key), {
+    path,
+    expiresAt: Date.now() + CACHE_TTL,
+    bucket,
+    key
+  });
 }
 
 function streamToTempFile(stream: ReadableStream, ext: string): Promise<string> {
@@ -695,24 +700,25 @@ export type ArchiveMetadataFn = (key: string) => Promise<{ size: number; content
  * For nested archives, first download the outer archive, then extract the nested one.
  */
 async function resolveArchivePath(
+  connectionId: string,
   bucket: string,
   key: string,
   nestedArchivePath: string | undefined,
   downloadFn: ArchiveDownloadFn
 ): Promise<string> {
-  let tempPath = getCachedPath(bucket, key);
+  let tempPath = getCachedPath(connectionId, bucket, key);
   if (!tempPath) {
     log.info({ bucket, key }, 'downloading archive');
     const ext = extname(key) || '.bin';
     const stream = await downloadFn(key);
     tempPath = await streamToTempFile(stream, ext);
-    cacheArchive(bucket, key, tempPath);
+    cacheArchive(connectionId, bucket, key, tempPath);
   }
 
   if (!nestedArchivePath) return tempPath;
 
   // Resolve nested archive — cache it under a composite key
-  const nestedCacheKey = cacheKey(bucket, `${key}!/${nestedArchivePath}`);
+  const nestedCacheKey = cacheKey(connectionId, bucket, `${key}!/${nestedArchivePath}`);
   const cachedEntry = archiveCache.get(nestedCacheKey);
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (cachedEntry && Date.now() < cachedEntry.expiresAt && existsSync(cachedEntry.path)) {
@@ -780,7 +786,8 @@ export async function listArchiveContents(
   downloadFn: ArchiveDownloadFn,
   metadataFn: ArchiveMetadataFn,
   nestedArchivePath?: string,
-  maxBytes?: number
+  maxBytes?: number,
+  connectionId = ''
 ): Promise<ArchiveListing> {
   const effectiveKey = nestedArchivePath ? `${key}!/${nestedArchivePath}` : key;
   const format = getArchiveFormat(effectiveKey);
@@ -802,7 +809,13 @@ export async function listArchiveContents(
     }
   }
 
-  const tempPath = await resolveArchivePath(bucket, key, nestedArchivePath, downloadFn);
+  const tempPath = await resolveArchivePath(
+    connectionId,
+    bucket,
+    key,
+    nestedArchivePath,
+    downloadFn
+  );
 
   log.debug(
     {
@@ -843,7 +856,8 @@ export async function extractArchiveEntry(
   downloadFn: ArchiveDownloadFn,
   metadataFn: ArchiveMetadataFn,
   nestedArchivePath?: string,
-  maxBytes?: number
+  maxBytes?: number,
+  connectionId = ''
 ): Promise<Buffer | null> {
   const effectiveKey = nestedArchivePath ? `${key}!/${nestedArchivePath}` : key;
   const format = getArchiveFormat(effectiveKey);
@@ -865,7 +879,13 @@ export async function extractArchiveEntry(
     }
   }
 
-  const tempPath = await resolveArchivePath(bucket, key, nestedArchivePath, downloadFn);
+  const tempPath = await resolveArchivePath(
+    connectionId,
+    bucket,
+    key,
+    nestedArchivePath,
+    downloadFn
+  );
 
   log.debug(
     { bucket, key, internal_path: internalPath, nested_archive_path: nestedArchivePath, format },

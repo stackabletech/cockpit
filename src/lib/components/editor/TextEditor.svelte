@@ -4,6 +4,7 @@
   import { theme } from '$lib/theme.svelte';
   import { getLocale } from '$lib/paraglide/runtime.js';
   import { prettifyJson } from '$lib/editor/format-json';
+  import * as m from '$lib/paraglide/messages.js';
 
   let {
     value = $bindable(),
@@ -295,7 +296,7 @@
   class:opacity-0={!ready}
   data-ready={ready || undefined}
   role="application"
-  aria-label="Text editor"
+  aria-label={m.storage_editor_label()}
 >
   {#if !browser || !ready}
     <pre

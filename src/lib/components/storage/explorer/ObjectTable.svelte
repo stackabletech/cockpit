@@ -210,7 +210,7 @@
             onchange={(e) => storage.selectAll(e.currentTarget.checked)}
             onclick={(e) => e.stopPropagation()}
             disabled={!storage.showCheckboxes}
-            aria-label="Select all"
+            aria-label={m.storage_select_all()}
           />
         </th>
         <th class="w-7/12 font-semibold">{m.storage_header_name()}</th>

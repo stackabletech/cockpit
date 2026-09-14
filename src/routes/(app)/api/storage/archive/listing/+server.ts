@@ -29,7 +29,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   const nestedArchivePath = url.searchParams.get('nestedArchivePath')?.trim() || undefined;
 
   const config = locals.storageConfig;
-  if (!config) {
+  const connectionId = locals.storageConnectionId;
+  if (!config || !connectionId) {
     throw error(401, 'No storage connection configured');
   }
 
@@ -51,7 +52,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     downloadFn,
     metadataFn,
     nestedArchivePath,
-    archivePreviewMaxBytes
+    archivePreviewMaxBytes,
+    connectionId
   );
   return Response.json(listing);
 };
