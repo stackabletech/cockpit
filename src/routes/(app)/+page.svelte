@@ -76,7 +76,12 @@
         {#each bookmarks as bookmark (bookmark.id)}
           {@const product = getProduct(bookmark.productId)}
           <div class="border-base-300 bg-base-100 flex items-center gap-3 rounded-lg border p-3">
-            <a href={bookmark.url} target="_blank" rel="noopener noreferrer" class="shrink-0">
+            <a
+              href={bookmark.url}
+              target="_blank"
+              rel="external noopener noreferrer"
+              class="shrink-0"
+            >
               {#if product.logo}
                 <enhanced:img
                   src={product.logo}
@@ -102,11 +107,11 @@
               {/if}
             </a>
             <div class="min-w-0 flex-1">
-              <div class="flex min-w-0 items-baseline gap-1.5">
+              <div class="min-w-0">
                 <a
                   href={bookmark.url}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="external noopener noreferrer"
                   class="text-base-content truncate text-[13.5px] leading-tight font-bold"
                 >
                   {bookmark.name}

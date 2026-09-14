@@ -64,6 +64,7 @@ test.describe('Sidebar bookmarks', () => {
     await expect(dashboardsLink).toHaveAttribute('href', BOOKMARK_URL);
     await expect(dashboardsLink).toHaveAttribute('target', '_blank');
     await expect(dashboardsLink).toHaveAttribute('rel', /noopener/);
+    await expect(dashboardsLink).toHaveAttribute('rel', /external/);
     await expect(dashboardsLink).not.toHaveAttribute('aria-current');
   });
 
@@ -74,6 +75,30 @@ test.describe('Sidebar bookmarks', () => {
     const trinoLink = page.getByRole('link', { name: 'Trino' });
     await expect(trinoLink).toBeVisible();
     await expect(trinoLink.locator('..').getByRole('link')).toHaveCount(1);
+  });
+
+  test('ignores invalid bookmarks stored in localStorage', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'dashboard_bookmarks',
+        JSON.stringify([
+          {
+            id: 'invalid-bookmark',
+            productId: 'superset',
+            name: 'Unsafe link',
+            environment: '',
+            url: 'javascript:alert(1)',
+            pinned: false,
+            createdAt: new Date().toISOString()
+          }
+        ])
+      );
+    });
+
+    await page.goto('/');
+    await waitForHydration(page);
+
+    await expect(page.getByRole('link', { name: 'Unsafe link' })).not.toBeVisible();
   });
 
   test('tools section is collapsible', async ({ page }) => {

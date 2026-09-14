@@ -103,7 +103,7 @@
     <a
       href={bookmark.url}
       target="_blank"
-      rel="noopener noreferrer"
+      rel="external noopener noreferrer"
       onclick={() => (mobileOpen = false)}
       title={collapsed ? bookmark.name : undefined}
       class="text-base-content/70 hover:bg-base-content/5 hover:text-base-content flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2

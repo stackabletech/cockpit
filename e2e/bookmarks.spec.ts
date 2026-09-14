@@ -133,9 +133,11 @@ test.describe('Dashboard bookmarks', () => {
     await expect(titleLink).toHaveAttribute('href', 'https://superset.example.com');
     await expect(titleLink).toHaveAttribute('target', '_blank');
     await expect(titleLink).toHaveAttribute('rel', /noopener/);
+    await expect(titleLink).toHaveAttribute('rel', /external/);
     await expect(imageLink).toHaveAttribute('href', 'https://superset.example.com');
     await expect(imageLink).toHaveAttribute('target', '_blank');
     await expect(imageLink).toHaveAttribute('rel', /noopener/);
+    await expect(imageLink).toHaveAttribute('rel', /external/);
   });
 
   test('bookmark persists in localStorage', async ({ page }) => {
