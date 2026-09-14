@@ -85,6 +85,19 @@ test.describe('Dashboard bookmarks', () => {
     await expect(page.getByText('superset.example.com')).toBeVisible();
   });
 
+  test('rejects non-HTTP bookmark URLs', async ({ page }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    await page.getByRole('button', { name: addButton }).click();
+    await page.getByLabel('Name').fill('Unsafe link');
+    await page.getByLabel('URL').fill('javascript:alert(1)');
+
+    await expect(
+      page.locator('dialog[open]').getByRole('button', { name: addButton })
+    ).toBeDisabled();
+  });
+
   test('adds a bookmark and shows it on the dashboard', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);

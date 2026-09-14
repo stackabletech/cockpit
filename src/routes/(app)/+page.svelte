@@ -5,7 +5,7 @@
   import IconStarOutline from 'virtual:icons/material-symbols/star-outline';
   import AddBookmarkModal from '$lib/components/dashboard/AddBookmarkModal.svelte';
   import { getBookmarks, togglePinBookmark } from '$lib/dashboard/bookmarks.svelte.js';
-  import { PRODUCTS } from '$lib/dashboard/products';
+  import { getProduct, handleProductLogoError } from '$lib/dashboard/products';
   import type { Bookmark } from '$lib/dashboard/types';
   import type { PageData } from './$types';
 
@@ -25,23 +25,12 @@
     addModalOpen = true;
   }
 
-  function getProduct(productId: string) {
-    return PRODUCTS.find((p) => p.id === productId) ?? PRODUCTS[PRODUCTS.length - 1];
-  }
-
   function extractHostname(url: string): string {
     try {
       return new URL(url).hostname;
     } catch {
       return url;
     }
-  }
-
-  function handleLogoError(e: Event) {
-    const el = e.currentTarget as HTMLImageElement;
-    el.style.display = 'none';
-    const next = el.nextElementSibling;
-    if (next) next.classList.remove('hidden');
   }
 </script>
 
@@ -92,10 +81,10 @@
                 src={product.logo}
                 alt={product.name}
                 class="size-[38px] shrink-0 rounded-md bg-white object-contain p-1"
-                onerror={handleLogoError}
+                onerror={handleProductLogoError}
               />
               <span
-                class="flex hidden size-[38px] shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold text-white"
+                class="hidden size-[38px] shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold text-white"
                 style="background-color: {product.color}"
                 aria-hidden="true"
               >

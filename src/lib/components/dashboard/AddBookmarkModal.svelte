@@ -1,9 +1,24 @@
 <script lang="ts">
   import Modal from '$lib/components/Modal.svelte';
-  import { PRODUCTS, type Product } from '$lib/dashboard/products';
+  import {
+    getProduct,
+    handleProductLogoError,
+    PRODUCTS,
+    type Product
+  } from '$lib/dashboard/products';
   import { addBookmark, removeBookmark, updateBookmark } from '$lib/dashboard/bookmarks.svelte.js';
   import type { Bookmark } from '$lib/dashboard/types';
   import * as m from '$lib/paraglide/messages.js';
+  import { z } from 'zod';
+
+  const BookmarkFormSchema = z.object({
+    productId: z.string(),
+    name: z.string().trim().min(1),
+    environment: z.string(),
+    url: z.url().refine((value) => ['http:', 'https:'].includes(new URL(value).protocol)),
+    pinned: z.boolean(),
+    pinnedForEveryone: z.boolean()
+  });
 
   let {
     open = $bindable(false),
@@ -24,7 +39,7 @@
   let pinnedForEveryone = $state(false);
   let confirmDeleteOpen = $state(false);
   let wasOpen = $state(false);
-  let skipInitOnOpen = $state(false);
+  let urlError = $state(false);
 
   let uid = $props.id();
 
@@ -71,8 +86,15 @@
       connectorPath = `M ${x1} ${yStart} V ${y2} H ${x2}`;
     };
 
+    const observer = new ResizeObserver(compute);
+    observer.observe(section);
+    window.addEventListener('resize', compute);
     const frame = requestAnimationFrame(compute);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('resize', compute);
+    };
   });
 
   function resetForm() {
@@ -83,11 +105,12 @@
     url = '';
     pinned = false;
     pinnedForEveryone = false;
+    urlError = false;
   }
 
   function initForm(target: Bookmark | null) {
     if (target) {
-      selectedProduct = PRODUCTS.find((p) => p.id === target.productId) ?? PRODUCTS[0];
+      selectedProduct = getProduct(target.productId);
       name = target.name;
       userEditedName = true;
       environment = target.environment;
@@ -102,12 +125,7 @@
   $effect(() => {
     const opening = open && !wasOpen;
     wasOpen = open;
-    if (!opening) return;
-    if (skipInitOnOpen) {
-      skipInitOnOpen = false;
-      return;
-    }
-    initForm(bookmark);
+    if (opening) initForm(bookmark);
   });
 
   function handleProductSelect(product: Product) {
@@ -119,6 +137,10 @@
 
   function handleNameInput() {
     userEditedName = true;
+  }
+
+  function handleUrlInput() {
+    urlError = false;
   }
 
   function getDefaultName(): string {
@@ -133,16 +155,7 @@
     }
   }
 
-  function handleLogoError(e: Event) {
-    const el = e.currentTarget as HTMLImageElement;
-    el.style.display = 'none';
-    const next = el.nextElementSibling;
-    if (next) next.classList.remove('hidden');
-  }
-
   function handleSubmit() {
-    if (!name.trim() || !url.trim()) return;
-
     const values = {
       productId: selectedProduct.id,
       name: name.trim(),
@@ -153,24 +166,29 @@
       // existing value (e.g. when editing a bookmark pinned by an admin).
       pinnedForEveryone: isAdmin ? pinnedForEveryone : (bookmark?.pinnedForEveryone ?? false)
     };
+    const parsed = BookmarkFormSchema.safeParse(values);
+    if (!parsed.success) {
+      urlError = true;
+      return;
+    }
 
     if (bookmark) {
-      updateBookmark({ ...bookmark, ...values });
+      updateBookmark({ ...bookmark, ...parsed.data });
     } else {
-      addBookmark({ createdAt: new Date().toISOString(), ...values });
+      addBookmark({ createdAt: new Date().toISOString(), ...parsed.data });
     }
     resetForm();
     open = false;
   }
 
   function handleDeleteClick() {
-    skipInitOnOpen = true;
     open = false;
     confirmDeleteOpen = true;
   }
 
   function handleDeleteCancel() {
     confirmDeleteOpen = false;
+    initForm(bookmark);
     open = true;
   }
 
@@ -226,12 +244,12 @@
               {#if product.logo}
                 <enhanced:img
                   src={product.logo}
-                  alt={product.name}
+                  alt=""
                   class="size-5 rounded-full bg-white object-contain p-0.5"
-                  onerror={handleLogoError}
+                  onerror={handleProductLogoError}
                 />
                 <span
-                  class="flex hidden size-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                  class="hidden size-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
                   style="background-color: {product.color}"
                 >
                   {product.initials}
@@ -262,7 +280,7 @@
             bind:value={name}
             oninput={handleNameInput}
             placeholder={getDefaultName()}
-            class="input input-bordered w-full"
+            class="input w-full"
           />
         </div>
         <div>
@@ -274,7 +292,7 @@
             type="text"
             bind:value={environment}
             placeholder={m.bookmark_env_placeholder()}
-            class="input input-bordered w-full"
+            class="input w-full"
           />
         </div>
       </div>
@@ -288,9 +306,15 @@
           id="{uid}-url"
           type="url"
           bind:value={url}
+          oninput={handleUrlInput}
           placeholder="https://superset.data-prod.corp"
-          class="input input-bordered w-full"
+          class="input w-full"
+          aria-invalid={urlError}
+          aria-describedby={urlError ? `${uid}-url-error` : undefined}
         />
+        {#if urlError}
+          <p id="{uid}-url-error" class="text-error mt-1 text-sm">{m.bookmark_url_error()}</p>
+        {/if}
       </div>
 
       <!-- Pinned checkbox -->
@@ -368,12 +392,12 @@
               {#if selectedProduct.logo}
                 <enhanced:img
                   src={selectedProduct.logo}
-                  alt={selectedProduct.name}
+                  alt=""
                   class="size-10 rounded-xl bg-white object-contain p-1"
-                  onerror={handleLogoError}
+                  onerror={handleProductLogoError}
                 />
                 <span
-                  class="flex hidden size-10 items-center justify-center rounded-xl text-sm font-bold text-white"
+                  class="hidden size-10 items-center justify-center rounded-xl text-sm font-bold text-white"
                   style="background-color: {selectedProduct.color}"
                 >
                   {selectedProduct.initials}
@@ -431,7 +455,7 @@
       <button
         type="button"
         class="btn btn-primary"
-        disabled={!name.trim() || !url.trim()}
+        disabled={!name.trim() || !BookmarkFormSchema.shape.url.safeParse(url.trim()).success}
         onclick={handleSubmit}
       >
         {isEditing ? m.bookmark_save_changes() : m.bookmark_add_title()}

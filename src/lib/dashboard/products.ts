@@ -145,3 +145,18 @@ export const PRODUCTS: Product[] = [
     defaultName: ''
   }
 ];
+
+export function getProduct(productId: string): Product {
+  return PRODUCTS.find((product) => product.id === productId) ?? PRODUCTS[PRODUCTS.length - 1];
+}
+
+export function handleProductLogoError(event: Event): void {
+  const image = event.currentTarget as HTMLImageElement;
+  image.style.display = 'none';
+
+  const fallback = image.nextElementSibling;
+  if (fallback) {
+    fallback.classList.remove('hidden');
+    fallback.classList.add('flex');
+  }
+}

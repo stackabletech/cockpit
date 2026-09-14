@@ -9,8 +9,9 @@
   import type { NavItem } from '$lib/types/navigation.js';
   import { getPlatformSection, getToolsSection } from './nav-items.js';
   import { getBookmarks } from '$lib/dashboard/bookmarks.svelte.js';
-  import { PRODUCTS } from '$lib/dashboard/products';
+  import { getProduct, handleProductLogoError } from '$lib/dashboard/products';
   import type { Bookmark } from '$lib/dashboard/types';
+  import stackableLogo from '$lib/logos/stackable.svg?enhanced';
 
   let {
     collapsed = $bindable(false),
@@ -64,17 +65,6 @@
     }
   }
 
-  function getProduct(productId: string) {
-    return PRODUCTS.find((p) => p.id === productId) ?? PRODUCTS[PRODUCTS.length - 1];
-  }
-
-  function handleLogoError(e: Event) {
-    const el = e.currentTarget as HTMLImageElement;
-    el.style.display = 'none';
-    const next = el.nextElementSibling;
-    if (next) next.classList.remove('hidden');
-  }
-
   let sidebarEl: HTMLElement | undefined = $state();
 </script>
 
@@ -87,12 +77,12 @@
   {#if product.logo}
     <enhanced:img
       src={product.logo}
-      alt=""
+      alt={product.name}
       class="size-5 shrink-0 rounded-full bg-white object-contain p-0.5"
-      onerror={handleLogoError}
+      onerror={handleProductLogoError}
     />
     <span
-      class="flex hidden size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
+      class="hidden size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
       style="background-color: {product.color}"
     >
       {product.initials}
@@ -152,7 +142,7 @@
 >
   <!-- Brand -->
   <div class="border-base-300 flex h-16 shrink-0 items-center gap-3 border-b px-4">
-    <img src="/stackable-logo-bimi-v2.svg" alt="" class="h-7 w-7 shrink-0" />
+    <enhanced:img src={stackableLogo} alt={m.page_title_default()} class="h-7 w-7 shrink-0" />
     {#if !collapsed}
       <span class="text-base-content text-lg font-bold tracking-tight">Stackable</span>
     {/if}
