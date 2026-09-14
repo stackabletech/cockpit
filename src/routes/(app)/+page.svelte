@@ -76,39 +76,47 @@
         {#each bookmarks as bookmark (bookmark.id)}
           {@const product = getProduct(bookmark.productId)}
           <div class="border-base-300 bg-base-100 flex items-center gap-3 rounded-lg border p-3">
-            {#if product.logo}
-              <enhanced:img
-                src={product.logo}
-                alt={product.name}
-                class="size-[38px] shrink-0 rounded-md bg-white object-contain p-1"
-                onerror={handleProductLogoError}
-              />
-              <span
-                class="hidden size-[38px] shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold text-white"
-                style="background-color: {product.color}"
-                aria-hidden="true"
-              >
-                {product.initials}
-              </span>
-            {:else}
-              <span
-                class="flex size-[38px] shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold text-white"
-                style="background-color: {product.color}"
-                aria-hidden="true"
-              >
-                {product.initials}
-              </span>
-            {/if}
+            <a href={bookmark.url} target="_blank" rel="noopener noreferrer" class="shrink-0">
+              {#if product.logo}
+                <enhanced:img
+                  src={product.logo}
+                  alt={product.name}
+                  class="size-[38px] rounded-md bg-white object-contain p-1"
+                  onerror={handleProductLogoError}
+                />
+                <span
+                  class="hidden size-[38px] items-center justify-center rounded-md font-mono text-xs font-bold text-white"
+                  style="background-color: {product.color}"
+                  aria-hidden="true"
+                >
+                  {product.initials}
+                </span>
+              {:else}
+                <span
+                  class="flex size-[38px] items-center justify-center rounded-md font-mono text-xs font-bold text-white"
+                  style="background-color: {product.color}"
+                  aria-hidden="true"
+                >
+                  {product.initials}
+                </span>
+              {/if}
+            </a>
             <div class="min-w-0 flex-1">
               <div class="flex min-w-0 items-baseline gap-1.5">
-                <span class="text-base-content truncate text-[13.5px] leading-tight font-bold">
+                <a
+                  href={bookmark.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-base-content truncate text-[13.5px] leading-tight font-bold"
+                >
                   {bookmark.name}
-                </span>
-                {#if bookmark.environment}
-                  <span class="text-base-content/70 shrink-0 text-[13px]"
-                    >{bookmark.environment}</span
-                  >
-                {/if}
+                  {#if bookmark.environment}
+                    <span
+                      class="text-base-content/70 shrink-0 text-[13px] leading-loose font-normal"
+                      >{bookmark.environment}</span
+                    >
+                  {/if}
+                </a>
               </div>
               <div class="mt-1 flex flex-wrap items-center gap-1.5">
                 <span class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]">
