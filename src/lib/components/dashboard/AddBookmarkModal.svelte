@@ -7,24 +7,8 @@
     type Product
   } from '$lib/dashboard/products';
   import { addBookmark, removeBookmark, updateBookmark } from '$lib/dashboard/bookmarks.svelte.js';
-  import type { Bookmark } from '$lib/dashboard/types';
+  import { bookmarkFormSchema, type Bookmark } from '$lib/dashboard/types';
   import * as m from '$lib/paraglide/messages.js';
-  import { z } from 'zod';
-
-  const BookmarkFormSchema = z.object({
-    productId: z.string(),
-    name: z.string().trim().min(1),
-    environment: z.string(),
-    url: z.url().refine((value) => {
-      try {
-        return ['http:', 'https:'].includes(new URL(value).protocol);
-      } catch {
-        return false;
-      }
-    }),
-    pinned: z.boolean(),
-    pinnedForEveryone: z.boolean()
-  });
 
   let {
     open = $bindable(false),
@@ -172,7 +156,7 @@
       // existing value (e.g. when editing a bookmark pinned by an admin).
       pinnedForEveryone: isAdmin ? pinnedForEveryone : (bookmark?.pinnedForEveryone ?? false)
     };
-    const parsed = BookmarkFormSchema.safeParse(values);
+    const parsed = bookmarkFormSchema.safeParse(values);
     if (!parsed.success) {
       urlError = true;
       return;
@@ -461,7 +445,7 @@
       <button
         type="button"
         class="btn btn-primary"
-        disabled={!name.trim() || !BookmarkFormSchema.shape.url.safeParse(url.trim()).success}
+        disabled={!name.trim() || !bookmarkFormSchema.shape.url.safeParse(url.trim()).success}
         onclick={handleSubmit}
       >
         {isEditing ? m.bookmark_save_changes() : m.bookmark_add_title()}

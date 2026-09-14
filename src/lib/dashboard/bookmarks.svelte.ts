@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import type { Bookmark } from './types';
+import { bookmarkSchema, type Bookmark } from './types';
 
 const LS_KEY = 'dashboard_bookmarks';
 
@@ -13,7 +13,8 @@ function loadBookmarks(): Bookmark[] {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return [];
     const items = JSON.parse(raw);
-    return Array.isArray(items) ? (items as Bookmark[]) : [];
+    const parsed = bookmarkSchema.array().safeParse(items);
+    return parsed.success ? parsed.data : [];
   } catch {
     return [];
   }
