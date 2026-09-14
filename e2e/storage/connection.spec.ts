@@ -127,7 +127,7 @@ test.describe('Storage S3 — Connection', () => {
     await expect(page).toHaveURL(
       bucketRoute(new URL(credentials.endpoint).hostname, credentials.bucket)
     );
-    await expect(page.locator('nav[aria-label="breadcrumb"] [aria-current="page"]')).toContainText(
+    await expect(page.getByRole('navigation', { name: 'breadcrumb' })).toContainText(
       credentials.bucket
     );
   });
