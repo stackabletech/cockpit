@@ -15,7 +15,13 @@
     productId: z.string(),
     name: z.string().trim().min(1),
     environment: z.string(),
-    url: z.url().refine((value) => ['http:', 'https:'].includes(new URL(value).protocol)),
+    url: z.url().refine((value) => {
+      try {
+        return ['http:', 'https:'].includes(new URL(value).protocol);
+      } catch {
+        return false;
+      }
+    }),
     pinned: z.boolean(),
     pinnedForEveryone: z.boolean()
   });

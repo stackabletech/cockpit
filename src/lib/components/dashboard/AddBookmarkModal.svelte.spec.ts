@@ -79,6 +79,15 @@ describe('AddBookmarkModal', () => {
     expect(addBookmark).toHaveBeenCalledWith(expect.objectContaining({ pinnedForEveryone: false }));
   });
 
+  it('disables submission for a malformed URL without throwing', async () => {
+    renderModal();
+
+    await page.getByLabelText('Name').fill('Private Dashboard');
+    await page.getByLabelText('URL').fill('not a URL');
+
+    await expect.element(page.getByRole('button', { name: 'Add Bookmark' })).toBeDisabled();
+  });
+
   it('preserves pinnedForEveryone when a non-admin edits an admin-pinned bookmark', async () => {
     const bookmark: Bookmark = {
       id: 'b1',
