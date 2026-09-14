@@ -117,6 +117,27 @@ test.describe('Dashboard bookmarks', () => {
     await expect(page.getByText('superset.example.com')).toBeVisible();
   });
 
+  test('opens dashboard bookmark images and titles in a new tab', async ({ page }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    await page.getByRole('button', { name: addButton }).click();
+    await page.getByLabel('Name').fill('Dashboards');
+    await page.getByLabel('URL').fill('https://superset.example.com');
+    await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
+
+    const bookmarkSection = page.getByLabel('Bookmarks');
+    const titleLink = bookmarkSection.getByRole('link', { name: 'Dashboards' });
+    const imageLink = bookmarkSection.getByRole('link', { name: 'Trino' });
+
+    await expect(titleLink).toHaveAttribute('href', 'https://superset.example.com');
+    await expect(titleLink).toHaveAttribute('target', '_blank');
+    await expect(titleLink).toHaveAttribute('rel', /noopener/);
+    await expect(imageLink).toHaveAttribute('href', 'https://superset.example.com');
+    await expect(imageLink).toHaveAttribute('target', '_blank');
+    await expect(imageLink).toHaveAttribute('rel', /noopener/);
+  });
+
   test('bookmark persists in localStorage', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);
