@@ -55,8 +55,7 @@ export const filePreviewColumns =
 // ── OPA ────────────────────────────────────────────────────────────────────
 
 /** When `STACKABLE_COCKPIT_OPA_ENABLED=true`, the app calls OPA on every
- *  authenticated request to check admin rights. Disabled by default — the
- *  admin check is a no-op until OPA is configured. */
+ *  authenticated request to check admin rights. Disabled by default. */
 export const opaEnabled = env.STACKABLE_COCKPIT_OPA_ENABLED === 'true';
 
 /** OPA server base URL. Required when OPA is enabled.
