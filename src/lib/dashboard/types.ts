@@ -6,8 +6,7 @@ export const bookmarkFormSchema = z.object({
   environment: z.string(),
   url: z.httpUrl(),
   pinned: z.boolean(),
-  // Default preserves bookmarks saved before this field was introduced.
-  pinnedForEveryone: z.boolean().default(false)
+  pinnedForEveryone: z.boolean()
 });
 
 export const bookmarkSchema = bookmarkFormSchema.extend({
