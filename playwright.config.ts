@@ -30,6 +30,11 @@ export default defineConfig({
       reuseExistingServer: true
     },
     {
+      command: 'npx tsx e2e/support/start-mock-opa.ts',
+      url: 'http://localhost:9191/v1/data/stackable/admin',
+      reuseExistingServer: true
+    },
+    {
       command: 'PORT=4173 node --env-file=.env.test build',
       url: baseURL,
       reuseExistingServer: true
@@ -67,6 +72,17 @@ export default defineConfig({
           }
         ]
       : []),
+    // Dedicated admin login: the setup requests an admin OIDC profile so the
+    // mock OPA server grants admin rights. Used by the `admin` test project
+    // to exercise admin-gated UI (e.g. "pin bookmark for everyone").
+    {
+      name: 'setup-admin',
+      testMatch: /auth\.setup\.ts/,
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 1280, height: 720 }
+      }
+    },
     {
       name: 'firefox',
       use: {
@@ -85,6 +101,16 @@ export default defineConfig({
         ...(chromiumExecutablePath && { launchOptions: { executablePath: chromiumExecutablePath } })
       },
       dependencies: ['setup-chromium']
+    },
+    {
+      name: 'admin',
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 1280, height: 720 },
+        storageState: 'e2e/.auth/user-setup-admin.json',
+        ...(chromiumExecutablePath && { launchOptions: { executablePath: chromiumExecutablePath } })
+      },
+      dependencies: ['setup-admin']
     },
     ...(!process.env.CI
       ? [

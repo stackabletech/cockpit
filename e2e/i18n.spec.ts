@@ -23,8 +23,8 @@ test.describe('Internationalisation', () => {
     await expect(html).toHaveAttribute('lang', 'en');
 
     // Dashboard content is in English
-    await expect(page.getByText('Welcome back')).toBeVisible();
-    await expect(page.getByText('Getting started')).toBeVisible();
+    await expect(page.getByText('Stackable Unified Data Platform overview')).toBeVisible();
+    await expect(page.getByText('Add Bookmark')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   });
 
@@ -58,8 +58,8 @@ test.describe('Internationalisation', () => {
 
     // Page reloads with German content
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-    await expect(page.getByText('Willkommen zurück')).toBeVisible();
-    await expect(page.getByText('Erste Schritte')).toBeVisible();
+    await expect(page.getByText('Ihre Plattform')).toBeVisible();
+    await expect(page.getByText('Lesezeichen hinzufügen')).toBeVisible();
   });
 
   test('locale persists via cookie across navigation', async ({ page, context, baseURL }) => {
@@ -78,14 +78,14 @@ test.describe('Internationalisation', () => {
 
     // Should render in German
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-    await expect(page.getByText('Willkommen zurück')).toBeVisible();
+    await expect(page.getByText('Ihre Plattform')).toBeVisible();
 
     // Navigate to same page (simulate navigation)
     await page.goto('/');
 
     // Should still be German
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-    await expect(page.getByText('Willkommen zurück')).toBeVisible();
+    await expect(page.getByText('Ihre Plattform')).toBeVisible();
   });
 
   test('Accept-Language header respected for first visit', async ({ browser }, testInfo) => {
@@ -101,7 +101,7 @@ test.describe('Internationalisation', () => {
 
     // Should render in German based on Accept-Language
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-    await expect(page.getByText('Willkommen zurück')).toBeVisible();
+    await expect(page.getByText('Ihre Plattform')).toBeVisible();
 
     await context.close();
   });
