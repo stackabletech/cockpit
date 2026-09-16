@@ -102,10 +102,10 @@ describe('GET /api/storage/preview', () => {
       'data.csv',
       0,
       250,
-      'text/csv',
       100,
       expect.anything(),
-      false
+      false,
+      'b1'
     );
   });
 
@@ -205,7 +205,8 @@ describe('GET /api/storage/preview', () => {
       250,
       expect.anything(),
       5000,
-      false
+      false,
+      'b1'
     );
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
@@ -225,7 +226,8 @@ describe('GET /api/storage/preview', () => {
       250,
       expect.anything(),
       5000,
-      false
+      false,
+      'b1'
     );
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
@@ -245,7 +247,8 @@ describe('GET /api/storage/preview', () => {
       100,
       expect.anything(),
       50000,
-      false
+      false,
+      'b1'
     );
   });
 
@@ -264,7 +267,8 @@ describe('GET /api/storage/preview', () => {
       250,
       expect.anything(),
       0,
-      false
+      false,
+      'b1'
     );
   });
 
