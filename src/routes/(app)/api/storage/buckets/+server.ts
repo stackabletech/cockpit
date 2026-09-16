@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import type { BucketDetails } from '$lib/storage/details-types.js';
 import { getConnectionProvider } from '$lib/server/storage/utils.js';
 import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import { withStorageHttpErrors } from '$lib/server/storage/wrap-provider.js';
 
 export const GET: RequestHandler = async (event) => {
   const detailsParam = event.url.searchParams.get('details');
@@ -37,7 +38,9 @@ export const GET: RequestHandler = async (event) => {
       throw error(401, 'No storage connection configured');
     }
 
-    const listedBuckets = await getConnectionProvider(config).listContainers();
+    const listedBuckets = await withStorageHttpErrors(
+      getConnectionProvider(config)
+    ).listContainers();
     const additional = config.additionalBuckets ?? [];
     const allBuckets = [...new Set([...listedBuckets, ...additional])];
     event.locals.logger.debug({ bucket_count: allBuckets.length }, 'bucket list returned');

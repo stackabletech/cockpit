@@ -78,12 +78,12 @@ describe('UI Pattern Enforcement', () => {
   });
 
   it('clickable div/span elements must not replace <button> (BITV 2.0 keyboard nav)', () => {
-    const KNOWN_VIOLATIONS = [
-      'CatalogTree.svelte',
-      'OperationsButton.svelte',
-      'TabBar.svelte',
-      'FloatingMenu.svelte',
-      'StatementResult.svelte'
+    const KNOWN_VIOLATION_PATHS = [
+      'src/lib/components/catalog/CatalogTree.svelte',
+      'src/lib/components/storage/explorer/OperationsButton.svelte',
+      'src/lib/components/TabBar.svelte',
+      'src/lib/components/storage/shared/FloatingMenu.svelte',
+      'src/lib/components/trino/StatementResult.svelte'
     ];
 
     const files = findFiles('src', /\.svelte$/);
@@ -92,9 +92,7 @@ describe('UI Pattern Enforcement', () => {
       return /<(div|span)[^>]+(on:click|onclick)=/.test(content);
     });
 
-    const newViolations = allViolations.filter(
-      (f) => !KNOWN_VIOLATIONS.some((kv) => f.endsWith(kv))
-    );
+    const newViolations = allViolations.filter((f) => !KNOWN_VIOLATION_PATHS.includes(f));
     expect(newViolations).toStrictEqual([]);
   });
 });

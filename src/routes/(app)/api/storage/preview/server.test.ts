@@ -7,7 +7,7 @@ vi.mock('$lib/server/storage/utils.js', () => ({
 }));
 
 vi.mock('$lib/server/storage/wrap-provider.js', () => ({
-  wrapProvider: (p: unknown) => p
+  withStorageHttpErrors: (p: unknown) => p
 }));
 
 vi.mock('$lib/server/storage/preview/binary.js', () => ({

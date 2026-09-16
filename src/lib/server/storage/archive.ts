@@ -3,6 +3,7 @@ import {
   createWriteStream,
   existsSync,
   mkdtempSync,
+  statSync,
   writeFileSync,
   rmSync
 } from 'node:fs';
@@ -208,10 +209,11 @@ function listZip(tempPath: string, internalPrefix: string, maxBytes?: number): A
   return { entries: result, hasMore: false };
 }
 
-function extractZipEntry(tempPath: string, internalPath: string): Buffer | null {
+function extractZipEntry(tempPath: string, internalPath: string, maxBytes?: number): Buffer | null {
   const zip = new AdmZip(tempPath);
   const entry = zip.getEntry(internalPath);
   if (!entry || entry.isDirectory) return null;
+  if (maxBytes !== undefined && entry.header.size > maxBytes) return null;
   return entry.getData();
 }
 
@@ -342,7 +344,11 @@ function listTar(
   });
 }
 
-function extractTarEntry(tempPath: string, internalPath: string): Promise<Buffer | null> {
+function extractTarEntry(
+  tempPath: string,
+  internalPath: string,
+  maxBytes?: number
+): Promise<Buffer | null> {
   return new Promise((resolve, reject) => {
     const normalized = normalizePath(internalPath);
     let found: Buffer | null = null;
@@ -354,10 +360,24 @@ function extractTarEntry(tempPath: string, internalPath: string): Promise<Buffer
       (header: tar.Headers, stream: NodeJS.ReadableStream, next: (err?: Error | null) => void) => {
         const entryPath = normalizePath(header.name);
         if (header.type === 'file' && entryPath === normalized && !found) {
+          if (maxBytes !== undefined && (header.size ?? 0) > maxBytes) {
+            stream.resume();
+            stream.on('end', next);
+            return;
+          }
           const chunks: Buffer[] = [];
-          stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+          let size = 0;
+          let tooLarge = false;
+          stream.on('data', (chunk: Buffer) => {
+            size += chunk.length;
+            if (maxBytes !== undefined && size > maxBytes) {
+              tooLarge = true;
+              return;
+            }
+            if (!tooLarge) chunks.push(chunk);
+          });
           stream.on('end', () => {
-            found = Buffer.concat(chunks);
+            if (!tooLarge) found = Buffer.concat(chunks);
             next();
           });
         } else {
@@ -416,7 +436,11 @@ function listTarGz(
   });
 }
 
-function extractTarGzEntry(tempPath: string, internalPath: string): Promise<Buffer | null> {
+function extractTarGzEntry(
+  tempPath: string,
+  internalPath: string,
+  maxBytes?: number
+): Promise<Buffer | null> {
   return new Promise((resolve, reject) => {
     const normalized = normalizePath(internalPath);
     let found: Buffer | null = null;
@@ -429,10 +453,24 @@ function extractTarGzEntry(tempPath: string, internalPath: string): Promise<Buff
       (header: tar.Headers, stream: NodeJS.ReadableStream, next: (err?: Error | null) => void) => {
         const entryPath = normalizePath(header.name);
         if (header.type === 'file' && entryPath === normalized && !found) {
+          if (maxBytes !== undefined && (header.size ?? 0) > maxBytes) {
+            stream.resume();
+            stream.on('end', next);
+            return;
+          }
           const chunks: Buffer[] = [];
-          stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+          let size = 0;
+          let tooLarge = false;
+          stream.on('data', (chunk: Buffer) => {
+            size += chunk.length;
+            if (maxBytes !== undefined && size > maxBytes) {
+              tooLarge = true;
+              return;
+            }
+            if (!tooLarge) chunks.push(chunk);
+          });
           stream.on('end', () => {
-            found = Buffer.concat(chunks);
+            if (!tooLarge) found = Buffer.concat(chunks);
             next();
           });
         } else {
@@ -511,12 +549,16 @@ async function listRar(tempPath: string, internalPrefix: string): Promise<Archiv
   }
 }
 
-async function extractRarEntry(tempPath: string, internalPath: string): Promise<Buffer | null> {
+async function extractRarEntry(
+  tempPath: string,
+  internalPath: string,
+  maxBytes?: number
+): Promise<Buffer | null> {
   const tmpDir = mkdtempSync(join(tmpdir(), 'rar-extract-'));
   try {
     const { stdout } = await execFileAsync('unrar', ['p', '-inul', tempPath, internalPath], {
       timeout: 30000,
-      maxBuffer: 100 * 1024 * 1024
+      maxBuffer: maxBytes ?? 100 * 1024 * 1024
     });
     if (!stdout) return null;
     return Buffer.from(stdout, 'binary');
@@ -654,7 +696,11 @@ function parse7zListing(stdout: string, prefix: string, maxBytes?: number): Arch
   return { entries, hasMore: false };
 }
 
-async function extract7zEntry(tempPath: string, internalPath: string): Promise<Buffer | null> {
+async function extract7zEntry(
+  tempPath: string,
+  internalPath: string,
+  maxBytes?: number
+): Promise<Buffer | null> {
   const bin = await find7zBinary();
   if (!bin) throw new Error('7z support requires 7-Zip to be installed on the server.');
 
@@ -673,6 +719,9 @@ async function extract7zEntry(tempPath: string, internalPath: string): Promise<B
     }
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     if (!existsSync(resolvedPath)) return null;
+    // Check on disk before reading the entry into memory.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    if (maxBytes !== undefined && statSync(resolvedPath).size > maxBytes) return null;
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     return readFile(resolvedPath);
   } catch (err) {
@@ -704,7 +753,8 @@ async function resolveArchivePath(
   bucket: string,
   key: string,
   nestedArchivePath: string | undefined,
-  downloadFn: ArchiveDownloadFn
+  downloadFn: ArchiveDownloadFn,
+  maxBytes?: number
 ): Promise<string> {
   let tempPath = getCachedPath(connectionId, bucket, key);
   if (!tempPath) {
@@ -737,20 +787,20 @@ async function resolveArchivePath(
 
   switch (format) {
     case 'zip':
-      nestedData = extractZipEntry(tempPath, normNestedPath) ?? null;
+      nestedData = extractZipEntry(tempPath, normNestedPath, maxBytes) ?? null;
       break;
     case 'tar':
-      nestedData = await extractTarEntry(tempPath, normNestedPath);
+      nestedData = await extractTarEntry(tempPath, normNestedPath, maxBytes);
       break;
     case 'tar.gz':
     case 'tgz':
-      nestedData = await extractTarGzEntry(tempPath, normNestedPath);
+      nestedData = await extractTarGzEntry(tempPath, normNestedPath, maxBytes);
       break;
     case 'rar':
-      nestedData = await extractRarEntry(tempPath, normNestedPath);
+      nestedData = await extractRarEntry(tempPath, normNestedPath, maxBytes);
       break;
     case '7z':
-      nestedData = await extract7zEntry(tempPath, normNestedPath);
+      nestedData = await extract7zEntry(tempPath, normNestedPath, maxBytes);
       break;
   }
 
@@ -814,7 +864,8 @@ export async function listArchiveContents(
     bucket,
     key,
     nestedArchivePath,
-    downloadFn
+    downloadFn,
+    maxBytes
   );
 
   log.debug(
@@ -884,7 +935,8 @@ export async function extractArchiveEntry(
     bucket,
     key,
     nestedArchivePath,
-    downloadFn
+    downloadFn,
+    maxBytes
   );
 
   log.debug(
@@ -897,20 +949,20 @@ export async function extractArchiveEntry(
   let data: Buffer | null = null;
   switch (format) {
     case 'zip':
-      data = extractZipEntry(tempPath, normalizedPath) ?? null;
+      data = extractZipEntry(tempPath, normalizedPath, maxBytes) ?? null;
       break;
     case 'tar':
-      data = await extractTarEntry(tempPath, normalizedPath);
+      data = await extractTarEntry(tempPath, normalizedPath, maxBytes);
       break;
     case 'tar.gz':
     case 'tgz':
-      data = await extractTarGzEntry(tempPath, normalizedPath);
+      data = await extractTarGzEntry(tempPath, normalizedPath, maxBytes);
       break;
     case 'rar':
-      data = await extractRarEntry(tempPath, normalizedPath);
+      data = await extractRarEntry(tempPath, normalizedPath, maxBytes);
       break;
     case '7z':
-      data = await extract7zEntry(tempPath, normalizedPath);
+      data = await extract7zEntry(tempPath, normalizedPath, maxBytes);
       break;
     default:
       return null;

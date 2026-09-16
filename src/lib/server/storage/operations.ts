@@ -43,27 +43,29 @@ export async function computeDestinations(
   sourceKeys: string[],
   destinationPrefix: string
 ): Promise<DestEntry[]> {
-  const destinations: DestEntry[] = [];
+  const destinationGroups = await Promise.all(
+    sourceKeys.map(async (key): Promise<DestEntry[]> => {
+      const name = key.endsWith('/')
+        ? key.split('/').filter(Boolean).pop() + '/'
+        : key.split('/').pop();
 
-  for (const key of sourceKeys) {
-    const name = key.endsWith('/')
-      ? key.split('/').filter(Boolean).pop() + '/'
-      : key.split('/').pop();
-
-    if (!key.endsWith('/')) {
-      destinations.push({ sourceKey: key, baseDestKey: destinationPrefix + name });
-    } else {
-      const children = await provider.listAllKeys(key);
-      destinations.push({ sourceKey: key, baseDestKey: destinationPrefix + name });
-      for (const child of children) {
-        if (child === key) continue;
-        const relPath = child.slice(key.length);
-        destinations.push({ sourceKey: child, baseDestKey: destinationPrefix + name + relPath });
+      if (!key.endsWith('/')) {
+        return [{ sourceKey: key, baseDestKey: destinationPrefix + name }];
       }
-    }
-  }
+      const children = await provider.listAllKeys(key);
+      return [
+        { sourceKey: key, baseDestKey: destinationPrefix + name },
+        ...children
+          .filter((child) => child !== key)
+          .map((child) => ({
+            sourceKey: child,
+            baseDestKey: destinationPrefix + name + child.slice(key.length)
+          }))
+      ];
+    })
+  );
 
-  return destinations;
+  return destinationGroups.flat();
 }
 
 /**
@@ -121,40 +123,50 @@ export async function processKeysSequentially(
   const countKey = deleteOriginals ? 'moved' : 'copied';
   const failMsg = deleteOriginals ? 'move copy failed for key' : 'copy failed for key';
 
+  const resolvedDestinations: Array<DestEntry & { destKey: string }> = [];
   for (const { sourceKey, baseDestKey } of destinations) {
-    try {
-      const destKey = await uniqueDestKey(provider, baseDestKey);
-      if (onCopyProgress) {
-        await provider.copyObject(sourceKey, destKey, (loaded, total) => {
-          onCopyProgress(sourceKey, destKey, loaded, total);
-        });
-      } else {
-        await provider.copyObject(sourceKey, destKey);
-      }
-      succeeded.push({ sourceKey, destKey });
-      await onCopySuccess?.(sourceKey, destKey);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      const errorName = err instanceof Error ? err.constructor.name : typeof err;
-      const stack =
-        err instanceof Error ? (err.stack ?? '').split('\n').slice(0, 3).join(' | ') : '';
-      failed.push({ sourceKey, error: message });
-      if (logger) {
-        logger.warn(
-          {
-            bucket,
-            source_key: sourceKey,
-            dest_key: baseDestKey,
-            error: message,
-            error_name: errorName,
-            stack
-          },
-          failMsg
-        );
-      }
-      await onCopyFailed?.(sourceKey, baseDestKey, message, errorName, stack);
-    }
+    resolvedDestinations.push({
+      sourceKey,
+      baseDestKey,
+      destKey: await uniqueDestKey(provider, baseDestKey)
+    });
   }
+
+  await Promise.all(
+    resolvedDestinations.map(async ({ sourceKey, baseDestKey, destKey }) => {
+      try {
+        if (onCopyProgress) {
+          await provider.copyObject(sourceKey, destKey, (loaded, total) => {
+            onCopyProgress(sourceKey, destKey, loaded, total);
+          });
+        } else {
+          await provider.copyObject(sourceKey, destKey);
+        }
+        succeeded.push({ sourceKey, destKey });
+        await onCopySuccess?.(sourceKey, destKey);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        const errorName = err instanceof Error ? err.constructor.name : typeof err;
+        const stack =
+          err instanceof Error ? (err.stack ?? '').split('\n').slice(0, 3).join(' | ') : '';
+        failed.push({ sourceKey, error: message });
+        if (logger) {
+          logger.warn(
+            {
+              bucket,
+              source_key: sourceKey,
+              dest_key: baseDestKey,
+              error: message,
+              error_name: errorName,
+              stack
+            },
+            failMsg
+          );
+        }
+        await onCopyFailed?.(sourceKey, baseDestKey, message, errorName, stack);
+      }
+    })
+  );
 
   if (deleteOriginals && succeeded.length > 0) {
     const keysToDelete = [...new Set(succeeded.map((s) => s.sourceKey))];

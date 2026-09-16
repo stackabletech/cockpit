@@ -66,6 +66,23 @@ describe('GET /api/storage/list', () => {
     expect(mockProvider.listObjects).toHaveBeenCalledWith('', 25, 'abc123');
   });
 
+  it('clamps pageSize to the supported range', async () => {
+    mockProvider.listObjects.mockResolvedValue({
+      contents: [],
+      continuationToken: null,
+      isTruncated: false
+    });
+
+    await GET(mockEvent('bucket=b1&pageSize=1001'));
+    expect(mockProvider.listObjects).toHaveBeenLastCalledWith('', 1_000, undefined);
+
+    await GET(mockEvent('bucket=b1&pageSize=0'));
+    expect(mockProvider.listObjects).toHaveBeenLastCalledWith('', 1, undefined);
+
+    await GET(mockEvent('bucket=b1&pageSize=not-a-number'));
+    expect(mockProvider.listObjects).toHaveBeenLastCalledWith('', 25, undefined);
+  });
+
   it('throws when bucket is missing', async () => {
     const url = new URL('http://localhost/api/storage/list');
     const event = {

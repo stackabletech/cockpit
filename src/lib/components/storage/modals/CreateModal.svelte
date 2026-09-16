@@ -23,7 +23,7 @@
   }: Props = $props();
 
   const uid = $props.id();
-  let name = $state(type === 'file' ? 'untitled.txt' : 'new-folder');
+  let name = $state('');
   let inputEl = $state<HTMLInputElement | null>(null);
 
   const NAME_INVALID_CHARS = /[^\w\s./()\-+@,:;!$*'=]/g;
@@ -46,6 +46,7 @@
 
   $effect(() => {
     if (open) {
+      name = type === 'file' ? 'untitled.txt' : 'new-folder';
       requestAnimationFrame(() => {
         inputEl?.focus();
         if (inputEl) {

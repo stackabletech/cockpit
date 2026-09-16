@@ -21,6 +21,7 @@
   const storage = getStorageState();
 
   let renameInput = $state<HTMLInputElement | null>(null);
+  let tabButtons = $state<HTMLButtonElement[]>([]);
 
   $effect(() => {
     if (renamingId && renameInput) {
@@ -186,6 +187,35 @@
     }
   }
 
+  function focusTab(index: number) {
+    const tab = tabsState.tabs[index];
+    if (!tab) return;
+    tabsState.switchTo(tab.id);
+    requestAnimationFrame(() => tabButtons[index]?.focus());
+  }
+
+  function handleTabKeydown(e: KeyboardEvent, index: number) {
+    const lastIndex = tabsState.tabs.length - 1;
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      focusTab(index === lastIndex ? 0 : index + 1);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      focusTab(index === 0 ? lastIndex : index - 1);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      focusTab(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      focusTab(lastIndex);
+    } else if (e.key === 'Delete' && tabsState.tabs.length > 1) {
+      e.preventDefault();
+      const nextIndex = index === lastIndex ? index - 1 : index + 1;
+      tabsState.closeTab(tabsState.tabs[index].id);
+      requestAnimationFrame(() => tabButtons[nextIndex]?.focus());
+    }
+  }
+
   // ── Drag handlers ──
   function handleDragStart(e: DragEvent, idx: number) {
     dragIdx = idx;
@@ -292,7 +322,7 @@
         {#if renamingId === tab.id}
           <div
             class="bg-base-100 border-base-300 relative z-30 flex shrink-0 items-center rounded-t-lg border border-b-0 px-3 py-1.5 shadow-sm"
-            style="margin-right: -8px;"
+            style="margin-right: 8px;"
           >
             <!-- svelte-ignore a11y_autofocus -->
             <input
@@ -310,6 +340,8 @@
           <button
             role="tab"
             aria-selected={isActive}
+            tabindex={isActive ? 0 : -1}
+            bind:this={tabButtons[idx]}
             class="group relative flex max-w-44 shrink-0 items-center gap-1.5 rounded-t-lg border border-b-0 px-4 py-1.5 text-xs
               transition-all select-none
               {isActive
@@ -320,9 +352,10 @@
               ? '!border-primary'
               : ''}
               {fileDragHoverIdx === idx ? 'bg-primary/10' : ''}"
-            style="margin-right: -8px;"
+            style="margin-right: 8px;"
             draggable="true"
             onclick={() => tabsState.switchTo(tab.id)}
+            onkeydown={(e) => handleTabKeydown(e, idx)}
             ondblclick={() => startRename(tab.id)}
             onmousedown={(e) => handleMiddleClick(e, tab.id)}
             onauxclick={(e) => handleMiddleClick(e, tab.id)}
@@ -335,29 +368,19 @@
             title={tab.label}
           >
             <span class="truncate">{tab.label}</span>
-            {#if tabsState.tabs.length > 1}
-              <TooltipTrigger text={m.storage_tab_close()} orientation="down">
-                <span
-                  class="text-base-content/40 hover:text-error shrink-0 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
-                  role="button"
-                  tabindex="-1"
-                  aria-label={m.storage_tab_close()}
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    tabsState.closeTab(tab.id);
-                  }}
-                  onkeydown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.stopPropagation();
-                      tabsState.closeTab(tab.id);
-                    }
-                  }}
-                >
-                  <IconClose class="size-3" aria-hidden="true" />
-                </span>
-              </TooltipTrigger>
-            {/if}
           </button>
+          {#if tabsState.tabs.length > 1}
+            <TooltipTrigger text={m.storage_tab_close()} orientation="down">
+              <button
+                type="button"
+                class="text-base-content/40 hover:text-error relative z-30 -ml-7 shrink-0 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                aria-label={m.storage_tab_close()}
+                onclick={() => tabsState.closeTab(tab.id)}
+              >
+                <IconClose class="size-3" aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+          {/if}
         {/if}
       {/each}
 

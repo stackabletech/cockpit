@@ -108,16 +108,7 @@ describe('getCsvPreview', () => {
     const fileContent = 'h\na\nb\nc\n';
     const provider = sliceProvider(fileContent);
 
-    const res = await getCsvPreview(
-      provider,
-      'small',
-      0,
-      250,
-      'text/csv',
-      fileContent.length,
-      mockLog,
-      true
-    );
+    const res = await getCsvPreview(provider, 'small', 0, 250, fileContent.length, mockLog, true);
 
     expect(res.headers.get('X-Preview-Total-Rows')).toBe('3');
     const body = await readNdjsonResponse(res);
@@ -134,42 +125,15 @@ describe('getCsvPreview', () => {
     const provider = sliceProvider(fileContent);
 
     // First call loads chunk 1 (bytes 0..10) → rows "abc", "def". (Incomplete "g" deferred.)
-    const res1 = await getCsvPreview(
-      provider,
-      'boundary',
-      0,
-      250,
-      'text/csv',
-      fileSize,
-      mockLog,
-      true
-    );
+    const res1 = await getCsvPreview(provider, 'boundary', 0, 250, fileSize, mockLog, true);
     expect(res1.headers.get('X-Preview-Total-Rows')).toBe('2');
 
     // Second call triggers chunk 2 (bytes 10..20) → rows "ghi", "jkl". (Incomplete "mno" deferred.)
-    const res2 = await getCsvPreview(
-      provider,
-      'boundary',
-      2,
-      250,
-      'text/csv',
-      fileSize,
-      mockLog,
-      true
-    );
+    const res2 = await getCsvPreview(provider, 'boundary', 2, 250, fileSize, mockLog, true);
     expect(res2.headers.get('X-Preview-Total-Rows')).toBe('4');
 
     // Third call triggers chunk 3 (bytes 18..21) → row "mno"
-    const res3 = await getCsvPreview(
-      provider,
-      'boundary',
-      4,
-      250,
-      'text/csv',
-      fileSize,
-      mockLog,
-      true
-    );
+    const res3 = await getCsvPreview(provider, 'boundary', 4, 250, fileSize, mockLog, true);
     expect(res3.headers.get('X-Preview-Total-Rows')).toBe('5');
 
     // Now read the last page - should get 'mno' as complete row, not split
@@ -185,20 +149,11 @@ describe('getCsvPreview', () => {
     const provider = sliceProvider(fileContent);
 
     // Load cache with first call
-    await getCsvPreview(provider, 'read-test', 0, 250, 'text/csv', fileSize, mockLog, false);
+    await getCsvPreview(provider, 'read-test', 0, 250, fileSize, mockLog, false);
 
     // Request data that straddles the chunk boundary (after chunk 1 loaded "abc","def")
     // chunk 2 needs to be triggered, which loads "ghi","jkl" (and defers "mno")
-    const res = await getCsvPreview(
-      provider,
-      'read-test',
-      1,
-      3,
-      'text/csv',
-      fileSize,
-      mockLog,
-      true
-    );
+    const res = await getCsvPreview(provider, 'read-test', 1, 3, fileSize, mockLog, true);
     const body = await readNdjsonResponse(res);
     // Should get "def" (index 1), "ghi" (index 2), "jkl" (index 3)
     expect(body.rows).toEqual([['def'], ['ghi'], ['jkl']]);
@@ -215,29 +170,11 @@ describe('getCsvPreview', () => {
     // Each call triggers one chunk read. We load header first, then progressively
     // request data at higher offsets to force more chunks.
     for (let offset = 0; offset < 15; offset += 3) {
-      await getCsvPreview(
-        provider,
-        'multi-boundary',
-        offset,
-        250,
-        'text/csv',
-        fileSize,
-        mockLog,
-        false
-      );
+      await getCsvPreview(provider, 'multi-boundary', offset, 250, fileSize, mockLog, false);
     }
 
     // Now request all data
-    const res = await getCsvPreview(
-      provider,
-      'multi-boundary',
-      0,
-      250,
-      'text/csv',
-      fileSize,
-      mockLog,
-      true
-    );
+    const res = await getCsvPreview(provider, 'multi-boundary', 0, 250, fileSize, mockLog, true);
     const body = await readNdjsonResponse(res);
     expect(body.totalRows).toBe(10);
     expect(body.rows).toHaveLength(10);
@@ -259,7 +196,6 @@ describe('getCsvPreview', () => {
       'no-trailing-newline',
       0,
       250,
-      'text/csv',
       fileContent.length,
       mockLog,
       true

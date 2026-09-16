@@ -45,7 +45,16 @@ export const GET: RequestHandler = async (event) => {
     }
 
     if (isParquet) {
-      return await getParquetPreview(provider, key, offset, limit, log, totalSize, includeData);
+      return await getParquetPreview(
+        provider,
+        key,
+        offset,
+        limit,
+        log,
+        totalSize,
+        includeData,
+        bucket
+      );
     }
 
     // Skip body fetch for known-binary formats — client will show fallback immediately.
@@ -71,16 +80,7 @@ export const GET: RequestHandler = async (event) => {
       contentType === 'text/csv' || contentType === 'application/csv' || lowerKey.endsWith('.csv');
 
     if (isCsv) {
-      return await getCsvPreview(
-        provider,
-        key,
-        offset,
-        limit,
-        contentType,
-        totalSize,
-        log,
-        includeData
-      );
+      return await getCsvPreview(provider, key, offset, limit, totalSize, log, includeData, bucket);
     }
 
     // Pass a placeholder user identifier for logging purposes (no longer user-specific)

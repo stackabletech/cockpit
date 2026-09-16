@@ -22,7 +22,7 @@
   }: Props = $props();
 
   const uid = $props.id();
-  let newName = $state(currentName);
+  let newName = $state('');
   let inputEl = $state<HTMLInputElement | null>(null);
 
   function handleConfirm() {

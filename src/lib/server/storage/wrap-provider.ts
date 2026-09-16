@@ -1,7 +1,8 @@
 import { error, isHttpError } from '@sveltejs/kit';
 import type { StorageProvider } from './provider.js';
 
-export function wrapProvider(raw: StorageProvider): StorageProvider {
+/** Maps provider failures to consistent HTTP responses for request handlers. */
+export function withStorageHttpErrors(raw: StorageProvider): StorageProvider {
   return new Proxy(raw, {
     get(target, prop, receiver) {
       const value = Reflect.get(target, prop, receiver);

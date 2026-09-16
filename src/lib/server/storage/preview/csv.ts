@@ -2,6 +2,7 @@ import type pino from 'pino';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
 import { textPreviewBytes, infiniteScrollEnabled } from '$lib/server/feature-flags.js';
 import { logger } from '$lib/server/logging';
+import { ExpiringCache, previewCacheKey } from './cache.js';
 
 const fallbackLog = logger.child({ module: 'csv-preview' });
 
@@ -18,17 +19,7 @@ interface CsvCacheEntry {
   lastAccessed: number;
 }
 
-const CSV_CACHE_TTL = 5 * 60 * 1000;
-const csvPreviewCache = new Map<string, CsvCacheEntry>();
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of csvPreviewCache.entries()) {
-    if (now - entry.lastAccessed > CSV_CACHE_TTL) {
-      csvPreviewCache.delete(key);
-    }
-  }
-}, 60 * 1000).unref();
+const csvPreviewCache = new ExpiringCache<CsvCacheEntry>();
 
 // ── Helpers ──
 
@@ -209,10 +200,10 @@ export async function getCsvPreview(
   key: string,
   offset = 0,
   limit = 250,
-  contentType: string,
   totalSize: number,
   requestLog: pino.Logger = fallbackLog,
-  includeData = false
+  includeData = false,
+  bucket = ''
 ): Promise<Response> {
   const log = requestLog.child({ module: 'csv-preview' });
 
@@ -234,10 +225,11 @@ export async function getCsvPreview(
     );
   }
 
-  let entry = csvPreviewCache.get(key);
+  const cacheKey = previewCacheKey(bucket, key);
+  let entry = csvPreviewCache.get(cacheKey);
   const now = Date.now();
 
-  if (!entry || now - entry.lastAccessed > CSV_CACHE_TTL) {
+  if (!entry) {
     entry = {
       headers: [],
       lineOffsets: [],
@@ -245,7 +237,7 @@ export async function getCsvPreview(
       totalSize,
       lastAccessed: now
     };
-    csvPreviewCache.set(key, entry);
+    csvPreviewCache.set(cacheKey, entry);
   }
 
   entry.lastAccessed = now;
