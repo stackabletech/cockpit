@@ -151,13 +151,21 @@ export async function connectAndOpenPrefix(
       .locator('tbody tr')
       .or(page.getByText('This bucket is empty'))
       .first()
-      .waitFor({ timeout: 15_000 });
-    const storageOverview = page.getByRole('heading', { name: 'Buckets', exact: true }).waitFor({
-      timeout: 15_000
-    });
+      .waitFor({ timeout: 15_000 })
+      .then(() => 'objects');
+    const storageOverview = page
+      .getByRole('heading', { name: 'Buckets', exact: true })
+      .waitFor({ timeout: 15_000 })
+      .then(() => 'overview');
 
-    await Promise.race([objectsLoaded, storageOverview]);
-    if (page.url().includes(encodeURIComponent(credentials.bucket))) {
+    let pageContent: 'objects' | 'overview' | undefined;
+    try {
+      pageContent = await Promise.race([objectsLoaded, storageOverview]);
+    } catch {
+      // A just-created session can briefly leave the browse request without a
+      // connection. Reconnect and retry the route rather than failing the test.
+    }
+    if (pageContent === 'objects' && page.url().includes(encodeURIComponent(credentials.bucket))) {
       return;
     }
 

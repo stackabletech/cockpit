@@ -7,7 +7,6 @@ import {
 import {
   bucketRoute,
   connectAndOpenPrefix,
-  connectToStorage,
   deleteKnownKeys,
   putTextObject,
   rowByName,
@@ -36,10 +35,7 @@ test.describe('Storage S3 — Recent Items', () => {
   test('tracks recently visited locations in the Recent Locations tab', async ({ page }) => {
     const credentials = requireGarageCredentials();
 
-    await connectToStorage(page, credentials);
-    await expect(page).toHaveURL('/storage');
-    await page.goto(bucketRoute(new URL(credentials.endpoint).hostname, credentials.bucket));
-    await waitForObjectsLoaded(page);
+    await connectAndOpenPrefix(page, credentials);
 
     await page.goto('/storage');
     await waitForStorageConnected(page);
