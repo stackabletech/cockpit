@@ -321,8 +321,7 @@
         {@const isActive = tab.id === tabsState.activeTabId}
         {#if renamingId === tab.id}
           <div
-            class="bg-base-100 border-base-300 relative z-30 flex shrink-0 items-center rounded-t-lg border border-b-0 px-3 py-1.5 shadow-sm"
-            style="margin-right: 8px;"
+            class="bg-base-100 border-base-300 relative z-30 mr-2 flex shrink-0 items-center rounded-t-lg border border-b-0 px-3 py-1.5 shadow-sm"
           >
             <!-- svelte-ignore a11y_autofocus -->
             <input
@@ -344,6 +343,8 @@
             bind:this={tabButtons[idx]}
             class="group relative flex max-w-44 shrink-0 items-center gap-1.5 rounded-t-lg border border-b-0 px-4 py-1.5 text-xs
               transition-all select-none
+              {tabsState.tabs.length > 1 ? 'mr-2' : ''}
+              {tabsState.tabs.length > 1 ? 'pr-6' : ''}
               {isActive
               ? 'bg-base-100 border-base-300 text-base-content z-20 font-medium shadow-sm'
               : 'text-base-content/60 hover:text-base-content/80 hover:bg-base-100/50 z-10 border-transparent'}
@@ -352,7 +353,6 @@
               ? '!border-primary'
               : ''}
               {fileDragHoverIdx === idx ? 'bg-primary/10' : ''}"
-            style="margin-right: 8px;"
             draggable="true"
             onclick={() => tabsState.switchTo(tab.id)}
             onkeydown={(e) => handleTabKeydown(e, idx)}
@@ -373,7 +373,7 @@
             <TooltipTrigger text={m.storage_tab_close()} orientation="down">
               <button
                 type="button"
-                class="text-base-content/40 hover:text-error relative z-30 -ml-7 shrink-0 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                class="text-base-content/40 hover:text-error relative z-30 -ml-7 shrink-0 translate-y-0.5 self-center rounded-full p-0.5 transition-colors"
                 aria-label={m.storage_tab_close()}
                 onclick={() => tabsState.closeTab(tab.id)}
               >
@@ -387,7 +387,7 @@
       <!-- Plus button — sits inline next to the last tab -->
       <TooltipTrigger text={m.storage_tab_new()} orientation="down">
         <button
-          class="btn btn-ghost btn-xs z-20 ml-2 shrink-0"
+          class="btn btn-ghost btn-xs z-20 ml-1 shrink-0"
           aria-label={m.storage_tab_new()}
           onclick={() => tabsState.addTab()}
         >

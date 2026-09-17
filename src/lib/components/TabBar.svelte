@@ -201,7 +201,7 @@
         class="btn btn-ghost btn-xs mb-0.5 h-7 min-h-0 px-2"
         aria-label={m.trino_tab_new()}
         onclick={() => {
-          onAdd!();
+          onAdd();
           requestAnimationFrame(() => focusTab(activeId));
         }}
       >

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto, beforeNavigate } from '$app/navigation';
-  import { resolve, resolveRoute } from '$app/paths';
+  import { resolve } from '$app/paths';
+  import type { Pathname } from '$app/types';
   import { superForm } from 'sveltekit-superforms';
   import { zod4 as zod } from 'sveltekit-superforms/adapters';
   import { untrack } from 'svelte';
@@ -73,8 +74,11 @@
     confirmLeaveOpen = false;
     pendingNavigation = null;
     bypassDirtyCheck = true;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    goto(resolveRoute(dest as any));
+    goto(resolvePathname(dest as Pathname));
+  }
+
+  function resolvePathname<T extends Pathname>(pathname: T) {
+    return (resolve as (pathname: Pathname) => string)(pathname);
   }
 
   function cancelLeave() {

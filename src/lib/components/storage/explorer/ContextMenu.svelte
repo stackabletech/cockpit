@@ -219,6 +219,7 @@
 
   let menuEl = $state<HTMLUListElement | null>(null);
 
+  // Adjust position so menu stays within viewport
   const adjustedPos = $derived.by(() => {
     if (!menuEl) return { left: x, top: y };
     const rect = menuEl.getBoundingClientRect();
@@ -236,9 +237,9 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#if open}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="fixed inset-0 z-40"
+    aria-hidden="true"
     onmousedown={handleBackdropClick}
     oncontextmenu={(e) => {
       e.preventDefault();

@@ -5,7 +5,8 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4173';
 const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 export default defineConfig({
-  workers: process.env.CI ? 1 : 1,
+  // Tests share mock-service state, so parallel workers can race even outside CI.
+  workers: 1,
   testDir: path.join(import.meta.dirname, 'e2e'),
   outputDir: path.join(import.meta.dirname, 'e2e/test-results'),
   globalSetup: path.join(import.meta.dirname, 'e2e/support/global-setup.ts'),

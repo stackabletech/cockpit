@@ -20,6 +20,10 @@ import { ExpiringCache, previewCacheKey } from './cache.js';
 
 const fallbackLog = logger.child({ module: 'parquet-preview' });
 
+/**
+ * Override the pure-JS GZIP decompressor from hyparquet-compressors with
+ * Node's native zlib binding — orders of magnitude faster for large payloads.
+ */
 const nodeCompressors = {
   ...compressors,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

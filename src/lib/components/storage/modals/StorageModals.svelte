@@ -32,6 +32,7 @@
       renameOpen = true;
       moveConfirmOpen = true;
       createOpen = true;
+      resolveConflictsOpen = true;
     }
   });
 
