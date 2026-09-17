@@ -15,6 +15,7 @@
     "lint": "prettier --check --ignore-path .prettierignore . && eslint .",
     "lint:fix": "prettier --write --ignore-path .prettierignore . && eslint . --fix",
     "test:unit": "vitest run",
+    "test:unit:coverage": "vitest run --coverage",
     "test:e2e": "node --env-file=.env.test node_modules/.bin/vite build && playwright test",
     "test:e2e:garage": "./e2e/run-garage-tests.sh",
     "test:e2e:ui": "playwright test --ui",
