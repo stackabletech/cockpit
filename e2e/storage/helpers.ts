@@ -147,16 +147,13 @@ export async function connectAndOpenPrefix(
     await page.goto(route);
     await waitForHydration(page);
 
-    const objectsLoaded = page
-      .locator('tbody tr')
-      .or(page.getByText('This bucket is empty'))
-      .first()
-      .waitFor({ timeout: 15_000 })
-      .then(() => 'objects');
+    const objectsLoaded = waitForObjectsLoaded(page, 15_000).then(() => 'objects');
     const storageOverview = page
       .getByRole('heading', { name: 'Buckets', exact: true })
-      .waitFor({ timeout: 15_000 })
-      .then(() => 'overview');
+      .waitFor({ timeout: 5_000 })
+      .then(() => 'overview' as const)
+      // Keep waiting for the bucket list when the overview is not rendered.
+      .catch(() => new Promise<never>(() => {}));
 
     let pageContent: 'objects' | 'overview' | undefined;
     try {
@@ -180,15 +177,19 @@ export async function connectAndOpenPrefix(
  * With the new architecture, `waitForHydration` alone is insufficient because
  * the object list is fetched client-side after hydration. This waits for either
  * a table row or the empty-state message to appear, confirming the fetch has
- * completed and the UI has updated.
+ * completed and the UI has updated. The locator is scoped to the bucket object
+ * list because the storage overview also contains a table for recent items.
  */
-export async function waitForObjectsLoaded(page: Page) {
+export async function waitForObjectsLoaded(page: Page, timeout = 15_000) {
   await waitForHydration(page);
-  await page
+  const objectList = page.getByTestId('storage-object-list');
+  await objectList.waitFor({ state: 'visible', timeout });
+  await page.getByTestId('storage-object-list-loading').waitFor({ state: 'hidden', timeout });
+  await objectList
     .locator('tbody tr')
-    .or(page.getByText('This bucket is empty'))
+    .or(objectList.getByText('This bucket is empty'))
     .first()
-    .waitFor({ timeout: 15_000 });
+    .waitFor({ timeout });
 }
 
 /**

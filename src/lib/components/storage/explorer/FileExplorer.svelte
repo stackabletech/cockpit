@@ -254,6 +254,7 @@
   <div bind:this={objectListEl} class="relative min-h-0 flex-1 overflow-hidden">
     {#if storage.loading || storage.deleting || storage.archive.archiveLoading || navigating.to}
       <div
+        data-testid="storage-object-list-loading"
         class="bg-base-100/70 absolute inset-0 z-20 flex items-center justify-center"
         aria-live="polite"
         aria-label={m.storage_loading()}

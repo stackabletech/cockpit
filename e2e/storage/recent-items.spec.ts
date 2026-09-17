@@ -5,13 +5,11 @@ import {
   requireGarageCredentials
 } from '../support/garage.js';
 import {
-  bucketRoute,
   connectAndOpenPrefix,
   deleteKnownKeys,
   putTextObject,
   rowByName,
   uniquePrefix,
-  waitForObjectsLoaded,
   waitForStorageConnected
 } from './helpers.js';
 
@@ -90,10 +88,7 @@ test.describe('Storage S3 — Recent Items', () => {
       await expect(page.locator('tbody').getByText('to-delete.txt')).toBeVisible();
 
       // Delete the file via the UI
-      await page.goto(
-        bucketRoute(new URL(credentials.endpoint).hostname, credentials.bucket, prefix)
-      );
-      await waitForObjectsLoaded(page);
+      await connectAndOpenPrefix(page, credentials, prefix);
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel('Select to-delete.txt').check();
       await page.getByRole('button', { name: 'Delete', exact: true }).click();
@@ -135,10 +130,7 @@ test.describe('Storage S3 — Recent Items', () => {
       await expect(page.locator('tbody').getByText('sub', { exact: true })).toBeVisible();
 
       // Delete the parent directory via the UI
-      await page.goto(
-        bucketRoute(new URL(credentials.endpoint).hostname, credentials.bucket, prefix)
-      );
-      await waitForObjectsLoaded(page);
+      await connectAndOpenPrefix(page, credentials, prefix);
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel('Select sub').check();
       await page.getByRole('button', { name: 'Delete', exact: true }).click();
