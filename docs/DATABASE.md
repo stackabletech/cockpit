@@ -72,6 +72,9 @@ npm run db:migrate:run
 
 Migrations are stored in `src/lib/server/migrations/`.
 
+The current migration history is a single baseline migration. Existing databases
+created with the prior migration sequence must be reset before applying it.
+
 ## NPM Scripts
 
 All Drizzle commands automatically load `.env.development` via `dotenv` in `drizzle.config.ts`.
