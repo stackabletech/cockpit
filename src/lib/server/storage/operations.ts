@@ -102,7 +102,8 @@ export async function processKeysSequentially(
   provider: StorageProvider,
   sourceKeys: string[],
   destinationPrefix: string,
-  options: ProcessKeysOptions = {}
+  options: ProcessKeysOptions = {},
+  destinationKey?: string
 ): Promise<ProcessKeysResult> {
   const {
     onCopySuccess,
@@ -115,7 +116,9 @@ export async function processKeysSequentially(
     deleteOriginals
   } = options;
 
-  const destinations = await computeDestinations(provider, sourceKeys, destinationPrefix);
+  const destinations = destinationKey
+    ? [{ sourceKey: sourceKeys[0]!, baseDestKey: destinationKey }]
+    : await computeDestinations(provider, sourceKeys, destinationPrefix);
   const succeeded: Array<{ sourceKey: string; destKey: string }> = [];
   const failed: Array<{ sourceKey: string; error: string }> = [];
 

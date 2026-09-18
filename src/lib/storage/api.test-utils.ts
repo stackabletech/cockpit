@@ -41,10 +41,6 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
       return { results: [], failed: 0 };
     },
 
-    async rename() {
-      // no-op
-    },
-
     async delete(): Promise<DeleteResult> {
       return { failed: [] };
     },

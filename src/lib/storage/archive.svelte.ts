@@ -1,8 +1,8 @@
 import { invalidateAll } from '$app/navigation';
 import * as m from '$lib/paraglide/messages.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
-import { ARCHIVE_EXTENSIONS } from '$lib/storage/types.js';
 import { StorageError, getActionErrorMessage } from './errors.js';
+import { isArchiveExtension } from './utils.js';
 import type { StoragePage } from '$lib/storage/types.js';
 import type { StorageApi } from './api.js';
 
@@ -66,12 +66,6 @@ export class ArchiveState {
   }
 
   // ── Public methods ─────────────────────────────────────────────────────
-
-  /** Check if a filename looks like a navigable archive. */
-  isArchiveFile(key: string): boolean {
-    const lower = key.toLowerCase();
-    return ARCHIVE_EXTENSIONS.some((ext) => lower.endsWith(ext));
-  }
 
   /** Enter an archive file and show its contents as a virtual folder. */
   async enterArchive(archiveKey: string): Promise<void> {

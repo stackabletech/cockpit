@@ -87,7 +87,6 @@ function makeApi(overrides?: Partial<StorageApi>): StorageApi {
     async move(): Promise<CopyMoveResult> {
       return { results: [], failed: 0 };
     },
-    async rename() {},
     async delete(): Promise<DeleteResult> {
       return { failed: [] };
     },
@@ -461,10 +460,10 @@ describe('confirmRename', () => {
   });
 
   it('shows inline error on conflict and keeps modal open', async () => {
-    const renameSpy = vi
+    const moveSpy = vi
       .fn()
       .mockRejectedValue(new StorageError('conflict', 'Object already exists'));
-    const state = makeState({ rename: renameSpy });
+    const state = makeState({ move: moveSpy });
     state.openModal('rename', { key: 'file.txt' });
 
     await state.confirmRename('file.txt', 'renamed.txt');
@@ -475,8 +474,8 @@ describe('confirmRename', () => {
   });
 
   it('shows toast on access_denied and closes modal', async () => {
-    const renameSpy = vi.fn().mockRejectedValue(new StorageError('access_denied', 'Access denied'));
-    const state = makeState({ rename: renameSpy });
+    const moveSpy = vi.fn().mockRejectedValue(new StorageError('access_denied', 'Access denied'));
+    const state = makeState({ move: moveSpy });
     state.openModal('rename', { key: 'file.txt' });
 
     await state.confirmRename('file.txt', 'renamed.txt');
@@ -486,8 +485,8 @@ describe('confirmRename', () => {
   });
 
   it('shows toast on not_found and closes modal', async () => {
-    const renameSpy = vi.fn().mockRejectedValue(new StorageError('not_found', 'Not found'));
-    const state = makeState({ rename: renameSpy });
+    const moveSpy = vi.fn().mockRejectedValue(new StorageError('not_found', 'Not found'));
+    const state = makeState({ move: moveSpy });
     state.openModal('rename', { key: 'file.txt' });
 
     await state.confirmRename('file.txt', 'renamed.txt');
@@ -497,8 +496,8 @@ describe('confirmRename', () => {
   });
 
   it('shows success toast on successful rename and updates recent files', async () => {
-    const renameSpy = vi.fn().mockResolvedValue(undefined);
-    const state = makeState({ rename: renameSpy });
+    const moveSpy = vi.fn().mockResolvedValue({ results: [], failed: 0 });
+    const state = makeState({ move: moveSpy });
     state.openModal('rename', { key: 'file.txt' });
     // Seed a recent file entry for the old key
     state.bookmarks.recordFileVisit('test-bucket', 'file.txt', 100);
@@ -514,8 +513,8 @@ describe('confirmRename', () => {
   });
 
   it('handles directory rename (trailing slash)', async () => {
-    const renameSpy = vi.fn().mockResolvedValue(undefined);
-    const state = makeState({ rename: renameSpy });
+    const moveSpy = vi.fn().mockResolvedValue({ results: [], failed: 0 });
+    const state = makeState({ move: moveSpy });
     state.openModal('rename', { key: 'dir/' });
 
     await state.confirmRename('dir/', 'renamed-dir');

@@ -56,13 +56,12 @@ export interface StorageApi {
     bucket: string;
     sourceKeys: string[];
     destinationPrefix: string;
+    destinationKey?: string;
     progress?: boolean;
     jobId?: string;
     signal?: AbortSignal;
     callbacks?: NdjsonStreamCallbacks;
   }): Promise<CopyMoveResult>;
-
-  rename(params: { bucket: string; key: string; newKey: string }): Promise<void>;
 
   delete(params: { bucket: string; keys: string[] }): Promise<DeleteResult>;
 
@@ -151,11 +150,21 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       });
     },
 
-    async move({ bucket, sourceKeys, destinationPrefix, progress, jobId, signal, callbacks }) {
+    async move({
+      bucket,
+      sourceKeys,
+      destinationPrefix,
+      destinationKey,
+      progress,
+      jobId,
+      signal,
+      callbacks
+    }) {
       return copyMoveRequest(fetch_, '/api/storage/move', {
         bucket,
         sourceKeys,
         destinationPrefix,
+        destinationKey,
         progress,
         jobId,
         signal,
@@ -163,22 +172,12 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       });
     },
 
-    async rename({ bucket, key, newKey }) {
-      const params = new URLSearchParams({ bucket });
-      await fetch_(`/api/storage/rename?${params}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, newKey })
-      });
-    },
-
     async delete({ bucket, keys }) {
       const params = new URLSearchParams({ bucket });
-      for (const key of keys) {
-        params.append('keys', key);
-      }
       const res = await fetch_(`/api/storage/delete?${params}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keys })
       });
       return (await res.json()) as DeleteResult;
     },
@@ -306,6 +305,7 @@ async function copyMoveRequest(
     bucket: string;
     sourceKeys: string[];
     destinationPrefix: string;
+    destinationKey?: string;
     progress?: boolean;
     jobId?: string;
     signal?: AbortSignal;
@@ -323,6 +323,7 @@ async function copyMoveRequest(
     body: JSON.stringify({
       sourceKeys: params.sourceKeys,
       destinationPrefix: params.destinationPrefix,
+      destinationKey: params.destinationKey,
       jobId: params.jobId
     }),
     signal: params.signal

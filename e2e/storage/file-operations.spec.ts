@@ -90,16 +90,16 @@ test.describe('Storage S3 — File Operations', () => {
 
       // Navigate into dest folder
       await rowByName(page, 'target').dblclick();
-      await page.waitForTimeout(500);
+      await expect(page).toHaveURL(new RegExp(`${encodeURIComponent('target')}/?$`));
 
       // Paste (use keyboard shortcut — right-click in an empty folder
       // lands on the ".." row which has no context menu handler)
       await page.locator('table').click();
       await page.keyboard.press('Control+v');
 
-      await page.waitForTimeout(1000);
-
-      expect(await objectExists(client, credentials.bucket, `${destDir}nested-src.txt`)).toBe(true);
+      await expect
+        .poll(() => objectExists(client, credentials.bucket, `${destDir}nested-src.txt`))
+        .toBe(true);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

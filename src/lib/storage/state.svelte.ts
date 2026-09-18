@@ -25,7 +25,7 @@ import { addToast } from '$lib/stores/toast.svelte.js';
 import { StorageError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
 import { connectionStore } from '$lib/storage/connection-store.svelte.js';
-import { keyToName } from '$lib/storage/utils.js';
+import { isArchiveExtension, keyToName } from '$lib/storage/utils.js';
 import type { StorageApi } from './api.js';
 import { createFetchStorageApi } from './api.js';
 import { OperationsState } from './operations.svelte.js';
@@ -408,7 +408,7 @@ export class StorageState {
           });
           return;
         }
-        if (this.archive.isArchiveFile(key)) {
+        if (isArchiveExtension(key)) {
           void this.archive.enterArchive(key);
           return;
         }
@@ -703,7 +703,12 @@ export class StorageState {
 
     try {
       try {
-        await this.api.rename({ bucket: this.bucket, key, newKey });
+        await this.api.move({
+          bucket: this.bucket,
+          sourceKeys: [key],
+          destinationPrefix: '',
+          destinationKey: newKey
+        });
       } catch (err: unknown) {
         this.operations_.finishOp(opId, 'error');
         this.renameLoading = false;

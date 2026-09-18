@@ -6,7 +6,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   if (!activeId) {
     throw redirect(303, '/storage');
   }
-
   const prefix = params.prefix ? params.prefix + '/' : '';
   const bucket = params.bucket;
   const connection = params.connection;

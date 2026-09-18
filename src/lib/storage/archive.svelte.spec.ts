@@ -96,55 +96,6 @@ describe('state basics', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Group 2: isArchiveFile
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('isArchiveFile', () => {
-  it('returns true for .zip files', () => {
-    const { archive } = makeArchive();
-    expect(archive.isArchiveFile('data.zip')).toBe(true);
-  });
-
-  it('returns true for .tar.gz files', () => {
-    const { archive } = makeArchive();
-    expect(archive.isArchiveFile('backup.tar.gz')).toBe(true);
-  });
-
-  it('returns true for .tgz files', () => {
-    const { archive } = makeArchive();
-    expect(archive.isArchiveFile('archive.tgz')).toBe(true);
-  });
-
-  it('returns true for .tar files', () => {
-    const { archive } = makeArchive();
-    expect(archive.isArchiveFile('data.tar')).toBe(true);
-  });
-
-  it('returns true for .rar files', () => {
-    const { archive } = makeArchive();
-    expect(archive.isArchiveFile('data.rar')).toBe(true);
-  });
-
-  it('returns true for .7z files', () => {
-    const { archive } = makeArchive();
-    expect(archive.isArchiveFile('archive.7z')).toBe(true);
-  });
-
-  it('is case-insensitive', () => {
-    const { archive } = makeArchive();
-    expect(archive.isArchiveFile('DATA.ZIP')).toBe(true);
-    expect(archive.isArchiveFile('Archive.Tar.Gz')).toBe(true);
-  });
-
-  it('returns false for non-archive files', () => {
-    const { archive } = makeArchive();
-    expect(archive.isArchiveFile('readme.txt')).toBe(false);
-    expect(archive.isArchiveFile('image.png')).toBe(false);
-    expect(archive.isArchiveFile('script.js')).toBe(false);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Group 3: enterArchive
 // ─────────────────────────────────────────────────────────────────────────────
 

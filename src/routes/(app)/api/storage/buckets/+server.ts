@@ -7,7 +7,6 @@ import { withStorageHttpErrors } from '$lib/server/storage/wrap-provider.js';
 
 export const GET: RequestHandler = async (event) => {
   const detailsParam = event.url.searchParams.get('details');
-  const prefix = event.url.searchParams.get('prefix');
 
   if (detailsParam === 'true') {
     const { provider, bucket } = createStorageProvider(event);
@@ -32,20 +31,14 @@ export const GET: RequestHandler = async (event) => {
     return json(details);
   }
 
-  if (!prefix) {
-    const config = event.locals.storageConfig;
-    if (!config) {
-      throw error(401, 'No storage connection configured');
-    }
-
-    const listedBuckets = await withStorageHttpErrors(
-      getConnectionProvider(config)
-    ).listContainers();
-    const additional = config.additionalBuckets ?? [];
-    const allBuckets = [...new Set([...listedBuckets, ...additional])];
-    event.locals.logger.debug({ bucket_count: allBuckets.length }, 'bucket list returned');
-    return json(allBuckets);
+  const config = event.locals.storageConfig;
+  if (!config) {
+    throw error(401, 'No storage connection configured');
   }
 
-  return json([]);
+  const listedBuckets = await withStorageHttpErrors(getConnectionProvider(config)).listContainers();
+  const additional = config.additionalBuckets ?? [];
+  const allBuckets = [...new Set([...listedBuckets, ...additional])];
+  event.locals.logger.debug({ bucket_count: allBuckets.length }, 'bucket list returned');
+  return json(allBuckets);
 };

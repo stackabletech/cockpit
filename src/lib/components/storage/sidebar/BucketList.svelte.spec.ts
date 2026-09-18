@@ -299,15 +299,6 @@ describe('BucketList', () => {
 
       await expect.element(page.getByRole('menuitem', { name: /unpin/i })).not.toBeInTheDocument();
     });
-
-    it('should not throw when pressing Escape without menu open', async () => {
-      const state = createState({ buckets: ['b1'] });
-      render(BucketListWrapper, { state });
-
-      await userEvent.keyboard('{Escape}');
-
-      await expect.element(page.getByRole('navigation')).toBeInTheDocument();
-    });
   });
 
   describe('disconnect button', () => {

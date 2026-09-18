@@ -12,7 +12,7 @@ const CONNECTION_HEADER = {
   'x-storage-connection': btoa(JSON.stringify({ type: 's3', region: 'us-east-1' }))
 };
 
-function mockEvent(searchParams: Record<string, string | string[]>) {
+function mockEvent(searchParams: Record<string, string | string[]>, keys?: string[]) {
   const url = new URL('http://localhost/api/storage/delete');
   for (const [k, v] of Object.entries(searchParams)) {
     if (Array.isArray(v)) {
@@ -23,7 +23,11 @@ function mockEvent(searchParams: Record<string, string | string[]>) {
   }
   return {
     url,
-    request: { headers: new Headers(CONNECTION_HEADER) },
+    request: new Request(url, {
+      method: 'DELETE',
+      headers: { ...CONNECTION_HEADER, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keys })
+    }),
     locals: {
       logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
       user: { id: 'test-user' },
@@ -36,7 +40,7 @@ describe('DELETE /api/storage/delete', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('throws 400 when bucket is missing', async () => {
-    await expect(DELETE(mockEvent({ keys: 'a.txt' }))).rejects.toThrow(
+    await expect(DELETE(mockEvent({}, ['a.txt']))).rejects.toThrow(
       expect.objectContaining({ status: 400 })
     );
   });
@@ -52,7 +56,7 @@ describe('DELETE /api/storage/delete', () => {
     const result = { deleted: keys, failed: [] };
     mockProvider.deleteObjects.mockResolvedValue(result);
 
-    const response = await DELETE(mockEvent({ bucket: 'b1', keys }));
+    const response = await DELETE(mockEvent({ bucket: 'b1' }, keys));
     expect(mockProvider.deleteObjects).toHaveBeenCalledWith(keys);
     expect(await response.json()).toEqual(result);
   });

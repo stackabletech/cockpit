@@ -258,33 +258,8 @@ describe('createFetchStorageApi', () => {
     });
   });
 
-  describe('rename', () => {
-    it('sends a POST with key and newKey', async () => {
-      const api = createFetchStorageApi(() => 'conn-1');
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 200 }));
-
-      await api.rename({ bucket: 'b', key: 'old.txt', newKey: 'new.txt' });
-
-      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
-      expect(url).toContain('/api/storage/rename');
-      expect(url).toContain('bucket=b');
-      expect(init?.method).toBe('POST');
-      const body = JSON.parse(init?.body as string);
-      expect(body).toEqual({ key: 'old.txt', newKey: 'new.txt' });
-    });
-
-    it('throws on non-ok response', async () => {
-      const api = createFetchStorageApi(() => 'conn-1');
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 409 }));
-
-      await expect(api.rename({ bucket: 'b', key: 'a', newKey: 'b' })).rejects.toThrow(
-        StorageError
-      );
-    });
-  });
-
   describe('delete', () => {
-    it('sends DELETE with keys as repeated query params', async () => {
+    it('sends DELETE with keys in a JSON body', async () => {
       const api = createFetchStorageApi(() => 'conn-1');
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ failed: [] }));
 
@@ -293,9 +268,9 @@ describe('createFetchStorageApi', () => {
       const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
       expect(url).toContain('/api/storage/delete');
       expect(url).toContain('bucket=b');
-      expect(url).toContain('keys=a.txt');
-      expect(url).toContain('keys=b.txt');
       expect(init?.method).toBe('DELETE');
+      expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
+      expect(JSON.parse(init?.body as string)).toEqual({ keys: ['a.txt', 'b.txt'] });
       expect(result.failed).toEqual([]);
     });
 

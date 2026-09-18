@@ -10,14 +10,18 @@ export const POST: RequestHandler = async (event) => {
 
   const body = (await request.json()) as {
     sourceKeys: string[];
-    destinationPrefix: string;
+    destinationPrefix?: string;
+    destinationKey?: string;
     jobId?: string;
   };
   if (!body.sourceKeys?.length) {
     throw error(400, 'Missing required body field: sourceKeys');
   }
-  if (body.destinationPrefix === undefined) {
-    throw error(400, 'Missing required body field: destinationPrefix');
+  if (body.destinationPrefix === undefined && !body.destinationKey) {
+    throw error(400, 'Missing required body field: destinationPrefix or destinationKey');
+  }
+  if (body.destinationKey && body.sourceKeys.length !== 1) {
+    throw error(400, 'destinationKey requires exactly one source key');
   }
 
   locals.logger.debug(
@@ -25,6 +29,7 @@ export const POST: RequestHandler = async (event) => {
       bucket,
       source_key_count: body.sourceKeys.length,
       destination_prefix: body.destinationPrefix,
+      destination_key: body.destinationKey,
       stream_progress: streamProgress
     },
     'move request received'
@@ -33,7 +38,8 @@ export const POST: RequestHandler = async (event) => {
   return performCopyOrMove({
     provider,
     sourceKeys: body.sourceKeys,
-    destinationPrefix: body.destinationPrefix,
+    destinationPrefix: body.destinationPrefix ?? '',
+    destinationKey: body.destinationKey,
     streamProgress,
     logger: locals.logger,
     bucket,

@@ -771,7 +771,12 @@ export class ClipboardState {
         }
         const newKey = pending.destPrefix + rename.newName;
         try {
-          await this._api.rename({ bucket, key: destKey, newKey });
+          await this._api.move({
+            bucket,
+            sourceKeys: [destKey],
+            destinationPrefix: '',
+            destinationKey: newKey
+          });
           this._operations.updateOpProgress(
             opId,
             replaceKeys.length + renameKeys.indexOf(rename) + 1,
@@ -881,10 +886,11 @@ export class ClipboardState {
           parentPrefix + rename.newName + (rename.sourceKey.endsWith('/') ? '/' : '');
 
         try {
-          await this._api.rename({
+          await this._api.move({
             bucket,
-            key: rename.sourceKey,
-            newKey: renamedSourceKey
+            sourceKeys: [rename.sourceKey],
+            destinationPrefix: '',
+            destinationKey: renamedSourceKey
           });
           replaceKeys.push(renamedSourceKey);
         } catch {
