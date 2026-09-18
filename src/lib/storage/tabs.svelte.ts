@@ -216,7 +216,6 @@ export class TabsState {
       }
     }));
 
-    // eslint-disable-next-line security/detect-object-injection
     const mappedActiveId = activeIdx >= 0 ? this.tabs[activeIdx].id : this.tabs[0].id;
     this.activeTabId = mappedActiveId;
 
@@ -291,7 +290,7 @@ export class TabsState {
     if (!this.activeTabId) return;
     const idx = this.tabs.findIndex((t) => t.id === this.activeTabId);
     if (idx === -1) return;
-    // eslint-disable-next-line security/detect-object-injection
+
     const tab = this.tabs[idx];
     if (!tab.stub) return;
     this.tabs = [
@@ -309,7 +308,7 @@ export class TabsState {
     if (this.pendingNavigation?.tabId === this.activeTabId) return;
     const idx = this.tabs.findIndex((t) => t.id === this.activeTabId);
     if (idx === -1) return;
-    // eslint-disable-next-line security/detect-object-injection
+
     const tab = this.tabs[idx];
     const updatedTab: Tab = {
       ...tab,
@@ -397,7 +396,7 @@ export class TabsState {
 
     if (id === this.activeTabId) {
       const newIdx = Math.min(idx, newTabs.length - 1);
-      // eslint-disable-next-line security/detect-object-injection
+
       const nextTab = newTabs[newIdx];
       this.activeTabId = nextTab.id;
       this.pendingNavigation = null;
@@ -425,7 +424,7 @@ export class TabsState {
   renameTab(id: string, newLabel: string): void {
     const idx = this.tabs.findIndex((t) => t.id === id);
     if (idx === -1) return;
-    // eslint-disable-next-line security/detect-object-injection
+
     const tab = this.tabs[idx];
     this.tabs = [
       ...this.tabs.slice(0, idx),

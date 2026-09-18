@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 import path from 'path';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4173';
+const appPort = new URL(baseURL).port || '80';
 const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 export default defineConfig({
@@ -35,6 +36,7 @@ export default defineConfig({
     },
     {
       command: 'node --env-file=.env.test build/index.js',
+      env: { PORT: appPort },
       url: baseURL,
       reuseExistingServer: false
     }

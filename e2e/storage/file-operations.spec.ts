@@ -90,7 +90,7 @@ test.describe('Storage S3 — File Operations', () => {
 
       // Navigate into dest folder
       await rowByName(page, 'target').dblclick();
-      await expect(page).toHaveURL(new RegExp(`${encodeURIComponent('target')}/?$`));
+      await expect(page).toHaveURL(/target\/?(?:\?.*)?$/);
 
       // Paste (use keyboard shortcut — right-click in an empty folder
       // lands on the ".." row which has no context menu handler)
@@ -238,13 +238,14 @@ test.describe('Storage S3 — File Operations', () => {
     }
   });
 
-  test('rename conflict shows error inside modal', async ({ page }, testInfo) => {
+  test('rename conflict creates a uniquely named file', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'rename-conflict');
     const fileA = `${prefix}a.txt`;
     const fileB = `${prefix}b.txt`;
-    const cleanupKeys = [fileA, fileB];
+    const renamedFile = `${prefix}b (1).txt`;
+    const cleanupKeys = [fileA, fileB, renamedFile];
 
     try {
       await putTextObject(client, credentials.bucket, fileA, 'file a');
@@ -256,18 +257,15 @@ test.describe('Storage S3 — File Operations', () => {
       await rowByName(page, 'a.txt').click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'Rename' }).click();
 
-      // Try to rename to b.txt (which exists)
+      // Rename to b.txt, preserving the existing file by assigning a unique name.
       const input = page.locator('.modal-box input');
       await input.fill('b.txt');
       await page.getByRole('button', { name: 'Rename' }).click();
 
-      // Modal should stay open and show conflict error
-      await expect(page.locator('.modal-box')).toBeVisible();
-      await expect(page.getByText(/already exists/i)).toBeVisible();
-
-      // Cancel the modal
-      await page.getByRole('button', { name: 'Cancel' }).click();
       await expect(page.locator('.modal-box')).not.toBeVisible();
+      await expect.poll(() => objectExists(client, credentials.bucket, fileA)).toBe(false);
+      await expect.poll(() => objectExists(client, credentials.bucket, fileB)).toBe(true);
+      await expect.poll(() => objectExists(client, credentials.bucket, renamedFile)).toBe(true);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

@@ -47,7 +47,6 @@ function parseCsvRow(line: string): string[] {
   let current = '';
   let inQuotes = false;
   for (let i = 0; i < line.length; i++) {
-    // eslint-disable-next-line security/detect-object-injection
     const char = line[i];
     if (inQuotes) {
       if (char === '"') {
@@ -123,7 +122,6 @@ async function extendCache(
         entry.lineOffsets.push(bytePos);
       }
       if (!isIncomplete) {
-        // eslint-disable-next-line security/detect-object-injection
         bytePos += lines[i].length + (hasOwnNewline ? 1 : 0);
       }
     }
@@ -140,7 +138,6 @@ async function extendCache(
         entry.lineOffsets.push(bytePos);
       }
       if (!isIncomplete) {
-        // eslint-disable-next-line security/detect-object-injection
         bytePos += lines[i].length + (hasOwnNewline ? 1 : 0);
       }
     }
@@ -157,10 +154,8 @@ async function readRows(
   startOffset: number,
   endOffset: number
 ): Promise<string[][]> {
-  // eslint-disable-next-line security/detect-object-injection
   const startByte = entry.lineOffsets[startOffset];
   const endByte =
-    // eslint-disable-next-line security/detect-object-injection
     endOffset < entry.lineOffsets.length ? entry.lineOffsets[endOffset] - 1 : entry.bytesRead - 1;
 
   if (startByte === undefined || startByte < 0) return [];

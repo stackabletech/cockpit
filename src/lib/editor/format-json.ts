@@ -5,7 +5,6 @@ export function repairTruncatedJson(text: string): string {
   const openBrackets: string[] = [];
 
   for (let i = 0; i < result.length; i++) {
-    // eslint-disable-next-line security/detect-object-injection
     const ch = result[i];
     if (escape) {
       escape = false;
@@ -41,7 +40,6 @@ export function repairTruncatedJson(text: string): string {
   }
 
   for (let i = openBrackets.length - 1; i >= 0; i--) {
-    // eslint-disable-next-line security/detect-object-injection
     result += openBrackets[i] === '{' ? '}' : ']';
   }
 
@@ -55,7 +53,6 @@ export function stripIncompleteTail(json: string): string {
   let lastComma = -1;
 
   for (let i = json.length - 1; i >= 0; i--) {
-    // eslint-disable-next-line security/detect-object-injection
     const ch = json[i];
     if (esc) {
       esc = false;

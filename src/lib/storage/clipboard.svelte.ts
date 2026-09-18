@@ -161,7 +161,6 @@ export class ClipboardState {
     const conflictEntries = await this._checkDestinationConflicts(pasteKeys, destPrefix);
     const hasConflicts = conflictEntries.some((e) => e.conflict);
     if (hasConflicts) {
-      // eslint-disable-next-line security/detect-object-injection
       const totalBytes = pasteKeys.reduce((sum, k) => sum + (pasteClipboard.fileSizes[k] ?? 0), 0);
       this._pendingConflictOp = {
         type: 'paste',
@@ -189,7 +188,7 @@ export class ClipboardState {
     const pasteLabel = isSinglePaste
       ? `${m.storage_operation_paste_one({ count: 1 })}: ${sourceNames[0]}`
       : `${m.storage_operation_paste_other({ count: sourceNames.length })}: ${sourceNames[0]} + ${sourceNames.length - 1} more`;
-    // eslint-disable-next-line security/detect-object-injection
+
     const totalBytes = pasteKeys.reduce((sum, k) => sum + (pasteClipboard.fileSizes[k] ?? 0), 0);
     this._operations.startOp(
       opId,
@@ -214,7 +213,7 @@ export class ClipboardState {
         abortController.signal,
         (index, key) => {
           // File-level progress: use the known file size from clipboard.
-          // eslint-disable-next-line security/detect-object-injection
+
           completedBytes += fileSizes[key] ?? 0;
           this._operations.updateOpProgress(opId, index, completedBytes, keyToName(key));
         },
@@ -225,19 +224,17 @@ export class ClipboardState {
             this._operations.operations.find((op) => op.id === opId)?.completedCount ?? 0;
           let prevBytes = 0;
           for (let j = 0; j < prevFiles && j < pasteKeys.length; j++) {
-            // eslint-disable-next-line security/detect-object-injection
             prevBytes += fileSizes[pasteKeys[j]] ?? 0;
           }
           this._operations.updateOpProgress(
             opId,
             prevFiles,
             prevBytes + loaded,
-            // eslint-disable-next-line security/detect-object-injection
+
             pasteSourceNames[prevFiles] ?? ''
           );
         },
         (index, jobId) => {
-          // eslint-disable-next-line security/detect-object-injection
           fileJobIdsAccum[index] = jobId;
           this._operations.updateOpJobIds(opId, [...fileJobIdsAccum]);
         }
@@ -396,7 +393,6 @@ export class ClipboardState {
           throw new DOMException('Aborted', 'AbortError');
         }
 
-        // eslint-disable-next-line security/detect-object-injection
         const sourceKey = moveKeys[i];
         const fileJobId = crypto.randomUUID();
         fileJobIds.push(fileJobId);
@@ -531,9 +527,7 @@ export class ClipboardState {
         } else {
           const remainingSizes: Record<string, number> = {};
           for (const k of remainingKeys) {
-            // eslint-disable-next-line security/detect-object-injection
             if (this.clipboard.fileSizes[k] !== undefined) {
-              // eslint-disable-next-line security/detect-object-injection
               remainingSizes[k] = this.clipboard.fileSizes[k];
             }
           }
@@ -599,7 +593,6 @@ export class ClipboardState {
     for (let i = 0; i < keys.length; i++) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-      // eslint-disable-next-line security/detect-object-injection
       const sourceKey = keys[i];
       const fileJobId = crypto.randomUUID();
       fileJobIds.push(fileJobId);
@@ -986,7 +979,6 @@ export class ClipboardState {
     parts.pop(); // remove filename
     let prefix = parts.join('/') ? parts.join('/') + '/' : '';
     for (let i = 1; i < keys.length; i++) {
-      // eslint-disable-next-line security/detect-object-injection
       while (prefix && !keys[i].startsWith(prefix)) {
         const idx = prefix.lastIndexOf('/', prefix.length - 2);
         prefix = idx >= 0 ? prefix.substring(0, idx + 1) : '';
