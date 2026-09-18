@@ -41,7 +41,7 @@ describe('No Circular Dependencies', () => {
     await expect(rule).toPassAsync(defaultOptions);
   });
 
-  it('KNOWN VIOLATION — Trino layer has circular imports (see TECH_DEBT.md)', async () => {
+  it('KNOWN VIOLATION — Trino layer has circular imports', async () => {
     const rule = projectFiles().inPath('src/lib/server/trino/**/*.ts').should().haveNoCycles();
 
     const violations = await rule.check(defaultOptions);

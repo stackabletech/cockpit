@@ -242,15 +242,15 @@ Architecture tests live in `src/architecture/*.spec.ts` and use [ArchUnitTS](htt
 
 **What the fitness functions enforce:**
 
-| Category                 | What is checked                                                                                                                                                |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Server / Client Boundary | `src/lib/client`, `stores`, `storage`, `editor`, `types` must not import `src/lib/server/**`                                                                   |
-| No Circular Dependencies | `src/lib/**` (excluding Trino, see TECH_DEBT.md) and `src/routes/**` must be cycle-free                                                                        |
-| Naming Conventions       | Stores → `*.svelte.ts`; lib components → PascalCase `.svelte`; server files → no `.svelte.ts` extension                                                        |
-| Code Size Limits         | `.ts` files < 2 400 LOC; `.svelte` files < 1 100 LOC; test files < 1 000 LOC                                                                                   |
-| UI Pattern Enforcement   | No hardcoded Tailwind colours; no raw `<dialog>`; no native date inputs; `<img>` must have `alt`; no `<div onclick>` (known violations listed in TECH_DEBT.md) |
-| Server Logging           | Server files must use pino logger, not `console.*`                                                                                                             |
-| i18n Compliance          | `messages/en.json` and `messages/de.json` must have the same keys; no static `aria-label="English text"` (known violations listed in TECH_DEBT.md)             |
+| Category                 | What is checked                                                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Server / Client Boundary | `src/lib/client`, `stores`, `storage`, `editor`, `types` must not import `src/lib/server/**`                         |
+| No Circular Dependencies | `src/lib/**` (excluding Trino) and `src/routes/**` must be cycle-free                                                |
+| Naming Conventions       | Stores → `*.svelte.ts`; lib components → PascalCase `.svelte`; server files → no `.svelte.ts` extension              |
+| Code Size Limits         | `.ts` files < 2 400 LOC; `.svelte` files < 1 100 LOC; test files < 1 000 LOC                                         |
+| UI Pattern Enforcement   | No hardcoded Tailwind colours; no raw `<dialog>`; no native date inputs; `<img>` must have `alt`; no `<div onclick>` |
+| Server Logging           | Server files must use pino logger, not `console.*`                                                                   |
+| i18n Compliance          | `messages/en.json` and `messages/de.json` must have the same keys; no static `aria-label="English text"`             |
 
 **Extending the fitness functions:**
 When you add a new architectural rule (e.g., a new layer, a new naming convention), add a new `.spec.ts` file in `src/architecture/` following the existing patterns. Use archunit for TypeScript dependency/cycle rules and plain Node.js `fs` for content checks on Svelte files.

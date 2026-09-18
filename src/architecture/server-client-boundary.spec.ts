@@ -11,7 +11,7 @@
  *     type files. TypeScript erases these at compile time so there is no runtime
  *     dependency. ArchUnitTS cannot distinguish type-only imports in .ts files,
  *     but since it does not scan .svelte files anyway, this is not an issue here.
- *     Long-term fix: move shared types to src/lib/types/ — see TECH_DEBT.md.
+ *     Long-term fix: move shared types to src/lib/types/.
  */
 
 import { projectFiles } from 'archunit';
