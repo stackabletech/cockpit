@@ -5,6 +5,7 @@ import svelte from 'eslint-plugin-svelte';
 import betterTailwindcss from 'eslint-plugin-better-tailwindcss';
 import security from 'eslint-plugin-security';
 import importPlugin from 'eslint-plugin-import';
+import checkFile from 'eslint-plugin-check-file';
 import globals from 'globals';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript-eslint';
@@ -96,6 +97,29 @@ export default ts.config(
   {
     files: ['src/**/*.{test,spec}.ts'],
     rules: { 'max-lines': ['error', { max: 1000, skipBlankLines: false, skipComments: false }] }
+  },
+  {
+    files: [
+      'src/lib/stores/**/*.{ts,svelte.ts}',
+      'src/lib/components/**/*.svelte',
+      'src/lib/server/**/*.svelte.ts'
+    ],
+    plugins: { 'check-file': checkFile },
+    rules: {
+      'check-file/filename-naming-convention': [
+        'error',
+        {
+          'src/lib/components/**/!(*.spec).svelte': 'PASCAL_CASE'
+        }
+      ],
+      'check-file/filename-blocklist': [
+        'error',
+        {
+          'src/lib/stores/**/!(*.svelte|*.spec).ts': '*.svelte.ts',
+          'src/lib/server/**/*.svelte.ts': '*.ts'
+        }
+      ]
+    }
   },
   {
     files: ['src/lib/components/Modal.svelte'],
