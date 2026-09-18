@@ -166,7 +166,7 @@
           <a
             href={result.trinoQueryUrl}
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noopener noreferrer external"
             class="btn btn-ghost btn-xs"
           >
             <!-- eslint-enable svelte/no-navigation-without-resolve -->

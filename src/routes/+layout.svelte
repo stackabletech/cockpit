@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { theme } from '$lib/theme.svelte';
   import NavigationProgress from '$lib/components/layout/NavigationProgress.svelte';
+  import * as m from '$lib/paraglide/messages.js';
 
   let { children } = $props();
 
@@ -21,5 +22,8 @@
 </script>
 
 <NavigationProgress />
+<svelte:head>
+  <meta name="description" content={m.meta_description()} />
+</svelte:head>
 
 {@render children()}

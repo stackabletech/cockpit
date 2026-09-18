@@ -225,7 +225,7 @@
       <!-- Parent directory row -->
       {#if storage.prefix}
         <tr
-          class="cursor-pointer {parentDragOver
+          class="hover:bg-base-200/60 cursor-pointer {parentDragOver
             ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
             : ''}"
           onclick={navigateUp}

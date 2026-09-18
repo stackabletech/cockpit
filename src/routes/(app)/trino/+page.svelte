@@ -803,7 +803,7 @@
               <button
                 type="button"
                 class="
-                  hover:bg-primary-content/20 cursor-pointer rounded-md px-3 py-1.5
+                  rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
                   text-left
                   {runMode === 'cursor' ? 'bg-primary-content/15' : ''}"
                 onclick={() => selectRunMode('cursor')}
@@ -813,7 +813,7 @@
               <button
                 type="button"
                 class="
-                  hover:bg-primary-content/20 cursor-pointer rounded-md px-3 py-1.5
+                  rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
                   text-left
                   {runMode === 'all' ? 'bg-primary-content/15' : ''}"
                 onclick={() => selectRunMode('all')}
@@ -898,7 +898,7 @@
             <a
               href={runner.currentTrinoQueryUrl}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener noreferrer external"
               class="btn btn-ghost btn-xs"
             >
               <!-- eslint-enable svelte/no-navigation-without-resolve -->

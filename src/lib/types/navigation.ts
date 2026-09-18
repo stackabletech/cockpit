@@ -3,7 +3,7 @@ import type { Pathname } from '$app/types';
 
 export type NavItem = {
   label: string;
-  href: Pathname;
+  route: Pathname;
   icon: Component;
   disabled?: boolean;
   badge?: string;
