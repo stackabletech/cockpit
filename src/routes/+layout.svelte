@@ -2,6 +2,7 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import { theme } from '$lib/theme.svelte';
+  import * as m from '$lib/paraglide/messages.js';
 
   let { children } = $props();
 
@@ -18,5 +19,9 @@
     return () => observer.disconnect();
   });
 </script>
+
+<svelte:head>
+  <meta name="description" content={m.meta_description()} />
+</svelte:head>
 
 {@render children()}

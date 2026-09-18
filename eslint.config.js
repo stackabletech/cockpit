@@ -1,6 +1,7 @@
 import prettier from 'eslint-config-prettier';
 import js from '@eslint/js';
 import { includeIgnoreFile } from '@eslint/compat';
+import { defineConfig } from 'eslint/config';
 import svelte from 'eslint-plugin-svelte';
 import betterTailwindcss from 'eslint-plugin-better-tailwindcss';
 import security from 'eslint-plugin-security';
@@ -10,7 +11,7 @@ import ts from 'typescript-eslint';
 
 const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
-export default ts.config(
+export default defineConfig(
   includeIgnoreFile(gitignorePath),
   { ignores: ['src/lib/editor/generated/**'] },
   js.configs.recommended,
@@ -27,7 +28,9 @@ export default ts.config(
       'no-undef': 'off',
       // It will currently also error on external links or links with query parameters
       // https://github.com/sveltejs/eslint-plugin-svelte/issues/1353
-      'svelte/no-navigation-without-resolve': 'warn'
+      'svelte/no-navigation-without-resolve': 'warn',
+      // Too common occurance in this project, disabling for now
+      'security/detect-object-injection': 'off'
     }
   },
   {
@@ -49,7 +52,15 @@ export default ts.config(
       }
     },
     rules: {
-      'better-tailwindcss/no-unknown-classes': ['warn', { detectComponentClasses: true }]
+      'better-tailwindcss/no-unknown-classes': [
+        'warn',
+        {
+          detectComponentClasses: true,
+          // DaisyUIs nestes selectors are not detected by this rule.
+          // Ignore them to catch outdated classes from DaisyUI v4 Agents seem to love.
+          ignore: ['dropdown-content', 'tab-active', 'swap-on', 'swap-off', 'menu-disabled']
+        }
+      ]
     }
   }
 );

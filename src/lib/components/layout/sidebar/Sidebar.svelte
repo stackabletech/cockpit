@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
   import type { Component } from 'svelte';
@@ -92,14 +93,14 @@
 
       <ul class="flex flex-col gap-1">
         {#each section.items as item (item.label)}
-          {@const active = isActive(item.href)}
+          {@const active = isActive(resolve(item.route))}
           <li>
             <a
-              href={item.href}
+              href={resolve(item.route)}
               onclick={(e) => handleNavClick(e, item)}
               onkeydown={(e) => handleNavKeydown(e, item)}
               title={collapsed ? item.label : undefined}
-              class="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
+              class="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
                 {active
                 ? 'bg-primary/10 text-primary'
                 : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
