@@ -85,6 +85,19 @@ export default ts.config(
     rules: { 'no-console': 'error' }
   },
   {
+    files: ['src/**/*.ts'],
+    ignores: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
+    rules: { 'max-lines': ['error', { max: 2400, skipBlankLines: false, skipComments: false }] }
+  },
+  {
+    files: ['src/**/*.svelte'],
+    rules: { 'max-lines': ['error', { max: 1100, skipBlankLines: false, skipComments: false }] }
+  },
+  {
+    files: ['src/**/*.{test,spec}.ts'],
+    rules: { 'max-lines': ['error', { max: 1000, skipBlankLines: false, skipComments: false }] }
+  },
+  {
     files: ['src/lib/components/Modal.svelte'],
     rules: { 'svelte/no-restricted-html-elements': 'off' }
   },
