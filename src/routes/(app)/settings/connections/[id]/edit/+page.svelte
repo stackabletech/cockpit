@@ -74,11 +74,8 @@
     confirmLeaveOpen = false;
     pendingNavigation = null;
     bypassDirtyCheck = true;
-    goto(resolvePathname(dest as Pathname));
-  }
-
-  function resolvePathname<T extends Pathname>(pathname: T) {
-    return (resolve as (pathname: Pathname) => string)(pathname);
+    // The URL comes from SvelteKit's beforeNavigate callback.
+    void goto((resolve as (pathname: Pathname) => string)(dest as Pathname));
   }
 
   function cancelLeave() {

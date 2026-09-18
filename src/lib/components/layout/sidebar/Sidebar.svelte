@@ -106,14 +106,15 @@
         {#each section.items as item (item.label)}
           {@const active = isActive(item.href)}
           <li>
-            <TooltipTrigger text={collapsed ? item.label : null} orientation="right">
+            <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Nav item paths are dynamically generated. -->
+            <TooltipTrigger text={collapsed ? item.label : undefined} orientation="right">
               <a
                 href={resolveHref(item.href)}
                 data-sveltekit-preload-data="hover"
                 onclick={(e) => handleNavClick(e, item)}
                 onkeydown={(e) => handleNavKeydown(e, item)}
                 aria-label={collapsed ? item.label : undefined}
-                class="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
+                class="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
                   {active
                   ? 'bg-primary/10 text-primary'
                   : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
@@ -143,7 +144,7 @@
 
   <!-- Footer: collapse toggle (desktop only) -->
   <div class="border-base-300 hidden shrink-0 border-t p-3 lg:block">
-    <TooltipTrigger text={collapsed ? m.sidebar_expand() : null} orientation="right">
+    <TooltipTrigger text={collapsed ? m.sidebar_expand() : undefined} orientation="right">
       <button
         onclick={() => (collapsed = !collapsed)}
         class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3 py-2

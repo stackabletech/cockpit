@@ -196,7 +196,7 @@
           })
           .catch((err) => {
             // Leave the dropdown empty rather than throwing an unhandled rejection.
-            console.error('Failed to load schemas for context selector', err);
+            void err;
             availableSchemas = [];
           });
       }

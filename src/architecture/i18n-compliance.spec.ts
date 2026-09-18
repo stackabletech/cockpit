@@ -14,7 +14,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { findFiles } from './helpers';
+import { findFiles, readTextFile } from './helpers';
 
 describe('i18n Compliance', () => {
   it('messages/en.json and messages/de.json must have the same top-level keys', () => {
@@ -36,7 +36,7 @@ describe('i18n Compliance', () => {
 
     const files = findFiles('src', /\.svelte$/);
     const allViolations = files.filter((file) => {
-      const content = readFileSync(file, 'utf-8');
+      const content = readTextFile(file);
       return STATIC_ARIA_RE.test(content);
     });
 

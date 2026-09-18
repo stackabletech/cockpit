@@ -16,18 +16,7 @@ vi.mock('hyparquet-compressors', () => ({
   compressors: { UNCOMPRESSED: vi.fn() }
 }));
 
-vi.mock('$lib/server/logging', () => ({
-  logger: {
-    child: () => ({
-      info: vi.fn(),
-      debug: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-      trace: vi.fn(),
-      child: vi.fn()
-    })
-  }
-}));
+vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 vi.mock('$lib/server/feature-flags', () => ({
   parquetDisallowedCompression: [{ codec: 'GZIP', requireOffsetIndex: true }],

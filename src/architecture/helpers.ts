@@ -14,6 +14,13 @@ export const defaultOptions = {
   logging: { enabled: false, level: 'warn' as const }
 };
 
+// These tests deliberately inspect a discovered source tree rather than
+// application-controlled input paths.
+/* eslint-disable security/detect-non-literal-fs-filename */
+export function readTextFile(file: string): string {
+  return readFileSync(file, 'utf-8');
+}
+
 /**
  * Recursively collect all files under `dir` whose names match `filenamePattern`.
  * Hidden directories (starting with `.`) are skipped automatically.
@@ -54,7 +61,7 @@ export function checkFiles(
 ): Array<{ file: string; reason: string }> {
   return files
     .filter((file) => {
-      const content = readFileSync(file, 'utf-8');
+      const content = readTextFile(file);
       return !predicate(content);
     })
     .map((file) => ({ file, reason }));

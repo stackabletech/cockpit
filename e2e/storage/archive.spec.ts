@@ -170,11 +170,10 @@ test.describe('Storage S3 — Archive preview', () => {
 
       // Should be at the bucket root (archive exited)
 
-      await expect(page).toHaveURL(
-        new RegExp(
-          `/storage/browse/${new URL(credentials.endpoint).hostname}/${credentials.bucket}(\\?|$)`
-        )
-      );
+      await expect(page).toHaveURL((url) => {
+        const endpoint = new URL(credentials.endpoint);
+        return url.pathname === `/storage/browse/${endpoint.hostname}/${credentials.bucket}`;
+      });
       await expect(page.getByText('archive.zip')).not.toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);

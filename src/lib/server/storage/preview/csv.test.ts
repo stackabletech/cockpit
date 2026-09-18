@@ -2,18 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type pino from 'pino';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
 
-vi.mock('$lib/server/logging', () => ({
-  logger: {
-    child: () => ({
-      info: vi.fn(),
-      debug: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-      trace: vi.fn(),
-      child: vi.fn()
-    })
-  }
-}));
+vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 // Use a small textPreviewBytes to force predictable chunk boundaries
 vi.mock('$lib/server/feature-flags', () => ({

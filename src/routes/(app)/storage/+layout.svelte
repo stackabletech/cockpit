@@ -39,10 +39,19 @@
     persistEnabled: storageRestoreTabsEnabled,
     connectionId: storage.connectionId,
     navigateToLocation: (connection, bucket, prefix) => {
-      void goto(locationPath(connection, bucket, prefix));
+      void goto(
+        (resolve as (pathname: import('$app/types').Pathname) => string)(
+          locationPath(connection, bucket, prefix) as import('$app/types').Pathname
+        )
+      );
     },
     replaceLocationUrl: (connection, bucket, prefix) => {
-      void goto(locationPath(connection, bucket, prefix), { replaceState: true });
+      void goto(
+        (resolve as (pathname: import('$app/types').Pathname) => string)(
+          locationPath(connection, bucket, prefix) as import('$app/types').Pathname
+        ),
+        { replaceState: true }
+      );
     }
   });
   setTabsState(tabsState);

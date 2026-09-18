@@ -83,7 +83,7 @@
     </div>
 
     <div class="flex flex-wrap items-center justify-center gap-3">
-      <a href="/storage" class="btn btn-sm btn-primary">
+      <a href={resolve('/(app)/storage')} class="btn btn-sm btn-primary">
         {m.storage_error_back_to_storage()}
       </a>
       <button type="button" class="btn btn-ghost btn-sm" onclick={() => history.back()}>

@@ -2,7 +2,7 @@
   import TooltipTrigger from '../TooltipTrigger.svelte';
 
   interface Props {
-    text: string | null;
+    text?: string;
     orientation?: 'right' | 'left' | 'up' | 'down';
   }
   let { text, orientation = 'down' }: Props = $props();

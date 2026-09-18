@@ -9,9 +9,8 @@
  * refactoring cycles.
  */
 
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { findFiles } from './helpers';
+import { findFiles, readTextFile } from './helpers';
 
 describe('Code Size Limits', () => {
   it('TypeScript source files must not exceed 2 400 lines of code', () => {
@@ -20,7 +19,7 @@ describe('Code Size Limits', () => {
 
     const files = findFiles('src', /\.ts$/, [/editor\/generated/, /paraglide/]);
     for (const file of files) {
-      const lines = readFileSync(file, 'utf-8').split('\n').length;
+      const lines = readTextFile(file).split('\n').length;
       if (lines >= MAX_LOC) {
         violations.push(`${file} (${lines} lines, max ${MAX_LOC})`);
       }
@@ -35,7 +34,7 @@ describe('Code Size Limits', () => {
 
     const files = findFiles('src', /\.svelte$/);
     for (const file of files) {
-      const lines = readFileSync(file, 'utf-8').split('\n').length;
+      const lines = readTextFile(file).split('\n').length;
       if (lines >= MAX_LOC) {
         violations.push(`${file} (${lines} lines, max ${MAX_LOC})`);
       }
@@ -50,7 +49,7 @@ describe('Code Size Limits', () => {
 
     const files = findFiles('src', /\.(test|spec)\.ts$/, [/editor\/generated/]);
     for (const file of files) {
-      const lines = readFileSync(file, 'utf-8').split('\n').length;
+      const lines = readTextFile(file).split('\n').length;
       if (lines >= MAX_LOC) {
         violations.push(`${file} (${lines} lines, max ${MAX_LOC})`);
       }

@@ -7,9 +7,7 @@ import * as tar from 'tar-stream';
 import { createWriteStream } from 'node:fs';
 import { createGzip } from 'node:zlib';
 
-vi.mock('$lib/server/logging', () => ({
-  logger: { child: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn() }) }
-}));
+vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 import {
   getArchiveFormat,

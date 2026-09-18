@@ -15,7 +15,7 @@
   import BucketGrid from '$lib/components/storage/landing/BucketGrid.svelte';
   import StorageConnectForm from '$lib/components/storage/landing/StorageConnectForm.svelte';
   import RecentItems from '$lib/components/storage/landing/RecentItems.svelte';
-  import AddBucketModal from '$lib/components/storage/landing/AddBucketModal.svelte';
+  import AddBucketModal from '$lib/components/storage/modals/AddBucketModal.svelte';
   import IconAdd from 'virtual:icons/material-symbols/add';
 
   let { data } = $props();

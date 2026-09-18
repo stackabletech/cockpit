@@ -43,8 +43,8 @@ describe('TooltipTrigger', () => {
     await expect.element(page.getByRole('tooltip')).not.toBeInTheDocument();
   });
 
-  it('does not show a tooltip when text is null', async () => {
-    render(TooltipTriggerWrapper, { text: null });
+  it('does not show a tooltip when no text is supplied', async () => {
+    render(TooltipTriggerWrapper, {});
     await page.getByRole('button', { name: 'Trigger' }).hover();
     expect(page.getByRole('tooltip').query()).toBeNull();
   });
