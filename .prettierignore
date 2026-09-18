@@ -33,3 +33,4 @@ coverage/
 # Helm templates
 deploy/helm/
 dev/garage/
+dev/postgresql/

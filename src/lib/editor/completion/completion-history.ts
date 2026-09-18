@@ -53,7 +53,9 @@ function loadHistory(): HistoryStore {
         for (const name of list) {
           if (typeof name !== 'string' || seen.has(name)) continue;
           seen.add(name);
+
           fresh[category].push(name);
+
           if (fresh[category].length >= CAPS[category]) break;
         }
       }
@@ -82,11 +84,13 @@ function scheduleSave(): void {
  *  category. Moves it to the front of the LRU list and persists. */
 export function recordUse(category: HistoryCategory, name: string): void {
   const history = loadHistory();
+
   const list = history[category];
   const index = list.indexOf(name);
   if (index === 0) return; // already at the head, nothing to do
   if (index > 0) list.splice(index, 1);
   list.unshift(name);
+
   if (list.length > CAPS[category]) list.length = CAPS[category];
   scheduleSave();
 }
@@ -95,6 +99,7 @@ export function recordUse(category: HistoryCategory, name: string): void {
  *  present. The caller uses this to bias `sortText`. */
 export function rankOf(category: HistoryCategory, name: string): number | null {
   const history = loadHistory();
+
   const index = history[category].indexOf(name);
   return index < 0 ? null : index;
 }

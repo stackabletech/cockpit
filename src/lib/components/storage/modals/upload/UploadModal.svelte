@@ -6,13 +6,15 @@
   import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
-  import { checkObjectExists, uploadFile, UploadError } from '$lib/storage/upload.js';
+  import { checkObjectExists, uploadFile } from '$lib/storage/upload.js';
+  import { StorageError } from '$lib/storage/errors.js';
   import { formatFileSize } from '$lib/storage/utils.js';
-  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { uploadConcurrency } from '$lib/client/feature-flags.js';
   import UploadDropzone from './UploadDropzone.svelte';
-  import UploadConflictEntry from './UploadConflictEntry.svelte';
   import UploadEntryStatus from './UploadEntryStatus.svelte';
+  import ConflictEntry from '../shared/ConflictEntry.svelte';
+  import type { ConflictEntry as ConflictEntryType } from '../shared/conflict-types.js';
   import type { FileEntry, Phase, Resolution, RenameState } from './types.js';
 
   interface Props {
@@ -103,8 +105,7 @@
     cancelRequested = false;
     phase = 'checking';
 
-    const conn = loadConnectionLocally();
-    const connHeader = conn ? getConnectionHeader(conn) : '';
+    const connHeader = connectionStore.activeConnectionId ?? '';
 
     const results: { id: string; conflict: boolean }[] = [];
     for (let i = 0; i < entries.length; i += uploadConcurrency) {
@@ -183,8 +184,7 @@
     entries = entries.map((e) =>
       e.id === entry.id ? { ...e, status: 'uploading' as const, progress: 0 } : e
     );
-    const conn = loadConnectionLocally();
-    const connHeader = conn ? getConnectionHeader(conn) : '';
+    const connHeader = connectionStore.activeConnectionId ?? '';
     try {
       await uploadFile(
         bucket,
@@ -200,7 +200,7 @@
       );
     } catch (err) {
       const msg =
-        err instanceof UploadError ? mapUploadError(err) : m.storage_upload_error_unknown();
+        err instanceof StorageError ? mapUploadError(err) : m.storage_upload_error_unknown();
       entries = entries.map((e) =>
         e.id === entry.id ? { ...e, status: 'error' as const, errorMessage: msg } : e
       );
@@ -274,8 +274,7 @@
 
     entries = entries.map((e) => (e.id === id ? { ...e, renameState: 'checking' as const } : e));
     const newKey = resolvedKey(entry);
-    const conn = loadConnectionLocally();
-    const connHeader = conn ? getConnectionHeader(conn) : '';
+    const connHeader = connectionStore.activeConnectionId ?? '';
     try {
       const exists = await checkObjectExists(bucket, newKey, connHeader);
       const nextState: RenameState = exists ? 'conflict' : 'ok';
@@ -308,7 +307,7 @@
 
   // ── Error mapping ──────────────────────────────────────────────────────────
 
-  function mapUploadError(err: UploadError): string {
+  function mapUploadError(err: StorageError): string {
     switch (err.code) {
       case 'not_connected':
         return m.storage_upload_error_not_connected();
@@ -333,13 +332,15 @@
       <h2 class="text-base-content text-lg font-semibold">
         {m.storage_upload_title()}
       </h2>
-      <button
-        class="btn btn-ghost btn-sm btn-square"
-        onclick={handleCancel}
-        aria-label={m.storage_upload_close()}
-      >
-        <IconClose class="size-5" aria-hidden="true" />
-      </button>
+      <div class="tooltip tooltip-bottom" data-tip={m.storage_upload_close()}>
+        <button
+          class="btn btn-ghost btn-sm btn-square"
+          onclick={handleCancel}
+          aria-label={m.storage_upload_close()}
+        >
+          <IconClose class="size-5" aria-hidden="true" />
+        </button>
+      </div>
     </div>
 
     <!-- Target prefix info -->
@@ -421,8 +422,16 @@
         aria-label={m.storage_upload_conflicts_title()}
       >
         {#each conflictEntries as entry (entry.id)}
-          <UploadConflictEntry
-            {entry}
+          {@const mappedEntry: ConflictEntryType = {
+            id: entry.id,
+            originalName: entry.targetKey.split('/').at(-1) ?? entry.file.name,
+            conflict: entry.conflict,
+            resolution: entry.resolution,
+            customName: entry.customName,
+            renameState: entry.renameState
+          }}
+          <ConflictEntry
+            entry={mappedEntry}
             onSetResolution={(res) => setResolution(entry.id, res)}
             onSetCustomName={(name) => setCustomName(entry.id, name)}
             onRenameButtonClick={() => handleRenameButtonClick(entry.id)}

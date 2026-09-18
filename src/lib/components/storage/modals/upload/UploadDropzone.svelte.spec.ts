@@ -38,13 +38,17 @@ describe('UploadDropzone', () => {
     it('should have Select files button', async () => {
       render(UploadDropzone, { onFilesSelected: vi.fn() });
 
-      await expect.element(page.getByRole('button', { name: 'Select files' })).toBeInTheDocument();
+      await expect
+        .element(page.getByRole('button', { name: 'Select files' }).first())
+        .toBeInTheDocument();
     });
 
     it('should have Select folder button', async () => {
       render(UploadDropzone, { onFilesSelected: vi.fn() });
 
-      await expect.element(page.getByRole('button', { name: 'Select folder' })).toBeInTheDocument();
+      await expect
+        .element(page.getByRole('button', { name: 'Select folder' }).first())
+        .toBeInTheDocument();
     });
 
     it('should have hidden file inputs', async () => {
@@ -359,7 +363,7 @@ describe('UploadDropzone', () => {
       const fileInput = page.getByLabelText('Select files').element() as HTMLInputElement;
       const clickSpy = vi.spyOn(fileInput, 'click');
 
-      const btn = page.getByRole('button', { name: 'Select files' });
+      const btn = page.getByRole('button', { name: 'Select files' }).first();
       (btn.element() as HTMLElement).click();
 
       expect(clickSpy).toHaveBeenCalled();
@@ -371,7 +375,7 @@ describe('UploadDropzone', () => {
       const dirInput = page.getByLabelText('Select folder').element() as HTMLInputElement;
       const clickSpy = vi.spyOn(dirInput, 'click');
 
-      const btn = page.getByRole('button', { name: 'Select folder' });
+      const btn = page.getByRole('button', { name: 'Select folder' }).first();
       (btn.element() as HTMLElement).click();
 
       expect(clickSpy).toHaveBeenCalled();

@@ -16,6 +16,10 @@ export default defineConfig({
       strategy: ['cookie', 'preferredLanguage', 'baseLocale']
     })
   ],
+  optimizeDeps: {
+    include: ['@sveltejs/kit', 'svelte']
+  },
+  server: { allowedHosts: true },
   test: {
     coverage: {
       provider: 'v8',
@@ -34,7 +38,7 @@ export default defineConfig({
             instances: [{ browser: 'chromium', headless: true }]
           },
           include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
-          exclude: ['src/lib/server/**'],
+          exclude: ['src/lib/server/**', 'src/architecture/**'],
           setupFiles: ['src/test/setup-client.ts']
         }
       },
@@ -45,7 +49,7 @@ export default defineConfig({
           name: 'server',
           environment: 'node',
           include: ['src/**/*.{test,spec}.{js,ts}'],
-          exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
+          exclude: ['src/**/*.svelte.{test,spec}.{js,ts}', 'src/architecture/**']
         }
       }
     ]

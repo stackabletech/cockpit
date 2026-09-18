@@ -201,6 +201,7 @@ function createTabStore() {
 
     if (activeTabId === id) {
       const newIndex = Math.min(index, tabs.length - 1);
+
       activeTabId = tabs[newIndex].id;
     }
     saveIndex();
