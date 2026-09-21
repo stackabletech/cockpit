@@ -162,10 +162,10 @@
     {/if}
     <ul class="flex flex-col gap-1">
       {#each platformSection.items as item (item.label)}
-        {@const active = isActive(item.href)}
+        {@const active = isActive(resolve(item.route))}
         <li>
           <a
-            href={item.href}
+            href={resolve(item.route)}
             onclick={(e) => handleNavClick(e, item)}
             onkeydown={(e) => handleNavKeydown(e, item)}
             title={collapsed ? item.label : undefined}
@@ -203,7 +203,6 @@
         </div>
       {/if}
       <ul class="flex flex-col gap-1">
-<<<<<<< HEAD
         {#each pinnedBookmarks as bookmark (bookmark.id)}
           {@render bookmarkItem(bookmark)}
         {/each}
@@ -228,9 +227,9 @@
       </button>
     {/if}
     {#if toolsOpen || collapsed}
-        <ul class="flex flex-col gap-1">
-          {#each toolsSection.items as item (item.label)}
-            {@const active = isActive(resolve(item.route))}
+      <ul class="flex flex-col gap-1">
+        {#each toolsSection.items as item (item.label)}
+          {@const active = isActive(resolve(item.route))}
           <li>
             <a
               href={resolve(item.route)}
