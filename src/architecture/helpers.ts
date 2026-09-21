@@ -1,9 +1,8 @@
 /**
  * Shared helpers for architecture fitness tests.
  *
- * ArchUnitTS only scans TypeScript (.ts) source files. Svelte (.svelte) and
- * JSON files are invisible to its file graph. Rules that need to inspect
- * .svelte file content therefore use plain Node.js fs helpers instead.
+ * Some rules inspect Svelte and JSON source text directly. These helpers
+ * provide recursive discovery and content checks for those rules.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';

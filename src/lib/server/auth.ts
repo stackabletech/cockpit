@@ -93,10 +93,10 @@ export const auth = betterAuth({
                   }
                   return {
                     name: profile.name || fullName || profile.preferred_username || profile.email,
-                    email: profile.email || profile.preferred_username,
+                    email: profile.email || profile.preferred_username || '',
                     emailVerified: profile.email_verified ?? true,
                     image: profile.picture || null,
-                    username: trinoUser || profile.preferred_username || profile.email
+                    username: trinoUser || profile.preferred_username || profile.email || ''
                   };
                 }
               }

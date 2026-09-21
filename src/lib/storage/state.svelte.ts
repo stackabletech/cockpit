@@ -107,10 +107,7 @@ export class StorageState {
   archive: ArchiveState;
   clipboardState: ClipboardState;
 
-  /**
-   * Delegated clipboard data getter for backward compatibility.
-   * Components access `storage.clipboard` to read the current clipboard.
-   */
+  /** Delegated clipboard data getter. */
   get clipboard(): import('$lib/storage/types.js').ClipboardData | null {
     return this.clipboardState.clipboard;
   }
@@ -568,7 +565,6 @@ export class StorageState {
 
   confirmCreate = async (name: string, type: 'file' | 'folder'): Promise<void> => {
     const sanitized = name.trim();
-    if (!sanitized || sanitized === '.' || sanitized === '..') return;
 
     this.closeModal();
     this.loading = true;

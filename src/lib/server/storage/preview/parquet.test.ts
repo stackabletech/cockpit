@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type pino from 'pino';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
+import { createMockLogger } from '$lib/test-utils/mock-logger.js';
 
 const mockParquetMetadataAsync = vi.fn();
 const mockParquetRead = vi.fn();
@@ -31,14 +31,7 @@ vi.mock('$lib/server/feature-flags', () => ({
 
 import { getParquetPreview } from './parquet.js';
 
-const mockLog = {
-  info: vi.fn(),
-  debug: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  trace: vi.fn(),
-  child: vi.fn(() => mockLog)
-} as unknown as pino.Logger;
+const mockLog = createMockLogger();
 
 function makeProvider(overrides: Partial<StorageProvider> = {}): StorageProvider {
   return {

@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { createStorageProvider } from '$lib/server/storage/request-context.js';
 import type { RequestHandler } from './$types';
+import { StorageObjectNameSchema } from '$lib/storage/schemas.js';
 
 /**
  * POST /api/storage/create?bucket=<bucket>&key=<object-key>
@@ -11,8 +12,9 @@ import type { RequestHandler } from './$types';
  */
 export const POST: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
-  const key = event.url.searchParams.get('key')?.trim();
-  if (!key) throw error(400, 'Missing required query parameter: key');
+  const parsedKey = StorageObjectNameSchema.safeParse(event.url.searchParams.get('key'));
+  if (!parsedKey.success) throw error(400, 'Invalid query parameter: key');
+  const key = parsedKey.data;
   const log = event.locals.logger;
 
   const contentType = key.endsWith('/') ? 'application/x-directory' : 'text/plain';

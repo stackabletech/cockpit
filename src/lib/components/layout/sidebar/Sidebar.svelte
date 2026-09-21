@@ -1,7 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import type { Pathname } from '$app/types';
   import * as m from '$lib/paraglide/messages.js';
   import type { Component } from 'svelte';
   import IconChevronLeft from 'virtual:icons/material-symbols/chevron-left';
@@ -32,8 +31,8 @@
     return currentPath.startsWith(href);
   }
 
-  function resolveHref<T extends Pathname>(href: T) {
-    return (resolve as (pathname: Pathname) => string)(href);
+  function resolveHref(href: string) {
+    return (resolve as (pathname: string) => string)(href);
   }
 
   function handleNavClick(event: MouseEvent, item: NavItem) {

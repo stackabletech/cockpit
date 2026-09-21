@@ -1,6 +1,5 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import type { Pathname } from '$app/types';
   import type { Snippet } from 'svelte';
   import IconArrowForward from 'virtual:icons/material-symbols/arrow-forward';
   import IconDescriptionOutline from 'virtual:icons/material-symbols/description-outline';
@@ -44,7 +43,7 @@
   }
 
   function resolveHref(href: string) {
-    return (resolve as (pathname: Pathname) => string)(href as Pathname);
+    return (resolve as (pathname: string) => string)(href);
   }
 </script>
 
@@ -67,8 +66,7 @@
       </tr>
     </thead>
     <tbody>
-      <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
-      {#each [1, 2, 3, 4] as _, i (i)}
+      {#each [1, 2, 3, 4] as i (i)}
         <tr>
           <td>
             <div class="flex items-center gap-2">

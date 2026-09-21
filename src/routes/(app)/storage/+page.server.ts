@@ -3,7 +3,11 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { desc, eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
-import { StorageConnectionSchema, ConnectionIdSchema } from '$lib/storage/schemas.js';
+import {
+  StorageConnectionSchema,
+  ConnectionIdSchema,
+  StoredStorageConnectionSchema
+} from '$lib/storage/schemas.js';
 import { getConnectionProvider } from '$lib/server/storage/utils.js';
 import {
   saveConnection,
@@ -15,7 +19,8 @@ import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
 import { decrypt } from '$lib/server/storage/encryption.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
-import type { ConnectionMetadata, S3ConnectionConfig } from '$lib/server/storage/types.js';
+import type { S3ConnectionConfig } from '$lib/server/storage/types.js';
+import type { ConnectionMetadata } from '$lib/storage/connection-types.js';
 import * as m from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -40,10 +45,9 @@ export const load: PageServerLoad = async ({ locals }) => {
     connections = rows.map((row) => {
       let endpoint: string | null = null;
       try {
-        const payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey())) as {
-          host?: string;
-          port?: number;
-        };
+        const payload = StoredStorageConnectionSchema.parse(
+          JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey()))
+        );
         endpoint =
           payload.host && payload.port ? `${payload.host}:${payload.port}` : (payload.host ?? null);
       } catch {

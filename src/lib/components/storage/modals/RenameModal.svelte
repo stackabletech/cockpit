@@ -2,6 +2,7 @@
   import IconDriveFileRenameOutline from 'virtual:icons/material-symbols/drive-file-rename-outline';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
+  import { StorageObjectNameSchema } from '$lib/storage/schemas.js';
 
   interface Props {
     open?: boolean;
@@ -26,15 +27,17 @@
   let inputEl = $state<HTMLInputElement | null>(null);
 
   function handleConfirm() {
-    if (newName.trim() && newName.trim() !== currentName) {
-      onConfirm(newName.trim());
+    if (loading) return;
+    const result = StorageObjectNameSchema.safeParse(newName);
+    if (result.success && result.data !== currentName) {
+      onConfirm(result.data);
     } else {
       onCancel();
     }
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter') handleConfirm();
+    if (e.key === 'Enter' && !loading) handleConfirm();
     if (e.key === 'Escape') onCancel();
   }
 

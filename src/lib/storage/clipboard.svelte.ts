@@ -5,7 +5,7 @@ import { addToast } from '$lib/stores/toast.svelte.js';
 import type { StoragePage, ClipboardData, ModalType } from '$lib/storage/types.js';
 import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
 import { keyToName } from '$lib/storage/utils.js';
-import { ActionError, getActionErrorMessage } from './errors.js';
+import { StorageError, getActionErrorMessage } from './errors.js';
 import { pageUnloading } from './operations.svelte.js';
 import { storageMoveEnabled } from '$lib/client/feature-flags.js';
 import { OperationsState } from './operations.svelte.js';
@@ -290,7 +290,7 @@ export class ClipboardState {
       this._operations.finishOp(opId, 'error');
       addToast(
         'error',
-        err instanceof ActionError ? getActionErrorMessage(err) : m.storage_action_paste_error()
+        err instanceof StorageError ? getActionErrorMessage(err) : m.storage_action_paste_error()
       );
     }
   }

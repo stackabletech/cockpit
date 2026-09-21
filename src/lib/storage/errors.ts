@@ -12,8 +12,6 @@ export type StorageErrorCode =
   | 'invalid_part'
   | 'unknown';
 
-export type ActionErrorCode = StorageErrorCode;
-
 export class StorageError extends Error {
   constructor(
     public readonly code: string,
@@ -21,15 +19,6 @@ export class StorageError extends Error {
   ) {
     super(message);
     this.name = 'StorageError';
-  }
-}
-
-// ── ActionError (backward-compatible alias) ──────────────────────────────────
-
-export class ActionError extends StorageError {
-  constructor(code: string, message: string) {
-    super(code, message);
-    this.name = 'ActionError';
   }
 }
 

@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
-import { ConnectionIdSchema } from '$lib/storage/schemas.js';
+import { ConnectionIdSchema, StoredStorageConnectionSchema } from '$lib/storage/schemas.js';
 import { deleteConnection } from '$lib/server/storage/connections-db.js';
 import { auth } from '$lib/server/auth.js';
 import { desc, eq } from 'drizzle-orm';
@@ -23,10 +23,9 @@ export const load: PageServerLoad = async ({ locals }) => {
   const connections: ConnectionListItem[] = rows.map((row) => {
     let endpoint: string | null = null;
     try {
-      const payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey())) as {
-        host?: string;
-        port?: number;
-      };
+      const payload = StoredStorageConnectionSchema.parse(
+        JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey()))
+      );
       endpoint =
         payload.host && payload.port ? `${payload.host}:${payload.port}` : (payload.host ?? null);
     } catch (err) {

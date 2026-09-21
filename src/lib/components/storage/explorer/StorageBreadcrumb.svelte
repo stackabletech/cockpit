@@ -24,8 +24,10 @@
   import ContextMenu from './ContextMenu.svelte';
   import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
   import type { ContextMenuAction } from '$lib/storage/types.js';
+  import { StorageObjectNameSchema } from '$lib/storage/schemas.js';
 
   const storage = getStorageState();
+  const uid = $props.id();
 
   const breadcrumbParts = $derived(
     storage.prefix
@@ -79,12 +81,6 @@
   let creating = $state(false);
   let createError = $state('');
 
-  const NAME_INVALID_CHARS = /[^\w\s./()\-+@,:;!$*'=]/g;
-
-  function sanitizeName(raw: string): string {
-    return raw.replace(NAME_INVALID_CHARS, '');
-  }
-
   function openCreate() {
     createOpen = true;
     createStep = 'choose';
@@ -109,11 +105,12 @@
   }
 
   async function handleCreate() {
-    const name = sanitizeName(createName.trim());
-    if (!name || name === '.' || name === '..') {
+    const parsedName = StorageObjectNameSchema.safeParse(createName);
+    if (!parsedName.success) {
       createError = m.storage_create_error({ name: createName });
       return;
     }
+    const name = parsedName.data;
     creating = true;
     createError = '';
 
@@ -629,17 +626,14 @@
             border p-3 shadow-lg
           "
         >
-          <label for="create-name-input" class="label label-text mb-1 p-0">
+          <label for={uid + '-create-name-input'} class="label label-text mb-1 p-0">
             {m.storage_create_name()}
           </label>
           <input
-            id="create-name-input"
+            id={uid + '-create-name-input'}
             class="input input-sm w-full"
-            value={createName}
+            bind:value={createName}
             placeholder={m.storage_create_placeholder()}
-            oninput={(e) => {
-              createName = sanitizeName(e.currentTarget.value);
-            }}
             onkeydown={(e) => {
               if (e.key === 'Enter') handleCreate();
               if (e.key === 'Escape') closeCreate();

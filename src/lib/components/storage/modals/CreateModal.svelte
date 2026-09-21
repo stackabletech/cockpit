@@ -3,6 +3,7 @@
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
+  import { StorageObjectNameSchema } from '$lib/storage/schemas.js';
 
   interface Props {
     open?: boolean;
@@ -26,17 +27,9 @@
   let name = $state('');
   let inputEl = $state<HTMLInputElement | null>(null);
 
-  const NAME_INVALID_CHARS = /[^\w\s./()\-+@,:;!$*'=]/g;
-
-  function sanitize(raw: string): string {
-    return raw.replace(NAME_INVALID_CHARS, '');
-  }
-
   function handleConfirm() {
-    const sanitized = sanitize(name.trim());
-    if (sanitized && sanitized !== '.' && sanitized !== '..') {
-      onConfirm(sanitized);
-    }
+    const result = StorageObjectNameSchema.safeParse(name);
+    if (result.success) onConfirm(result.data);
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -83,10 +76,7 @@
       id={uid + '-create-input'}
       class="input input-sm w-full"
       placeholder={m.storage_create_placeholder()}
-      value={name}
-      oninput={(e) => {
-        name = sanitize(e.currentTarget.value);
-      }}
+      bind:value={name}
       onkeydown={handleKeydown}
       disabled={loading}
     />

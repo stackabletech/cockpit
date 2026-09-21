@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type pino from 'pino';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
+import { createMockLogger } from '$lib/test-utils/mock-logger.js';
 
 vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
@@ -12,14 +12,7 @@ vi.mock('$lib/server/feature-flags', () => ({
 
 import { getCsvPreview } from './csv.js';
 
-const mockLog = {
-  info: vi.fn(),
-  debug: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  trace: vi.fn(),
-  child: vi.fn(() => mockLog)
-} as unknown as pino.Logger;
+const mockLog = createMockLogger();
 
 function makeProvider(
   getObjectRangeImpl: (key: string, start: number, end: number) => Promise<ReadableStream>

@@ -21,24 +21,31 @@
   let details = $state<BucketDetailsType | null>(null);
 
   $effect(() => {
+    let cancelled = false;
     loading = true;
     error = null;
+    details = null;
 
     async function fetchDetails() {
       try {
-        details = await storage.api.bucketDetails({ bucket });
+        const result = await storage.api.bucketDetails({ bucket });
+        if (!cancelled) details = result;
       } catch (err) {
+        if (cancelled) return;
         if (err instanceof StorageError) {
           error = err.message;
         } else {
           error = err instanceof Error ? err.message : m.storage_details_error_unknown();
         }
       } finally {
-        loading = false;
+        if (!cancelled) loading = false;
       }
     }
 
     void fetchDetails();
+    return () => {
+      cancelled = true;
+    };
   });
 
   function versioningLabel(status: 'Enabled' | 'Suspended' | 'Disabled'): string {

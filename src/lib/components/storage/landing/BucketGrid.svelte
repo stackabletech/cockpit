@@ -59,8 +59,7 @@
     "
     aria-label={m.storage_loading()}
   >
-    <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
-    {#each [1, 2, 3, 4, 5, 6] as _, i (i)}
+    {#each [1, 2, 3, 4, 5, 6] as i (i)}
       <div
         class="border-base-300 bg-base-100 flex flex-col items-center gap-2 rounded-xl border p-4"
       >

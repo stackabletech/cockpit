@@ -15,7 +15,8 @@
   import UploadEntryStatus from './UploadEntryStatus.svelte';
   import ConflictEntry from '../shared/ConflictEntry.svelte';
   import type { ConflictEntry as ConflictEntryType } from '../shared/conflict-types.js';
-  import type { FileEntry, Phase, Resolution, RenameState } from './types.js';
+  import type { FileEntry, Phase } from './types.js';
+  import type { Resolution, RenameState } from '../shared/conflict-types.js';
 
   interface Props {
     open: boolean;

@@ -94,6 +94,22 @@ describe('fingerprint', () => {
     expect(fp1).not.toBe(fp2);
   });
 
+  it('distinguishes credentials whose fields contain the former delimiter', () => {
+    const first = {
+      endpoint: 'endpoint|region',
+      region: 'access',
+      accessKeyId: 'key',
+      secretAccessKey: 'secret'
+    };
+    const second = {
+      endpoint: 'endpoint',
+      region: 'region|access',
+      accessKeyId: 'key',
+      secretAccessKey: 'secret'
+    };
+    expect(fingerprint(first, TEST_KEY)).not.toBe(fingerprint(second, TEST_KEY));
+  });
+
   it('differs when the HMAC key changes', () => {
     const creds = {
       endpoint: '',

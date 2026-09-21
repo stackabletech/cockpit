@@ -71,3 +71,80 @@ export const EditStorageConnectionSchema = baseStorageConnectionObject.superRefi
 export const ConnectionIdSchema = z.object({
   connectionId: z.string().uuid()
 });
+
+const STORAGE_NAME_INVALID_CHARS = /[^\w\s./()\-+@,:;!$*'=]/;
+
+/** Object names accepted by the storage UI and API. */
+export const StorageObjectNameSchema = z
+  .string()
+  .trim()
+  .min(1, 'Object name is required')
+  .refine(
+    (value) => !STORAGE_NAME_INVALID_CHARS.test(value),
+    'Object name contains invalid characters'
+  )
+  .refine(
+    (value) => value.split('/').every((part) => part !== '.' && part !== '..'),
+    'Object name cannot contain relative path segments'
+  );
+
+const StoragePrefixSchema = z
+  .string()
+  .refine(
+    (value) =>
+      value === '' ||
+      (!STORAGE_NAME_INVALID_CHARS.test(value) &&
+        value.split('/').every((part) => part !== '.' && part !== '..')),
+    'Object prefix contains invalid characters'
+  );
+
+export const CopyObjectsBodySchema = z
+  .object({
+    sourceKeys: z.array(StorageObjectNameSchema).min(1, 'At least one source key is required'),
+    destinationPrefix: StoragePrefixSchema,
+    jobId: z.string().min(1).optional()
+  })
+  .strict();
+
+export const MoveObjectsBodySchema = z
+  .object({
+    sourceKeys: z.array(StorageObjectNameSchema).min(1, 'At least one source key is required'),
+    destinationPrefix: StoragePrefixSchema.optional(),
+    destinationKey: StorageObjectNameSchema.optional(),
+    jobId: z.string().min(1).optional()
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if (data.destinationPrefix === undefined && data.destinationKey === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['destinationPrefix'],
+        message: 'A destination prefix or destination key is required'
+      });
+    }
+    if (data.destinationKey !== undefined && data.sourceKeys.length !== 1) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['destinationKey'],
+        message: 'A destination key requires exactly one source key'
+      });
+    }
+  });
+
+export const DeleteObjectsBodySchema = z
+  .object({ keys: z.array(StorageObjectNameSchema).min(1, 'At least one object key is required') })
+  .strict();
+
+export const AddConnectionBucketBodySchema = z
+  .object({ bucket: z.string().trim().min(1, 'Bucket name is required') })
+  .strict();
+
+/** Shape persisted in an encrypted storage connection payload. */
+export const StoredStorageConnectionSchema = z.object({
+  host: z.string().min(1),
+  port: z.number().int().min(1).max(65535).optional(),
+  tls: z.object({ verification: z.enum(['Full', 'None']) }).optional(),
+  accessStyle: z.enum(['Path', 'VirtualHosted']),
+  region: z.object({ name: z.string().min(1) }),
+  credentials: z.object({ accessKey: z.string(), secretKey: z.string() }).optional()
+});

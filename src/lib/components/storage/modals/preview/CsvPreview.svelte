@@ -29,7 +29,7 @@
   const isLegacyMode = $derived(text !== '' && headers.length === 0);
   const isSimpleMode = $derived(!isLegacyMode && !fetchRows && headers.length > 0);
 
-  // ── Legacy mode: text-based CSV rendered via PapaParse ──
+  // ── Text mode: CSV/TSV content returned as text rather than structured rows ──
 
   const {
     headers: textHeaders,
@@ -44,8 +44,7 @@
     });
     if (result.data.length === 0) return { headers: [], rows: [], truncated: false };
     const [hdrs, ...data] = result.data as string[][];
-    const truncatedCheck = Papa.parse(text, { skipEmptyLines: true }).data.length > MAX_ROWS + 1;
-    return { headers: hdrs, rows: data, truncated: truncatedCheck };
+    return { headers: hdrs, rows: data, truncated: result.meta.truncated };
   });
 
   // ── Virtual scroll mode: chunked data loading ──

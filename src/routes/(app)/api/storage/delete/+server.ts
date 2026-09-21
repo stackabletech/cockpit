@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import { DeleteObjectsBodySchema } from '$lib/storage/schemas.js';
 
 /**
  * DELETE /api/storage/delete?bucket=<bucket>
@@ -10,10 +11,10 @@ import { createStorageProvider } from '$lib/server/storage/request-context.js';
  */
 export const DELETE: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
-  const { keys } = (await event.request.json()) as { keys?: string[] };
+  const body = DeleteObjectsBodySchema.safeParse(await event.request.json().catch(() => null));
   const log = event.locals.logger;
-
-  if (!keys?.length) throw error(400, 'Missing required body field: keys');
+  if (!body.success) throw error(400, 'Invalid request body');
+  const { keys } = body.data;
 
   log.debug({ bucket, key_count: keys.length }, 'delete request received');
 

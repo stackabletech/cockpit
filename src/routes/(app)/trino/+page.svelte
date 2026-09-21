@@ -894,14 +894,12 @@
             </span>
           {/if}
           {#if runner.currentTrinoQueryUrl}
-            <!-- eslint-disable svelte/no-navigation-without-resolve -->
             <a
               href={runner.currentTrinoQueryUrl}
               target="_blank"
               rel="noopener noreferrer external"
               class="btn btn-ghost btn-xs"
             >
-              <!-- eslint-enable svelte/no-navigation-without-resolve -->
               {m.trino_view_in_trino()}
               <svg
                 xmlns="http://www.w3.org/2000/svg"

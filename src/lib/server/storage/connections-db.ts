@@ -5,18 +5,9 @@ import { encrypt, decrypt, fingerprint } from './encryption.js';
 import { storageEncryptionKey } from './encryption-key.js';
 import { logger } from '$lib/server/logging';
 import type { S3ConnectionConfig } from './types.js';
+import { StoredStorageConnectionSchema } from '$lib/storage/schemas.js';
 
 const log = logger.child({ module: 'connections-db' });
-
-/** Stored payload shape inside encrypted_payload. */
-interface StoredPayload {
-  host: string;
-  port?: number;
-  tls?: { verification: 'Full' | 'None' };
-  accessStyle: 'Path' | 'VirtualHosted';
-  region: { name: string };
-  credentials?: { accessKey: string; secretKey: string };
-}
 
 /**
  * Save an S3 connection for a user. If a connection with identical credentials
@@ -49,7 +40,7 @@ export async function saveConnection(userId: string, config: S3ConnectionConfig)
     return existing[0].id;
   }
 
-  const payload: StoredPayload = {
+  const payload = {
     host: config.host,
     port: config.port,
     tls: config.tls,
@@ -105,9 +96,9 @@ export async function getConnectionForUser(
   if (rows.length === 0) return null;
 
   try {
-    const payload = JSON.parse(
-      decrypt(rows[0].encryptedPayload, storageEncryptionKey())
-    ) as StoredPayload;
+    const payload = StoredStorageConnectionSchema.parse(
+      JSON.parse(decrypt(rows[0].encryptedPayload, storageEncryptionKey()))
+    );
     return {
       type: 's3',
       host: payload.host,

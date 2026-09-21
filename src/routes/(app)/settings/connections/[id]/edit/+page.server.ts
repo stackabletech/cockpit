@@ -3,8 +3,11 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { eq, and } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
-import { EditStorageConnectionSchema } from '$lib/storage/schemas.js';
-import { z } from 'zod';
+import {
+  EditStorageConnectionSchema,
+  StoredStorageConnectionSchema
+} from '$lib/storage/schemas.js';
+import type { z } from 'zod';
 import { getConnectionProvider } from '$lib/server/storage/utils.js';
 import type { S3ConnectionConfig } from '$lib/server/storage/types.js';
 import { db } from '$lib/server/db.js';
@@ -31,10 +34,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   }
 
   const row = rows[0];
-  let payload: z.infer<typeof EditStorageConnectionSchema>;
+  let payload: z.infer<typeof StoredStorageConnectionSchema>;
 
   try {
-    payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey()));
+    payload = StoredStorageConnectionSchema.parse(
+      JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey()))
+    );
   } catch {
     locals.logger.error({ connection_id: params.id }, 'failed to decrypt connection payload');
     throw error(500, 'Failed to load connection');
@@ -149,14 +154,9 @@ export const actions: Actions = {
         if (rows.length === 0) {
           return message(form, 'Connection not found', { status: 404 });
         }
-        const existing = JSON.parse(decrypt(rows[0].encryptedPayload, storageEncryptionKey())) as {
-          host: string;
-          port?: number;
-          tls?: object;
-          accessStyle: string;
-          region: object;
-          credentials?: { accessKey: string; secretKey: string };
-        };
+        const existing = StoredStorageConnectionSchema.parse(
+          JSON.parse(decrypt(rows[0].encryptedPayload, storageEncryptionKey()))
+        );
         payload = { host, port, tls, accessStyle, region, credentials: existing.credentials };
       } catch {
         return message(form, 'Failed to read existing credentials', { status: 500 });

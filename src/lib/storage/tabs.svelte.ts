@@ -48,10 +48,8 @@ export interface PersistedTab {
 export interface PersistedTabsState {
   tabs: PersistedTab[];
   activeTabId: string;
-  /** Fingerprint of the connection that saved these tabs.
-   *  Absent in data saved before this field was introduced (treated as a match
-   *  for any connection to preserve backward compatibility). */
-  connectionId?: string;
+  /** Fingerprint of the connection that saved these tabs. */
+  connectionId?: string | null;
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -160,7 +158,7 @@ export class TabsState {
         connection: t.snapshot.connection
       })),
       activeTabId: this.activeTabId ?? '',
-      connectionId: this.connectionId ?? undefined
+      connectionId: this.connectionId
     };
     localStorage.setItem(LS_TABS, JSON.stringify(data));
   }
@@ -175,9 +173,8 @@ export class TabsState {
       if (!raw) return null;
       const data = JSON.parse(raw) as PersistedTabsState;
       if (!Array.isArray(data.tabs) || data.tabs.length === 0) return null;
-      // If both sides have a connectionId and they don't match, this save belongs
-      // to a different connection — do not offer restore.
-      if (data.connectionId && this.connectionId && data.connectionId !== this.connectionId) {
+      if (data.connectionId === undefined) return null;
+      if (data.connectionId !== this.connectionId) {
         return null;
       }
       return data;
@@ -266,8 +263,7 @@ export class TabsState {
         const activeTab = activeIdx >= 0 ? saved.tabs[activeIdx] : saved.tabs[0];
         if (
           activeTab &&
-          this.storage.connectionHostname ===
-            (activeTab.connection ?? this.storage.connectionHostname) &&
+          this.storage.connectionHostname === activeTab.connection &&
           this.storage.bucket === activeTab.bucket &&
           this.storage.prefix === activeTab.prefix
         ) {
