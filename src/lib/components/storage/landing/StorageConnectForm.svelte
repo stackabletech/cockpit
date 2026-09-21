@@ -24,11 +24,9 @@
     {
       dataType: 'json',
       validators: zod(StorageConnectionSchema),
-      onResult: ({ result }) => {
-        if (result.type === 'redirect') {
-          // Server saved the connection; the redirect to /storage triggers
-          // the layout load to auto-connect via activeStorageConnectionId.
-        }
+      onResult: () => {
+        // Server saved the connection; the redirect to /storage triggers
+        // the layout load to auto-connect via activeStorageConnectionId.
       }
     }
   );

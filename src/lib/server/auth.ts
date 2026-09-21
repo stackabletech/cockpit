@@ -94,7 +94,7 @@ export const auth = betterAuth({
                   return {
                     name: profile.name || fullName || profile.preferred_username || profile.email,
                     email: profile.email || profile.preferred_username || '',
-                    emailVerified: profile.email_verified ?? true,
+                    emailVerified: profile.email_verified ?? false,
                     image: profile.picture || null,
                     username: trinoUser || profile.preferred_username || profile.email || ''
                   };

@@ -41,10 +41,6 @@
     previewKey = key;
     showPreviewModal = true;
   }
-
-  function resolveHref(href: string) {
-    return (resolve as (pathname: string) => string)(href);
-  }
 </script>
 
 {#snippet skeletonRows()}
@@ -134,7 +130,9 @@
           <td>
             <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
             <a
-              href={resolveHref(fileHref(storage.connectionHostname, file))}
+              href={(resolve as (pathname: string) => string)(
+                fileHref(storage.connectionHostname, file)
+              )}
               data-sveltekit-preload-data="off"
               class="text-base-content/60 hover:text-primary truncate text-xs"
             >
@@ -161,7 +159,9 @@
               <div class="tooltip tooltip-left" data-tip={m.storage_recent_open_folder()}>
                 <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
                 <a
-                  href={resolveHref(fileHref(storage.connectionHostname, file))}
+                  href={(resolve as (pathname: string) => string)(
+                    fileHref(storage.connectionHostname, file)
+                  )}
                   data-sveltekit-preload-data="off"
                   class="btn btn-ghost btn-xs"
                   aria-label="{m.storage_recent_open_folder()} — {fileName(file.key)}"
@@ -199,7 +199,9 @@
               {/if}
               <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
               <a
-                href={resolveHref(locationHref(storage.connectionHostname, loc))}
+                href={(resolve as (pathname: string) => string)(
+                  locationHref(storage.connectionHostname, loc)
+                )}
                 data-sveltekit-preload-data="off"
                 class="hover:text-primary font-medium">{locationName(loc)}</a
               >
@@ -208,7 +210,9 @@
           <td>
             <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
             <a
-              href={resolveHref(locationHref(storage.connectionHostname, loc))}
+              href={(resolve as (pathname: string) => string)(
+                locationHref(storage.connectionHostname, loc)
+              )}
               data-sveltekit-preload-data="off"
               class="text-base-content/60 hover:text-primary truncate text-xs"
             >
@@ -222,7 +226,9 @@
             <div class="tooltip tooltip-left" data-tip={m.storage_recent_go_to_location()}>
               <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
               <a
-                href={resolveHref(locationHref(storage.connectionHostname, loc))}
+                href={(resolve as (pathname: string) => string)(
+                  locationHref(storage.connectionHostname, loc)
+                )}
                 data-sveltekit-preload-data="off"
                 class="btn btn-ghost btn-xs"
                 aria-label="{m.storage_recent_go_to_location()} — {locationName(loc)}"

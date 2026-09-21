@@ -31,10 +31,6 @@
     return currentPath.startsWith(href);
   }
 
-  function resolveHref(href: string) {
-    return (resolve as (pathname: string) => string)(href);
-  }
-
   function handleNavClick(event: MouseEvent, item: NavItem) {
     if (item.disabled) {
       event.preventDefault();
@@ -103,12 +99,12 @@
 
       <ul class="flex flex-col gap-1">
         {#each section.items as item (item.label)}
-          {@const active = isActive(resolveHref(item.route))}
+          {@const active = isActive((resolve as (pathname: string) => string)(item.route))}
           <li>
             <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Nav item paths are dynamically generated. -->
             <TooltipTrigger text={collapsed ? item.label : undefined} orientation="right">
               <a
-                href={resolveHref(item.route)}
+                href={(resolve as (pathname: string) => string)(item.route)}
                 data-sveltekit-preload-data="hover"
                 onclick={(e) => handleNavClick(e, item)}
                 onkeydown={(e) => handleNavKeydown(e, item)}
