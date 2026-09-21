@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "e2e/auth/auth.setup.ts",
+    "e2e/support/db-migrations.setup.ts",
+    "e2e/support/start-mock-oidc.ts",
+    "e2e/support/start-mock-trino.ts",
+    "src/lib/editor/grammar/patch-generated.mjs"
+  ],
+  "ignoreDependencies": [
+    // Loaded dynamically by pino via a string transport target, not a static import.
+    "pino-pretty",
+    // Invoked as a standalone CLI in docker/Dockerfile, not referenced from source.
+    "@cyclonedx/cyclonedx-npm"
+  ],
+  "rules": {
+    "exports": "warn",
+    "types": "warn",
+    "enumMembers": "warn",
+    "duplicates": "warn"
+  }
+}
