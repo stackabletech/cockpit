@@ -13,6 +13,11 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
 
+  // Helm templates use {{ }} syntax that Prettier mangles — disable formatting.
+  "[yaml]": {
+    "editor.formatOnSave": false
+  },
+
   // Route .svelte formatting through the Svelte extension so it applies the
   // Svelte-aware Prettier plugin (configured in .prettierrc).
   "[svelte]": {

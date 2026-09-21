@@ -1,5 +1,6 @@
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
+import { enhancedImages } from '@sveltejs/enhanced-img';
 import { sveltekit } from '@sveltejs/kit/vite';
 import Icons from 'unplugin-icons/vite';
 import { defineConfig } from 'vitest/config';
@@ -8,6 +9,7 @@ import { playwright } from '@vitest/browser-playwright';
 export default defineConfig({
   plugins: [
     tailwindcss(),
+    enhancedImages(),
     sveltekit(),
     Icons({ compiler: 'svelte' }),
     paraglideVitePlugin({
