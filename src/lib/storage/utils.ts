@@ -34,14 +34,6 @@ export const iconColors: Record<FileIconKind, string> = {
   document: 'text-primary'
 };
 
-export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-GB', {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit'
-  }).format(date);
-}
-
 /** Derive a human-readable display name from an S3 key. */
 export function keyToName(key: string): string {
   const stripped = key.endsWith('/') ? key.slice(0, -1) : key;

@@ -1,8 +1,7 @@
 import { OAuth2Server } from 'oauth2-mock-server';
 
-export const MOCK_OIDC_PORT = 9090;
-export const ISSUER_URL = `http://localhost:${MOCK_OIDC_PORT}`;
-export const DISCOVERY_URL = `${ISSUER_URL}/.well-known/openid-configuration`;
+const MOCK_OIDC_PORT = 9090;
+const ISSUER_URL = `http://localhost:${MOCK_OIDC_PORT}`;
 
 let server: OAuth2Server | null = null;
 
@@ -64,12 +63,4 @@ export async function startMockOidc(): Promise<string> {
   console.log(`Mock OIDC server started at ${ISSUER_URL}`);
 
   return ISSUER_URL;
-}
-
-export async function stopMockOidc(): Promise<void> {
-  if (server) {
-    await server.stop();
-    server = null;
-    console.log('Mock OIDC server stopped');
-  }
 }

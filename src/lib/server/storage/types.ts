@@ -23,6 +23,3 @@ export interface HDFSConfig {
 
 /** Full config for creating a storage provider (always includes bucket/path scope). */
 export type StorageConfig = S3Config | HDFSConfig;
-
-/** Per-user connection config stored in memory (no bucket). */
-export type StorageConnectionConfig = S3ConnectionConfig | HDFSConfig;

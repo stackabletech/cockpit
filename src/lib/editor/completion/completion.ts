@@ -15,10 +15,9 @@ import {
   type IdentifierKind
 } from './grammar-analysis.js';
 
-export type { IdentifierKind } from './grammar-analysis.js';
 export type { RelationAlias } from './cursor-context.js';
 
-export interface CompletionAnalysis {
+interface CompletionAnalysis {
   /** Grammar-valid keyword candidates at the cursor (uppercased). */
   keywords: string[];
   /** Whether identifiers at the cursor should be relation-like or column-like. */

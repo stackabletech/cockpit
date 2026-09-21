@@ -6,7 +6,7 @@ const STORAGE_ROUTE = '/(app)/storage/[bucket]/[...prefix]' as const;
 
 // ── URL helpers ──────────────────────────────────────────────────────────────
 
-export function storageHref(bucket: string, prefix: string): ResolvedPathname {
+function storageHref(bucket: string, prefix: string): ResolvedPathname {
   const encodedBucket = encodeURIComponent(bucket);
   const encodedPrefix = prefix
     ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
