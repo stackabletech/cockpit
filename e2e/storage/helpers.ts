@@ -215,6 +215,3 @@ export function modalBox(page: Page) {
 export async function headObject(client: S3Client, bucket: string, key: string) {
   return client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
 }
-
-// Re-export expect for convenience
-export { expect };

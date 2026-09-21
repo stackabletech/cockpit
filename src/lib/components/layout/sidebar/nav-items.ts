@@ -4,7 +4,7 @@ import IconDashboard from 'virtual:icons/material-symbols/dashboard';
 import IconDatabase from 'virtual:icons/material-symbols/database';
 import IconFolder from 'virtual:icons/material-symbols/folder';
 
-export type { NavItem, NavSection };
+export type { NavSection };
 
 export interface NavFlags {
   storageBrowserEnabled?: boolean;

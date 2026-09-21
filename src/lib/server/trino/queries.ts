@@ -129,7 +129,7 @@ function buildSnapshot(
 // --- Public API ---
 
 /** Clear all stored results for a tab and cancel any active query. */
-export async function resetTabQueries(userId: string, tabId: string): Promise<void> {
+async function resetTabQueries(userId: string, tabId: string): Promise<void> {
   await cancelQuery(userId, tabId);
   const tabMap = getUserTabMap(userId);
   tabMap.set(tabId, []);
