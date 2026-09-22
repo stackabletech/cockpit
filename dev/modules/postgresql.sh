@@ -7,6 +7,11 @@ postgresql::deploy() {
     --namespace default \
     --wait \
     --timeout 60s
+
+  # Helm does not recreate an unchanged workload deleted outside Helm.
+  # Applying the rendered chart restores it on subsequent development setup runs.
+  helm template postgresql "$SCRIPT_DIR/postgresql" \
+    --namespace default | kubectl apply -f -
 }
 
 postgresql::migrate() {
@@ -15,10 +20,16 @@ postgresql::migrate() {
   log::info "Waiting for PostgreSQL to be ready..."
   k8s::wait_for_pod app=postgresql 60
 
+  local postgresql_host
+  if ! postgresql_host=$(probe::tcp_host 31432 60); then
+    log::error "Could not reach PostgreSQL via NodePort 31432 within 60s."
+  fi
+  export POSTGRESQL_HOST="$postgresql_host"
+
   log::info "Running database migrations..."
   (
     cd "$PROJECT_DIR" &&
-    DATABASE_HOST=localhost \
+    DATABASE_HOST="$POSTGRESQL_HOST" \
       DATABASE_PORT=31432 \
       DATABASE_NAME=cockpit \
       DATABASE_USER=cockpit \

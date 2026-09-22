@@ -23,7 +23,7 @@ summary::print() {
     echo ""
   fi
   if [[ "$SKIP_POSTGRESQL" == false ]]; then
-    echo "PostgreSQL:     localhost:31432"
+    echo "PostgreSQL:     ${POSTGRESQL_HOST:-$NODE_IP}:31432"
     echo "  Database:     cockpit"
     echo "  User:         cockpit"
     echo "  Password:     cockpit-dev-password"
