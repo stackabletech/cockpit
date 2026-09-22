@@ -1,22 +1,35 @@
 ---
-auth:
-  baseUrl: 'http://localhost:3000'
-  oidc:
-    discoveryUrl: 'http://172.18.0.2:30080/realms/stackable/.well-known/openid-configuration'
-    clientId: 'stackable-cockpit'
-    clientSecret:
-      secretKeyRef:
-        name: stackable-cockpit-credentials
-        key: oidc-client-secret
+image:
+  registry: ''
+  repository: stackable-cockpit
+  tag: local
+  pullPolicy: Never
 
-trino:
-  url: 'https://trino-coordinator-default-headless:8443'
-  auth:
-    type: 'basic'
-    username: 'stackable-cockpit'
-    password:
-      secretKeyRef:
-        name: stackable-cockpit-credentials
-        key: trino-auth-password
+auth:
+  baseUrl: 'https://cockpit.localhost'
+  oidc:
+    enabled: false
+
+origin: 'https://cockpit.localhost'
+
+proxy:
+  protocolHeader: x-forwarded-proto
+  hostHeader: x-forwarded-host
+
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - host: cockpit.localhost
+      paths:
+        - path: /
+          pathType: Prefix
   tls:
-    insecure: true
+    - secretName: local-dev-tls
+      hosts:
+        - cockpit.localhost
+
+features:
+  storage:
+    enabled: true
+    autoConnect: true

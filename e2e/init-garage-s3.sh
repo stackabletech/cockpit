@@ -85,6 +85,11 @@ allow_bucket_key() {
 # Import pre-defined access key (idempotent — Garage ignores re-import of existing keys)
 admin_post '/v2/ImportKey' "{\"accessKeyId\":\"$S3_ACCESS_KEY_ID\",\"secretAccessKey\":\"$S3_SECRET_ACCESS_KEY\",\"name\":\"$S3_ACCESS_KEY_NAME\",\"neverExpires\":true}" >/dev/null 2>&1 || true
 
+# Garage preserves the secret when the key already exists. Read it back so the
+# generated local connection configuration always contains the active secret.
+key_info=$(admin_get "/v2/GetKeyInfo?id=$S3_ACCESS_KEY_ID&showSecretKey=true")
+S3_SECRET_ACCESS_KEY=$(printf '%s' "$key_info" | json_get 'secretAccessKey')
+
 bucket_id=$(get_bucket_id "$S3_BUCKET")
 if [[ -z "$bucket_id" ]]; then
   bucket_response=$(create_bucket "$S3_BUCKET")

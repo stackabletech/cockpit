@@ -5,15 +5,13 @@ metadata:
   name: garage
   namespace: default
 spec:
-  type: NodePort
+  type: {{ .Values.service.type }}
   selector:
     app: garage
   ports:
     - name: s3
       port: 3900
       targetPort: 3900
-      nodePort: {{ .Values.nodePorts.s3 }}
     - name: admin
       port: 3902
       targetPort: 3902
-      nodePort: {{ .Values.nodePorts.admin }}
