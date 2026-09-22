@@ -7,6 +7,19 @@ function filenameFromKey(key: string): string {
   return key.split('/').filter(Boolean).pop() ?? key;
 }
 
+function contentDispositionFilename(filename: string): string {
+  // Quoted strings must escape delimiters and cannot contain control characters.
+  const quotedFilename = filename
+    .replace(/[\r\n]/g, '')
+    .replace(/[^\x20-\x7e]/g, '_')
+    .replace(/(["\\])/g, '\\$1');
+  const encodedFilename = encodeURIComponent(filename).replace(
+    /['()*]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+  );
+  return `attachment; filename="${quotedFilename}"; filename*=UTF-8''${encodedFilename}`;
+}
+
 /**
  * GET /api/storage/download?bucket=<bucket>&key=<object-key>
  *
@@ -47,9 +60,7 @@ export const GET: RequestHandler = async (event) => {
   download.stream.pipeTo(writable, { signal: abortController.signal }).catch(() => {});
 
   const filename = filenameFromKey(key);
-  // RFC 5987 encoding for non-ASCII filenames in Content-Disposition
-  const encodedFilename = encodeURIComponent(filename);
-  const contentDisposition = `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`;
+  const contentDisposition = contentDispositionFilename(filename);
 
   const headers: Record<string, string> = {
     'Content-Disposition': contentDisposition,

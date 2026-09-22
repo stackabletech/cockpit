@@ -3,7 +3,6 @@
  *
  * Provides a single entry point for all S3 storage operations, abstracting
  * the HTTP transport behind a clean interface. This enables:
- *  - Mocking in tests via `createMemoryStorageApi()`
  *  - Centralised error handling and connection management
  *  - Type-safe method signatures matching the server API contract
  *

@@ -24,7 +24,8 @@ export function connectionHostname(connection: ConnectionListItem | null): strin
       'http://localhost'
     ).hostname;
   } catch {
-    return connection.endpoint.split(':')[0] ?? '';
+    const bracketedIpv6 = connection.endpoint.match(/^\[([^\]]+)\](?::\d+)?$/);
+    return bracketedIpv6?.[1] ?? connection.endpoint;
   }
 }
 
