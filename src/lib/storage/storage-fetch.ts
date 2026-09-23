@@ -26,6 +26,7 @@ export function mapStatusToCode(status: number): string {
   if (status === 403) return 'access_denied';
   if (status === 404) return 'not_found';
   if (status === 409) return 'conflict';
+  if (status === 413) return 'file_too_large';
   if (status >= 500) return 'server_error';
   return 'unknown';
 }
@@ -54,7 +55,17 @@ export function createStorageFetch(
 
     if (!response.ok) {
       const code = mapStatusToCode(response.status);
-      throw new StorageError(code, `Request failed with status ${response.status}`);
+      const body = await response
+        .clone()
+        .json()
+        .catch(() => null);
+      const message =
+        body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
+          ? body.message
+          : body && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
+            ? body.error
+            : `Request failed with status ${response.status}`;
+      throw new StorageError(code, message);
     }
 
     return response;

@@ -160,6 +160,9 @@ export class ClipboardState {
     // ── Check for name conflicts at destination ──────────────────────
     const conflictEntries = await this._checkDestinationConflicts(pasteKeys, destPrefix);
     const hasConflicts = conflictEntries.some((e) => e.conflict);
+    // Replacing items with themselves would delete the sources before the move
+    // runs. Treat a fully conflicting same-location paste as a no-op instead.
+    if (this._isSameLocationPaste(pasteClipboard, destPrefix, conflictEntries)) return;
     if (hasConflicts) {
       const totalBytes = pasteKeys.reduce((sum, k) => sum + (pasteClipboard.fileSizes[k] ?? 0), 0);
       this._pendingConflictOp = {
@@ -301,17 +304,11 @@ export class ClipboardState {
   performMove = (destPrefix: string, keys?: string[]): void => {
     if (!storageMoveEnabled) return;
     const objects = this._callbacks.getObjects();
-    const moveKeys = keys ?? [...this._callbacks.getSelectedKeys()];
+    const requestedKeys = keys ?? [...this._callbacks.getSelectedKeys()];
+    const moveKeys = requestedKeys.filter((key) => !this._isAlreadyInDestination(key, destPrefix));
     if (moveKeys.length === 0) return;
 
     // Don't move items that are already directly inside destPrefix (no-op).
-    const isAlreadyThere = (key: string): boolean => {
-      if (key.endsWith('/')) return key === destPrefix;
-      const parentPrefix = key.substring(0, key.lastIndexOf('/') + 1);
-      return parentPrefix === destPrefix;
-    };
-    if (moveKeys.every(isAlreadyThere)) return;
-
     // Don't move a folder into itself
     for (const k of moveKeys) {
       if (k.endsWith('/') && destPrefix.startsWith(k)) return;
@@ -985,5 +982,27 @@ export class ClipboardState {
       }
     }
     return prefix;
+  }
+
+  /** True when moving or pasting the key would write it over itself. */
+  private _isAlreadyInDestination(key: string, destPrefix: string): boolean {
+    const parentPrefix = key.endsWith('/')
+      ? key.slice(0, -1).substring(0, key.slice(0, -1).lastIndexOf('/') + 1)
+      : key.substring(0, key.lastIndexOf('/') + 1);
+    return parentPrefix === destPrefix;
+  }
+
+  /** A paste can only overwrite its source when every item is already at its destination. */
+  private _isSameLocationPaste(
+    clipboard: ClipboardData,
+    destPrefix: string,
+    conflictEntries: ConflictEntry[]
+  ): boolean {
+    return (
+      clipboard.sourceBucket === this._callbacks.getBucket() &&
+      clipboard.sourcePrefix === destPrefix &&
+      clipboard.keys.every((key) => this._isAlreadyInDestination(key, destPrefix)) &&
+      conflictEntries.every((entry) => entry.conflict)
+    );
   }
 }

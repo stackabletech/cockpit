@@ -6,16 +6,31 @@ const baseStorageConnectionObject = z.object({
   type: z.enum(['s3', 'hdfs']).default('s3'),
   host: z
     .string()
+    .trim()
     .min(1, 'Host is required')
+    .refine((value) => {
+      if (!value.includes('://')) return true;
+      try {
+        new URL(value);
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'Host must be a valid hostname or IP address')
     .transform((v) => {
       if (!v.includes('://')) return v;
-      try {
-        return new URL(v).hostname;
-      } catch {
-        // Fallback: strip scheme manually, take just the host part
-        return v.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split(/[/:?#]/)[0];
-      }
-    }),
+      return new URL(v).hostname;
+    })
+    .refine(
+      (host) =>
+        host === 'localhost' ||
+        /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(
+          host
+        ) ||
+        /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host) ||
+        /^[0-9a-f:]+$/i.test(host),
+      'Host must be a valid hostname or IP address'
+    ),
   port: z.coerce
     .number()
     .int()

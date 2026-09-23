@@ -617,8 +617,13 @@
           addToast('error', m.storage_upload_error_not_connected());
         } else if (err.code === 'access_denied') {
           addToast('error', m.storage_upload_error_access_denied());
+        } else if (err.code === 'file_too_large') {
+          addToast(
+            'error',
+            m.storage_editor_too_large({ limit: formatFileSize(maxEditableFileSize) })
+          );
         } else {
-          addToast('error', m.storage_editor_error());
+          addToast('error', err.message || m.storage_editor_error());
         }
       } else {
         addToast('error', m.storage_editor_error());

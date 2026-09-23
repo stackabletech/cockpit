@@ -73,6 +73,21 @@ describe('storage connections database', () => {
     );
   });
 
+  it('reuses a concurrently created matching connection after a duplicate error', async () => {
+    selectRows([]);
+    const returning = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('duplicate key value violates unique constraint'));
+    const values = vi.fn(() => ({ returning }));
+    insert.mockReturnValue({ values });
+    select.mockReturnValueOnce({ from: () => ({ where: () => ({ limit: () => [] }) }) });
+    select.mockReturnValueOnce({
+      from: () => ({ where: () => ({ limit: () => [{ id: 'existing-id' }] }) })
+    });
+
+    await expect(saveConnection('user-id', config)).resolves.toBe('existing-id');
+  });
+
   it('returns null for a connection not owned by the user', async () => {
     selectRows([]);
     await expect(getConnectionForUser('user-id', 'connection-id')).resolves.toBeNull();

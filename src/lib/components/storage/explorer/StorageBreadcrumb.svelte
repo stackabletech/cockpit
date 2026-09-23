@@ -17,14 +17,13 @@
   import { getStorageState } from '$lib/storage/context.js';
   import type { StorageLocation } from '$lib/storage/types.js';
   import { keyToName } from '$lib/storage/utils.js';
-  import { invalidateAll } from '$app/navigation';
+  import { StorageObjectNameSchema } from '$lib/storage/schemas.js';
   import { storageMoveEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import OperationsButton from './OperationsButton.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
   import type { ContextMenuAction } from '$lib/storage/types.js';
-  import { StorageObjectNameSchema } from '$lib/storage/schemas.js';
 
   const storage = getStorageState();
   const uid = $props.id();
@@ -100,39 +99,20 @@
     createError = '';
   }
 
-  async function createObject(bucket: string, key: string): Promise<void> {
-    await storage.api.create({ bucket, key });
-  }
-
   async function handleCreate() {
     const parsedName = StorageObjectNameSchema.safeParse(createName);
     if (!parsedName.success) {
       createError = m.storage_create_error({ name: createName });
       return;
     }
-    const name = parsedName.data;
     creating = true;
-    createError = '';
-
     try {
-      const isFolder = createType === 'folder';
-      const parts = name.split('/');
-
-      // Create intermediate directory markers for each path segment
-      for (let i = 0; i < parts.length - 1; i++) {
-        const dirKey = storage.prefix + parts.slice(0, i + 1).join('/') + '/';
-        await createObject(storage.bucket, dirKey);
+      const created = await storage.confirmCreate(parsedName.data, createType);
+      if (created) {
+        closeCreate();
+      } else {
+        createError = m.storage_create_error({ name: createName });
       }
-
-      // Create the final object (file or directory)
-      const finalKey = storage.prefix + name + (isFolder ? '/' : '');
-      await createObject(storage.bucket, finalKey);
-
-      closeCreate();
-      storage.loading = true;
-      void invalidateAll();
-    } catch {
-      createError = m.storage_create_error({ name: createName });
     } finally {
       creating = false;
     }

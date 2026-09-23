@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TabsState, type PersistedTabsState } from '$lib/storage/tabs.svelte.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
 import { LS_TABS } from '$lib/storage/persistence.js';
+import { SvelteSet } from 'svelte/reactivity';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -120,6 +121,22 @@ describe('TabsState', () => {
       ts.addTab();
 
       expect(ts.tabs[1].snapshot.prefix).toBe('other/');
+    });
+
+    it('keeps selection independent for each tab', () => {
+      const storage = makeStorage('bucket', 'folder/');
+      const { ts } = makeTabs(storage);
+      ts.ensureInitialTab();
+      storage.selectedKeys = new SvelteSet(['first.txt']);
+      storage.selectionMode = true;
+
+      ts.addTab();
+      expect(storage.selectedKeys.size).toBe(0);
+
+      storage.selectedKeys = new SvelteSet(['second.txt']);
+      ts.switchTo(ts.tabs[0].id);
+      expect([...storage.selectedKeys]).toEqual(['first.txt']);
+      expect(storage.selectionMode).toBe(true);
     });
   });
 

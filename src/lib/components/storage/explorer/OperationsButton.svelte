@@ -211,294 +211,302 @@
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (dropdownOpen = false)} />
 
-{#if storage.operations.length > 0}
-  {#if dropdownOpen}
-    <div
-      class="fixed inset-0 z-40"
-      onclick={() => (dropdownOpen = false)}
-      role="presentation"
-      aria-hidden="true"
-    ></div>
-  {/if}
-  <div bind:this={dropdownEl} class="relative z-50 inline-flex">
-    <!-- Trigger button -->
-    <div class="tooltip tooltip-bottom" data-tip={m.storage_operations_label()}>
-      <button
-        class="
-          btn btn-ghost btn-xs relative size-7 rounded-full p-0
-          {storage.hasRunningOps ? 'text-primary' : hasError ? 'text-error' : 'text-success'}
-        "
-        aria-label={m.storage_operations_label()}
-        aria-expanded={dropdownOpen}
-        aria-haspopup="menu"
-        onclick={toggleDropdown}
-      >
-        {#if storage.hasRunningOps}
-          <span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
-          {#if activeOps.length > 1}
-            <span
-              class="badge badge-primary badge-xs absolute -top-1 -right-1 min-w-4 px-0.5 text-[9px]"
-              aria-hidden="true"
-            >
-              {activeOps.length}
-            </span>
-          {/if}
-        {:else if hasError}
-          <IconError class="size-4" aria-hidden="true" />
-        {:else}
-          <IconCheckCircle class="size-4" aria-hidden="true" />
-        {/if}
-      </button>
-    </div>
-
-    <!-- Dropdown panel -->
+<div class="inline-flex w-7 justify-center">
+  {#if storage.operations.length > 0}
     {#if dropdownOpen}
       <div
-        role="menu"
-        aria-label={m.storage_operations_label()}
-        class="rounded-box border-base-300 bg-base-100 absolute right-0 z-60 mt-2 flex max-h-[calc(100dvh-8rem)] w-96 flex-col overflow-hidden border shadow-xl"
-      >
-        <!-- Active operations section -->
-        {#if activeOps.length > 0}
-          <div class="border-base-300 border-b px-3 pt-3 pb-2">
-            <p
-              class="text-base-content/50 mb-2 text-[10px] font-semibold tracking-widest uppercase"
-            >
-              {m.storage_operations_active()}
-            </p>
-            <ul class="flex flex-col gap-2">
-              {#each activeOps as op (op.id)}
-                {@const TypeIcon = typeIconMap[op.type]}
-                <li role="none" class="bg-base-200 rounded-lg px-3 py-2.5">
-                  <!-- Collapsible header row -->
-                  <div class="flex items-center gap-2">
-                    <div
-                      class="flex min-w-0 flex-1 cursor-pointer items-center gap-2"
-                      role="button"
-                      tabindex="0"
-                      onclick={() => toggleExpand(op.id)}
-                      onkeydown={(e) => e.key === 'Enter' && toggleExpand(op.id)}
-                      aria-expanded={expandedOps[op.id]}
-                    >
-                      <!-- Chevron -->
-                      <span
-                        class="text-base-content/30 shrink-0 transition-transform duration-200"
-                        class:rotate-90={expandedOps[op.id]}
-                        aria-hidden="true"
+        class="fixed inset-0 z-40"
+        onclick={() => (dropdownOpen = false)}
+        oncontextmenu={(e) => {
+          e.preventDefault();
+          dropdownOpen = false;
+        }}
+        role="presentation"
+        aria-hidden="true"
+      ></div>
+    {/if}
+    <div bind:this={dropdownEl} class="relative z-50 inline-flex">
+      <!-- Trigger button -->
+      <div class="tooltip tooltip-bottom" data-tip={m.storage_operations_label()}>
+        <button
+          class="
+          btn btn-ghost btn-xs relative -mt-2.5 size-7 rounded-full p-0
+          {storage.hasRunningOps ? 'text-primary' : hasError ? 'text-error' : 'text-success'}
+        "
+          aria-label={m.storage_operations_label()}
+          aria-expanded={dropdownOpen}
+          aria-haspopup="menu"
+          onclick={toggleDropdown}
+        >
+          {#if storage.hasRunningOps}
+            <span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
+            {#if activeOps.length > 1}
+              <span
+                class="badge badge-primary badge-xs absolute -top-1 -right-1 min-w-4 px-0.5 text-[9px]"
+                aria-hidden="true"
+              >
+                {activeOps.length}
+              </span>
+            {/if}
+          {:else if hasError}
+            <IconError class="size-4" aria-hidden="true" />
+          {:else}
+            <IconCheckCircle class="size-4" aria-hidden="true" />
+          {/if}
+        </button>
+      </div>
+
+      <!-- Dropdown panel -->
+      {#if dropdownOpen}
+        <div
+          role="menu"
+          tabindex="-1"
+          aria-label={m.storage_operations_label()}
+          class="rounded-box border-base-300 bg-base-100 absolute right-0 z-60 mt-2 flex max-h-[calc(100dvh-8rem)] w-96 flex-col overflow-hidden border shadow-xl"
+          oncontextmenu={(e) => e.preventDefault()}
+        >
+          <!-- Active operations section -->
+          {#if activeOps.length > 0}
+            <div class="border-base-300 border-b px-3 pt-3 pb-2">
+              <p
+                class="text-base-content/50 mb-2 text-[10px] font-semibold tracking-widest uppercase"
+              >
+                {m.storage_operations_active()}
+              </p>
+              <ul class="flex flex-col gap-2">
+                {#each activeOps as op (op.id)}
+                  {@const TypeIcon = typeIconMap[op.type]}
+                  <li role="none" class="bg-base-200 rounded-lg px-3 py-2.5">
+                    <!-- Collapsible header row -->
+                    <div class="flex items-center gap-2">
+                      <div
+                        class="flex min-w-0 flex-1 cursor-pointer items-center gap-2"
+                        role="button"
+                        tabindex="0"
+                        onclick={() => toggleExpand(op.id)}
+                        onkeydown={(e) => e.key === 'Enter' && toggleExpand(op.id)}
+                        aria-expanded={expandedOps[op.id]}
                       >
-                        <IconChevronRight class="size-3" />
-                      </span>
-
-                      <!-- Type icon -->
-                      <span class="text-primary shrink-0" aria-hidden="true">
-                        <TypeIcon class="size-3.5" />
-                      </span>
-
-                      <!-- Label -->
-                      <span
-                        class="text-base-content min-w-0 flex-1 truncate text-xs leading-tight font-medium"
-                      >
-                        {op.label}
-                      </span>
-
-                      <!-- Speed + ETA (collapsed, right-aligned) -->
-                      {#if op.totalBytes > 0}
-                        <span class="text-base-content/40 shrink-0 text-[9px] tabular-nums">
-                          {speedEtaLabel(op)}
+                        <!-- Chevron -->
+                        <span
+                          class="text-base-content/30 shrink-0 transition-transform duration-200"
+                          class:rotate-90={expandedOps[op.id]}
+                          aria-hidden="true"
+                        >
+                          <IconChevronRight class="size-3" />
                         </span>
-                      {/if}
+
+                        <!-- Type icon -->
+                        <span class="text-primary shrink-0" aria-hidden="true">
+                          <TypeIcon class="size-3.5" />
+                        </span>
+
+                        <!-- Label -->
+                        <span
+                          class="text-base-content min-w-0 flex-1 truncate text-xs leading-tight font-medium"
+                        >
+                          {op.label}
+                        </span>
+
+                        <!-- Speed + ETA (collapsed, right-aligned) -->
+                        {#if op.totalBytes > 0}
+                          <span class="text-base-content/40 shrink-0 text-[9px] tabular-nums">
+                            {speedEtaLabel(op)}
+                          </span>
+                        {/if}
+                      </div>
+
+                      <!-- Cancel -->
+                      <div class="tooltip tooltip-left" data-tip={m.storage_operations_cancel()}>
+                        <button
+                          class="btn btn-ghost btn-xs text-error/70 hover:text-error size-5 shrink-0 p-0"
+                          aria-label={m.storage_operations_cancel()}
+                          onclick={() => storage.cancelOp(op.id)}
+                        >
+                          <IconClose class="size-3" aria-hidden="true" />
+                        </button>
+                      </div>
                     </div>
 
-                    <!-- Cancel -->
-                    <div class="tooltip tooltip-left" data-tip={m.storage_operations_cancel()}>
-                      <button
-                        class="btn btn-ghost btn-xs text-error/70 hover:text-error size-5 shrink-0 p-0"
-                        aria-label={m.storage_operations_cancel()}
-                        onclick={() => storage.cancelOp(op.id)}
-                      >
-                        <IconClose class="size-3" aria-hidden="true" />
-                      </button>
-                    </div>
-                  </div>
+                    <!-- Expanded detail -->
+                    {#if expandedOps[op.id]}
+                      <div class="mt-2 space-y-1.5">
+                        <!-- Current file -->
+                        {#if op.currentFileName}
+                          <div class="text-base-content/50 truncate pl-5 text-[11px]">
+                            {op.currentFileName}
+                          </div>
+                        {/if}
 
-                  <!-- Expanded detail -->
-                  {#if expandedOps[op.id]}
-                    <div class="mt-2 space-y-1.5">
-                      <!-- Current file -->
+                        <!-- Progress bar -->
+                        {#if op.totalBytes > 0 || op.itemCount > 1}
+                          <div
+                            class="pl-5"
+                            role="progressbar"
+                            aria-valuenow={displayBytes(op)}
+                            aria-valuemin={0}
+                            aria-valuemax={op.totalBytes}
+                            aria-label={op.label}
+                          >
+                            <div class="mb-1 flex items-center justify-between">
+                              <span class="text-base-content/50 text-[10px] tabular-nums">
+                                {progressLabel(op)}
+                              </span>
+                              <span class="text-primary text-[10px] font-semibold tabular-nums">
+                                {#if op.totalBytes > 0}
+                                  {percent(op)}%
+                                {:else}
+                                  {op.completedCount}/{op.itemCount}
+                                {/if}
+                              </span>
+                            </div>
+                            <div class="bg-base-300 h-1.5 w-full overflow-hidden rounded-full">
+                              <div
+                                class="bg-primary h-full rounded-full"
+                                style="width: {percent(op)}%"
+                              ></div>
+                            </div>
+                          </div>
+                        {/if}
+
+                        <!-- File list -->
+                        {#if op.sourceNames && op.sourceNames.length > 0}
+                          <div class="mt-1.5 space-y-0.5 pl-5">
+                            {#each op.sourceNames as name, i (i)}
+                              <div class="flex items-center gap-1.5 text-[10px] tabular-nums">
+                                {#if name === op.currentFileName}
+                                  <span
+                                    class="loading loading-spinner loading-xs text-primary"
+                                    aria-hidden="true"
+                                  ></span>
+                                {:else if i < op.completedCount}
+                                  <span
+                                    class="text-success inline-block size-2 rounded-full bg-current"
+                                    aria-hidden="true"
+                                  ></span>
+                                {:else}
+                                  <span
+                                    class="text-base-content/20 inline-block size-2 rounded-full border border-current"
+                                    aria-hidden="true"
+                                  ></span>
+                                {/if}
+                                <span class="text-base-content/70 truncate">{name}</span>
+                              </div>
+                            {/each}
+                          </div>
+                        {/if}
+
+                        <!-- Elapsed time -->
+                        <div class="text-base-content/35 mt-1.5 pl-5 text-[10px] tabular-nums">
+                          {formatElapsed(op.startedAt, op.completedAt)}
+                        </div>
+                      </div>
+                    {:else}
+                      <!-- Collapsed: current file name on single line -->
                       {#if op.currentFileName}
-                        <div class="text-base-content/50 truncate pl-5 text-[11px]">
+                        <div class="text-base-content/40 mt-1 truncate pl-5 text-[10px]">
                           {op.currentFileName}
                         </div>
                       {/if}
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          {/if}
 
-                      <!-- Progress bar -->
-                      {#if op.totalBytes > 0 || op.itemCount > 1}
-                        <div
-                          class="pl-5"
-                          role="progressbar"
-                          aria-valuenow={displayBytes(op)}
-                          aria-valuemin={0}
-                          aria-valuemax={op.totalBytes}
-                          aria-label={op.label}
-                        >
-                          <div class="mb-1 flex items-center justify-between">
-                            <span class="text-base-content/50 text-[10px] tabular-nums">
-                              {progressLabel(op)}
-                            </span>
-                            <span class="text-primary text-[10px] font-semibold tabular-nums">
-                              {#if op.totalBytes > 0}
-                                {percent(op)}%
-                              {:else}
-                                {op.completedCount}/{op.itemCount}
-                              {/if}
-                            </span>
-                          </div>
-                          <div class="bg-base-300 h-1.5 w-full overflow-hidden rounded-full">
-                            <div
-                              class="bg-primary h-full rounded-full"
-                              style="width: {percent(op)}%"
-                            ></div>
-                          </div>
-                        </div>
-                      {/if}
-
-                      <!-- File list -->
-                      {#if op.sourceNames && op.sourceNames.length > 0}
-                        <div class="mt-1.5 space-y-0.5 pl-5">
-                          {#each op.sourceNames as name, i (i)}
-                            <div class="flex items-center gap-1.5 text-[10px] tabular-nums">
-                              {#if name === op.currentFileName}
-                                <span
-                                  class="loading loading-spinner loading-xs text-primary"
-                                  aria-hidden="true"
-                                ></span>
-                              {:else if i < op.completedCount}
-                                <span
-                                  class="text-success inline-block size-2 rounded-full bg-current"
-                                  aria-hidden="true"
-                                ></span>
-                              {:else}
-                                <span
-                                  class="text-base-content/20 inline-block size-2 rounded-full border border-current"
-                                  aria-hidden="true"
-                                ></span>
-                              {/if}
-                              <span class="text-base-content/70 truncate">{name}</span>
-                            </div>
-                          {/each}
-                        </div>
-                      {/if}
-
-                      <!-- Elapsed time -->
-                      <div class="text-base-content/35 mt-1.5 pl-5 text-[10px] tabular-nums">
-                        {formatElapsed(op.startedAt, op.completedAt)}
+          <!-- History section -->
+          {#if hasHistory}
+            <div class="flex min-h-0 flex-1 flex-col px-3 pt-2.5 pb-2">
+              <div class="mb-2 flex items-center justify-between">
+                <p class="text-base-content/50 text-[10px] font-semibold tracking-widest uppercase">
+                  {m.storage_operations_history()}
+                </p>
+                <button
+                  class="btn btn-ghost btn-xs text-base-content/40 hover:text-base-content flex h-5 items-center gap-1 px-1 py-0 text-[10px]"
+                  onclick={() => storage.clearOperationHistory()}
+                  aria-label={m.storage_operations_clear_history()}
+                >
+                  <IconDeleteSweep class="size-3" aria-hidden="true" />
+                  {m.storage_operations_clear_history()}
+                </button>
+              </div>
+              <ul class="mb-10 min-h-0 flex-1 space-y-1 overflow-y-auto">
+                {#each historyOps as op (op.id)}
+                  {@const TypeIcon = typeIconMap[op.type]}
+                  <li role="none" class="rounded-md px-2.5 py-2 {statusBgColor(op)}">
+                    <div class="flex items-center gap-2">
+                      <!-- Status icon -->
+                      <span class="shrink-0 {statusColor(op)}" aria-hidden="true">
+                        {#if op.status === 'done'}
+                          <IconCheckCircle class="size-3.5" />
+                        {:else if op.status === 'error'}
+                          <IconError class="size-3.5" />
+                        {:else if op.status === 'cancelled'}
+                          <IconCancel class="size-3.5" />
+                        {:else}
+                          <IconPowerOff class="size-3.5" />
+                        {/if}
+                      </span>
+                      <!-- Operation type icon -->
+                      <span class="text-base-content/50 shrink-0" aria-hidden="true">
+                        <TypeIcon class="size-3" />
+                      </span>
+                      <span class="text-base-content/80 min-w-0 flex-1 truncate text-[11px]">
+                        {op.label}
+                      </span>
+                      <div class="flex shrink-0 flex-col items-end gap-0.5">
+                        <span class="text-[10px] font-medium {statusColor(op)}">
+                          {statusLabel(op)}
+                        </span>
+                        <span class="text-base-content/35 text-[9px] tabular-nums">
+                          {formatElapsed(op.startedAt, op.completedAt)}
+                        </span>
                       </div>
                     </div>
-                  {:else}
-                    <!-- Collapsed: current file name on single line -->
-                    {#if op.currentFileName}
-                      <div class="text-base-content/40 mt-1 truncate pl-5 text-[10px]">
-                        {op.currentFileName}
+
+                    <!-- Error detail -->
+                    {#if op.status === 'error' && op.errorMessage}
+                      <div
+                        class="text-error/70 mt-1 truncate pl-5 text-[10px]"
+                        title={op.errorMessage}
+                      >
+                        {op.errorMessage}
+                      </div>
+                    {:else if op.status === 'interrupted'}
+                      <div class="text-warning/60 mt-1 pl-5 text-[10px]">
+                        {m.storage_operations_interrupted_tooltip()}
                       </div>
                     {/if}
-                  {/if}
-                </li>
-              {/each}
-            </ul>
-          </div>
-        {/if}
 
-        <!-- History section -->
-        {#if hasHistory}
-          <div class="flex min-h-0 flex-1 flex-col px-3 pt-2.5 pb-2">
-            <div class="mb-2 flex items-center justify-between">
-              <p class="text-base-content/50 text-[10px] font-semibold tracking-widest uppercase">
-                {m.storage_operations_history()}
-              </p>
-              <button
-                class="btn btn-ghost btn-xs text-base-content/40 hover:text-base-content flex h-5 items-center gap-1 px-1 py-0 text-[10px]"
-                onclick={() => storage.clearOperationHistory()}
-                aria-label={m.storage_operations_clear_history()}
-              >
-                <IconDeleteSweep class="size-3" aria-hidden="true" />
-                {m.storage_operations_clear_history()}
-              </button>
-            </div>
-            <ul class="mb-10 min-h-0 flex-1 space-y-1 overflow-y-auto">
-              {#each historyOps as op (op.id)}
-                {@const TypeIcon = typeIconMap[op.type]}
-                <li role="none" class="rounded-md px-2.5 py-2 {statusBgColor(op)}">
-                  <div class="flex items-center gap-2">
-                    <!-- Status icon -->
-                    <span class="shrink-0 {statusColor(op)}" aria-hidden="true">
-                      {#if op.status === 'done'}
-                        <IconCheckCircle class="size-3.5" />
-                      {:else if op.status === 'error'}
-                        <IconError class="size-3.5" />
-                      {:else if op.status === 'cancelled'}
-                        <IconCancel class="size-3.5" />
-                      {:else}
-                        <IconPowerOff class="size-3.5" />
-                      {/if}
-                    </span>
-                    <!-- Operation type icon -->
-                    <span class="text-base-content/50 shrink-0" aria-hidden="true">
-                      <TypeIcon class="size-3" />
-                    </span>
-                    <span class="text-base-content/80 min-w-0 flex-1 truncate text-[11px]">
-                      {op.label}
-                    </span>
-                    <div class="flex shrink-0 flex-col items-end gap-0.5">
-                      <span class="text-[10px] font-medium {statusColor(op)}">
-                        {statusLabel(op)}
-                      </span>
-                      <span class="text-base-content/35 text-[9px] tabular-nums">
-                        {formatElapsed(op.startedAt, op.completedAt)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <!-- Error detail -->
-                  {#if op.status === 'error' && op.errorMessage}
-                    <div
-                      class="text-error/70 mt-1 truncate pl-5 text-[10px]"
-                      title={op.errorMessage}
-                    >
-                      {op.errorMessage}
-                    </div>
-                  {:else if op.status === 'interrupted'}
-                    <div class="text-warning/60 mt-1 pl-5 text-[10px]">
-                      {m.storage_operations_interrupted_tooltip()}
-                    </div>
-                  {/if}
-
-                  <!-- Partial progress for interrupted / error -->
-                  {#if (op.status === 'interrupted' || op.status === 'error') && op.totalBytes > 0}
-                    <div class="mt-1.5 pl-5">
-                      <div class="bg-base-300 h-1 w-full overflow-hidden rounded-full">
-                        <div
-                          class="h-full rounded-full {op.status === 'interrupted'
-                            ? 'bg-warning'
-                            : 'bg-error'}"
-                          style="width: {percent(op)}%"
-                        ></div>
+                    <!-- Partial progress for interrupted / error -->
+                    {#if (op.status === 'interrupted' || op.status === 'error') && op.totalBytes > 0}
+                      <div class="mt-1.5 pl-5">
+                        <div class="bg-base-300 h-1 w-full overflow-hidden rounded-full">
+                          <div
+                            class="h-full rounded-full {op.status === 'interrupted'
+                              ? 'bg-warning'
+                              : 'bg-error'}"
+                            style="width: {percent(op)}%"
+                          ></div>
+                        </div>
+                        <span class="text-base-content/35 text-[9px] tabular-nums">
+                          {formatBytes(op.completedBytes)} / {formatBytes(op.totalBytes)}
+                        </span>
                       </div>
-                      <span class="text-base-content/35 text-[9px] tabular-nums">
-                        {formatBytes(op.completedBytes)} / {formatBytes(op.totalBytes)}
-                      </span>
-                    </div>
-                  {/if}
-                </li>
-              {/each}
-            </ul>
-          </div>
-        {:else if activeOps.length === 0}
-          <div class="text-base-content/40 flex items-center gap-2 px-4 py-3">
-            <IconHistory class="size-4" aria-hidden="true" />
-            <span class="text-xs">{m.storage_operations_history()}</span>
-          </div>
-        {/if}
-      </div>
-    {/if}
-  </div>
-{/if}
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          {:else if activeOps.length === 0}
+            <div class="text-base-content/40 flex items-center gap-2 px-4 py-3">
+              <IconHistory class="size-4" aria-hidden="true" />
+              <span class="text-xs">{m.storage_operations_history()}</span>
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
+  {/if}
+</div>

@@ -113,6 +113,16 @@ describe('DeleteConfirmModal', () => {
       expect(onConfirm).toHaveBeenCalledOnce();
     });
 
+    it('should confirm deletion when Enter is pressed while Cancel is focused', async () => {
+      const onConfirm = vi.fn();
+      render(DeleteConfirmModal, { ...defaultProps, onConfirm });
+
+      const cancelButton = page.getByRole('button', { name: /Cancel/i }).element() as HTMLButtonElement;
+      cancelButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+      expect(onConfirm).toHaveBeenCalledOnce();
+    });
+
     it('should call onCancel when cancel button is clicked', async () => {
       const onCancel = vi.fn();
       render(DeleteConfirmModal, { ...defaultProps, onCancel });

@@ -121,7 +121,7 @@ describe('FileRow', () => {
     render(FileRowWrapper, { state, file });
 
     await page.getByRole('row').click();
-    expect(spy).toHaveBeenCalledWith('click.txt', false);
+    expect(spy).toHaveBeenCalledWith('click.txt', false, false);
   });
 
   async function dblClickRow(): Promise<void> {
@@ -241,7 +241,7 @@ describe('FileRow', () => {
     render(FileRowWrapper, { state, file });
 
     await page.getByRole('row').click({ modifiers: ['ControlOrMeta'] });
-    expect(spy).toHaveBeenCalledWith('ctrl.txt', true);
+    expect(spy).toHaveBeenCalledWith('ctrl.txt', true, false);
   });
 
   it('should call toggleSelect on checkbox change', async () => {

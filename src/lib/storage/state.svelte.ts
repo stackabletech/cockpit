@@ -53,6 +53,7 @@ export class StorageState {
   // ── Selection ──
   selectedKeys = $state(new SvelteSet<string>());
   selectionMode = $state(false);
+  selectionAnchorKey = $state<string | null>(null);
 
   allSelected = $derived(this.totalItemCount > 0 && this.selectedKeys.size >= this.totalItemCount);
   someSelected = $derived(
@@ -245,7 +246,24 @@ export class StorageState {
   // Selection
   // ────────────────────────────────────────────────────────────────────────────
 
-  toggleSelect = (key: string, force = false): void => {
+  toggleSelect = (key: string, force = false, range = false): void => {
+    if (range && this.selectionAnchorKey) {
+      const keys = [...this.folders, ...this.files].map((item) => item.key);
+      const anchorIndex = keys.indexOf(this.selectionAnchorKey);
+      const targetIndex = keys.indexOf(key);
+      if (anchorIndex !== -1 && targetIndex !== -1) {
+        const next = new SvelteSet(this.selectedKeys);
+        for (const rangeKey of keys.slice(
+          Math.min(anchorIndex, targetIndex),
+          Math.max(anchorIndex, targetIndex) + 1
+        )) {
+          next.add(rangeKey);
+        }
+        this.selectedKeys = next;
+        this.selectionMode = true;
+        return;
+      }
+    }
     if (force || this.selectionMode) {
       if (force && !this.selectionMode) this.selectionMode = true;
       const next = new SvelteSet<string>(this.selectedKeys);
@@ -255,6 +273,7 @@ export class StorageState {
     } else {
       this.selectedKeys = new SvelteSet<string>([key]);
     }
+    this.selectionAnchorKey = key;
   };
 
   selectAll = (checked: boolean): void => {
@@ -271,6 +290,7 @@ export class StorageState {
   clearSelection = (): void => {
     this.selectedKeys = new SvelteSet<string>();
     this.selectionMode = false;
+    this.selectionAnchorKey = null;
   };
 
   toggleSelectionMode = (): void => {
@@ -283,6 +303,7 @@ export class StorageState {
   // ────────────────────────────────────────────────────────────────────────────
 
   navigate = (prefix: string): void => {
+    this.clearSelection();
     this.loading = true;
     this.prevTokens = [];
     this._onNavigate(prefix, null, this.pageSize);
@@ -563,7 +584,7 @@ export class StorageState {
     }
   };
 
-  confirmCreate = async (name: string, type: 'file' | 'folder'): Promise<void> => {
+  confirmCreate = async (name: string, type: 'file' | 'folder'): Promise<boolean> => {
     const sanitized = name.trim();
 
     this.closeModal();
@@ -579,14 +600,26 @@ export class StorageState {
         await this.api.create({ bucket: this.bucket, key: dirKey });
       }
 
-      // Create the final object (file or directory)
-      const finalKey = this.prefix + sanitized + (isFolder ? '/' : '');
+      // Do not let a repeated default name overwrite an edited file.
+      let finalName = sanitized;
+      let finalKey = this.prefix + finalName + (isFolder ? '/' : '');
+      let copyNumber = 2;
+      while (await this.api.checkObjectExists({ bucket: this.bucket, key: finalKey })) {
+        const extensionIndex = sanitized.lastIndexOf('.');
+        const base = extensionIndex > 0 ? sanitized.slice(0, extensionIndex) : sanitized;
+        const extension = extensionIndex > 0 ? sanitized.slice(extensionIndex) : '';
+        finalName = `${base} (${copyNumber})${extension}`;
+        finalKey = this.prefix + finalName + (isFolder ? '/' : '');
+        copyNumber++;
+      }
       await this.api.create({ bucket: this.bucket, key: finalKey });
 
       void invalidateAll();
+      return true;
     } catch {
       addToast('error', m.storage_create_error({ name: sanitized }));
       this.loading = false;
+      return false;
     }
   };
 

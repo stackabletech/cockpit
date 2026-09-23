@@ -65,8 +65,26 @@ export async function saveConnection(userId: string, config: S3ConnectionConfig)
       log.info({ connection_id: inserted.id }, 'storage connection saved');
       return inserted.id;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('user_storage_connections_user_id_name_unique')) {
+      const msg = [
+        err instanceof Error ? err.message : String(err),
+        err && typeof err === 'object' && 'cause' in err
+          ? String((err as { cause: unknown }).cause)
+          : ''
+      ].join(' ');
+      if (
+        msg.includes('user_storage_connections_user_id_name_unique') ||
+        /unique constraint|duplicate key/i.test(msg)
+      ) {
+        // A concurrent request may have inserted the same connection after our
+        // initial lookup. Reuse it rather than surfacing a database error.
+        const duplicate = await db
+          .select({ id: userStorageConnections.id })
+          .from(userStorageConnections)
+          .where(
+            and(eq(userStorageConnections.userId, userId), eq(userStorageConnections.hash, fp))
+          )
+          .limit(1);
+        if (duplicate.length > 0) return duplicate[0].id;
         name = `${baseName} ${suffix}`;
         continue;
       }

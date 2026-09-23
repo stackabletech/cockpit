@@ -63,7 +63,13 @@
   // loop: they read from this.tabs internally, and writing this.tabs would
   // otherwise re-trigger the effect.
   $effect(() => {
-    void [storage.bucket, storage.prefix, storage.objects];
+    void [
+      storage.bucket,
+      storage.prefix,
+      storage.objects,
+      storage.selectedKeys,
+      storage.selectionMode
+    ];
     untrack(() => {
       tabsState.markActiveTabLoaded();
       tabsState.syncActiveTab();

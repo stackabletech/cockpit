@@ -50,6 +50,10 @@ describe('StorageConnectionSchema', () => {
     }
   });
 
+  it('rejects malformed host values', () => {
+    expect(StorageConnectionSchema.safeParse({ host: '%/()$=("?§/(' }).success).toBe(false);
+  });
+
   it('accepts port', () => {
     const result = StorageConnectionSchema.safeParse({ host: 's3.example.com', port: 9000 });
     expect(result.success).toBe(true);

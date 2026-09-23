@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { SvelteSet } from 'svelte/reactivity';
 import type { StoragePage } from '$lib/storage/types.js';
 import type { PageSize } from '$lib/types/pagination.js';
 import type { StorageState } from './state.svelte.js';
@@ -20,6 +21,8 @@ export interface TabSnapshot {
   previousS3Prefix: string;
   archiveLoading: boolean;
   archiveTooLarge: boolean;
+  selectedKeys?: string[];
+  selectionMode?: boolean;
   /** Pre-computed auto-generated label for this snapshot (used by syncActiveTab
    *  to decide whether the label was manually renamed). */
   autoLabel: string;
@@ -110,6 +113,8 @@ export class TabsState {
       previousS3Prefix: this.storage.archive._previousS3Prefix,
       archiveLoading: this.storage.archive.archiveLoading,
       archiveTooLarge: this.storage.archive.archiveTooLarge,
+      selectedKeys: [...this.storage.selectedKeys],
+      selectionMode: this.storage.selectionMode,
       autoLabel: this.computeAutoLabel()
     };
   }
@@ -141,8 +146,13 @@ export class TabsState {
       archiveTooLarge: snapshot.archiveTooLarge
     });
     this.storage.loading = false;
-    this.storage.clearSelection();
+    this.restoreSelection(snapshot);
     this.replaceLocationUrl?.(snapshot.connection, snapshot.bucket, snapshot.prefix);
+  }
+
+  private restoreSelection(snapshot: TabSnapshot): void {
+    this.storage.selectedKeys = new SvelteSet(snapshot.selectedKeys ?? []);
+    this.storage.selectionMode = snapshot.selectionMode ?? false;
   }
 
   // ── Persistence ──────────────────────────────────────────────────────────
@@ -357,8 +367,11 @@ export class TabsState {
     const id = crypto.randomUUID();
     const label = this.computeAutoLabel();
     const newTab: Tab = { id, label, stub: false, snapshot: this.captureSnapshot() };
+    newTab.snapshot.selectedKeys = [];
+    newTab.snapshot.selectionMode = false;
     this.tabs = [...this.tabs, newTab];
     this.activeTabId = id;
+    this.storage.clearSelection();
     this.saveToPersistence();
   }
 
@@ -370,6 +383,7 @@ export class TabsState {
     this.syncActiveTab();
     this.activeTabId = id;
     this.pendingNavigation = null;
+    this.restoreSelection(tab.snapshot);
     this.saveToPersistence();
 
     if (tab.stub && this.navigateToLocation) {

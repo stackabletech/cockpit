@@ -10,6 +10,7 @@ export type StorageErrorCode =
   | 'server_error'
   | 'no_such_bucket'
   | 'invalid_part'
+  | 'file_too_large'
   | 'unknown';
 
 export class StorageError extends Error {

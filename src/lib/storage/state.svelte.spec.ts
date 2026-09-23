@@ -76,6 +76,29 @@ function makePage(objects?: StorageObject[]): StoragePage {
   };
 }
 
+describe('selection and navigation', () => {
+  it('selects the inclusive range from the selection anchor', () => {
+    const state = new StorageState({ api: makeApi() });
+    state.objects = makePage();
+    state.toggleSelect('file.txt');
+
+    state.toggleSelect('photo.jpg', false, true);
+
+    expect([...state.selectedKeys]).toEqual(['file.txt', 'photo.jpg']);
+  });
+
+  it('clears selection mode when navigating', () => {
+    const state = new StorageState({ api: makeApi() });
+    state.selectedKeys = new SvelteSet(['file.txt']);
+    state.selectionMode = true;
+
+    state.navigate('folder/');
+
+    expect(state.selectedKeys.size).toBe(0);
+    expect(state.selectionMode).toBe(false);
+  });
+});
+
 function makeApi(overrides?: Partial<StorageApi>): StorageApi {
   const defaults: StorageApi = {
     async list() {
@@ -394,6 +417,27 @@ describe('executeAction("paste")', () => {
   });
 
   describe('from cut', () => {
+    it('does not replace items when pasting them into their current location', async () => {
+      const moveSpy = vi.fn();
+      const state = makeState({
+        move: moveSpy,
+        checkObjectExists: vi.fn().mockResolvedValue(true)
+      });
+      state.clipboardState.clipboard = {
+        action: 'cut',
+        keys: ['file.txt', 'photo.jpg'],
+        sourceBucket: 'test-bucket',
+        sourcePrefix: '',
+        fileSizes: { 'file.txt': 100, 'photo.jpg': 500 }
+      };
+
+      await state.executeAction('paste');
+
+      expect(moveSpy).not.toHaveBeenCalled();
+      expect(state.activeModal).toBeNull();
+      expect(addToast).not.toHaveBeenCalled();
+    });
+
     it('calls the move API and updates clipboard to destination keys', async () => {
       const moveSpy = vi.fn().mockResolvedValue({
         results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
