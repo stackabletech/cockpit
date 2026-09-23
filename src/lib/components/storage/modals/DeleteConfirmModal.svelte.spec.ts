@@ -117,7 +117,9 @@ describe('DeleteConfirmModal', () => {
       const onConfirm = vi.fn();
       render(DeleteConfirmModal, { ...defaultProps, onConfirm });
 
-      const cancelButton = page.getByRole('button', { name: /Cancel/i }).element() as HTMLButtonElement;
+      const cancelButton = page
+        .getByRole('button', { name: /Cancel/i })
+        .element() as HTMLButtonElement;
       cancelButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 
       expect(onConfirm).toHaveBeenCalledOnce();
