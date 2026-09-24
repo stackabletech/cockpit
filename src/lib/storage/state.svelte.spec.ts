@@ -517,6 +517,54 @@ describe('confirmRename', () => {
     expect(state.renameLoading).toBe(false);
   });
 
+  it('opens conflict resolution before renaming to an existing name', async () => {
+    const moveSpy = vi.fn();
+    const state = makeState({ move: moveSpy, checkObjectExists: vi.fn().mockResolvedValue(true) });
+    state.openModal('rename', { key: 'file.txt' });
+
+    await state.confirmRename('file.txt', 'renamed.txt');
+
+    expect(moveSpy).not.toHaveBeenCalled();
+    expect(state.activeModal).toEqual(
+      expect.objectContaining({
+        type: 'resolve-conflicts',
+        payload: expect.objectContaining({
+          confirmLabel: 'Rename',
+          operation: 'rename',
+          entries: [expect.objectContaining({ originalName: 'renamed.txt', conflict: true })]
+        })
+      })
+    );
+  });
+
+  it('replaces the destination before completing a conflicting rename', async () => {
+    const deleteSpy = vi.fn().mockResolvedValue({ failed: [] });
+    const moveSpy = vi.fn().mockResolvedValue({ results: [], failed: 0 });
+    const state = makeState({
+      move: moveSpy,
+      delete: deleteSpy,
+      checkObjectExists: vi.fn().mockResolvedValue(true)
+    });
+    state.openModal('rename', { key: 'file.txt' });
+    await state.confirmRename('file.txt', 'renamed.txt');
+
+    await state.confirmConflictResolution([
+      {
+        id: 'file.txt',
+        originalName: 'renamed.txt',
+        conflict: true,
+        resolution: 'replace',
+        customName: 'renamed.txt',
+        renameState: 'idle'
+      }
+    ]);
+
+    expect(deleteSpy).toHaveBeenCalledWith({ bucket: 'test-bucket', keys: ['renamed.txt'] });
+    expect(moveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceKeys: ['file.txt'], destinationKey: 'renamed.txt' })
+    );
+  });
+
   it('shows toast on access_denied and closes modal', async () => {
     const moveSpy = vi.fn().mockRejectedValue(new StorageError('access_denied', 'Access denied'));
     const state = makeState({ move: moveSpy });

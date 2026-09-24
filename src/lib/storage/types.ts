@@ -49,6 +49,8 @@ export interface ModalPayloads {
     destPrefix: string;
     /** Optional: label for the confirm button (e.g. "Paste" or "Move"). */
     confirmLabel?: string;
+    /** Operation that opened the resolver when it is not handled by the clipboard. */
+    operation?: 'rename';
   };
   create: { type: 'file' | 'folder' };
 }
