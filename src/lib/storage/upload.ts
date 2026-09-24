@@ -9,46 +9,14 @@
  *   supported in Firefox.
  * - The file is sent as the raw request body — no base64 or multipart encoding.
  *   The server streams it directly to S3, preserving binary integrity.
- * - The connection config is passed via the `X-Storage-Connection` header
- *   (base64-encoded JSON), read by the server from the client's localStorage.
+ * - The active connection UUID is passed via the `x-storage-connection-id` header.
  */
 
-import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
+import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
+import { StorageError, type StorageErrorCode } from '$lib/storage/errors.js';
+import { createStorageFetch, mapStatusToCode } from '$lib/storage/storage-fetch.js';
 
-export type UploadErrorCode =
-  | 'not_connected'
-  | 'access_denied'
-  | 'no_such_bucket'
-  | 'invalid_part'
-  | 'server_error'
-  | 'unknown';
-
-export class UploadError extends Error {
-  constructor(
-    public readonly code: UploadErrorCode,
-    message: string
-  ) {
-    super(message);
-    this.name = 'UploadError';
-  }
-}
-
-function buildUploadUrl(bucket: string, key: string): string {
-  return `/api/storage/upload?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
-}
-
-function buildDownloadUrl(bucket: string, key: string): string {
-  return `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
-}
-
-function mapStatusToUploadCode(status: number): UploadErrorCode {
-  if (status === 403) return 'access_denied';
-  if (status === 404) return 'no_such_bucket';
-  if (status === 400) return 'invalid_part';
-  if (status === 401) return 'not_connected';
-  if (status >= 500) return 'server_error';
-  return 'unknown';
-}
+export type UploadErrorCode = StorageErrorCode;
 
 /**
  * Check whether an object with the given key already exists in the bucket.
@@ -60,18 +28,20 @@ function mapStatusToUploadCode(status: number): UploadErrorCode {
 export async function checkObjectExists(
   bucket: string,
   key: string,
-  connectionHeader: string
+  connectionId: string
 ): Promise<boolean> {
-  const url = buildDownloadUrl(bucket, key);
-  const res = await fetch(url, {
-    method: 'HEAD',
-    headers: { [STORAGE_CONNECTION_HEADER]: connectionHeader }
-  });
-  if (res.status === 200) return true;
-  if (res.status === 404) return false;
-  if (res.status === 401) throw new UploadError('not_connected', 'Not connected');
-  if (res.status === 403) throw new UploadError('access_denied', 'Access denied');
-  throw new UploadError('server_error', `Unexpected status ${res.status}`);
+  const fetch_ = createStorageFetch(() => connectionId);
+  try {
+    const res = await fetch_(
+      `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`,
+      {
+        method: 'HEAD'
+      }
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -89,11 +59,11 @@ export function uploadFile(
   key: string,
   file: File,
   onProgress: (pct: number) => void,
-  connectionHeader: string
+  connectionId: string
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    const url = buildUploadUrl(bucket, key);
+    const url = `/api/storage/upload?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
 
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable) {
@@ -107,21 +77,21 @@ export function uploadFile(
         resolve();
         return;
       }
-      const code = mapStatusToUploadCode(xhr.status);
-      reject(new UploadError(code, `Upload failed with status ${xhr.status}`));
+      const code = mapStatusToCode(xhr.status);
+      reject(new StorageError(code, `Upload failed with status ${xhr.status}`));
     });
 
     xhr.addEventListener('error', () => {
-      reject(new UploadError('server_error', 'Network error during upload'));
+      reject(new StorageError('server_error', 'Network error during upload'));
     });
 
     xhr.addEventListener('abort', () => {
-      reject(new UploadError('unknown', 'Upload aborted'));
+      reject(new StorageError('unknown', 'Upload aborted'));
     });
 
     xhr.open('POST', url);
     xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-    xhr.setRequestHeader(STORAGE_CONNECTION_HEADER, connectionHeader);
+    xhr.setRequestHeader(STORAGE_CONNECTION_ID_HEADER, connectionId);
     xhr.send(file);
   });
 }

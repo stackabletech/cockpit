@@ -5,6 +5,7 @@ import { browser } from '$app/environment';
 export const LS_PINS = 'pinned_storage_locations';
 export const LS_RECENT_FILES = 'recent_storage_files';
 export const LS_RECENT_LOCATIONS = 'recent_storage_locations';
+export const LS_TABS = 'storage_tabs';
 
 // ── Utilities ────────────────────────────────────────────────────────────────
 

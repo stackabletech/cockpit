@@ -65,6 +65,7 @@ function cursorScopeTokens(tokens: Token[], cursor: number): Token[] | null {
     }
 
     const { pos: end, closed } = parenGroupEndPosition(tokens, pos);
+
     const openChar = tokens[pos].start;
 
     // Cursor is inside this body if it's past the opening `(` and either
@@ -97,6 +98,7 @@ export function extractPrefixAtCursor(
 ): { prefixParts: string[]; wordAtCursor: string } {
   // Step 1: find the last token that starts before the cursor.
   let pos = tokens.length - 1;
+
   while (pos >= 0 && tokens[pos].start >= cursorInStatement) pos--;
   if (pos < 0) return { prefixParts: [], wordAtCursor: '' };
 
@@ -104,6 +106,7 @@ export function extractPrefixAtCursor(
   //   A) cursor is inside/at the end of an identifier → that's the partial word
   //   B) cursor is immediately after a dot → no word yet, prefix continues
   //   C) cursor is attached to something else (keyword, operator) → no prefix
+
   const last = tokens[pos];
   const lastEndExclusive = last.stop + 1;
   const cursorTouchesLast = lastEndExclusive >= cursorInStatement;
@@ -124,6 +127,7 @@ export function extractPrefixAtCursor(
 
   // Step 3: walk backwards through (DOT IDENTIFIER)* pairs.
   const prefixParts: string[] = [];
+
   while (pos >= 1 && tokens[pos].type === DOT && IDENTIFIER_TOKENS.has(tokens[pos - 1].type)) {
     prefixParts.unshift(unquoteIdentifier(tokens[pos - 1].text ?? ''));
     pos -= 2;
@@ -179,7 +183,9 @@ export function extractAliasMap(
         // Lowercase for case-insensitive lookup.
         aliasMap.set(alias.table.toLowerCase(), alias);
         // Optional [AS] <identifier> follows the name.
+
         if (tokens[next]?.type === SqlBaseLexer.AS) next++;
+
         if (tokens[next] && IDENTIFIER_TOKENS.has(tokens[next].type)) {
           const aliasName = unquoteIdentifier(tokens[next].text ?? '');
           aliasMap.set(aliasName.toLowerCase(), alias);
@@ -194,16 +200,19 @@ export function extractAliasMap(
     // the JSDoc for why the body is skipped).
     if (token.type === SqlBaseLexer.WITH) {
       let next = pos + 1;
+
       while (next < tokens.length && IDENTIFIER_TOKENS.has(tokens[next].type)) {
         const cteName = unquoteIdentifier(tokens[next].text ?? '');
         aliasMap.set(cteName.toLowerCase(), { table: cteName });
         next++;
 
         next = skipOptionalParenGroup(tokens, next); // optional column list
+
         if (tokens[next]?.type === SqlBaseLexer.AS) next++;
         next = skipOptionalParenGroup(tokens, next); // CTE body
 
         // Comma means another CTE follows; anything else ends the WITH list.
+
         if (tokens[next]?.type !== COMMA) break;
         next++;
       }

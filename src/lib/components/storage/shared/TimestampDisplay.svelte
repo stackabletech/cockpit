@@ -12,11 +12,18 @@
      * When false (default), the label shows a short formatted date ("13 May 2026").
      */
     relative?: boolean;
+    /** When true, the tooltip shows the full timestamp. */
+    showFullTimestamp?: boolean;
     /** DaisyUI tooltip direction. */
     tooltip?: TooltipPosition;
   }
 
-  let { date, relative = false, tooltip = 'tooltip-top' }: Props = $props();
+  let {
+    date,
+    relative = false,
+    tooltip = 'tooltip-top',
+    showFullTimestamp = false
+  }: Props = $props();
 
   const d = $derived(typeof date === 'string' ? new Date(date) : date);
 
@@ -45,6 +52,7 @@
       const years = Math.floor(days / 365);
       return m.timestamp_years_ago({ count: years });
     }
+    if (showFullTimestamp) return fullTimestamp;
     return new Intl.DateTimeFormat(getLocale(), {
       year: 'numeric',
       month: 'short',

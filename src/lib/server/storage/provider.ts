@@ -1,4 +1,5 @@
 import type { StoragePage, StorageMetadata, DeleteObjectsResult } from '$lib/storage/types.js';
+import type { LifecycleRule, BucketAcl } from '$lib/storage/details-types.js';
 
 export type { DeleteObjectsResult };
 
@@ -12,6 +13,8 @@ export interface ObjectDownload {
 
 /** Backend-agnostic interface for a bucket-scoped storage provider. */
 export interface StorageProvider {
+  /** List all buckets accessible with the current connection credentials. */
+  listContainers(): Promise<string[]>;
   /**
    * List objects using cursor-based pagination. `continuationToken` is the
    * provider-specific opaque token returned from a previous call. When
@@ -43,4 +46,28 @@ export interface StorageProvider {
    * Used to expand directory prefixes before deletion.
    */
   listAllKeys(prefix: string): Promise<string[]>;
+  listAllKeysProgressively(
+    prefix: string,
+    onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void
+  ): Promise<void>;
+  getBucketVersioning(): Promise<string>;
+  getBucketLifecycleRules(): Promise<LifecycleRule[]>;
+  getBucketTags(): Promise<Record<string, string>>;
+  getBucketAcl(): Promise<BucketAcl>;
+  /**
+   * Copy an object from `sourceKey` to `destKey` within the same bucket.
+   * For objects <= 5 GB uses S3 CopyObject; for larger objects streams the
+   * data through via multipart upload. Throws if the source does not exist
+   * or access is denied. Existing destination objects are silently overwritten.
+   *
+   * When provided, `onProgress` is called with `(loaded, total)` bytes during
+   * the multipart upload for large objects (> 5 GB). It is NOT called for
+   * small objects that use the native S3 CopyObject (which is server-side and
+   * has no streaming phase).
+   */
+  copyObject(
+    sourceKey: string,
+    destKey: string,
+    onProgress?: (loaded: number, total: number) => void
+  ): Promise<void>;
 }

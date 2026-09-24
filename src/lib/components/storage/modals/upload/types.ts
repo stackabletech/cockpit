@@ -1,18 +1,9 @@
 /**
  * Shared types for the upload modal sub-components.
+ * Resolution and RenameState are consumed directly from the shared conflict types.
  */
 
-export type Resolution = 'replace' | 'skip' | 'rename';
-
-/**
- * Tracks the two-stage rename confirmation flow.
- * idle      - rename not selected for this entry
- * editing   - rename selected, text field is editable
- * checking  - async conflict check in progress
- * ok        - new name confirmed available
- * conflict  - new name already exists in the bucket
- */
-export type RenameState = 'idle' | 'editing' | 'checking' | 'ok' | 'conflict';
+import type { Resolution, RenameState } from '../shared/conflict-types.js';
 
 export type FileEntry = {
   id: string;

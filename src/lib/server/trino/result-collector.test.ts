@@ -1,9 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
-vi.mock('$lib/server/logging', () => ({
-  logger: { child: () => ({ info: vi.fn(), warn: vi.fn(), debug: vi.fn(), error: vi.fn() }) }
-}));
+vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 vi.mock('$lib/server/metrics.js', () => ({
   trinoQueryTotal: { inc: vi.fn() },
   trinoActiveQueries: { inc: vi.fn(), dec: vi.fn() }
