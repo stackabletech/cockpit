@@ -1,5 +1,36 @@
 import { z } from 'zod';
 
+function isValidHostname(host: string): boolean {
+  if (host.length > 253 || host.length === 0) return false;
+  return host.split('.').every((label) => {
+    if (label.length === 0 || label.length > 63) return false;
+    if (label.startsWith('-') || label.endsWith('-')) return false;
+    return [...label].every(
+      (char) =>
+        (char >= 'a' && char <= 'z') ||
+        (char >= 'A' && char <= 'Z') ||
+        (char >= '0' && char <= '9') ||
+        char === '-'
+    );
+  });
+}
+
+function isValidHost(host: string): boolean {
+  return (
+    host === 'localhost' ||
+    z.ipv4().safeParse(host).success ||
+    z.ipv6().safeParse(host).success ||
+    isValidHostname(host)
+  );
+}
+
+function hasInvalidStorageNameCharacter(value: string): boolean {
+  return [...value].some((char) => {
+    const codePoint = char.codePointAt(0)!;
+    return codePoint <= 0x1f || codePoint === 0x7f || '<>\\|?"'.includes(char);
+  });
+}
+
 const baseStorageConnectionObject = z.object({
   id: z.string().uuid().optional(),
   name: z.string().optional(),
@@ -10,27 +41,13 @@ const baseStorageConnectionObject = z.object({
     .min(1, 'Host is required')
     .refine((value) => {
       if (!value.includes('://')) return true;
-      try {
-        new URL(value);
-        return true;
-      } catch {
-        return false;
-      }
+      return z.url().safeParse(value).success;
     }, 'Host must be a valid hostname or IP address')
     .transform((v) => {
       if (!v.includes('://')) return v;
       return new URL(v).hostname;
     })
-    .refine(
-      (host) =>
-        host === 'localhost' ||
-        /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(
-          host
-        ) ||
-        /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host) ||
-        /^[0-9a-f:]+$/i.test(host),
-      'Host must be a valid hostname or IP address'
-    ),
+    .refine(isValidHost, 'Host must be a valid hostname or IP address'),
   port: z.coerce
     .number()
     .int()
@@ -87,15 +104,13 @@ export const ConnectionIdSchema = z.object({
   connectionId: z.string().uuid()
 });
 
-const STORAGE_NAME_INVALID_CHARS = /[^\w\s./()\-+@,:;!$*'=]/;
-
 /** Object names accepted by the storage UI and API. */
 export const StorageObjectNameSchema = z
   .string()
   .trim()
   .min(1, 'Object name is required')
   .refine(
-    (value) => !STORAGE_NAME_INVALID_CHARS.test(value),
+    (value) => !hasInvalidStorageNameCharacter(value),
     'Object name contains invalid characters'
   )
   .refine(
@@ -108,7 +123,7 @@ const StoragePrefixSchema = z
   .refine(
     (value) =>
       value === '' ||
-      (!STORAGE_NAME_INVALID_CHARS.test(value) &&
+      (!hasInvalidStorageNameCharacter(value) &&
         value.split('/').every((part) => part !== '.' && part !== '..')),
     'Object prefix contains invalid characters'
   );
@@ -117,6 +132,7 @@ export const CopyObjectsBodySchema = z
   .object({
     sourceKeys: z.array(StorageObjectNameSchema).min(1, 'At least one source key is required'),
     destinationPrefix: StoragePrefixSchema,
+    sourceBucket: z.string().trim().min(1).optional(),
     jobId: z.string().min(1).optional()
   })
   .strict();
@@ -126,6 +142,7 @@ export const MoveObjectsBodySchema = z
     sourceKeys: z.array(StorageObjectNameSchema).min(1, 'At least one source key is required'),
     destinationPrefix: StoragePrefixSchema.optional(),
     destinationKey: StorageObjectNameSchema.optional(),
+    sourceBucket: z.string().trim().min(1).optional(),
     jobId: z.string().min(1).optional()
   })
   .strict()

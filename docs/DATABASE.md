@@ -77,7 +77,7 @@ created with the prior migration sequence must be reset before applying it.
 
 ## NPM Scripts
 
-All Drizzle commands automatically load `.env.development` via `dotenv` in `drizzle.config.ts`.
+All Drizzle commands load `.env.development` by default through Node.js `process.loadEnvFile` in `drizzle.config.ts`. The database connection variables are required; commands fail rather than falling back to another database.
 
 ```bash
 npm run db:generate        # Generate new migrations from schema changes
@@ -86,7 +86,7 @@ npm run db:migrate:run     # Run pending migrations (via Node script, used by se
 npm run db:studio          # Open Drizzle Studio (web-based DB preview/management)
 ```
 
-**Override env file**: Use `DRIZZLE_ENV_FILE` to use a different environment file:
+**Override env file**: Use `DRIZZLE_ENV_FILE` to select a different environment file:
 
 ```bash
 DRIZZLE_ENV_FILE=.env.production npm run db:generate
@@ -183,7 +183,7 @@ SELECT * FROM <table>; # View data
 ### SSL/TLS Configuration
 
 - **Development** (`NODE_ENV != production`): SSL is **disabled** by default for local Kubernetes
-- **Production** (`NODE_ENV = production`): SSL is **always enabled** for security
+- **Production** (`NODE_ENV = production`): SSL is enabled with certificate verification. The database certificate must chain to the system/Node.js trust store. For a private CA, mount it and set `NODE_EXTRA_CA_CERTS` to its path.
 
 This is configured automatically in both:
 

@@ -169,6 +169,21 @@ describe('createFetchStorageApi', () => {
       expect(result.failed).toBe(0);
     });
 
+    it('includes the source bucket for cross-bucket copies', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ results: [], failed: [] }));
+
+      await api.copy({
+        bucket: 'destination',
+        sourceBucket: 'source',
+        sourceKeys: ['a.txt'],
+        destinationPrefix: ''
+      });
+
+      const [, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      expect(JSON.parse(init?.body as string).sourceBucket).toBe('source');
+    });
+
     it('includes jobId in the request body when provided', async () => {
       const api = createFetchStorageApi(() => 'conn-1');
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ results: [], failed: [] }));
@@ -237,6 +252,21 @@ describe('createFetchStorageApi', () => {
 
       expect(result.results).toHaveLength(1);
       expect(result.failed).toBe(0);
+    });
+
+    it('includes the source bucket for cross-bucket moves', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ moved: [], failed: [] }));
+
+      await api.move({
+        bucket: 'destination',
+        sourceBucket: 'source',
+        sourceKeys: ['a.txt'],
+        destinationPrefix: ''
+      });
+
+      const [, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      expect(JSON.parse(init?.body as string).sourceBucket).toBe('source');
     });
 
     it('reports failed items from NDJSON stream', async () => {

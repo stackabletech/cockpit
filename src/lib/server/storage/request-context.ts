@@ -24,3 +24,10 @@ export function createStorageProvider(event: RequestEvent): {
   const bucket = requireBucket(event);
   return { provider: withStorageHttpErrors(getProvider(config, bucket)), bucket };
 }
+
+export function createStorageProviderForBucket(
+  event: RequestEvent,
+  bucket: string
+): StorageProvider {
+  return withStorageHttpErrors(getProvider(requireConfig(event), bucket));
+}

@@ -4,6 +4,12 @@ import { logger } from './logging';
 
 const log = logger.child({ module: 'database' });
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction && !process.env.DATABASE_PASSWORD) {
+  throw new Error('DATABASE_PASSWORD must be set in production');
+}
+
 // Parse connection credentials from environment variables
 const dbHost = process.env.DATABASE_HOST || 'localhost';
 const dbPort = parseInt(process.env.DATABASE_PORT || '31432', 10);
@@ -14,9 +20,9 @@ if (!process.env.DATABASE_PASSWORD) {
 }
 const dbPassword = process.env.DATABASE_PASSWORD || 'cockpit-dev-password';
 
-// SSL is disabled in development (local k8s), enabled in production
-const isDev = process.env.NODE_ENV !== 'production';
-const sslMode = isDev ? false : true;
+// Production certificates must chain to the operating system or Node.js trust store.
+// For a private CA, set NODE_EXTRA_CA_CERTS to the mounted CA certificate path.
+const sslMode = isProduction ? { rejectUnauthorized: true } : false;
 
 // Create a connection pool
 const pool = new Pool({

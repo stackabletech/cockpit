@@ -25,6 +25,7 @@ export interface ProcessKeysOptions {
   onDeleteFailed?: (key: string, error: string) => void | Promise<void>;
   logger?: pino.Logger;
   bucket?: string;
+  destinationProvider?: StorageProvider;
   deleteOriginals?: boolean;
 }
 
@@ -113,6 +114,7 @@ export async function processKeysSequentially(
     onDeleteFailed,
     logger,
     bucket,
+    destinationProvider = provider,
     deleteOriginals
   } = options;
 
@@ -128,22 +130,40 @@ export async function processKeysSequentially(
 
   const resolvedDestinations: Array<DestEntry & { destKey: string }> = [];
   for (const { sourceKey, baseDestKey } of destinations) {
+    if (destinationKey && (await destinationProvider.exists(baseDestKey))) {
+      failed.push({ sourceKey, error: 'Destination already exists' });
+      await onCopyFailed?.(sourceKey, baseDestKey, 'Destination already exists');
+      continue;
+    }
     resolvedDestinations.push({
       sourceKey,
       baseDestKey,
-      destKey: await uniqueDestKey(provider, baseDestKey)
+      destKey: destinationKey ? baseDestKey : await uniqueDestKey(destinationProvider, baseDestKey)
     });
   }
 
   await Promise.all(
     resolvedDestinations.map(async ({ sourceKey, baseDestKey, destKey }) => {
       try {
-        if (onCopyProgress) {
+        if (destinationProvider === provider && onCopyProgress) {
           await provider.copyObject(sourceKey, destKey, (loaded, total) => {
             onCopyProgress(sourceKey, destKey, loaded, total);
           });
         } else {
-          await provider.copyObject(sourceKey, destKey);
+          if (destinationProvider === provider) {
+            await provider.copyObject(sourceKey, destKey);
+          } else {
+            const source = await provider.getObject(sourceKey);
+            await destinationProvider.putObject(
+              destKey,
+              source.stream,
+              source.contentType ?? 'application/octet-stream',
+              source.contentLength
+            );
+            if (onCopyProgress && source.contentLength !== undefined) {
+              await onCopyProgress(sourceKey, destKey, source.contentLength, source.contentLength);
+            }
+          }
         }
         succeeded.push({ sourceKey, destKey });
         await onCopySuccess?.(sourceKey, destKey);
@@ -172,7 +192,11 @@ export async function processKeysSequentially(
   );
 
   if (deleteOriginals && succeeded.length > 0) {
-    const keysToDelete = [...new Set(succeeded.map((s) => s.sourceKey))];
+    // Directories are expanded before copying. Delete only members whose copy
+    // succeeded so a failed member is never removed by prefix expansion.
+    const keysToDelete = [
+      ...new Set(succeeded.map((s) => s.sourceKey).filter((key) => !key.endsWith('/')))
+    ];
     if (keysToDelete.length > 0) {
       await onBeforeDelete?.(keysToDelete);
       const deleteResult = await provider.deleteObjects(keysToDelete);

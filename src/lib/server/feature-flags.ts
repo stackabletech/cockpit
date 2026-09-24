@@ -24,7 +24,7 @@ export const storageBrowserEnabled = env.STACKABLE_COCKPIT_STORAGE_BROWSER_ENABL
  *  user scrolls, reducing S3 costs and browser memory for large files.
  *  Controlled by `STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED`. Default: `true`. */
 export const infiniteScrollEnabled =
-  env.PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED !== 'false';
+  publicEnv.PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED !== 'false';
 
 // ── Storage preview limits ───────────────────────────────────────────────────
 

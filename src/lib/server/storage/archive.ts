@@ -131,6 +131,16 @@ function normalizePath(p: string): string {
   return p.replace(/\\/g, '/').replace(/\/+/g, '/');
 }
 
+function isSafeArchivePath(path: string): boolean {
+  const normalized = normalizePath(path);
+  return (
+    normalized.length > 0 &&
+    !normalized.startsWith('/') &&
+    !normalized.split('/').some((part) => part === '..' || part === '.') &&
+    !/[?*]/.test(normalized)
+  );
+}
+
 function ensureTrailingSlash(p: string): string {
   return p.endsWith('/') ? p : p + '/';
 }
@@ -499,7 +509,7 @@ async function listRar(tempPath: string, internalPrefix: string): Promise<Archiv
     const allEntries = stdout
       .split('\n')
       .map((l) => normalizePath(l.trim()))
-      .filter(Boolean);
+      .filter(isSafeArchivePath);
 
     const seenDirs = new Set<string>();
     const entries: ArchiveEntry[] = [];
@@ -554,7 +564,7 @@ async function extractRarEntry(
   internalPath: string,
   maxBytes?: number
 ): Promise<Buffer | null> {
-  const tmpDir = mkdtempSync(join(tmpdir(), 'rar-extract-'));
+  if (!isSafeArchivePath(internalPath)) throw new Error('Path traversal rejected');
   try {
     const { stdout } = await execFileAsync('unrar', ['p', '-inul', tempPath, internalPath], {
       timeout: 30000,
@@ -564,12 +574,6 @@ async function extractRarEntry(
     return Buffer.from(stdout, 'binary');
   } catch (err) {
     throw new Error('RAR extraction failed: ' + (err instanceof Error ? err.message : String(err)));
-  } finally {
-    try {
-      rmRecursive(tmpDir);
-    } catch {
-      /* noop */
-    }
   }
 }
 
@@ -704,7 +708,7 @@ async function extract7zEntry(
   const bin = await find7zBinary();
   if (!bin) throw new Error('7z support requires 7-Zip to be installed on the server.');
 
-  if (internalPath.includes('..')) {
+  if (!isSafeArchivePath(internalPath)) {
     throw new Error('Path traversal rejected');
   }
 

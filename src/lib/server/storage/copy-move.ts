@@ -7,6 +7,7 @@ import { createJob } from './job-store.js';
 
 export interface PerformCopyOrMoveOptions {
   provider: StorageProvider;
+  destinationProvider?: StorageProvider;
   sourceKeys: string[];
   destinationPrefix: string;
   destinationKey?: string;
@@ -20,6 +21,7 @@ export interface PerformCopyOrMoveOptions {
 export async function performCopyOrMove(options: PerformCopyOrMoveOptions): Promise<Response> {
   const {
     provider,
+    destinationProvider,
     sourceKeys,
     destinationPrefix,
     destinationKey,
@@ -38,7 +40,7 @@ export async function performCopyOrMove(options: PerformCopyOrMoveOptions): Prom
       provider,
       sourceKeys,
       destinationPrefix,
-      { logger, bucket, deleteOriginals },
+      { logger, bucket, destinationProvider, deleteOriginals },
       destinationKey
     );
     return json({ [resultKey]: succeeded, failed });
@@ -88,6 +90,7 @@ export async function performCopyOrMove(options: PerformCopyOrMoveOptions): Prom
           },
           logger,
           bucket,
+          destinationProvider,
           deleteOriginals
         },
         destinationKey

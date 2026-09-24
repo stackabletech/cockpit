@@ -90,7 +90,7 @@ test.describe('Storage S3 — File Operations', () => {
 
       // Navigate into dest folder
       await rowByName(page, 'target').dblclick();
-      await expect(page).toHaveURL(/target\/?(?:\?.*)?$/);
+      await expect(page).toHaveURL((url) => url.pathname.endsWith('/target'));
 
       // Paste (use keyboard shortcut — right-click in an empty folder
       // lands on the ".." row which has no context menu handler)

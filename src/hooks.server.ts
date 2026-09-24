@@ -16,6 +16,7 @@ import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
+import { runMigrations } from '$lib/server/migrate.js';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
 if (dev) {
@@ -121,6 +122,9 @@ export const handle = sequence(
  * detected immediately rather than on the first request that uses the key.
  */
 export const init: ServerInit = async () => {
+  if (!(await runMigrations())) {
+    throw new Error('Database migrations failed');
+  }
   if (storageBrowserEnabled) {
     storageEncryptionKey(); // throws immediately if the env var is missing/invalid
   }

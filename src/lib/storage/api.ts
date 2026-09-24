@@ -43,6 +43,7 @@ export interface StorageApi {
 
   copy(params: {
     bucket: string;
+    sourceBucket?: string;
     sourceKeys: string[];
     destinationPrefix: string;
     progress?: boolean;
@@ -53,6 +54,7 @@ export interface StorageApi {
 
   move(params: {
     bucket: string;
+    sourceBucket?: string;
     sourceKeys: string[];
     destinationPrefix: string;
     destinationKey?: string;
@@ -137,9 +139,19 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       return (await res.json()) as StoragePage;
     },
 
-    async copy({ bucket, sourceKeys, destinationPrefix, progress, jobId, signal, callbacks }) {
+    async copy({
+      bucket,
+      sourceBucket,
+      sourceKeys,
+      destinationPrefix,
+      progress,
+      jobId,
+      signal,
+      callbacks
+    }) {
       return copyMoveRequest(fetch_, '/api/storage/copy', {
         bucket,
+        sourceBucket,
         sourceKeys,
         destinationPrefix,
         progress,
@@ -151,6 +163,7 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
 
     async move({
       bucket,
+      sourceBucket,
       sourceKeys,
       destinationPrefix,
       destinationKey,
@@ -161,6 +174,7 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
     }) {
       return copyMoveRequest(fetch_, '/api/storage/move', {
         bucket,
+        sourceBucket,
         sourceKeys,
         destinationPrefix,
         destinationKey,
@@ -305,6 +319,7 @@ async function copyMoveRequest(
     sourceKeys: string[];
     destinationPrefix: string;
     destinationKey?: string;
+    sourceBucket?: string;
     progress?: boolean;
     jobId?: string;
     signal?: AbortSignal;
@@ -321,6 +336,7 @@ async function copyMoveRequest(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       sourceKeys: params.sourceKeys,
+      sourceBucket: params.sourceBucket,
       destinationPrefix: params.destinationPrefix,
       destinationKey: params.destinationKey,
       jobId: params.jobId

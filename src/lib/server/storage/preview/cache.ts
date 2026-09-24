@@ -39,6 +39,6 @@ export class ExpiringCache<T> {
   }
 }
 
-export function previewCacheKey(bucket: string, key: string): string {
-  return `${bucket}:${key}`;
+export function previewCacheKey(connectionId: string, bucket: string, key: string): string {
+  return `${connectionId}:${bucket}:${key}`;
 }

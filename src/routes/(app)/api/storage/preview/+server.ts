@@ -53,7 +53,8 @@ export const GET: RequestHandler = async (event) => {
         log,
         totalSize,
         includeData,
-        bucket
+        bucket,
+        locals.storageConnectionId ?? ''
       );
     }
 
@@ -80,7 +81,17 @@ export const GET: RequestHandler = async (event) => {
       contentType === 'text/csv' || contentType === 'application/csv' || lowerKey.endsWith('.csv');
 
     if (isCsv) {
-      return await getCsvPreview(provider, key, offset, limit, totalSize, log, includeData, bucket);
+      return await getCsvPreview(
+        provider,
+        key,
+        offset,
+        limit,
+        totalSize,
+        log,
+        includeData,
+        bucket,
+        locals.storageConnectionId ?? ''
+      );
     }
 
     // Pass a placeholder user identifier for logging purposes (no longer user-specific)

@@ -122,14 +122,14 @@
     dropSidebarTarget = null;
   }
 
-  function handleSidebarDrop(e: DragEvent, _bucket: string, prefix: string) {
+  function handleSidebarDrop(e: DragEvent, bucket: string, prefix: string) {
     dropSidebarTarget = null;
     if (!canStorageDrop(storage)) return;
     e.preventDefault();
     e.stopPropagation();
     const keys = parseStorageDropKeys(e);
     if (!keys) return;
-    void storage.performMove(prefix, keys);
+    void storage.performMove(prefix, keys, bucket);
   }
 </script>
 

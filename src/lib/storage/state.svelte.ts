@@ -669,8 +669,8 @@ export class StorageState {
   // ── Delegate methods ───────────────────────────────────────────────────────
 
   /** Delegated to clipboardState. */
-  performMove = (destPrefix: string, keys?: string[]): void => {
-    this.clipboardState.performMove(destPrefix, keys);
+  performMove = (destPrefix: string, keys?: string[], destBucket?: string): void => {
+    this.clipboardState.performMove(destPrefix, keys, destBucket);
   };
 
   /** Delegated to clipboardState. */

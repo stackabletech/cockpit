@@ -17,6 +17,7 @@ type PendingPasteOp = {
   type: 'paste';
   keys: string[];
   sourceBucket: string;
+  destBucket: string;
   destPrefix: string;
   wasCut: boolean;
   fileSizes: Record<string, number>;
@@ -28,6 +29,7 @@ type PendingMoveOp = {
   type: 'move';
   keys: string[];
   destPrefix: string;
+  destBucket: string;
   items: Array<{ key: string; name: string; isDirectory: boolean; size?: number }>;
   sourcePrefix: string | null;
   totalBytes: number;
@@ -69,6 +71,7 @@ export class ClipboardState {
   private _pendingMove: {
     keys: string[];
     destPrefix: string;
+    destBucket: string;
     items: Array<{ key: string; name: string; isDirectory: boolean; size?: number }>;
     sourcePrefix: string | null;
   } | null = null;
@@ -169,6 +172,7 @@ export class ClipboardState {
         type: 'paste',
         keys: pasteKeys,
         sourceBucket: pasteClipboard.sourceBucket,
+        destBucket: bucket,
         destPrefix,
         wasCut,
         fileSizes: pasteClipboard.fileSizes,
@@ -301,7 +305,11 @@ export class ClipboardState {
   // ── Move (drag-and-drop) ───────────────────────────────────────────────────
 
   /** Validate a drag-and-drop move and open the confirmation dialog. */
-  performMove = (destPrefix: string, keys?: string[]): void => {
+  performMove = (
+    destPrefix: string,
+    keys?: string[],
+    destBucket = this._callbacks.getBucket()
+  ): void => {
     if (!storageMoveEnabled) return;
     const objects = this._callbacks.getObjects();
     const requestedKeys = keys ?? [...this._callbacks.getSelectedKeys()];
@@ -326,21 +334,21 @@ export class ClipboardState {
     });
 
     const sourcePrefix = this._commonPrefix(moveKeys);
-    this._pendingMove = { keys: moveKeys, destPrefix, items, sourcePrefix };
+    this._pendingMove = { keys: moveKeys, destPrefix, destBucket, items, sourcePrefix };
     this._pendingSourcePrefix = sourcePrefix;
     this._callbacks.openModal('confirm-move', { keys: moveKeys, destPrefix, items });
   };
 
   confirmMove = async (): Promise<void> => {
     if (!this._pendingMove) return;
-    const { keys: moveKeys, destPrefix, items } = this._pendingMove;
+    const { keys: moveKeys, destPrefix, destBucket, items } = this._pendingMove;
     this._pendingMove = null;
     this._callbacks.closeModal();
 
     const bucket = this._callbacks.getBucket();
 
     // ── Check for name conflicts at destination ──────────────────────────
-    const conflictEntries = await this._checkDestinationConflicts(moveKeys, destPrefix);
+    const conflictEntries = await this._checkDestinationConflicts(moveKeys, destPrefix, destBucket);
     const hasConflicts = conflictEntries.some((e) => e.conflict);
     if (hasConflicts) {
       const totalBytes = items.reduce((sum, item) => sum + (item.size ?? 0), 0);
@@ -348,13 +356,14 @@ export class ClipboardState {
         type: 'move',
         keys: moveKeys,
         destPrefix,
+        destBucket,
         items,
         sourcePrefix: this._pendingSourcePrefix,
         totalBytes
       };
       this._callbacks.openModal('resolve-conflicts', {
         entries: conflictEntries,
-        bucket,
+        bucket: destBucket,
         destPrefix,
         confirmLabel: m.storage_action_move()
       });
@@ -375,7 +384,7 @@ export class ClipboardState {
       'move',
       moveKeys.length,
       abortController,
-      `${bucket}/${destPrefix}`,
+      `${destBucket}/${destPrefix}`,
       sourceNames,
       totalBytes
     );
@@ -397,7 +406,8 @@ export class ClipboardState {
 
         try {
           const result = await this._api.move({
-            bucket,
+            bucket: destBucket,
+            sourceBucket: bucket,
             sourceKeys: [sourceKey],
             destinationPrefix: destPrefix,
             progress: true,
@@ -452,7 +462,7 @@ export class ClipboardState {
           if (!r.destKey.endsWith('/')) {
             const item = items.find((it) => it.key === r.sourceKey);
             if (item && item.size) {
-              this._callbacks.recordFileVisit(bucket, r.destKey, item.size);
+              this._callbacks.recordFileVisit(destBucket, r.destKey, item.size);
             }
           }
         }
@@ -538,7 +548,7 @@ export class ClipboardState {
 
   private async _performPaste(
     keys: string[],
-    _sourceBucket: string,
+    sourceBucket: string,
     destPrefix: string,
     deleteOriginals = false,
     signal?: AbortSignal
@@ -549,6 +559,7 @@ export class ClipboardState {
     if (deleteOriginals) {
       return this._api.move({
         bucket: this._callbacks.getBucket(),
+        sourceBucket,
         sourceKeys: keys,
         destinationPrefix: destPrefix,
         signal
@@ -556,6 +567,7 @@ export class ClipboardState {
     }
     return this._api.copy({
       bucket: this._callbacks.getBucket(),
+      sourceBucket,
       sourceKeys: keys,
       destinationPrefix: destPrefix,
       signal
@@ -568,7 +580,7 @@ export class ClipboardState {
    */
   private async _performPasteSequential(
     keys: string[],
-    _sourceBucket: string,
+    sourceBucket: string,
     destPrefix: string,
     deleteOriginals = false,
     signal?: AbortSignal,
@@ -598,6 +610,7 @@ export class ClipboardState {
       try {
         const result = await moveFn({
           bucket: this._callbacks.getBucket(),
+          sourceBucket,
           sourceKeys: [sourceKey],
           destinationPrefix: destPrefix,
           progress: true,
@@ -628,9 +641,9 @@ export class ClipboardState {
    */
   private async _checkDestinationConflicts(
     keys: string[],
-    destPrefix: string
+    destPrefix: string,
+    bucket = this._callbacks.getBucket()
   ): Promise<ConflictEntry[]> {
-    const bucket = this._callbacks.getBucket();
     const results: ConflictEntry[] = [];
 
     for (const key of keys) {
@@ -662,9 +675,9 @@ export class ClipboardState {
    */
   private async _deleteConflictingDests(
     destPrefix: string,
-    resolvedEntries: ConflictEntry[]
+    resolvedEntries: ConflictEntry[],
+    bucket = this._callbacks.getBucket()
   ): Promise<void> {
-    const bucket = this._callbacks.getBucket();
     const keysToDelete: string[] = [];
     for (const entry of resolvedEntries) {
       if (entry.resolution === 'skip' || entry.resolution === 'rename') continue;
@@ -690,7 +703,7 @@ export class ClipboardState {
     pending: PendingPasteOp,
     resolvedEntries: ConflictEntry[]
   ): Promise<void> {
-    const bucket = this._callbacks.getBucket();
+    const bucket = pending.destBucket;
     const resolvedMap = new SvelteMap(
       resolvedEntries.map((e) => [e.sourceKey ?? e.originalName, e])
     );
@@ -729,7 +742,7 @@ export class ClipboardState {
       pending.totalBytes
     );
 
-    await this._deleteConflictingDests(pending.destPrefix, resolvedEntries);
+    await this._deleteConflictingDests(pending.destPrefix, resolvedEntries, bucket);
 
     try {
       const { results, failed } = await this._performPasteSequential(
@@ -815,7 +828,7 @@ export class ClipboardState {
     pending: PendingMoveOp,
     resolvedEntries: ConflictEntry[]
   ): Promise<void> {
-    const bucket = this._callbacks.getBucket();
+    const bucket = pending.destBucket;
     const resolvedMap = new SvelteMap(
       resolvedEntries.map((e) => [e.sourceKey ?? e.originalName, e])
     );
@@ -858,7 +871,7 @@ export class ClipboardState {
     );
 
     // Only delete conflicting destinations for "replace" entries
-    await this._deleteConflictingDests(pending.destPrefix, resolvedEntries);
+    await this._deleteConflictingDests(pending.destPrefix, resolvedEntries, bucket);
 
     try {
       const results: Array<{ sourceKey: string; destKey: string }> = [];
@@ -877,7 +890,7 @@ export class ClipboardState {
 
         try {
           await this._api.move({
-            bucket,
+            bucket: this._callbacks.getBucket(),
             sourceKeys: [rename.sourceKey],
             destinationPrefix: '',
             destinationKey: renamedSourceKey
@@ -900,6 +913,7 @@ export class ClipboardState {
         try {
           const result = await this._api.move({
             bucket,
+            sourceBucket: this._callbacks.getBucket(),
             sourceKeys: [key],
             destinationPrefix: pending.destPrefix,
             progress: true,

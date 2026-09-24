@@ -198,7 +198,8 @@ export async function getCsvPreview(
   totalSize: number,
   requestLog: pino.Logger = fallbackLog,
   includeData = false,
-  bucket = ''
+  bucket = '',
+  connectionId = ''
 ): Promise<Response> {
   const log = requestLog.child({ module: 'csv-preview' });
 
@@ -220,7 +221,7 @@ export async function getCsvPreview(
     );
   }
 
-  const cacheKey = previewCacheKey(bucket, key);
+  const cacheKey = previewCacheKey(connectionId, bucket, key);
   let entry = csvPreviewCache.get(cacheKey);
   const now = Date.now();
 

@@ -152,6 +152,7 @@ WORKDIR /stackable/app
 
 # Copy built application from builder stage
 COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/build ./build
+COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/src/lib/server/migrations ./migrations
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node_modules
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
 COPY --from=sbom      --chown=${STACKABLE_USER_UID}:0 /build/cockpit.cdx.json ./cockpit.cdx.json

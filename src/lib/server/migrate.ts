@@ -1,13 +1,20 @@
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { db } from './db.js';
 import { logger } from './logging/index.js';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const log = logger.child({ module: 'migrations' });
 
-export async function runMigrations() {
+function defaultMigrationsFolder(): string {
+  const shippedMigrations = resolve('migrations');
+  return existsSync(shippedMigrations) ? shippedMigrations : resolve('src/lib/server/migrations');
+}
+
+export async function runMigrations(migrationsFolder = defaultMigrationsFolder()) {
   try {
     log.info('Running database migrations...');
-    await migrate(db, { migrationsFolder: './src/lib/server/migrations' });
+    await migrate(db, { migrationsFolder });
     log.info('Database migrations completed successfully');
     return true;
   } catch (error) {

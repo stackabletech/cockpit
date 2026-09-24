@@ -423,7 +423,8 @@ export async function getParquetPreview(
   requestLog: pino.Logger = fallbackLog,
   totalSize?: number,
   includeData = false,
-  bucket = ''
+  bucket = '',
+  connectionId = ''
 ): Promise<Response> {
   const log = requestLog.child({ module: 'parquet-preview' });
   const byteLength = totalSize ?? (await provider.getMetadata(key)).size;
@@ -456,7 +457,7 @@ export async function getParquetPreview(
 
   let parquetMeta: FileMetaData;
 
-  const cacheKey = previewCacheKey(bucket, key);
+  const cacheKey = previewCacheKey(connectionId, bucket, key);
   const cached = metadataCache.get(cacheKey);
   if (cached) {
     parquetMeta = cached;

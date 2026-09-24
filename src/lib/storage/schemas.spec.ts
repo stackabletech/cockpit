@@ -232,6 +232,10 @@ describe('storage object schemas', () => {
     expect(StorageObjectNameSchema.safeParse('reports/April 2026.csv').success).toBe(true);
   });
 
+  it('accepts Unicode object names', () => {
+    expect(StorageObjectNameSchema.safeParse('Bücher/verträge.pdf').success).toBe(true);
+  });
+
   it('rejects relative segments and unsupported characters', () => {
     expect(StorageObjectNameSchema.safeParse('../secrets.txt').success).toBe(false);
     expect(StorageObjectNameSchema.safeParse('report?.csv').success).toBe(false);
@@ -239,7 +243,11 @@ describe('storage object schemas', () => {
 
   it('validates copy, move, and delete request bodies at runtime', () => {
     expect(
-      CopyObjectsBodySchema.safeParse({ sourceKeys: ['source.csv'], destinationPrefix: '' }).success
+      CopyObjectsBodySchema.safeParse({
+        sourceKeys: ['source.csv'],
+        destinationPrefix: '',
+        sourceBucket: 'source'
+      }).success
     ).toBe(true);
     expect(MoveObjectsBodySchema.safeParse({ sourceKeys: ['source.csv'] }).success).toBe(false);
     expect(

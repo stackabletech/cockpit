@@ -76,7 +76,8 @@ function mockEvent(params: string) {
     locals: {
       logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
       user: { id: 'test-user' },
-      storageConfig: { type: 's3', region: { name: 'us-east-1' } }
+      storageConfig: { type: 's3', region: { name: 'us-east-1' } },
+      storageConnectionId: 'connection-1'
     }
   } as unknown as Parameters<typeof GET>[0];
 }
@@ -105,7 +106,8 @@ describe('GET /api/storage/preview', () => {
       100,
       expect.anything(),
       false,
-      'b1'
+      'b1',
+      'connection-1'
     );
   });
 
@@ -206,7 +208,8 @@ describe('GET /api/storage/preview', () => {
       expect.anything(),
       5000,
       false,
-      'b1'
+      'b1',
+      'connection-1'
     );
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
@@ -227,7 +230,8 @@ describe('GET /api/storage/preview', () => {
       expect.anything(),
       5000,
       false,
-      'b1'
+      'b1',
+      'connection-1'
     );
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
@@ -248,7 +252,8 @@ describe('GET /api/storage/preview', () => {
       expect.anything(),
       50000,
       false,
-      'b1'
+      'b1',
+      'connection-1'
     );
   });
 
@@ -268,7 +273,8 @@ describe('GET /api/storage/preview', () => {
       expect.anything(),
       0,
       false,
-      'b1'
+      'b1',
+      'connection-1'
     );
   });
 
