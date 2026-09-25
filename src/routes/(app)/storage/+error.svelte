@@ -47,12 +47,12 @@
     >
       {m.storage_error_title()}
     </p>
-    <h1 class="text-base-content text-3xl font-bold">
+    <p class="text-base-content text-3xl font-bold">
       {page.status}
-    </h1>
-    <p class="text-base-content/70 mt-2 max-w-sm text-sm">
-      {errorMessage ?? page.error?.message ?? ''}
     </p>
+    <h2 class="text-base-content/70 mt-2 max-w-sm text-sm">
+      {errorMessage ?? page.error?.message ?? ''}
+    </h2>
   </div>
 
   <div class="flex flex-wrap items-center justify-center gap-3">
