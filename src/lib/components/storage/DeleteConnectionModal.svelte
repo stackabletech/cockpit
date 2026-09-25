@@ -4,6 +4,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import type { SavedConnection } from '$lib/storage/connection-storage.js';
+  import { connectionLabel } from '$lib/storage/display-helpers.js';
 
   interface Props {
     open: boolean;
@@ -15,11 +16,6 @@
   let { open = $bindable(), connection, onconfirm, oncancel }: Props = $props();
 
   let copiedField: string | null = $state(null);
-
-  function connectionLabel(conn: SavedConnection): string {
-    if (conn.name) return conn.name;
-    return conn.port ? `${conn.host}:${conn.port}` : conn.host;
-  }
 
   function copyField(value: string, field: string) {
     navigator.clipboard.writeText(value);
