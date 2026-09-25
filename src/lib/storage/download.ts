@@ -16,6 +16,7 @@
  */
 
 import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
+import { keyToName } from '$lib/storage/utils.js';
 
 export type DownloadErrorCode =
   | 'not_connected'
@@ -73,8 +74,7 @@ export async function downloadObject(
   const blob = await response.blob();
   const blobUrl = URL.createObjectURL(blob);
 
-  // Derive filename from the key (last path segment).
-  const filename = key.split('/').filter(Boolean).pop() ?? key;
+  const filename = keyToName(key);
 
   const anchor = document.createElement('a');
   anchor.href = blobUrl;

@@ -3,6 +3,7 @@
   import IconDeleteForever from 'virtual:icons/material-symbols/delete-forever';
   import IconWarningRounded from 'virtual:icons/material-symbols/warning-rounded';
   import * as m from '$lib/paraglide/messages.js';
+  import { keyToName } from '$lib/storage/utils.js';
 
   interface Props {
     open: boolean;
@@ -14,7 +15,7 @@
   let { open = $bindable(), keys, onConfirm, onCancel }: Props = $props();
 
   const count = $derived(keys.length);
-  const firstName = $derived(keys[0]?.split('/').filter(Boolean).pop() ?? '');
+  const firstName = $derived(keys[0] ? keyToName(keys[0]) : '');
   const hasDirectories = $derived(keys.some((k) => k.endsWith('/')));
 </script>
 
