@@ -59,7 +59,7 @@
 
       <div class="ml-auto">
         <button
-          class="btn btn-ghost btn-xs gap-1 text-white"
+          class="btn btn-ghost btn-xs gap-1"
           title={m.storage_action_refresh()}
           onclick={() => storage.refresh()}
           disabled={storage.loading}
