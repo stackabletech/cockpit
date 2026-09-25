@@ -13,7 +13,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
-  import { pinnedLabel, pinnedHref } from '$lib/storage/display-helpers.js';
+  import { locationLabel, locationHref } from '$lib/storage/display-helpers.js';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
 
@@ -153,11 +153,11 @@
           <li role="none" class="group relative">
             <div
               class="tooltip tooltip-right relative z-150 w-full before:z-200"
-              data-tip={pinnedLabel(pin)}
+              data-tip={locationLabel(pin)}
             >
               <!-- eslint-disable svelte/no-navigation-without-resolve -->
               <a
-                href={pinnedHref(pin)}
+                href={locationHref(pin)}
                 data-sveltekit-preload-data="off"
                 class="
                 hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
@@ -171,7 +171,7 @@
                 {:else}
                   <IconFolderOutline class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
                 {/if}
-                <span class="truncate">{pinnedLabel(pin)}</span>
+                <span class="truncate">{locationLabel(pin)}</span>
               </a>
             </div>
             <button
