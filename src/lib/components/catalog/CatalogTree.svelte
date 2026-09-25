@@ -1,5 +1,12 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
+  import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
+  import IconCatalog from 'virtual:icons/material-symbols/database-outline';
+  import IconSchema from 'virtual:icons/material-symbols/folder-outline';
+  import IconTable from 'virtual:icons/material-symbols/table-outline';
+  import IconView from 'virtual:icons/material-symbols/visibility-outline';
+  import IconMaterializedView from 'virtual:icons/material-symbols/preview-outline';
+  import IconColumn from 'virtual:icons/material-symbols/circle';
   import type { TreeNode } from './types.js';
   import CatalogTree from './CatalogTree.svelte';
 
@@ -51,110 +58,25 @@
 </script>
 
 {#snippet chevronIcon(isOpen: boolean)}
-  <svg
+  <IconChevronRight
     class="h-3.5 w-3.5 shrink-0 transition-transform duration-150 {isOpen ? 'rotate-90' : ''}"
     aria-hidden="true"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  >
-    <path d="m9 5 7 7-7 7" />
-  </svg>
+  />
 {/snippet}
 
 {#snippet nodeIcon(type: string)}
   {#if type === 'catalog'}
-    <svg
-      class="text-base-content/50 h-4 w-4 shrink-0"
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <ellipse cx="12" cy="5" rx="9" ry="3" />
-      <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
-      <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" />
-    </svg>
+    <IconCatalog class="text-base-content/50 h-4 w-4 shrink-0" aria-hidden="true" />
   {:else if type === 'schema'}
-    <svg
-      class="text-base-content/50 h-4 w-4 shrink-0"
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <path
-        d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
-      />
-    </svg>
+    <IconSchema class="text-base-content/50 h-4 w-4 shrink-0" aria-hidden="true" />
   {:else if type === 'table'}
-    <svg
-      class="text-base-content/50 h-4 w-4 shrink-0"
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="M3 9h18" />
-      <path d="M3 15h18" />
-      <path d="M9 3v18" />
-    </svg>
+    <IconTable class="text-base-content/50 h-4 w-4 shrink-0" aria-hidden="true" />
   {:else if type === 'view'}
-    <svg
-      class="text-base-content/50 h-4 w-4 shrink-0"
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <path
-        d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"
-      />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
+    <IconView class="text-base-content/50 h-4 w-4 shrink-0" aria-hidden="true" />
   {:else if type === 'materialized_view'}
-    <svg
-      class="text-base-content/50 h-4 w-4 shrink-0"
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <path
-        d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"
-      />
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 2v4" />
-      <path d="M12 18v4" />
-    </svg>
+    <IconMaterializedView class="text-base-content/50 h-4 w-4 shrink-0" aria-hidden="true" />
   {:else}
-    <svg
-      class="text-base-content/40 h-3 w-3 shrink-0"
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-    >
-      <circle cx="12" cy="12" r="4" />
-    </svg>
+    <IconColumn class="text-base-content/40 h-3 w-3 shrink-0" aria-hidden="true" />
   {/if}
 {/snippet}
 

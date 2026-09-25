@@ -2,6 +2,7 @@
   import IconCheck from 'virtual:icons/material-symbols/check';
   import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
+  import { keyToName } from '$lib/storage/utils.js';
   import type { FileEntry, Resolution } from './types.js';
 
   interface Props {
@@ -17,7 +18,7 @@
 
   const uid = $props.id();
 
-  let nameOnly = $derived(entry.targetKey.split('/').at(-1) ?? entry.file.name);
+  let nameOnly = $derived(keyToName(entry.targetKey) || entry.file.name);
   let badRename = $derived(
     entry.resolution === 'rename' &&
       (entry.customName.trim() === '' || entry.customName.trim() === entry.file.name)
