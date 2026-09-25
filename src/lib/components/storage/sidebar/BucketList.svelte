@@ -263,7 +263,7 @@
   </div>
 
   <!-- Disconnect confirmation modal -->
-  <Modal bind:open={disconnectConfirmOpen} class="modal">
+  <Modal bind:open={disconnectConfirmOpen}>
     <div class="modal-box max-w-sm">
       <h3 class="mb-3 flex items-center gap-2 text-lg font-bold">
         <IconPowerOff class="text-error size-5 shrink-0" aria-hidden="true" />

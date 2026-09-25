@@ -448,13 +448,7 @@
   </div>
 
   <!-- Mobile catalog browser overlay -->
-  <Modal
-    bind:open={mobileCatalogOpen}
-    class="
-      bg-base-100 fixed inset-0 z-40 size-full max-h-full max-w-full p-0
-      lg:hidden
-    "
-  >
+  <Modal bind:open={mobileCatalogOpen} variant="fullscreen" class="lg:hidden">
     <div class="flex h-full flex-col">
       <div
         class="

@@ -19,7 +19,7 @@
   const hasDirectories = $derived(keys.some((k) => k.endsWith('/')));
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open>
   <div class="modal-box {hasDirectories ? 'max-w-md' : 'max-w-sm'}">
     <h3 class="text-error mb-3 flex items-center gap-2 text-lg font-bold">
       <IconDeleteForever class="size-5 shrink-0" aria-hidden="true" />

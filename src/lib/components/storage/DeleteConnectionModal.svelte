@@ -41,7 +41,7 @@
   }
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open>
   <div class="modal-box max-w-lg">
     {#if connection}
       <p class="text-base-content mb-4 font-medium">

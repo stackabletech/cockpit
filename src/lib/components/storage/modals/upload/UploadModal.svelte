@@ -326,7 +326,7 @@
   }
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open>
   <div class="modal-box w-full max-w-lg">
     <!-- Header -->
     <div class="mb-4 flex items-center justify-between">
