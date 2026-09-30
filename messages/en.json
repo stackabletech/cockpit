@@ -357,6 +357,7 @@
   "storage_preview_unsupported_desc": "This file type cannot be previewed inline.",
   "storage_preview_binary_title": "Binary content",
   "storage_preview_binary_desc": "This file appears to contain binary data and cannot be displayed as text.",
+  "storage_preview_7zip_unsupported_desc": "7zip is not yet supported.",
   "storage_preview_error_title": "Preview failed",
   "storage_preview_error_desc": "An error occurred while loading the preview.",
   "storage_preview_access_denied": "You do not have permission to preview this file.",

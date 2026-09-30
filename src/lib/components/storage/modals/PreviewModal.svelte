@@ -102,7 +102,13 @@
       }
     | { kind: 'image'; blobUrl: string; contentType: string; totalSize: number }
     | { kind: 'pdf'; blobUrl: string; totalSize: number }
-    | { kind: 'fallback'; contentType: string; isBinary: boolean; imageTooLarge?: boolean }
+    | {
+        kind: 'fallback';
+        contentType: string;
+        isBinary: boolean;
+        imageTooLarge?: boolean;
+        isSevenZip?: boolean;
+      }
     | { kind: 'error'; message: string };
 
   let {
@@ -227,6 +233,11 @@
       const truncated = res.headers.get('X-Preview-Truncated') === 'true';
       const previewRows = Number(res.headers.get('X-Preview-Preview-Rows') ?? '0');
       const previewColumns = Number(res.headers.get('X-Preview-Preview-Columns') ?? '0');
+
+      if (key.toLowerCase().endsWith('.7z') || contentType === 'application/x-7z-compressed') {
+        preview = { kind: 'fallback', contentType, isBinary: true, isSevenZip: true };
+        return;
+      }
 
       if (contentType.startsWith('image/')) {
         if (truncated) {
@@ -1038,6 +1049,7 @@
             onDownload={triggerDownload}
             isBinary={preview.isBinary}
             imageTooLarge={preview.imageTooLarge}
+            isSevenZip={preview.isSevenZip}
           />
         </div>
       {/if}

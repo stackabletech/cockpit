@@ -612,6 +612,27 @@ describe('PreviewModal basics', () => {
   });
 
   describe('fallback preview', () => {
+    it('should show the unsupported warning for 7zip files', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          mockFetchResponse(new Uint8Array([0x37, 0x7a, 0xbc, 0xaf]), {
+            contentType: 'application/x-compressed'
+          })
+        )
+      );
+      render(PreviewModal, { ...defaultProps, objectKey: 'archive.7z' });
+
+      await expect.element(page.getByText('7zip is not yet supported.')).toBeInTheDocument();
+      await expect
+        .element(
+          page.getByText(
+            'This file appears to contain binary data and cannot be displayed as text.'
+          )
+        )
+        .not.toBeInTheDocument();
+    });
+
     it('should render fallback when X-Preview-Renderable is false', async () => {
       vi.stubGlobal(
         'fetch',

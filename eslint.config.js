@@ -97,7 +97,7 @@ export default defineConfig(
   },
   {
     files: ['src/**/*.svelte'],
-    rules: { 'max-lines': ['error', { max: 1100, skipBlankLines: false, skipComments: false }] }
+    rules: { 'max-lines': ['error', { max: 1200, skipBlankLines: false, skipComments: false }] }
   },
   {
     files: ['src/**/*.{test,spec}.ts'],

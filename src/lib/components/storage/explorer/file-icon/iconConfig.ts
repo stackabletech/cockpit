@@ -120,7 +120,15 @@ const WORD_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.template'
 ]);
 
-const ARCHIVE_TYPES = new Set(['application/gzip', 'application/zip', 'application/x-tar']);
+const ARCHIVE_TYPES = new Set([
+  'application/gzip',
+  'application/zip',
+  'application/x-tar',
+  'application/x-7z-compressed',
+  'application/vnd.rar',
+  'application/x-rar-compressed',
+  'application/x-rar'
+]);
 
 const EXT_KIND = new Map<string, FileIconKind>([
   ['pdf', 'pdf'],
@@ -152,6 +160,8 @@ const EXT_KIND = new Map<string, FileIconKind>([
   ['webp', 'image'],
   ['svg', 'svg'],
   ['zip', 'archive'],
+  ['rar', 'archive'],
+  ['7z', 'archive'],
   ['tar', 'archive'],
   ['gz', 'archive'],
   ['tgz', 'archive'],
@@ -187,6 +197,7 @@ const EXT_KIND = new Map<string, FileIconKind>([
 ]);
 
 export function fileIconKind(contentType: string | undefined, key?: string): FileIconKind {
+  if (key?.toLowerCase().endsWith('.7z')) return 'archive';
   if (!contentType) {
     if (key) {
       const ext = key.split('.').at(-1)?.toLowerCase();

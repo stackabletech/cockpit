@@ -22,6 +22,14 @@ function makeZip(entries: Record<string, string>): Buffer {
   return Buffer.from(zip.toBuffer());
 }
 
+function makeRar(): Buffer {
+  // Small RAR 4 fixture from node-unrar-js testFiles/FileEncByName.rar.
+  return Buffer.from(
+    'UmFyIRoHAM+QcwAADQAAAAAAAABM+HQgkC4ABQAAAAUAAAACGSCKVxahg0odMAkAIAAAADFGaWxlLnR4dADwkOgEMUZpbGXcMHQkljwAIAAAAA8AAAACWwPYnCmhg0odMw8AIAAAADI/Py50eHQAThsyLYdlAiaSyWh4aKAhAPAmEhjfoJzHB5cWF7CjVyDJLLQscUep4830hwRH/3ogjuHVEcKUdCSUNQAQAAAABQAAAAJKlGwtVZ+DSh0zCAAgAAAAM1NlYy50eHT5pxtn2Ow6MACwWMggPeh+dGs0RwexfVSgel2k3cQ9ewBABwA=',
+    'base64'
+  );
+}
+
 test.describe('Storage S3 — Archive preview', () => {
   test.use({ locale: 'en-US' });
 
@@ -62,6 +70,35 @@ test.describe('Storage S3 — Archive preview', () => {
       // Should see archive contents — top-level folder and file
       await expect(rowByName(page, 'README.md')).toBeVisible();
       await expect(rowByName(page, 'data')).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('opens RAR archive and previews a contained file', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'archive-rar');
+    const cleanupKeys = [`${prefix}archive.rar`];
+
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: credentials.bucket,
+          Key: `${prefix}archive.rar`,
+          Body: makeRar(),
+          ContentType: 'application/vnd.rar'
+        })
+      );
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await rowByName(page, 'archive.rar').dblclick();
+      await waitForObjectsLoaded(page);
+      await expect(rowByName(page, '1File.txt')).toBeVisible();
+
+      await rowByName(page, '1File.txt').dblclick();
+      await expect(page.getByRole('heading', { name: '1File.txt' })).toBeVisible();
+      await expect(page.getByText('1File', { exact: true })).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
