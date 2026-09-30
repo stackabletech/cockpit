@@ -113,12 +113,9 @@ describe('getArchiveFormat', () => {
     expect(getArchiveFormat('archive.tar')).toBe('tar');
   });
 
-  it('detects .rar', () => {
-    expect(getArchiveFormat('archive.rar')).toBe('rar');
-  });
-
-  it('detects .7z', () => {
-    expect(getArchiveFormat('archive.7z')).toBe('7z');
+  it('does not support RAR or 7z archives', () => {
+    expect(getArchiveFormat('archive.rar')).toBeNull();
+    expect(getArchiveFormat('archive.7z')).toBeNull();
   });
 
   it('returns null for non-archive files', () => {

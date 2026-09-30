@@ -78,8 +78,8 @@ describe('isArchiveExtension', () => {
     expect(isArchiveExtension('file.tar.gz')).toBe(true);
     expect(isArchiveExtension('file.tgz')).toBe(true);
     expect(isArchiveExtension('file.tar')).toBe(true);
-    expect(isArchiveExtension('file.rar')).toBe(true);
-    expect(isArchiveExtension('file.7z')).toBe(true);
+    expect(isArchiveExtension('file.rar')).toBe(false);
+    expect(isArchiveExtension('file.7z')).toBe(false);
   });
 
   it('is case-insensitive', () => {
