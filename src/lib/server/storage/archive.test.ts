@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
-import { readFileSync, writeFileSync, unlinkSync, existsSync, mkdtempSync } from 'node:fs';
+import { readFileSync, unlinkSync, existsSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import AdmZip from 'adm-zip';
@@ -36,14 +36,6 @@ function makeZip(path: string, entries: Record<string, string | Buffer>): void {
     }
   }
   zip.writeZip(path);
-}
-
-function makeRar(path: string): void {
-  // Small RAR 4 fixture from node-unrar-js testFiles/FileEncByName.rar.
-  const fixture =
-    'UmFyIRoHAM+QcwAADQAAAAAAAABM+HQgkC4ABQAAAAUAAAACGSCKVxahg0odMAkAIAAAADFGaWxlLnR4dADwkOgEMUZpbGXcMHQkljwAIAAAAA8AAAACWwPYnCmhg0odMw8AIAAAADI/Py50eHQAThsyLYdlAiaSyWh4aKAhAPAmEhjfoJzHB5cWF7CjVyDJLLQscUep4830hwRH/3ogjuHVEcKUdCSUNQAQAAAABQAAAAJKlGwtVZ+DSh0zCAAgAAAAM1NlYy50eHT5pxtn2Ow6MACwWMggPeh+dGs0RwexfVSgel2k3cQ9ewBABwA=';
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  writeFileSync(path, Buffer.from(fixture, 'base64'));
 }
 
 function makeTar(path: string, entries: Record<string, string>): Promise<void> {
@@ -121,8 +113,9 @@ describe('getArchiveFormat', () => {
     expect(getArchiveFormat('archive.tar')).toBe('tar');
   });
 
-  it('detects .rar and does not support 7z archives', () => {
-    expect(getArchiveFormat('archive.rar')).toBe('rar');
+  it('does not support RAR or 7z archives', () => {
+    expect(getArchiveFormat('archive.rar')).toBeNull();
+    expect(getArchiveFormat('ARCHIVE.RAR')).toBeNull();
     expect(getArchiveFormat('archive.7z')).toBeNull();
   });
 
@@ -315,84 +308,12 @@ describe('listArchiveContents', () => {
     });
   });
 
-  describe('RAR', () => {
-    it('returns an empty listing when the uncompressed size exceeds the limit', async () => {
-      const path = testPath('limited-list.rar');
-      makeRar(path);
-
-      const listing = await listArchiveContents(
-        'test-bucket',
-        path,
-        '',
-        dummyDownloadFn,
-        vi.fn(),
-        undefined,
-        4
-      );
-
-      expect(listing).toEqual({ entries: [], hasMore: false, tooLarge: true });
-    });
-
-    it('supports concurrent listing and extraction', async () => {
-      const path = testPath('concurrent.rar');
-      makeRar(path);
-      await listArchiveContents('test-bucket', path, '', dummyDownloadFn, vi.fn());
-
-      const [listing, contents, missing] = await Promise.all([
-        listArchiveContents('test-bucket', path, '', dummyDownloadFn, vi.fn()),
-        extractArchiveEntry('test-bucket', path, '1File.txt', dummyDownloadFn, vi.fn()),
-        extractArchiveEntry('test-bucket', path, 'missing.txt', dummyDownloadFn, vi.fn())
-      ]);
-
-      expect(listing.entries.map((entry) => entry.key)).toContain('1File.txt');
-      expect(contents?.toString('utf-8')).toBe('1File');
-      expect(missing).toBeNull();
-    });
-
-    it('lists archive entries', async () => {
-      const path = testPath('test.rar');
-      makeRar(path);
-
-      const listing = await listArchiveContents('test-bucket', path, '', dummyDownloadFn, vi.fn());
-
-      expect(listing.entries.map((entry) => entry.key)).toContain('1File.txt');
-      expect(listing.entries.find((entry) => entry.key === '1File.txt')).toMatchObject({
-        size: 5,
-        isDirectory: false
-      });
-    });
-
-    it('extracts a file from a RAR archive', async () => {
-      const path = testPath('extract.rar');
-      makeRar(path);
-
-      const buf = await extractArchiveEntry(
-        'test-bucket',
-        path,
-        '1File.txt',
-        dummyDownloadFn,
-        vi.fn()
-      );
-
-      expect(buf?.toString('utf-8')).toBe('1File');
-    });
-
-    it('does not extract entries larger than the configured limit', async () => {
-      const path = testPath('limited.rar');
-      makeRar(path);
-
-      const buf = await extractArchiveEntry(
-        'test-bucket',
-        path,
-        '1File.txt',
-        dummyDownloadFn,
-        vi.fn(),
-        undefined,
-        4
-      );
-
-      expect(buf).toBeNull();
-    });
+  it('rejects RAR listing before downloading the archive', async () => {
+    const download = vi.fn<ArchiveDownloadFn>();
+    await expect(
+      listArchiveContents('test-bucket', 'archive.rar', '', download, vi.fn())
+    ).rejects.toThrow('Unsupported archive format: archive.rar');
+    expect(download).not.toHaveBeenCalled();
   });
 
   describe('Nested archives', () => {
@@ -417,6 +338,14 @@ describe('listArchiveContents', () => {
 describe('extractArchiveEntry', () => {
   beforeEach(() => {
     clearArchiveCache();
+  });
+
+  it('rejects RAR extraction before downloading the archive', async () => {
+    const download = vi.fn<ArchiveDownloadFn>();
+    await expect(
+      extractArchiveEntry('test-bucket', 'archive.rar', 'file.txt', download, vi.fn())
+    ).rejects.toThrow('Unsupported archive format: archive.rar');
+    expect(download).not.toHaveBeenCalled();
   });
 
   it('extracts a file from a ZIP', async () => {

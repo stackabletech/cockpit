@@ -12,6 +12,8 @@
     imageTooLarge?: boolean;
     /** When true, the file is a 7zip archive, which is not yet supported. */
     isSevenZip?: boolean;
+    /** When true, the file is a RAR archive, which is not supported. */
+    isRar?: boolean;
   }
 
   let {
@@ -19,7 +21,8 @@
     onDownload,
     isBinary = false,
     imageTooLarge = false,
-    isSevenZip = false
+    isSevenZip = false,
+    isRar = false
   }: Props = $props();
 </script>
 
@@ -38,9 +41,11 @@
         ? m.storage_preview_image_too_large_desc()
         : isSevenZip
           ? m.storage_preview_7zip_unsupported_desc()
-          : isBinary
-            ? m.storage_preview_binary_desc()
-            : m.storage_preview_unsupported_desc()}
+          : isRar
+            ? m.storage_preview_rar_unsupported_desc()
+            : isBinary
+              ? m.storage_preview_binary_desc()
+              : m.storage_preview_unsupported_desc()}
     </p>
     {#if contentType}
       <p class="text-base-content/40 mt-1 font-mono text-xs">{contentType}</p>

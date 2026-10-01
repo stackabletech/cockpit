@@ -358,6 +358,7 @@
   "storage_preview_binary_title": "Binäre Inhalte",
   "storage_preview_binary_desc": "Diese Datei scheint binäre Daten zu enthalten und kann nicht als Text angezeigt werden.",
   "storage_preview_7zip_unsupported_desc": "7zip wird noch nicht unterstützt.",
+  "storage_preview_rar_unsupported_desc": "RAR-Archive werden nicht unterstützt.",
   "storage_preview_error_title": "Vorschau fehlgeschlagen",
   "storage_preview_error_desc": "Beim Laden der Vorschau ist ein Fehler aufgetreten.",
   "storage_preview_access_denied": "Sie haben keine Berechtigung, diese Datei in der Vorschau anzuzeigen.",

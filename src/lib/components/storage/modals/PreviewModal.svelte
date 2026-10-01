@@ -108,6 +108,7 @@
         isBinary: boolean;
         imageTooLarge?: boolean;
         isSevenZip?: boolean;
+        isRar?: boolean;
       }
     | { kind: 'error'; message: string };
 
@@ -236,6 +237,16 @@
 
       if (key.toLowerCase().endsWith('.7z') || contentType === 'application/x-7z-compressed') {
         preview = { kind: 'fallback', contentType, isBinary: true, isSevenZip: true };
+        return;
+      }
+
+      if (
+        key.toLowerCase().endsWith('.rar') ||
+        ['application/vnd.rar', 'application/x-rar-compressed', 'application/x-rar'].includes(
+          contentType
+        )
+      ) {
+        preview = { kind: 'fallback', contentType, isBinary: true, isRar: true };
         return;
       }
 
@@ -1050,6 +1061,7 @@
             isBinary={preview.isBinary}
             imageTooLarge={preview.imageTooLarge}
             isSevenZip={preview.isSevenZip}
+            isRar={preview.isRar}
           />
         </div>
       {/if}

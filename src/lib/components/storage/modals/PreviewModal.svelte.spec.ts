@@ -612,6 +612,36 @@ describe('PreviewModal basics', () => {
   });
 
   describe('fallback preview', () => {
+    it.each([
+      ['archive.rar', 'application/octet-stream'],
+      ['ARCHIVE.RAR', 'binary/octet-stream'],
+      ['archive', 'application/vnd.rar'],
+      ['archive', 'application/x-rar-compressed'],
+      ['archive', 'application/x-rar']
+    ])('should show the RAR fallback for %s (%s)', async (objectKey, contentType) => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValue(
+            mockFetchResponse(new Uint8Array([0x52, 0x61, 0x72, 0x21]), { contentType })
+          )
+      );
+      render(PreviewModal, { ...defaultProps, objectKey });
+
+      await expect.element(page.getByText('RAR archives are not supported.')).toBeInTheDocument();
+      await expect
+        .element(page.getByRole('button', { name: /download full/i }))
+        .toBeInTheDocument();
+      await expect
+        .element(
+          page.getByText(
+            'This file appears to contain binary data and cannot be displayed as text.'
+          )
+        )
+        .not.toBeInTheDocument();
+    });
+
     it('should show the unsupported warning for 7zip files', async () => {
       vi.stubGlobal(
         'fetch',
@@ -623,7 +653,7 @@ describe('PreviewModal basics', () => {
       );
       render(PreviewModal, { ...defaultProps, objectKey: 'archive.7z' });
 
-      await expect.element(page.getByText('7zip is not yet supported.')).toBeInTheDocument();
+      await expect.element(page.getByText('7zip archives are not supported.')).toBeInTheDocument();
       await expect
         .element(
           page.getByText(

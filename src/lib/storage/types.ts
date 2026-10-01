@@ -221,7 +221,7 @@ export interface DeleteObjectsResult {
 
 // ── Archive navigation ───────────────────────────────────────────────────────
 
-export const ARCHIVE_EXTENSIONS = ['.zip', '.tar.gz', '.tgz', '.tar', '.rar'] as const;
+export const ARCHIVE_EXTENSIONS = ['.zip', '.tar.gz', '.tgz', '.tar'] as const;
 
 export type ArchiveFormat = (typeof ARCHIVE_EXTENSIONS)[number] extends `${string}${infer F}`
   ? F
