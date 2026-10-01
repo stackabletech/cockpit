@@ -257,15 +257,25 @@ test.describe('Storage S3 — File Operations', () => {
       await rowByName(page, 'a.txt').click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'Rename' }).click();
 
-      // Rename to b.txt, preserving the existing file by assigning a unique name.
+      // Renaming to an existing name opens the conflict-resolution dialog.
       const input = page.locator('.modal-box input');
       await input.fill('b.txt');
       await page.getByRole('button', { name: 'Rename' }).click();
+
+      const conflictDialog = page.getByRole('dialog');
+      await expect(conflictDialog.getByText('Files already exist', { exact: true })).toBeVisible();
+      const conflictItem = conflictDialog.getByRole('listitem');
+      await conflictItem.getByRole('button', { name: 'Rename', exact: true }).click();
+      await conflictItem.getByLabel('New file name').fill('b (1).txt');
+      await conflictItem.getByRole('button', { name: 'Confirm name' }).click();
+      await conflictDialog.getByRole('button', { name: 'Rename', exact: true }).last().click();
 
       await expect(page.locator('.modal-box')).not.toBeVisible();
       await expect.poll(() => objectExists(client, credentials.bucket, fileA)).toBe(false);
       await expect.poll(() => objectExists(client, credentials.bucket, fileB)).toBe(true);
       await expect.poll(() => objectExists(client, credentials.bucket, renamedFile)).toBe(true);
+      expect(await getObjectText(client, credentials.bucket, fileB)).toBe('file b');
+      expect(await getObjectText(client, credentials.bucket, renamedFile)).toBe('file a');
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
