@@ -71,11 +71,12 @@ COPY project.inlang/ ./project.inlang/
 COPY messages/ ./messages/
 COPY svelte.config.js tsconfig.json vite.config.ts ./
 
-# Build the application. The dummy env vars let better-auth initialise during
-# SSR prerender; they are scoped to this single RUN and discarded with the
-# builder stage.
+# Build the application. The dummy env vars let better-auth and the database
+# module initialise during SSR prerender; they are scoped to this single RUN
+# and discarded with the builder stage.
 RUN STACKABLE_COCKPIT_SESSION_SECRET="build-time-placeholder" \
     STACKABLE_COCKPIT_BASE_URL="http://localhost:3000" \
+    DATABASE_PASSWORD="build-time-placeholder" \
     npm run build
 
 #
