@@ -13,6 +13,13 @@ updates:
     labels:
       - dependencies
       - type/security
+    # Major upgrades of the build/test toolchain need a deliberate migration
+    # (peer dependencies of @sveltejs/vite-plugin-svelte), not a security PR.
+    ignore:
+      - dependency-name: vite
+        update-types: [version-update:semver-major]
+      - dependency-name: vitest
+        update-types: [version-update:semver-major]
     groups:
       dev-dependencies-security:
         applies-to: security-updates
