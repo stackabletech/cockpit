@@ -8,7 +8,7 @@ updates:
     schedule:
       interval: weekly
       timezone: Europe/Berlin
-    # Security updates only. Version updates are handled by Renovate.
+    # Security updates only.
     open-pull-requests-limit: 0
     labels:
       - dependencies
