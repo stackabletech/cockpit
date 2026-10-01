@@ -1,0 +1,21 @@
+---
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    # Required on every entry. The options reference marks schedule as
+    # "Version updates only", so security PRs still open on alert.
+    schedule:
+      interval: weekly
+      timezone: Europe/Berlin
+    # Security updates only. Version updates are handled by Renovate.
+    open-pull-requests-limit: 0
+    labels:
+      - dependencies
+      - type/security
+    groups:
+      dev-dependencies-security:
+        applies-to: security-updates
+        dependency-type: development
+        patterns:
+          - "*"
