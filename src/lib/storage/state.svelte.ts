@@ -187,9 +187,7 @@ export class StorageState {
         this.prevTokens = [];
       },
       onExit: (s3Prefix) => {
-        this.loading = true;
-        this.prevTokens = [];
-        void this.archive._fetchS3Objects(s3Prefix);
+        this.navigate(s3Prefix, true);
       }
     });
     this.clipboardState = new ClipboardState(this._api, this.operations_, {
@@ -308,11 +306,12 @@ export class StorageState {
   // Navigation
   // ────────────────────────────────────────────────────────────────────────────
 
-  navigate = (prefix: string): void => {
+  navigate = (prefix: string, invalidateAll = this.archive.isInArchive): void => {
+    this.archive.reset();
     this.clearSelection();
     this.loading = true;
     this.prevTokens = [];
-    this._onNavigate(prefix, null, this.pageSize);
+    this._onNavigate(prefix, null, this.pageSize, invalidateAll);
   };
 
   navigateNext = (): void => {

@@ -42,7 +42,7 @@
   let hydrated = false;
 
   // Inject navigation handler — page owns URL construction
-  storage.setNavigationHandler((prefix, continuationToken, pageSize) => {
+  storage.setNavigationHandler((prefix, continuationToken, pageSize, invalidateAll = false) => {
     const encodedPrefix = prefix
       ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
       : '';
@@ -58,7 +58,7 @@
     if (pageSize) url.searchParams.set('pageSize', String(pageSize));
 
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- base path is built with resolve(); URL object is needed to append query params
-    goto(url, { replaceState: false });
+    goto(url, { replaceState: false, invalidateAll });
   });
 
   // Inject refresh handler — navigates to the current bucket/prefix using

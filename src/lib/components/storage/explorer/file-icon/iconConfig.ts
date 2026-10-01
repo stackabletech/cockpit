@@ -107,6 +107,7 @@ export const FILE_ICON_CONFIG: Record<FileIconKind, IconConfig> = {
 
 // Content type patterns to icon kind mappings
 const MARKDOWN_TYPES = new Set(['text/markdown', 'text/x-markdown']);
+const GENERIC_TYPES = new Set(['application/octet-stream', 'binary/octet-stream']);
 
 const EXCEL_TYPES = new Set([
   'application/vnd.ms-excel',
@@ -197,13 +198,10 @@ const EXT_KIND = new Map<string, FileIconKind>([
 ]);
 
 export function fileIconKind(contentType: string | undefined, key?: string): FileIconKind {
-  if (key?.toLowerCase().endsWith('.7z')) return 'archive';
-  if (!contentType) {
-    if (key) {
-      const ext = key.split('.').at(-1)?.toLowerCase();
-      const kind = ext ? EXT_KIND.get(ext) : undefined;
-      if (kind) return kind;
-    }
+  if (!contentType || GENERIC_TYPES.has(contentType)) {
+    const ext = key?.split('.').at(-1)?.toLowerCase();
+    const kind = ext ? EXT_KIND.get(ext) : undefined;
+    if (kind) return kind;
     return 'document';
   }
   if (contentType === 'image/svg+xml') return 'svg';

@@ -176,11 +176,8 @@
     }
   }
 
-  /** Navigate to an S3 prefix, clearing archive state first. */
+  /** Navigate to an S3 prefix, reloading the route when leaving an archive. */
   function navigateS3(prefix: string) {
-    if (storage.archive.isInArchive) {
-      storage.archive.reset();
-    }
     storage.navigate(prefix);
   }
 

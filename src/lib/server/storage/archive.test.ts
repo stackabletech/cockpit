@@ -316,6 +316,39 @@ describe('listArchiveContents', () => {
   });
 
   describe('RAR', () => {
+    it('returns an empty listing when the uncompressed size exceeds the limit', async () => {
+      const path = testPath('limited-list.rar');
+      makeRar(path);
+
+      const listing = await listArchiveContents(
+        'test-bucket',
+        path,
+        '',
+        dummyDownloadFn,
+        vi.fn(),
+        undefined,
+        4
+      );
+
+      expect(listing).toEqual({ entries: [], hasMore: false, tooLarge: true });
+    });
+
+    it('supports concurrent listing and extraction', async () => {
+      const path = testPath('concurrent.rar');
+      makeRar(path);
+      await listArchiveContents('test-bucket', path, '', dummyDownloadFn, vi.fn());
+
+      const [listing, contents, missing] = await Promise.all([
+        listArchiveContents('test-bucket', path, '', dummyDownloadFn, vi.fn()),
+        extractArchiveEntry('test-bucket', path, '1File.txt', dummyDownloadFn, vi.fn()),
+        extractArchiveEntry('test-bucket', path, 'missing.txt', dummyDownloadFn, vi.fn())
+      ]);
+
+      expect(listing.entries.map((entry) => entry.key)).toContain('1File.txt');
+      expect(contents?.toString('utf-8')).toBe('1File');
+      expect(missing).toBeNull();
+    });
+
     it('lists archive entries', async () => {
       const path = testPath('test.rar');
       makeRar(path);

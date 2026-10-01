@@ -82,7 +82,8 @@ export interface ContextMenuState {
 export type NavigateFn = (
   prefix: string,
   continuationToken?: string | null,
-  pageSize?: number | null
+  pageSize?: number | null,
+  invalidateAll?: boolean
 ) => void;
 
 // ── Action names ─────────────────────────────────────────────────────────────

@@ -77,6 +77,34 @@ function makePage(objects?: StorageObject[]): StoragePage {
 }
 
 describe('selection and navigation', () => {
+  it.each(['folder/', ''])('reloads S3 when leaving an archive for %s', async (prefix) => {
+    const state = makeState(undefined, { prefix: 'folder/' });
+    const navigate = vi.fn();
+    state.setNavigationHandler(navigate);
+    await state.archive.enterArchive('folder/archive.zip');
+
+    state.navigate(prefix);
+
+    expect(navigate).toHaveBeenCalledWith(prefix, null, state.pageSize, true);
+    expect(state.archive.isInArchive).toBe(false);
+    expect(state.loading).toBe(true);
+
+    state.syncFromServer('test-bucket', prefix, makePage());
+    expect(state.loading).toBe(false);
+  });
+
+  it('reloads the containing S3 folder when exiting from the archive root', async () => {
+    const state = makeState(undefined, { prefix: 'folder/' });
+    const navigate = vi.fn();
+    state.setNavigationHandler(navigate);
+    await state.archive.enterArchive('folder/archive.zip');
+
+    state.archive.navigateUpFromArchive();
+
+    expect(navigate).toHaveBeenCalledWith('folder/', null, state.pageSize, true);
+    expect(state.archive.isInArchive).toBe(false);
+  });
+
   it('selects the inclusive range from the selection anchor', () => {
     const state = new StorageState({ api: makeApi() });
     state.objects = makePage();
