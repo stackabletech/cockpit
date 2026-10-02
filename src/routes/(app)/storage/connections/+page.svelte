@@ -98,7 +98,7 @@
     {m.storage_connections_back()}
   </a>
 
-  <h1 class="mb-1 text-xl font-semibold">{m.storage_connections_title()}</h1>
+  <h2 class="mb-1 text-xl font-semibold">{m.storage_connections_title()}</h2>
   <p class="text-base-content/60 mb-6 text-sm">{m.storage_connections_subtitle()}</p>
 
   {#if !loaded}

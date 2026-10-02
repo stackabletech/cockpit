@@ -64,10 +64,10 @@
       >
         {m.storage_error_title()}
       </p>
-      <h1 class="text-base-content text-3xl font-bold">403</h1>
-      <p class="text-base-content/70 mt-2 max-w-sm text-sm">
+      <p class="text-base-content text-3xl font-bold">403</p>
+      <h2 class="text-base-content/70 mt-2 max-w-sm text-sm">
         {m.storage_error_access_denied({ bucket: data.bucket })}
-      </p>
+      </h2>
     </div>
 
     <div class="flex flex-wrap items-center justify-center gap-3">

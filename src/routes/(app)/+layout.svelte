@@ -43,6 +43,17 @@
 </svelte:head>
 
 <div class="bg-base-100 flex h-dvh overflow-hidden">
+  <!-- Bypass block (WCAG 2.4.1): first tab stop on every page. -->
+  <a
+    href="#main-content"
+    class="
+      btn btn-primary btn-sm sr-only
+      focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-100
+    "
+  >
+    {m.skip_to_content()}
+  </a>
+
   <Sidebar
     bind:collapsed={sidebarCollapsed}
     bind:mobileOpen
@@ -57,7 +68,11 @@
       onToggleMobile={() => (mobileOpen = !mobileOpen)}
     />
 
-    <main class="bg-base-200 flex-1 overflow-auto p-6">
+    <main
+      id="main-content"
+      tabindex="-1"
+      class="bg-base-200 flex-1 overflow-auto p-6 focus:outline-none"
+    >
       {@render children()}
     </main>
   </div>
