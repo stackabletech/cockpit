@@ -8,6 +8,10 @@ updates:
     schedule:
       interval: weekly
       timezone: Europe/Berlin
+    # Only propose versions released at least 7 days ago. Per GitHub docs this
+    # applies to version updates only; security updates are not delayed.
+    cooldown:
+      default-days: 7
     # Security updates only.
     open-pull-requests-limit: 0
     labels:
