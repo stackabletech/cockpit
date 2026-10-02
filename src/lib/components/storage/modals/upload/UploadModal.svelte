@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconDraft from 'virtual:icons/material-symbols/draft';
   import IconUpload from 'virtual:icons/material-symbols/upload';
@@ -17,20 +18,22 @@
   import type { ConflictEntry as ConflictEntryType } from '../shared/conflict-types.js';
   import type { FileEntry, Phase } from './types.js';
   import type { Resolution, RenameState } from '../shared/conflict-types.js';
+  import type { FilePair } from '$lib/storage/file-collection.js';
 
   interface Props {
     open: boolean;
     bucket: string;
     prefix: string;
+    initialFiles?: FilePair[];
     onSuccess: () => void;
   }
 
-  let { open = $bindable(false), bucket, prefix, onSuccess }: Props = $props();
+  let { open = $bindable(false), bucket, prefix, initialFiles = [], onSuccess }: Props = $props();
 
   // ── State ──────────────────────────────────────────────────────────────────
 
-  let phase = $state<Phase>('idle');
-  let entries = $state<FileEntry[]>([]);
+  let phase = $state<Phase>(untrack(() => (initialFiles.length > 0 ? 'selected' : 'idle')));
+  let entries = $state<FileEntry[]>(untrack(() => makeEntries(initialFiles)));
 
   let cancelRequested = $state(false);
 

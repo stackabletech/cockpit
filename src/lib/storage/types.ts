@@ -1,4 +1,5 @@
 import type { Component } from 'svelte';
+import type { FilePair } from './file-collection.js';
 
 // ── Modal types ─────────────────────────────────────────────────────────────
 
@@ -20,7 +21,7 @@ export interface ModalPayloads {
     archivePath?: string;
     nestedArchivePath?: string;
   };
-  upload: { bucket: string; prefix: string };
+  upload: { bucket: string; prefix: string; files?: FilePair[] };
   details: {
     type: 'file' | 'directory' | 'bucket';
     bucket: string;

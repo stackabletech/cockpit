@@ -116,6 +116,34 @@ describe('UploadModal', () => {
   });
 
   describe('selected phase (file list preview)', () => {
+    it('reviews dropped files and uploads their relative paths under the current prefix', async () => {
+      const file = createFile('report.txt');
+      render(UploadModal, {
+        ...defaultProps,
+        prefix: 'reports/',
+        initialFiles: [{ file, relativePath: 'folder/report.txt' }]
+      });
+
+      await expect
+        .element(page.getByText('folder/report.txt', { exact: true }))
+        .toBeInTheDocument();
+      expect(mockUploadFile).not.toHaveBeenCalled();
+      await page.getByRole('button', { name: 'Upload', exact: true }).click();
+      await expect.element(page.getByText('Upload complete', { exact: true })).toBeInTheDocument();
+      expect(mockCheckObjectExists).toHaveBeenCalledWith(
+        defaultProps.bucket,
+        'reports/folder/report.txt',
+        ''
+      );
+      expect(mockUploadFile).toHaveBeenCalledWith(
+        defaultProps.bucket,
+        'reports/folder/report.txt',
+        file,
+        expect.any(Function),
+        ''
+      );
+    });
+
     it('should show selected files after file selection', async () => {
       render(UploadModal, defaultProps);
       selectFiles([createFile('report.csv')]);

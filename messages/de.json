@@ -393,6 +393,7 @@
   "storage_action_upload": "Hochladen",
   "storage_upload_title": "Hochladen",
   "storage_upload_drop_prompt": "Dateien oder Ordner hier ablegen oder klicken zum Durchsuchen",
+  "storage_upload_browser_drop_prompt": "Dateien oder Ordner ablegen, um sie in den aktuellen Ordner hochzuladen",
   "storage_upload_select_files": "Dateien auswählen",
   "storage_upload_select_folder": "Ordner auswählen",
   "storage_upload_selected": "Ausgewählt: {name}",

@@ -44,6 +44,79 @@ function createState(
 }
 
 describe('FileExplorer', () => {
+  it('captures external file drops on folder rows for upload to the current prefix', async () => {
+    const state = createState([{ ...makeFile('reports/child/'), isDirectory: true }], {
+      prefix: 'reports/'
+    });
+    const move = vi.spyOn(state, 'performMove');
+    render(FileExplorerWrapper, { state });
+    await expect.element(page.getByText('child', { exact: true })).toBeInTheDocument();
+
+    const row = page.getByText('child', { exact: true }).element().closest('tr')!;
+    const dt = new DataTransfer();
+    const file = new File(['report'], 'report.txt', { type: 'text/plain' });
+    dt.items.add(file);
+    row.dispatchEvent(new DragEvent('dragenter', { bubbles: true, dataTransfer: dt }));
+    await expect.element(page.getByTestId('storage-upload-drop-overlay')).toBeInTheDocument();
+    row.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+
+    await expect.poll(() => state.activeModal?.type).toBe('upload');
+    expect(state.activeModal).toEqual({
+      type: 'upload',
+      payload: {
+        bucket: 'test-bucket',
+        prefix: 'reports/',
+        files: [{ file, relativePath: 'report.txt' }]
+      }
+    });
+    expect(move).not.toHaveBeenCalled();
+    await expect.element(page.getByTestId('storage-upload-drop-overlay')).not.toBeInTheDocument();
+  });
+
+  it.each(['archive', 'loading', 'modal'])(
+    'prevents file navigation without opening an upload while in %s',
+    async (blocked) => {
+      const state = createState([makeFile('report.txt')]);
+      if (blocked === 'archive') state.archive.archiveKey = 'data.zip';
+      if (blocked === 'loading') state.loading = true;
+      if (blocked === 'modal') state.openModal('upload', { bucket: state.bucket, prefix: '' });
+      const openModal = vi.spyOn(state, 'openModal');
+      render(FileExplorerWrapper, { state });
+      await expect.element(page.getByTestId('storage-file-browser')).toBeInTheDocument();
+
+      const dt = new DataTransfer();
+      dt.items.add(new File(['report'], 'report.txt'));
+      const drop = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt });
+      page.getByTestId('storage-file-browser').element().dispatchEvent(drop);
+      expect(drop.defaultPrevented).toBe(true);
+      expect(openModal).not.toHaveBeenCalled();
+    }
+  );
+
+  it('ignores text drags and clears the file overlay when leaving the browser', async () => {
+    const state = createState();
+    render(FileExplorerWrapper, { state });
+    await expect.element(page.getByTestId('storage-file-browser')).toBeInTheDocument();
+    const browser = page.getByTestId('storage-file-browser').element();
+    const text = new DataTransfer();
+    text.setData('text/plain', 'text');
+    const textDrop = new DragEvent('drop', {
+      bubbles: true,
+      cancelable: true,
+      dataTransfer: text
+    });
+    browser.dispatchEvent(textDrop);
+    expect(textDrop.defaultPrevented).toBe(false);
+    expect(state.activeModal).toBeNull();
+
+    const dt = new DataTransfer();
+    dt.items.add(new File(['report'], 'report.txt'));
+    browser.dispatchEvent(new DragEvent('dragenter', { bubbles: true, dataTransfer: dt }));
+    await expect.element(page.getByTestId('storage-upload-drop-overlay')).toBeInTheDocument();
+    browser.dispatchEvent(new DragEvent('dragleave', { bubbles: true, dataTransfer: dt }));
+    await expect.element(page.getByTestId('storage-upload-drop-overlay')).not.toBeInTheDocument();
+  });
+
   it('should render the object table', async () => {
     const state = createState([makeFile('hello.txt')]);
     render(FileExplorerWrapper, { state });

@@ -393,6 +393,7 @@
   "storage_action_upload": "Upload",
   "storage_upload_title": "Upload",
   "storage_upload_drop_prompt": "Drop files or a folder here, or click to browse",
+  "storage_upload_browser_drop_prompt": "Drop files or a folder to upload to the current folder",
   "storage_upload_select_files": "Select files",
   "storage_upload_select_folder": "Select folder",
   "storage_upload_selected": "Selected: {name}",

@@ -5,6 +5,7 @@
   import { navigating } from '$app/state';
   import { getStorageState } from '$lib/storage/context.js';
   import { getTabsState } from '$lib/storage/context.js';
+  import { collectDroppedFiles } from '$lib/storage/file-collection.js';
   import {
     storageCutCopyEnabled,
     storagePasteEnabled,
@@ -26,6 +27,7 @@
   import IconDriveFileRenameOutline from 'virtual:icons/material-symbols/drive-file-rename-outline';
   import IconDescriptionOutline from 'virtual:icons/material-symbols/description-outline';
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
+  import IconUploadFile from 'virtual:icons/material-symbols/upload-file';
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import TabBar from './TabBar.svelte';
   import ObjectTable from './ObjectTable.svelte';
@@ -35,6 +37,104 @@
   const storage = getStorageState();
 
   const tabsState = getTabsState();
+
+  let explorerEl: HTMLDivElement;
+  let fileDragOver = $state(false);
+  let collectingFiles = false;
+  const canUploadDrop = $derived(
+    !!storage.bucket &&
+      !storage.archive.isInArchive &&
+      !storage.loading &&
+      !storage.deleting &&
+      !navigating.to &&
+      !storage.activeModal
+  );
+
+  $effect(() => {
+    if (!canUploadDrop) fileDragOver = false;
+  });
+
+  // Capture external file drops before the nested targets for moving S3 objects.
+  // This also prevents the browser from navigating to a dropped local file.
+  $effect(() => {
+    const el = explorerEl;
+    let dragDepth = 0;
+
+    function isFileDrag(e: DragEvent) {
+      return e.dataTransfer?.types.includes('Files');
+    }
+
+    function resetDrag() {
+      dragDepth = 0;
+      fileDragOver = false;
+    }
+
+    function handleDragEnter(e: DragEvent) {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      dragDepth++;
+      fileDragOver = canUploadDrop;
+    }
+
+    function handleDragOver(e: DragEvent) {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer!.dropEffect = canUploadDrop ? 'copy' : 'none';
+      fileDragOver = canUploadDrop;
+    }
+
+    function handleDragLeave(e: DragEvent) {
+      if (!isFileDrag(e)) return;
+      e.stopPropagation();
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0) fileDragOver = false;
+    }
+
+    async function handleDrop(e: DragEvent) {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      resetDrag();
+      if (!canUploadDrop || collectingFiles) return;
+
+      const dt = e.dataTransfer!;
+      // Snapshot before asynchronous directory traversal; the transfer is only
+      // readable during the drop event in some browsers.
+      const fallback = Array.from(dt.files).map((file) => ({ file, relativePath: file.name }));
+      const { bucket, prefix, connectionId } = storage;
+      collectingFiles = true;
+      try {
+        const files = await collectDroppedFiles(dt).catch(() => fallback);
+        if (
+          files.length > 0 &&
+          canUploadDrop &&
+          storage.bucket === bucket &&
+          storage.prefix === prefix &&
+          storage.connectionId === connectionId
+        ) {
+          storage.contextMenu = null;
+          storage.openModal('upload', { bucket, prefix, files });
+        }
+      } finally {
+        collectingFiles = false;
+      }
+    }
+
+    el.addEventListener('dragenter', handleDragEnter, true);
+    el.addEventListener('dragover', handleDragOver, true);
+    el.addEventListener('dragleave', handleDragLeave, true);
+    el.addEventListener('drop', handleDrop, true);
+    window.addEventListener('dragend', resetDrag);
+    return () => {
+      el.removeEventListener('dragenter', handleDragEnter, true);
+      el.removeEventListener('dragover', handleDragOver, true);
+      el.removeEventListener('dragleave', handleDragLeave, true);
+      el.removeEventListener('drop', handleDrop, true);
+      window.removeEventListener('dragend', resetDrag);
+    };
+  });
 
   beforeNavigate((navigation) => {
     const params = navigation.to?.params;
@@ -252,7 +352,21 @@
 
 <svelte:window onkeydown={storage.handleKeydown} />
 
-<div class="bg-base-100 flex flex-1 flex-col overflow-hidden">
+<div
+  bind:this={explorerEl}
+  data-testid="storage-file-browser"
+  class="bg-base-100 relative flex flex-1 flex-col overflow-hidden"
+>
+  {#if fileDragOver}
+    <div
+      data-testid="storage-upload-drop-overlay"
+      class="border-primary bg-base-100/90 pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-6"
+      role="status"
+    >
+      <IconUploadFile class="text-primary size-12" aria-hidden="true" />
+      <p class="text-base-content text-center text-sm">{m.storage_upload_browser_drop_prompt()}</p>
+    </div>
+  {/if}
   <TabBar {tabsState} />
 
   <StorageBreadcrumb />
