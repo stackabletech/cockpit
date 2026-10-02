@@ -113,7 +113,7 @@ describe('ContextMenu', () => {
       selectedKeys: ['test.txt']
     });
     const spy = vi.spyOn(state, 'closeContextMenu');
-    render(ContextMenuWrapper, { state });
+    render(ContextMenuWrapper, { state, title: 'Menu' });
 
     await page.getByRole('menuitem', { name: 'Close' }).click();
     expect(spy).toHaveBeenCalled();

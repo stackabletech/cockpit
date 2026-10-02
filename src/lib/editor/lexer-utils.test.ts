@@ -9,8 +9,11 @@ describe('implicit token constants match the generated grammar', () => {
   const names = SqlBaseLexer.literalNames;
 
   it('DOT is "."', () => expect(names[DOT]).toBe("'.'"));
+
   it('LPAREN is "("', () => expect(names[LPAREN]).toBe("'('"));
+
   it('RPAREN is ")"', () => expect(names[RPAREN]).toBe("')'"));
+
   it('COMMA is ","', () => expect(names[COMMA]).toBe("','"));
 });
 

@@ -6,10 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script>
       (function () {
-        const theme =
+        var theme =
           localStorage.getItem('theme') ||
           (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         document.documentElement.setAttribute('data-theme', theme);
+
+        var savedWidth = localStorage.getItem('storage_sidebar_width');
+        if (savedWidth) {
+          var w = parseInt(savedWidth, 10);
+          if (!isNaN(w) && w >= 120 && w <= 480) {
+            document.documentElement.style.setProperty('--storage-sidebar-width', w + 'px');
+          }
+        }
       })();
     </script>
     %sveltekit.head%

@@ -1,41 +1,40 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('$lib/server/storage/service.js', () => ({
-  downloadObject: vi.fn(),
-  getObjectMetadata: vi.fn()
+const mockProvider = { getObject: vi.fn(), getMetadata: vi.fn() };
+vi.mock('$lib/server/storage/utils.js', () => ({
+  getProvider: () => mockProvider
 }));
 
 import { GET, HEAD } from './+server.js';
-import { downloadObject, getObjectMetadata } from '$lib/server/storage/service.js';
 
 const CONNECTION_HEADER = {
   'x-storage-connection': btoa(JSON.stringify({ type: 's3', region: 'us-east-1' }))
 };
 
 function mockEvent(params: string) {
-  const url = new URL(`http://localhost/storage/api/download?${params}`);
+  const url = new URL(`http://localhost/api/storage/download?${params}`);
   return {
     url,
-    request: { headers: new Headers(CONNECTION_HEADER) },
+    request: { headers: new Headers(CONNECTION_HEADER), signal: new AbortController().signal },
     locals: {
       logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
       user: { id: 'test-user' },
-      storageConfig: { type: 's3', region: 'us-east-1' }
+      storageConfig: { type: 's3', region: { name: 'us-east-1' } }
     }
   } as unknown as Parameters<typeof GET>[0];
 }
 
-describe('GET /storage/api/download', () => {
+describe('GET /api/storage/download', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('streams download with correct headers', async () => {
     const stream = new ReadableStream();
-    vi.mocked(downloadObject).mockResolvedValue({
+    mockProvider.getObject.mockResolvedValue({
       stream,
       contentType: 'text/csv',
       contentLength: 1234,
       etag: '"abc"'
-    } as unknown as Awaited<ReturnType<typeof downloadObject>>);
+    });
 
     const res = await GET(mockEvent('bucket=b1&key=path/data.csv'));
 
@@ -47,27 +46,40 @@ describe('GET /storage/api/download', () => {
   });
 
   it('uses application/octet-stream when no content type', async () => {
-    vi.mocked(downloadObject).mockResolvedValue({
+    mockProvider.getObject.mockResolvedValue({
       stream: new ReadableStream(),
       contentType: undefined,
       contentLength: undefined,
       etag: undefined
-    } as unknown as Awaited<ReturnType<typeof downloadObject>>);
+    });
 
     const res = await GET(mockEvent('bucket=b1&key=file.bin'));
     expect(res.headers.get('Content-Type')).toBe('application/octet-stream');
     expect(res.headers.has('Content-Length')).toBe(false);
   });
+
+  it('escapes quoted filenames and RFC 5987 encodes filename*', async () => {
+    mockProvider.getObject.mockResolvedValue({
+      stream: new ReadableStream(),
+      contentType: 'text/plain'
+    });
+
+    const res = await GET(mockEvent(`bucket=b1&key=${encodeURIComponent('report"(final).txt')}`));
+
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `attachment; filename="report\\"(final).txt"; filename*=UTF-8''report%22%28final%29.txt`
+    );
+  });
 });
 
-describe('HEAD /storage/api/download', () => {
+describe('HEAD /api/storage/download', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns 200 with metadata headers', async () => {
-    vi.mocked(getObjectMetadata).mockResolvedValue({
+    mockProvider.getMetadata.mockResolvedValue({
       contentType: 'application/json',
       size: 999
-    } as unknown as Awaited<ReturnType<typeof getObjectMetadata>>);
+    });
 
     const res = await HEAD(mockEvent('bucket=b1&key=data.json'));
 
