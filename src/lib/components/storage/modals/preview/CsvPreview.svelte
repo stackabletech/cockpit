@@ -78,7 +78,7 @@
               <td class="text-base-content/80 max-w-xs truncate text-xs">{row[j] ?? ''}</td>
             {/each}
             {#if extraColumns > 0}
-              <td class="text-base-content/30 max-w-xs truncate text-xs italic" />
+              <td class="text-base-content/30 max-w-xs truncate text-xs italic"></td>
             {/if}
           </tr>
         {/each}

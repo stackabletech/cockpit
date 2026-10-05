@@ -53,6 +53,7 @@ describe('UploadConflictEntry', () => {
       const entry = makeEntry({ targetKey: `deep/nested/${longName}` });
       render(UploadConflictEntry, { entry, ...defaultCallbacks });
 
+      // eslint-disable-next-line security/detect-non-literal-regexp
       await expect.element(page.getByText(new RegExp(longName.slice(0, 20)))).toBeInTheDocument();
     });
   });
