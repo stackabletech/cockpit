@@ -31,11 +31,16 @@ export const actions: Actions = {
   save: async ({ request, locals }) => {
     const log = locals.logger;
 
-    if (trinoConfigured) {
-      return fail(400, { error: 'Connection is managed via environment variables' });
-    }
-
     const form = await superValidate(request, zod(ConnectionSchema));
+
+    if (trinoConfigured) {
+      log.debug('connection save rejected, Trino is configured via environment variables');
+      return message(
+        form,
+        { type: 'error', message: m.trino_connection_env_managed() } satisfies ConnectionMessage,
+        { status: 400 }
+      );
+    }
 
     if (!form.valid) {
       log.debug({ errors: form.errors }, 'connection form validation failed');

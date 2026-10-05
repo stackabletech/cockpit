@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
@@ -94,7 +94,8 @@
     enhance: connectionEnhance,
     errors: connectionErrors,
     message: connectionMessage,
-    submitting: connectionSubmitting
+    submitting: connectionSubmitting,
+    submit: submitConnection
   } = superForm(
     untrack(() => data.connectionForm),
     {
@@ -108,6 +109,14 @@
         } else if (msg?.type === 'error') {
           connectionOpen = true;
         }
+      },
+      // Network failures or unexpected server errors: show them in the form instead of the error page.
+      onError() {
+        $connectionMessage = {
+          type: 'error',
+          message: m.trino_connection_save_failed()
+        } satisfies ConnectionMessage;
+        connectionOpen = true;
       }
     }
   );
@@ -129,26 +138,10 @@
     } else if ($connectionForm.connectionUrl && $connectionForm.authType === 'none') {
       // Re-establish server-side connection from localStorage on page reload.
       // Only possible for unauthenticated connections since the password is not persisted.
-      const body = new FormData();
-      body.set('connectionUrl', $connectionForm.connectionUrl);
-      body.set('authType', 'none');
-      body.set('authUsername', '');
-      body.set('authPassword', '');
-      fetch('?/save', {
-        method: 'POST',
-        body,
-        headers: { 'x-sveltekit-action': 'true' }
-      })
-        .then(() => {
-          catalogVersion++;
-        })
-        .catch(() => {
-          // Server-side connection could not be re-established from localStorage.
-          // Clear stale state so the user is prompted to re-enter.
-          $connectionForm.connectionUrl = '';
-          $connectionForm.authType = 'none';
-          $connectionForm.authUsername = '';
-        });
+      // Submitting through the form reuses the result handling of a manual save: success loads
+      // the catalogues, failure opens the form with the error so a stale URL can be corrected.
+      // Wait a tick so the inputs reflect the restored values and use:enhance is attached.
+      void tick().then(() => submitConnection());
     } else if ($connectionForm.connectionUrl && $connectionForm.authType === 'basic') {
       // Password is not persisted; prompt the user to re-enter credentials.
       connectionOpen = true;

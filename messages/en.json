@@ -73,6 +73,8 @@
   "trino_auth_password_required": "Password is required for basic authentication",
   "trino_connection_test_timeout": "Connection test timed out",
   "trino_connection_test_failed": "Could not connect to Trino — check the URL and credentials.",
+  "trino_connection_save_failed": "Could not save the connection. Please try again.",
+  "trino_connection_env_managed": "The connection is managed via environment variables.",
   "trino_cancel_query": "Cancel",
   "trino_state_submitting": "Submitting",
   "trino_state_queued": "Queued",

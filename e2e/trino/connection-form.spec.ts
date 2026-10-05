@@ -216,4 +216,39 @@ test.describe('Connection form (manual mode)', () => {
     // The collapse header should show a summary with the host.
     await expect(page.getByText('localhost:8080')).toBeVisible();
   });
+
+  test('failed reconnect of a stored connection opens the form with the error', async ({
+    page
+  }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('trino_url', 'http://localhost:8080');
+      localStorage.setItem('trino_auth_type', 'none');
+    });
+
+    // The server is env-configured, so the automatic reconnect is rejected.
+    await page.goto('/trino');
+    await waitForHydration(page);
+
+    await expect(
+      page.getByText('The connection is managed via environment variables.')
+    ).toBeVisible();
+    await expect(page.getByLabel('URL')).toHaveValue('http://localhost:8080');
+  });
+
+  test('network error during reconnect opens the form with the error', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('trino_url', 'http://localhost:8080');
+      localStorage.setItem('trino_auth_type', 'none');
+    });
+    await page.route(
+      (url) => url.pathname === '/trino' && url.search === '?/save',
+      (route) => route.abort()
+    );
+
+    await page.goto('/trino');
+    await waitForHydration(page);
+
+    await expect(page.getByText('Could not save the connection. Please try again.')).toBeVisible();
+    await expect(page.getByLabel('URL')).toHaveValue('http://localhost:8080');
+  });
 });

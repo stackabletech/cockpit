@@ -73,6 +73,8 @@
   "trino_auth_password_required": "Für Basic-Authentifizierung ist ein Passwort erforderlich",
   "trino_connection_test_timeout": "Zeitüberschreitung beim Verbindungstest",
   "trino_connection_test_failed": "Verbindung zu Trino fehlgeschlagen – bitte URL und Zugangsdaten prüfen.",
+  "trino_connection_save_failed": "Die Verbindung konnte nicht gespeichert werden. Bitte erneut versuchen.",
+  "trino_connection_env_managed": "Die Verbindung wird über Umgebungsvariablen verwaltet.",
   "trino_cancel_query": "Abbrechen",
   "trino_state_submitting": "Wird eingereicht",
   "trino_state_queued": "Warteschlange",
