@@ -238,7 +238,10 @@ test.describe('Storage S3 — Archive preview', () => {
       await expect(rowByName(page, 'file.txt')).toBeVisible();
 
       // Click bucket name in breadcrumb to exit archive
-      await page.getByRole('button', { name: credentials.bucket }).click();
+      await page
+        .getByRole('navigation', { name: 'Breadcrumb' })
+        .getByRole('button', { name: credentials.bucket, exact: true })
+        .click();
       await waitForObjectsLoaded(page);
 
       // Should be at the bucket root (archive exited)
@@ -247,7 +250,7 @@ test.describe('Storage S3 — Archive preview', () => {
         const endpoint = new URL(credentials.endpoint);
         return url.pathname === `/storage/browse/${endpoint.hostname}/${credentials.bucket}`;
       });
-      await expect(page.getByText('archive.zip')).not.toBeVisible();
+      await expect(rowByName(page, 'archive.zip')).not.toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -377,7 +380,10 @@ test.describe('Storage S3 — Archive preview', () => {
       await expect(rowByName(page, 'doc.md')).toBeVisible();
 
       // Click archive name in breadcrumb to go back to archive root
-      await page.getByRole('button', { name: 'archive.zip' }).click();
+      await page
+        .getByRole('navigation', { name: 'Breadcrumb' })
+        .getByRole('button', { name: 'archive.zip', exact: true })
+        .click();
       await waitForObjectsLoaded(page);
 
       // Should see archive root contents

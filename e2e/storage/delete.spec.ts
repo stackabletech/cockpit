@@ -38,11 +38,11 @@ test.describe('Storage S3 — Delete & Selection', () => {
 
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel('Select remove-me.txt').check();
-      await page.getByLabel('Select archive').check();
+      await page.getByLabel('Select archive', { exact: true }).check();
 
       await page.getByRole('button', { name: 'Delete', exact: true }).click();
       await expect(page.getByText('All contents will be permanently deleted')).toBeVisible();
-      await page.getByRole('button', { name: 'Delete permanently' }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Delete permanently' }).click();
 
       await expect(page.getByText('This bucket is empty')).toBeVisible();
       await expect(await objectExists(client, credentials.bucket, `${prefix}remove-me.txt`)).toBe(
@@ -74,7 +74,7 @@ test.describe('Storage S3 — Delete & Selection', () => {
 
       await expect(page.getByText('This action cannot be undone.')).toBeVisible();
 
-      await page.getByRole('button', { name: 'Cancel' }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
 
       await expect(page.getByText('This action cannot be undone.')).not.toBeVisible();
       await expect(rowByName(page, 'keep-me.txt')).toBeVisible();
@@ -145,7 +145,7 @@ test.describe('Storage S3 — Delete & Selection', () => {
       await expect(page.getByText('This action cannot be undone.')).toBeVisible();
 
       // Cancel the delete
-      await page.getByRole('button', { name: 'Cancel' }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
       await expect(page.getByRole('heading', { name: /Delete.*delete-me.txt/i })).not.toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);

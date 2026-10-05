@@ -85,6 +85,8 @@ test.describe('Storage S3 — Upload', () => {
           await expect(page.getByRole('dialog')).not.toBeVisible();
 
           await dropTarget.dispatchEvent('drop', { dataTransfer: transfer });
+          await expect(uploadModal.getByText(fixture.name, { exact: true })).toBeVisible();
+          await expect(uploadModal.getByText('second.txt', { exact: true })).toBeVisible();
           await uploadModal.getByRole('button', { name: 'Upload', exact: true }).click();
           await expect(uploadModal.getByText('2 uploaded · 0 skipped · 0 failed')).toBeVisible();
           await uploadModal.getByRole('button', { name: 'Done' }).click();
@@ -151,13 +153,13 @@ test.describe('Storage S3 — Upload', () => {
       await rowByName(page, textFixture.name).dblclick();
       await expect(page.getByRole('heading', { name: textFixture.name })).toBeVisible();
       await expect(page.getByText(textFixture.expectedSnippet)).toBeVisible();
-      await page.getByRole('button', { name: 'Close' }).first().click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
       await expect(page.getByRole('heading', { name: textFixture.name })).not.toBeVisible();
 
       await rowByName(page, csvFixture.name).dblclick();
       await expect(page.getByRole('heading', { name: csvFixture.name })).toBeVisible();
       await expect(page.getByText(csvFixture.expectedCell)).toBeVisible();
-      await page.getByRole('button', { name: 'Close' }).first().click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
       await expect(page.getByRole('heading', { name: csvFixture.name })).not.toBeVisible();
 
       await rowByName(page, imageFixture.name).dblclick();

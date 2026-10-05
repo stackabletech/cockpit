@@ -273,11 +273,14 @@ export async function getObjectText(
 }
 
 export function rowByName(page: Page, name: string) {
-  return page.locator('tbody tr', { hasText: name }).first();
+  return page
+    .getByTestId('storage-object-list')
+    .locator('tbody tr')
+    .filter({ has: page.getByText(name, { exact: true }) });
 }
 
 export function modalBox(page: Page) {
-  return page.locator('.modal-box').last();
+  return page.getByRole('dialog').locator('.modal-box');
 }
 
 export async function headObject(client: S3Client, bucket: string, key: string) {

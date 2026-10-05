@@ -32,14 +32,21 @@
 
   // ── State ──────────────────────────────────────────────────────────────────
 
-  let phase = $state<Phase>(untrack(() => (initialFiles.length > 0 ? 'selected' : 'idle')));
-  let entries = $state<FileEntry[]>(untrack(() => makeEntries(initialFiles)));
+  let phase = $state<Phase>('idle');
+  let entries = $state<FileEntry[]>([]);
 
   let cancelRequested = $state(false);
 
-  // Reset when modal closes.
+  // Initialise on opening as well: the parent can mount this modal closed
+  // before resetting its bound open state after a previous cancellation.
   $effect(() => {
-    if (!open) {
+    if (open) {
+      untrack(() => {
+        entries = makeEntries(initialFiles);
+        phase = entries.length > 0 ? 'selected' : 'idle';
+        cancelRequested = false;
+      });
+    } else {
       phase = 'idle';
       entries = [];
     }
