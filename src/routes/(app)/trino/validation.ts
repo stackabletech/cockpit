@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import * as m from '$lib/paraglide/messages.js';
 
 export { isPageSize, type PageSize } from '$lib/types/pagination.js';
 
@@ -6,7 +7,7 @@ export const TabIdSchema = z.uuid();
 
 export const ConnectionSchema = z
   .object({
-    connectionUrl: z.string().url(),
+    connectionUrl: z.url({ error: () => m.trino_connection_url_invalid() }),
     authType: z.enum(['none', 'basic']).default('none'),
     authUsername: z.string().default(''),
     authPassword: z.string().default('')
@@ -15,16 +16,16 @@ export const ConnectionSchema = z
     if (data.authType === 'basic') {
       if (!data.authUsername) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           path: ['authUsername'],
-          message: 'Username is required for basic authentication'
+          message: m.trino_auth_username_required()
         });
       }
       if (!data.authPassword) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           path: ['authPassword'],
-          message: 'Password is required for basic authentication'
+          message: m.trino_auth_password_required()
         });
       }
     }

@@ -16,6 +16,7 @@ import {
 } from '$lib/server/trino/user-clients.js';
 import { ConnectionSchema, type ConnectionMessage } from './validation.js';
 import type { Actions, PageServerLoad } from './$types';
+import * as m from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   locals.logger.debug('loading Trino page');
@@ -64,8 +65,8 @@ export const actions: Actions = {
       const name = (err as { name?: string })?.name;
       const reason =
         name === 'TimeoutError' || name === 'AbortError'
-          ? 'Connection test timed out'
-          : 'Could not connect to Trino — check the URL and credentials.';
+          ? m.trino_connection_test_timeout()
+          : m.trino_connection_test_failed();
       log.info({ err, trino_url: connectionUrl }, 'connection test failed');
       return message(form, { type: 'error', message: reason } satisfies ConnectionMessage, {
         status: 400

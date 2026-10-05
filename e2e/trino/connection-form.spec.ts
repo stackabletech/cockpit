@@ -143,6 +143,20 @@ test.describe('Connection form (manual mode)', () => {
     await expect(page.locator('.text-error')).toBeVisible();
   });
 
+  test('invalid URL shows a translated validation message', async ({ page }) => {
+    await page.goto('/trino');
+    await waitForHydration(page);
+
+    await page.getByLabel('Connection').check();
+
+    await page.getByLabel('URL').fill('not a url');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(
+      page.getByText('Enter a valid URL, e.g. https://trino.example.com:8443.')
+    ).toBeVisible();
+  });
+
   test('basic auth requires username and password', async ({ page }) => {
     await page.goto('/trino');
     await waitForHydration(page);
