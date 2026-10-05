@@ -2,7 +2,7 @@ import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { getUserId } from '$lib/server/auth-utils.js';
-import { getAllQuerySummaries, cancelQuery } from '$lib/server/trino/queries.js';
+import { getAllQuerySummaries, resetTabQueries } from '$lib/server/trino/queries.js';
 import {
   trinoConfigured,
   trinoMetadataQuery,
@@ -72,9 +72,9 @@ export const actions: Actions = {
       });
     }
 
-    // Cancel any running query before replacing the connection.
+    // Cancel running queries and drop results from the previous connection.
     for (const tabId of Object.keys(getAllQuerySummaries(userId))) {
-      await cancelQuery(userId, tabId);
+      await resetTabQueries(userId, tabId);
     }
 
     createUserTrinoClient(userId, config);

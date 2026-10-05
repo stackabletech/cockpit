@@ -12,7 +12,11 @@
   import { ConnectionSchema, type ConnectionMessage } from './validation.js';
   import TabBar from '$lib/components/TabBar.svelte';
   import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
-  import { getOrCreateQueryRunner, destroyQueryRunner } from './query-runner.svelte.js';
+  import {
+    getOrCreateQueryRunner,
+    destroyQueryRunner,
+    resetAllQueryRunners
+  } from './query-runner.svelte.js';
   import { isTerminal } from '$lib/types/query';
   import {
     splitStatements,
@@ -175,6 +179,8 @@
       onUpdated({ form }) {
         const msg = form.message as ConnectionMessage | undefined;
         if (msg?.type === 'success') {
+          // Results belong to the previous connection; the server has cleared them too.
+          resetAllQueryRunners();
           catalogVersion++;
         } else if (msg?.type === 'error') {
           connectionOpen = true;
