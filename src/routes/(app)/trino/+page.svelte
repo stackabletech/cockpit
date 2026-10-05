@@ -461,7 +461,7 @@
   <div class="flex min-w-0 flex-1 flex-col">
     <!-- Connection config form (hidden when Trino is env-configured) -->
     {#if !data.trinoConfigured}
-      <form method="POST" action="?/save" use:connectionEnhance class="px-2 pt-1">
+      <form method="POST" action="?/save" use:connectionEnhance class="pt-1">
         <div class="border-base-300 bg-base-100 collapse rounded-xl border">
           <input
             type="checkbox"
