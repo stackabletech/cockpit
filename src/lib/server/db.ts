@@ -4,21 +4,26 @@ import { logger } from './logging';
 
 const log = logger.child({ module: 'database' });
 
+// Vite loads .env.development into SvelteKit's env, not process.env.
+// The fallback also supports the standalone migration CLI used by dev/setup.sh.
+const envModule = await import('$env/dynamic/private').catch(() => null);
+const env = envModule?.env ?? process.env;
+
 const isProduction = process.env.NODE_ENV === 'production';
 
-if (isProduction && !process.env.DATABASE_PASSWORD) {
+if (isProduction && !env.DATABASE_PASSWORD) {
   throw new Error('DATABASE_PASSWORD must be set in production');
 }
 
 // Parse connection credentials from environment variables
-const dbHost = process.env.DATABASE_HOST || 'localhost';
-const dbPort = parseInt(process.env.DATABASE_PORT || '31432', 10);
-const dbName = process.env.DATABASE_NAME || 'cockpit';
-const dbUser = process.env.DATABASE_USER || 'cockpit';
-if (!process.env.DATABASE_PASSWORD) {
+const dbHost = env.DATABASE_HOST || 'localhost';
+const dbPort = parseInt(env.DATABASE_PORT || '31432', 10);
+const dbName = env.DATABASE_NAME || 'cockpit';
+const dbUser = env.DATABASE_USER || 'cockpit';
+if (!env.DATABASE_PASSWORD) {
   log.warn('DATABASE_PASSWORD not set, using default development password');
 }
-const dbPassword = process.env.DATABASE_PASSWORD || 'cockpit-dev-password';
+const dbPassword = env.DATABASE_PASSWORD || 'cockpit-dev-password';
 
 // Production certificates must chain to the operating system or Node.js trust store.
 // For a private CA, set NODE_EXTRA_CA_CERTS to the mounted CA certificate path.

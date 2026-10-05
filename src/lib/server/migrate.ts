@@ -13,12 +13,12 @@ function defaultMigrationsFolder(): string {
 
 export async function runMigrations(migrationsFolder = defaultMigrationsFolder()) {
   try {
-    log.info('Running database migrations...');
+    log.info({ migrations_folder: migrationsFolder }, 'Running database migrations...');
     await migrate(db, { migrationsFolder });
     log.info('Database migrations completed successfully');
     return true;
   } catch (error) {
-    log.error({ error }, 'Database migrations failed');
+    log.error({ err: error, migrations_folder: migrationsFolder }, 'Database migrations failed');
     return false;
   }
 }

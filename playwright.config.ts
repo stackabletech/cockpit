@@ -35,27 +35,21 @@ export default defineConfig({
       reuseExistingServer: false
     },
     {
-      command: 'node --env-file=.env.test build/index.js',
+      command: 'npx tsx e2e/support/start-app.ts',
       env: { PORT: appPort },
       url: baseURL,
+      timeout: 300_000,
+      stdout: 'pipe',
       reuseExistingServer: false
     }
   ],
   projects: [
-    // Runs database migrations against the PostgreSQL container started by globalSetup.
-    // All browser projects depend on this so tests never run on an unmigrated DB.
-    // Container teardown is handled by the function returned from globalSetup.
-    {
-      name: 'setup-db',
-      testMatch: /db-migrations\.setup\.ts/
-    },
     // Each browser project gets its own auth setup so that parallel workers
     // log in as different users. This prevents cross-worker races on shared
     // server-side state (e.g. the in-memory Trino connection store).
     {
       name: 'setup-chromium',
       testMatch: /auth\.setup\.ts/,
-      dependencies: ['setup-db'],
       use: {
         browserName: 'chromium',
         viewport: { width: 1280, height: 720 }
@@ -64,7 +58,6 @@ export default defineConfig({
     {
       name: 'setup-firefox',
       testMatch: /auth\.setup\.ts/,
-      dependencies: ['setup-db'],
       use: {
         browserName: 'firefox',
         viewport: { width: 1280, height: 720 }
