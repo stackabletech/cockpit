@@ -64,6 +64,9 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # required by the coverage report action to comment on the PR
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -82,8 +85,16 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run unit tests
-        run: npm run test:unit
+      - name: Run unit tests with coverage
+        run: npm run test:unit:coverage
+
+      # Reports overall + diff coverage as a job summary and a sticky PR comment.
+      # Informational only — coverage is not currently enforced as a merge gate.
+      - name: Coverage report
+        if: always() && github.event_name == 'pull_request'
+        uses: davelosert/vitest-coverage-report-action@c4bbc33a89b7ace0e63d35f1f7d4bcee31155a73 # v2.13.0
+        with:
+          file-coverage-mode: changes
 
   e2e-with-garage:
     name: E2E Tests with Garage S3

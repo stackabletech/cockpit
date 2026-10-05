@@ -18,11 +18,7 @@
 import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
 
 export type DownloadErrorCode =
-  | 'not_connected'
-  | 'access_denied'
-  | 'not_found'
-  | 'server_error'
-  | 'unknown';
+  'not_connected' | 'access_denied' | 'not_found' | 'server_error' | 'unknown';
 
 export class DownloadError extends Error {
   constructor(

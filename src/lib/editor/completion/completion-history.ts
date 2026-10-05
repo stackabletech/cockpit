@@ -3,12 +3,7 @@
 // their `sortText` so the user's working vocabulary surfaces to the top.
 
 export type HistoryCategory =
-  | 'catalogs'
-  | 'schemas'
-  | 'tables'
-  | 'columns'
-  | 'functions'
-  | 'keywords';
+  'catalogs' | 'schemas' | 'tables' | 'columns' | 'functions' | 'keywords';
 
 const CAPS: Record<HistoryCategory, number> = {
   catalogs: 10,
