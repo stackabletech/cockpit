@@ -1,0 +1,32 @@
+---
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    # Required on every entry. The options reference marks schedule as
+    # "Version updates only", so security PRs still open on alert.
+    schedule:
+      interval: weekly
+      timezone: Europe/Berlin
+    # Only propose versions released at least 7 days ago. Per GitHub docs this
+    # applies to version updates only; security updates are not delayed.
+    cooldown:
+      default-days: 7
+    # Security updates only.
+    open-pull-requests-limit: 0
+    labels:
+      - dependencies
+      - type/security
+    # Major upgrades of the build/test toolchain need a deliberate migration
+    # (peer dependencies of @sveltejs/vite-plugin-svelte), not a security PR.
+    ignore:
+      - dependency-name: vite
+        update-types: [version-update:semver-major]
+      - dependency-name: vitest
+        update-types: [version-update:semver-major]
+    groups:
+      dev-dependencies-security:
+        applies-to: security-updates
+        dependency-type: development
+        patterns:
+          - "*"
