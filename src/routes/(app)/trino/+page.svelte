@@ -36,7 +36,8 @@
     }
   }
 
-  let connectionOpen = $state(false);
+  // Start expanded until the user has a server-side connection, so the form is the first thing they see.
+  let connectionOpen = $state(untrack(() => !data.userClientExists));
 
   // Drag-to-resize state for the desktop catalog browser panel (width persisted).
   const catalogResize = createResizablePanel({
