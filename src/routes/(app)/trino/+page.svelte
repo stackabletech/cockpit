@@ -3,6 +3,7 @@
   import { SvelteMap } from 'svelte/reactivity';
   import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
+  import { getLocale } from '$lib/paraglide/runtime.js';
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import ResizeHandle from '$lib/components/storage/sidebar/ResizeHandle.svelte';
@@ -254,6 +255,19 @@
       default:
         return '';
     }
+  });
+
+  const elapsedLabel = $derived.by(() => {
+    const { elapsedTimeMillis } = runner.progress;
+    const locale = getLocale();
+    return elapsedTimeMillis < 1000
+      ? m.trino_elapsed_ms({ value: elapsedTimeMillis.toLocaleString(locale) })
+      : m.trino_elapsed_s({
+          value: (elapsedTimeMillis / 1000).toLocaleString(locale, {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1
+          })
+        });
   });
 
   const charLimitReached = $derived(sql.length >= MAX_SQL_LENGTH);
@@ -862,7 +876,7 @@
             <span class="text-base-content/60 text-xs">
               {m.trino_progress_info({
                 rows: runner.progress.processedRows.toLocaleString(),
-                elapsed: (runner.progress.elapsedTimeMillis / 1000).toFixed(1)
+                elapsed: elapsedLabel
               })}
             </span>
           {/if}
