@@ -16,6 +16,7 @@ import {
 } from '$lib/server/trino/user-clients.js';
 import { ConnectionSchema, type ConnectionMessage } from './validation.js';
 import type { Actions, PageServerLoad } from './$types';
+import * as m from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   locals.logger.debug('loading Trino page');
@@ -30,11 +31,16 @@ export const actions: Actions = {
   save: async ({ request, locals }) => {
     const log = locals.logger;
 
-    if (trinoConfigured) {
-      return fail(400, { error: 'Connection is managed via environment variables' });
-    }
-
     const form = await superValidate(request, zod(ConnectionSchema));
+
+    if (trinoConfigured) {
+      log.debug('connection save rejected, Trino is configured via environment variables');
+      return message(
+        form,
+        { type: 'error', message: m.trino_connection_env_managed() } satisfies ConnectionMessage,
+        { status: 400 }
+      );
+    }
 
     if (!form.valid) {
       log.debug({ errors: form.errors }, 'connection form validation failed');
@@ -64,8 +70,8 @@ export const actions: Actions = {
       const name = (err as { name?: string })?.name;
       const reason =
         name === 'TimeoutError' || name === 'AbortError'
-          ? 'Connection test timed out'
-          : 'Could not connect to Trino — check the URL and credentials.';
+          ? m.trino_connection_test_timeout()
+          : m.trino_connection_test_failed();
       log.info({ err, trino_url: connectionUrl }, 'connection test failed');
       return message(form, { type: 'error', message: reason } satisfies ConnectionMessage, {
         status: 400

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
@@ -9,6 +9,7 @@
   import { createResizablePanel } from '$lib/components/storage/sidebar/resizable-panel.svelte.js';
   import Modal from '$lib/components/Modal.svelte';
   import { superForm } from 'sveltekit-superforms';
+  import { zod4Client } from 'sveltekit-superforms/adapters';
   import { ConnectionSchema, type ConnectionMessage } from './validation.js';
   import TabBar from '$lib/components/TabBar.svelte';
   import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
@@ -39,12 +40,8 @@
     }
   }
 
-  // Connection config - local state persisted to localStorage.
-  let connectionUrl = $state('');
-  let authType = $state<'none' | 'basic'>('none');
-  let authUsername = $state('');
-  let authPassword = $state('');
-  let connectionOpen = $state(false);
+  // Start expanded until the user has a server-side connection, so the form is the first thing they see.
+  let connectionOpen = $state(untrack(() => !data.userClientExists));
 
   // Drag-to-resize state for the desktop catalog browser panel (width persisted).
   const catalogResize = createResizablePanel({
@@ -96,11 +93,46 @@
     }))
   );
 
+  // Connection form (SuperForms). Fields other than the password are persisted to localStorage.
+  const {
+    form: connectionForm,
+    enhance: connectionEnhance,
+    errors: connectionErrors,
+    message: connectionMessage,
+    submitting: connectionSubmitting,
+    submit: submitConnection
+  } = superForm(
+    untrack(() => data.connectionForm),
+    {
+      validators: zod4Client(ConnectionSchema),
+      // Keep the entered connection after a successful save instead of resetting to the defaults.
+      resetForm: false,
+      onUpdated({ form }) {
+        const msg = form.message as ConnectionMessage | undefined;
+        if (msg?.type === 'success') {
+          // Results belong to the previous connection; the server has cleared them too.
+          resetAllQueryRunners();
+          catalogVersion++;
+        } else if (msg?.type === 'error') {
+          connectionOpen = true;
+        }
+      },
+      // Network failures or unexpected server errors: show them in the form instead of the error page.
+      onError() {
+        $connectionMessage = {
+          type: 'error',
+          message: m.trino_connection_save_failed()
+        } satisfies ConnectionMessage;
+        connectionOpen = true;
+      }
+    }
+  );
+
   onMount(() => {
     if (!data.trinoConfigured) {
-      connectionUrl = getStoredValue('trino_url', '');
-      authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
-      authUsername = getStoredValue('trino_username', '');
+      $connectionForm.connectionUrl = getStoredValue('trino_url', '');
+      $connectionForm.authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
+      $connectionForm.authUsername = getStoredValue('trino_username', '');
     }
     defaultCatalog = getStoredValue('trino_default_catalog', '');
     defaultSchema = getStoredValue('trino_default_schema', '');
@@ -110,30 +142,14 @@
     if (data.trinoConfigured || data.userClientExists) {
       // Server already has a connection (env-based or per-user); load catalogues.
       catalogVersion++;
-    } else if (connectionUrl && authType === 'none') {
+    } else if ($connectionForm.connectionUrl && $connectionForm.authType === 'none') {
       // Re-establish server-side connection from localStorage on page reload.
       // Only possible for unauthenticated connections since the password is not persisted.
-      const body = new FormData();
-      body.set('connectionUrl', connectionUrl);
-      body.set('authType', authType);
-      body.set('authUsername', '');
-      body.set('authPassword', '');
-      fetch('?/save', {
-        method: 'POST',
-        body,
-        headers: { 'x-sveltekit-action': 'true' }
-      })
-        .then(() => {
-          catalogVersion++;
-        })
-        .catch(() => {
-          // Server-side connection could not be re-established from localStorage.
-          // Clear stale state so the user is prompted to re-enter.
-          connectionUrl = '';
-          authType = 'none';
-          authUsername = '';
-        });
-    } else if (connectionUrl && authType === 'basic') {
+      // Submitting through the form reuses the result handling of a manual save: success loads
+      // the catalogues, failure opens the form with the error so a stale URL can be corrected.
+      // Wait a tick so the inputs reflect the restored values and use:enhance is attached.
+      void tick().then(() => submitConnection());
+    } else if ($connectionForm.connectionUrl && $connectionForm.authType === 'basic') {
       // Password is not persisted; prompt the user to re-enter credentials.
       connectionOpen = true;
     }
@@ -145,50 +161,6 @@
     getOrCreateQueryRunner(tabStore.activeTabId).fetchResults();
   });
 
-  // Connection form (SuperForms).
-  const {
-    enhance: connectionEnhance,
-    errors: connectionErrors,
-    message: connectionMessage,
-    submitting: connectionSubmitting
-  } = superForm(
-    untrack(() => data.connectionForm),
-    {
-      onSubmit({ cancel }) {
-        const result = ConnectionSchema.safeParse({
-          connectionUrl,
-          authType,
-          authUsername,
-          authPassword
-        });
-        if (!result.success) {
-          const errors: Record<string, string[]> = {};
-          for (const issue of result.error.issues) {
-            const key = String(issue.path[0]);
-            (errors[key] ??= []).push(issue.message);
-          }
-          $connectionErrors = {
-            connectionUrl: errors.connectionUrl,
-            authType: errors.authType,
-            authUsername: errors.authUsername,
-            authPassword: errors.authPassword
-          };
-          cancel();
-        }
-      },
-      onUpdated({ form }) {
-        const msg = form.message as ConnectionMessage | undefined;
-        if (msg?.type === 'success') {
-          // Results belong to the previous connection; the server has cleared them too.
-          resetAllQueryRunners();
-          catalogVersion++;
-        } else if (msg?.type === 'error') {
-          connectionOpen = true;
-        }
-      }
-    }
-  );
-
   const isActive = $derived(runner.state !== 'IDLE' && !isTerminal(runner.state));
   const skippedStatements = $derived.by(() => {
     if (isActive || !runner.scriptProgress) return 0;
@@ -199,9 +171,9 @@
   // Password is intentionally excluded -- credentials should not be stored client-side.
   $effect(() => {
     if (!hydrated || data.trinoConfigured) return;
-    localStorage.setItem('trino_url', connectionUrl);
-    localStorage.setItem('trino_auth_type', authType);
-    localStorage.setItem('trino_username', authUsername);
+    localStorage.setItem('trino_url', $connectionForm.connectionUrl);
+    localStorage.setItem('trino_auth_type', $connectionForm.authType);
+    localStorage.setItem('trino_username', $connectionForm.authUsername);
   });
 
   // Persist settings.
@@ -244,8 +216,9 @@
   });
 
   const connectionSummary = $derived.by(() => {
-    const host = connectionUrl ? connectionUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : '-';
-    const auth = authType === 'basic' ? m.trino_auth_basic() : m.trino_auth_none();
+    const url = $connectionForm.connectionUrl;
+    const host = url ? url.replace(/^https?:\/\//, '').replace(/\/$/, '') : '-';
+    const auth = $connectionForm.authType === 'basic' ? m.trino_auth_basic() : m.trino_auth_none();
     return `${host} \u00b7 ${auth}`;
   });
 
@@ -495,12 +468,7 @@
   <div class="flex min-w-0 flex-1 flex-col">
     <!-- Connection config form (hidden when Trino is env-configured) -->
     {#if !data.trinoConfigured}
-      <form method="POST" action="?/save" use:connectionEnhance class="px-2 pt-1">
-        <input type="hidden" name="connectionUrl" value={connectionUrl} />
-        <input type="hidden" name="authType" value={authType} />
-        <input type="hidden" name="authUsername" value={authUsername} />
-        <input type="hidden" name="authPassword" value={authPassword} />
-
+      <form method="POST" action="?/save" use:connectionEnhance class="pt-1">
         <div class="border-base-300 bg-base-100 collapse rounded-xl border">
           <input
             type="checkbox"
@@ -525,11 +493,12 @@
               </label>
               <input
                 id="{uid}-conn-url"
+                name="connectionUrl"
                 type="url"
                 class="input input-sm w-full font-mono"
                 class:input-error={$connectionErrors.connectionUrl}
                 placeholder={m.trino_connection_url_placeholder()}
-                bind:value={connectionUrl}
+                bind:value={$connectionForm.connectionUrl}
               />
               {#if $connectionErrors.connectionUrl}
                 <p class="text-error text-xs">{$connectionErrors.connectionUrl}</p>
@@ -544,25 +513,25 @@
                   id="{uid}-auth-none"
                   class="btn join-item btn-sm"
                   type="radio"
-                  name="{uid}-auth"
+                  name="authType"
                   aria-label={m.trino_auth_none()}
                   value="none"
-                  bind:group={authType}
+                  bind:group={$connectionForm.authType}
                 />
                 <input
                   id="{uid}-auth-basic"
                   class="btn join-item btn-sm"
                   type="radio"
-                  name="{uid}-auth"
+                  name="authType"
                   aria-label={m.trino_auth_basic()}
                   value="basic"
-                  bind:group={authType}
+                  bind:group={$connectionForm.authType}
                 />
               </div>
             </div>
 
             <!-- Basic auth credentials -->
-            {#if authType === 'basic'}
+            {#if $connectionForm.authType === 'basic'}
               <div
                 class="
                   grid grid-cols-1 gap-3
@@ -575,11 +544,12 @@
                   </label>
                   <input
                     id="{uid}-auth-username"
+                    name="authUsername"
                     type="text"
                     class="input input-sm font-mono"
                     class:input-error={$connectionErrors.authUsername}
                     autocomplete="username"
-                    bind:value={authUsername}
+                    bind:value={$connectionForm.authUsername}
                   />
                   {#if $connectionErrors.authUsername}
                     <p class="text-error text-xs">{$connectionErrors.authUsername}</p>
@@ -591,11 +561,12 @@
                   </label>
                   <input
                     id="{uid}-auth-password"
+                    name="authPassword"
                     type="password"
                     class="input input-sm font-mono"
                     class:input-error={$connectionErrors.authPassword}
                     autocomplete="current-password"
-                    bind:value={authPassword}
+                    bind:value={$connectionForm.authPassword}
                   />
                   {#if $connectionErrors.authPassword}
                     <p class="text-error text-xs">{$connectionErrors.authPassword}</p>

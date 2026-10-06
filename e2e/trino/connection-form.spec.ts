@@ -32,7 +32,12 @@ function interceptSaveSuccess(page: import('@playwright/test').Page) {
         valid: true,
         posted: true,
         errors: {},
-        data: { connectionUrl: 'http://localhost:8080', authType: 'none' },
+        data: {
+          connectionUrl: 'http://localhost:8080',
+          authType: 'none',
+          authUsername: '',
+          authPassword: ''
+        },
         message: { type: 'success' }
       };
       await route.fulfill({
@@ -90,7 +95,7 @@ test.describe('Connection form (env-configured)', () => {
     await page.goto('/trino');
     await waitForHydration(page);
 
-    await expect(page.getByText('Connection', { exact: true })).not.toBeVisible();
+    await expect(page.getByText('Edit connection', { exact: true })).not.toBeVisible();
     await expect(page.locator('input[type="url"]')).not.toBeVisible();
   });
 });
@@ -117,25 +122,27 @@ test.describe('Connection form (manual mode)', () => {
     await page.goto('/trino');
     await waitForHydration(page);
 
-    await expect(page.getByText('Connection', { exact: true })).toBeVisible();
+    await expect(page.getByText('Edit connection', { exact: true })).toBeVisible();
   });
 
-  test('expanding the form reveals URL input', async ({ page }) => {
+  test('form is expanded initially when there is no connection', async ({ page }) => {
     await page.goto('/trino');
     await waitForHydration(page);
 
-    // Click the collapse toggle to open the form.
-    await page.getByLabel('Connection').check();
-
+    await expect(page.getByLabel('Edit connection')).toBeChecked();
     await expect(page.getByLabel('URL')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Save' })).toBeVisible();
+
+    // The collapse toggle still hides the form.
+    await page.getByLabel('Edit connection').uncheck();
+    await expect(page.getByLabel('URL')).not.toBeVisible();
   });
 
   test('auth type toggle shows credential fields for basic auth', async ({ page }) => {
     await page.goto('/trino');
     await waitForHydration(page);
 
-    await page.getByLabel('Connection').check();
+    await page.getByLabel('Edit connection').check();
 
     // Initially no credential fields (auth type defaults to "none").
     await expect(page.getByLabel('Username')).not.toBeVisible();
@@ -152,7 +159,7 @@ test.describe('Connection form (manual mode)', () => {
     await page.goto('/trino');
     await waitForHydration(page);
 
-    await page.getByLabel('Connection').check();
+    await page.getByLabel('Edit connection').check();
 
     // Switch to basic, then back to no auth.
     await page.getByRole('radio', { name: 'Basic' }).click();
@@ -167,7 +174,7 @@ test.describe('Connection form (manual mode)', () => {
     await page.goto('/trino');
     await waitForHydration(page);
 
-    await page.getByLabel('Connection').check();
+    await page.getByLabel('Edit connection').check();
 
     // Submit with empty URL.
     await page.getByRole('button', { name: 'Save' }).click();
@@ -176,11 +183,25 @@ test.describe('Connection form (manual mode)', () => {
     await expect(page.locator('.text-error')).toBeVisible();
   });
 
+  test('invalid URL shows a translated validation message', async ({ page }) => {
+    await page.goto('/trino');
+    await waitForHydration(page);
+
+    await page.getByLabel('Edit connection').check();
+
+    await page.getByLabel('URL').fill('not a url');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(
+      page.getByText('Enter a valid URL, e.g. https://trino.example.com:8443.')
+    ).toBeVisible();
+  });
+
   test('basic auth requires username and password', async ({ page }) => {
     await page.goto('/trino');
     await waitForHydration(page);
 
-    await page.getByLabel('Connection').check();
+    await page.getByLabel('Edit connection').check();
 
     // Fill URL but leave credentials empty with basic auth selected.
     await page.getByLabel('URL').fill('http://localhost:8080');
@@ -197,7 +218,7 @@ test.describe('Connection form (manual mode)', () => {
     await page.goto('/trino');
     await waitForHydration(page);
 
-    await page.getByLabel('Connection').check();
+    await page.getByLabel('Edit connection').check();
 
     const testUrl = 'http://localhost:8080';
     await page.getByLabel('URL').fill(testUrl);
@@ -217,7 +238,7 @@ test.describe('Connection form (manual mode)', () => {
     await page.goto('/trino');
     await waitForHydration(page);
 
-    await page.getByLabel('Connection').check();
+    await page.getByLabel('Edit connection').check();
 
     // The URL field should be pre-filled from localStorage.
     await expect(page.getByLabel('URL')).toHaveValue('http://localhost:8080');
@@ -236,6 +257,41 @@ test.describe('Connection form (manual mode)', () => {
     await expect(page.getByText('localhost:8080')).toBeVisible();
   });
 
+  test('failed reconnect of a stored connection opens the form with the error', async ({
+    page
+  }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('trino_url', 'http://localhost:8080');
+      localStorage.setItem('trino_auth_type', 'none');
+    });
+
+    // The server is env-configured, so the automatic reconnect is rejected.
+    await page.goto('/trino');
+    await waitForHydration(page);
+
+    await expect(
+      page.getByText('The connection is managed via environment variables.')
+    ).toBeVisible();
+    await expect(page.getByLabel('URL')).toHaveValue('http://localhost:8080');
+  });
+
+  test('network error during reconnect opens the form with the error', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('trino_url', 'http://localhost:8080');
+      localStorage.setItem('trino_auth_type', 'none');
+    });
+    await page.route(
+      (url) => url.pathname === '/trino' && url.search === '?/save',
+      (route) => route.abort()
+    );
+
+    await page.goto('/trino');
+    await waitForHydration(page);
+
+    await expect(page.getByText('Could not save the connection. Please try again.')).toBeVisible();
+    await expect(page.getByLabel('URL')).toHaveValue('http://localhost:8080');
+  });
+
   test('saving a connection clears previous query results', async ({ page }) => {
     await setTabSql(page, 'SELECT id, name FROM users');
     interceptSaveSuccess(page);
@@ -249,7 +305,7 @@ test.describe('Connection form (manual mode)', () => {
     await waitForQueryComplete(page);
     await expect(page.getByRole('table', { name: 'Query results' })).toBeVisible();
 
-    await page.getByLabel('Connection').check();
+    await page.getByLabel('Edit connection').check();
     await page.getByLabel('URL').fill('http://localhost:8080');
     await page.getByRole('button', { name: 'Save' }).click();
 
