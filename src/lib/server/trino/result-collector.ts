@@ -73,7 +73,13 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
       query.rows.length > MAX_CLIENT_ROWS ||
       (query.rows.length === MAX_CLIENT_ROWS && result.nextUri)
     ) {
-      query.error = `ROW_LIMIT:${MAX_CLIENT_ROWS}`;
+      // The last page usually overshoots — keep exactly MAX_CLIENT_ROWS.
+      query.rows.length = MAX_CLIENT_ROWS;
+      query.rowLimitReached = true;
+      log.debug(
+        { trino_query_id: query.trinoQueryId, row_count: query.rows.length },
+        'row limit reached, cancelling query'
+      );
       try {
         if (result.nextUri) {
           await query.client.cancelViaUri(result.nextUri, query.trinoUser);

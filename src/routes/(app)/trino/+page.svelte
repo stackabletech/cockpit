@@ -224,6 +224,7 @@
   });
 
   const stateLabel = $derived.by(() => {
+    if (runner.state === 'FINISHED' && runner.rowLimitReached) return m.trino_state_row_limit();
     const stateMap: Record<string, () => string> = {
       SUBMITTING: m.trino_state_submitting,
       QUEUED: m.trino_state_queued,
@@ -238,6 +239,7 @@
   });
 
   const stateBadgeClass = $derived.by(() => {
+    if (runner.state === 'FINISHED' && runner.rowLimitReached) return 'badge-warning';
     switch (runner.state) {
       case 'QUEUED':
       case 'PLANNING':
@@ -257,17 +259,21 @@
     }
   });
 
-  const elapsedLabel = $derived.by(() => {
+  const progressInfo = $derived.by(() => {
     const { elapsedTimeMillis } = runner.progress;
+    if (runner.rowCount === 0 && elapsedTimeMillis === 0) return null;
     const locale = getLocale();
-    return elapsedTimeMillis < 1000
-      ? m.trino_elapsed_ms({ value: elapsedTimeMillis.toLocaleString(locale) })
-      : m.trino_elapsed_s({
-          value: (elapsedTimeMillis / 1000).toLocaleString(locale, {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1
-          })
-        });
+    const rows = runner.rowCount.toLocaleString(locale);
+    const elapsed =
+      elapsedTimeMillis < 1000
+        ? m.trino_elapsed_ms({ value: elapsedTimeMillis.toLocaleString(locale) })
+        : m.trino_elapsed_s({
+            value: (elapsedTimeMillis / 1000).toLocaleString(locale, {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1
+            })
+          });
+    return m.trino_progress_info({ rows, elapsed });
   });
 
   const charLimitReached = $derived(sql.length >= MAX_SQL_LENGTH);
@@ -872,13 +878,8 @@
               max="100"
             ></progress>
           {/if}
-          {#if runner.progress.processedRows > 0 || runner.progress.elapsedTimeMillis > 0}
-            <span class="text-base-content/60 text-xs">
-              {m.trino_progress_info({
-                rows: runner.progress.processedRows.toLocaleString(),
-                elapsed: elapsedLabel
-              })}
-            </span>
+          {#if progressInfo}
+            <span class="text-base-content/60 text-xs">{progressInfo}</span>
           {/if}
           {#if runner.currentTrinoQueryUrl}
             <a

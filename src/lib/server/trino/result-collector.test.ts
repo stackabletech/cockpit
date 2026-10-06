@@ -26,6 +26,7 @@ function makeQuery(client: Partial<TrinoQuery['client']>): TrinoQuery {
     progress: INITIAL_PROGRESS,
     columns: [],
     rows: [],
+    rowLimitReached: false,
     error: null,
     sql: 'SELECT * FROM big',
     startedAt: 0,
@@ -57,9 +58,10 @@ describe('collectResults row limit', () => {
 
     expect(cancelViaUri).toHaveBeenCalledWith('http://trino/next-3', 'alice');
     expect(cancel).not.toHaveBeenCalled();
-    expect(query.error).toBe(`ROW_LIMIT:${MAX_CLIENT_ROWS}`);
+    expect(query.rowLimitReached).toBe(true);
+    expect(query.error).toBeNull();
     expect(query.state).toBe('FINISHED');
-    expect(query.rows.length).toBeGreaterThanOrEqual(MAX_CLIENT_ROWS);
+    expect(query.rows.length).toBe(MAX_CLIENT_ROWS);
   });
 
   it('falls back to cancel(queryId) when the crossing page has no nextUri', async () => {
@@ -77,7 +79,9 @@ describe('collectResults row limit', () => {
 
     expect(cancelViaUri).not.toHaveBeenCalled();
     expect(cancel).toHaveBeenCalledWith('q1', 'alice');
-    expect(query.error).toBe(`ROW_LIMIT:${MAX_CLIENT_ROWS}`);
+    expect(query.rows.length).toBe(MAX_CLIENT_ROWS);
+    expect(query.rowLimitReached).toBe(true);
+    expect(query.error).toBeNull();
     expect(query.state).toBe('FINISHED');
   });
 
@@ -96,7 +100,7 @@ describe('collectResults row limit', () => {
 
     expect(cancelViaUri).not.toHaveBeenCalled();
     expect(cancel).not.toHaveBeenCalled();
-    expect(query.error).toBeNull();
+    expect(query.rowLimitReached).toBe(false);
     expect(query.rows.length).toBe(MAX_CLIENT_ROWS);
     expect(query.state).toBe('FINISHED');
   });
@@ -114,6 +118,6 @@ describe('collectResults row limit', () => {
     await collectResults(query);
 
     expect(cancelViaUri).toHaveBeenCalledWith('http://trino/next-2', 'alice');
-    expect(query.error).toBe(`ROW_LIMIT:${MAX_CLIENT_ROWS}`);
+    expect(query.rowLimitReached).toBe(true);
   });
 });

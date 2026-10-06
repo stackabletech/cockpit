@@ -16,6 +16,8 @@ export type { ScriptProgress } from '$lib/types/query.js';
 export interface QueryRunner {
   readonly state: QueryState;
   readonly progress: QueryProgress;
+  readonly rowCount: number;
+  readonly rowLimitReached: boolean;
   readonly results: QuerySnapshot[];
   readonly scriptProgress: ScriptProgress | null;
   readonly currentTrinoQueryUrl: string | null;
@@ -39,6 +41,8 @@ function createQueryRunner(tabId: string): QueryRunner {
   // Reactive state exposed to the UI for the live progress indicator.
   let state = $state<QueryState>('IDLE');
   let progress = $state<QueryProgress>(INITIAL_PROGRESS);
+  let rowCount = $state(0);
+  let rowLimitReached = $state(false);
 
   // All query results. Uses $state.raw to avoid proxying large row arrays.
   let results = $state.raw<QuerySnapshot[]>([]);
@@ -53,11 +57,15 @@ function createQueryRunner(tabId: string): QueryRunner {
   function applySnapshot(snapshot: QuerySnapshot) {
     state = snapshot.state;
     progress = snapshot.progress;
+    rowCount = snapshot.rowCount;
+    rowLimitReached = snapshot.rowLimitReached;
   }
 
   function reset() {
     state = 'IDLE';
     progress = INITIAL_PROGRESS;
+    rowCount = 0;
+    rowLimitReached = false;
     results = [];
     scriptProgress = null;
     currentTrinoQueryUrl = null;
@@ -273,6 +281,12 @@ function createQueryRunner(tabId: string): QueryRunner {
     },
     get progress() {
       return progress;
+    },
+    get rowCount() {
+      return rowCount;
+    },
+    get rowLimitReached() {
+      return rowLimitReached;
     },
     get results() {
       return results;

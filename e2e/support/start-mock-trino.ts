@@ -78,6 +78,17 @@ const routes: [string, object][] = [
     }
   ],
   [
+    // First page is empty; the follow-up page (served by GET below) exceeds MAX_CLIENT_ROWS.
+    'FROM huge_table',
+    {
+      id: 'q-huge',
+      columns: [{ name: 'id', type: 'integer' }],
+      data: [],
+      nextUri: `http://localhost:${PORT}/v1/statement/executing/q-huge/1`,
+      stats: { state: 'RUNNING' }
+    }
+  ],
+  [
     'FROM nullable_table',
     {
       id: 'q-null',
@@ -106,6 +117,19 @@ http
   .createServer((req, res) => {
     if (req.method === 'DELETE') {
       res.writeHead(204).end();
+      return;
+    }
+    if (req.method === 'GET' && req.url?.startsWith('/v1/statement/executing/q-huge/')) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          id: 'q-huge',
+          columns: [{ name: 'id', type: 'integer' }],
+          data: Array.from({ length: 10_001 }, (_, i) => [i + 1]),
+          nextUri: `http://localhost:${PORT}/v1/statement/executing/q-huge/2`,
+          stats: { state: 'RUNNING' }
+        })
+      );
       return;
     }
     let body = '';
