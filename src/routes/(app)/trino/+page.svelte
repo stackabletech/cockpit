@@ -748,8 +748,21 @@
                 onclick={handleRun}
               >
                 {#if isActive}
-                  <span class="loading loading-xs loading-spinner"></span>
-                  {m.trino_running()}
+                  <span
+                    class="
+                      grid
+                      *:[grid-area:1/1]
+                    "
+                  >
+                    <!-- Invisible sizer keeps the idle state's two-line height -->
+                    <span class="invisible" aria-hidden="true">
+                      {@render runOption(m.trino_running(), runShortcutLabel)}
+                    </span>
+                    <span class="flex items-center gap-1 self-center text-xs font-semibold">
+                      <span class="loading loading-xs loading-spinner"></span>
+                      {m.trino_running()}
+                    </span>
+                  </span>
                 {:else}
                   <span
                     class="
