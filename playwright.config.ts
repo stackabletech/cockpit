@@ -40,6 +40,7 @@ export default defineConfig({
       url: baseURL,
       timeout: 300_000,
       stdout: 'pipe',
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 30_000 },
       reuseExistingServer: false
     }
   ],
