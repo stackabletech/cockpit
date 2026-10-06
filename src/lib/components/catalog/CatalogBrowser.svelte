@@ -106,8 +106,7 @@
     });
   }
 
-  function findNode(path: string): TreeNode | undefined {
-    const parts = path.split('.');
+  function findNode(parts: string[]): TreeNode | undefined {
     let nodes = catalogs;
     let node: TreeNode | undefined;
     for (const part of parts) {
@@ -126,10 +125,9 @@
     }
   }
 
-  async function handleLoadChildren(path: string, node: TreeNode) {
+  async function handleLoadChildren(parts: string[], node: TreeNode) {
     if (node.children) return;
 
-    const parts = path.split('.');
     node.loading = true;
     catalogs = [...catalogs]; // Trigger reactivity.
 
@@ -150,13 +148,13 @@
       }
 
       // Find the node again (reference may have changed due to reactivity).
-      const found = findNode(path);
+      const found = findNode(parts);
       if (found) {
         found.children = children;
         found.loading = false;
       }
     } catch {
-      const found = findNode(path);
+      const found = findNode(parts);
       if (found) {
         found.children = [];
         found.loading = false;

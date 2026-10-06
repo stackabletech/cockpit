@@ -111,6 +111,45 @@ test.describe('Catalog browser', () => {
     await expect(editor).toContainText('tpch.sf1.customer');
   });
 
+  test('schema names with a hyphen load tables and insert quoted', async ({ page }) => {
+    await page.route(
+      (url) =>
+        url.pathname.endsWith('/api/trino/catalog') && url.searchParams.get('level') === 'schemas',
+      async (route) => {
+        await route.fulfill({ json: [['my-schema']] });
+      }
+    );
+
+    await ensureCatalogBrowserOpen(page);
+    const browser = page.getByRole('navigation', { name: 'Catalog browser' });
+
+    await browser.getByRole('button', { name: 'tpch' }).click();
+    const tablesResponse = page.waitForResponse(
+      (res) =>
+        res.url().includes('/api/trino/catalog') &&
+        new URL(res.url()).searchParams.get('schema') === 'my-schema'
+    );
+    await browser.getByRole('button', { name: 'my-schema', exact: true }).click();
+    expect((await tablesResponse).status()).toBe(200);
+    await expect(browser.getByText('customer', { exact: true })).toBeVisible();
+
+    await page.locator('[data-ready]').waitFor();
+    await browser
+      .getByRole('button', { name: 'Insert table name: tpch.my-schema.customer', exact: true })
+      .click();
+
+    await expect(page.locator('.monaco-editor')).toContainText('tpch."my-schema".customer');
+  });
+
+  test('completion metadata accepts names that need quoting', async ({ page }) => {
+    const res = await page.request.get(
+      '/api/trino/completion/metadata?level=tables&catalog=tpch&schema=my-schema'
+    );
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body).toContainEqual({ name: 'customer', kind: 'table' });
+  });
+
   test('schema context selectors are populated', async ({ page }) => {
     await ensureCatalogBrowserOpen(page);
 

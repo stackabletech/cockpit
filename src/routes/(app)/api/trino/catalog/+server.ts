@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { resolveTrinoClient, trinoMetadataQuery } from '$lib/server/trino/client.js';
 import { getUserId } from '$lib/server/auth-utils.js';
+import { quoteIdentifier, quoteStringLiteral } from '$lib/editor/identifiers.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -27,23 +28,23 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       break;
     case 'schemas':
       if (!catalog) error(400, 'catalog is required for schemas');
-      sql = `SHOW SCHEMAS FROM "${catalog}"`;
+      sql = `SHOW SCHEMAS FROM ${quoteIdentifier(catalog)}`;
       break;
     case 'tables':
       if (!catalog || !schema) error(400, 'catalog and schema are required for tables');
       sql = `
         SELECT t.table_name,
                CASE WHEN mv.name IS NOT NULL THEN 'MATERIALIZED VIEW' ELSE t.table_type END AS table_type
-        FROM "${catalog}".information_schema.tables t
+        FROM ${quoteIdentifier(catalog)}.information_schema.tables t
         LEFT JOIN system.metadata.materialized_views mv
-          ON mv.catalog_name = '${catalog}' AND mv.schema_name = t.table_schema AND mv.name = t.table_name
-        WHERE t.table_schema = '${schema}'
+          ON mv.catalog_name = ${quoteStringLiteral(catalog)} AND mv.schema_name = t.table_schema AND mv.name = t.table_name
+        WHERE t.table_schema = ${quoteStringLiteral(schema)}
         ORDER BY t.table_name`;
       break;
     case 'columns':
       if (!catalog || !schema || !table)
         error(400, 'catalog, schema, and table are required for columns');
-      sql = `DESCRIBE "${catalog}"."${schema}"."${table}"`;
+      sql = `DESCRIBE ${[catalog, schema, table].map(quoteIdentifier).join('.')}`;
       break;
     default:
       error(400, 'level must be one of: catalogs, schemas, tables, columns');
