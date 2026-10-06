@@ -26,8 +26,7 @@
       >
         {m.dashboard_services()}
       </p>
-      <p class="text-base-content mt-2 text-3xl font-bold">{props.data.serviceCount}</p>
-      <p class="text-base-content/60 mt-1 text-sm">{m.dashboard_services_empty()}</p>
+      <p class="text-base-content mt-2 text-3xl font-bold">{props.data.services.length}</p>
     </div>
 
     <div class="border-base-300 bg-base-100 rounded-xl border p-5">
