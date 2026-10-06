@@ -735,7 +735,10 @@
             </span>
           {/snippet}
 
-          <div class="dropdown dropdown-end">
+          <!-- Only the chevron sits inside the focus-driven dropdown, so focusing the run
+               button doesn't open the menu. The wrapper is the positioning box so the menu
+               spans both buttons. -->
+          <div class="relative">
             <div class="join">
               <button
                 type="button"
@@ -768,54 +771,56 @@
                   </span>
                 {/if}
               </button>
-              <button
-                type="button"
-                class="
-                  btn join-item border-l-primary-content/20 btn-primary
-                  self-stretch border-l px-2
-                "
-                class:pointer-events-none={isActive}
-                aria-haspopup="true"
-                aria-label={m.trino_run_mode_select()}
-              >
-                <svg class="size-3" aria-hidden="true" viewBox="0 0 20 20" fill="currentColor">
-                  <path
-                    fill-rule="evenodd"
-                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div
-              class="
-                dropdown-content rounded-box bg-primary text-primary-content z-10 mt-1 flex
-                w-full flex-col gap-1 p-1.5 shadow-lg
-              "
-            >
-              <button
-                type="button"
-                class="
-                  rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
-                  text-left
-                  {runMode === 'cursor' ? 'bg-primary-content/15' : ''}"
-                onclick={() => selectRunMode('cursor')}
-              >
-                {@render runOption(m.trino_run_at_cursor(), 'Ctrl+↵')}
-              </button>
-              <button
-                type="button"
-                class="
-                  rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
-                  text-left
-                  {runMode === 'all' ? 'bg-primary-content/15' : ''}"
-                onclick={() => selectRunMode('all')}
-              >
-                {@render runOption(
-                  hasSelection ? m.trino_run_selected() : m.trino_run_all(),
-                  'Ctrl+Shift+↵'
-                )}
-              </button>
+              <div class="dropdown dropdown-end static -ms-px flex">
+                <button
+                  type="button"
+                  class="
+                    btn join-item border-l-primary-content/20 btn-primary
+                    h-full border-l px-2
+                  "
+                  class:pointer-events-none={isActive}
+                  aria-haspopup="true"
+                  aria-label={m.trino_run_mode_select()}
+                >
+                  <svg class="size-3" aria-hidden="true" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fill-rule="evenodd"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                </button>
+                <div
+                  class="
+                    dropdown-content rounded-box bg-primary text-primary-content top-full z-10 mt-1
+                    flex w-full flex-col gap-1 p-1.5 shadow-lg
+                  "
+                >
+                  <button
+                    type="button"
+                    class="
+                      rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
+                      text-left
+                      {runMode === 'cursor' ? 'bg-primary-content/15' : ''}"
+                    onclick={() => selectRunMode('cursor')}
+                  >
+                    {@render runOption(m.trino_run_at_cursor(), 'Ctrl+↵')}
+                  </button>
+                  <button
+                    type="button"
+                    class="
+                      rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
+                      text-left
+                      {runMode === 'all' ? 'bg-primary-content/15' : ''}"
+                    onclick={() => selectRunMode('all')}
+                  >
+                    {@render runOption(
+                      hasSelection ? m.trino_run_selected() : m.trino_run_all(),
+                      'Ctrl+Shift+↵'
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
