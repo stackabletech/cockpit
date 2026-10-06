@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { waitForHydration } from '../support/helpers';
+import { stringify } from 'devalue';
+import { waitForHydration, waitForQueryComplete, setTabSql } from '../support/helpers';
 
 /**
  * Tests for the Trino connection form.
@@ -9,6 +10,43 @@ import { waitForHydration } from '../support/helpers';
  * trinoConfigured to false, patching both the SSR HTML (devalue.uneval format)
  * and the client-side __data.json (devalue.stringify format).
  */
+
+/**
+ * Fake a successful `?/save` action response.
+ *
+ * The test server is env-configured, so the real action rejects every save.
+ * This only exercises the client-side success path.
+ */
+function interceptSaveSuccess(page: import('@playwright/test').Page) {
+  page.route(
+    (url) => url.pathname === '/trino' && url.search === '?/save',
+    async (route, request) => {
+      // Echo the client's form id back, otherwise superforms ignores the response.
+      // use:enhance posts urlencoded without file inputs, multipart otherwise.
+      const body = request.postData() ?? '';
+      const formId =
+        new URLSearchParams(body).get('__superform_id') ??
+        /name="__superform_id"\r\n\r\n([^\r]*)/.exec(body)?.[1];
+      const form = {
+        id: formId,
+        valid: true,
+        posted: true,
+        errors: {},
+        data: {
+          connectionUrl: 'http://localhost:8080',
+          authType: 'none',
+          authUsername: '',
+          authPassword: ''
+        },
+        message: { type: 'success' }
+      };
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ type: 'success', status: 200, data: stringify({ form }) })
+      });
+    }
+  );
+}
 
 /**
  * Intercept SvelteKit responses to override the trinoConfigured boolean.
@@ -252,5 +290,27 @@ test.describe('Connection form (manual mode)', () => {
 
     await expect(page.getByText('Could not save the connection. Please try again.')).toBeVisible();
     await expect(page.getByLabel('URL')).toHaveValue('http://localhost:8080');
+  });
+
+  test('saving a connection clears previous query results', async ({ page }) => {
+    await setTabSql(page, 'SELECT id, name FROM users');
+    interceptSaveSuccess(page);
+
+    await page.goto('/trino');
+    await waitForHydration(page);
+    // Focus the editor so it is loaded and the cursor is set for "Run at cursor".
+    await page.locator('.monaco-editor').first().click();
+
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    await waitForQueryComplete(page);
+    await expect(page.getByRole('table', { name: 'Query results' })).toBeVisible();
+
+    await page.getByLabel('Edit connection').check();
+    await page.getByLabel('URL').fill('http://localhost:8080');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByText('Connection saved')).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Query results' })).not.toBeVisible();
+    await expect(page.getByText('No results')).toBeVisible();
   });
 });

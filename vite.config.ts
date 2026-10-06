@@ -19,8 +19,17 @@ export default defineConfig({
   test: {
     coverage: {
       provider: 'v8',
-      reporter: ['json', 'json-summary'],
-      reportsDirectory: './coverage'
+      reporter: ['text', 'html', 'json', 'json-summary'],
+      reportsDirectory: './coverage',
+      // Without `include`, files that no test ever imports are silently omitted from the
+      // report instead of showing as 0% — set it so untested modules are actually visible.
+      include: ['src/**/*.{ts,svelte}'],
+      exclude: [
+        'src/**/*.d.ts',
+        'src/lib/paraglide/**',
+        'src/lib/editor/generated/**',
+        'src/lib/server/migrations/**'
+      ]
     },
     expect: { requireAssertions: true },
     projects: [
