@@ -80,4 +80,40 @@ describe('collectResults row limit', () => {
     expect(query.error).toBe(`ROW_LIMIT:${MAX_CLIENT_ROWS}`);
     expect(query.state).toBe('FINISHED');
   });
+
+  it('does not flag a result of exactly MAX_CLIENT_ROWS without further pages', async () => {
+    const cancelViaUri = vi.fn(async () => {});
+    const cancel = vi.fn(async () => {});
+    const poll = vi.fn(async () => ({
+      id: 'q1',
+      data: Array.from({ length: MAX_CLIENT_ROWS }, () => [1]),
+      nextUri: undefined,
+      stats: { state: 'FINISHED' }
+    }));
+
+    const query = makeQuery({ poll, cancelViaUri, cancel });
+    await collectResults(query);
+
+    expect(cancelViaUri).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
+    expect(query.error).toBeNull();
+    expect(query.rows.length).toBe(MAX_CLIENT_ROWS);
+    expect(query.state).toBe('FINISHED');
+  });
+
+  it('flags exactly MAX_CLIENT_ROWS when more pages follow', async () => {
+    const cancelViaUri = vi.fn(async () => {});
+    const poll = vi.fn(async () => ({
+      id: 'q1',
+      data: Array.from({ length: MAX_CLIENT_ROWS }, () => [1]),
+      nextUri: 'http://trino/next-2',
+      stats: { state: 'RUNNING' }
+    }));
+
+    const query = makeQuery({ poll, cancelViaUri, cancel: vi.fn(async () => {}) });
+    await collectResults(query);
+
+    expect(cancelViaUri).toHaveBeenCalledWith('http://trino/next-2', 'alice');
+    expect(query.error).toBe(`ROW_LIMIT:${MAX_CLIENT_ROWS}`);
+  });
 });

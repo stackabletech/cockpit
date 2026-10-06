@@ -67,8 +67,12 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
       return;
     }
 
-    // Row limit check.
-    if (query.rows.length >= MAX_CLIENT_ROWS) {
+    // Row limit check. Exactly MAX_CLIENT_ROWS only counts as truncated if more pages follow,
+    // otherwise e.g. `LIMIT 10000` would be flagged.
+    if (
+      query.rows.length > MAX_CLIENT_ROWS ||
+      (query.rows.length === MAX_CLIENT_ROWS && result.nextUri)
+    ) {
       query.error = `ROW_LIMIT:${MAX_CLIENT_ROWS}`;
       try {
         if (result.nextUri) {
