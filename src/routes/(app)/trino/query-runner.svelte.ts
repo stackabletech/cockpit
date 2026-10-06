@@ -310,3 +310,10 @@ export function destroyQueryRunner(tabId: string): void {
     runners.delete(tabId);
   }
 }
+
+/** Clear client-side state of all runners, e.g. after the connection changed. */
+export function resetAllQueryRunners(): void {
+  for (const runner of runners.values()) {
+    runner.reset();
+  }
+}
