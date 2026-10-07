@@ -1,11 +1,7 @@
 import type { RequestHandler } from './$types';
 import { downloadObject, getObjectMetadata } from '$lib/server/storage/service.js';
 import { requireBucketKey } from '../params.js';
-
-/** Derive the bare filename from a (possibly path-prefixed) object key. */
-function filenameFromKey(key: string): string {
-  return key.split('/').filter(Boolean).pop() ?? key;
-}
+import { keyToName } from '$lib/storage/utils.js';
 
 /**
  * GET /storage/api/download?bucket=<bucket>&key=<object-key>
@@ -25,7 +21,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
   const download = await downloadObject(locals.storageConfig!, bucket, key);
 
-  const filename = filenameFromKey(key);
+  const filename = keyToName(key);
   // RFC 5987 encoding for non-ASCII filenames in Content-Disposition
   const encodedFilename = encodeURIComponent(filename);
   const contentDisposition = `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`;

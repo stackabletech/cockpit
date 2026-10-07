@@ -7,14 +7,13 @@
   import IconStorage from 'virtual:icons/material-symbols/storage';
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import * as m from '$lib/paraglide/messages.js';
-  import { formatFileSize } from '$lib/storage/utils.js';
+  import { formatFileSize, keyToName } from '$lib/storage/utils.js';
   import { getStorageState } from '$lib/storage/context.js';
   import {
-    fileName,
     fileHref,
     fileLocation,
     locationHref,
-    locationName,
+    locationLabel,
     locationPath
   } from '$lib/storage/display-helpers.js';
   import PreviewModal from '$lib/components/storage/modals/PreviewModal.svelte';
@@ -63,7 +62,7 @@
           <td>
             <div class="flex items-center gap-2">
               <IconDescriptionOutline class="text-primary size-4 shrink-0" aria-hidden="true" />
-              <span class="font-medium">{fileName(file.key)}</span>
+              <span class="font-medium">{keyToName(file.key)}</span>
             </div>
           </td>
           <td>
@@ -88,7 +87,7 @@
               <div class="tooltip tooltip-left" data-tip={m.storage_recent_preview_file()}>
                 <button
                   class="btn btn-ghost btn-xs"
-                  aria-label="{m.storage_recent_preview_file()} — {fileName(file.key)}"
+                  aria-label="{m.storage_recent_preview_file()} — {keyToName(file.key)}"
                   onclick={() => openPreview(file.bucket, file.key)}
                 >
                   <IconPreviewOutline class="size-3.5" aria-hidden="true" />
@@ -100,7 +99,7 @@
                   href={fileHref(file)}
                   data-sveltekit-preload-data="off"
                   class="btn btn-ghost btn-xs"
-                  aria-label="{m.storage_recent_open_folder()} — {fileName(file.key)}"
+                  aria-label="{m.storage_recent_open_folder()} — {keyToName(file.key)}"
                 >
                   <!-- eslint-enable svelte/no-navigation-without-resolve -->
                   <IconFolderOpenOutline class="size-3.5" aria-hidden="true" />
@@ -138,7 +137,7 @@
               <a
                 href={locationHref(loc)}
                 data-sveltekit-preload-data="off"
-                class="hover:text-primary font-medium">{locationName(loc)}</a
+                class="hover:text-primary font-medium">{locationLabel(loc)}</a
               >
               <!-- eslint-enable svelte/no-navigation-without-resolve -->
             </div>
@@ -164,7 +163,7 @@
                 href={locationHref(loc)}
                 data-sveltekit-preload-data="off"
                 class="btn btn-ghost btn-xs"
-                aria-label="{m.storage_recent_go_to_location()} — {locationName(loc)}"
+                aria-label="{m.storage_recent_go_to_location()} — {locationLabel(loc)}"
               >
                 <!-- eslint-enable svelte/no-navigation-without-resolve -->
                 <IconArrowForward class="size-3.5" aria-hidden="true" />

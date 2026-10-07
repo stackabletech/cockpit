@@ -12,6 +12,7 @@
     removeConnectionById,
     type SavedConnection
   } from '$lib/storage/connection-storage.js';
+  import { connectionLabel } from '$lib/storage/display-helpers.js';
   import DeleteConnectionModal from '$lib/components/storage/DeleteConnectionModal.svelte';
 
   let connections = $state<SavedConnection[]>([]);
@@ -44,11 +45,6 @@
     connections = loadAllConnectionsLocally();
     loaded = true;
   });
-
-  function connectionLabel(conn: SavedConnection): string {
-    if (conn.name) return conn.name;
-    return conn.port ? `${conn.host}:${conn.port}` : conn.host;
-  }
 
   function openContextMenu(e: MouseEvent, conn: SavedConnection) {
     e.preventDefault();

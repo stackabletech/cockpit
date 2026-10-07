@@ -1,5 +1,7 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
+  import IconClose from 'virtual:icons/material-symbols/close';
+  import IconAdd from 'virtual:icons/material-symbols/add';
 
   interface TabItem {
     id: string;
@@ -177,16 +179,7 @@
             aria-label={m.trino_tab_close({ name: item.label })}
             onclick={() => onClose?.(item.id)}
           >
-            <svg
-              class="h-3 w-3"
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
-            >
+            <IconClose class="h-3 w-3" aria-hidden="true" />
           </button>
         {/if}
       </div>
@@ -203,16 +196,7 @@
         requestAnimationFrame(() => focusTab(activeId));
       }}
     >
-      <svg
-        class="h-4 w-4"
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg
-      >
+      <IconAdd class="h-4 w-4" aria-hidden="true" />
     </button>
   {/if}
 </div>
