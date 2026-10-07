@@ -206,11 +206,13 @@
             {m.trino_export_csv()}
           </button>
           <label
+            for="{uid}-include-headers"
             class="
               flex cursor-pointer items-center gap-1 text-xs whitespace-nowrap
             "
           >
             <input
+              id="{uid}-include-headers"
               type="checkbox"
               class="checkbox checkbox-xs checkbox-primary size-3.5"
               checked={includeHeaders}
