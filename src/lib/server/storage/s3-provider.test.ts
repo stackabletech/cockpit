@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { S3ServiceException, PutObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
 
-vi.mock('$lib/server/logging', () => ({
-  logger: { child: () => ({ trace: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }) }
-}));
+vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 // Hoist so the factory closure can reference them
 const { mockUploadDone, MockUpload } = vi.hoisted(() => {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { goto, replaceState } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import BucketList from '$lib/components/storage/sidebar/BucketList.svelte';
@@ -39,10 +39,19 @@
     persistEnabled: storageRestoreTabsEnabled,
     connectionId: storage.connectionId,
     navigateToLocation: (connection, bucket, prefix) => {
-      void goto(locationPath(connection, bucket, prefix));
+      void goto(
+        (resolve as (pathname: import('$app/types').Pathname) => string)(
+          locationPath(connection, bucket, prefix) as import('$app/types').Pathname
+        )
+      );
     },
     replaceLocationUrl: (connection, bucket, prefix) => {
-      replaceState(locationPath(connection, bucket, prefix), page.state);
+      void goto(
+        (resolve as (pathname: import('$app/types').Pathname) => string)(
+          locationPath(connection, bucket, prefix) as import('$app/types').Pathname
+        ),
+        { replaceState: true }
+      );
     }
   });
   setTabsState(tabsState);

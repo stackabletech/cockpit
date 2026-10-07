@@ -10,9 +10,8 @@ export type StorageErrorCode =
   | 'server_error'
   | 'no_such_bucket'
   | 'invalid_part'
+  | 'file_too_large'
   | 'unknown';
-
-export type ActionErrorCode = StorageErrorCode;
 
 export class StorageError extends Error {
   constructor(
@@ -21,15 +20,6 @@ export class StorageError extends Error {
   ) {
     super(message);
     this.name = 'StorageError';
-  }
-}
-
-// ── ActionError (backward-compatible alias) ──────────────────────────────────
-
-export class ActionError extends StorageError {
-  constructor(code: string, message: string) {
-    super(code, message);
-    this.name = 'ActionError';
   }
 }
 

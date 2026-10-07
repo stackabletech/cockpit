@@ -48,9 +48,18 @@
   let metaError = $state<string | null>(null);
 
   async function fetchMetadata() {
+    const requestedBucket = bucket;
+    const requestedPrefix = prefix;
+    meta = null;
+    metaError = null;
     try {
-      meta = await storage.api.directoryMetadata({ bucket, prefix });
+      const result = await storage.api.directoryMetadata({
+        bucket: requestedBucket,
+        prefix: requestedPrefix
+      });
+      if (bucket === requestedBucket && prefix === requestedPrefix) meta = result;
     } catch (err) {
+      if (bucket !== requestedBucket || prefix !== requestedPrefix) return;
       if (err instanceof StorageError) {
         metaError = err.message;
       } else {

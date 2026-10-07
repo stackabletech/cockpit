@@ -1,4 +1,6 @@
 <script lang="ts">
+  import * as m from '$lib/paraglide/messages.js';
+
   interface Props {
     text: string;
     contentType: string;
@@ -50,5 +52,5 @@
   <pre
     class="text-base-content/90 min-h-full flex-1 overflow-x-auto p-4 pl-0 font-mono text-xs leading-relaxed whitespace-pre"
     data-language={language}
-    aria-label="File content preview">{formatted}</pre>
+    aria-label={m.storage_preview_text_label()}>{formatted}</pre>
 </div>

@@ -7,9 +7,7 @@ import * as tar from 'tar-stream';
 import { createWriteStream } from 'node:fs';
 import { createGzip } from 'node:zlib';
 
-vi.mock('$lib/server/logging', () => ({
-  logger: { child: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn() }) }
-}));
+vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 import {
   getArchiveFormat,
@@ -115,12 +113,10 @@ describe('getArchiveFormat', () => {
     expect(getArchiveFormat('archive.tar')).toBe('tar');
   });
 
-  it('detects .rar', () => {
-    expect(getArchiveFormat('archive.rar')).toBe('rar');
-  });
-
-  it('detects .7z', () => {
-    expect(getArchiveFormat('archive.7z')).toBe('7z');
+  it('does not support RAR or 7z archives', () => {
+    expect(getArchiveFormat('archive.rar')).toBeNull();
+    expect(getArchiveFormat('ARCHIVE.RAR')).toBeNull();
+    expect(getArchiveFormat('archive.7z')).toBeNull();
   });
 
   it('returns null for non-archive files', () => {
@@ -312,6 +308,14 @@ describe('listArchiveContents', () => {
     });
   });
 
+  it('rejects RAR listing before downloading the archive', async () => {
+    const download = vi.fn<ArchiveDownloadFn>();
+    await expect(
+      listArchiveContents('test-bucket', 'archive.rar', '', download, vi.fn())
+    ).rejects.toThrow('Unsupported archive format: archive.rar');
+    expect(download).not.toHaveBeenCalled();
+  });
+
   describe('Nested archives', () => {
     it('lists contents of a nested zip inside outer zip', async () => {
       const outerPath = makeNestedZip();
@@ -334,6 +338,14 @@ describe('listArchiveContents', () => {
 describe('extractArchiveEntry', () => {
   beforeEach(() => {
     clearArchiveCache();
+  });
+
+  it('rejects RAR extraction before downloading the archive', async () => {
+    const download = vi.fn<ArchiveDownloadFn>();
+    await expect(
+      extractArchiveEntry('test-bucket', 'archive.rar', 'file.txt', download, vi.fn())
+    ).rejects.toThrow('Unsupported archive format: archive.rar');
+    expect(download).not.toHaveBeenCalled();
   });
 
   it('extracts a file from a ZIP', async () => {
@@ -430,6 +442,50 @@ describe('Caching', () => {
     // downloadFn should NOT be called again — result comes from cache
     expect(downloadSpy).toHaveBeenCalledTimes(1);
 
+    clearArchiveCache();
+  });
+
+  it('does not share cached archives between connections', async () => {
+    clearArchiveCache();
+    const archiveStream = (contents: string) => {
+      const zip = new AdmZip();
+      zip.addFile('file.txt', Buffer.from(contents));
+      const data = zip.toBuffer();
+      return new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(data));
+          controller.close();
+        }
+      });
+    };
+    const firstDownload = vi.fn(async () => archiveStream('first connection'));
+    const secondDownload = vi.fn(async () => archiveStream('second connection'));
+
+    const first = await listArchiveContents(
+      'shared-bucket',
+      'archive.zip',
+      '',
+      firstDownload,
+      vi.fn(),
+      undefined,
+      undefined,
+      'connection-a'
+    );
+    const second = await listArchiveContents(
+      'shared-bucket',
+      'archive.zip',
+      '',
+      secondDownload,
+      vi.fn(),
+      undefined,
+      undefined,
+      'connection-b'
+    );
+
+    expect(firstDownload).toHaveBeenCalledOnce();
+    expect(secondDownload).toHaveBeenCalledOnce();
+    expect(first.entries).toHaveLength(1);
+    expect(second.entries).toHaveLength(1);
     clearArchiveCache();
   });
 });

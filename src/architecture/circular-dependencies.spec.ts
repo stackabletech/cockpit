@@ -4,7 +4,7 @@
  * Import cycles cause unpredictable initialisation order, make tree-shaking
  * less effective and are a strong signal of coupled, hard-to-refactor code.
  *
- * Known violations (see TECH_DEBT.md — "Circular imports in Trino layer"):
+ * Known violations:
  *   • src/lib/server/trino/client.ts  ↔  src/lib/server/trino/user-clients.ts
  *   • src/lib/server/trino/queries.ts ↔  src/lib/server/trino/result-collector.ts
  *
@@ -41,10 +41,10 @@ describe('No Circular Dependencies', () => {
     await expect(rule).toPassAsync(defaultOptions);
   });
 
-  it('KNOWN VIOLATION — Trino layer has circular imports (see TECH_DEBT.md)', async () => {
+  it('KNOWN VIOLATION — Trino layer has circular imports', async () => {
     const rule = projectFiles().inPath('src/lib/server/trino/**/*.ts').should().haveNoCycles();
 
-    const violations = await rule.check();
+    const violations = await rule.check(defaultOptions);
     expect(violations.length).toBeGreaterThan(0);
   });
 });

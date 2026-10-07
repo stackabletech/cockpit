@@ -3,7 +3,6 @@
  *
  * Provides a single entry point for all S3 storage operations, abstracting
  * the HTTP transport behind a clean interface. This enables:
- *  - Mocking in tests via `createMemoryStorageApi()`
  *  - Centralised error handling and connection management
  *  - Type-safe method signatures matching the server API contract
  *
@@ -93,6 +92,7 @@ export interface StorageApi {
 
   copy(params: {
     bucket: string;
+    sourceBucket?: string;
     sourceKeys: string[];
     destinationPrefix: string;
     progress?: boolean;
@@ -103,15 +103,15 @@ export interface StorageApi {
 
   move(params: {
     bucket: string;
+    sourceBucket?: string;
     sourceKeys: string[];
     destinationPrefix: string;
+    destinationKey?: string;
     progress?: boolean;
     jobId?: string;
     signal?: AbortSignal;
     callbacks?: NdjsonStreamCallbacks;
   }): Promise<CopyMoveResult>;
-
-  rename(params: { bucket: string; key: string; newKey: string }): Promise<void>;
 
   delete(params: { bucket: string; keys: string[] }): Promise<DeleteResult>;
 
@@ -244,9 +244,19 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       await fetch_('/api/storage/search/history', { method: 'DELETE' });
     },
 
-    async copy({ bucket, sourceKeys, destinationPrefix, progress, jobId, signal, callbacks }) {
+    async copy({
+      bucket,
+      sourceBucket,
+      sourceKeys,
+      destinationPrefix,
+      progress,
+      jobId,
+      signal,
+      callbacks
+    }) {
       return copyMoveRequest(fetch_, '/api/storage/copy', {
         bucket,
+        sourceBucket,
         sourceKeys,
         destinationPrefix,
         progress,
@@ -256,34 +266,36 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       });
     },
 
-    async move({ bucket, sourceKeys, destinationPrefix, progress, jobId, signal, callbacks }) {
+    async move({
+      bucket,
+      sourceBucket,
+      sourceKeys,
+      destinationPrefix,
+      destinationKey,
+      progress,
+      jobId,
+      signal,
+      callbacks
+    }) {
       return copyMoveRequest(fetch_, '/api/storage/move', {
         bucket,
+        sourceBucket,
         sourceKeys,
         destinationPrefix,
+        destinationKey,
         progress,
         jobId,
         signal,
         callbacks
-      });
-    },
-
-    async rename({ bucket, key, newKey }) {
-      const params = new URLSearchParams({ bucket });
-      await fetch_(`/api/storage/rename?${params}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, newKey })
       });
     },
 
     async delete({ bucket, keys }) {
       const params = new URLSearchParams({ bucket });
-      for (const key of keys) {
-        params.append('keys', key);
-      }
       const res = await fetch_(`/api/storage/delete?${params}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keys })
       });
       return (await res.json()) as DeleteResult;
     },
@@ -450,6 +462,8 @@ async function copyMoveRequest(
     bucket: string;
     sourceKeys: string[];
     destinationPrefix: string;
+    destinationKey?: string;
+    sourceBucket?: string;
     progress?: boolean;
     jobId?: string;
     signal?: AbortSignal;
@@ -466,7 +480,9 @@ async function copyMoveRequest(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       sourceKeys: params.sourceKeys,
+      sourceBucket: params.sourceBucket,
       destinationPrefix: params.destinationPrefix,
+      destinationKey: params.destinationKey,
       jobId: params.jobId
     }),
     signal: params.signal

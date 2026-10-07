@@ -33,11 +33,6 @@
   );
 
   const hasSizes = $derived(items.some((i) => !i.isDirectory && i.size !== undefined));
-
-  // Limit item list to 8 items to keep dialog compact
-  const MAX_VISIBLE = 8;
-  const visibleItems = $derived(items.slice(0, MAX_VISIBLE));
-  const hiddenCount = $derived(Math.max(0, items.length - MAX_VISIBLE));
 </script>
 
 <Modal bind:open class="modal">
@@ -55,7 +50,7 @@
       class="bg-base-200/50 mt-3 max-h-40 overflow-y-auto rounded-lg p-2 text-sm"
       aria-label={m.storage_move_confirm_title()}
     >
-      {#each visibleItems as item (item.key)}
+      {#each items as item (item.key)}
         <li class="flex items-center gap-2 py-0.5">
           {#if item.isDirectory}
             <IconFolder class="text-warning size-4 shrink-0" aria-hidden="true" />
@@ -70,11 +65,6 @@
           {/if}
         </li>
       {/each}
-      {#if hiddenCount > 0}
-        <li class="text-base-content/40 py-0.5 pl-6 text-xs">
-          {m.storage_move_confirm_more({ count: hiddenCount })}
-        </li>
-      {/if}
     </ul>
 
     {#if hasSizes && totalSize > 0}

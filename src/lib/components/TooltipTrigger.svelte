@@ -6,7 +6,7 @@
   export type TooltipOrientation = 'right' | 'left' | 'up' | 'down';
 
   interface Props {
-    text: string | null;
+    text?: string;
     children: Snippet;
     orientation?: TooltipOrientation;
   }
@@ -60,7 +60,7 @@
   // the modal content; otherwise it is attached to <body> with a z-index
   // above all app content.
   type TooltipState = {
-    text: string | null;
+    text: string;
     x: number;
     y: number;
     orientation: TooltipOrientation;
@@ -78,7 +78,7 @@
   }
 
   $effect(() => {
-    if (!visible) return;
+    if (!visible || !text) return;
     portalHost = document.createElement('div');
     portalHost.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:10000;';
     portalTarget?.appendChild(portalHost);
@@ -97,7 +97,7 @@
   });
 
   $effect(() => {
-    if (!visible || !tooltipState) return;
+    if (!visible || !tooltipState || !text) return;
     tooltipState.text = text;
     tooltipState.x = x;
     tooltipState.y = y;
@@ -109,9 +109,9 @@
   class="contents"
   role="presentation"
   bind:this={trigger}
-  onmouseenter={show}
+  onmouseenter={() => text && show()}
   onmouseleave={hide}
-  onfocusin={show}
+  onfocusin={() => text && show()}
   onfocusout={hide}
 >
   {@render children()}

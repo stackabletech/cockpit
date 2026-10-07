@@ -39,7 +39,9 @@ describe('UploadDropzone', () => {
       render(UploadDropzone, { onFilesSelected: vi.fn() });
 
       await expect
-        .element(page.getByRole('button', { name: 'Select files' }).first())
+        .element(
+          page.getByRole('button', { name: 'Select files' }).and(page.getByText('Select files'))
+        )
         .toBeInTheDocument();
     });
 
@@ -47,7 +49,9 @@ describe('UploadDropzone', () => {
       render(UploadDropzone, { onFilesSelected: vi.fn() });
 
       await expect
-        .element(page.getByRole('button', { name: 'Select folder' }).first())
+        .element(
+          page.getByRole('button', { name: 'Select folder' }).and(page.getByText('Select folder'))
+        )
         .toBeInTheDocument();
     });
 
@@ -363,7 +367,9 @@ describe('UploadDropzone', () => {
       const fileInput = page.getByLabelText('Select files').element() as HTMLInputElement;
       const clickSpy = vi.spyOn(fileInput, 'click');
 
-      const btn = page.getByRole('button', { name: 'Select files' }).first();
+      const btn = page
+        .getByRole('button', { name: 'Select files' })
+        .and(page.getByText('Select files'));
       (btn.element() as HTMLElement).click();
 
       expect(clickSpy).toHaveBeenCalled();
@@ -375,7 +381,9 @@ describe('UploadDropzone', () => {
       const dirInput = page.getByLabelText('Select folder').element() as HTMLInputElement;
       const clickSpy = vi.spyOn(dirInput, 'click');
 
-      const btn = page.getByRole('button', { name: 'Select folder' }).first();
+      const btn = page
+        .getByRole('button', { name: 'Select folder' })
+        .and(page.getByText('Select folder'));
       (btn.element() as HTMLElement).click();
 
       expect(clickSpy).toHaveBeenCalled();

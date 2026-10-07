@@ -17,7 +17,7 @@
   import { getStorageState } from '$lib/storage/context.js';
   import type { StorageLocation } from '$lib/storage/types.js';
   import { keyToName } from '$lib/storage/utils.js';
-  import { invalidateAll } from '$app/navigation';
+  import { StorageObjectNameSchema } from '$lib/storage/schemas.js';
   import { storageMoveEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import OperationsButton from './OperationsButton.svelte';
@@ -26,6 +26,7 @@
   import type { ContextMenuAction } from '$lib/storage/types.js';
 
   const storage = getStorageState();
+  const uid = $props.id();
 
   const breadcrumbParts = $derived(
     storage.prefix
@@ -79,12 +80,6 @@
   let creating = $state(false);
   let createError = $state('');
 
-  const NAME_INVALID_CHARS = /[^\w\s./()\-+@,:;!$*'=]/g;
-
-  function sanitizeName(raw: string): string {
-    return raw.replace(NAME_INVALID_CHARS, '');
-  }
-
   function openCreate() {
     createOpen = true;
     createStep = 'choose';
@@ -104,38 +99,20 @@
     createError = '';
   }
 
-  async function createObject(bucket: string, key: string): Promise<void> {
-    await storage.api.create({ bucket, key });
-  }
-
   async function handleCreate() {
-    const name = sanitizeName(createName.trim());
-    if (!name || name === '.' || name === '..') {
+    const parsedName = StorageObjectNameSchema.safeParse(createName);
+    if (!parsedName.success) {
       createError = m.storage_create_error({ name: createName });
       return;
     }
     creating = true;
-    createError = '';
-
     try {
-      const isFolder = createType === 'folder';
-      const parts = name.split('/');
-
-      // Create intermediate directory markers for each path segment
-      for (let i = 0; i < parts.length - 1; i++) {
-        const dirKey = storage.prefix + parts.slice(0, i + 1).join('/') + '/';
-        await createObject(storage.bucket, dirKey);
+      const created = await storage.confirmCreate(parsedName.data, createType);
+      if (created) {
+        closeCreate();
+      } else {
+        createError = m.storage_create_error({ name: createName });
       }
-
-      // Create the final object (file or directory)
-      const finalKey = storage.prefix + name + (isFolder ? '/' : '');
-      await createObject(storage.bucket, finalKey);
-
-      closeCreate();
-      storage.loading = true;
-      void invalidateAll();
-    } catch {
-      createError = m.storage_create_error({ name: createName });
     } finally {
       creating = false;
     }
@@ -199,11 +176,8 @@
     }
   }
 
-  /** Navigate to an S3 prefix, clearing archive state first. */
+  /** Navigate to an S3 prefix, reloading the route when leaving an archive. */
   function navigateS3(prefix: string) {
-    if (storage.archive.isInArchive) {
-      storage.archive.reset();
-    }
     storage.navigate(prefix);
   }
 
@@ -298,7 +272,7 @@
 <div class="border-base-300 flex flex-wrap items-center gap-3 border-b px-6 py-3">
   <!-- Breadcrumbs -->
   <nav
-    aria-label="breadcrumb"
+    aria-label={m.storage_breadcrumb_label()}
     class="
     flex min-w-0 flex-1 items-center gap-1 text-sm
   "
@@ -629,17 +603,14 @@
             border p-3 shadow-lg
           "
         >
-          <label for="create-name-input" class="label label-text mb-1 p-0">
+          <label for={uid + '-create-name-input'} class="label label-text mb-1 p-0">
             {m.storage_create_name()}
           </label>
           <input
-            id="create-name-input"
+            id={uid + '-create-name-input'}
             class="input input-sm w-full"
-            value={createName}
+            bind:value={createName}
             placeholder={m.storage_create_placeholder()}
-            oninput={(e) => {
-              createName = sanitizeName(e.currentTarget.value);
-            }}
             onkeydown={(e) => {
               if (e.key === 'Enter') handleCreate();
               if (e.key === 'Escape') closeCreate();

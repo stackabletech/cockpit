@@ -4,9 +4,11 @@
 
   interface Props {
     panel: ResizablePanel;
+    /** Accessible label for the handle. Defaults to the storage-sidebar label. */
+    label?: string;
   }
 
-  let { panel }: Props = $props();
+  let { panel, label }: Props = $props();
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -14,7 +16,7 @@
 <div
   role="separator"
   aria-orientation="vertical"
-  aria-label={m.storage_sidebar_resize_handle()}
+  aria-label={label ?? m.storage_sidebar_resize_handle()}
   aria-valuenow={panel.width}
   aria-valuemin={panel.minWidth}
   aria-valuemax={panel.maxWidth}

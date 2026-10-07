@@ -6,20 +6,15 @@ import {
   writeFileSync,
   rmSync
 } from 'node:fs';
-import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, extname, resolve, sep } from 'node:path';
+import { join, extname } from 'node:path';
 import { createGunzip } from 'node:zlib';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import AdmZip from 'adm-zip';
 import * as tar from 'tar-stream';
 import { Readable } from 'node:stream';
 import { logger } from '$lib/server/logging';
 
 const log = logger.child({ module: 'archive-service' });
-
-const execFileAsync = promisify(execFile);
 
 export interface ArchiveEntry {
   key: string;
@@ -65,22 +60,27 @@ const cleanupTimer = setInterval(() => {
 
 if (cleanupTimer.unref) cleanupTimer.unref();
 
-function cacheKey(bucket: string, key: string): string {
-  return `${bucket}:${key}`;
+function cacheKey(connectionId: string, bucket: string, key: string): string {
+  return `${connectionId}:${bucket}:${key}`;
 }
 
-function getCachedPath(bucket: string, key: string): string | null {
-  const entry = archiveCache.get(cacheKey(bucket, key));
+function getCachedPath(connectionId: string, bucket: string, key: string): string | null {
+  const entry = archiveCache.get(cacheKey(connectionId, bucket, key));
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (entry && Date.now() < entry.expiresAt && existsSync(entry.path)) {
     return entry.path;
   }
-  if (entry) archiveCache.delete(cacheKey(bucket, key));
+  if (entry) archiveCache.delete(cacheKey(connectionId, bucket, key));
   return null;
 }
 
-function cacheArchive(bucket: string, key: string, path: string): void {
-  archiveCache.set(cacheKey(bucket, key), { path, expiresAt: Date.now() + CACHE_TTL, bucket, key });
+function cacheArchive(connectionId: string, bucket: string, key: string, path: string): void {
+  archiveCache.set(cacheKey(connectionId, bucket, key), {
+    path,
+    expiresAt: Date.now() + CACHE_TTL,
+    bucket,
+    key
+  });
 }
 
 function streamToTempFile(stream: ReadableStream, ext: string): Promise<string> {
@@ -116,9 +116,7 @@ function streamToTempFile(stream: ReadableStream, ext: string): Promise<string> 
 const ARCHIVE_EXT_PATTERNS = [
   { ext: '.zip', formats: ['zip'] as const },
   { ext: '.tar.gz', formats: ['tar.gz', 'tgz'] as const },
-  { ext: '.tar', formats: ['tar'] as const },
-  { ext: '.rar', formats: ['rar'] as const },
-  { ext: '.7z', formats: ['7z'] as const }
+  { ext: '.tar', formats: ['tar'] as const }
 ];
 
 function normalizePath(p: string): string {
@@ -203,10 +201,11 @@ function listZip(tempPath: string, internalPrefix: string, maxBytes?: number): A
   return { entries: result, hasMore: false };
 }
 
-function extractZipEntry(tempPath: string, internalPath: string): Buffer | null {
+function extractZipEntry(tempPath: string, internalPath: string, maxBytes?: number): Buffer | null {
   const zip = new AdmZip(tempPath);
   const entry = zip.getEntry(internalPath);
   if (!entry || entry.isDirectory) return null;
+  if (maxBytes !== undefined && entry.header.size > maxBytes) return null;
   return entry.getData();
 }
 
@@ -337,7 +336,11 @@ function listTar(
   });
 }
 
-function extractTarEntry(tempPath: string, internalPath: string): Promise<Buffer | null> {
+function extractTarEntry(
+  tempPath: string,
+  internalPath: string,
+  maxBytes?: number
+): Promise<Buffer | null> {
   return new Promise((resolve, reject) => {
     const normalized = normalizePath(internalPath);
     let found: Buffer | null = null;
@@ -349,10 +352,24 @@ function extractTarEntry(tempPath: string, internalPath: string): Promise<Buffer
       (header: tar.Headers, stream: NodeJS.ReadableStream, next: (err?: Error | null) => void) => {
         const entryPath = normalizePath(header.name);
         if (header.type === 'file' && entryPath === normalized && !found) {
+          if (maxBytes !== undefined && (header.size ?? 0) > maxBytes) {
+            stream.resume();
+            stream.on('end', next);
+            return;
+          }
           const chunks: Buffer[] = [];
-          stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+          let size = 0;
+          let tooLarge = false;
+          stream.on('data', (chunk: Buffer) => {
+            size += chunk.length;
+            if (maxBytes !== undefined && size > maxBytes) {
+              tooLarge = true;
+              return;
+            }
+            if (!tooLarge) chunks.push(chunk);
+          });
           stream.on('end', () => {
-            found = Buffer.concat(chunks);
+            if (!tooLarge) found = Buffer.concat(chunks);
             next();
           });
         } else {
@@ -411,7 +428,11 @@ function listTarGz(
   });
 }
 
-function extractTarGzEntry(tempPath: string, internalPath: string): Promise<Buffer | null> {
+function extractTarGzEntry(
+  tempPath: string,
+  internalPath: string,
+  maxBytes?: number
+): Promise<Buffer | null> {
   return new Promise((resolve, reject) => {
     const normalized = normalizePath(internalPath);
     let found: Buffer | null = null;
@@ -424,10 +445,24 @@ function extractTarGzEntry(tempPath: string, internalPath: string): Promise<Buff
       (header: tar.Headers, stream: NodeJS.ReadableStream, next: (err?: Error | null) => void) => {
         const entryPath = normalizePath(header.name);
         if (header.type === 'file' && entryPath === normalized && !found) {
+          if (maxBytes !== undefined && (header.size ?? 0) > maxBytes) {
+            stream.resume();
+            stream.on('end', next);
+            return;
+          }
           const chunks: Buffer[] = [];
-          stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+          let size = 0;
+          let tooLarge = false;
+          stream.on('data', (chunk: Buffer) => {
+            size += chunk.length;
+            if (maxBytes !== undefined && size > maxBytes) {
+              tooLarge = true;
+              return;
+            }
+            if (!tooLarge) chunks.push(chunk);
+          });
           stream.on('end', () => {
-            found = Buffer.concat(chunks);
+            if (!tooLarge) found = Buffer.concat(chunks);
             next();
           });
         } else {
@@ -446,241 +481,6 @@ function extractTarGzEntry(tempPath: string, internalPath: string): Promise<Buff
   });
 }
 
-// ── RAR ──────────────────────────────────────────────────────────────────────
-
-async function listRar(tempPath: string, internalPrefix: string): Promise<ArchiveListing> {
-  const prefix = internalPrefix ? ensureTrailingSlash(normalizePath(internalPrefix)) : '';
-
-  try {
-    const { stdout } = await execFileAsync('unrar', ['lb', tempPath], { timeout: 30000 });
-    const allEntries = stdout
-      .split('\n')
-      .map((l) => normalizePath(l.trim()))
-      .filter(Boolean);
-
-    const seenDirs = new Set<string>();
-    const entries: ArchiveEntry[] = [];
-
-    for (const entryPath of allEntries) {
-      const isDir = entryPath.endsWith('/');
-      const path = entryPath;
-
-      if (!path.startsWith(prefix)) continue;
-      const relative = path.slice(prefix.length);
-      if (!relative) continue;
-
-      if (isDir) {
-        if (!relative.includes('/') && !seenDirs.has(relative)) {
-          seenDirs.add(relative);
-          entries.push({
-            key: relative,
-            size: 0,
-            lastModified: new Date(0),
-            isDirectory: true
-          });
-        }
-      } else {
-        if (relative.includes('/')) {
-          const dirName = relative.split('/')[0] + '/';
-          if (!seenDirs.has(dirName)) {
-            seenDirs.add(dirName);
-            entries.push({ key: dirName, size: 0, lastModified: new Date(0), isDirectory: true });
-          }
-        } else {
-          entries.push({
-            key: relative,
-            size: 0,
-            lastModified: new Date(0),
-            isDirectory: false
-          });
-        }
-      }
-    }
-
-    return { entries, hasMore: false };
-  } catch (err) {
-    throw new Error(
-      'RAR support requires the "unrar" command to be installed on the server. ' +
-        (err instanceof Error ? err.message : String(err))
-    );
-  }
-}
-
-async function extractRarEntry(tempPath: string, internalPath: string): Promise<Buffer | null> {
-  const tmpDir = mkdtempSync(join(tmpdir(), 'rar-extract-'));
-  try {
-    const { stdout } = await execFileAsync('unrar', ['p', '-inul', tempPath, internalPath], {
-      timeout: 30000,
-      maxBuffer: 100 * 1024 * 1024
-    });
-    if (!stdout) return null;
-    return Buffer.from(stdout, 'binary');
-  } catch (err) {
-    throw new Error('RAR extraction failed: ' + (err instanceof Error ? err.message : String(err)));
-  } finally {
-    try {
-      rmRecursive(tmpDir);
-    } catch {
-      /* noop */
-    }
-  }
-}
-
-// ── 7z ───────────────────────────────────────────────────────────────────────
-
-const SEVEN_ZIP_BINARIES = ['7zz', '7zr', '7z'];
-
-async function find7zBinary(): Promise<string | null> {
-  for (const bin of SEVEN_ZIP_BINARIES) {
-    try {
-      await execFileAsync('which', [bin], { timeout: 5000 });
-      return bin;
-    } catch {
-      /* noop */
-    }
-  }
-  return null;
-}
-
-async function list7z(
-  tempPath: string,
-  internalPrefix: string,
-  maxBytes?: number
-): Promise<ArchiveListing> {
-  const bin = await find7zBinary();
-  if (!bin) throw new Error('7z support requires 7-Zip to be installed on the server.');
-
-  const prefix = internalPrefix ? ensureTrailingSlash(normalizePath(internalPrefix)) : '';
-
-  try {
-    const { stdout } = await execFileAsync(bin, ['l', '-slt', '-ba', tempPath], { timeout: 30000 });
-    return parse7zListing(stdout, prefix, maxBytes);
-  } catch (err) {
-    throw new Error('7z listing failed: ' + (err instanceof Error ? err.message : String(err)));
-  }
-}
-
-function parse7zListing(stdout: string, prefix: string, maxBytes?: number): ArchiveListing {
-  const lines = stdout
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean);
-  const entries: ArchiveEntry[] = [];
-  const seenDirs = new Set<string>();
-  let currentPath = '';
-  let currentSize = 0;
-  let isDir = false;
-  let totalDecompressed = 0;
-
-  for (const line of lines) {
-    if (line.startsWith('Path = ')) {
-      const path = normalizePath(line.slice(6).trim());
-      if (currentPath && currentPath.startsWith(prefix)) {
-        const relative = currentPath.slice(prefix.length);
-        if (relative) {
-          if (isDir && !relative.includes('/') && !seenDirs.has(ensureTrailingSlash(relative))) {
-            seenDirs.add(ensureTrailingSlash(relative));
-            entries.push({
-              key: ensureTrailingSlash(relative),
-              size: 0,
-              lastModified: new Date(0),
-              isDirectory: true
-            });
-          } else if (!isDir) {
-            if (maxBytes !== undefined) {
-              totalDecompressed += currentSize;
-              if (totalDecompressed > maxBytes) {
-                return { entries: [], hasMore: false, tooLarge: true };
-              }
-            }
-            if (relative.includes('/')) {
-              const dirName = relative.split('/')[0] + '/';
-              if (!seenDirs.has(dirName)) {
-                seenDirs.add(dirName);
-                entries.push({
-                  key: dirName,
-                  size: 0,
-                  lastModified: new Date(0),
-                  isDirectory: true
-                });
-              }
-            } else {
-              entries.push({
-                key: relative,
-                size: currentSize,
-                lastModified: new Date(0),
-                isDirectory: false
-              });
-            }
-          }
-        }
-      }
-      currentPath = path;
-      currentSize = 0;
-      isDir = false;
-    } else if (line.startsWith('Size = ')) {
-      currentSize = parseInt(line.slice(6).trim(), 10) || 0;
-    } else if (line.startsWith('Folder = ')) {
-      isDir = line.slice(8).trim() === '+';
-    }
-  }
-
-  if (currentPath && currentPath.startsWith(prefix)) {
-    const relative = currentPath.slice(prefix.length);
-    if (relative) {
-      if (isDir && !relative.includes('/') && !seenDirs.has(ensureTrailingSlash(relative))) {
-        entries.push({
-          key: ensureTrailingSlash(relative),
-          size: 0,
-          lastModified: new Date(0),
-          isDirectory: true
-        });
-      } else if (!isDir) {
-        entries.push({
-          key: relative,
-          size: currentSize,
-          lastModified: new Date(0),
-          isDirectory: false
-        });
-      }
-    }
-  }
-
-  return { entries, hasMore: false };
-}
-
-async function extract7zEntry(tempPath: string, internalPath: string): Promise<Buffer | null> {
-  const bin = await find7zBinary();
-  if (!bin) throw new Error('7z support requires 7-Zip to be installed on the server.');
-
-  if (internalPath.includes('..')) {
-    throw new Error('Path traversal rejected');
-  }
-
-  const tmpDir = mkdtempSync(join(tmpdir(), '7z-extract-'));
-  try {
-    await execFileAsync(bin, ['x', '-y', `-o${tmpDir}`, tempPath, internalPath], {
-      timeout: 60000
-    });
-    const resolvedPath = resolve(tmpDir, internalPath);
-    if (!resolvedPath.startsWith(tmpDir + sep)) {
-      throw new Error('Path traversal rejected');
-    }
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    if (!existsSync(resolvedPath)) return null;
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    return readFile(resolvedPath);
-  } catch (err) {
-    throw new Error('7z extraction failed: ' + (err instanceof Error ? err.message : String(err)));
-  } finally {
-    try {
-      rmRecursive(tmpDir);
-    } catch {
-      /* noop */
-    }
-  }
-}
-
 function rmRecursive(dir: string): void {
   rmSync(dir, { recursive: true, force: true });
 }
@@ -695,24 +495,26 @@ export type ArchiveMetadataFn = (key: string) => Promise<{ size: number; content
  * For nested archives, first download the outer archive, then extract the nested one.
  */
 async function resolveArchivePath(
+  connectionId: string,
   bucket: string,
   key: string,
   nestedArchivePath: string | undefined,
-  downloadFn: ArchiveDownloadFn
+  downloadFn: ArchiveDownloadFn,
+  maxBytes?: number
 ): Promise<string> {
-  let tempPath = getCachedPath(bucket, key);
+  let tempPath = getCachedPath(connectionId, bucket, key);
   if (!tempPath) {
     log.info({ bucket, key }, 'downloading archive');
     const ext = extname(key) || '.bin';
     const stream = await downloadFn(key);
     tempPath = await streamToTempFile(stream, ext);
-    cacheArchive(bucket, key, tempPath);
+    cacheArchive(connectionId, bucket, key, tempPath);
   }
 
   if (!nestedArchivePath) return tempPath;
 
   // Resolve nested archive — cache it under a composite key
-  const nestedCacheKey = cacheKey(bucket, `${key}!/${nestedArchivePath}`);
+  const nestedCacheKey = cacheKey(connectionId, bucket, `${key}!/${nestedArchivePath}`);
   const cachedEntry = archiveCache.get(nestedCacheKey);
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (cachedEntry && Date.now() < cachedEntry.expiresAt && existsSync(cachedEntry.path)) {
@@ -731,20 +533,14 @@ async function resolveArchivePath(
 
   switch (format) {
     case 'zip':
-      nestedData = extractZipEntry(tempPath, normNestedPath) ?? null;
+      nestedData = extractZipEntry(tempPath, normNestedPath, maxBytes) ?? null;
       break;
     case 'tar':
-      nestedData = await extractTarEntry(tempPath, normNestedPath);
+      nestedData = await extractTarEntry(tempPath, normNestedPath, maxBytes);
       break;
     case 'tar.gz':
     case 'tgz':
-      nestedData = await extractTarGzEntry(tempPath, normNestedPath);
-      break;
-    case 'rar':
-      nestedData = await extractRarEntry(tempPath, normNestedPath);
-      break;
-    case '7z':
-      nestedData = await extract7zEntry(tempPath, normNestedPath);
+      nestedData = await extractTarGzEntry(tempPath, normNestedPath, maxBytes);
       break;
   }
 
@@ -780,7 +576,8 @@ export async function listArchiveContents(
   downloadFn: ArchiveDownloadFn,
   metadataFn: ArchiveMetadataFn,
   nestedArchivePath?: string,
-  maxBytes?: number
+  maxBytes?: number,
+  connectionId = ''
 ): Promise<ArchiveListing> {
   const effectiveKey = nestedArchivePath ? `${key}!/${nestedArchivePath}` : key;
   const format = getArchiveFormat(effectiveKey);
@@ -802,7 +599,14 @@ export async function listArchiveContents(
     }
   }
 
-  const tempPath = await resolveArchivePath(bucket, key, nestedArchivePath, downloadFn);
+  const tempPath = await resolveArchivePath(
+    connectionId,
+    bucket,
+    key,
+    nestedArchivePath,
+    downloadFn,
+    maxBytes
+  );
 
   log.debug(
     {
@@ -823,10 +627,6 @@ export async function listArchiveContents(
     case 'tar.gz':
     case 'tgz':
       return listTarGz(tempPath, internalPrefix, maxBytes);
-    case 'rar':
-      return listRar(tempPath, internalPrefix);
-    case '7z':
-      return list7z(tempPath, internalPrefix, maxBytes);
     default:
       throw new Error(`Unsupported archive format: ${format}`);
   }
@@ -843,7 +643,8 @@ export async function extractArchiveEntry(
   downloadFn: ArchiveDownloadFn,
   metadataFn: ArchiveMetadataFn,
   nestedArchivePath?: string,
-  maxBytes?: number
+  maxBytes?: number,
+  connectionId = ''
 ): Promise<Buffer | null> {
   const effectiveKey = nestedArchivePath ? `${key}!/${nestedArchivePath}` : key;
   const format = getArchiveFormat(effectiveKey);
@@ -865,7 +666,14 @@ export async function extractArchiveEntry(
     }
   }
 
-  const tempPath = await resolveArchivePath(bucket, key, nestedArchivePath, downloadFn);
+  const tempPath = await resolveArchivePath(
+    connectionId,
+    bucket,
+    key,
+    nestedArchivePath,
+    downloadFn,
+    maxBytes
+  );
 
   log.debug(
     { bucket, key, internal_path: internalPath, nested_archive_path: nestedArchivePath, format },
@@ -877,20 +685,14 @@ export async function extractArchiveEntry(
   let data: Buffer | null = null;
   switch (format) {
     case 'zip':
-      data = extractZipEntry(tempPath, normalizedPath) ?? null;
+      data = extractZipEntry(tempPath, normalizedPath, maxBytes) ?? null;
       break;
     case 'tar':
-      data = await extractTarEntry(tempPath, normalizedPath);
+      data = await extractTarEntry(tempPath, normalizedPath, maxBytes);
       break;
     case 'tar.gz':
     case 'tgz':
-      data = await extractTarGzEntry(tempPath, normalizedPath);
-      break;
-    case 'rar':
-      data = await extractRarEntry(tempPath, normalizedPath);
-      break;
-    case '7z':
-      data = await extract7zEntry(tempPath, normalizedPath);
+      data = await extractTarGzEntry(tempPath, normalizedPath, maxBytes);
       break;
     default:
       return null;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type pino from 'pino';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
+import { createMockLogger } from '$lib/test-utils/mock-logger.js';
 
 const mockParquetMetadataAsync = vi.fn();
 const mockParquetRead = vi.fn();
@@ -16,18 +16,7 @@ vi.mock('hyparquet-compressors', () => ({
   compressors: { UNCOMPRESSED: vi.fn() }
 }));
 
-vi.mock('$lib/server/logging', () => ({
-  logger: {
-    child: () => ({
-      info: vi.fn(),
-      debug: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-      trace: vi.fn(),
-      child: vi.fn()
-    })
-  }
-}));
+vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 vi.mock('$lib/server/feature-flags', () => ({
   parquetDisallowedCompression: [{ codec: 'GZIP', requireOffsetIndex: true }],
@@ -42,14 +31,7 @@ vi.mock('$lib/server/feature-flags', () => ({
 
 import { getParquetPreview } from './parquet.js';
 
-const mockLog = {
-  info: vi.fn(),
-  debug: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  trace: vi.fn(),
-  child: vi.fn(() => mockLog)
-} as unknown as pino.Logger;
+const mockLog = createMockLogger();
 
 function makeProvider(overrides: Partial<StorageProvider> = {}): StorageProvider {
   return {
@@ -146,9 +128,8 @@ async function readNdjsonResponse(res: Response): Promise<{
           rows.push(new Array(resultHeaders.length).fill(undefined));
         }
         for (let i = 0; i < values.length; i++) {
-          // eslint-disable-next-line security/detect-object-injection
           if (!rows[i]) rows[i] = new Array(resultHeaders.length).fill(undefined);
-          // eslint-disable-next-line security/detect-object-injection
+
           rows[i][colIdx] = values[i];
         }
       } else if (msg.t === 'e') {

@@ -7,8 +7,10 @@ import { createJob } from './job-store.js';
 
 export interface PerformCopyOrMoveOptions {
   provider: StorageProvider;
+  destinationProvider?: StorageProvider;
   sourceKeys: string[];
   destinationPrefix: string;
+  destinationKey?: string;
   streamProgress: boolean;
   logger: pino.Logger;
   bucket: string;
@@ -19,8 +21,10 @@ export interface PerformCopyOrMoveOptions {
 export async function performCopyOrMove(options: PerformCopyOrMoveOptions): Promise<Response> {
   const {
     provider,
+    destinationProvider,
     sourceKeys,
     destinationPrefix,
+    destinationKey,
     streamProgress,
     logger,
     bucket,
@@ -36,7 +40,8 @@ export async function performCopyOrMove(options: PerformCopyOrMoveOptions): Prom
       provider,
       sourceKeys,
       destinationPrefix,
-      { logger, bucket, deleteOriginals }
+      { logger, bucket, destinationProvider, deleteOriginals },
+      destinationKey
     );
     return json({ [resultKey]: succeeded, failed });
   }
@@ -56,33 +61,40 @@ export async function performCopyOrMove(options: PerformCopyOrMoveOptions): Prom
   return createProgressStream(
     async (emit) => {
       const progressReported = new Set<string>();
-      const result = await processKeysSequentially(provider, sourceKeys, destinationPrefix, {
-        onCopyProgress: (sourceKey, destKey, loaded, total) => {
-          progressReported.add(sourceKey);
-          emit({ type: 'progress', sourceKey, destKey, loaded, total });
-        },
-        onCopySuccess: async (sourceKey, destKey) => {
-          if (!progressReported.has(sourceKey)) {
-            try {
-              const meta = await provider.getMetadata(sourceKey);
-              emit({ type: 'progress', sourceKey, destKey, loaded: meta.size, total: meta.size });
-            } catch {
-              // Metadata fetch failed — skip synthetic progress
+      const result = await processKeysSequentially(
+        provider,
+        sourceKeys,
+        destinationPrefix,
+        {
+          onCopyProgress: (sourceKey, destKey, loaded, total) => {
+            progressReported.add(sourceKey);
+            emit({ type: 'progress', sourceKey, destKey, loaded, total });
+          },
+          onCopySuccess: async (sourceKey, destKey) => {
+            if (!progressReported.has(sourceKey)) {
+              try {
+                const meta = await provider.getMetadata(sourceKey);
+                emit({ type: 'progress', sourceKey, destKey, loaded: meta.size, total: meta.size });
+              } catch {
+                // Metadata fetch failed — skip synthetic progress
+              }
             }
-          }
-          progressReported.delete(sourceKey);
-          emit({ type: 'done', sourceKey, destKey });
+            progressReported.delete(sourceKey);
+            emit({ type: 'done', sourceKey, destKey });
+          },
+          onCopyFailed: (sourceKey, destKey, error) => {
+            emit({ type: 'failed', sourceKey, error });
+          },
+          onBeforeDelete: (keys) => {
+            emit({ type: 'status', message: `Deleting ${keys.length} original(s)` });
+          },
+          logger,
+          bucket,
+          destinationProvider,
+          deleteOriginals
         },
-        onCopyFailed: (sourceKey, destKey, error) => {
-          emit({ type: 'failed', sourceKey, error });
-        },
-        onBeforeDelete: (keys) => {
-          emit({ type: 'status', message: `Deleting ${keys.length} original(s)` });
-        },
-        logger,
-        bucket,
-        deleteOriginals
-      });
+        destinationKey
+      );
       return { results: result.succeeded, failed: result.failed };
     },
     {

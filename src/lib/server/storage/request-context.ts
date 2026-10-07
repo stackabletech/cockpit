@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getProvider } from './utils.js';
-import { wrapProvider } from './wrap-provider.js';
+import { withStorageHttpErrors } from './wrap-provider.js';
 import type { StorageProvider } from './provider.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 
@@ -30,5 +30,12 @@ export function createStorageProvider(event: RequestEvent): {
 } {
   const config = requireConfig(event);
   const bucket = requireBucket(event);
-  return { provider: wrapProvider(getProvider(config, bucket)), bucket };
+  return { provider: withStorageHttpErrors(getProvider(config, bucket)), bucket };
+}
+
+export function createStorageProviderForBucket(
+  event: RequestEvent,
+  bucket: string
+): StorageProvider {
+  return withStorageHttpErrors(getProvider(requireConfig(event), bucket));
 }

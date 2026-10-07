@@ -57,16 +57,18 @@ export const userRecentSearches = pgTable(
     updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull()
   },
   (table) => [
-    unique('user_recent_searches_connection_query').on(
-      table.userId,
-      table.connectionId,
-      table.query,
-      table.useRegex,
-      table.excludePatterns,
-      table.searchPath,
-      table.maxDepth,
-      table.buckets
-    ),
+    unique('user_recent_searches_connection_query')
+      .on(
+        table.userId,
+        table.connectionId,
+        table.query,
+        table.useRegex,
+        table.excludePatterns,
+        table.searchPath,
+        table.maxDepth,
+        table.buckets
+      )
+      .nullsNotDistinct(),
     index('user_recent_searches_connection_idx').on(table.userId, table.connectionId)
   ]
 );

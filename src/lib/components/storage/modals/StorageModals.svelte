@@ -32,6 +32,7 @@
       renameOpen = true;
       moveConfirmOpen = true;
       createOpen = true;
+      resolveConflictsOpen = true;
     }
   });
 
@@ -117,6 +118,7 @@
     bind:open={uploadOpen}
     bucket={storage.activeModal.payload.bucket}
     prefix={storage.activeModal.payload.prefix}
+    initialFiles={storage.activeModal.payload.files}
     onSuccess={storage.handleUploadSuccess}
   />
 {/if}

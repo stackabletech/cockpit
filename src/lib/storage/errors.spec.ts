@@ -1,10 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import {
-  StorageError,
-  ActionError,
-  getActionErrorMessage,
-  getActionErrorMessageForCode
-} from './errors.js';
+import { StorageError, getActionErrorMessage, getActionErrorMessageForCode } from './errors.js';
 
 const mockMessages = vi.hoisted(() => ({
   storage_download_error_not_connected: () => 'No storage connection configured',
@@ -25,17 +20,6 @@ describe('StorageError', () => {
     expect(err.name).toBe('StorageError');
     expect(err.code).toBe('not_found');
     expect(err.message).toBe('File was not found');
-  });
-});
-
-describe('ActionError', () => {
-  it('extends StorageError with ActionError name', () => {
-    const err = new ActionError('access_denied', 'No access');
-    expect(err).toBeInstanceOf(StorageError);
-    expect(err).toBeInstanceOf(Error);
-    expect(err.name).toBe('ActionError');
-    expect(err.code).toBe('access_denied');
-    expect(err.message).toBe('No access');
   });
 });
 

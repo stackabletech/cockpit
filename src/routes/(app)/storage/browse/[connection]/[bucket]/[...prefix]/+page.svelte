@@ -3,6 +3,7 @@
   import { goto, invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { untrack } from 'svelte';
   import { getStorageState } from '$lib/storage/context.js';
   import { getTabsState } from '$lib/storage/context.js';
   import FileExplorer from '$lib/components/storage/explorer/FileExplorer.svelte';
@@ -41,7 +42,7 @@
   let hydrated = false;
 
   // Inject navigation handler — page owns URL construction
-  storage.setNavigationHandler((prefix, continuationToken, pageSize) => {
+  storage.setNavigationHandler((prefix, continuationToken, pageSize, invalidateAll = false) => {
     const encodedPrefix = prefix
       ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
       : '';
@@ -57,7 +58,7 @@
     if (pageSize) url.searchParams.set('pageSize', String(pageSize));
 
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- base path is built with resolve(); URL object is needed to append query params
-    goto(url, { replaceState: false });
+    goto(url, { replaceState: false, invalidateAll });
   });
 
   // Inject refresh handler — navigates to the current bucket/prefix using
@@ -100,9 +101,13 @@
         return;
       }
     }
-    if (!tabsState.canSyncServerLocation(data.connection, data.bucket, data.prefix)) return;
+    if (
+      !untrack(() => tabsState.canSyncServerLocation(data.connection, data.bucket, data.prefix))
+    ) {
+      return;
+    }
     storage.syncFromServer(data.bucket, data.prefix, data.objects);
-    tabsState.completeNavigation();
+    untrack(() => tabsState.completeNavigation());
   });
 </script>
 

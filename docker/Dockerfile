@@ -13,6 +13,19 @@ FROM registry.access.redhat.com/ubi10/ubi-minimal@sha256:a74a7a92d3069bfac09c688
 # "-c": Allows the execution of commands passed as a string
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
+#
+# Node.js stage - the complete Node.js distribution, including npm.
+#
+# Only the build stages inherit from this. The final image deliberately does
+# not: npm, npx and corepack ship their own vendored dependency trees under
+# /usr/local/lib/node_modules/, which are not needed at runtime.
+#
+FROM base AS node
+
+# Docker inherits SHELL from the parent stage, but hadolint tracks it per stage
+# and would otherwise flag the piped RUN below (DL4006).
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
 ARG TARGETARCH=amd64
 
 COPY .node-version /tmp/.node-version
@@ -36,7 +49,7 @@ RUN NODEJS_VERSION=$(cat /tmp/.node-version) && \
 #
 # Build stage - compiles the SvelteKit application with full dependencies
 #
-FROM base AS builder
+FROM node AS builder
 
 ARG VERSION
 
@@ -58,33 +71,50 @@ COPY project.inlang/ ./project.inlang/
 COPY messages/ ./messages/
 COPY svelte.config.js tsconfig.json vite.config.ts ./
 
-# Build the application. The dummy env vars let better-auth initialise during
-# SSR prerender; they are scoped to this single RUN and discarded with the
-# builder stage.
+# Build the application. The dummy env vars let better-auth and the database
+# module initialise during SSR prerender; they are scoped to this single RUN
+# and discarded with the builder stage.
 RUN STACKABLE_COCKPIT_SESSION_SECRET="build-time-placeholder" \
     STACKABLE_COCKPIT_BASE_URL="http://localhost:3000" \
+    DATABASE_PASSWORD="build-time-placeholder" \
     npm run build
 
 #
 # Production dependencies stage - clean prod-only install
 #
-FROM base AS prod-deps
+FROM node AS prod-deps
 
 WORKDIR /build
 
 COPY package.json package-lock.json .npmrc ./
 
-# Install only production dependencies; --ignore-scripts skips the prepare script
-# (which would fail because antlr-ng is a devDependency and not available here)
-RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --ignore-scripts
+# Install only production dependencies.
+#
+# --ignore-scripts skips the prepare script (which would fail because antlr-ng
+# is a devDependency and not available here).
+#
+# --omit=optional is required on top of --omit=dev: better-auth declares svelte,
+# @sveltejs/kit and vitest as optional peerDependencies. Because we also list
+# them in devDependencies, npm marks them (and their trees: vite, rollup,
+# typescript, ...) as "devOptional" in package-lock.json, and --omit=dev alone
+# keeps devOptional entries. That pulled build tooling into the runtime image
+# and into the generated SBOM.
+#
+# The adapter-node output bundles its dependencies, so none of the omitted
+# packages are needed at runtime.
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev --omit=optional --ignore-scripts
 
 #
 # SBOM stage - generate CycloneDX from the clean prod-only dependency tree
 #
 FROM prod-deps AS sbom
 
-RUN npm ls --omit=dev && \
-    npx @cyclonedx/cyclonedx-npm --omit dev --output-file /build/cockpit.cdx.json
+# The omit flags must match those of the prod-deps stage so that the SBOM
+# describes the dependency tree that is actually shipped.
+RUN npm ls --omit=dev --omit=optional && \
+    npx @cyclonedx/cyclonedx-npm --omit dev --omit optional \
+        --output-file /build/cockpit.cdx.json
 
 #
 # Production stage - minimal runtime image
@@ -98,8 +128,15 @@ ENV STACKABLE_USER_UID=782252253 \
     STACKABLE_USER_NAME=stackable \
     NODE_ENV=production
 
+# The runtime only needs the node binary itself: the adapter-node output is
+# started with `node build/index.js` and never shells out to npm. Copying just
+# the binary keeps npm/npx/corepack and their bundled dependencies out of the
+# image, so scanners no longer report CVEs for those packages.
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+
 # hadolint ignore=DL3041
-RUN microdnf install -y shadow-utils && \
+RUN microdnf update -y && \
+    microdnf install -y shadow-utils && \
     groupadd --gid ${STACKABLE_USER_GID} --system ${STACKABLE_USER_NAME} && \
     useradd \
         --no-log-init \
@@ -116,10 +153,12 @@ WORKDIR /stackable/app
 
 # Copy built application from builder stage
 COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/build ./build
+COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/src/lib/server/migrations ./migrations
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node_modules
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
 COPY --from=sbom      --chown=${STACKABLE_USER_UID}:0 /build/cockpit.cdx.json ./cockpit.cdx.json
 COPY --chown=${STACKABLE_USER_UID}:0 LICENSE /licenses/LICENSE
+COPY --chown=${STACKABLE_USER_UID}:0 LICENSE-Apache-2.0 /licenses/LICENSE-Apache-2.0
 RUN chown -R ${STACKABLE_USER_UID}:0 /stackable && \
     chmod -R g=u /stackable
 
@@ -149,6 +188,6 @@ LABEL org.opencontainers.image.authors="info@stackable.tech"
 LABEL org.opencontainers.image.url="https://stackable.tech"
 LABEL org.opencontainers.image.source="https://github.com/stackabletech/cockpit/"
 LABEL org.opencontainers.image.vendor="Stackable GmbH"
-LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.licenses="OSL-3.0"
 
 CMD ["node", "build/index.js"]

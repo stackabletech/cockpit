@@ -7,7 +7,7 @@ vi.mock('$lib/server/storage/utils.js', () => ({
 }));
 
 vi.mock('$lib/server/storage/wrap-provider.js', () => ({
-  wrapProvider: (p: unknown) => p
+  withStorageHttpErrors: (p: unknown) => p
 }));
 
 vi.mock('$lib/server/storage/preview/binary.js', () => ({
@@ -76,7 +76,8 @@ function mockEvent(params: string) {
     locals: {
       logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
       user: { id: 'test-user' },
-      storageConfig: { type: 's3', region: { name: 'us-east-1' } }
+      storageConfig: { type: 's3', region: { name: 'us-east-1' } },
+      storageConnectionId: 'connection-1'
     }
   } as unknown as Parameters<typeof GET>[0];
 }
@@ -102,10 +103,11 @@ describe('GET /api/storage/preview', () => {
       'data.csv',
       0,
       250,
-      'text/csv',
       100,
       expect.anything(),
-      false
+      false,
+      'b1',
+      'connection-1'
     );
   });
 
@@ -205,7 +207,9 @@ describe('GET /api/storage/preview', () => {
       250,
       expect.anything(),
       5000,
-      false
+      false,
+      'b1',
+      'connection-1'
     );
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
@@ -225,7 +229,9 @@ describe('GET /api/storage/preview', () => {
       250,
       expect.anything(),
       5000,
-      false
+      false,
+      'b1',
+      'connection-1'
     );
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
@@ -245,7 +251,9 @@ describe('GET /api/storage/preview', () => {
       100,
       expect.anything(),
       50000,
-      false
+      false,
+      'b1',
+      'connection-1'
     );
   });
 
@@ -264,7 +272,9 @@ describe('GET /api/storage/preview', () => {
       250,
       expect.anything(),
       0,
-      false
+      false,
+      'b1',
+      'connection-1'
     );
   });
 

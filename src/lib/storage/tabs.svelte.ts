@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { SvelteSet } from 'svelte/reactivity';
 import type { StoragePage } from '$lib/storage/types.js';
 import type { PageSize } from '$lib/types/pagination.js';
 import type { StorageState } from './state.svelte.js';
@@ -20,6 +21,8 @@ export interface TabSnapshot {
   previousS3Prefix: string;
   archiveLoading: boolean;
   archiveTooLarge: boolean;
+  selectedKeys?: string[];
+  selectionMode?: boolean;
   /** Pre-computed auto-generated label for this snapshot (used by syncActiveTab
    *  to decide whether the label was manually renamed). */
   autoLabel: string;
@@ -48,10 +51,8 @@ export interface PersistedTab {
 export interface PersistedTabsState {
   tabs: PersistedTab[];
   activeTabId: string;
-  /** Fingerprint of the connection that saved these tabs.
-   *  Absent in data saved before this field was introduced (treated as a match
-   *  for any connection to preserve backward compatibility). */
-  connectionId?: string;
+  /** Fingerprint of the connection that saved these tabs. */
+  connectionId?: string | null;
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -112,6 +113,8 @@ export class TabsState {
       previousS3Prefix: this.storage.archive._previousS3Prefix,
       archiveLoading: this.storage.archive.archiveLoading,
       archiveTooLarge: this.storage.archive.archiveTooLarge,
+      selectedKeys: [...this.storage.selectedKeys],
+      selectionMode: this.storage.selectionMode,
       autoLabel: this.computeAutoLabel()
     };
   }
@@ -143,8 +146,13 @@ export class TabsState {
       archiveTooLarge: snapshot.archiveTooLarge
     });
     this.storage.loading = false;
-    this.storage.clearSelection();
+    this.restoreSelection(snapshot);
     this.replaceLocationUrl?.(snapshot.connection, snapshot.bucket, snapshot.prefix);
+  }
+
+  private restoreSelection(snapshot: TabSnapshot): void {
+    this.storage.selectedKeys = new SvelteSet(snapshot.selectedKeys ?? []);
+    this.storage.selectionMode = snapshot.selectionMode ?? false;
   }
 
   // ── Persistence ──────────────────────────────────────────────────────────
@@ -160,7 +168,7 @@ export class TabsState {
         connection: t.snapshot.connection
       })),
       activeTabId: this.activeTabId ?? '',
-      connectionId: this.connectionId ?? undefined
+      connectionId: this.connectionId
     };
     localStorage.setItem(LS_TABS, JSON.stringify(data));
   }
@@ -175,9 +183,8 @@ export class TabsState {
       if (!raw) return null;
       const data = JSON.parse(raw) as PersistedTabsState;
       if (!Array.isArray(data.tabs) || data.tabs.length === 0) return null;
-      // If both sides have a connectionId and they don't match, this save belongs
-      // to a different connection — do not offer restore.
-      if (data.connectionId && this.connectionId && data.connectionId !== this.connectionId) {
+      if (data.connectionId === undefined) return null;
+      if (data.connectionId !== this.connectionId) {
         return null;
       }
       return data;
@@ -216,7 +223,6 @@ export class TabsState {
       }
     }));
 
-    // eslint-disable-next-line security/detect-object-injection
     const mappedActiveId = activeIdx >= 0 ? this.tabs[activeIdx].id : this.tabs[0].id;
     this.activeTabId = mappedActiveId;
 
@@ -267,8 +273,7 @@ export class TabsState {
         const activeTab = activeIdx >= 0 ? saved.tabs[activeIdx] : saved.tabs[0];
         if (
           activeTab &&
-          this.storage.connectionHostname ===
-            (activeTab.connection ?? this.storage.connectionHostname) &&
+          this.storage.connectionHostname === activeTab.connection &&
           this.storage.bucket === activeTab.bucket &&
           this.storage.prefix === activeTab.prefix
         ) {
@@ -291,7 +296,7 @@ export class TabsState {
     if (!this.activeTabId) return;
     const idx = this.tabs.findIndex((t) => t.id === this.activeTabId);
     if (idx === -1) return;
-    // eslint-disable-next-line security/detect-object-injection
+
     const tab = this.tabs[idx];
     if (!tab.stub) return;
     this.tabs = [
@@ -309,7 +314,7 @@ export class TabsState {
     if (this.pendingNavigation?.tabId === this.activeTabId) return;
     const idx = this.tabs.findIndex((t) => t.id === this.activeTabId);
     if (idx === -1) return;
-    // eslint-disable-next-line security/detect-object-injection
+
     const tab = this.tabs[idx];
     const updatedTab: Tab = {
       ...tab,
@@ -362,12 +367,15 @@ export class TabsState {
     const id = crypto.randomUUID();
     const label = this.computeAutoLabel();
     const newTab: Tab = { id, label, stub: false, snapshot: this.captureSnapshot() };
+    newTab.snapshot.selectedKeys = [];
+    newTab.snapshot.selectionMode = false;
     this.tabs = [...this.tabs, newTab];
     this.activeTabId = id;
+    this.storage.clearSelection();
     this.saveToPersistence();
   }
 
-  /** Switches to a tab by id. Stub tabs trigger a navigation to load fresh data. */
+  /** Switches to a tab by id. Route navigation keeps SvelteKit state in sync. */
   switchTo(id: string): void {
     if (id === this.activeTabId) return;
     const tab = this.tabs.find((t) => t.id === id);
@@ -375,10 +383,13 @@ export class TabsState {
     this.syncActiveTab();
     this.activeTabId = id;
     this.pendingNavigation = null;
+    this.restoreSelection(tab.snapshot);
     this.saveToPersistence();
 
     if (tab.stub && this.navigateToLocation) {
       this.navigateToLocation(tab.snapshot.connection, tab.snapshot.bucket, tab.snapshot.prefix);
+    } else if (this.replaceLocationUrl) {
+      this.replaceLocationUrl(tab.snapshot.connection, tab.snapshot.bucket, tab.snapshot.prefix);
     } else {
       this.restoreSnapshot(tab.snapshot);
     }
@@ -395,12 +406,18 @@ export class TabsState {
 
     if (id === this.activeTabId) {
       const newIdx = Math.min(idx, newTabs.length - 1);
-      // eslint-disable-next-line security/detect-object-injection
+
       const nextTab = newTabs[newIdx];
       this.activeTabId = nextTab.id;
       this.pendingNavigation = null;
       if (nextTab.stub && this.navigateToLocation) {
         this.navigateToLocation(
+          nextTab.snapshot.connection,
+          nextTab.snapshot.bucket,
+          nextTab.snapshot.prefix
+        );
+      } else if (this.replaceLocationUrl) {
+        this.replaceLocationUrl(
           nextTab.snapshot.connection,
           nextTab.snapshot.bucket,
           nextTab.snapshot.prefix
@@ -417,7 +434,7 @@ export class TabsState {
   renameTab(id: string, newLabel: string): void {
     const idx = this.tabs.findIndex((t) => t.id === id);
     if (idx === -1) return;
-    // eslint-disable-next-line security/detect-object-injection
+
     const tab = this.tabs[idx];
     this.tabs = [
       ...this.tabs.slice(0, idx),

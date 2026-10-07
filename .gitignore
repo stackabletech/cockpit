@@ -10,6 +10,7 @@ src/lib/editor/generated/
 .wrangler
 .svelte-kit
 /build
+/reports/
 
 # OS
 .DS_Store

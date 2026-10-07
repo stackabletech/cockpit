@@ -5,7 +5,7 @@
   import { zod4 as zod } from 'sveltekit-superforms/adapters';
   import * as m from '$lib/paraglide/messages.js';
   import { StorageConnectionSchema } from '$lib/storage/schemas.js';
-  import type { ConnectionMetadata } from '$lib/server/storage/types.js';
+  import type { ConnectionMetadata } from '$lib/storage/connection-types.js';
   import StorageConnectionSidebar from '$lib/components/storage/sidebar/StorageConnectionSidebar.svelte';
   import type { z } from 'zod';
 
@@ -24,11 +24,9 @@
     {
       dataType: 'json',
       validators: zod(StorageConnectionSchema),
-      onResult: ({ result }) => {
-        if (result.type === 'redirect') {
-          // Server saved the connection; the redirect to /storage triggers
-          // the layout load to auto-connect via activeStorageConnectionId.
-        }
+      onResult: () => {
+        // Server saved the connection; the redirect to /storage triggers
+        // the layout load to auto-connect via activeStorageConnectionId.
       }
     }
   );

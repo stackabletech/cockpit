@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import Modal from './Modal.svelte';
+import Modal from '../Modal.svelte';
 import type { Snippet } from 'svelte';
 
 function textSnippet(text: string): Snippet {

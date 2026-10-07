@@ -13,8 +13,10 @@ import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { auth, oidcEnabled } from '$lib/server/auth';
 import { requestLogger, logger } from '$lib/server/logging';
 import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
+import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
+import { runMigrations } from '$lib/server/migrate.js';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
 if (dev) {
@@ -85,8 +87,12 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
   const userId = event.locals.user?.id ?? null;
   if (userId && event.route.id?.startsWith('/(app)/api/storage/')) {
     event.locals.storageConfig = await getConnectionFromHeader(event.request, userId);
+    event.locals.storageConnectionId = event.locals.storageConfig
+      ? event.request.headers.get(STORAGE_CONNECTION_ID_HEADER)
+      : null;
   } else {
     event.locals.storageConfig = null;
+    event.locals.storageConnectionId = null;
   }
   // The connections management endpoint itself does not require a connection header —
   // it is used to list/create connections before one is selected. Manifest stream and
@@ -117,6 +123,9 @@ export const handle = sequence(
  * detected immediately rather than on the first request that uses the key.
  */
 export const init: ServerInit = async () => {
+  if (!(await runMigrations())) {
+    throw new Error('Database migrations failed');
+  }
   if (storageBrowserEnabled) {
     storageEncryptionKey(); // throws immediately if the env var is missing/invalid
   }

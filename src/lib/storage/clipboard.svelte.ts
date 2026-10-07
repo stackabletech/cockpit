@@ -5,7 +5,7 @@ import { addToast } from '$lib/stores/toast.svelte.js';
 import type { StoragePage, ClipboardData, ModalType } from '$lib/storage/types.js';
 import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
 import { keyToName } from '$lib/storage/utils.js';
-import { ActionError, getActionErrorMessage } from './errors.js';
+import { StorageError, getActionErrorMessage } from './errors.js';
 import { pageUnloading } from './operations.svelte.js';
 import { storageMoveEnabled } from '$lib/client/feature-flags.js';
 import { OperationsState } from './operations.svelte.js';
@@ -17,6 +17,7 @@ type PendingPasteOp = {
   type: 'paste';
   keys: string[];
   sourceBucket: string;
+  destBucket: string;
   destPrefix: string;
   wasCut: boolean;
   fileSizes: Record<string, number>;
@@ -28,6 +29,7 @@ type PendingMoveOp = {
   type: 'move';
   keys: string[];
   destPrefix: string;
+  destBucket: string;
   items: Array<{ key: string; name: string; isDirectory: boolean; size?: number }>;
   sourcePrefix: string | null;
   totalBytes: number;
@@ -69,6 +71,7 @@ export class ClipboardState {
   private _pendingMove: {
     keys: string[];
     destPrefix: string;
+    destBucket: string;
     items: Array<{ key: string; name: string; isDirectory: boolean; size?: number }>;
     sourcePrefix: string | null;
   } | null = null;
@@ -160,13 +163,16 @@ export class ClipboardState {
     // ── Check for name conflicts at destination ──────────────────────
     const conflictEntries = await this._checkDestinationConflicts(pasteKeys, destPrefix);
     const hasConflicts = conflictEntries.some((e) => e.conflict);
+    // Replacing items with themselves would delete the sources before the move
+    // runs. Treat a fully conflicting same-location paste as a no-op instead.
+    if (this._isSameLocationPaste(pasteClipboard, destPrefix, conflictEntries)) return;
     if (hasConflicts) {
-      // eslint-disable-next-line security/detect-object-injection
       const totalBytes = pasteKeys.reduce((sum, k) => sum + (pasteClipboard.fileSizes[k] ?? 0), 0);
       this._pendingConflictOp = {
         type: 'paste',
         keys: pasteKeys,
         sourceBucket: pasteClipboard.sourceBucket,
+        destBucket: bucket,
         destPrefix,
         wasCut,
         fileSizes: pasteClipboard.fileSizes,
@@ -189,7 +195,7 @@ export class ClipboardState {
     const pasteLabel = isSinglePaste
       ? `${m.storage_operation_paste_one({ count: 1 })}: ${sourceNames[0]}`
       : `${m.storage_operation_paste_other({ count: sourceNames.length })}: ${sourceNames[0]} + ${sourceNames.length - 1} more`;
-    // eslint-disable-next-line security/detect-object-injection
+
     const totalBytes = pasteKeys.reduce((sum, k) => sum + (pasteClipboard.fileSizes[k] ?? 0), 0);
     this._operations.startOp(
       opId,
@@ -214,7 +220,7 @@ export class ClipboardState {
         abortController.signal,
         (index, key) => {
           // File-level progress: use the known file size from clipboard.
-          // eslint-disable-next-line security/detect-object-injection
+
           completedBytes += fileSizes[key] ?? 0;
           this._operations.updateOpProgress(opId, index, completedBytes, keyToName(key));
         },
@@ -225,19 +231,17 @@ export class ClipboardState {
             this._operations.operations.find((op) => op.id === opId)?.completedCount ?? 0;
           let prevBytes = 0;
           for (let j = 0; j < prevFiles && j < pasteKeys.length; j++) {
-            // eslint-disable-next-line security/detect-object-injection
             prevBytes += fileSizes[pasteKeys[j]] ?? 0;
           }
           this._operations.updateOpProgress(
             opId,
             prevFiles,
             prevBytes + loaded,
-            // eslint-disable-next-line security/detect-object-injection
+
             pasteSourceNames[prevFiles] ?? ''
           );
         },
         (index, jobId) => {
-          // eslint-disable-next-line security/detect-object-injection
           fileJobIdsAccum[index] = jobId;
           this._operations.updateOpJobIds(opId, [...fileJobIdsAccum]);
         }
@@ -293,7 +297,7 @@ export class ClipboardState {
       this._operations.finishOp(opId, 'error');
       addToast(
         'error',
-        err instanceof ActionError ? getActionErrorMessage(err) : m.storage_action_paste_error()
+        err instanceof StorageError ? getActionErrorMessage(err) : m.storage_action_paste_error()
       );
     }
   }
@@ -301,20 +305,18 @@ export class ClipboardState {
   // ── Move (drag-and-drop) ───────────────────────────────────────────────────
 
   /** Validate a drag-and-drop move and open the confirmation dialog. */
-  performMove = (destPrefix: string, keys?: string[]): void => {
+  performMove = (
+    destPrefix: string,
+    keys?: string[],
+    destBucket = this._callbacks.getBucket()
+  ): void => {
     if (!storageMoveEnabled) return;
     const objects = this._callbacks.getObjects();
-    const moveKeys = keys ?? [...this._callbacks.getSelectedKeys()];
+    const requestedKeys = keys ?? [...this._callbacks.getSelectedKeys()];
+    const moveKeys = requestedKeys.filter((key) => !this._isAlreadyInDestination(key, destPrefix));
     if (moveKeys.length === 0) return;
 
     // Don't move items that are already directly inside destPrefix (no-op).
-    const isAlreadyThere = (key: string): boolean => {
-      if (key.endsWith('/')) return key === destPrefix;
-      const parentPrefix = key.substring(0, key.lastIndexOf('/') + 1);
-      return parentPrefix === destPrefix;
-    };
-    if (moveKeys.every(isAlreadyThere)) return;
-
     // Don't move a folder into itself
     for (const k of moveKeys) {
       if (k.endsWith('/') && destPrefix.startsWith(k)) return;
@@ -332,21 +334,21 @@ export class ClipboardState {
     });
 
     const sourcePrefix = this._commonPrefix(moveKeys);
-    this._pendingMove = { keys: moveKeys, destPrefix, items, sourcePrefix };
+    this._pendingMove = { keys: moveKeys, destPrefix, destBucket, items, sourcePrefix };
     this._pendingSourcePrefix = sourcePrefix;
     this._callbacks.openModal('confirm-move', { keys: moveKeys, destPrefix, items });
   };
 
   confirmMove = async (): Promise<void> => {
     if (!this._pendingMove) return;
-    const { keys: moveKeys, destPrefix, items } = this._pendingMove;
+    const { keys: moveKeys, destPrefix, destBucket, items } = this._pendingMove;
     this._pendingMove = null;
     this._callbacks.closeModal();
 
     const bucket = this._callbacks.getBucket();
 
     // ── Check for name conflicts at destination ──────────────────────────
-    const conflictEntries = await this._checkDestinationConflicts(moveKeys, destPrefix);
+    const conflictEntries = await this._checkDestinationConflicts(moveKeys, destPrefix, destBucket);
     const hasConflicts = conflictEntries.some((e) => e.conflict);
     if (hasConflicts) {
       const totalBytes = items.reduce((sum, item) => sum + (item.size ?? 0), 0);
@@ -354,13 +356,14 @@ export class ClipboardState {
         type: 'move',
         keys: moveKeys,
         destPrefix,
+        destBucket,
         items,
         sourcePrefix: this._pendingSourcePrefix,
         totalBytes
       };
       this._callbacks.openModal('resolve-conflicts', {
         entries: conflictEntries,
-        bucket,
+        bucket: destBucket,
         destPrefix,
         confirmLabel: m.storage_action_move()
       });
@@ -381,7 +384,7 @@ export class ClipboardState {
       'move',
       moveKeys.length,
       abortController,
-      `${bucket}/${destPrefix}`,
+      `${destBucket}/${destPrefix}`,
       sourceNames,
       totalBytes
     );
@@ -396,7 +399,6 @@ export class ClipboardState {
           throw new DOMException('Aborted', 'AbortError');
         }
 
-        // eslint-disable-next-line security/detect-object-injection
         const sourceKey = moveKeys[i];
         const fileJobId = crypto.randomUUID();
         fileJobIds.push(fileJobId);
@@ -404,7 +406,8 @@ export class ClipboardState {
 
         try {
           const result = await this._api.move({
-            bucket,
+            bucket: destBucket,
+            sourceBucket: bucket,
             sourceKeys: [sourceKey],
             destinationPrefix: destPrefix,
             progress: true,
@@ -459,7 +462,7 @@ export class ClipboardState {
           if (!r.destKey.endsWith('/')) {
             const item = items.find((it) => it.key === r.sourceKey);
             if (item && item.size) {
-              this._callbacks.recordFileVisit(bucket, r.destKey, item.size);
+              this._callbacks.recordFileVisit(destBucket, r.destKey, item.size);
             }
           }
         }
@@ -531,9 +534,7 @@ export class ClipboardState {
         } else {
           const remainingSizes: Record<string, number> = {};
           for (const k of remainingKeys) {
-            // eslint-disable-next-line security/detect-object-injection
             if (this.clipboard.fileSizes[k] !== undefined) {
-              // eslint-disable-next-line security/detect-object-injection
               remainingSizes[k] = this.clipboard.fileSizes[k];
             }
           }
@@ -547,7 +548,7 @@ export class ClipboardState {
 
   private async _performPaste(
     keys: string[],
-    _sourceBucket: string,
+    sourceBucket: string,
     destPrefix: string,
     deleteOriginals = false,
     signal?: AbortSignal
@@ -558,6 +559,7 @@ export class ClipboardState {
     if (deleteOriginals) {
       return this._api.move({
         bucket: this._callbacks.getBucket(),
+        sourceBucket,
         sourceKeys: keys,
         destinationPrefix: destPrefix,
         signal
@@ -565,6 +567,7 @@ export class ClipboardState {
     }
     return this._api.copy({
       bucket: this._callbacks.getBucket(),
+      sourceBucket,
       sourceKeys: keys,
       destinationPrefix: destPrefix,
       signal
@@ -577,7 +580,7 @@ export class ClipboardState {
    */
   private async _performPasteSequential(
     keys: string[],
-    _sourceBucket: string,
+    sourceBucket: string,
     destPrefix: string,
     deleteOriginals = false,
     signal?: AbortSignal,
@@ -599,7 +602,6 @@ export class ClipboardState {
     for (let i = 0; i < keys.length; i++) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-      // eslint-disable-next-line security/detect-object-injection
       const sourceKey = keys[i];
       const fileJobId = crypto.randomUUID();
       fileJobIds.push(fileJobId);
@@ -608,6 +610,7 @@ export class ClipboardState {
       try {
         const result = await moveFn({
           bucket: this._callbacks.getBucket(),
+          sourceBucket,
           sourceKeys: [sourceKey],
           destinationPrefix: destPrefix,
           progress: true,
@@ -638,9 +641,9 @@ export class ClipboardState {
    */
   private async _checkDestinationConflicts(
     keys: string[],
-    destPrefix: string
+    destPrefix: string,
+    bucket = this._callbacks.getBucket()
   ): Promise<ConflictEntry[]> {
-    const bucket = this._callbacks.getBucket();
     const results: ConflictEntry[] = [];
 
     for (const key of keys) {
@@ -672,9 +675,9 @@ export class ClipboardState {
    */
   private async _deleteConflictingDests(
     destPrefix: string,
-    resolvedEntries: ConflictEntry[]
+    resolvedEntries: ConflictEntry[],
+    bucket = this._callbacks.getBucket()
   ): Promise<void> {
-    const bucket = this._callbacks.getBucket();
     const keysToDelete: string[] = [];
     for (const entry of resolvedEntries) {
       if (entry.resolution === 'skip' || entry.resolution === 'rename') continue;
@@ -700,7 +703,7 @@ export class ClipboardState {
     pending: PendingPasteOp,
     resolvedEntries: ConflictEntry[]
   ): Promise<void> {
-    const bucket = this._callbacks.getBucket();
+    const bucket = pending.destBucket;
     const resolvedMap = new SvelteMap(
       resolvedEntries.map((e) => [e.sourceKey ?? e.originalName, e])
     );
@@ -739,7 +742,7 @@ export class ClipboardState {
       pending.totalBytes
     );
 
-    await this._deleteConflictingDests(pending.destPrefix, resolvedEntries);
+    await this._deleteConflictingDests(pending.destPrefix, resolvedEntries, bucket);
 
     try {
       const { results, failed } = await this._performPasteSequential(
@@ -771,7 +774,12 @@ export class ClipboardState {
         }
         const newKey = pending.destPrefix + rename.newName;
         try {
-          await this._api.rename({ bucket, key: destKey, newKey });
+          await this._api.move({
+            bucket,
+            sourceKeys: [destKey],
+            destinationPrefix: '',
+            destinationKey: newKey
+          });
           this._operations.updateOpProgress(
             opId,
             replaceKeys.length + renameKeys.indexOf(rename) + 1,
@@ -820,7 +828,7 @@ export class ClipboardState {
     pending: PendingMoveOp,
     resolvedEntries: ConflictEntry[]
   ): Promise<void> {
-    const bucket = this._callbacks.getBucket();
+    const bucket = pending.destBucket;
     const resolvedMap = new SvelteMap(
       resolvedEntries.map((e) => [e.sourceKey ?? e.originalName, e])
     );
@@ -863,7 +871,7 @@ export class ClipboardState {
     );
 
     // Only delete conflicting destinations for "replace" entries
-    await this._deleteConflictingDests(pending.destPrefix, resolvedEntries);
+    await this._deleteConflictingDests(pending.destPrefix, resolvedEntries, bucket);
 
     try {
       const results: Array<{ sourceKey: string; destKey: string }> = [];
@@ -881,10 +889,11 @@ export class ClipboardState {
           parentPrefix + rename.newName + (rename.sourceKey.endsWith('/') ? '/' : '');
 
         try {
-          await this._api.rename({
-            bucket,
-            key: rename.sourceKey,
-            newKey: renamedSourceKey
+          await this._api.move({
+            bucket: this._callbacks.getBucket(),
+            sourceKeys: [rename.sourceKey],
+            destinationPrefix: '',
+            destinationKey: renamedSourceKey
           });
           replaceKeys.push(renamedSourceKey);
         } catch {
@@ -904,6 +913,7 @@ export class ClipboardState {
         try {
           const result = await this._api.move({
             bucket,
+            sourceBucket: this._callbacks.getBucket(),
             sourceKeys: [key],
             destinationPrefix: pending.destPrefix,
             progress: true,
@@ -980,12 +990,33 @@ export class ClipboardState {
     parts.pop(); // remove filename
     let prefix = parts.join('/') ? parts.join('/') + '/' : '';
     for (let i = 1; i < keys.length; i++) {
-      // eslint-disable-next-line security/detect-object-injection
       while (prefix && !keys[i].startsWith(prefix)) {
         const idx = prefix.lastIndexOf('/', prefix.length - 2);
         prefix = idx >= 0 ? prefix.substring(0, idx + 1) : '';
       }
     }
     return prefix;
+  }
+
+  /** True when moving or pasting the key would write it over itself. */
+  private _isAlreadyInDestination(key: string, destPrefix: string): boolean {
+    const parentPrefix = key.endsWith('/')
+      ? key.slice(0, -1).substring(0, key.slice(0, -1).lastIndexOf('/') + 1)
+      : key.substring(0, key.lastIndexOf('/') + 1);
+    return parentPrefix === destPrefix;
+  }
+
+  /** A paste can only overwrite its source when every item is already at its destination. */
+  private _isSameLocationPaste(
+    clipboard: ClipboardData,
+    destPrefix: string,
+    conflictEntries: ConflictEntry[]
+  ): boolean {
+    return (
+      clipboard.sourceBucket === this._callbacks.getBucket() &&
+      clipboard.sourcePrefix === destPrefix &&
+      clipboard.keys.every((key) => this._isAlreadyInDestination(key, destPrefix)) &&
+      conflictEntries.every((entry) => entry.conflict)
+    );
   }
 }

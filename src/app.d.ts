@@ -24,6 +24,8 @@ declare global {
        * Null for all other routes.
        */
       storageConfig: import('$lib/server/storage/types.js').S3ConnectionConfig | null;
+      /** Authorised storage connection ID for the current API request. */
+      storageConnectionId: string | null;
     }
     // interface PageData {}
     // interface PageState {}

@@ -197,7 +197,7 @@
       <p class="text-base-content/50 p-4 text-sm italic">{m.storage_bucket_empty()}</p>
     {:else}
       <div class="min-h-0 w-full flex-1 overflow-auto">
-        <table class="table-xs table min-w-max" aria-label="Parquet preview">
+        <table class="table-xs table min-w-max" aria-label={m.storage_preview_parquet_label()}>
           <thead class="bg-base-200 text-base-content/60 sticky top-0 z-10 text-xs shadow-sm">
             <tr>
               <th class="text-base-content/30 w-10 text-right font-normal"></th>
@@ -231,9 +231,7 @@
       </div>
       {#if isTruncated}
         <p class="text-base-content/50 px-4 py-2 text-xs italic">
-          {m.storage_preview_infinite_scroll_disabled
-            ? m.storage_preview_infinite_scroll_disabled()
-            : `This is the end of the preview. Download the full file or ask the administrator to enable infinite scrolling to load more rows in this preview.`}
+          {m.storage_preview_infinite_scroll_disabled()}
         </p>
       {/if}
     {/if}
@@ -248,11 +246,11 @@
         class="min-h-0 w-full flex-1 overflow-auto"
         tabindex="0"
         role="region"
-        aria-label="Parquet preview"
+        aria-label={m.storage_preview_parquet_label()}
         bind:clientHeight={containerHeight}
         onscroll={(e) => (scrollTop = e.currentTarget.scrollTop)}
       >
-        <table class="table-xs table table-fixed" aria-label="Parquet preview">
+        <table class="table-xs table table-fixed" aria-label={m.storage_preview_parquet_label()}>
           <thead class="bg-base-200 text-base-content/60 sticky top-0 z-10 text-xs shadow-sm">
             <tr>
               <th class="text-base-content/30 w-10 text-right font-normal"></th>

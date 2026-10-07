@@ -79,10 +79,11 @@ test.describe('Storage — Explorer tab bar', () => {
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
     await expect(tablist.getByRole('tab')).toHaveCount(2);
 
-    // Hover the tab to make the close button visible (it is opacity-0 by default)
+    // Hover the tab to make its sibling close button visible (it is opacity-0 by default).
+    // The button cannot be nested in the tab button without producing invalid HTML.
     const firstTab = tablist.getByRole('tab').nth(0);
     await firstTab.hover();
-    await firstTab.getByRole('button', { name: 'Close tab' }).click();
+    await tablist.getByRole('button', { name: 'Close tab' }).first().click();
 
     await expect(tablist).toBeVisible();
     await expect(tablist.getByRole('tab')).toHaveCount(1);

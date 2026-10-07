@@ -57,6 +57,19 @@ describe('GET /api/storage/download', () => {
     expect(res.headers.get('Content-Type')).toBe('application/octet-stream');
     expect(res.headers.has('Content-Length')).toBe(false);
   });
+
+  it('escapes quoted filenames and RFC 5987 encodes filename*', async () => {
+    mockProvider.getObject.mockResolvedValue({
+      stream: new ReadableStream(),
+      contentType: 'text/plain'
+    });
+
+    const res = await GET(mockEvent(`bucket=b1&key=${encodeURIComponent('report"(final).txt')}`));
+
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `attachment; filename="report\\"(final).txt"; filename*=UTF-8''report%22%28final%29.txt`
+    );
+  });
 });
 
 describe('HEAD /api/storage/download', () => {

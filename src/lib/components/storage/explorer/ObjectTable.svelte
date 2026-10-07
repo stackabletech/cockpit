@@ -180,6 +180,7 @@
 
 <div
   bind:this={scrollContainer}
+  data-testid="storage-object-list"
   role="region"
   class="h-full overflow-x-auto overflow-y-auto {tableDragOver
     ? 'outline-primary/40 outline -outline-offset-2 outline-dashed'
@@ -210,7 +211,7 @@
             onchange={(e) => storage.selectAll(e.currentTarget.checked)}
             onclick={(e) => e.stopPropagation()}
             disabled={!storage.showCheckboxes}
-            aria-label="Select all"
+            aria-label={m.storage_select_all()}
           />
         </th>
         <th class="w-7/12 font-semibold">{m.storage_header_name()}</th>
@@ -224,7 +225,7 @@
       <!-- Parent directory row -->
       {#if storage.prefix}
         <tr
-          class="cursor-pointer {parentDragOver
+          class="hover:bg-base-200/60 cursor-pointer {parentDragOver
             ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
             : ''}"
           onclick={navigateUp}

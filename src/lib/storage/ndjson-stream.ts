@@ -105,11 +105,9 @@ export async function readNdjsonStream(
 
           case 'complete': {
             const finalResults = (event.results ?? event.moved) as
-              | Array<{ sourceKey: string; destKey: string }>
-              | undefined;
+              Array<{ sourceKey: string; destKey: string }> | undefined;
             const finalFailed = event.failed as
-              | Array<{ sourceKey: string; error: string }>
-              | undefined;
+              Array<{ sourceKey: string; error: string }> | undefined;
             if (finalResults) {
               results.length = 0;
               results.push(...finalResults);

@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { ComponentProps } from 'svelte';
 import StorageConnectForm from './StorageConnectForm.svelte';
-import type { ConnectionMetadata } from '$lib/server/storage/types.js';
+import type { ConnectionMetadata } from '$lib/storage/connection-types.js';
 
 type ConnectionFormProp = ComponentProps<typeof StorageConnectForm>['connectionForm'];
 

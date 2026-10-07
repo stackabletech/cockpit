@@ -36,9 +36,9 @@ vi.mock('$lib/storage/download.js', async (importOriginal) => {
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SvelteSet } from 'svelte/reactivity';
 import { StorageState } from './state.svelte.js';
-import type { StorageObject, StoragePage } from './types.js';
-import type { StorageApi, CopyMoveResult, DeleteResult, DownloadHistoryEntry } from './api.js';
-import type { FileDetails, DirectoryMetadata, BucketDetails } from './details-types.js';
+import type { StorageApi, DownloadHistoryEntry } from './api.js';
+import { createMemoryStorageApi } from './api.test-utils.js';
+import { makePage } from './state.test-utils.js';
 import { StorageError } from './errors.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import { invalidateAll } from '$app/navigation';
@@ -48,128 +48,59 @@ import {
   triggerManifestDownloads
 } from '$lib/storage/download.js';
 
-function makeObjects(): StorageObject[] {
-  return [
-    {
-      key: 'file.txt',
-      size: 100,
-      lastModified: new Date('2025-01-01'),
-      isDirectory: false,
-      contentType: 'text/plain'
-    },
-    {
-      key: 'dir/',
-      size: 0,
-      lastModified: new Date('2025-01-01'),
-      isDirectory: true,
-      contentType: undefined
-    },
-    {
-      key: 'photo.jpg',
-      size: 500,
-      lastModified: new Date('2025-01-01'),
-      isDirectory: false,
-      contentType: 'image/jpeg'
-    },
-    {
-      key: 'nested/file.js',
-      size: 200,
-      lastModified: new Date('2025-01-01'),
-      isDirectory: false,
-      contentType: 'application/javascript'
-    }
-  ];
-}
+describe('selection and navigation', () => {
+  it.each(['folder/', ''])('reloads S3 when leaving an archive for %s', async (prefix) => {
+    const state = makeState(undefined, { prefix: 'folder/' });
+    const navigate = vi.fn();
+    state.setNavigationHandler(navigate);
+    await state.archive.enterArchive('folder/archive.zip');
 
-function makePage(objects?: StorageObject[]): StoragePage {
-  return {
-    objects: objects ?? makeObjects(),
-    hasNextPage: false,
-    currentPage: 1,
-    pageSize: 25
-  };
-}
+    state.navigate(prefix);
+
+    expect(navigate).toHaveBeenCalledWith(prefix, null, state.pageSize, true);
+    expect(state.archive.isInArchive).toBe(false);
+    expect(state.loading).toBe(true);
+
+    state.syncFromServer('test-bucket', prefix, makePage());
+    expect(state.loading).toBe(false);
+  });
+
+  it('reloads the containing S3 folder when exiting from the archive root', async () => {
+    const state = makeState(undefined, { prefix: 'folder/' });
+    const navigate = vi.fn();
+    state.setNavigationHandler(navigate);
+    await state.archive.enterArchive('folder/archive.zip');
+
+    state.archive.navigateUpFromArchive();
+
+    expect(navigate).toHaveBeenCalledWith('folder/', null, state.pageSize, true);
+    expect(state.archive.isInArchive).toBe(false);
+  });
+
+  it('selects the inclusive range from the selection anchor', () => {
+    const state = new StorageState({ api: makeApi() });
+    state.objects = makePage();
+    state.toggleSelect('file.txt');
+
+    state.toggleSelect('photo.jpg', false, true);
+
+    expect([...state.selectedKeys]).toEqual(['file.txt', 'photo.jpg']);
+  });
+
+  it('clears selection mode when navigating', () => {
+    const state = new StorageState({ api: makeApi() });
+    state.selectedKeys = new SvelteSet(['file.txt']);
+    state.selectionMode = true;
+
+    state.navigate('folder/');
+
+    expect(state.selectedKeys.size).toBe(0);
+    expect(state.selectionMode).toBe(false);
+  });
+});
 
 function makeApi(overrides?: Partial<StorageApi>): StorageApi {
-  const defaults: StorageApi = {
-    async list() {
-      return makePage();
-    },
-    async search() {
-      return { results: [] };
-    },
-    async listRecentSearches() {
-      return [];
-    },
-    async recordRecentSearch() {},
-    async clearRecentSearches() {},
-    async copy(): Promise<CopyMoveResult> {
-      return { results: [], failed: 0 };
-    },
-    async move(): Promise<CopyMoveResult> {
-      return { results: [], failed: 0 };
-    },
-    async rename() {},
-    async delete(): Promise<DeleteResult> {
-      return { failed: [] };
-    },
-    async create() {},
-    async archiveExtract() {
-      return new Response(null, { status: 200 });
-    },
-    async archiveListing() {
-      return { entries: [], hasMore: false };
-    },
-    async pollJob() {
-      return { status: 'done' };
-    },
-    async cancelJob() {},
-    async createDownloadManifest() {
-      return {
-        id: 'download-manifest',
-        files: [],
-        expiresAt: new Date().toISOString()
-      };
-    },
-    async listDownloadHistory() {
-      return [];
-    },
-    async clearDownloadHistory() {},
-    async recreateDownloadManifest() {
-      return { id: 'download-manifest', files: [], expiresAt: new Date().toISOString() };
-    },
-    async checkObjectExists() {
-      return false;
-    },
-    async download() {
-      return new Response(null, { status: 200 });
-    },
-    async preview() {
-      return new Response(null, { status: 200 });
-    },
-    async saveText() {
-      // no-op
-    },
-    async details(): Promise<FileDetails> {
-      return {} as FileDetails;
-    },
-    async directoryMetadata(): Promise<DirectoryMetadata> {
-      return {} as DirectoryMetadata;
-    },
-    async directorySize() {
-      return new Response(null, { status: 200 });
-    },
-    async bucketDetails(): Promise<BucketDetails> {
-      return {} as BucketDetails;
-    },
-    async checkBucket() {
-      return { ok: true, status: 200 };
-    },
-    async updateConnections() {
-      // no-op
-    }
-  };
-  return { ...defaults, ...overrides };
+  return createMemoryStorageApi({ list: async () => makePage(), ...overrides });
 }
 
 function makeState(
@@ -416,6 +347,27 @@ describe('executeAction("paste")', () => {
   });
 
   describe('from cut', () => {
+    it('does not replace items when pasting them into their current location', async () => {
+      const moveSpy = vi.fn();
+      const state = makeState({
+        move: moveSpy,
+        checkObjectExists: vi.fn().mockResolvedValue(true)
+      });
+      state.clipboardState.clipboard = {
+        action: 'cut',
+        keys: ['file.txt', 'photo.jpg'],
+        sourceBucket: 'test-bucket',
+        sourcePrefix: '',
+        fileSizes: { 'file.txt': 100, 'photo.jpg': 500 }
+      };
+
+      await state.executeAction('paste');
+
+      expect(moveSpy).not.toHaveBeenCalled();
+      expect(state.activeModal).toBeNull();
+      expect(addToast).not.toHaveBeenCalled();
+    });
+
     it('calls the move API and updates clipboard to destination keys', async () => {
       const moveSpy = vi.fn().mockResolvedValue({
         results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
@@ -482,10 +434,10 @@ describe('confirmRename', () => {
   });
 
   it('shows inline error on conflict and keeps modal open', async () => {
-    const renameSpy = vi
+    const moveSpy = vi
       .fn()
       .mockRejectedValue(new StorageError('conflict', 'Object already exists'));
-    const state = makeState({ rename: renameSpy });
+    const state = makeState({ move: moveSpy });
     state.openModal('rename', { key: 'file.txt' });
 
     await state.confirmRename('file.txt', 'renamed.txt');
@@ -495,9 +447,57 @@ describe('confirmRename', () => {
     expect(state.renameLoading).toBe(false);
   });
 
+  it('opens conflict resolution before renaming to an existing name', async () => {
+    const moveSpy = vi.fn();
+    const state = makeState({ move: moveSpy, checkObjectExists: vi.fn().mockResolvedValue(true) });
+    state.openModal('rename', { key: 'file.txt' });
+
+    await state.confirmRename('file.txt', 'renamed.txt');
+
+    expect(moveSpy).not.toHaveBeenCalled();
+    expect(state.activeModal).toEqual(
+      expect.objectContaining({
+        type: 'resolve-conflicts',
+        payload: expect.objectContaining({
+          confirmLabel: 'Rename',
+          operation: 'rename',
+          entries: [expect.objectContaining({ originalName: 'renamed.txt', conflict: true })]
+        })
+      })
+    );
+  });
+
+  it('replaces the destination before completing a conflicting rename', async () => {
+    const deleteSpy = vi.fn().mockResolvedValue({ failed: [] });
+    const moveSpy = vi.fn().mockResolvedValue({ results: [], failed: 0 });
+    const state = makeState({
+      move: moveSpy,
+      delete: deleteSpy,
+      checkObjectExists: vi.fn().mockResolvedValue(true)
+    });
+    state.openModal('rename', { key: 'file.txt' });
+    await state.confirmRename('file.txt', 'renamed.txt');
+
+    await state.confirmConflictResolution([
+      {
+        id: 'file.txt',
+        originalName: 'renamed.txt',
+        conflict: true,
+        resolution: 'replace',
+        customName: 'renamed.txt',
+        renameState: 'idle'
+      }
+    ]);
+
+    expect(deleteSpy).toHaveBeenCalledWith({ bucket: 'test-bucket', keys: ['renamed.txt'] });
+    expect(moveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceKeys: ['file.txt'], destinationKey: 'renamed.txt' })
+    );
+  });
+
   it('shows toast on access_denied and closes modal', async () => {
-    const renameSpy = vi.fn().mockRejectedValue(new StorageError('access_denied', 'Access denied'));
-    const state = makeState({ rename: renameSpy });
+    const moveSpy = vi.fn().mockRejectedValue(new StorageError('access_denied', 'Access denied'));
+    const state = makeState({ move: moveSpy });
     state.openModal('rename', { key: 'file.txt' });
 
     await state.confirmRename('file.txt', 'renamed.txt');
@@ -507,8 +507,8 @@ describe('confirmRename', () => {
   });
 
   it('shows toast on not_found and closes modal', async () => {
-    const renameSpy = vi.fn().mockRejectedValue(new StorageError('not_found', 'Not found'));
-    const state = makeState({ rename: renameSpy });
+    const moveSpy = vi.fn().mockRejectedValue(new StorageError('not_found', 'Not found'));
+    const state = makeState({ move: moveSpy });
     state.openModal('rename', { key: 'file.txt' });
 
     await state.confirmRename('file.txt', 'renamed.txt');
@@ -518,8 +518,8 @@ describe('confirmRename', () => {
   });
 
   it('shows success toast on successful rename and updates recent files', async () => {
-    const renameSpy = vi.fn().mockResolvedValue(undefined);
-    const state = makeState({ rename: renameSpy });
+    const moveSpy = vi.fn().mockResolvedValue({ results: [], failed: 0 });
+    const state = makeState({ move: moveSpy });
     state.openModal('rename', { key: 'file.txt' });
     // Seed a recent file entry for the old key
     state.bookmarks.recordFileVisit('test-bucket', 'file.txt', 100);
@@ -535,8 +535,8 @@ describe('confirmRename', () => {
   });
 
   it('handles directory rename (trailing slash)', async () => {
-    const renameSpy = vi.fn().mockResolvedValue(undefined);
-    const state = makeState({ rename: renameSpy });
+    const moveSpy = vi.fn().mockResolvedValue({ results: [], failed: 0 });
+    const state = makeState({ move: moveSpy });
     state.openModal('rename', { key: 'dir/' });
 
     await state.confirmRename('dir/', 'renamed-dir');

@@ -1,11 +1,9 @@
 /**
  * Shared types for the upload modal sub-components.
- * Resolution and RenameState are re-exported from the shared conflict types.
+ * Resolution and RenameState are consumed directly from the shared conflict types.
  */
 
 import type { Resolution, RenameState } from '../shared/conflict-types.js';
-
-export type { Resolution, RenameState };
 
 export type FileEntry = {
   id: string;

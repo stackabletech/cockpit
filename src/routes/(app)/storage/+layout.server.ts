@@ -7,6 +7,7 @@ import { userStorageConnections } from '$lib/server/schema.js';
 import { decrypt } from '$lib/server/storage/encryption.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
 import type { ConnectionListItem } from '$lib/storage/connection-store.svelte.js';
+import { StoredStorageConnectionSchema } from '$lib/storage/schemas.js';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   if (!storageBrowserEnabled) {
@@ -29,10 +30,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
   const connections: ConnectionListItem[] = rows.map((row) => {
     let endpoint: string | null = null;
     try {
-      const payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey())) as {
-        host?: string;
-        port?: number;
-      };
+      const payload = StoredStorageConnectionSchema.parse(
+        JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey()))
+      );
       endpoint =
         payload.host && payload.port ? `${payload.host}:${payload.port}` : (payload.host ?? null);
     } catch {

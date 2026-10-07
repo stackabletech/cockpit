@@ -46,7 +46,6 @@ export function splitStatements(sql: string): SqlStatement[] {
   let depth = 0;
 
   for (let i = 0; i < tokens.length; i++) {
-    // eslint-disable-next-line security/detect-object-injection
     const token = tokens[i];
     const type = token.type;
 
@@ -111,9 +110,7 @@ export function getStatementAtOffset(sql: string, offset: number): SqlStatement 
   // If cursor is between statements (on whitespace/semicolons), return the
   // previous statement so the user targets what they just finished typing.
   for (let i = statements.length - 1; i >= 0; i--) {
-    // eslint-disable-next-line security/detect-object-injection
     if (statements[i].endOffset <= offset) {
-      // eslint-disable-next-line security/detect-object-injection
       return statements[i];
     }
   }

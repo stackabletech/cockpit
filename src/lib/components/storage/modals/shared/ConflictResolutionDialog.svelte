@@ -63,17 +63,13 @@
 
   function skipAll() {
     localEntries = localEntries.map((e) =>
-      e.conflict
-        ? { ...e, resolution: 'skip' as Resolution, renameState: 'idle' as RenameState }
-        : e
+      e.conflict ? { ...e, resolution: 'skip', renameState: 'idle' } : e
     );
   }
 
   function replaceAll() {
     localEntries = localEntries.map((e) =>
-      e.conflict
-        ? { ...e, resolution: 'replace' as Resolution, renameState: 'idle' as RenameState }
-        : e
+      e.conflict ? { ...e, resolution: 'replace', renameState: 'idle' } : e
     );
   }
 
@@ -85,7 +81,7 @@
         ? {
             ...e,
             resolution: res,
-            renameState: (res === 'rename' ? 'editing' : 'idle') as RenameState
+            renameState: res === 'rename' ? 'editing' : 'idle'
           }
         : e
     );

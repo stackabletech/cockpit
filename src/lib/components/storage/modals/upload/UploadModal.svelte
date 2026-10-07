@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconDraft from 'virtual:icons/material-symbols/draft';
   import IconUpload from 'virtual:icons/material-symbols/upload';
@@ -15,16 +16,19 @@
   import UploadEntryStatus from './UploadEntryStatus.svelte';
   import ConflictEntry from '../shared/ConflictEntry.svelte';
   import type { ConflictEntry as ConflictEntryType } from '../shared/conflict-types.js';
-  import type { FileEntry, Phase, Resolution, RenameState } from './types.js';
+  import type { FileEntry, Phase } from './types.js';
+  import type { Resolution, RenameState } from '../shared/conflict-types.js';
+  import type { FilePair } from '$lib/storage/file-collection.js';
 
   interface Props {
     open: boolean;
     bucket: string;
     prefix: string;
+    initialFiles?: FilePair[];
     onSuccess: () => void;
   }
 
-  let { open = $bindable(false), bucket, prefix, onSuccess }: Props = $props();
+  let { open = $bindable(false), bucket, prefix, initialFiles = [], onSuccess }: Props = $props();
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -33,9 +37,16 @@
 
   let cancelRequested = $state(false);
 
-  // Reset when modal closes.
+  // Initialise on opening as well: the parent can mount this modal closed
+  // before resetting its bound open state after a previous cancellation.
   $effect(() => {
-    if (!open) {
+    if (open) {
+      untrack(() => {
+        entries = makeEntries(initialFiles);
+        phase = entries.length > 0 ? 'selected' : 'idle';
+        cancelRequested = false;
+      });
+    } else {
       phase = 'idle';
       entries = [];
     }

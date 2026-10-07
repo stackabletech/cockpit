@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { listArchiveContents } from '$lib/server/storage/archive.js';
 import { getProvider } from '$lib/server/storage/utils.js';
+import { withStorageHttpErrors } from '$lib/server/storage/wrap-provider.js';
 import { archivePreviewMaxBytes } from '$lib/server/feature-flags.js';
 import type { RequestHandler } from './$types';
 
@@ -29,7 +30,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   const nestedArchivePath = url.searchParams.get('nestedArchivePath')?.trim() || undefined;
 
   const config = locals.storageConfig;
-  if (!config) {
+  const connectionId = locals.storageConnectionId;
+  if (!config || !connectionId) {
     throw error(401, 'No storage connection configured');
   }
 
@@ -38,11 +40,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     'listing archive contents'
   );
 
-  const downloadFn = (k: string) =>
-    getProvider(config, bucket)
-      .getObject(k)
-      .then((d) => d.stream);
-  const metadataFn = (k: string) => getProvider(config, bucket).getMetadata(k);
+  const provider = withStorageHttpErrors(getProvider(config, bucket));
+  const downloadFn = (k: string) => provider.getObject(k).then((d) => d.stream);
+  const metadataFn = (k: string) => provider.getMetadata(k);
 
   const listing = await listArchiveContents(
     bucket,
@@ -51,7 +51,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     downloadFn,
     metadataFn,
     nestedArchivePath,
-    archivePreviewMaxBytes
+    archivePreviewMaxBytes,
+    connectionId
   );
   return Response.json(listing);
 };

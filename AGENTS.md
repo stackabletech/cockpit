@@ -35,13 +35,12 @@ This is a **single SvelteKit application** (not a monorepo).
 ├── e2e/                  # Playwright E2E tests
 ├── static/               # Static assets
 ├── docker/Dockerfile     # Production container image
-├── CLAUDE.md             # AI assistant instructions
-└── TECH_DEBT.md          # Known tech debt and deferred security concerns
+└── CLAUDE.md             # AI assistant instructions
 ```
 
 ## Tech Debt
 
-When introducing shortcuts, known issues, or deferred security work, add an entry to `TECH_DEBT.md`. Keep entries concise: what the issue is, why it is acceptable now, and what the correct long-term fix is.
+When introducing shortcuts, known issues, or deferred security work, file an issue with the `tech-debt` label. Keep it concise: what the issue is, why it is acceptable now, and what the correct long-term fix is.
 
 ## Development Guidelines
 
@@ -237,21 +236,20 @@ Architecture tests live in `src/architecture/*.spec.ts` and use [ArchUnitTS](htt
 **Run `npm run test:arch` whenever you:**
 
 - Add a new file to `src/lib/server/` (verify it doesn't break client-boundary rules)
-- Add a new Svelte component (PascalCase naming, no raw `<dialog>`, no hardcoded colours)
+- Add a new Svelte component (PascalCase naming and UI-pattern checks)
 - Add or remove message keys in `messages/en.json` (both locale files must stay in sync)
 - Refactor the Trino sub-layer (circular-dependency rules)
 
 **What the fitness functions enforce:**
 
-| Category                 | What is checked                                                                                                                                                |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Server / Client Boundary | `src/lib/client`, `stores`, `storage`, `editor`, `types` must not import `src/lib/server/**`                                                                   |
-| No Circular Dependencies | `src/lib/**` (excluding Trino, see TECH_DEBT.md) and `src/routes/**` must be cycle-free                                                                        |
-| Naming Conventions       | Stores → `*.svelte.ts`; lib components → PascalCase `.svelte`; server files → no `.svelte.ts` extension                                                        |
-| Code Size Limits         | `.ts` files < 2 400 LOC; `.svelte` files < 1 100 LOC; test files < 1 000 LOC                                                                                   |
-| UI Pattern Enforcement   | No hardcoded Tailwind colours; no raw `<dialog>`; no native date inputs; `<img>` must have `alt`; no `<div onclick>` (known violations listed in TECH_DEBT.md) |
-| Server Logging           | Server files must use pino logger, not `console.*`                                                                                                             |
-| i18n Compliance          | `messages/en.json` and `messages/de.json` must have the same keys; no static `aria-label="English text"` (known violations listed in TECH_DEBT.md)             |
+| Category                 | What is checked                                                                                               |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| Server / Client Boundary | `src/lib/client`, `stores`, `storage`, `editor`, `types` must not import `src/lib/server/**`                  |
+| No Circular Dependencies | `src/lib/**` (excluding Trino) and `src/routes/**` must be cycle-free                                         |
+| Naming Conventions       | Stores → `*.svelte.ts`; lib components → PascalCase `.svelte`; server files → no `.svelte.ts` extension       |
+| Code Size Limits         | `.ts` files < 2 400 LOC; `.svelte` files < 1 100 LOC; test files < 1 000 LOC                                  |
+| UI Pattern Enforcement   | No native date inputs; `<img>` must have `alt`; no clickable `<div>` or `<span>` (with documented exceptions) |
+| i18n Compliance          | `messages/en.json` and `messages/de.json` must have the same keys; no static `aria-label="English text"`      |
 
 **Extending the fitness functions:**
 When you add a new architectural rule (e.g., a new layer, a new naming convention), add a new `.spec.ts` file in `src/architecture/` following the existing patterns. Use archunit for TypeScript dependency/cycle rules and plain Node.js `fs` for content checks on Svelte files.

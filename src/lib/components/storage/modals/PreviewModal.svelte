@@ -102,7 +102,14 @@
       }
     | { kind: 'image'; blobUrl: string; contentType: string; totalSize: number }
     | { kind: 'pdf'; blobUrl: string; totalSize: number }
-    | { kind: 'fallback'; contentType: string; isBinary: boolean; imageTooLarge?: boolean }
+    | {
+        kind: 'fallback';
+        contentType: string;
+        isBinary: boolean;
+        imageTooLarge?: boolean;
+        isSevenZip?: boolean;
+        isRar?: boolean;
+      }
     | { kind: 'error'; message: string };
 
   let {
@@ -227,6 +234,21 @@
       const truncated = res.headers.get('X-Preview-Truncated') === 'true';
       const previewRows = Number(res.headers.get('X-Preview-Preview-Rows') ?? '0');
       const previewColumns = Number(res.headers.get('X-Preview-Preview-Columns') ?? '0');
+
+      if (key.toLowerCase().endsWith('.7z') || contentType === 'application/x-7z-compressed') {
+        preview = { kind: 'fallback', contentType, isBinary: true, isSevenZip: true };
+        return;
+      }
+
+      if (
+        key.toLowerCase().endsWith('.rar') ||
+        ['application/vnd.rar', 'application/x-rar-compressed', 'application/x-rar'].includes(
+          contentType
+        )
+      ) {
+        preview = { kind: 'fallback', contentType, isBinary: true, isRar: true };
+        return;
+      }
 
       if (contentType.startsWith('image/')) {
         if (truncated) {
@@ -617,8 +639,13 @@
           addToast('error', m.storage_upload_error_not_connected());
         } else if (err.code === 'access_denied') {
           addToast('error', m.storage_upload_error_access_denied());
+        } else if (err.code === 'file_too_large') {
+          addToast(
+            'error',
+            m.storage_editor_too_large({ limit: formatFileSize(maxEditableFileSize) })
+          );
         } else {
-          addToast('error', m.storage_editor_error());
+          addToast('error', err.message || m.storage_editor_error());
         }
       } else {
         addToast('error', m.storage_editor_error());
@@ -1033,6 +1060,8 @@
             onDownload={triggerDownload}
             isBinary={preview.isBinary}
             imageTooLarge={preview.imageTooLarge}
+            isSevenZip={preview.isSevenZip}
+            isRar={preview.isRar}
           />
         </div>
       {/if}

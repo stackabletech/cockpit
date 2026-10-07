@@ -23,3 +23,21 @@ probe::url() {
   fi
   echo "$url"
 }
+
+probe::tcp_host() {
+  local port=$1 timeout=${2:-60}
+  local deadline host
+  deadline=$(( $(date +%s) + timeout ))
+
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    for host in "$NODE_IP" 127.0.0.1 localhost; do
+      if timeout 2 bash -c "</dev/tcp/$host/$port" >/dev/null 2>&1; then
+        echo "$host"
+        return 0
+      fi
+    done
+    sleep 2
+  done
+
+  return 1
+}

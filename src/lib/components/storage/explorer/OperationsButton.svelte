@@ -28,7 +28,14 @@
   };
 
   let dropdownOpen = $state(false);
+  let tick = $state(0);
   let expandedOps: Record<string, boolean> = $state({});
+
+  $effect(() => {
+    if (!hasRunningOps) return;
+    const id = setInterval(() => tick++, 1000);
+    return () => clearInterval(id);
+  });
 
   function toggleDropdown() {
     dropdownOpen = !dropdownOpen;
@@ -90,11 +97,12 @@
       case 'interrupted':
         return m.storage_operation_interrupted();
       default:
-        return m.storage_operation_failed();
+        return op.errorMessage ?? m.storage_operation_failed();
     }
   }
 
   function formatElapsed(startedAt: number, completedAt: number | undefined): string {
+    void tick;
     const end = completedAt ?? Date.now();
     const seconds = Math.floor((end - startedAt) / 1000);
     if (seconds < 60) return `${seconds}s`;
@@ -135,6 +143,7 @@
   }
 
   function speedLabel(op: StorageOperation): string {
+    void tick;
     const elapsed = (Date.now() - op.startedAt) / 1000;
     if (elapsed <= 0 || op.completedBytes <= 0) return '';
     const bytesPerSec = op.completedBytes / elapsed;
@@ -142,6 +151,7 @@
   }
 
   function etaLabel(op: StorageOperation): string {
+    void tick;
     const elapsed = (Date.now() - op.startedAt) / 1000;
     if (elapsed <= 0 || op.completedBytes <= 0 || op.totalBytes <= 0) return '';
     const bytesPerSec = op.completedBytes / elapsed;
@@ -170,6 +180,10 @@
     <div
       class="fixed inset-0 z-40"
       onclick={() => (dropdownOpen = false)}
+      oncontextmenu={(e) => {
+        e.preventDefault();
+        dropdownOpen = false;
+      }}
       role="presentation"
       aria-hidden="true"
     ></div>
@@ -209,6 +223,8 @@
     {#if dropdownOpen}
       <div
         role="menu"
+        tabindex="-1"
+        oncontextmenu={(e) => e.preventDefault()}
         aria-label={m.storage_operations_label()}
         class="rounded-box border-base-300 bg-base-100 absolute right-0 z-60 mt-2 flex max-h-[calc(100dvh-6rem)] w-[min(24rem,calc(100vw-1rem))] origin-top-right flex-col overflow-hidden border shadow-xl"
       >

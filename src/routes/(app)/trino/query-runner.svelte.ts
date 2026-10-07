@@ -8,6 +8,7 @@ import {
 } from '$lib/types/query.js';
 import type { SqlStatement } from '$lib/editor/split-statements.js';
 import { clearCompletionCache } from '$lib/editor/completion/completion-metadata.js';
+import * as m from '$lib/paraglide/messages.js';
 
 export { INITIAL_PROGRESS, type QueryState, type QueryProgress } from '$lib/types/query.js';
 export type { ScriptProgress } from '$lib/types/query.js';
@@ -18,6 +19,7 @@ export interface QueryRunner {
   readonly results: QuerySnapshot[];
   readonly scriptProgress: ScriptProgress | null;
   readonly currentTrinoQueryUrl: string | null;
+  readonly error: string | null;
   executeScript: (
     statements: SqlStatement[],
     options?: { catalog?: string; schema?: string }
@@ -42,6 +44,7 @@ function createQueryRunner(tabId: string): QueryRunner {
   let results = $state.raw<QuerySnapshot[]>([]);
   let scriptProgress = $state<ScriptProgress | null>(null);
   let currentTrinoQueryUrl = $state<string | null>(null);
+  let error = $state<string | null>(null);
 
   let totalStatements = 0;
   let polling = false;
@@ -58,6 +61,7 @@ function createQueryRunner(tabId: string): QueryRunner {
     results = [];
     scriptProgress = null;
     currentTrinoQueryUrl = null;
+    error = null;
     totalStatements = 0;
     stopPolling();
   }
@@ -108,6 +112,7 @@ function createQueryRunner(tabId: string): QueryRunner {
         const res = await fetch(`/api/trino/query?tabId=${encodeURIComponent(tabId)}`, { signal });
 
         if (!res.ok) {
+          error = m.trino_query_connection_lost();
           state = 'FAILED';
           stopPolling();
           return;
@@ -122,7 +127,6 @@ function createQueryRunner(tabId: string): QueryRunner {
             isTerminal(s.state) &&
             s.rows.length === 0 &&
             s.columns.length === 0 &&
-            // eslint-disable-next-line security/detect-object-injection
             (!results[i] || !isTerminal(results[i].state) || results[i].rows.length === 0)
         );
         if (hasNewlyCompleted) {
@@ -149,7 +153,8 @@ function createQueryRunner(tabId: string): QueryRunner {
         }
       } catch (err) {
         if (signal.aborted) return;
-        console.error('Query poll failed', err);
+        void err;
+        error = m.trino_query_connection_lost();
         state = 'FAILED';
         stopPolling();
         return;
@@ -193,7 +198,7 @@ function createQueryRunner(tabId: string): QueryRunner {
 
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        console.error('Query submit failed', body?.error ?? `HTTP ${res.status}`);
+        error = body?.error ?? m.trino_query_connection_lost();
         state = 'FAILED';
         return;
       }
@@ -201,6 +206,7 @@ function createQueryRunner(tabId: string): QueryRunner {
       state = 'QUEUED';
       pollStatus();
     } catch {
+      error = m.trino_query_connection_lost();
       state = 'FAILED';
     }
   }
@@ -275,6 +281,9 @@ function createQueryRunner(tabId: string): QueryRunner {
     },
     get currentTrinoQueryUrl() {
       return currentTrinoQueryUrl;
+    },
+    get error() {
+      return error;
     },
     executeScript,
     cancel,

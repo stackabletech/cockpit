@@ -139,14 +139,36 @@ export async function connectAndOpenPrefix(
 ) {
   await connectToStorage(page, credentials);
   const connection = new URL(credentials.endpoint).hostname;
-  await page.goto(bucketRoute(connection, credentials.bucket, prefix));
-  // If a parallel worker's disconnect raced with this navigation the page will
-  // have been redirected back to /storage.  Detect that and reconnect once.
-  await waitForHydration(page);
-  if (!page.url().includes(encodeURIComponent(credentials.bucket))) {
+  const route = bucketRoute(connection, credentials.bucket, prefix);
+
+  // A session update can redirect a just-opened bucket route to the storage
+  // overview after hydration. Retry once if that happens while loading.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await page.goto(route);
+    await waitForHydration(page);
+
+    const objectsLoaded = waitForObjectsLoaded(page, 15_000).then(() => 'objects');
+    const storageOverview = page
+      .getByRole('heading', { name: 'Buckets', exact: true })
+      .waitFor({ timeout: 5_000 })
+      .then(() => 'overview' as const)
+      // Keep waiting for the bucket list when the overview is not rendered.
+      .catch(() => new Promise<never>(() => {}));
+
+    let pageContent: 'objects' | 'overview' | undefined;
+    try {
+      pageContent = await Promise.race([objectsLoaded, storageOverview]);
+    } catch {
+      // A just-created session can briefly leave the browse request without a
+      // connection. Reconnect and retry the route rather than failing the test.
+    }
+    if (pageContent === 'objects' && page.url().includes(encodeURIComponent(credentials.bucket))) {
+      return;
+    }
+
     await connectToStorage(page, credentials);
-    await page.goto(bucketRoute(connection, credentials.bucket, prefix));
   }
+
   await waitForObjectsLoaded(page);
 }
 
@@ -155,16 +177,19 @@ export async function connectAndOpenPrefix(
  * With the new architecture, `waitForHydration` alone is insufficient because
  * the object list is fetched client-side after hydration. This waits for either
  * a table row or the empty-state message to appear, confirming the fetch has
- * completed and the UI has updated.
+ * completed and the UI has updated. The locator is scoped to the bucket object
+ * list because the storage overview also contains a table for recent items.
  */
-export async function waitForObjectsLoaded(page: Page) {
+export async function waitForObjectsLoaded(page: Page, timeout = 15_000) {
   await waitForHydration(page);
-  await page.getByLabel('Loading…').waitFor({ state: 'hidden', timeout: 15_000 });
-  await page
+  const objectList = page.getByTestId('storage-object-list');
+  await objectList.waitFor({ state: 'visible', timeout });
+  await page.getByTestId('storage-object-list-loading').waitFor({ state: 'hidden', timeout });
+  await objectList
     .locator('tbody tr')
-    .or(page.getByText('This bucket is empty'))
+    .or(objectList.getByText('This bucket is empty'))
     .first()
-    .waitFor({ timeout: 15_000 });
+    .waitFor({ timeout });
 }
 
 /**
@@ -248,11 +273,14 @@ export async function getObjectText(
 }
 
 export function rowByName(page: Page, name: string) {
-  return page.locator('tbody tr', { hasText: name }).first();
+  return page
+    .getByTestId('storage-object-list')
+    .locator('tbody tr')
+    .filter({ has: page.getByText(name, { exact: true }) });
 }
 
 export function modalBox(page: Page) {
-  return page.locator('.modal-box').last();
+  return page.getByRole('dialog').locator('.modal-box');
 }
 
 export async function headObject(client: S3Client, bucket: string, key: string) {

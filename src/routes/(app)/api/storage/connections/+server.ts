@@ -4,6 +4,10 @@ import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import type { RequestHandler } from './$types';
+import {
+  AddConnectionBucketBodySchema,
+  StoredStorageConnectionSchema
+} from '$lib/storage/schemas.js';
 
 /**
  * GET /api/storage/connections
@@ -35,10 +39,9 @@ export const GET: RequestHandler = async ({ locals }) => {
   const connections = rows.map((row) => {
     let endpoint: string | null = null;
     try {
-      const payload = JSON.parse(decrypt(row.encryptedPayload, getKey())) as {
-        host?: string;
-        port?: number;
-      };
+      const payload = StoredStorageConnectionSchema.parse(
+        JSON.parse(decrypt(row.encryptedPayload, getKey()))
+      );
       endpoint =
         payload.host && payload.port ? `${payload.host}:${payload.port}` : (payload.host ?? null);
     } catch {
@@ -72,11 +75,11 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
     return json({ error: 'Missing storage connection ID' }, { status: 400 });
   }
 
-  const body = (await request.json()) as { bucket?: string };
-  const bucket = body.bucket?.trim();
-  if (!bucket) {
+  const body = AddConnectionBucketBodySchema.safeParse(await request.json().catch(() => null));
+  if (!body.success) {
     return json({ error: 'Bucket name is required' }, { status: 400 });
   }
+  const { bucket } = body.data;
 
   const rows = await db
     .select({

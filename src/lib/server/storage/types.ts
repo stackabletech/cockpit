@@ -28,9 +28,4 @@ export type StorageConfig = S3Config | HDFSConfig;
 /** Per-user connection config stored in memory (no bucket). */
 export type StorageConnectionConfig = S3ConnectionConfig | HDFSConfig;
 
-/** Minimal connection metadata returned to the client. */
-export interface ConnectionMetadata {
-  id: string;
-  name: string;
-  endpoint: string | null;
-}
+export type { ConnectionMetadata } from '$lib/storage/connection-types.js';

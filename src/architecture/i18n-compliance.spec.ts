@@ -18,7 +18,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { findFiles } from './helpers';
+import { findFiles, readTextFile } from './helpers';
 
 /**
  * Keys present in messages/*.json but not referenced anywhere in src/.
@@ -132,30 +132,14 @@ describe('i18n Compliance', () => {
   });
 
   it('Svelte components must not use static English strings in aria-label attributes', () => {
-    const KNOWN_VIOLATIONS = [
-      'ToastHost.svelte',
-      'TextEditor.svelte',
-      'ContextMenu.svelte',
-      'FileRow.svelte',
-      'FolderRow.svelte',
-      'ObjectTable.svelte',
-      'StorageBreadcrumb.svelte',
-      'CsvPreview.svelte',
-      'ParquetPreview.svelte',
-      'TextPreview.svelte'
-    ];
-
     const STATIC_ARIA_RE = /aria-label="[A-Za-z][^"]{2,}"/;
 
     const files = findFiles('src', /\.svelte$/);
     const allViolations = files.filter((file) => {
-      const content = readFileSync(file, 'utf-8');
+      const content = readTextFile(file);
       return STATIC_ARIA_RE.test(content);
     });
 
-    const newViolations = allViolations.filter(
-      (f) => !KNOWN_VIOLATIONS.some((kv) => f.endsWith(kv))
-    );
-    expect(newViolations).toStrictEqual([]);
+    expect(allViolations).toStrictEqual([]);
   });
 });

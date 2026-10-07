@@ -24,7 +24,16 @@ export function connectionHostname(connection: ConnectionListItem | null): strin
       'http://localhost'
     ).hostname;
   } catch {
-    return connection.endpoint.split(':')[0] ?? '';
+    const endpoint = connection.endpoint;
+    if (!endpoint.startsWith('[')) return endpoint;
+    const closingBracket = endpoint.indexOf(']');
+    if (closingBracket <= 1) return endpoint;
+    const suffix = endpoint.slice(closingBracket + 1);
+    const isPort =
+      suffix.startsWith(':') &&
+      suffix.length > 1 &&
+      [...suffix.slice(1)].every((char) => char >= '0' && char <= '9');
+    return suffix === '' || isPort ? endpoint.slice(1, closingBracket) : endpoint;
   }
 }
 

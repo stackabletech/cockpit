@@ -79,6 +79,8 @@ export function fingerprint(
     credentials.region,
     credentials.accessKeyId,
     credentials.secretAccessKey
-  ].join('|');
+  ]
+    .map((field) => `${Buffer.byteLength(field, 'utf8')}:${field}`)
+    .join('');
   return createHmac('sha256', hmacKey).update(material, 'utf8').digest('hex');
 }

@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   StorageConnectionSchema,
   EditStorageConnectionSchema,
-  ConnectionIdSchema
+  ConnectionIdSchema,
+  StorageObjectNameSchema,
+  CopyObjectsBodySchema,
+  MoveObjectsBodySchema,
+  DeleteObjectsBodySchema
 } from './schemas.js';
 
 describe('StorageConnectionSchema', () => {
@@ -44,6 +48,10 @@ describe('StorageConnectionSchema', () => {
     if (result.success) {
       expect(result.data.host).toBe('storage.example.com');
     }
+  });
+
+  it('rejects malformed host values', () => {
+    expect(StorageConnectionSchema.safeParse({ host: '%/()$=("?§/(' }).success).toBe(false);
   });
 
   it('accepts port', () => {
@@ -216,5 +224,38 @@ describe('ConnectionIdSchema', () => {
   it('rejects missing connectionId', () => {
     const result = ConnectionIdSchema.safeParse({});
     expect(result.success).toBe(false);
+  });
+});
+
+describe('storage object schemas', () => {
+  it('accepts a valid nested object name', () => {
+    expect(StorageObjectNameSchema.safeParse('reports/April 2026.csv').success).toBe(true);
+  });
+
+  it('accepts Unicode object names', () => {
+    expect(StorageObjectNameSchema.safeParse('Bücher/verträge.pdf').success).toBe(true);
+  });
+
+  it('rejects relative segments and unsupported characters', () => {
+    expect(StorageObjectNameSchema.safeParse('../secrets.txt').success).toBe(false);
+    expect(StorageObjectNameSchema.safeParse('report?.csv').success).toBe(false);
+  });
+
+  it('validates copy, move, and delete request bodies at runtime', () => {
+    expect(
+      CopyObjectsBodySchema.safeParse({
+        sourceKeys: ['source.csv'],
+        destinationPrefix: '',
+        sourceBucket: 'source'
+      }).success
+    ).toBe(true);
+    expect(MoveObjectsBodySchema.safeParse({ sourceKeys: ['source.csv'] }).success).toBe(false);
+    expect(
+      MoveObjectsBodySchema.safeParse({
+        sourceKeys: ['source.csv', 'second.csv'],
+        destinationKey: 'target.csv'
+      }).success
+    ).toBe(false);
+    expect(DeleteObjectsBodySchema.safeParse({ keys: [''] }).success).toBe(false);
   });
 });

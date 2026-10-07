@@ -7,7 +7,7 @@
   // Otherwise, add exceptions to this if you want navigation progress inside a specific app.
   const appRoots = $derived(
     getNavSections({ storageBrowserEnabled: true }).flatMap((section) =>
-      section.items.map((item) => item.href)
+      section.items.map((item) => item.route)
     )
   );
 

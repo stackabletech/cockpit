@@ -25,7 +25,7 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
 
     let result;
     try {
-      result = await query.client.poll(nextUri);
+      result = await query.client.poll(nextUri, { user: query.trinoUser });
     } catch (err) {
       if (isTerminal(query.state)) return;
 
@@ -71,7 +71,11 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
     if (query.rows.length >= MAX_CLIENT_ROWS) {
       query.error = `ROW_LIMIT:${MAX_CLIENT_ROWS}`;
       try {
-        await query.client.cancel(query.trinoQueryId);
+        if (result.nextUri) {
+          await query.client.cancelViaUri(result.nextUri, query.trinoUser);
+        } else {
+          await query.client.cancel(query.trinoQueryId, query.trinoUser);
+        }
       } catch (err) {
         log.warn({ err, trino_query_id: query.trinoQueryId }, 'failed to cancel after row limit');
       }
@@ -81,6 +85,7 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
     }
 
     nextUri = result.nextUri;
+    query.nextUri = nextUri;
   }
 
   // All pages drained. Safe even if cancelled concurrently (terminateQuery

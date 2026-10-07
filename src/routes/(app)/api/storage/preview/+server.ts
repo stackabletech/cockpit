@@ -45,7 +45,17 @@ export const GET: RequestHandler = async (event) => {
     }
 
     if (isParquet) {
-      return await getParquetPreview(provider, key, offset, limit, log, totalSize, includeData);
+      return await getParquetPreview(
+        provider,
+        key,
+        offset,
+        limit,
+        log,
+        totalSize,
+        includeData,
+        bucket,
+        locals.storageConnectionId ?? ''
+      );
     }
 
     // Skip body fetch for known-binary formats — client will show fallback immediately.
@@ -76,10 +86,11 @@ export const GET: RequestHandler = async (event) => {
         key,
         offset,
         limit,
-        contentType,
         totalSize,
         log,
-        includeData
+        includeData,
+        bucket,
+        locals.storageConnectionId ?? ''
       );
     }
 

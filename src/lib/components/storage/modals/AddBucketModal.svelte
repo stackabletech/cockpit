@@ -31,7 +31,7 @@
 
   // Reset form state whenever the modal is closed
   $effect(() => {
-    if (!open) reset();
+    if (!open && !submitting) reset();
   });
 
   async function handleSubmit(e: SubmitEvent) {

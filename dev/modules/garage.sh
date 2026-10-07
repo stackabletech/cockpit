@@ -27,7 +27,7 @@ garage::init() {
   GARAGE_S3_URL="http://${garage_host}:${garage_s3_port}"
   GARAGE_ADMIN_URL="$garage_base_url"
 
-  S3_SECRET_ACCESS_KEY=$(openssl rand -hex 32) \
+  S3_SECRET_ACCESS_KEY=372fefdc86a9e0a4b9b5158aaacecc54cae7e5ac499803b6a07af440d7521a91 \
     GARAGE_ADMIN_TOKEN=stackable-cockpit-e2e-admin-token \
     S3_ENDPOINT="$GARAGE_S3_URL" \
     GARAGE_ADMIN_URL="$GARAGE_ADMIN_URL" \

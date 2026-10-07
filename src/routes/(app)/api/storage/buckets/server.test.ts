@@ -74,10 +74,12 @@ describe('GET /api/storage/buckets', () => {
       expect(body).toEqual(['alpha', 'beta']);
     });
 
-    it('returns empty array when prefix is set without details', async () => {
+    it('lists buckets when prefix is set without details', async () => {
+      mockListContainers.mockResolvedValue(['alpha', 'beta']);
+
       const response = await GET(mockEvent({ prefix: 'some/prefix/' }));
       const body = await response.json();
-      expect(body).toEqual([]);
+      expect(body).toEqual(['alpha', 'beta']);
     });
   });
 

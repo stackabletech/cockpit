@@ -16,27 +16,21 @@ import {
   infiniteScrollEnabled,
   type ParquetDisallowedCompression
 } from '$lib/server/feature-flags';
+import { ExpiringCache, previewCacheKey } from './cache.js';
 
 const fallbackLog = logger.child({ module: 'parquet-preview' });
 
+/**
+ * Override the pure-JS GZIP decompressor from hyparquet-compressors with
+ * Node's native zlib binding — orders of magnitude faster for large payloads.
+ */
 const nodeCompressors = {
   ...compressors,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   GZIP: (input: Uint8Array, _outputLength: number): Uint8Array => new Uint8Array(gunzipSync(input))
 };
 
-// --- IN-MEMORY CACHE FOR METADATA ---
-const metadataCache = new Map<string, { meta: FileMetaData; lastAccessed: number }>();
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of metadataCache.entries()) {
-    if (now - entry.lastAccessed > 5 * 60 * 1000) {
-      metadataCache.delete(key);
-    }
-  }
-}, 60 * 1000).unref();
-// -------------------------------------
+const metadataCache = new ExpiringCache<FileMetaData>();
 
 /**
  * Check whether a parquet file's row groups contain any column matching a
@@ -428,7 +422,9 @@ export async function getParquetPreview(
   limit = 250,
   requestLog: pino.Logger = fallbackLog,
   totalSize?: number,
-  includeData = false
+  includeData = false,
+  bucket = '',
+  connectionId = ''
 ): Promise<Response> {
   const log = requestLog.child({ module: 'parquet-preview' });
   const byteLength = totalSize ?? (await provider.getMetadata(key)).size;
@@ -461,10 +457,10 @@ export async function getParquetPreview(
 
   let parquetMeta: FileMetaData;
 
-  const cached = metadataCache.get(key);
+  const cacheKey = previewCacheKey(connectionId, bucket, key);
+  const cached = metadataCache.get(cacheKey);
   if (cached) {
-    cached.lastAccessed = Date.now();
-    parquetMeta = cached.meta;
+    parquetMeta = cached;
     log.debug({ key }, 'Used in-memory cached Parquet metadata');
   } else {
     let footerQueue: Promise<void> = Promise.resolve();
@@ -486,10 +482,7 @@ export async function getParquetPreview(
 
     parquetMeta = await parquetMetadataAsync(footerBuffer);
 
-    metadataCache.set(key, {
-      meta: parquetMeta,
-      lastAccessed: Date.now()
-    });
+    metadataCache.set(cacheKey, parquetMeta);
   }
 
   const totalRows = Number(parquetMeta.num_rows);

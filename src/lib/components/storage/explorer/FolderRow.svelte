@@ -75,20 +75,18 @@
   ondrop={handleDrop}
   onclick={(e) => {
     if (storage.selectionMode || e.ctrlKey || e.metaKey) {
-      storage.toggleSelect(folder.key, true);
+      storage.toggleSelect(folder.key, true, e.shiftKey);
     } else if (storage.archive.isInArchive) {
       storage.archive.navigateInArchive(folder.key);
     } else {
       storage.navigate(folder.key);
     }
   }}
-  ondblclick={(e) => {
-    if (e.ctrlKey || e.metaKey) {
-      if (storage.archive.isInArchive) {
-        storage.archive.navigateInArchive(folder.key);
-      } else {
-        storage.navigate(folder.key);
-      }
+  ondblclick={() => {
+    if (storage.archive.isInArchive) {
+      storage.archive.navigateInArchive(folder.key);
+    } else {
+      storage.navigate(folder.key);
     }
   }}
   oncontextmenu={(e) => storage.openContextMenu(e, folder.key)}
@@ -101,7 +99,7 @@
       onchange={() => storage.toggleSelect(folder.key, true)}
       onclick={(e) => e.stopPropagation()}
       disabled={!storage.showCheckboxes}
-      aria-label="Select {keyToName(folder.key)}"
+      aria-label={m.storage_select_item({ name: keyToName(folder.key) })}
     />
   </td>
   <td>

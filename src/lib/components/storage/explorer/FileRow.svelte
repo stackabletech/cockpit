@@ -38,7 +38,7 @@
       : 'hover:bg-base-200/60'}"
   draggable={storageCutCopyEnabled && !storage.archive.isInArchive}
   ondragstart={handleDragStart}
-  onclick={(e) => storage.toggleSelect(file.key, e.ctrlKey || e.metaKey)}
+  onclick={(e) => storage.toggleSelect(file.key, e.ctrlKey || e.metaKey, e.shiftKey)}
   ondblclick={() => {
     if (isArchive) {
       void storage.archive.enterArchive(file.key);
@@ -56,7 +56,7 @@
       onchange={() => storage.toggleSelect(file.key, true)}
       onclick={(e) => e.stopPropagation()}
       disabled={!storage.showCheckboxes}
-      aria-label="Select {keyToName(file.key)}"
+      aria-label={m.storage_select_item({ name: keyToName(file.key) })}
     />
   </td>
   <td>

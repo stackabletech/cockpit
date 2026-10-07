@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import type pino from 'pino';
 import { streamPreview } from './stream.js';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
+import { createMockLogger } from '$lib/test-utils/mock-logger.js';
 
-const mockLog = { info: vi.fn(), debug: vi.fn(), warn: vi.fn() } as unknown as pino.Logger;
+const mockLog = createMockLogger();
 
 function makeProvider(overrides: Partial<StorageProvider> = {}): StorageProvider {
   return {

@@ -1,11 +1,7 @@
 # shellcheck shell=bash
 prerequisites::run() {
-  if [ ! -d "$PROJECT_DIR/node_modules" ]; then
-    log::info "Installing npm dependencies..."
-    (cd "$PROJECT_DIR" && npm install)
-  else
-    log::info "npm dependencies already installed, skipping."
-  fi
+  log::info "Installing npm dependencies..."
+  (cd "$PROJECT_DIR" && npm install)
 
   if [[ "$SKIP_TRINO" == true ]]; then
     log::info "Installing Stackable operators (commons, listener, secret)..."

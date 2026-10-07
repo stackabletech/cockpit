@@ -63,7 +63,6 @@ const LITERAL_NAMES = (SqlBaseLexer as unknown as { literalNames: (string | null
 /** Map a keyword token type back to its canonical uppercase spelling.
  *  `literalNames` entries look like `"'SELECT'"` (SQL single-quoted). */
 function keywordForToken(tokenType: number): string | null {
-  // eslint-disable-next-line security/detect-object-injection
   const literal = LITERAL_NAMES[tokenType];
   if (!literal) return null;
   const match = /^'(.+)'$/.exec(literal);
@@ -159,7 +158,6 @@ function parseAndAnalyse(sql: string, extendingPrevious: boolean): GrammarAnalys
 function lastDefaultChannelTokenIndex(parser: SqlBaseParser): number {
   const tokens = (parser.inputStream as CommonTokenStream).getTokens();
   for (let i = tokens.length - 1; i >= 0; i--) {
-    // eslint-disable-next-line security/detect-object-injection
     const token = tokens[i];
     if (token.channel === Token.DEFAULT_CHANNEL && token.type !== SqlBaseLexer.EOF) {
       return token.tokenIndex;

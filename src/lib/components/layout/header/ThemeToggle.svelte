@@ -1,5 +1,6 @@
 <script lang="ts">
   import { browser } from '$app/environment';
+  import { onMount } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
   import IconLightMode from 'virtual:icons/material-symbols/light-mode';
   import IconDarkMode from 'virtual:icons/material-symbols/dark-mode';
@@ -11,7 +12,13 @@
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
 
+  // Theme is only known clientside so the button is hidden until its state is known
+  let mounted = $state(false);
   let dark = $state(prefersDark());
+
+  onMount(() => {
+    mounted = true;
+  });
 
   $effect(() => {
     if (!browser) return;
@@ -21,19 +28,17 @@
   });
 </script>
 
-<div
-  class="tooltip tooltip-bottom z-150 before:z-200"
-  data-tip={dark ? m.theme_switch_light() : m.theme_switch_dark()}
+<button
+  onclick={() => (dark = !dark)}
+  class="btn btn-ghost btn-sm btn-square"
+  aria-label={mounted ? (dark ? m.theme_switch_light() : m.theme_switch_dark()) : m.theme_toggle()}
+  disabled={!mounted}
 >
-  <button
-    onclick={() => (dark = !dark)}
-    class="btn btn-ghost btn-sm btn-square"
-    aria-label={dark ? m.theme_switch_light() : m.theme_switch_dark()}
-  >
+  <div hidden={!mounted}>
     {#if dark}
       <IconLightMode class="h-5 w-5" aria-hidden="true" />
     {:else}
       <IconDarkMode class="h-5 w-5" aria-hidden="true" />
     {/if}
-  </button>
-</div>
+  </div>
+</button>

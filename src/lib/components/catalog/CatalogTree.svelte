@@ -192,7 +192,7 @@
 
         {#if node.type === 'table' || node.type === 'view' || node.type === 'materialized_view'}
           <button
-            class="hover:text-primary truncate text-left hover:underline"
+            class="hover:text-primary min-w-0 truncate text-left hover:underline"
             onclick={(e) => {
               e.stopPropagation();
               handleInsert(node);
@@ -212,7 +212,7 @@
             {/if}
           </span>
         {:else}
-          <span class="truncate">{node.name}</span>
+          <span class="min-w-0 truncate">{node.name}</span>
         {/if}
 
         {#if leaf && node.dataType}

@@ -8,7 +8,7 @@ import { getConnectionForUser } from './connections-db.js';
 import type { StorageProvider } from './provider.js';
 import type { S3ConnectionConfig } from './types.js';
 import { getProvider } from './utils.js';
-import { wrapProvider } from './wrap-provider.js';
+import { withStorageHttpErrors } from './wrap-provider.js';
 import { createZipStream, type ZipEntry, zipStreamSize } from './zip-stream.js';
 
 const log = logger.child({ module: 'storage-download-manifests' });
@@ -140,7 +140,7 @@ export async function createDownloadManifest(input: {
 }): Promise<DownloadManifest> {
   await removeExpiredManifests();
   const archive = shouldArchive(input.keys);
-  const provider = wrapProvider(getProvider(input.config, input.bucket));
+  const provider = withStorageHttpErrors(getProvider(input.config, input.bucket));
   const entries = archive
     ? await expandKeys(provider, input.keys)
     : await Promise.all(
@@ -216,7 +216,7 @@ export async function recreateDownloadManifest(
         .map((entry) => [entry.key, entry])
     ).values()
   ];
-  const provider = wrapProvider(getProvider(config, original.bucket));
+  const provider = withStorageHttpErrors(getProvider(config, original.bucket));
   const entries = await Promise.all(
     expanded.map(async (entry) => {
       if (entry.isDirectory) return { ...entry, size: 0 };
@@ -301,7 +301,7 @@ export async function openDownloadManifestPart(
     await db.delete(storageDownloadManifests).where(eq(storageDownloadManifests.id, id));
     return null;
   }
-  const provider = wrapProvider(getProvider(config, manifest.bucket));
+  const provider = withStorageHttpErrors(getProvider(config, manifest.bucket));
   if (manifest.archive) {
     if (part !== 1 || !manifest.archiveFilename) return null;
     return {

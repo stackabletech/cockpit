@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TabsState, type PersistedTabsState } from '$lib/storage/tabs.svelte.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
 import { LS_TABS } from '$lib/storage/persistence.js';
+import { SvelteSet } from 'svelte/reactivity';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -121,6 +122,22 @@ describe('TabsState', () => {
 
       expect(ts.tabs[1].snapshot.prefix).toBe('other/');
     });
+
+    it('keeps selection independent for each tab', () => {
+      const storage = makeStorage('bucket', 'folder/');
+      const { ts } = makeTabs(storage);
+      ts.ensureInitialTab();
+      storage.selectedKeys = new SvelteSet(['first.txt']);
+      storage.selectionMode = true;
+
+      ts.addTab();
+      expect(storage.selectedKeys.size).toBe(0);
+
+      storage.selectedKeys = new SvelteSet(['second.txt']);
+      ts.switchTo(ts.tabs[0].id);
+      expect([...storage.selectedKeys]).toEqual(['first.txt']);
+      expect(storage.selectionMode).toBe(true);
+    });
   });
 
   // ── switchTo ──────────────────────────────────────────────────────────────
@@ -137,7 +154,7 @@ describe('TabsState', () => {
       expect(navigateToLocation).not.toHaveBeenCalled();
     });
 
-    it('restores snapshot and calls replaceLocationUrl for non-stub tab', () => {
+    it('navigates with replaceState for a non-stub tab', () => {
       const storage = makeStorage('bucket', 'a/');
       const { ts, replaceLocationUrl } = makeTabs(storage);
       ts.ensureInitialTab(); // tabs[0] = {prefix:'a/'}, active
@@ -150,7 +167,7 @@ describe('TabsState', () => {
       // Now: tabs[0]={prefix:'a/'}, tabs[1]={prefix:'b/'} (active)
       ts.switchTo(ts.tabs[0].id);
 
-      expect(storage.prefix).toBe('a/');
+      expect(storage.prefix).toBe('b/');
       expect(replaceLocationUrl).toHaveBeenCalledWith('s3.example.com', 'bucket', 'a/');
     });
 
@@ -416,7 +433,7 @@ describe('TabsState', () => {
       expect(ts.peekPersistedTabs()).toBeNull();
     });
 
-    it('accepts saved data with no connectionId (backward compatibility)', () => {
+    it('rejects saved data with no connectionId', () => {
       const saved: PersistedTabsState = {
         tabs: [{ id: '1', label: 'Bucket', bucket: 'bucket', prefix: '' }],
         activeTabId: '1'
@@ -427,7 +444,7 @@ describe('TabsState', () => {
       const storage = makeStorage();
       const { ts } = makeTabs(storage, { persistEnabled: true, connectionId: 'conn-a' });
 
-      expect(ts.peekPersistedTabs()).not.toBeNull();
+      expect(ts.peekPersistedTabs()).toBeNull();
     });
 
     it('accepts saved data when connectionIds match', () => {
@@ -548,21 +565,22 @@ describe('TabsState', () => {
     });
   });
 
-  // ── requestTabsRestore ────────────────────────────────────────────────────
+  // ── persistence restoration ───────────────────────────────────────────────
 
   describe('requestTabsRestore', () => {
-    it('triggers restore on the next ensureInitialTab call when persistEnabled', () => {
+    it('restores matching persisted tabs on ensureInitialTab', () => {
       const saved: PersistedTabsState = {
         tabs: [
-          { id: 'a', label: 'A', bucket: 'b1', prefix: '' },
-          { id: 'b', label: 'B', bucket: 'b2', prefix: '' }
+          { id: 'a', label: 'A', connection: 's3.example.com', bucket: 'b1', prefix: '' },
+          { id: 'b', label: 'B', connection: 's3.example.com', bucket: 'b2', prefix: '' }
         ],
-        activeTabId: 'a'
+        activeTabId: 'a',
+        connectionId: 'conn-a'
       };
       localStorage.setItem(LS_TABS, JSON.stringify(saved));
 
       const storage = makeStorage('b1', '');
-      const { ts } = makeTabs(storage, { persistEnabled: true });
+      const { ts } = makeTabs(storage, { persistEnabled: true, connectionId: 'conn-a' });
       ts.ensureInitialTab();
 
       // Should have restored 2 tabs rather than creating 1 fresh tab
@@ -572,23 +590,24 @@ describe('TabsState', () => {
     it('restores from localStorage on every ensureInitialTab when persistEnabled', () => {
       const saved: PersistedTabsState = {
         tabs: [
-          { id: 'a', label: 'A', bucket: 'b1', prefix: '' },
-          { id: 'b', label: 'B', bucket: 'b2', prefix: '' }
+          { id: 'a', label: 'A', connection: 's3.example.com', bucket: 'b1', prefix: '' },
+          { id: 'b', label: 'B', connection: 's3.example.com', bucket: 'b2', prefix: '' }
         ],
-        activeTabId: 'a'
+        activeTabId: 'a',
+        connectionId: 'conn-a'
       };
       localStorage.setItem(LS_TABS, JSON.stringify(saved));
 
       // First TabsState restores from localStorage
       const storage1 = makeStorage('b1', '');
-      const { ts: ts1 } = makeTabs(storage1, { persistEnabled: true });
+      const { ts: ts1 } = makeTabs(storage1, { persistEnabled: true, connectionId: 'conn-a' });
       ts1.ensureInitialTab();
       expect(ts1.tabs.length).toBe(2);
 
       // Second TabsState — persistence is still enabled and data exists,
       // so it restores from localStorage again (handles page reloads)
       const storage2 = makeStorage('b1', '');
-      const { ts: ts2 } = makeTabs(storage2, { persistEnabled: true });
+      const { ts: ts2 } = makeTabs(storage2, { persistEnabled: true, connectionId: 'conn-a' });
       ts2.ensureInitialTab();
       expect(ts2.tabs.length).toBe(2);
     });

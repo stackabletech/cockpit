@@ -1,4 +1,5 @@
 import type { Component } from 'svelte';
+import type { FilePair } from './file-collection.js';
 
 // ── Modal types ─────────────────────────────────────────────────────────────
 
@@ -21,7 +22,7 @@ export interface ModalPayloads {
     archivePath?: string;
     nestedArchivePath?: string;
   };
-  upload: { bucket: string; prefix: string };
+  upload: { bucket: string; prefix: string; files?: FilePair[] };
   details: {
     type: 'file' | 'directory' | 'bucket';
     bucket: string;
@@ -50,6 +51,8 @@ export interface ModalPayloads {
     destPrefix: string;
     /** Optional: label for the confirm button (e.g. "Paste" or "Move"). */
     confirmLabel?: string;
+    /** Operation that opened the resolver when it is not handled by the clipboard. */
+    operation?: 'rename';
   };
   create: { type: 'file' | 'folder' };
 }
@@ -81,7 +84,8 @@ export interface ContextMenuState {
 export type NavigateFn = (
   prefix: string,
   continuationToken?: string | null,
-  pageSize?: number | null
+  pageSize?: number | null,
+  invalidateAll?: boolean
 ) => void;
 
 // ── Action names ─────────────────────────────────────────────────────────────
@@ -252,7 +256,7 @@ export interface RecentSearchEntry {
 
 // ── Archive navigation ───────────────────────────────────────────────────────
 
-export const ARCHIVE_EXTENSIONS = ['.zip', '.tar.gz', '.tgz', '.tar', '.rar', '.7z'] as const;
+export const ARCHIVE_EXTENSIONS = ['.zip', '.tar.gz', '.tgz', '.tar'] as const;
 
 export type ArchiveFormat = (typeof ARCHIVE_EXTENSIONS)[number] extends `${string}${infer F}`
   ? F

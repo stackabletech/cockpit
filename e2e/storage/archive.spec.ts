@@ -32,7 +32,9 @@ test.describe('Storage S3 — Archive preview', () => {
     );
   });
 
-  test('opens archive by double-clicking and shows its contents', async ({ page }, testInfo) => {
+  test('opens archive with generic content type and shows its contents', async ({
+    page
+  }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'archive-open');
@@ -49,7 +51,7 @@ test.describe('Storage S3 — Archive preview', () => {
           Bucket: credentials.bucket,
           Key: `${prefix}archive.zip`,
           Body: zipBuffer,
-          ContentType: 'application/zip'
+          ContentType: 'application/octet-stream'
         })
       );
 
@@ -62,6 +64,34 @@ test.describe('Storage S3 — Archive preview', () => {
       // Should see archive contents — top-level folder and file
       await expect(rowByName(page, 'README.md')).toBeVisible();
       await expect(rowByName(page, 'data')).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('shows the unsupported preview and download option for RAR archives', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'archive-rar');
+    const cleanupKeys = [`${prefix}archive.rar`];
+
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: credentials.bucket,
+          Key: `${prefix}archive.rar`,
+          Body: Buffer.from([0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x00]),
+          ContentType: 'binary/octet-stream'
+        })
+      );
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await rowByName(page, 'archive.rar').dblclick();
+      await expect(page.getByRole('heading', { name: 'archive.rar' })).toBeVisible();
+      await expect(page.getByText('RAR archives are not supported.')).toBeVisible();
+      await expect(page.getByRole('button', { name: /download full/i })).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -142,6 +172,49 @@ test.describe('Storage S3 — Archive preview', () => {
     }
   });
 
+  test('exits archive via containing-folder breadcrumb and requests fresh data', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'archive-exit-same-location');
+    const cleanupKeys = [`${prefix}archive.zip`];
+
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: credentials.bucket,
+          Key: `${prefix}archive.zip`,
+          Body: makeZip({ 'file.txt': 'content' }),
+          ContentType: 'application/octet-stream'
+        })
+      );
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+      const originalUrl = page.url();
+      await rowByName(page, 'archive.zip').dblclick();
+      await waitForObjectsLoaded(page);
+      await expect(rowByName(page, 'file.txt')).toBeVisible();
+
+      const listingResponse = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.pathname === '/api/storage/list' && url.searchParams.get('prefix') === prefix;
+      });
+      const folderName = prefix.split('/').filter(Boolean).at(-1)!;
+      await page
+        .getByRole('navigation', { name: 'Breadcrumb' })
+        .getByRole('button', { name: folderName, exact: true })
+        .click();
+      expect((await listingResponse).ok()).toBe(true);
+      await waitForObjectsLoaded(page);
+      await expect(page).toHaveURL((url) => url.pathname === new URL(originalUrl).pathname);
+      await expect(rowByName(page, 'archive.zip')).toBeVisible();
+      await expect(rowByName(page, 'file.txt')).not.toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   test('exits archive via breadcrumb bucket click', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
@@ -165,17 +238,19 @@ test.describe('Storage S3 — Archive preview', () => {
       await expect(rowByName(page, 'file.txt')).toBeVisible();
 
       // Click bucket name in breadcrumb to exit archive
-      await page.getByRole('button', { name: credentials.bucket }).click();
+      await page
+        .getByRole('navigation', { name: 'Breadcrumb' })
+        .getByRole('button', { name: credentials.bucket, exact: true })
+        .click();
       await waitForObjectsLoaded(page);
 
       // Should be at the bucket root (archive exited)
 
-      await expect(page).toHaveURL(
-        new RegExp(
-          `/storage/browse/${new URL(credentials.endpoint).hostname}/${credentials.bucket}(\\?|$)`
-        )
-      );
-      await expect(page.getByText('archive.zip')).not.toBeVisible();
+      await expect(page).toHaveURL((url) => {
+        const endpoint = new URL(credentials.endpoint);
+        return url.pathname === `/storage/browse/${endpoint.hostname}/${credentials.bucket}`;
+      });
+      await expect(rowByName(page, 'archive.zip')).not.toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -305,7 +380,10 @@ test.describe('Storage S3 — Archive preview', () => {
       await expect(rowByName(page, 'doc.md')).toBeVisible();
 
       // Click archive name in breadcrumb to go back to archive root
-      await page.getByRole('button', { name: 'archive.zip' }).click();
+      await page
+        .getByRole('navigation', { name: 'Breadcrumb' })
+        .getByRole('button', { name: 'archive.zip', exact: true })
+        .click();
       await waitForObjectsLoaded(page);
 
       // Should see archive root contents

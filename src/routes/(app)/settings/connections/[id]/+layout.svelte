@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import StorageConnectionSidebar from '$lib/components/storage/sidebar/StorageConnectionSidebar.svelte';
-  import type { ConnectionMetadata } from '$lib/server/storage/types.js';
+  import type { ConnectionMetadata } from '$lib/storage/connection-types.js';
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
 
   let { children } = $props();

@@ -11,6 +11,12 @@ describe('connectionStore', () => {
       's3.example.com'
     );
   });
+
+  it('extracts an IPv6 hostname from a connection endpoint', () => {
+    expect(connectionHostname({ endpoint: '[2001:db8::1]:9000' } as ConnectionListItem)).toBe(
+      '[2001:db8::1]'
+    );
+  });
   it('starts with null activeConnectionId', () => {
     expect(connectionStore.activeConnectionId).toBeNull();
   });
