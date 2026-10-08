@@ -81,3 +81,37 @@ describe('collectResults row limit', () => {
     expect(query.state).toBe('FINISHED');
   });
 });
+
+describe('collectResults failure', () => {
+  it('fails with the Trino error message', async () => {
+    const poll = vi.fn(async () => ({
+      id: 'q1',
+      stats: { state: 'FAILED' },
+      error: { message: 'Division by zero' }
+    }));
+
+    const query = makeQuery({ poll });
+    await collectResults(query);
+
+    expect(query.state).toBe('FAILED');
+    expect(query.error).toBe('Division by zero');
+  });
+
+  it('fails on a FAILED state without error details', async () => {
+    const poll = vi
+      .fn()
+      .mockResolvedValueOnce({
+        id: 'q1',
+        nextUri: 'http://trino/next-2',
+        stats: { state: 'FAILED' }
+      })
+      .mockResolvedValue({ id: 'q1', stats: { state: 'FAILED' } });
+
+    const query = makeQuery({ poll });
+    await collectResults(query);
+
+    expect(poll).toHaveBeenCalledTimes(1);
+    expect(query.state).toBe('FAILED');
+    expect(query.error).toBe('Query failed');
+  });
+});
