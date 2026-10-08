@@ -216,14 +216,20 @@ jobs:
     if: always()
     needs:
       - openshift-preflight-check
+      - detect-changes
+      - build-container-image
+      - publish-index-manifest
       - publish-helm-chart
     runs-on: ubuntu-latest
     steps:
       - name: Check results
+        env:
+          NEEDS_RESULTS: ${{ toJSON(needs.*.result) }}
         run: |
           set -euo pipefail
-          if [[ "${{ needs.openshift-preflight-check.result }}" == "failure" || "${{ needs.publish-helm-chart.result }}" == "failure" ]]; then
-            echo "One or more required jobs failed"
+          echo "$NEEDS_RESULTS"
+          if jq -e 'any(. == "failure" or . == "cancelled")' <<<"$NEEDS_RESULTS" >/dev/null; then
+            echo "One or more required jobs failed or were cancelled"
             exit 1
           fi
           echo "All required jobs passed or were skipped"
