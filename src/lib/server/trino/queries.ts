@@ -155,12 +155,17 @@ async function submitStatement(
 
   const trinoQueryId = submitResult.id;
   if (!trinoQueryId) {
+    trinoQueryTotal.inc({ outcome: 'failed' });
     throw new Error('Trino did not return a query ID');
   }
 
+  const initialState = submitResult.stats ? mapTrinoState(submitResult.stats.state) : 'QUEUED';
+
   const query: TrinoQuery = {
     trinoQueryId,
-    state: submitResult.stats ? mapTrinoState(submitResult.stats.state) : 'QUEUED',
+    // As in collectResults: don't expose a terminal state before all result pages
+    // are drained. startScript terminates the query once that has happened.
+    state: isTerminal(initialState) ? 'RUNNING' : initialState,
     progress: toQueryProgress(submitResult.stats),
     columns: submitResult.columns ?? [],
     rows: submitResult.data ?? [],

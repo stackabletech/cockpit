@@ -206,12 +206,37 @@ describe('startScript', () => {
     await q.startScript(trinoClient(), USER, TAB, ['SELECT 7'], OPTS);
 
     expect(mocks.collectResults).not.toHaveBeenCalled();
+    expect(mocks.queryTotalInc).toHaveBeenCalledWith({ outcome: 'completed' });
     const [snapshot] = q.getQuerySnapshots(USER, TAB);
     expect(snapshot).toMatchObject({
       state: 'FINISHED',
       columns: [{ name: 'n', type: 'bigint' }],
       rows: [[7]],
       progress: { processedRows: 1 }
+    });
+  });
+
+  it('still drains remaining pages when the submit response is already finished', async () => {
+    client.submit.mockResolvedValueOnce({
+      id: 'q1',
+      nextUri: 'http://trino/v1/statement/executing/q1/1',
+      data: [[1]],
+      stats: { state: 'FINISHED' }
+    });
+    let stateWhileDraining: string | undefined;
+    mocks.collectResults.mockImplementationOnce(async (query: TrinoQuery) => {
+      stateWhileDraining = q.getQuerySnapshots(USER, TAB)[0].state;
+      query.rows.push([2]);
+      q.terminateQuery(query, 'FINISHED');
+    });
+
+    await q.startScript(trinoClient(), USER, TAB, ['SELECT 1'], OPTS);
+
+    expect(mocks.collectResults).toHaveBeenCalledTimes(1);
+    expect(stateWhileDraining).toBe('RUNNING');
+    expect(q.getQuerySnapshots(USER, TAB)[0]).toMatchObject({
+      state: 'FINISHED',
+      rows: [[1], [2]]
     });
   });
 
@@ -257,6 +282,7 @@ describe('startScript', () => {
     await q.startScript(trinoClient(), USER, TAB, ['SELECT 1', 'SELECT 2'], OPTS);
 
     expect(client.submit).toHaveBeenCalledTimes(1);
+    expect(mocks.queryTotalInc).toHaveBeenCalledWith({ outcome: 'failed' });
     expect(q.getQuerySnapshots(USER, TAB)).toEqual([]);
   });
 
