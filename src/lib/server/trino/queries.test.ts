@@ -273,6 +273,19 @@ describe('startScript', () => {
     expect(snapshot).toMatchObject({ state: 'FAILED', error: 'line 1:1: mismatched input' });
   });
 
+  it('treats a FAILED submit response without error details as a failure', async () => {
+    client.submit.mockResolvedValueOnce({ id: 'q1', stats: { state: 'FAILED' } });
+
+    await q.startScript(trinoClient(), USER, TAB, ['SELECT 1', 'SELECT 2'], OPTS);
+
+    expect(client.submit).toHaveBeenCalledTimes(1);
+    expect(mocks.queryTotalInc).not.toHaveBeenCalledWith({ outcome: 'completed' });
+    expect(q.getQuerySnapshots(USER, TAB)[0]).toMatchObject({
+      state: 'FAILED',
+      error: 'Query failed'
+    });
+  });
+
   it('falls back to a generic message when the submit error has none', async () => {
     client.submit.mockResolvedValueOnce({ id: 'q1', error: {} });
 

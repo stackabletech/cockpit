@@ -214,8 +214,8 @@ async function submitStatement(
     completedAt: null
   };
 
-  if (submitResult.error) {
-    query.error = submitResult.error.message ?? 'Query failed';
+  if (submitResult.error || initialState === 'FAILED') {
+    query.error = submitResult.error?.message ?? 'Query failed';
     terminateQuery(query, 'FAILED', { decrementGauge: false });
     trinoQueryTotal.inc({ outcome: 'failed' });
   }
