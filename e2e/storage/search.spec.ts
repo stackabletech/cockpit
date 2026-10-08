@@ -30,13 +30,14 @@ test.describe('Storage Search', () => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'search');
+    const connection = new URL(credentials.endpoint).hostname;
     const directory = `${prefix}reports/`;
     const file = `${directory}final-report.txt`;
 
     try {
       await putDirectoryMarker(client, credentials.bucket, directory);
       await putTextObject(client, credentials.bucket, file, 'search preview');
-      await connectToStorage(page, credentials);
+      await connectAndOpenPrefix(page, credentials, prefix);
 
       await page.getByRole('button', { name: 'Open search' }).first().click();
       await page.getByLabel('Search query').fill('report');
@@ -44,7 +45,7 @@ test.describe('Storage Search', () => {
 
       await expect(page.getByText(/2 results/)).toBeVisible();
       await page.getByRole('button', { name: /reports.*\/reports\// }).click();
-      await expect(page).toHaveURL(bucketRoute(credentials.bucket, directory));
+      await expect(page).toHaveURL(bucketRoute(connection, credentials.bucket, directory));
 
       await page.getByRole('button', { name: 'Open search' }).first().click();
       await page.getByRole('button', { name: 'Parallel search' }).click();

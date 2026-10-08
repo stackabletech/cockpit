@@ -11,8 +11,8 @@ const { goto, invalidateAll } = vi.hoisted(() => ({ goto: vi.fn(), invalidateAll
 
 vi.mock('$app/navigation', () => ({ goto, invalidateAll }));
 vi.mock('$app/paths', () => ({
-  resolve: (_route: string, params: { bucket: string; prefix: string }) =>
-    `/storage/${params.bucket}/${params.prefix}`
+  resolve: (_route: string, params: { connection: string; bucket: string; prefix: string }) =>
+    `/storage/browse/${params.connection}/${params.bucket}/${params.prefix}`
 }));
 
 type SearchApiMock = {
@@ -191,6 +191,8 @@ describe('StorageSearch', () => {
         ]
       }
     });
+    state.connectionId = 'conn-123';
+    state.connectionHostname = 's3.example.com';
     const preview = vi.spyOn(state, 'openModal');
     render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
     await page.getByRole('button', { name: 'Open search' }).click();
@@ -198,7 +200,7 @@ describe('StorageSearch', () => {
     await page.getByRole('button', { name: 'Search', exact: true }).click();
     await expect.element(page.getByText('2 results ·')).toBeVisible();
     await page.getByRole('button', { name: /reportsreports\// }).click();
-    expect(goto).toHaveBeenCalledWith('/storage/alpha/reports');
+    expect(goto).toHaveBeenCalledWith('/storage/browse/s3.example.com/alpha/reports');
 
     render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
     await page.getByRole('button', { name: 'Open search' }).last().click();
@@ -206,6 +208,7 @@ describe('StorageSearch', () => {
     await page.getByRole('button', { name: 'Search', exact: true }).last().click();
     await page.getByRole('button', { name: 'data.csv' }).click();
     expect(preview).toHaveBeenCalledWith('preview', { key: 'reports/data.csv', bucket: 'alpha' });
+    expect(goto).toHaveBeenLastCalledWith('/storage/browse/s3.example.com/alpha/reports');
     expect(api.search).toHaveBeenCalled();
   });
 

@@ -51,7 +51,7 @@
       ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
       : '';
     return resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
-      connection: storage.connectionId ?? '',
+      connection: encodeURIComponent(storage.connectionHostname),
       bucket: encodeURIComponent(bucket),
       prefix: encodedPrefix
     });
