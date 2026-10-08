@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
   import Pagination from '$lib/components/Pagination.svelte';
   import type { SearchResult, SearchSession } from '$lib/storage/search.svelte.js';
@@ -25,7 +26,7 @@
   let pageSize = $state<PageSize>(initPageSize('storage_search_page_size'));
   let currentPage = $state(0);
   let resultsContainer = $state<HTMLDivElement>();
-  let displayedSessionId = $state(session.id);
+  let displayedSessionId = $state(untrack(() => session.id));
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {

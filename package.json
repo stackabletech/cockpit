@@ -87,7 +87,7 @@
     "@better-auth/drizzle-adapter": "^1.6.20",
     "@internationalized/date": "^3.11.0",
     "@smithy/node-http-handler": "4.9.1",
-    "adm-zip": "^0.5.17",
+    "adm-zip": "^0.6.1",
     "antlr4-c3": "^3.4.4",
     "antlr4ng": "^3.0.16",
     "better-auth": "^1.6.33",
@@ -105,6 +105,12 @@
     "undici": "^7.24.4"
   },
   "overrides": {
+    "@sveltejs/kit": {
+      "cookie": "^0.7.2"
+    },
+    "monaco-editor": {
+      "dompurify": "^3.4.16"
+    },
     "sveltekit-superforms": {
       "typebox": "1.2.19"
     }
