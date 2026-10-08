@@ -57,8 +57,25 @@ function collectTo(state: 'FINISHED' | 'FAILED' | 'CANCELLED', error: string | n
   };
 }
 
-/** Release functions of hung collectResults calls, flushed after each test. */
+/** Release functions of hung mock calls, flushed after each test. */
 const pendingReleases: (() => void)[] = [];
+
+function hang(): { promise: Promise<void>; release: () => void } {
+  let release!: () => void;
+  const promise = new Promise<void>((resolve) => (release = resolve));
+  pendingReleases.push(release);
+  return { promise, release };
+}
+
+/** Make client.submit hang for the given SQL until the returned release function is called. */
+function hangSubmit(target: string) {
+  const { promise, release } = hang();
+  client.submit.mockImplementation(async (sql: string) => {
+    if (sql === target) await promise;
+    return pending(`q-${sql}`);
+  });
+  return release;
+}
 
 /** Make collectResults hang until the returned release function is called. */
 function hangCollect(mutate?: (query: TrinoQuery) => void) {
@@ -328,6 +345,123 @@ describe('startScript', () => {
     expect(q.getQuerySnapshots(USER, TAB).map((s) => s.sql)).toEqual(['SELECT 1']);
     expect(q.getQuerySnapshots(USER, 'tab-2').map((s) => s.sql)).toEqual(['SELECT 2']);
     expect(q.getQuerySnapshots('u2', TAB).map((s) => s.sql)).toEqual(['SELECT 3']);
+  });
+});
+
+describe('overlapping scripts in one tab', () => {
+  it('stops a script superseded while its next statement is being submitted', async () => {
+    const release = hangSubmit('SELECT 2');
+    const first = q.startScript(
+      trinoClient(),
+      USER,
+      TAB,
+      ['SELECT 1', 'SELECT 2', 'SELECT 4'],
+      OPTS
+    );
+    await vi.waitFor(() => expect(client.submit).toHaveBeenCalledTimes(2));
+
+    await q.startScript(trinoClient(), USER, TAB, ['SELECT 3'], OPTS);
+    release();
+    await first;
+
+    expect(q.getQuerySnapshots(USER, TAB).map((s) => s.sql)).toEqual(['SELECT 3']);
+    // The statement Trino accepted for the stale script is cancelled, and nothing after it runs.
+    expect(client.cancelViaUri).toHaveBeenCalledWith(pending('q-SELECT 2').nextUri, 'alice');
+    expect(client.submit.mock.calls.map(([sql]) => sql)).toEqual([
+      'SELECT 1',
+      'SELECT 2',
+      'SELECT 3'
+    ]);
+    expect(mocks.queryTotalInc).toHaveBeenCalledWith({ outcome: 'cancelled' });
+    expect(mocks.activeInc).toHaveBeenCalledTimes(2);
+    expect(mocks.activeDec).toHaveBeenCalledTimes(2);
+  });
+
+  it('cancels a script between statements', async () => {
+    const release = hangSubmit('SELECT 2');
+    const script = q.startScript(
+      trinoClient(),
+      USER,
+      TAB,
+      ['SELECT 1', 'SELECT 2', 'SELECT 3'],
+      OPTS
+    );
+    await vi.waitFor(() => expect(client.submit).toHaveBeenCalledTimes(2));
+
+    expect(await q.cancelQuery(USER, TAB)).toBe(true);
+    release();
+    await script;
+
+    expect(client.cancelViaUri).toHaveBeenCalledWith(pending('q-SELECT 2').nextUri, 'alice');
+    expect(client.submit).toHaveBeenCalledTimes(2);
+    expect(q.getQuerySnapshots(USER, TAB).map((s) => [s.sql, s.state])).toEqual([
+      ['SELECT 1', 'FINISHED']
+    ]);
+    expect(await q.cancelQuery(USER, TAB)).toBe(false);
+  });
+
+  it('keeps only the latest script when two start while a query is still being cancelled', async () => {
+    hangCollect();
+    const running = q.startScript(trinoClient(), USER, TAB, ['SELECT slow'], OPTS);
+    await vi.waitFor(() => expect(mocks.collectResults).toHaveBeenCalled());
+    const cancel = hang();
+    client.cancelViaUri.mockImplementationOnce(() => cancel.promise);
+
+    const first = q.startScript(trinoClient(), USER, TAB, ['SELECT first'], OPTS);
+    const second = q.startScript(trinoClient(), USER, TAB, ['SELECT second'], OPTS);
+    await second;
+    cancel.release();
+    await first;
+    pendingReleases.splice(0).forEach((r) => r());
+    await running;
+
+    expect(client.submit.mock.calls.map(([sql]) => sql)).toEqual(['SELECT slow', 'SELECT second']);
+    expect(q.getQuerySnapshots(USER, TAB).map((s) => s.sql)).toEqual(['SELECT second']);
+    // The slow query is cancelled and counted exactly once.
+    expect(client.cancelViaUri).toHaveBeenCalledTimes(1);
+    expect(mocks.queryTotalInc.mock.calls.filter(([l]) => l.outcome === 'cancelled')).toHaveLength(
+      1
+    );
+  });
+
+  it('does not run the next statement when the current one finishes during cancellation', async () => {
+    const poll = hang();
+    mocks.collectResults.mockImplementationOnce(async (query: TrinoQuery) => {
+      await poll.promise;
+      q.terminateQuery(query, 'FINISHED'); // last page arrives after the cancel
+    });
+    const script = q.startScript(trinoClient(), USER, TAB, ['SELECT 1', 'DROP TABLE t'], OPTS);
+    await vi.waitFor(() => expect(mocks.collectResults).toHaveBeenCalled());
+    const cancel = hang();
+    client.cancelViaUri.mockImplementationOnce(() => cancel.promise);
+
+    const cancelling = q.cancelQuery(USER, TAB);
+    poll.release();
+    await script;
+    cancel.release();
+    await cancelling;
+
+    expect(client.submit).toHaveBeenCalledTimes(1);
+    expect(q.getQuerySnapshots(USER, TAB).map((s) => s.state)).toEqual(['CANCELLED']);
+  });
+
+  it('keeps results of a script started while the tab is being reset', async () => {
+    hangCollect();
+    const running = q.startScript(trinoClient(), USER, TAB, ['SELECT slow'], OPTS);
+    await vi.waitFor(() => expect(mocks.collectResults).toHaveBeenCalled());
+    const cancel = hang();
+    client.cancelViaUri.mockImplementationOnce(() => cancel.promise);
+
+    const reset = q.resetTabQueries(USER, TAB);
+    await q.startScript(trinoClient(), USER, TAB, ['SELECT new'], OPTS);
+    cancel.release();
+    await reset;
+    pendingReleases.splice(0).forEach((r) => r());
+    await running;
+
+    expect(q.getQuerySnapshots(USER, TAB).map((s) => [s.sql, s.state])).toEqual([
+      ['SELECT new', 'FINISHED']
+    ]);
   });
 });
 
