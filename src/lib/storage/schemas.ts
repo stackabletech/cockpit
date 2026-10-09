@@ -13,9 +13,11 @@ const baseStorageConnectionObject = z.object({
         return new URL(v).hostname;
       } catch {
         // Fallback: strip scheme manually, take just the host part
-        return v.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split(/[/:?#]/)[0];
+        return v.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split(/[/:?#]/)[0] ?? '';
       }
-    }),
+    })
+    // Re-check after the transform: e.g. "http://" passes min(1) but has no host.
+    .pipe(z.string().min(1, 'Host is required')),
   port: z.coerce
     .number()
     .int()

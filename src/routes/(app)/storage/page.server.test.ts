@@ -58,6 +58,16 @@ describe('storage page actions', () => {
     expect(listBuckets).not.toHaveBeenCalled();
   });
 
+  it.each(['http://', 'http://:9000'])(
+    'connect: rejects host %s that is empty after removing the scheme',
+    async (host) => {
+      const result = await connect({ ...validS3, host });
+      expect(result).toMatchObject({ status: 400 });
+      expect(result).toHaveProperty('data.form.errors.host');
+      expect(listBuckets).not.toHaveBeenCalled();
+    }
+  );
+
   it('connect: rejects an access key without a secret key', async () => {
     const result = await connect({ ...validS3, credentials: { accessKey: 'ak', secretKey: '' } });
     expect(result).toMatchObject({ status: 400 });
