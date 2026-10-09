@@ -56,3 +56,15 @@ export function getConnectionFromHeader(request: Request): S3ConnectionConfig | 
   if (!header) return null;
   return parseConnectionPayload(header);
 }
+
+/**
+ * Return the storage connection parsed by `handleStorageConnection`.
+ * The middleware already rejects storage API requests without a connection, so this only
+ * throws if a handler is reached by a route the middleware does not cover.
+ */
+export function requireStorageConfig(locals: App.Locals): S3ConnectionConfig {
+  if (!locals.storageConfig) {
+    throw error(401, 'No storage connection configured');
+  }
+  return locals.storageConfig;
+}
