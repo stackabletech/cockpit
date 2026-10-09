@@ -38,7 +38,8 @@
   }
 
   // Firefox does not reliably close <dialog> on Escape via the cancel event,
-  // so we handle Escape at the window level as a fallback.
+  // so we handle Escape at the window level as a fallback. Use capture so
+  // focused widgets such as Monaco cannot stop it reaching this handler.
   $effect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
@@ -50,8 +51,8 @@
       if (closeguard && !closeguard()) return;
       open = false;
     }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', onKeyDown, { capture: true });
   });
 
   function handleBackdropClick(e: MouseEvent) {
