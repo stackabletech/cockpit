@@ -1,23 +1,11 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import { contentDispositionFilename } from '$lib/server/storage/content-disposition.js';
 
 /** Derive the bare filename from a (possibly path-prefixed) object key. */
 function filenameFromKey(key: string): string {
   return key.split('/').filter(Boolean).pop() ?? key;
-}
-
-function contentDispositionFilename(filename: string): string {
-  // Quoted strings must escape delimiters and cannot contain control characters.
-  const quotedFilename = filename
-    .replace(/[\r\n]/g, '')
-    .replace(/[^\x20-\x7e]/g, '_')
-    .replace(/(["\\])/g, '\\$1');
-  const encodedFilename = encodeURIComponent(filename).replace(
-    /['()*]/g,
-    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
-  );
-  return `attachment; filename="${quotedFilename}"; filename*=UTF-8''${encodedFilename}`;
 }
 
 /**

@@ -4,7 +4,7 @@
   import { resolve } from '$app/paths';
   import type { Pathname } from '$app/types';
   import { superForm } from 'sveltekit-superforms';
-  import { zod4 as zod } from 'sveltekit-superforms/adapters';
+  import { zod4Client as zod } from 'sveltekit-superforms/adapters';
   import { untrack } from 'svelte';
   import IconInfo from 'virtual:icons/material-symbols/info';
   import * as m from '$lib/paraglide/messages.js';

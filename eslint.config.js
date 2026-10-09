@@ -72,7 +72,8 @@ export default defineConfig(
             'menu-disabled',
             'tab-active',
             'tab-strip',
-            'preview-scroll'
+            'preview-scroll',
+            'modal-top-search'
           ]
         }
       ],

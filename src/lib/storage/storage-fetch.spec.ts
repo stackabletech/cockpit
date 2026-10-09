@@ -128,6 +128,18 @@ describe('createStorageFetch', () => {
     });
   });
 
+  it('preserves an API error message', async () => {
+    const storageFetch = createStorageFetch(() => 'conn-1');
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      makeResponse({ status: 404, body: JSON.stringify({ message: 'reports/moved.txt' }) })
+    );
+
+    await expect(storageFetch('/api/test')).rejects.toMatchObject({
+      code: 'not_found',
+      message: 'reports/moved.txt'
+    });
+  });
+
   it('throws StorageError on 500 with server_error code', async () => {
     const storageFetch = createStorageFetch(() => 'conn-1');
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeResponse({ status: 500 }));

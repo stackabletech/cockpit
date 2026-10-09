@@ -28,6 +28,7 @@ export const POST: RequestHandler = async (event) => {
   );
 
   return performCopyOrMove({
+    userId: event.locals.user?.id ?? 'anonymous',
     provider:
       sourceBucket === bucket
         ? destinationProvider

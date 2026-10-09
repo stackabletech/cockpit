@@ -15,6 +15,7 @@ export interface PerformCopyOrMoveOptions {
   logger: pino.Logger;
   bucket: string;
   jobId?: string;
+  userId: string;
   deleteOriginals: boolean;
 }
 
@@ -47,7 +48,7 @@ export async function performCopyOrMove(options: PerformCopyOrMoveOptions): Prom
   }
 
   if (jobId) {
-    createJob(jobId);
+    createJob(jobId, options.userId);
   }
 
   const buildCompletePayload = deleteOriginals

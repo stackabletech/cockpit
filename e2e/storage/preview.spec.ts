@@ -507,6 +507,9 @@ test.describe('Storage S3 — Preview', () => {
 
       await rowByName(page, 'escape.txt').dblclick();
       await expect(page.getByRole('heading', { name: 'escape.txt' })).toBeVisible();
+      const editor = page.getByRole('application', { name: 'Text editor' });
+      await expect(editor).toHaveAttribute('data-ready', 'true');
+      await expect(editor.locator(':focus')).toHaveCount(1);
 
       await page.keyboard.press('Escape');
 

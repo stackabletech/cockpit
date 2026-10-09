@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import type { SuperValidated } from 'sveltekit-superforms';
   import { superForm } from 'sveltekit-superforms';
-  import { zod4 as zod } from 'sveltekit-superforms/adapters';
+  import { zod4Client as zod } from 'sveltekit-superforms/adapters';
   import * as m from '$lib/paraglide/messages.js';
   import { StorageConnectionSchema } from '$lib/storage/schemas.js';
   import type { ConnectionMetadata } from '$lib/storage/connection-types.js';

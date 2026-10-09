@@ -1,6 +1,6 @@
 import { eq, and } from 'drizzle-orm';
 import { db } from '$lib/server/db.js';
-import { userStorageConnections } from '$lib/server/schema.js';
+import { storageDownloadManifests, userStorageConnections } from '$lib/server/schema.js';
 import { encrypt, decrypt, fingerprint } from './encryption.js';
 import { storageEncryptionKey } from './encryption-key.js';
 import { logger } from '$lib/server/logging';
@@ -21,6 +21,9 @@ export async function saveConnection(userId: string, config: S3ConnectionConfig)
   const fp = fingerprint(
     {
       endpoint: config.host,
+      port: config.port,
+      tls: config.tls,
+      accessStyle: config.accessStyle,
       region: config.region.name,
       accessKeyId: config.credentials?.accessKey || '',
       secretAccessKey: config.credentials?.secretKey || ''
@@ -136,10 +139,20 @@ export async function getConnectionForUser(
  * Delete a storage connection belonging to a user.
  */
 export async function deleteConnection(userId: string, connectionId: string): Promise<void> {
-  await db
-    .delete(userStorageConnections)
-    .where(
-      and(eq(userStorageConnections.id, connectionId), eq(userStorageConnections.userId, userId))
-    );
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(storageDownloadManifests)
+      .where(
+        and(
+          eq(storageDownloadManifests.connectionId, connectionId),
+          eq(storageDownloadManifests.userId, userId)
+        )
+      );
+    await tx
+      .delete(userStorageConnections)
+      .where(
+        and(eq(userStorageConnections.id, connectionId), eq(userStorageConnections.userId, userId))
+      );
+  });
   log.info({ connection_id: connectionId }, 'storage connection deleted');
 }

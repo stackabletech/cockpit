@@ -39,8 +39,9 @@ export async function checkObjectExists(
       }
     );
     return res.ok;
-  } catch {
-    return false;
+  } catch (err) {
+    if (err instanceof StorageError && err.code === 'not_found') return false;
+    throw err;
   }
 }
 

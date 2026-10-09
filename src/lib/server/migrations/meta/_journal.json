@@ -8,6 +8,20 @@
       "when": 1789716908296,
       "tag": "0000_initial_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791377006309,
+      "tag": "0001_common_spot",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791468385760,
+      "tag": "0002_hard_sleepwalker",
+      "breakpoints": true
     }
   ]
 }

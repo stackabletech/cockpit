@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { select, insert, remove } = vi.hoisted(() => ({
+const { select, insert, remove, transaction } = vi.hoisted(() => ({
   select: vi.fn(),
   insert: vi.fn(),
-  remove: vi.fn()
+  remove: vi.fn(),
+  transaction: vi.fn()
 }));
 
 vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 vi.mock('$lib/server/db.js', () => ({
-  db: { select, insert, delete: remove }
+  db: { select, insert, delete: remove, transaction }
 }));
 vi.mock('./encryption-key.js', () => ({ storageEncryptionKey: () => Buffer.alloc(32, 1) }));
 
@@ -31,6 +32,7 @@ function selectRows(rows: unknown[]) {
 describe('storage connections database', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    transaction.mockImplementation(async (callback) => callback({ delete: remove }));
   });
 
   it('reuses a connection with matching credentials', async () => {
@@ -107,11 +109,14 @@ describe('storage connections database', () => {
     await expect(getConnectionForUser('user-id', 'connection-id')).resolves.toEqual(config);
   });
 
-  it('deletes only the requested user connection', async () => {
+  it('atomically deletes only the owned connection history before the connection', async () => {
     const where = vi.fn().mockResolvedValue(undefined);
     remove.mockReturnValue({ where });
 
     await deleteConnection('user-id', 'connection-id');
-    expect(where).toHaveBeenCalledOnce();
+    expect(transaction).toHaveBeenCalledOnce();
+    expect(where).toHaveBeenCalledTimes(2);
+    expect(where.mock.calls[0]?.[0]).toBeDefined();
+    expect(where.mock.calls[1]?.[0]).toBeDefined();
   });
 });

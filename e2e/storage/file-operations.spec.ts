@@ -362,7 +362,8 @@ test.describe('Storage S3 — File Operations', () => {
     const prefix = uniquePrefix(testInfo, 'kb-cut-paste');
     const srcKey = `${prefix}cutsrc/`;
     const srcFile = `${srcKey}cut-kb.txt`;
-    const cleanupKeys = [srcFile];
+    const destFile = `${prefix}cut-kb.txt`;
+    const cleanupKeys = [srcFile, destFile];
 
     try {
       await putDirectoryMarker(client, credentials.bucket, srcKey);
@@ -388,7 +389,7 @@ test.describe('Storage S3 — File Operations', () => {
       await page.waitForTimeout(1000);
 
       // File should exist at destination
-      expect(await objectExists(client, credentials.bucket, `${prefix}cut-kb.txt`)).toBe(true);
+      expect(await objectExists(client, credentials.bucket, destFile)).toBe(true);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -491,4 +492,41 @@ test.describe('Storage S3 — File Operations', () => {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
   });
+});
+test('renames a folder subtree and removes its source marker', async ({ page }, testInfo) => {
+  const credentials = requireGarageCredentials();
+  const client = createS3Client(credentials);
+  const prefix = uniquePrefix(testInfo, 'folder-rename');
+  const oldRoot = `${prefix}docs/`;
+  const newRoot = `${prefix}renamed/`;
+  const cleanupKeys = [
+    oldRoot,
+    `${oldRoot}one.txt`,
+    `${oldRoot}nested/two.txt`,
+    newRoot,
+    `${newRoot}one.txt`,
+    `${newRoot}nested/two.txt`
+  ];
+  try {
+    await putDirectoryMarker(client, credentials.bucket, oldRoot);
+    await putTextObject(client, credentials.bucket, `${oldRoot}one.txt`, 'first');
+    await putTextObject(client, credentials.bucket, `${oldRoot}nested/two.txt`, 'second');
+    await connectAndOpenPrefix(page, credentials, prefix);
+    await rowByName(page, 'docs').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Rename' }).click();
+    await page.locator('.modal-box input').fill('renamed');
+    await page.getByRole('button', { name: 'Rename', exact: true }).click();
+    await expect
+      .poll(() => objectExists(client, credentials.bucket, `${newRoot}nested/two.txt`))
+      .toBe(true);
+    expect(await getObjectText(client, credentials.bucket, `${newRoot}one.txt`)).toBe('first');
+    expect(await getObjectText(client, credentials.bucket, `${newRoot}nested/two.txt`)).toBe(
+      'second'
+    );
+    expect(await objectExists(client, credentials.bucket, oldRoot)).toBe(false);
+    expect(await objectExists(client, credentials.bucket, `${oldRoot}one.txt`)).toBe(false);
+    expect(await objectExists(client, credentials.bucket, `${oldRoot}nested/two.txt`)).toBe(false);
+  } finally {
+    await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+  }
 });

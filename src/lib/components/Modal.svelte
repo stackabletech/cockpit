@@ -3,13 +3,17 @@
     open = $bindable(false),
     children,
     class: className = '',
-    closeguard
+    closeguard,
+    ...restProps
   }: {
     open: boolean;
     children: import('svelte').Snippet;
     class?: string;
     closeguard?: () => boolean;
-  } = $props();
+  } & Omit<
+    import('svelte/elements').HTMLDialogAttributes,
+    'children' | 'open' | 'class'
+  > = $props();
 
   let dialogEl = $state<HTMLDialogElement | undefined>(undefined);
 
@@ -34,17 +38,21 @@
   }
 
   // Firefox does not reliably close <dialog> on Escape via the cancel event,
-  // so we handle Escape at the window level as a fallback.
+  // so we handle Escape at the window level as a fallback. Use capture so
+  // focused widgets such as Monaco cannot stop it reaching this handler.
   $effect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
+      if (e.defaultPrevented) return;
       if (!dialogEl?.open) return;
+      const dialogs = [...document.querySelectorAll('dialog[open]')];
+      if (dialogs.at(-1) !== dialogEl) return;
       e.preventDefault();
       if (closeguard && !closeguard()) return;
       open = false;
     }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', onKeyDown, { capture: true });
   });
 
   function handleBackdropClick(e: MouseEvent) {
@@ -62,6 +70,7 @@
 <dialog
   bind:this={dialogEl}
   class={className}
+  {...restProps}
   onclose={handleClose}
   oncancel={handleCancel}
   onclick={handleBackdropClick}

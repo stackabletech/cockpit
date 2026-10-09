@@ -4,13 +4,13 @@
 // as of antlr-ng 1.0.10; we should file them eventually and drop each
 // substitution as it's fixed upstream. All substitutions are idempotent.
 //
-// 1. ParseTreeListener imported as a value
+// 1. Listener types imported as values
 //    ----------------------------------------
 //    antlr4ng declares `ParseTreeListener` as `export interface` (see
 //    node_modules/antlr4ng/dist/tree/ParseTreeListener.d.ts). antlr-ng doesn't
 //    model which antlr4ng exports are types vs values, so it emits a plain
 //    value import. That fails under `verbatimModuleSyntax` / strict ESM.
-//    Fix: rewrite as `import type { ParseTreeListener }`.
+//    Fix: use a type-only import for all listener types.
 //
 // 2. Unqualified `ParserRuleContext` in the `predicate` rule
 //    --------------------------------------------------------
@@ -45,8 +45,7 @@ function patchListener() {
   const original =
     'import { ErrorNode, ParseTreeListener, ParserRuleContext, TerminalNode } from "antlr4ng";';
   const replacement =
-    'import type { ParseTreeListener } from "antlr4ng";\n' +
-    'import { ErrorNode, ParserRuleContext, TerminalNode } from "antlr4ng";';
+    'import type { ErrorNode, ParseTreeListener, ParserRuleContext, TerminalNode } from "antlr4ng";';
   if (before.includes(replacement)) return;
   if (!before.includes(original)) {
     throw new Error(`patch-generated: could not find listener import in ${path}`);
