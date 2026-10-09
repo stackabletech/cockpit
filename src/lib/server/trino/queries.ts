@@ -79,6 +79,39 @@ const userQueries = new Map<string, Map<string, TrinoQuery[]>>();
 /** Tracks when each tab was last accessed (userId → tabId → timestamp). */
 const tabLastAccessed = new Map<string, Map<string, number>>();
 
+/** Abort handle of the script currently executing in each tab (userId → tabId → controller). */
+const runningScripts = new Map<string, Map<string, AbortController>>();
+
+/** Register a new script run for a tab, superseding any run still registered. */
+function beginScriptRun(userId: string, tabId: string): AbortController {
+  let userMap = runningScripts.get(userId);
+  if (!userMap) {
+    userMap = new Map();
+    runningScripts.set(userId, userMap);
+  }
+  userMap.get(tabId)?.abort();
+  const run = new AbortController();
+  userMap.set(tabId, run);
+  return run;
+}
+
+/** Unregister a script run, unless a newer run has already replaced it. */
+function endScriptRun(userId: string, tabId: string, run: AbortController): void {
+  const userMap = runningScripts.get(userId);
+  if (userMap?.get(tabId) !== run) return;
+  userMap.delete(tabId);
+  if (userMap.size === 0) runningScripts.delete(userId);
+}
+
+/** Abort the script running in a tab, if any. Returns whether one was running. */
+function abortScriptRun(userId: string, tabId: string): boolean {
+  const run = runningScripts.get(userId)?.get(tabId);
+  if (!run) return false;
+  run.abort();
+  endScriptRun(userId, tabId, run);
+  return true;
+}
+
 function touchTab(userId: string, tabId: string): void {
   let userMap = tabLastAccessed.get(userId);
   if (!userMap) {
@@ -130,12 +163,14 @@ function buildSnapshot(
 
 /** Clear all stored results for a tab and cancel any active query. */
 export async function resetTabQueries(userId: string, tabId: string): Promise<void> {
-  await cancelQuery(userId, tabId);
-  const tabMap = getUserTabMap(userId);
-  tabMap.set(tabId, []);
+  // Clear before awaiting Trino, so a script started meanwhile keeps its results.
+  abortScriptRun(userId, tabId);
+  const cancelled = markActiveQueryCancelled(userId, tabId);
+  getUserTabMap(userId).set(tabId, []);
+  if (cancelled) await cancelInTrino(cancelled);
 }
 
-/** Submit a single SQL statement to Trino and store the TrinoQuery. */
+/** Submit a single SQL statement to Trino. The caller decides whether to store the TrinoQuery. */
 async function submitStatement(
   client: TrinoClient,
   userId: string,
@@ -155,12 +190,17 @@ async function submitStatement(
 
   const trinoQueryId = submitResult.id;
   if (!trinoQueryId) {
+    trinoQueryTotal.inc({ outcome: 'failed' });
     throw new Error('Trino did not return a query ID');
   }
 
+  const initialState = submitResult.stats ? mapTrinoState(submitResult.stats.state) : 'QUEUED';
+
   const query: TrinoQuery = {
     trinoQueryId,
-    state: submitResult.stats ? mapTrinoState(submitResult.stats.state) : 'QUEUED',
+    // As in collectResults: don't expose a terminal state before all result pages
+    // are drained. startScript terminates the query once that has happened.
+    state: isTerminal(initialState) ? 'RUNNING' : initialState,
     progress: toQueryProgress(submitResult.stats),
     columns: submitResult.columns ?? [],
     rows: submitResult.data ?? [],
@@ -174,25 +214,41 @@ async function submitStatement(
     completedAt: null
   };
 
-  if (submitResult.error) {
-    query.error = submitResult.error.message ?? 'Query failed';
+  if (submitResult.error || initialState === 'FAILED') {
+    query.error = submitResult.error?.message ?? 'Query failed';
     terminateQuery(query, 'FAILED', { decrementGauge: false });
     trinoQueryTotal.inc({ outcome: 'failed' });
   }
-
-  const tabMap = getUserTabMap(userId);
-  const queries = tabMap.get(tabId) ?? [];
-  queries.push(query);
-  tabMap.set(tabId, queries);
 
   log.info({ trino_query_id: trinoQueryId, user_id: userId, tab_id: tabId }, 'query started');
   return query;
 }
 
+function storeQuery(userId: string, tabId: string, query: TrinoQuery): void {
+  const tabMap = getUserTabMap(userId);
+  const queries = tabMap.get(tabId) ?? [];
+  queries.push(query);
+  tabMap.set(tabId, queries);
+}
+
+/** Best-effort cancellation of a query on the Trino side. */
+async function cancelInTrino(query: TrinoQuery): Promise<void> {
+  try {
+    if (query.nextUri) {
+      await query.client.cancelViaUri(query.nextUri, query.trinoUser);
+    } else {
+      await query.client.cancel(query.trinoQueryId, query.trinoUser);
+    }
+  } catch (err) {
+    log.warn({ err, trino_query_id: query.trinoQueryId }, 'failed to cancel query in Trino');
+  }
+}
+
 /**
  * Submit and sequentially execute an array of SQL statements.
  * Runs in the background (fire-and-forget from the POST handler).
- * Stops on first failure, cancellation, or submit error.
+ * Stops on first failure, cancellation, or submit error. A later script in the
+ * same tab, or cancelQuery, aborts the run so it submits no further statements.
  */
 export async function startScript(
   client: TrinoClient,
@@ -201,7 +257,11 @@ export async function startScript(
   statements: string[],
   options: { user: string; catalog?: string; schema?: string }
 ): Promise<void> {
-  await resetTabQueries(userId, tabId);
+  // Take over the tab synchronously, so the most recently started script wins
+  // even while an earlier one is still waiting for Trino.
+  const run = beginScriptRun(userId, tabId);
+  const cancelled = markActiveQueryCancelled(userId, tabId);
+  getUserTabMap(userId).set(tabId, []);
   touchTab(userId, tabId);
 
   log.info(
@@ -209,7 +269,27 @@ export async function startScript(
     'starting script execution'
   );
 
+  try {
+    if (cancelled) await cancelInTrino(cancelled);
+    await runStatements(client, userId, tabId, statements, options, run.signal);
+  } finally {
+    endScriptRun(userId, tabId, run);
+  }
+}
+
+async function runStatements(
+  client: TrinoClient,
+  userId: string,
+  tabId: string,
+  statements: string[],
+  options: { user: string; catalog?: string; schema?: string },
+  signal: AbortSignal
+): Promise<void> {
   for (const sql of statements) {
+    // Cancelled or superseded during an earlier await (e.g. while cancelling the
+    // predecessor's query in Trino).
+    if (signal.aborted) break;
+
     let query: TrinoQuery;
     try {
       query = await submitStatement(client, userId, tabId, sql, options);
@@ -217,6 +297,22 @@ export async function startScript(
       log.error({ err, user_id: userId, tab_id: tabId }, 'failed to submit statement in script');
       break;
     }
+
+    if (signal.aborted) {
+      // Cancelled or superseded while Trino was accepting the statement: the
+      // result belongs to no one, so cancel it instead of storing it.
+      log.info(
+        { trino_query_id: query.trinoQueryId, user_id: userId, tab_id: tabId },
+        'script aborted during submit'
+      );
+      if (!isTerminal(query.state)) {
+        terminateQuery(query, 'CANCELLED', { decrementGauge: false });
+        trinoQueryTotal.inc({ outcome: 'cancelled' });
+        await cancelInTrino(query);
+      }
+      break;
+    }
+    storeQuery(userId, tabId, query);
 
     if (!isTerminal(query.state) && query.nextUri) {
       trinoActiveQueries.inc();
@@ -275,28 +371,33 @@ export function removeTabQuery(userId: string, tabId: string): void {
   }
 }
 
+/** Stop the tab's running script and cancel its active query. Returns whether anything was running. */
 export async function cancelQuery(userId: string, tabId: string): Promise<boolean> {
+  // Abort first so the script submits no further statements, including while
+  // it is between statements and has no active query.
+  const scriptAborted = abortScriptRun(userId, tabId);
+  if (scriptAborted) log.info({ user_id: userId, tab_id: tabId }, 'script aborted');
+  const cancelled = markActiveQueryCancelled(userId, tabId);
+  if (cancelled) await cancelInTrino(cancelled);
+  return scriptAborted || cancelled !== undefined;
+}
+
+/**
+ * Mark the tab's active query as cancelled and return it, so the caller can
+ * cancel it in Trino. The state changes synchronously: concurrent callers
+ * never cancel or count the same query twice.
+ */
+function markActiveQueryCancelled(userId: string, tabId: string): TrinoQuery | undefined {
   const query = getActiveQuery(userId, tabId);
-  if (!query) return false;
+  if (!query) return undefined;
 
   log.info(
     { trino_query_id: query.trinoQueryId, user_id: userId, tab_id: tabId },
     'cancelling query'
   );
-
-  try {
-    if (query.nextUri) {
-      await query.client.cancelViaUri(query.nextUri, query.trinoUser);
-    } else {
-      await query.client.cancel(query.trinoQueryId, query.trinoUser);
-    }
-  } catch (err) {
-    log.warn({ err, trino_query_id: query.trinoQueryId }, 'failed to cancel query in Trino');
-  }
-
   terminateQuery(query, 'CANCELLED');
   trinoQueryTotal.inc({ outcome: 'cancelled' });
-  return true;
+  return query;
 }
 
 // --- Periodic eviction ---
