@@ -214,71 +214,87 @@ export function createZipStream(provider: StorageProvider, entries: ZipEntry[]):
   let cancelled = false;
   let activeReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
-  return new ReadableStream({
-    async start(controller) {
-      let offset = 0;
-      const centralEntries: CentralDirectoryEntry[] = [];
-      try {
-        for (const entry of entries) {
-          if (cancelled) return;
-          const name = entryName(entry);
-          if (name.length > UINT16_MAX) throw new Error('Archive entry name is too long');
-          const sizeZip64 = entry.size >= UINT32_MAX;
-          controller.enqueue(localHeader(name, sizeZip64));
-          const localOffset = offset;
-          offset += 30 + name.length + (sizeZip64 ? 20 : 0);
+  async function* generate(): AsyncGenerator<Uint8Array> {
+    let offset = 0;
+    const centralEntries: CentralDirectoryEntry[] = [];
+    try {
+      for (const entry of entries) {
+        if (cancelled) return;
+        const name = entryName(entry);
+        if (name.length > UINT16_MAX) throw new Error('Archive entry name is too long');
+        const sizeZip64 = entry.size >= UINT32_MAX;
+        yield localHeader(name, sizeZip64);
+        const localOffset = offset;
+        offset += 30 + name.length + (sizeZip64 ? 20 : 0);
 
-          let crc32 = 0;
-          let actualSize = 0;
-          if (!entry.isDirectory) {
-            const download = await provider.getObject(entry.key);
-            activeReader = download.stream.getReader();
+        let crc32 = 0;
+        let actualSize = 0;
+        if (!entry.isDirectory) {
+          const download = await provider.getObject(entry.key);
+          activeReader = download.stream.getReader();
+          try {
             while (!cancelled) {
               const { done, value } = await activeReader.read();
               if (done) break;
               crc32 = crc32Update(crc32, value);
               actualSize += value.length;
               offset += value.length;
-              controller.enqueue(value);
+              yield value;
             }
+          } finally {
+            await activeReader.cancel().catch(() => {});
             activeReader.releaseLock();
             activeReader = undefined;
           }
-          if (cancelled) return;
-          if (actualSize !== entry.size) {
-            throw new Error(`Object size changed while creating archive: ${entry.key}`);
-          }
-          const entryZip64 = sizeZip64 || actualSize >= UINT32_MAX;
-          const descriptor = dataDescriptor(crc32, actualSize, entryZip64);
-          controller.enqueue(descriptor);
-          offset += descriptor.length;
-          centralEntries.push({
-            name,
-            crc32,
-            size: actualSize,
-            offset: localOffset,
-            zip64: entryZip64,
-            isDirectory: entry.isDirectory
-          });
         }
+        if (cancelled) return;
+        if (actualSize !== entry.size) {
+          throw new Error(`Object size changed while creating archive: ${entry.key}`);
+        }
+        const entryZip64 = sizeZip64 || actualSize >= UINT32_MAX;
+        const descriptor = dataDescriptor(crc32, actualSize, entryZip64);
+        yield descriptor;
+        offset += descriptor.length;
+        centralEntries.push({
+          name,
+          crc32,
+          size: actualSize,
+          offset: localOffset,
+          zip64: entryZip64,
+          isDirectory: entry.isDirectory
+        });
+      }
 
-        const centralOffset = offset;
-        for (const entry of centralEntries) {
-          const header = centralHeader(entry);
-          controller.enqueue(header);
-          offset += header.length;
+      const centralOffset = offset;
+      for (const entry of centralEntries) {
+        const header = centralHeader(entry);
+        yield header;
+        offset += header.length;
+      }
+      yield endOfCentralDirectory(centralEntries.length, offset - centralOffset, centralOffset);
+    } finally {
+      await activeReader?.cancel().catch(() => {});
+    }
+  }
+  const iterator = generate();
+  return new ReadableStream(
+    {
+      async pull(controller) {
+        try {
+          const { done, value } = await iterator.next();
+          if (cancelled) return;
+          if (done) controller.close();
+          else controller.enqueue(value);
+        } catch (err) {
+          if (!cancelled) controller.error(err);
         }
-        controller.enqueue(
-          endOfCentralDirectory(centralEntries.length, offset - centralOffset, centralOffset)
-        );
-        controller.close();
-      } catch (err) {
-        controller.error(err);
+      },
+      async cancel() {
+        cancelled = true;
+        await activeReader?.cancel();
+        await iterator.return(undefined);
       }
     },
-    async cancel() {
-      cancelled = true;
-      await activeReader?.cancel();
-    }
-  });
+    { highWaterMark: 0 }
+  );
 }

@@ -127,6 +127,13 @@ describe('isUsableFilter', () => {
 });
 
 describe('compileFilterPredicates', () => {
+  it('honours an explicit date-filter time instead of rounding it to midnight', () => {
+    const predicate = compileFilterPredicates([
+      { field: 'date', operator: '>', value: '2026-08-17T12:00' }
+    ]);
+    expect(predicate({ size: 1, lastModified: new Date(2026, 7, 17, 13) })).toBe(true);
+    expect(predicate({ size: 1, lastModified: new Date(2026, 7, 17, 11) })).toBe(false);
+  });
   const item = (size: number, lastModified: Date) => ({ size, lastModified });
 
   it('returns a pass-through when no usable filters exist', () => {

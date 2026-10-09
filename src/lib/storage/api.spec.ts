@@ -518,11 +518,12 @@ describe('createFetchStorageApi', () => {
       expect(exists).toBe(false);
     });
 
-    it('returns false when disconnected', async () => {
+    it('throws when disconnected instead of reporting absence', async () => {
       const api = createFetchStorageApi(() => null);
 
-      const exists = await api.checkObjectExists({ bucket: 'b', key: 'file.txt' });
-      expect(exists).toBe(false);
+      await expect(api.checkObjectExists({ bucket: 'b', key: 'file.txt' })).rejects.toMatchObject({
+        code: 'not_connected'
+      });
     });
   });
 

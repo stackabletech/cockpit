@@ -17,7 +17,9 @@ const { mockDb } = vi.hoisted(() => ({
   mockDb: {
     select: vi.fn(),
     insert: vi.fn(),
-    delete: vi.fn()
+    delete: vi.fn(),
+    transaction: vi.fn(),
+    execute: vi.fn()
   }
 }));
 
@@ -78,7 +80,11 @@ const USER_ID = 'user-1';
 const CONNECTION_ID = '00000000-0000-0000-0000-000000000001';
 
 describe('recent-searches-db', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDb.transaction.mockImplementation((callback) => callback(mockDb));
+    mockDb.execute.mockResolvedValue(undefined);
+  });
 
   describe('listRecentSearches', () => {
     it('selects buckets+query+options for the user+connection, newest first', async () => {
@@ -132,7 +138,6 @@ describe('recent-searches-db', () => {
         searchPath: 'events/',
         maxDepth: 3
       };
-      const before = Date.now();
       await recordRecentSearch(
         USER_ID,
         CONNECTION_ID,
@@ -140,7 +145,6 @@ describe('recent-searches-db', () => {
         'query-1',
         options
       );
-      const after = Date.now();
 
       expect(mockDb.insert).toHaveBeenCalledWith(userRecentSearches);
 
@@ -153,7 +157,7 @@ describe('recent-searches-db', () => {
         excludePatterns: string[];
         searchPath: string;
         maxDepth: number;
-        updatedAt: Date;
+        updatedAt: SQL;
       };
       expect(insertValues).toMatchObject({
         userId: USER_ID,
@@ -165,12 +169,11 @@ describe('recent-searches-db', () => {
         searchPath: 'events/',
         maxDepth: 3
       });
-      expect(insertValues.updatedAt.getTime()).toBeGreaterThanOrEqual(before);
-      expect(insertValues.updatedAt.getTime()).toBeLessThanOrEqual(after);
+      expect(toQuery(insertValues.updatedAt).sql).toBe('clock_timestamp()');
 
       const conflict = insertChain.onConflictDoUpdate.mock.calls[0][0] as {
         target: unknown[];
-        set: { updatedAt: Date };
+        set: { updatedAt: SQL };
       };
       expect(conflict.target).toEqual([
         userRecentSearches.userId,
@@ -183,8 +186,7 @@ describe('recent-searches-db', () => {
         userRecentSearches.buckets
       ]);
 
-      expect(conflict.set.updatedAt.getTime()).toBeGreaterThanOrEqual(before);
-      expect(conflict.set.updatedAt.getTime()).toBeLessThanOrEqual(after);
+      expect(toQuery(conflict.set.updatedAt).sql).toBe('clock_timestamp()');
 
       // Prune: subquery limited to the cap, delete excludes those ids.
       expect(subqueryChain.limit).toHaveBeenCalledWith(RECENT_SEARCHES_CAP);
@@ -199,24 +201,20 @@ describe('recent-searches-db', () => {
       expect(deleteWhereSql.params).toEqual([USER_ID, CONNECTION_ID]);
     });
 
-    it('uses a later timestamp for consecutive records in the same millisecond', async () => {
+    it('serialises connection history writes with a database transaction lock', async () => {
       const insertChain = buildChain(undefined, '');
       const subqueryChain = buildChain(undefined, 'select id from user_recent_searches');
       const deleteChain = buildChain(undefined, '');
       mockDb.insert.mockReturnValue(insertChain);
       mockDb.select.mockReturnValue(subqueryChain);
       mockDb.delete.mockReturnValue(deleteChain);
-      vi.spyOn(Date, 'now').mockReturnValue(1_000);
 
       const options = { useRegex: true, excludePatterns: [], searchPath: '', maxDepth: null };
       await recordRecentSearch(USER_ID, CONNECTION_ID, ['bucket-1'], 'query-1', options);
-      const firstTimestamp = (insertChain.values.mock.calls[0][0] as { updatedAt: Date }).updatedAt;
 
       await recordRecentSearch(USER_ID, CONNECTION_ID, ['bucket-1'], 'query-2', options);
-      const secondTimestamp = (insertChain.values.mock.calls[1][0] as { updatedAt: Date })
-        .updatedAt;
-
-      expect(secondTimestamp.getTime()).toBeGreaterThan(firstTimestamp.getTime());
+      expect(mockDb.transaction).toHaveBeenCalledTimes(2);
+      expect(toQuery(mockDb.execute.mock.calls[0][0]).sql).toContain('pg_advisory_xact_lock');
     });
   });
 

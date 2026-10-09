@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
+  import { supportsAnchorPositioning, trackPopover } from '$lib/components/popover-position.js';
   import type { SearchSession, StorageSearchState } from '$lib/storage/search.svelte.js';
   import IconArrowDropDown from 'virtual:icons/material-symbols/arrow-drop-down';
   import IconArrowDropUp from 'virtual:icons/material-symbols/arrow-drop-up';
@@ -19,6 +20,11 @@
   const anchorName = `--bucket-select-${uid}`;
 
   let popoverEl = $state<HTMLDivElement>();
+  let triggerEl = $state<HTMLButtonElement>();
+  $effect(() => {
+    if (open && triggerEl && popoverEl && !supportsAnchorPositioning())
+      return trackPopover(triggerEl, popoverEl, { matchWidth: true });
+  });
   let open = $state(false);
   let filter = $state('');
   let filterInput = $state<HTMLInputElement>();
@@ -72,6 +78,7 @@
 
 <div class="relative min-w-0 flex-1">
   <button
+    bind:this={triggerEl}
     type="button"
     class="input focus:border-primary cursor-pointer gap-2 pe-2 text-left font-normal"
     popovertarget={popoverId}

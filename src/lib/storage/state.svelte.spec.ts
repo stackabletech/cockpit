@@ -948,12 +948,18 @@ describe('redownloadHistory', () => {
 
     await state.redownloadHistory('manifest-1', ['a.txt', 'b.txt']);
 
-    expect(recreateSpy).toHaveBeenCalledWith('manifest-1', ['a.txt', 'b.txt']);
+    expect(recreateSpy).toHaveBeenCalledWith(
+      'manifest-1',
+      ['a.txt', 'b.txt'],
+      expect.any(AbortSignal)
+    );
     expect(triggerManifestDownloads).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'manifest-2',
         files: [{ filename: 'selection.zip', size: 3000, part: 1 }]
-      })
+      }),
+      expect.any(AbortSignal),
+      expect.any(Function)
     );
     expect(state.operations).toHaveLength(1);
     expect(state.operations[0]).toMatchObject({
@@ -970,7 +976,7 @@ describe('redownloadHistory', () => {
     });
     state.downloadHistory = [makeHistoryEntry()];
 
-    await expect(state.redownloadHistory('manifest-1', ['a.txt'])).rejects.toThrow();
+    await state.redownloadHistory('manifest-1', ['a.txt']);
 
     expect(state.operations[0]?.status).toBe('error');
     expect(state.operations[0]?.errorMessage).toBe(

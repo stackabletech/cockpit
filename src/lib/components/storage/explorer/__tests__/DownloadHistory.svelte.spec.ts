@@ -45,7 +45,7 @@ describe('DownloadHistory', () => {
 
   it('expands details and reports the number of selected files', async () => {
     renderHistory([makeEntry()]);
-    await page.getByRole('button', { name: 'Show details' }).click();
+    await page.getByRole('button', { name: /test-bucket/ }).click();
 
     const checkboxes = page.getByRole('checkbox');
     await expect.element(checkboxes).toHaveLength(2);
@@ -60,7 +60,7 @@ describe('DownloadHistory', () => {
   it('downloads the selected keys via the callback', async () => {
     const onDownload = vi.fn(async () => {});
     renderHistory([makeEntry()], onDownload);
-    await page.getByRole('button', { name: 'Show details' }).click();
+    await page.getByRole('button', { name: /test-bucket/ }).click();
     await page.getByLabelText(/reports\/two\.txt/).click();
 
     await page.getByRole('button', { name: 'Download selected' }).click();
@@ -80,7 +80,7 @@ describe('DownloadHistory', () => {
         ]
       })
     ]);
-    await page.getByRole('button', { name: 'Show details' }).click();
+    await page.getByRole('button', { name: /test-bucket/ }).click();
 
     await expect.element(page.getByRole('checkbox')).toHaveLength(1);
     await expect.element(page.getByLabelText(/reports\/one\.txt/)).toBeInTheDocument();
@@ -92,7 +92,7 @@ describe('DownloadHistory', () => {
     const { section } = renderHistory([
       makeEntry({ entries: [{ key: longKey, size: 123_456, isDirectory: false }] })
     ]);
-    await page.getByRole('button', { name: 'Show details' }).click();
+    await page.getByRole('button', { name: /test-bucket/ }).click();
     await expect.element(page.getByText(/0 selected/)).toBeInTheDocument();
 
     expect(section.scrollWidth).toBeLessThanOrEqual(section.clientWidth);

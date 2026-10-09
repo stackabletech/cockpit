@@ -237,6 +237,12 @@ export function compileFilterPredicates(
     }
     const date = parseDateFilterValue(spec);
     if (date === null) continue;
+    if (/[T ]\d{1,2}:\d{2}/.test(spec.value.trim())) {
+      predicates.push((item) =>
+        compareSize(item.lastModified.getTime(), date.getTime(), spec.operator)
+      );
+      continue;
+    }
     const start = new Date(date);
     start.setHours(0, 0, 0, 0);
     const end = new Date(start);

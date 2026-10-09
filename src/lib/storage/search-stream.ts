@@ -26,7 +26,7 @@ export async function readSearchStream(
     }));
     if (snapshot) results.clear();
     for (const result of eventResults) results.set(result.key, result);
-    onUpdate?.({ results: [...results.values()], snapshot });
+    onUpdate?.({ results: eventResults, snapshot });
   };
 
   try {
@@ -44,9 +44,13 @@ export async function readSearchStream(
           throw new StorageError(event.code ?? 'unknown', event.message ?? 'Search failed');
         }
         if (event.type === 'batch') apply(event, false);
-        if (event.type === 'snapshot' || event.type === 'complete') apply(event, true);
+        if (event.type === 'snapshot' || (event.type === 'complete' && event.results?.length))
+          apply(event, true);
       }
     }
+  } catch (err) {
+    await reader.cancel(err).catch(() => {});
+    throw err;
   } finally {
     reader.releaseLock();
   }

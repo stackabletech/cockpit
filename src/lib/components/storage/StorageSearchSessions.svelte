@@ -15,7 +15,7 @@
 
 {#if sessions.length > 1}
   <nav
-    class="border-base-300 flex overflow-x-auto border-b px-5 pt-2"
+    class="tabs tabs-sm border-base-300 flex overflow-x-auto border-b px-5 pt-2"
     aria-label={m.storage_search_sessions_label()}
   >
     {#each sessions as session (session.id)}
@@ -23,10 +23,10 @@
         <button
           type="button"
           class={[
-            'tab tab-sm gap-1.5 font-mono text-xs',
+            'tab gap-1.5 font-mono text-xs',
             { 'tab-active text-primary': activeId === session.id }
           ]}
-          aria-current={activeId === session.id ? 'page' : undefined}
+          aria-pressed={activeId === session.id}
           onclick={() => onSelect(session.id)}
         >
           {session.label}

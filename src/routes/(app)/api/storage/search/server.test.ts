@@ -20,7 +20,7 @@ function mockEvent(params: string, signal?: AbortSignal) {
     url,
     request: new Request(url, { signal }),
     locals: {
-      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       storageConfig: { type: 's3', region: { name: 'us-east-1' } }
     }
   } as unknown as Parameters<typeof GET>[0];

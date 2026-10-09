@@ -23,6 +23,9 @@ export function positionPopoverRelativeToTrigger(
 ): void {
   const { align = 'start', matchWidth = false } = options;
   const triggerRect = trigger.getBoundingClientRect();
+  popover.style.maxWidth = `${Math.max(0, window.innerWidth - 2 * GAP)}px`;
+  popover.style.maxHeight = `${Math.max(0, window.innerHeight - 2 * GAP)}px`;
+  popover.style.overflowY = 'auto';
   const popoverWidth = matchWidth ? triggerRect.width : popover.offsetWidth;
   const popoverHeight = popover.offsetHeight;
 
@@ -32,7 +35,7 @@ export function positionPopoverRelativeToTrigger(
   }
 
   const naturalLeft = align === 'end' ? triggerRect.right - popoverWidth : triggerRect.left;
-  const left = Math.min(Math.max(GAP, naturalLeft), window.innerWidth - popoverWidth - GAP);
+  const left = Math.max(GAP, Math.min(naturalLeft, window.innerWidth - popoverWidth - GAP));
 
   popover.style.position = 'fixed';
   popover.style.inset = 'auto';
@@ -40,4 +43,24 @@ export function positionPopoverRelativeToTrigger(
   popover.style.top = `${top}px`;
   popover.style.left = `${left}px`;
   if (matchWidth) popover.style.width = `${triggerRect.width}px`;
+}
+
+/** Keep the fallback attached as scrolling, resizing or content changes move it. */
+export function trackPopover(
+  trigger: HTMLElement,
+  popover: HTMLElement,
+  options: { align?: 'start' | 'end'; matchWidth?: boolean } = {}
+): () => void {
+  const update = () => positionPopoverRelativeToTrigger(trigger, popover, options);
+  update();
+  window.addEventListener('resize', update);
+  window.addEventListener('scroll', update, true);
+  const observer = new ResizeObserver(update);
+  observer.observe(trigger);
+  observer.observe(popover);
+  return () => {
+    window.removeEventListener('resize', update);
+    window.removeEventListener('scroll', update, true);
+    observer.disconnect();
+  };
 }

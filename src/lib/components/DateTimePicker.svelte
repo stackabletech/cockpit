@@ -1,11 +1,14 @@
 <script lang="ts">
   import { DateFormatter } from '@internationalized/date';
+  import { tick } from 'svelte';
+  import { SvelteDate } from 'svelte/reactivity';
   import { getLocale } from '$lib/paraglide/runtime.js';
   import * as m from '$lib/paraglide/messages.js';
   import { formatDateValue, parseDateInput } from '$lib/storage/search-filter.js';
   import {
     positionPopoverRelativeToTrigger,
-    supportsAnchorPositioning
+    supportsAnchorPositioning,
+    trackPopover
   } from '$lib/components/popover-position.js';
   import IconCalendar from 'virtual:icons/material-symbols/calendar-today';
   import IconChevronLeft from 'virtual:icons/material-symbols/chevron-left';
@@ -64,6 +67,38 @@
   let open = $state(false);
   let viewYear = $state(0);
   let viewMonth = $state(0);
+  const focusedDate = new SvelteDate();
+  $effect(() => {
+    if (open && triggerEl && popoverEl && !supportsAnchorPositioning())
+      return trackPopover(triggerEl, popoverEl, { align: 'end' });
+  });
+  async function focusDate(date: Date): Promise<void> {
+    focusedDate.setTime(date.getTime());
+    viewYear = date.getFullYear();
+    viewMonth = date.getMonth();
+    await tick();
+    popoverEl?.querySelector<HTMLButtonElement>(`[data-date="${formatDateValue(date)}"]`)?.focus();
+  }
+  function navigateDate(event: KeyboardEvent, date: Date): void {
+    const next = new SvelteDate(date);
+    const days: Record<string, number> = {
+      ArrowLeft: -1,
+      ArrowRight: 1,
+      ArrowUp: -7,
+      ArrowDown: 7
+    };
+    if (event.key in days) next.setDate(next.getDate() + days[event.key]);
+    else if (event.key === 'PageUp' || event.key === 'PageDown') {
+      next.setDate(1);
+      next.setMonth(next.getMonth() + (event.key === 'PageUp' ? -1 : 1));
+    } else if (event.key === 'Home')
+      next.setDate(next.getDate() - ((next.getDay() - startDay + 7) % 7));
+    else if (event.key === 'End')
+      next.setDate(next.getDate() + 6 - ((next.getDay() - startDay + 7) % 7));
+    else return;
+    event.preventDefault();
+    void focusDate(next);
+  }
 
   const monthLabel = $derived(monthYearFormatter.format(new Date(viewYear, viewMonth, 1)));
 
@@ -92,12 +127,13 @@
     open = newState === 'open';
     if (open) {
       const base = parsedDate ?? new Date();
+      void focusDate(base);
       viewYear = base.getFullYear();
       viewMonth = base.getMonth();
       if (!supportsAnchorPositioning() && triggerEl && popoverEl) {
         positionPopoverRelativeToTrigger(triggerEl, popoverEl, { align: 'end' });
       }
-    }
+    } else triggerEl?.focus();
   }
 
   function shiftMonth(delta: number): void {
@@ -191,6 +227,9 @@
             ? 'btn-primary'
             : ''} {iso === todayIso ? 'bg-primary/10' : ''}"
           aria-pressed={selected}
+          data-date={iso}
+          tabindex={iso === formatDateValue(focusedDate) ? 0 : -1}
+          onkeydown={(event) => navigateDate(event, cell.date!)}
           aria-current={iso === todayIso ? 'date' : undefined}
           aria-label={m.datepicker_day_select({ date: dayFormatter.format(cell.date) })}
           onclick={() => selectDate(cell.date!)}>{cell.date.getDate()}</button

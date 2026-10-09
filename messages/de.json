@@ -754,7 +754,7 @@
   "storage_search_searching": "Suche läuft...",
   "storage_search_results_elapsed": "{count} Ergebnisse · {elapsed} ms",
   "storage_search_result_type": "Typ",
-  "storage_search_keyboard_hint": "Eingabe: suchen · Strg/Cmd+T: neue Sitzung · Esc: schließen",
+  "storage_search_keyboard_hint": "Eingabe: suchen · Alt+N: neue Sitzung · Esc: schließen",
   "storage_search_key_enter": "Eingabe",
   "storage_search_key_escape": "Esc",
   "storage_search_shortcut_search": "suchen",

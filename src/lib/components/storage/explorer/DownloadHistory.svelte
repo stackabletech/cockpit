@@ -16,7 +16,7 @@
   const uid = $props.id();
   let expanded = $state<Record<string, boolean>>({});
   let selected = $state<Record<string, string[]>>({});
-  let downloading = $state<string | null>(null);
+  const downloading = new SvelteSet<string>();
 
   function toggleDetails(id: string): void {
     expanded = { ...expanded, [id]: !expanded[id] };
@@ -30,11 +30,13 @@
   }
 
   async function download(id: string, keys: string[]): Promise<void> {
-    downloading = id;
+    downloading.add(id);
     try {
       await onDownload(id, keys);
+    } catch {
+      // The storage action surfaces translated error feedback.
     } finally {
-      downloading = null;
+      downloading.delete(id);
     }
   }
 </script>
@@ -59,7 +61,7 @@
           <button
             class="hover:bg-base-300/50 focus-visible:outline-primary flex w-full cursor-pointer items-center gap-2 rounded text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
             aria-expanded={expanded[entry.id]}
-            aria-label={expanded[entry.id]
+            title={expanded[entry.id]
               ? m.storage_download_history_hide_details()
               : m.storage_download_history_show_details()}
             onclick={() => toggleDetails(entry.id)}
@@ -91,17 +93,17 @@
                   selectedSize
                 )}
               </legend>
-              {#each files as item (`${entry.id}-${item.key}`)}
+              {#each files as item, index (`${entry.id}-${item.key}`)}
                 <div class="flex items-center gap-2">
                   <input
-                    id={`${uid}-${entry.id}-${item.key}`}
+                    id={`${uid}-${entry.id}-${index}`}
                     class="checkbox checkbox-xs"
                     type="checkbox"
                     checked={chosen.includes(item.key)}
                     onchange={(event) => toggleKey(entry.id, item.key, event.currentTarget.checked)}
                   />
                   <label
-                    for={`${uid}-${entry.id}-${item.key}`}
+                    for={`${uid}-${entry.id}-${index}`}
                     class="text-base-content min-w-0 flex-1 truncate text-xs"
                     >{item.key}
                     <span class="text-base-content/50">({formatFileSize(item.size)})</span></label
@@ -112,13 +114,13 @@
             <div class="mt-2 flex flex-wrap gap-2">
               <button
                 class="btn btn-primary btn-xs"
-                disabled={chosen.length === 0 || downloading === entry.id}
+                disabled={chosen.length === 0 || downloading.has(entry.id)}
                 onclick={() => download(entry.id, chosen)}
                 >{m.storage_download_history_download_selected()}</button
               >
               <button
                 class="btn btn-ghost btn-xs"
-                disabled={downloading === entry.id}
+                disabled={downloading.has(entry.id)}
                 onclick={() =>
                   download(
                     entry.id,

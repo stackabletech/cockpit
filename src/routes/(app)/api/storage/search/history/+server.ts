@@ -51,6 +51,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     ? [...new Set(body.buckets.map((b) => (typeof b === 'string' ? b.trim() : '')).filter(Boolean))]
     : [];
   const query = typeof body.query === 'string' ? body.query.trim() : '';
+  if (
+    (Array.isArray(body.buckets) && body.buckets.length > 100) ||
+    buckets.some((bucket) => bucket.length > 255) ||
+    query.length > 1024 ||
+    (Array.isArray(body.excludePatterns) &&
+      (body.excludePatterns.length > 50 ||
+        body.excludePatterns.some(
+          (pattern) => typeof pattern === 'string' && pattern.length > 1024
+        ))) ||
+    (typeof body.searchPath === 'string' && body.searchPath.length > 1024)
+  )
+    throw error(400, 'Search history limits exceeded');
   if (buckets.length === 0 || !query) {
     throw error(400, 'At least one bucket and a query are required');
   }

@@ -139,7 +139,7 @@ export class OperationsState {
     const operation = this.operations.find((op) => op.id === id);
     // Native downloads begin asynchronously after their anchor click. Wait for
     // the first request to register its server-side job before polling it.
-    if (operation?.fileJobIds?.length) {
+    if (operation?.status === 'running' && operation.fileJobIds?.length) {
       const timer = setTimeout(() => void this._pollJobStatus(operation), 500);
       this._pollTimers.set(id, timer);
     }
@@ -151,6 +151,8 @@ export class OperationsState {
   }
 
   finishOp(id: string, status: 'done' | 'error' | 'cancelled', errorMessage?: string): void {
+    clearTimeout(this._pollTimers.get(id));
+    this._pollTimers.delete(id);
     const operation = this.operations.find((op) => op.id === id);
     this.operations = this.operations.map((op) =>
       op.id === id && op.status !== 'cancelled'
@@ -162,6 +164,8 @@ export class OperationsState {
   }
 
   removeOp(id: string): void {
+    clearTimeout(this._pollTimers.get(id));
+    this._pollTimers.delete(id);
     this.operations = this.operations.filter((op) => op.id !== id);
     this._abortControllers.delete(id);
     saveOperationsToStorage(this.operations);
@@ -174,7 +178,8 @@ export class OperationsState {
       controller.abort();
     }
     if (operation?.type === 'download') {
-      for (const jobId of operation.fileJobIds ?? []) void this._api.cancelJob(jobId);
+      for (const jobId of operation.fileJobIds ?? [])
+        void this._api.cancelJob(jobId).catch(() => {});
     }
     const timer = this._pollTimers.get(id);
     if (timer) {
@@ -201,7 +206,11 @@ export class OperationsState {
   }
 
   private async _pollJobStatus(op: StorageOperation): Promise<void> {
-    if (this.operations.find((o) => o.id === op.id)?.status === 'cancelled') return;
+    const isActive = () =>
+      ['running', 'interrupted'].includes(
+        this.operations.find((o) => o.id === op.id)?.status ?? ''
+      );
+    if (!isActive()) return;
 
     let completedCount = 0;
     let completedBytes = 0;
@@ -232,6 +241,7 @@ export class OperationsState {
       }
     }
 
+    if (!isActive()) return;
     if (anyRunning) {
       this.operations = this.operations.map((o) =>
         o.id === op.id
@@ -254,7 +264,9 @@ export class OperationsState {
               ...o,
               status: (anyCancelled
                 ? 'cancelled'
-                : anyError || completedCount !== op.itemCount
+                : anyError ||
+                    completedCount !==
+                      (op.type === 'download' ? op.fileJobIds!.length : op.itemCount)
                   ? 'error'
                   : 'done') as 'done' | 'error' | 'cancelled',
               completedCount,

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { onDestroy } from 'svelte';
   import { resolve } from '$app/paths';
   import Modal from '$lib/components/Modal.svelte';
   import StorageSearchForm from '$lib/components/storage/StorageSearchForm.svelte';
@@ -29,6 +30,10 @@
     getBuckets: () => storage.buckets,
     getCurrentBucket: () => currentBucket
   });
+  $effect(() => {
+    if (!open) search.close();
+  });
+  onDestroy(() => search.close());
 
   function openSearch(): void {
     view = 'search';
@@ -73,7 +78,7 @@
       event.preventDefault();
       openSearch();
     }
-    if (open && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 't') {
+    if (open && event.altKey && event.key.toLowerCase() === 'n') {
       event.preventDefault();
       search.addSession();
     }
@@ -84,7 +89,7 @@
 
 <button
   type="button"
-  class="btn btn-ghost btn-xs gap-1 {currentBucket ? 'text-white' : ''}"
+  class="btn btn-ghost btn-xs text-base-content gap-1"
   aria-label={m.storage_search_open()}
   title={m.storage_search_open()}
   onclick={openSearch}
@@ -129,12 +134,29 @@
     </header>
     <div
       role="tablist"
+      tabindex="-1"
+      onkeydown={(event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        view =
+          event.key === 'Home'
+            ? 'search'
+            : event.key === 'End'
+              ? 'recent'
+              : view === 'search'
+                ? 'recent'
+                : 'search';
+        document.getElementById(`${uid}-${view}-tab`)?.focus();
+      }}
       class="tabs border-base-300 tabs-border bg-base-300/30 mb-0 px-5"
       aria-label={m.storage_search_view_label()}
     >
       <button
         type="button"
         role="tab"
+        id="{uid}-search-tab"
+        aria-controls="{uid}-view-panel"
+        tabindex={view === 'search' ? 0 : -1}
         class="tab gap-1 {view === 'search' ? 'tab-active' : ''}"
         aria-selected={view === 'search'}
         onclick={() => (view = 'search')}
@@ -142,6 +164,9 @@
       ><button
         type="button"
         role="tab"
+        id="{uid}-recent-tab"
+        aria-controls="{uid}-view-panel"
+        tabindex={view === 'recent' ? 0 : -1}
         class="tab gap-1 {view === 'recent' ? 'tab-active' : ''}"
         aria-selected={view === 'recent'}
         onclick={() => (view = 'recent')}
@@ -156,7 +181,12 @@
         onRemove={(id) => search.removeSession(id)}
       />
     {/if}
-    <div class="flex-1 overflow-y-auto p-5">
+    <div
+      role="tabpanel"
+      id="{uid}-view-panel"
+      aria-labelledby="{uid}-{view}-tab"
+      class="flex-1 overflow-y-auto p-5"
+    >
       {#if view === 'recent'}
         <StorageSearchHistory
           entries={search.history}
@@ -164,12 +194,14 @@
           onClear={() => void search.clearHistory()}
         />
       {:else if search.active}
-        <StorageSearchForm
-          id={uid}
-          session={search.active}
-          buckets={storage.buckets}
-          state={search}
-        /><StorageSearchResults session={search.active} onOpen={openResult} />
+        {#key search.active.id}
+          <StorageSearchForm
+            id={uid}
+            session={search.active}
+            buckets={storage.buckets}
+            state={search}
+          /><StorageSearchResults session={search.active} onOpen={openResult} />
+        {/key}
       {/if}
     </div>
     <footer

@@ -235,18 +235,22 @@ export class StorageState {
     void this.refreshDownloadHistory();
   }
 
+  private historyGeneration = 0;
   async refreshDownloadHistory(): Promise<void> {
+    const generation = ++this.historyGeneration;
     if (!this.connectionId) {
       this.downloadHistory = [];
+      this.downloadHistoryLoading = false;
       return;
     }
     this.downloadHistoryLoading = true;
     try {
-      this.downloadHistory = await this._api.listDownloadHistory(this.connectionId);
+      const history = await this._api.listDownloadHistory(this.connectionId);
+      if (generation === this.historyGeneration) this.downloadHistory = history;
     } catch {
-      this.downloadHistory = [];
+      // Preserve the last successful history on transient failures.
     } finally {
-      this.downloadHistoryLoading = false;
+      if (generation === this.historyGeneration) this.downloadHistoryLoading = false;
     }
   }
 
@@ -254,20 +258,27 @@ export class StorageState {
     const entry = this.downloadHistory.find((candidate) => candidate.id === manifestId);
     const selectedEntries = entry ? entry.entries.filter((item) => keys.includes(item.key)) : [];
     const operationId = crypto.randomUUID();
+    const controller = new AbortController();
     this.operations_.startOp(
       operationId,
       m.storage_action_download(),
       'download',
       keys.length,
-      new AbortController(),
+      controller,
       undefined,
       keys.map(keyToName),
       estimateArchiveSize(selectedEntries),
       false
     );
     try {
-      const manifest = await this._api.recreateDownloadManifest(manifestId, keys);
-      const jobIds = await triggerManifestDownloads(manifest);
+      const manifest = await this._api.recreateDownloadManifest(
+        manifestId,
+        keys,
+        controller.signal
+      );
+      const jobIds = await triggerManifestDownloads(manifest, controller.signal, (ids) =>
+        this.operations_.updateOpJobIds(operationId, ids)
+      );
       this.operations_.updateOpTotalBytes(
         operationId,
         manifest.files.reduce((total, file) => total + file.size, 0)
@@ -287,7 +298,13 @@ export class StorageState {
       } else {
         this.operations_.finishOp(operationId, 'error');
       }
-      throw err;
+      if (!controller.signal.aborted)
+        addToast(
+          'error',
+          err instanceof StorageError
+            ? getActionErrorMessage(err)
+            : m.storage_download_error_unknown()
+        );
     }
   }
 
@@ -512,12 +529,17 @@ export class StorageState {
           return;
         }
         if (this.archive.isInArchive) {
+          if (!key) {
+            addToast('warning', m.storage_action_download_no_selection());
+            return;
+          }
           void this.archive.downloadFromArchive(key);
           return;
         }
         for (const f of downloadItems) {
           this.bookmarks.recordFileVisit(this.bucket, f.key, f.size);
         }
+        const operationId = crypto.randomUUID();
         try {
           if (!connectionStore.activeConnectionId) {
             addToast('error', m.storage_download_error_unknown());
@@ -525,7 +547,6 @@ export class StorageState {
           }
           const keys = downloadItems.map((file) => file.key);
           const abortController = new AbortController();
-          const operationId = crypto.randomUUID();
           this.operations_.startOp(
             operationId,
             m.storage_action_download(),
@@ -542,7 +563,8 @@ export class StorageState {
             this.bucket,
             this.prefix,
             keys,
-            abortController.signal
+            abortController.signal,
+            (ids) => this.operations_.updateOpJobIds(operationId, ids)
           );
           // The manifest reports the authoritative payload total, which also
           // covers folder contents that were unknown before.
@@ -551,10 +573,7 @@ export class StorageState {
           this.operations_.trackDownload(operationId);
           await this.refreshDownloadHistory();
         } catch (err: unknown) {
-          const operation = this.operations.find(
-            (candidate) => candidate.type === 'download' && candidate.status === 'running'
-          );
-          if (operation) this.operations_.finishOp(operation.id, 'error');
+          this.operations_.finishOp(operationId, 'error');
           if (err instanceof StorageError) {
             addToast('error', getActionErrorMessage(err));
           } else {

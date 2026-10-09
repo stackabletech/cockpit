@@ -99,7 +99,7 @@ describe('StorageSearch', () => {
     await expect.element(query).toHaveValue('draft');
     await expect.element(page.getByRole('button', { name: 'alpha', exact: true })).toBeVisible();
     await expect
-      .element(page.getByRole('button', { name: '.*', exact: true }))
+      .element(page.getByRole('button', { name: 'Regular expression search', exact: true }))
       .toHaveAttribute('aria-pressed', 'false');
   });
 
@@ -153,7 +153,7 @@ describe('StorageSearch', () => {
     const { state, api } = createState();
     render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
     await page.getByRole('button', { name: 'Open search' }).click();
-    const regex = page.getByRole('button', { name: '.*', exact: true });
+    const regex = page.getByRole('button', { name: 'Regular expression search', exact: true });
     await regex.click();
     await expect.element(regex).toHaveAttribute('aria-pressed', 'true');
     await page.getByText('Advanced options').click();

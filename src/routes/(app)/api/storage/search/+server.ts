@@ -6,7 +6,8 @@ import { storageSearchTotal } from '$lib/server/metrics.js';
 import type { SearchResultItem } from '$lib/storage/types.js';
 import type { RequestHandler } from './$types';
 
-const SNAPSHOT_INTERVAL = 10;
+const BATCH_SIZE = 100;
+const MAX_RESULTS = 10_000;
 
 export const GET: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
@@ -16,12 +17,19 @@ export const GET: RequestHandler = async (event) => {
   const maxDepthParam = event.url.searchParams.get('maxDepth');
   const maxDepth = maxDepthParam === null ? undefined : Number(maxDepthParam);
   if (!query) throw error(400, 'Missing required query parameter: q');
+  if (query.length > 1024 || prefix.length > 1024) throw error(400, 'Search input is too long');
   if (maxDepth !== undefined && (!Number.isInteger(maxDepth) || maxDepth < 1 || maxDepth > 20)) {
     throw error(400, 'maxDepth must be an integer between 1 and 20');
   }
 
   const useRegex = event.url.searchParams.get('regex') === 'true';
   const excludePatterns = event.url.searchParams.getAll('exclude').filter(Boolean);
+  if (
+    excludePatterns.length > 50 ||
+    excludePatterns.some((pattern) => pattern.length > 1024) ||
+    event.url.searchParams.getAll('filter').length > 20
+  )
+    throw error(400, 'Search filter limits exceeded');
   const filters = event.url.searchParams
     .getAll('filter')
     .map(parseFilterParam)
@@ -58,14 +66,21 @@ export const GET: RequestHandler = async (event) => {
     }
 
     const encoder = new TextEncoder();
+    const abort = new AbortController();
+    const abortRequest = () => abort.abort();
+    event.request.signal.addEventListener('abort', abortRequest, { once: true });
+    if (event.request.signal.aborted) abort.abort();
+    let cancelled = false;
+    const normalisedQuery = query.toLowerCase();
     const stream = new ReadableStream({
       async start(controller) {
-        const results: SearchResultItem[] = [];
-        let matchesSinceSnapshot = 0;
+        let count = 0;
+        let batch: SearchResultItem[] = [];
         const send = (
           type: 'batch' | 'snapshot' | 'complete',
           eventResults: SearchResultItem[]
         ) => {
+          if (cancelled) return;
           controller.enqueue(
             encoder.encode(JSON.stringify({ type, results: eventResults }) + '\n')
           );
@@ -75,11 +90,11 @@ export const GET: RequestHandler = async (event) => {
           const result = await provider.search(query, {
             prefix,
             maxDepth,
-            signal: event.request.signal,
+            signal: abort.signal,
             matches: (item) => {
               const matched = regex
                 ? regex.test(item.key)
-                : item.key.toLowerCase().includes(query.toLowerCase());
+                : item.key.toLowerCase().includes(normalisedQuery);
               return (
                 matched &&
                 !excludePatterns.some((pattern) => item.key.includes(pattern)) &&
@@ -87,17 +102,17 @@ export const GET: RequestHandler = async (event) => {
               );
             },
             onMatch: (item) => {
-              results.push(item);
-              matchesSinceSnapshot++;
-              if (matchesSinceSnapshot >= SNAPSHOT_INTERVAL) {
-                send('snapshot', results);
-                matchesSinceSnapshot = 0;
-              } else {
-                send('batch', [item]);
+              if (++count > MAX_RESULTS)
+                throw error(400, 'Search exceeds 10000 results; narrow the query');
+              batch.push(item);
+              if (batch.length >= BATCH_SIZE) {
+                send('batch', batch);
+                batch = [];
               }
             }
           });
-          send('complete', result.results);
+          if (batch.length) send('batch', batch);
+          send('complete', []);
           storageSearchTotal.inc({ outcome: 'success' });
           log.info(
             {
@@ -110,6 +125,9 @@ export const GET: RequestHandler = async (event) => {
             'storage search completed'
           );
         } catch (err) {
+          if (cancelled || abort.signal.aborted) return;
+          if (batch.length) send('batch', batch);
+          log.error({ err, bucket }, 'streamed storage search failed');
           storageSearchTotal.inc({ outcome: 'error' });
           const code = isHttpError(err)
             ? err.status === 403
@@ -130,8 +148,13 @@ export const GET: RequestHandler = async (event) => {
             )
           );
         } finally {
-          controller.close();
+          event.request.signal.removeEventListener('abort', abortRequest);
+          if (!cancelled) controller.close();
         }
+      },
+      cancel() {
+        cancelled = true;
+        abort.abort();
       }
     });
 

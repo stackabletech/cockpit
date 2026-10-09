@@ -1,10 +1,9 @@
-import { and, eq, desc, notInArray } from 'drizzle-orm';
+import { and, eq, desc, notInArray, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db.js';
 import { userRecentSearches } from '$lib/server/schema.js';
 import { logger } from '$lib/server/logging';
 
 const log = logger.child({ module: 'recent-searches-db' });
-let lastRecordedAt = 0;
 
 /** Maximum number of recent searches kept per user and connection. */
 export const RECENT_SEARCHES_CAP = 20;
@@ -72,60 +71,64 @@ export async function recordRecentSearch(
   query: string,
   options: RecentSearchOptions
 ): Promise<void> {
-  // JavaScript dates have millisecond precision. Keep writes strictly ordered
-  // so replaying a search always moves it ahead of an earlier same-ms record.
-  lastRecordedAt = Math.max(Date.now(), lastRecordedAt + 1);
-  const now = new Date(lastRecordedAt);
   const sortedBuckets = [...new Set(buckets)].sort();
-
-  // Upsert on the unique (user, connection, buckets, query, options) key.
-  await db
-    .insert(userRecentSearches)
-    .values({
-      userId,
-      connectionId,
-      buckets: sortedBuckets,
-      query,
-      useRegex: options.useRegex,
-      excludePatterns: options.excludePatterns,
-      searchPath: options.searchPath,
-      maxDepth: options.maxDepth,
-      updatedAt: now
-    })
-    .onConflictDoUpdate({
-      target: [
-        userRecentSearches.userId,
-        userRecentSearches.connectionId,
-        userRecentSearches.query,
-        userRecentSearches.useRegex,
-        userRecentSearches.excludePatterns,
-        userRecentSearches.searchPath,
-        userRecentSearches.maxDepth,
-        userRecentSearches.buckets
-      ],
-      set: { updatedAt: now }
-    });
-
-  // Prune to the most recent RECENT_SEARCHES_CAP rows for this user and connection.
-  const keepIds = db
-    .select({ id: userRecentSearches.id })
-    .from(userRecentSearches)
-    .where(
-      and(eq(userRecentSearches.userId, userId), eq(userRecentSearches.connectionId, connectionId))
-    )
-    .orderBy(desc(userRecentSearches.updatedAt))
-    .limit(RECENT_SEARCHES_CAP);
-
-  await db
-    .delete(userRecentSearches)
-    .where(
-      and(
-        eq(userRecentSearches.userId, userId),
-        eq(userRecentSearches.connectionId, connectionId),
-        notInArray(userRecentSearches.id, keepIds)
-      )
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${JSON.stringify([userId, connectionId])}, 0))`
     );
+    const now = sql`clock_timestamp()`;
 
+    // Upsert on the unique (user, connection, buckets, query, options) key.
+    await tx
+      .insert(userRecentSearches)
+      .values({
+        userId,
+        connectionId,
+        buckets: sortedBuckets,
+        query,
+        useRegex: options.useRegex,
+        excludePatterns: options.excludePatterns,
+        searchPath: options.searchPath,
+        maxDepth: options.maxDepth,
+        updatedAt: now
+      })
+      .onConflictDoUpdate({
+        target: [
+          userRecentSearches.userId,
+          userRecentSearches.connectionId,
+          userRecentSearches.query,
+          userRecentSearches.useRegex,
+          userRecentSearches.excludePatterns,
+          userRecentSearches.searchPath,
+          userRecentSearches.maxDepth,
+          userRecentSearches.buckets
+        ],
+        set: { updatedAt: now }
+      });
+
+    // Prune to the most recent RECENT_SEARCHES_CAP rows for this user and connection.
+    const keepIds = tx
+      .select({ id: userRecentSearches.id })
+      .from(userRecentSearches)
+      .where(
+        and(
+          eq(userRecentSearches.userId, userId),
+          eq(userRecentSearches.connectionId, connectionId)
+        )
+      )
+      .orderBy(desc(userRecentSearches.updatedAt))
+      .limit(RECENT_SEARCHES_CAP);
+
+    await tx
+      .delete(userRecentSearches)
+      .where(
+        and(
+          eq(userRecentSearches.userId, userId),
+          eq(userRecentSearches.connectionId, connectionId),
+          notInArray(userRecentSearches.id, keepIds)
+        )
+      );
+  });
   log.info({ user_id: userId, connection_id: connectionId }, 'recorded recent storage search');
 }
 

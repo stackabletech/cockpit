@@ -12,7 +12,7 @@ const OPERATIONS_HISTORY_KEY = 'storage_operations_history';
 function makeMockApi(): StorageApi {
   return {
     pollJob: vi.fn().mockResolvedValue({ status: 'done' }),
-    cancelJob: vi.fn(),
+    cancelJob: vi.fn().mockResolvedValue(undefined),
     list: vi.fn(),
     copy: vi.fn(),
     move: vi.fn(),
@@ -347,6 +347,40 @@ describe('hasRunningOps', () => {
 // ──────────────────────────────────────────────────────────────────────────────
 
 describe('cancelOp', () => {
+  it('completes an archived selection against transfer jobs rather than selected keys', async () => {
+    vi.useFakeTimers();
+    const api = makeMockApi();
+    const state = new OperationsState(api, makeOpts());
+    state.startOp('archive', 'Download', 'download', 4);
+    state.updateOpJobIds('archive', ['archive-job']);
+    state.trackDownload('archive');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(state.operations[0].status).toBe('done');
+    expect(state.operations[0].itemCount).toBe(4);
+    vi.useRealTimers();
+  });
+  it('does not rearm polling after manual completion during an in-flight request', async () => {
+    vi.useFakeTimers();
+    let resolve!: (value: Awaited<ReturnType<StorageApi['pollJob']>>) => void;
+    const api = makeMockApi();
+    api.pollJob = vi.fn(
+      () =>
+        new Promise<Awaited<ReturnType<StorageApi['pollJob']>>>((done) => {
+          resolve = done;
+        })
+    );
+    const state = new OperationsState(api, makeOpts());
+    state.startOp('download', 'Download', 'download', 1);
+    state.updateOpJobIds('download', ['job']);
+    state.trackDownload('download');
+    await vi.advanceTimersByTimeAsync(500);
+    state.finishOp('download', 'error');
+    resolve({ status: 'running' });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(state.operations[0].status).toBe('error');
+    expect(api.pollJob).toHaveBeenCalledOnce();
+    vi.useRealTimers();
+  });
   it('aborts the abort controller and sets status=cancelled', () => {
     const state = new OperationsState(makeMockApi(), makeOpts());
     const controller = new AbortController();

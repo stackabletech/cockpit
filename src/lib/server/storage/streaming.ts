@@ -54,7 +54,20 @@ export function createProgressStream(
         }
       };
 
-      const result = await operationPromise;
+      let result: StreamableOpResult;
+      try {
+        result = await operationPromise;
+      } catch (err) {
+        if (options.jobId)
+          failJob(options.jobId, err instanceof Error ? err.message : 'Operation failed');
+        options.logger.error({ err, bucket: options.bucket }, 'storage operation failed');
+        try {
+          controller.error(err);
+        } catch {
+          /* Client already disconnected. */
+        }
+        return;
+      }
 
       if (options.jobId) {
         if (result.failed.length > 0) {

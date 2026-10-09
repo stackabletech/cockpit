@@ -12,6 +12,7 @@
 
 import { STORAGE_CONNECTION_ID_HEADER } from './connection-id-header.js';
 import { createStorageFetch } from './storage-fetch.js';
+import { StorageError } from './errors.js';
 import { readNdjsonStream, type NdjsonStreamCallbacks } from './ndjson-stream.js';
 import { serializeFilter, type SearchFilterSpec } from './search-filter.js';
 import type {
@@ -148,7 +149,11 @@ export interface StorageApi {
 
   clearDownloadHistory(): Promise<void>;
 
-  recreateDownloadManifest(manifestId: string, keys: string[]): Promise<DownloadManifestResponse>;
+  recreateDownloadManifest(
+    manifestId: string,
+    keys: string[],
+    signal?: AbortSignal
+  ): Promise<DownloadManifestResponse>;
 
   checkObjectExists(params: { bucket: string; key: string }): Promise<boolean>;
 
@@ -346,24 +351,30 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
     },
 
     async listDownloadHistory(connectionId) {
-      const res = await fetch(
-        `/api/storage/download/manifests?${new URLSearchParams({ connectionId })}`
-      );
-      if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
-      return (await res.json()) as DownloadHistoryEntry[];
+      const history: DownloadHistoryEntry[] = [];
+      for (let offset = 0; ; offset += 50) {
+        const res = await fetch(
+          `/api/storage/download/manifests?${new URLSearchParams({ connectionId, offset: String(offset) })}`
+        );
+        if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
+        const entries = (await res.json()) as DownloadHistoryEntry[];
+        history.push(...entries);
+        if (entries.length < 50) return history;
+      }
     },
 
     async clearDownloadHistory() {
       await fetch_('/api/storage/download/manifests', { method: 'DELETE' });
     },
 
-    async recreateDownloadManifest(manifestId, keys) {
+    async recreateDownloadManifest(manifestId, keys, signal) {
       const res = await fetch_(
         `/api/storage/download/manifests/${encodeURIComponent(manifestId)}/redownload`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keys })
+          body: JSON.stringify({ keys }),
+          signal
         }
       );
       return (await res.json()) as DownloadManifestResponse;
@@ -376,8 +387,9 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
           method: 'HEAD'
         });
         return res.ok;
-      } catch {
-        return false;
+      } catch (err) {
+        if (err instanceof StorageError && err.code === 'not_found') return false;
+        throw err;
       }
     },
 

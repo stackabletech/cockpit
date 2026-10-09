@@ -341,7 +341,7 @@
             aria-selected={isActive}
             tabindex={isActive ? 0 : -1}
             bind:this={tabButtons[idx]}
-            class="group relative flex max-w-44 shrink-0 items-center gap-1.5 rounded-t-lg border border-b-0 px-4 py-1.5 text-xs
+            class="group relative flex max-w-44 shrink-0 items-center gap-1.5 rounded-t-lg border border-b-0 py-1.5 pr-4 pl-3 text-xs
               transition-all select-none
               {tabsState.tabs.length > 1 ? 'mr-2' : ''}
               {tabsState.tabs.length > 1 ? 'pr-6' : ''}
@@ -373,7 +373,7 @@
             <TooltipTrigger text={m.storage_tab_close()} orientation="down">
               <button
                 type="button"
-                class="text-base-content/40 hover:text-error relative z-30 -ml-7 shrink-0 translate-y-0.5 self-center rounded-full p-0.5 transition-colors"
+                class="text-base-content/40 hover:text-error relative z-30 mr-1 -ml-7 shrink-0 translate-y-0.5 self-center rounded-full p-0.5 transition-colors"
                 aria-label={m.storage_tab_close()}
                 onclick={() => tabsState.closeTab(tab.id)}
               >
@@ -387,7 +387,7 @@
       <!-- Plus button — sits inline next to the last tab -->
       <TooltipTrigger text={m.storage_tab_new()} orientation="down">
         <button
-          class="btn btn-ghost btn-xs z-20 ml-1 shrink-0"
+          class="btn btn-ghost btn-xs z-20 ml-0.5 shrink-0"
           aria-label={m.storage_tab_new()}
           onclick={() => tabsState.addTab()}
         >

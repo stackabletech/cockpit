@@ -69,8 +69,9 @@ export class StorageSearchState {
   }
 
   close(): void {
-    for (const controller of this.controllers.values()) controller.abort();
+    for (const id of this.controllers.keys()) this.cancel(id);
     this.controllers.clear();
+    this.started.clear();
   }
 
   async open(): Promise<void> {
@@ -101,6 +102,7 @@ export class StorageSearchState {
   useRecentEntry(entry: RecentSearchEntry, buckets?: string[]): void {
     const active = this.active;
     if (!active) return;
+    this.cancel(active.id);
     this.updateSession(active.id, {
       query: entry.query,
       selectedBuckets: buckets && buckets.length > 0 ? buckets : entry.buckets,
@@ -108,6 +110,7 @@ export class StorageSearchState {
       excludePatterns: entry.excludePatterns,
       searchPath: entry.searchPath,
       maxDepth: entry.maxDepth ?? undefined,
+      filters: [],
       results: [],
       status: 'idle',
       elapsed: 0,
@@ -116,8 +119,9 @@ export class StorageSearchState {
   }
 
   addSession(): void {
+    if (this.sessions.length >= 8) return;
     this.sessionCounter += 1;
-    const id = `s${Date.now()}`;
+    const id = `s${this.sessionCounter}`;
     this.sessions = [...this.sessions, this.makeSession(id, this.sessionCounter)];
     this.activeId = id;
     this.excludeInput = '';
@@ -130,7 +134,7 @@ export class StorageSearchState {
     const remaining = this.sessions.filter((session) => session.id !== id);
     if (remaining.length === 0) {
       this.sessionCounter += 1;
-      const session = this.makeSession(`s${Date.now()}`, this.sessionCounter);
+      const session = this.makeSession(`s${this.sessionCounter}`, this.sessionCounter);
       this.sessions = [session];
       this.activeId = session.id;
       return;
@@ -206,6 +210,10 @@ export class StorageSearchState {
 
     const buckets =
       session.selectedBuckets.length > 0 ? session.selectedBuckets : this.getBuckets();
+    if (buckets.length === 0) {
+      this.updateSession(id, { status: 'done', results: [], failures: [], elapsed: 0 });
+      return;
+    }
 
     // Record the submitted search in the per-connection history as a single
     // grouped entry covering all searched buckets. Fire-and-forget: history is
@@ -237,40 +245,49 @@ export class StorageSearchState {
     this.started.set(id, started);
 
     try {
-      const responses = await Promise.allSettled(
-        buckets.map((bucket) =>
-          this.api
-            .search({
-              bucket,
-              query: trimmedQuery,
-              prefix: session.searchPath,
-              maxDepth: session.maxDepth,
-              useRegex: session.useRegex,
-              excludePatterns: session.excludePatterns,
-              filters: session.filters
-                .filter((filter) => filter.value.trim() !== '')
-                .filter(isUsableFilter)
-                .map(({ field, operator, value }) => ({ field, operator, value })),
-              signal: controller.signal,
-              onUpdate: (update) => {
-                if (this.controllers.get(id) !== controller || controller.signal.aborted) return;
-                const results = update.results
-                  .filter((result) => this.matches(session, result))
-                  .map((result) => ({ ...result, bucket }));
-                const current = this.sessions.find((item) => item.id === id);
-                if (!current) return;
-                this.updateSession(id, {
-                  results: [
-                    ...current.results.filter((result) => result.bucket !== bucket),
-                    ...results
-                  ]
-                });
-              }
-            })
-            .then((response) => ({ bucket, ...response }))
-        )
+      const responses: PromiseSettledResult<{ bucket: string; results: SearchResultItem[] }>[] = [];
+      let nextBucket = 0;
+      await Promise.all(
+        Array.from({ length: Math.min(4, buckets.length) }, async () => {
+          while (nextBucket < buckets.length && !controller.signal.aborted) {
+            const bucket = buckets[nextBucket++];
+            const [response] = await Promise.allSettled([
+              this.api
+                .search({
+                  bucket,
+                  query: trimmedQuery,
+                  prefix: session.searchPath,
+                  maxDepth: session.maxDepth,
+                  useRegex: session.useRegex,
+                  excludePatterns: session.excludePatterns,
+                  filters: session.filters
+                    .filter((filter) => filter.value.trim() !== '')
+                    .filter(isUsableFilter)
+                    .map(({ field, operator, value }) => ({ field, operator, value })),
+                  signal: controller.signal,
+                  onUpdate: (update) => {
+                    if (this.controllers.get(id) !== controller || controller.signal.aborted)
+                      return;
+                    const results = update.results.map((result) => ({ ...result, bucket }));
+                    const current = this.sessions.find((item) => item.id === id);
+                    if (!current) return;
+                    this.updateSession(id, {
+                      results: [
+                        ...(update.snapshot
+                          ? current.results.filter((result) => result.bucket !== bucket)
+                          : current.results),
+                        ...results
+                      ].slice(0, 10_000)
+                    });
+                  }
+                })
+                .then((response) => ({ bucket, ...response }))
+            ]);
+            responses.push(response);
+          }
+        })
       );
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || this.controllers.get(id) !== controller) return;
       const successfulResponses = responses
         .filter((response) => response.status === 'fulfilled')
         .map((response) => response.value);
@@ -285,15 +302,13 @@ export class StorageSearchState {
       const results = successfulResponses.reduce(
         (accumulated, { bucket, results }) => [
           ...accumulated.filter((result) => result.bucket !== bucket),
-          ...results
-            .filter((result) => this.matches(session, result))
-            .map((result) => ({ ...result, bucket }))
+          ...results.map((result) => ({ ...result, bucket }))
         ],
         current.results
       );
       this.updateSession(id, {
         status: successfulResponses.length > 0 ? 'done' : 'error',
-        results,
+        results: results.slice(0, 10_000),
         elapsed: Math.round(performance.now() - started),
         failures
       });
@@ -305,8 +320,10 @@ export class StorageSearchState {
         });
       }
     } finally {
-      if (this.controllers.get(id) === controller) this.controllers.delete(id);
-      this.started.delete(id);
+      if (this.controllers.get(id) === controller) {
+        this.controllers.delete(id);
+        this.started.delete(id);
+      }
     }
   }
 
@@ -338,16 +355,5 @@ export class StorageSearchState {
       elapsed: 0,
       failures: []
     };
-  }
-
-  private matches(session: SearchSession, result: SearchResultItem): boolean {
-    if (session.excludePatterns.some((pattern) => result.key.includes(pattern))) return false;
-    if (!session.useRegex) return true;
-    try {
-      // eslint-disable-next-line security/detect-non-literal-regexp -- useRegex is an opt-in feature; invalid patterns are caught below
-      return new RegExp(session.query, 'i').test(result.key);
-    } catch {
-      return false;
-    }
   }
 }

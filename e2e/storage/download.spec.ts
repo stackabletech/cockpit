@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import AdmZip from 'adm-zip';
 import {
   createS3Client,
   hasGarageCredentials,
@@ -47,6 +49,8 @@ test.describe('Storage S3 — Download', () => {
       ]);
 
       expect(download.suggestedFilename()).toBe('download-me.txt');
+      expect(await download.failure()).toBeNull();
+      expect(await readFile((await download.path())!, 'utf8')).toBe('download content');
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -130,6 +134,40 @@ test.describe('Storage S3 — Download', () => {
         page.getByRole('button', { name: 'Download', exact: true }).click()
       ]);
       expect(download.suggestedFilename()).toMatch(/\.zip$/);
+      expect(await download.failure()).toBeNull();
+      const zip = new AdmZip(await readFile((await download.path())!));
+      expect(
+        zip
+          .getEntries()
+          .map((entry) => entry.entryName)
+          .sort()
+      ).toEqual([...cleanupKeys].sort());
+      for (const key of cleanupKeys) expect(zip.readAsText(key)).toBe(key);
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const operations = JSON.parse(
+              localStorage.getItem('storage_operations_history') ?? '[]'
+            ) as Array<{ type: string; status: string; sourceNames: string[] }>;
+            return operations
+              .filter(
+                (operation) =>
+                  operation.type === 'download' && operation.sourceNames.includes('four.txt')
+              )
+              .at(-1)?.status;
+          })
+        )
+        .toBe('done');
+      await page.getByRole('button', { name: 'Operations', exact: true }).click();
+      const history = page.getByRole('region', { name: 'Download history' });
+      await history.getByRole('button').filter({ hasText: credentials.bucket }).first().click();
+      const [redownload] = await Promise.all([
+        page.waitForEvent('download'),
+        history.getByRole('button', { name: 'Download all', exact: true }).first().click()
+      ]);
+      expect(await redownload.failure()).toBeNull();
+      const recreatedZip = new AdmZip(await readFile((await redownload.path())!));
+      for (const key of cleanupKeys) expect(recreatedZip.readAsText(key)).toBe(key);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -156,6 +194,9 @@ test.describe('Storage S3 — Download', () => {
 
       const [download] = await Promise.all([page.waitForEvent('download'), downloadBtn.click()]);
       expect(download.suggestedFilename()).toMatch(/\.zip$/);
+      expect(await download.failure()).toBeNull();
+      const zip = new AdmZip(await readFile((await download.path())!));
+      for (const key of cleanupKeys) expect(zip.readAsText(key)).toBe(key);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

@@ -4,7 +4,7 @@
   import Pagination from '$lib/components/Pagination.svelte';
   import type { SearchResult, SearchSession } from '$lib/storage/search.svelte.js';
   import { initPageSize, type PageSize } from '$lib/types/pagination.js';
-  import { keyToName } from '$lib/storage/utils.js';
+  import { keyToName, formatFileSize } from '$lib/storage/utils.js';
   import IconArrowUpward from 'virtual:icons/material-symbols/arrow-upward';
   import IconArrowDownward from 'virtual:icons/material-symbols/arrow-downward';
   import IconDescription from 'virtual:icons/material-symbols/description';
@@ -73,6 +73,8 @@
   );
 
   $effect(() => {
+    if (session.status === 'running' && session.results.length === 0) currentPage = 0;
+    if (currentPage >= totalPages) currentPage = Math.max(0, totalPages - 1);
     if (displayedSessionId !== session.id) {
       displayedSessionId = session.id;
       currentPage = 0;
@@ -92,13 +94,6 @@
   function scrollResultsToTop() {
     if (resultsContainer) resultsContainer.scrollTop = 0;
   }
-
-  function formatSize(size: number): string {
-    if (size < 1024) return `${size} B`;
-    if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KB`;
-    if (size < 1024 ** 3) return `${(size / 1024 ** 2).toFixed(1)} MB`;
-    return `${(size / 1024 ** 3).toFixed(1)} GB`;
-  }
 </script>
 
 {#snippet SortIcon(key: SortKey)}
@@ -114,8 +109,11 @@
 {/snippet}
 
 {#if session.status !== 'idle'}
-  <section class="mt-4" aria-live="polite">
-    <div class="text-base-content/60 mb-2 flex items-center justify-between gap-3 text-xs">
+  <section class="mt-4">
+    <div
+      aria-live="polite"
+      class="text-base-content/60 mb-2 flex items-center justify-between gap-3 text-xs"
+    >
       <span
         >{session.status === 'running'
           ? m.storage_search_searching()
@@ -133,7 +131,9 @@
         >{:else}<span class="badge badge-error badge-sm">{m.storage_search_status_error()}</span
         >{/if}
     </div>
-    {#if session.status === 'running'}<progress class="progress progress-primary w-full"
+    {#if session.status === 'running'}<progress
+        aria-label={m.storage_search_searching()}
+        class="progress progress-primary w-full"
       ></progress>{/if}
     {#if failureMessage}
       <p class="alert alert-warning mt-2 text-sm" role="alert">{failureMessage}</p>
@@ -208,7 +208,7 @@
                   ></td
                 ><td><span class="badge badge-ghost badge-sm font-mono">{result.bucket}</span></td
                 ><td class="text-base-content/60 font-mono text-xs"
-                  >{result.isDirectory ? '-' : formatSize(result.size)}</td
+                  >{result.isDirectory ? '-' : formatFileSize(result.size)}</td
                 ><td class="text-base-content/60 font-mono text-xs"
                   >{result.lastModified.toLocaleDateString()}</td
                 ></tr

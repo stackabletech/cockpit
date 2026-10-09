@@ -149,9 +149,10 @@ export const storageMoveEnabled =
 
 /** Days that a user's download history remains available. Controlled by
  * `STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS`. */
-export const downloadHistoryRetentionMs =
-  (parseInt(env.STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS ?? '', 10) || 30) *
-  24 *
-  60 *
-  60 *
-  1000;
+const retentionDays = Number(env.STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS ?? 30);
+if (!Number.isInteger(retentionDays) || retentionDays < 1 || retentionDays > 3650) {
+  throw new Error(
+    'STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS must be an integer between 1 and 3650'
+  );
+}
+export const downloadHistoryRetentionMs = retentionDays * 24 * 60 * 60 * 1000;

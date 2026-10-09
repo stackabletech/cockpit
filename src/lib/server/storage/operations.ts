@@ -75,7 +75,10 @@ export async function computeDestinations(
  * Returns the first key that does not exist.
  */
 export async function uniqueDestKey(provider: StorageProvider, baseKey: string): Promise<string> {
-  if (!(await provider.exists(baseKey))) return baseKey;
+  const exists = async (key: string) =>
+    (await provider.exists(key)) ||
+    (key.endsWith('/') && (await provider.listObjects(key, 1)).objects.length > 0);
+  if (!(await exists(baseKey))) return baseKey;
 
   const name = baseKey.endsWith('/') ? baseKey.slice(0, -1) : baseKey;
   const lastDot = name.lastIndexOf('.');
@@ -86,7 +89,7 @@ export async function uniqueDestKey(provider: StorageProvider, baseKey: string):
   let counter = 1;
   while (true) {
     const candidate = `${stem} (${counter})${ext}${suffix}`;
-    if (!(await provider.exists(candidate))) return candidate;
+    if (!(await exists(candidate))) return candidate;
     counter++;
   }
 }
@@ -118,9 +121,31 @@ export async function processKeysSequentially(
     deleteOriginals
   } = options;
 
-  const destinations = destinationKey
-    ? [{ sourceKey: sourceKeys[0]!, baseDestKey: destinationKey }]
-    : await computeDestinations(provider, sourceKeys, destinationPrefix);
+  const destinations: DestEntry[] = [];
+  for (const sourceKey of sourceKeys) {
+    const name = sourceKey.split('/').filter(Boolean).pop()!;
+    const base = destinationKey ?? destinationPrefix + name + (sourceKey.endsWith('/') ? '/' : '');
+    if (
+      destinationKey &&
+      sourceKey.endsWith('/') &&
+      (await destinationProvider.listObjects(base, 1)).objects.length > 0
+    ) {
+      await onCopyFailed?.(sourceKey, base, 'Destination already exists');
+      return { succeeded: [], failed: [{ sourceKey, error: 'Destination already exists' }] };
+    }
+    const root = destinationKey ? base : await uniqueDestKey(destinationProvider, base);
+    if (sourceKey.endsWith('/')) {
+      const children = await provider.listAllKeys(sourceKey);
+      destinations.push(
+        ...[...new Set(children)].map((child) => ({
+          sourceKey: child,
+          baseDestKey: root + child.slice(sourceKey.length)
+        }))
+      );
+    } else {
+      destinations.push({ sourceKey, baseDestKey: root });
+    }
+  }
   const succeeded: Array<{ sourceKey: string; destKey: string }> = [];
   const failed: Array<{ sourceKey: string; error: string }> = [];
 
@@ -138,7 +163,7 @@ export async function processKeysSequentially(
     resolvedDestinations.push({
       sourceKey,
       baseDestKey,
-      destKey: destinationKey ? baseDestKey : await uniqueDestKey(destinationProvider, baseDestKey)
+      destKey: baseDestKey
     });
   }
 
@@ -195,11 +220,18 @@ export async function processKeysSequentially(
     // Directories are expanded before copying. Delete only members whose copy
     // succeeded so a failed member is never removed by prefix expansion.
     const keysToDelete = [
-      ...new Set(succeeded.map((s) => s.sourceKey).filter((key) => !key.endsWith('/')))
+      ...new Set(
+        succeeded
+          .map((s) => s.sourceKey)
+          .filter(
+            (key) =>
+              !key.endsWith('/') || !failed.some((failure) => failure.sourceKey.startsWith(key))
+          )
+      )
     ];
     if (keysToDelete.length > 0) {
       await onBeforeDelete?.(keysToDelete);
-      const deleteResult = await provider.deleteObjects(keysToDelete);
+      const deleteResult = await provider.deleteObjects(keysToDelete, false);
       for (const f of deleteResult.failed) {
         failed.push({ sourceKey: f.key, error: f.message ?? 'Delete failed' });
         if (logger) {

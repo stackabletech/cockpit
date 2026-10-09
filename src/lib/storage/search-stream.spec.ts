@@ -13,6 +13,22 @@ function createStream(events: object[]): ReadableStream<Uint8Array> {
 }
 
 describe('readSearchStream', () => {
+  it('cancels the upstream reader when an update callback fails', async () => {
+    const cancel = vi.fn();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"type":"batch","results":[]}\n'));
+      },
+      cancel
+    });
+    await expect(
+      readSearchStream(stream, () => {
+        throw new Error('consumer failed');
+      })
+    ).rejects.toThrow('consumer failed');
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(stream.locked).toBe(false);
+  });
   it('applies incremental batches and replaces them with snapshots', async () => {
     const onUpdate = vi.fn();
     const result = await readSearchStream(
@@ -34,7 +50,7 @@ describe('readSearchStream', () => {
       snapshot: true,
       results: [expect.objectContaining({ key: 'new.txt', lastModified: expect.any(Date) })]
     });
-    expect(result).toEqual({ results: [] });
+    expect(result).toEqual({ results: [expect.objectContaining({ key: 'new.txt' })] });
   });
 
   it('throws a streamed error', async () => {

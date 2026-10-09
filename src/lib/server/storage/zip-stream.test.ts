@@ -1,5 +1,5 @@
 import AdmZip from 'adm-zip';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createZipStream, zipStreamSize } from './zip-stream.js';
 import type { StorageProvider } from './provider.js';
 
@@ -13,6 +13,27 @@ function objectStream(value: string): ReadableStream {
 }
 
 describe('createZipStream', () => {
+  it('reads objects only on demand and releases the provider on cancellation', async () => {
+    const cancel = vi.fn();
+    const pull = vi.fn((controller: ReadableStreamDefaultController) =>
+      controller.enqueue(new Uint8Array([1]))
+    );
+    const object = new ReadableStream({ pull, cancel }, { highWaterMark: 0 });
+    const getObject = vi.fn(async () => ({ stream: object }));
+    const reader = createZipStream({ getObject } as unknown as StorageProvider, [
+      { key: 'large.bin', size: 100_000, isDirectory: false }
+    ]).getReader();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(getObject).not.toHaveBeenCalled();
+    await reader.read(); // Local header.
+    expect(pull).not.toHaveBeenCalled();
+    await reader.read(); // First object chunk.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(pull).toHaveBeenCalledTimes(1);
+    await reader.cancel();
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(object.locked).toBe(false);
+  });
   it('calculates the exact length of the generated stream', async () => {
     const entries = [{ key: 'file.txt', size: 3, isDirectory: false }];
     const provider = {

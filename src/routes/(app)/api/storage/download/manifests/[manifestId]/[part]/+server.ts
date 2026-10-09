@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { openDownloadManifestPart } from '$lib/server/storage/download-manifests.js';
+import { contentDispositionFilename } from '$lib/server/storage/content-disposition.js';
 import {
   cancelJobFromStream,
   completeJob,
@@ -22,13 +23,17 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
     throw error(404, 'Download manifest, storage connection, or object is unavailable');
   const jobId = url.searchParams.get('jobId');
   if (jobId) {
-    createJob(jobId);
+    try {
+      createJob(jobId, locals.user?.id ?? 'anonymous');
+    } catch (err) {
+      await download.stream.cancel().catch(() => {});
+      throw err;
+    }
     updateJobProgress(jobId, { currentFileName: download.file.filename });
   }
-  const filename = encodeURIComponent(download.file.filename);
   const headers: Record<string, string> = {
     'Content-Type': 'application/octet-stream',
-    'Content-Disposition': `attachment; filename="${download.file.filename}"; filename*=UTF-8''${filename}`,
+    'Content-Disposition': contentDispositionFilename(download.file.filename),
     'Cache-Control': 'private, no-store'
   };
   if (download.file.size > 0) headers['Content-Length'] = String(download.file.size);
@@ -49,18 +54,22 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
             }
           }
           controller.close();
+          reader.releaseLock();
           return;
         }
         completedBytes += value.byteLength;
         if (jobId) updateJobProgress(jobId, { completedBytes });
         controller.enqueue(value);
       } catch (err) {
+        await reader.cancel().catch(() => {});
+        reader.releaseLock();
         if (jobId) failJob(jobId, err instanceof Error ? err.message : 'Download failed');
         controller.error(err);
       }
     },
     async cancel() {
       await reader.cancel();
+      reader.releaseLock();
       if (jobId) cancelJobFromStream(jobId);
     }
   });

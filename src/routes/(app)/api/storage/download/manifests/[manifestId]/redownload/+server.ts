@@ -7,7 +7,10 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
   if (
     !Array.isArray(keys) ||
     keys.length === 0 ||
-    keys.some((key) => typeof key !== 'string' || !key)
+    keys.length > 10_000 ||
+    keys.some(
+      (key) => typeof key !== 'string' || !key || new TextEncoder().encode(key).length > 1024
+    )
   ) {
     throw error(400, 'Request body must contain one or more object keys');
   }
@@ -16,7 +19,8 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
   const manifest = await recreateDownloadManifest(
     locals.user?.id ?? 'anonymous',
     params.manifestId,
-    keys
+    keys,
+    request.signal
   );
   if (!manifest)
     throw error(

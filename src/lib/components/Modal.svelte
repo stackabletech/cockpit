@@ -10,8 +10,10 @@
     children: import('svelte').Snippet;
     class?: string;
     closeguard?: () => boolean;
-    [key: string]: unknown;
-  } = $props();
+  } & Omit<
+    import('svelte/elements').HTMLDialogAttributes,
+    'children' | 'open' | 'class'
+  > = $props();
 
   let dialogEl = $state<HTMLDialogElement | undefined>(undefined);
 
@@ -40,7 +42,10 @@
   $effect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
+      if (e.defaultPrevented) return;
       if (!dialogEl?.open) return;
+      const dialogs = [...document.querySelectorAll('dialog[open]')];
+      if (dialogs.at(-1) !== dialogEl) return;
       e.preventDefault();
       if (closeguard && !closeguard()) return;
       open = false;

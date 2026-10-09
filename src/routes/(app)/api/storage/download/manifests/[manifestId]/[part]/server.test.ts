@@ -49,12 +49,14 @@ describe('GET /api/storage/download/manifests/:manifestId/:part', () => {
     const response = await GET({
       locals: { user: { id: 'user-1' } },
       params: { manifestId: 'manifest-1', part: '1' },
-      url: new URL('https://example.test/api/storage/download/manifests/manifest-1/1?jobId=job-1')
+      url: new URL(
+        'https://example.test/api/storage/download/manifests/manifest-1/1?jobId=00000000-0000-4000-8000-000000000001'
+      )
     } as Parameters<typeof GET>[0]);
 
     await response.arrayBuffer();
 
     const { getJob } = await import('$lib/server/storage/job-store.js');
-    expect(getJob('job-1')?.status).toBe('cancelled');
+    expect(getJob('00000000-0000-4000-8000-000000000001', 'user-1')?.status).toBe('cancelled');
   });
 });

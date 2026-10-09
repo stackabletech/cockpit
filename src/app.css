@@ -80,3 +80,11 @@ dialog.modal-top-search {
   align-items: start;
   padding-top: 2vh;
 }
+@keyframes nav-progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}

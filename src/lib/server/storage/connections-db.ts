@@ -21,6 +21,9 @@ export async function saveConnection(userId: string, config: S3ConnectionConfig)
   const fp = fingerprint(
     {
       endpoint: config.host,
+      port: config.port,
+      tls: config.tls,
+      accessStyle: config.accessStyle,
       region: config.region.name,
       accessKeyId: config.credentials?.accessKey || '',
       secretAccessKey: config.credentials?.secretKey || ''

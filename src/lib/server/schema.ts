@@ -82,7 +82,9 @@ export const storageDownloadManifests = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: text('user_id').notNull(),
-    connectionId: uuid('connection_id').notNull(),
+    connectionId: uuid('connection_id')
+      .notNull()
+      .references(() => userStorageConnections.id, { onDelete: 'cascade' }),
     bucket: text('bucket').notNull(),
     prefix: text('prefix').notNull(),
     entries: jsonb('entries').notNull(),
@@ -91,5 +93,8 @@ export const storageDownloadManifests = pgTable(
     createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
     expiresAt: timestamp('expires_at', { mode: 'date' }).notNull()
   },
-  (table) => [index('storage_download_manifests_user_expiry_idx').on(table.userId, table.expiresAt)]
+  (table) => [
+    index('storage_download_manifests_user_expiry_idx').on(table.userId, table.expiresAt),
+    index('storage_download_manifests_expiry_idx').on(table.expiresAt)
+  ]
 );

@@ -113,6 +113,7 @@
       class:btn-primary={session.useRegex}
       class="btn"
       aria-pressed={session.useRegex}
+      aria-label={m.storage_search_regex_label()}
       title={m.storage_search_regex_label()}
       onclick={() => update({ useRegex: !session.useRegex })}
       >{m.storage_search_regex_badge()}</button
@@ -201,7 +202,6 @@
                 state.addExcludePattern();
               }
             }}
-            onblur={() => state.excludeInput.trim() && state.addExcludePattern()}
           />
         </div>
       </div>

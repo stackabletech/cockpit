@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
 import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
@@ -37,6 +38,7 @@ export async function getConnectionFromHeader(
 ): Promise<S3ConnectionConfig | null> {
   const connectionId = request.headers.get(STORAGE_CONNECTION_ID_HEADER);
   if (!connectionId) return null;
+  if (!z.uuid().safeParse(connectionId).success) throw error(400, 'Invalid storage connection ID');
 
   const rows = await db
     .select()

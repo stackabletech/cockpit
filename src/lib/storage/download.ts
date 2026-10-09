@@ -2,9 +2,8 @@ import type { StorageApi } from './api.js';
 
 /**
  * Estimate the byte length of the stored (uncompressed) ZIP that a multi
- * download will produce. The exact archive size is deliberately not computed
- * server-side, so this client-side approximation (payload plus per-entry ZIP
- * structure overhead) drives the size/ETA display while downloading.
+ * download will produce while preparing the manifest. The server's exact
+ * manifest size replaces this temporary estimate before transfer tracking.
  */
 export function estimateArchiveSize(
   entries: Array<{ key: string; size: number; isDirectory?: boolean }>
@@ -40,14 +39,20 @@ async function triggerDownload(
   setTimeout(() => anchor.remove(), 10_000);
 }
 
-export async function triggerManifestDownloads(manifest: {
-  id: string;
-  files: Array<{ filename: string; part: number }>;
-}): Promise<string[]> {
+export async function triggerManifestDownloads(
+  manifest: {
+    id: string;
+    files: Array<{ filename: string; part: number }>;
+  },
+  signal?: AbortSignal,
+  onJobIds?: (jobIds: string[]) => void
+): Promise<string[]> {
   const jobIds: string[] = [];
   for (const file of manifest.files) {
+    signal?.throwIfAborted();
     const jobId = crypto.randomUUID();
     jobIds.push(jobId);
+    onJobIds?.([...jobIds]);
     await triggerDownload(manifest.id, file.part, file.filename, jobId);
   }
   return jobIds;
@@ -59,10 +64,11 @@ export async function startDownload(
   bucket: string,
   prefix: string,
   keys: string[],
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onJobIds?: (jobIds: string[]) => void
 ): Promise<{ id: string; fileCount: number; totalBytes: number; jobIds: string[] }> {
   const manifest = await api.createDownloadManifest({ bucket, prefix, keys }, signal);
-  const jobIds = await triggerManifestDownloads(manifest);
+  const jobIds = await triggerManifestDownloads(manifest, signal, onJobIds);
   return {
     id: manifest.id,
     fileCount: manifest.files.length,

@@ -1,4 +1,6 @@
 import { logger } from '$lib/server/logging';
+import { error } from '@sveltejs/kit';
+import { z } from 'zod';
 
 const log = logger.child({ module: 'job-store' });
 
@@ -9,6 +11,7 @@ export interface JobProgress {
 }
 
 interface JobEntry<T> {
+  userId: string;
   status: 'running' | 'done' | 'error' | 'cancelled';
   result: T | null;
   error?: string;
@@ -37,6 +40,7 @@ function startCleanup(): void {
       }
     }
   }, CLEANUP_INTERVAL);
+  cleanupTimer.unref();
 }
 
 startCleanup();
@@ -44,8 +48,11 @@ startCleanup();
 /**
  * Create a new job entry.
  */
-export function createJob(id: string): void {
+export function createJob(id: string, userId: string): void {
+  if (!z.uuid().safeParse(id).success) throw error(400, 'Invalid job ID');
+  if (store.has(id)) throw error(409, 'Job already exists');
   store.set(id, {
+    userId,
     status: 'running',
     result: null,
     createdAt: Date.now(),
@@ -60,11 +67,13 @@ export function setJobCancellation(id: string, cancel: () => Promise<void> | voi
 }
 
 /** Cancel a job and its active response stream. */
-export async function cancelJob(id: string): Promise<boolean> {
+export async function cancelJob(id: string, userId: string): Promise<boolean> {
   const entry = store.get(id);
-  if (!entry || entry.status !== 'running') return false;
+  if (!entry || entry.userId !== userId || entry.status !== 'running') return false;
   entry.status = 'cancelled';
-  await entry.cancel?.();
+  const cancel = entry.cancel;
+  entry.cancel = undefined;
+  await cancel?.();
   log.trace({ job_id: id }, 'job cancelled');
   return true;
 }
@@ -90,6 +99,7 @@ export function completeJob<T>(id: string, result: T): void {
   const entry = store.get(id);
   if (!entry || entry.status !== 'running') return;
   entry.status = 'done' as const;
+  entry.cancel = undefined;
   (entry as JobEntry<T>).result = result;
   log.trace({ job_id: id }, 'job completed');
 }
@@ -101,6 +111,7 @@ export function failJob(id: string, error: string): void {
   const entry = store.get(id);
   if (!entry || entry.status !== 'running') return;
   entry.status = 'error' as const;
+  entry.cancel = undefined;
   entry.error = error;
   log.trace({ job_id: id, error }, 'job failed');
 }
@@ -110,12 +121,14 @@ export function cancelJobFromStream(id: string): void {
   const entry = store.get(id);
   if (!entry || entry.status !== 'running') return;
   entry.status = 'cancelled';
+  entry.cancel = undefined;
   log.trace({ job_id: id }, 'job cancelled by download stream');
 }
 
 /**
  * Get the current state of a job. Returns null if not found (expired or never existed).
  */
-export function getJob<T>(id: string): JobEntry<T> | null {
-  return (store.get(id) as JobEntry<T>) ?? null;
+export function getJob<T>(id: string, userId: string): JobEntry<T> | null {
+  const entry = store.get(id);
+  return entry?.userId === userId ? (entry as JobEntry<T>) : null;
 }

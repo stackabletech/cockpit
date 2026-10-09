@@ -13,7 +13,9 @@ export class UnsafeSearchRegexError extends Error {}
  */
 export function createSafeSearchRegex(pattern: string): RegExp {
   if (pattern.length > MAX_PATTERN_LENGTH) {
-    throw new UnsafeSearchRegexError('Regular expression must not exceed 512 characters');
+    throw new UnsafeSearchRegexError(
+      `Regular expression must not exceed ${MAX_PATTERN_LENGTH} characters`
+    );
   }
 
   let ast: AST.Pattern;

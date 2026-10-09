@@ -246,7 +246,7 @@ export class S3StorageProvider implements StorageProvider {
     await withS3Errors(() => upload.done(), { bucket: this.bucket, key, operation: 'putObject' });
   }
 
-  async deleteObjects(keys: string[]): Promise<DeleteObjectsResult> {
+  async deleteObjects(keys: string[], expandDirectories = true): Promise<DeleteObjectsResult> {
     log.trace({ bucket: this.bucket, key_count: keys.length }, 'S3 DeleteObjects');
 
     if (keys.length === 0) {
@@ -256,7 +256,7 @@ export class S3StorageProvider implements StorageProvider {
     // Expand directory prefixes to their contained keys
     const resolvedKeys: string[] = [];
     for (const key of keys) {
-      if (key.endsWith('/')) {
+      if (expandDirectories && key.endsWith('/')) {
         const children = await this.listAllKeys(key);
         if (children.length > 0) {
           resolvedKeys.push(...children);

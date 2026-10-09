@@ -16,6 +16,7 @@ interface CsvCacheEntry {
   bytesRead: number;
   /** Total file size */
   totalSize: number;
+  etag?: string;
   lastAccessed: number;
 }
 
@@ -96,52 +97,25 @@ async function extendCache(
   const rangeEnd = entry.bytesRead + bytesToRead - 1;
   const stream = await provider.getObjectRange(key, entry.bytesRead, rangeEnd);
   const buffer = await streamToArrayBuffer(stream);
-  const text = new TextDecoder('utf-8', { fatal: false }).decode(buffer);
-
-  const textEndsWithNewline = text.endsWith('\n');
-  const isLastByte = entry.bytesRead + bytesToRead >= entry.totalSize;
-  const lines = text.split('\n');
-
-  if (entry.headers.length === 0) {
-    if (lines.length > 0) {
-      entry.headers = parseCsvRow(lines[0].replace(/\r$/, ''));
+  const bytes = new Uint8Array(buffer);
+  const initialOffset = entry.bytesRead;
+  let lineStart = 0;
+  const consumeLine = (end: number, next: number) => {
+    if (entry.headers.length === 0) {
+      entry.headers = parseCsvRow(
+        new TextDecoder().decode(bytes.subarray(lineStart, end)).replace(/\r$/, '')
+      );
+    } else {
+      entry.lineOffsets.push(initialOffset + lineStart);
     }
-    let bytePos = entry.bytesRead;
-    // Advance past header + its \n (if \n is in this chunk)
-    const headerComplete = lines.length > 1;
-    for (let i = 0; i < lines[0].length + (headerComplete ? 1 : 0); i++) {
-      bytePos++;
-    }
-    for (let i = 1; i < lines.length; i++) {
-      // Defer the last line only if the chunk boundary falls mid-line
-      // (not when we've reached the end of the file)
-      const isLastElement = i === lines.length - 1;
-      const isIncomplete = !textEndsWithNewline && isLastElement && !isLastByte;
-      const hasOwnNewline = textEndsWithNewline || !isLastElement;
-      if (!isIncomplete && (lines[i].length > 0 || i < lines.length - 1)) {
-        entry.lineOffsets.push(bytePos);
-      }
-      if (!isIncomplete) {
-        bytePos += lines[i].length + (hasOwnNewline ? 1 : 0);
-      }
-    }
-    entry.bytesRead = bytePos;
-  } else {
-    let bytePos = entry.bytesRead;
-    for (let i = 0; i < lines.length; i++) {
-      // Defer the last line only if the chunk boundary falls mid-line
-      // (not when we've reached the end of the file)
-      const isLastElement = i === lines.length - 1;
-      const isIncomplete = !textEndsWithNewline && isLastElement && !isLastByte;
-      const hasOwnNewline = textEndsWithNewline || !isLastElement;
-      if (!isIncomplete && (lines[i].length > 0 || i < lines.length - 1)) {
-        entry.lineOffsets.push(bytePos);
-      }
-      if (!isIncomplete) {
-        bytePos += lines[i].length + (hasOwnNewline ? 1 : 0);
-      }
-    }
-    entry.bytesRead = bytePos;
+    lineStart = next;
+    entry.bytesRead = initialOffset + next;
+  };
+  for (let index = 0; index < bytes.length; index++) {
+    if (bytes[index] === 10) consumeLine(index, index + 1);
+  }
+  if (initialOffset + bytes.length >= entry.totalSize && lineStart < bytes.length) {
+    consumeLine(bytes.length, bytes.length);
   }
   return entry;
 }
@@ -202,6 +176,8 @@ export async function getCsvPreview(
   connectionId = ''
 ): Promise<Response> {
   const log = requestLog.child({ module: 'csv-preview' });
+  const metadata = await provider.getMetadata(key);
+  totalSize = metadata.size;
 
   if (totalSize === 0) {
     return new Response(
@@ -225,12 +201,13 @@ export async function getCsvPreview(
   let entry = csvPreviewCache.get(cacheKey);
   const now = Date.now();
 
-  if (!entry) {
+  if (!entry || entry.totalSize !== totalSize || entry.etag !== metadata.etag) {
     entry = {
       headers: [],
       lineOffsets: [],
       bytesRead: 0,
       totalSize,
+      etag: metadata.etag,
       lastAccessed: now
     };
     csvPreviewCache.set(cacheKey, entry);

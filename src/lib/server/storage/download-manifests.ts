@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, lte } from 'drizzle-orm';
+import { and, desc, eq, gt, lte, inArray } from 'drizzle-orm';
 import { error, isHttpError } from '@sveltejs/kit';
 import { db } from '$lib/server/db.js';
 import { downloadHistoryRetentionMs } from '$lib/server/feature-flags.js';
@@ -55,9 +55,26 @@ export function archiveFileName(base: string): string {
 }
 
 async function removeExpiredManifests(): Promise<void> {
-  await db
-    .delete(storageDownloadManifests)
-    .where(lte(storageDownloadManifests.expiresAt, new Date()));
+  const expired = db
+    .select({ id: storageDownloadManifests.id })
+    .from(storageDownloadManifests)
+    .where(lte(storageDownloadManifests.expiresAt, new Date()))
+    .limit(100);
+  await db.delete(storageDownloadManifests).where(inArray(storageDownloadManifests.id, expired));
+}
+
+async function mapMetadata<T, R>(items: T[], resolve: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(8, items.length) }, async () => {
+      while (next < items.length) {
+        const index = next++;
+        results[index] = await resolve(items[index]);
+      }
+    })
+  );
+  return results;
 }
 
 function shouldArchive(keys: string[]): boolean {
@@ -65,18 +82,20 @@ function shouldArchive(keys: string[]): boolean {
 }
 
 async function expandKeys(provider: StorageProvider, keys: string[]): Promise<DownloadEntry[]> {
-  const expanded = await Promise.all(
-    keys.map(async (key) =>
-      key.endsWith('/') ? [key, ...(await provider.listAllKeys(key))] : [key]
-    )
-  );
-  return Promise.all(
-    [...new Set(expanded.flat())].map(async (key) => {
-      if (key.endsWith('/')) return { key, size: 0, isDirectory: true };
-      const metadata = await provider.getMetadata(key);
-      return { key, size: metadata.size, isDirectory: false };
-    })
-  );
+  const expanded = new Set<string>();
+  for (const key of keys) {
+    expanded.add(key);
+    if (key.endsWith('/'))
+      await provider.listAllKeysProgressively(key, (batch) => {
+        for (const item of batch) expanded.add(item.key);
+        if (expanded.size > 10_000) throw error(400, 'Download selection exceeds 10000 entries');
+      });
+  }
+  return mapMetadata([...expanded], async (key) => {
+    if (key.endsWith('/')) return { key, size: 0, isDirectory: true };
+    const metadata = await provider.getMetadata(key);
+    return { key, size: metadata.size, isDirectory: false };
+  });
 }
 
 /**
@@ -117,7 +136,7 @@ async function persistManifest(input: {
       bucket: input.bucket,
       prefix: input.prefix,
       entries: input.entries,
-      format: 'zip',
+      format: input.archive ? 'zip' : 'direct',
       archive: input.archive ? input.archiveName : null,
       expiresAt
     })
@@ -143,12 +162,10 @@ export async function createDownloadManifest(input: {
   const provider = withStorageHttpErrors(getProvider(input.config, input.bucket));
   const entries = archive
     ? await expandKeys(provider, input.keys)
-    : await Promise.all(
-        input.keys.map(async (key) => {
-          const metadata = await provider.getMetadata(key);
-          return { key, size: metadata.size, isDirectory: false };
-        })
-      );
+    : await mapMetadata(input.keys, async (key) => {
+        const metadata = await provider.getMetadata(key);
+        return { key, size: metadata.size, isDirectory: false };
+      });
   const archiveName = archiveFileName(archiveBaseName(input.bucket, input.prefix, input.keys));
   const manifest = await persistManifest({ ...input, entries, archive, archiveName });
   log.info(
@@ -178,7 +195,7 @@ async function loadOwnedManifest(userId: string, id: string): Promise<DownloadHi
     connectionId: row.connectionId,
     prefix: row.prefix,
     entries,
-    archive: row.archive !== null,
+    archive: (row.format ?? 'zip') === 'zip' && row.archive !== null,
     archiveFilename: row.archive,
     expiresAt: row.expiresAt,
     createdAt: row.createdAt
@@ -189,7 +206,8 @@ async function loadOwnedManifest(userId: string, id: string): Promise<DownloadHi
 export async function recreateDownloadManifest(
   userId: string,
   id: string,
-  selectedKeys: string[]
+  selectedKeys: string[],
+  signal?: AbortSignal
 ): Promise<DownloadManifest | null> {
   if (selectedKeys.length === 0 || new Set(selectedKeys).size !== selectedKeys.length) return null;
   const original = await loadOwnedManifest(userId, id);
@@ -217,19 +235,19 @@ export async function recreateDownloadManifest(
     ).values()
   ];
   const provider = withStorageHttpErrors(getProvider(config, original.bucket));
-  const entries = await Promise.all(
-    expanded.map(async (entry) => {
-      if (entry.isDirectory) return { ...entry, size: 0 };
-      try {
-        const metadata = await provider.getMetadata(entry.key);
-        return { ...entry, size: metadata.size };
-      } catch (err) {
-        if (isHttpError(err) && err.status === 404) throw error(404, entry.key);
-        throw err;
-      }
-    })
-  );
+  const entries = await mapMetadata(expanded, async (entry) => {
+    signal?.throwIfAborted();
+    if (entry.isDirectory) return { ...entry, size: 0 };
+    try {
+      const metadata = await provider.getMetadata(entry.key);
+      return { ...entry, size: metadata.size };
+    } catch (err) {
+      if (isHttpError(err) && err.status === 404) throw error(404, entry.key);
+      throw err;
+    }
+  });
   const nonDirectoryEntries = entries.filter((entry) => !entry.isDirectory);
+  signal?.throwIfAborted();
   const archive = nonDirectoryEntries.length !== 1;
   return persistManifest({
     userId,
@@ -245,7 +263,8 @@ export async function recreateDownloadManifest(
 /** List current connection-scoped history and remove records whose connection was deleted. */
 export async function listDownloadHistory(
   userId: string,
-  connectionId?: string
+  connectionId?: string,
+  offset = 0
 ): Promise<DownloadHistoryEntry[]> {
   await removeExpiredManifests();
   const conditions = [
@@ -257,10 +276,15 @@ export async function listDownloadHistory(
     .select()
     .from(storageDownloadManifests)
     .where(and(...conditions))
-    .orderBy(desc(storageDownloadManifests.createdAt));
+    .orderBy(desc(storageDownloadManifests.createdAt), desc(storageDownloadManifests.id))
+    .limit(50)
+    .offset(offset);
   const history: DownloadHistoryEntry[] = [];
+  const available = new Map<string, boolean>();
   for (const row of rows) {
-    if (!(await getConnectionForUser(userId, row.connectionId))) {
+    if (!available.has(row.connectionId))
+      available.set(row.connectionId, !!(await getConnectionForUser(userId, row.connectionId)));
+    if (!available.get(row.connectionId)) {
       await db.delete(storageDownloadManifests).where(eq(storageDownloadManifests.id, row.id));
       continue;
     }
@@ -270,7 +294,7 @@ export async function listDownloadHistory(
       connectionId: row.connectionId,
       prefix: row.prefix,
       entries: row.entries as DownloadEntry[],
-      archive: row.archive !== null,
+      archive: (row.format ?? 'zip') === 'zip' && row.archive !== null,
       archiveFilename: row.archive,
       expiresAt: row.expiresAt,
       createdAt: row.createdAt
@@ -312,19 +336,7 @@ export async function openDownloadManifestPart(
   const entry = manifest.entries[part - 1];
   if (!entry || entry.isDirectory) return null;
   return {
-    stream: new ReadableStream({
-      async start(controller) {
-        try {
-          const download = await provider.getObject(entry.key);
-          await download.stream.pipeTo(
-            new WritableStream({ write: (chunk) => controller.enqueue(chunk) })
-          );
-          controller.close();
-        } catch (err) {
-          controller.error(err);
-        }
-      }
-    }),
+    stream: (await provider.getObject(entry.key)).stream,
     file: { filename: fileName(entry.key), size: entry.size, part }
   };
 }

@@ -15,6 +15,13 @@
       "when": 1791377006309,
       "tag": "0001_common_spot",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791468385760,
+      "tag": "0002_hard_sleepwalker",
+      "breakpoints": true
     }
   ]
 }

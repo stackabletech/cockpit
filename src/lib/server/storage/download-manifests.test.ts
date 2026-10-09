@@ -43,12 +43,17 @@ describe('download manifests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.listAllKeys.mockResolvedValue(['folder/a.txt', 'folder/b.txt']);
+    mocks.selectWhere.mockReturnValue({ limit: () => ({ getSQL: () => ({}) }) });
     mocks.getMetadata.mockResolvedValue({ size: 5 });
     mocks.getObject.mockResolvedValue({
       stream: new ReadableStream({ start: (controller) => controller.close() })
     });
     mocks.getProvider.mockReturnValue({
       listAllKeys: mocks.listAllKeys,
+      listAllKeysProgressively: async (
+        _prefix: string,
+        onBatch: (batch: Array<{ key: string }>) => void
+      ) => onBatch((await mocks.listAllKeys()).map((key: string) => ({ key }))),
       getMetadata: mocks.getMetadata,
       getObject: mocks.getObject
     });

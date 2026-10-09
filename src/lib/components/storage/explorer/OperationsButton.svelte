@@ -198,7 +198,7 @@
         "
         aria-label={m.storage_operations_label()}
         aria-expanded={dropdownOpen}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         onclick={toggleDropdown}
       >
         {#if hasRunningOps}
@@ -222,7 +222,7 @@
     <!-- Dropdown panel -->
     {#if dropdownOpen}
       <div
-        role="menu"
+        role="dialog"
         tabindex="-1"
         oncontextmenu={(e) => e.preventDefault()}
         aria-label={m.storage_operations_label()}
@@ -247,7 +247,12 @@
                       role="button"
                       tabindex="0"
                       onclick={() => toggleExpand(op.id)}
-                      onkeydown={(e) => e.key === 'Enter' && toggleExpand(op.id)}
+                      onkeydown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggleExpand(op.id);
+                        }
+                      }}
                       aria-expanded={expandedOps[op.id]}
                     >
                       <!-- Chevron -->
@@ -306,9 +311,11 @@
                         <div
                           class="pl-5"
                           role="progressbar"
-                          aria-valuenow={displayBytes(op)}
+                          aria-valuenow={op.totalBytes > 0
+                            ? Math.min(displayBytes(op), op.totalBytes)
+                            : op.completedCount}
                           aria-valuemin={0}
-                          aria-valuemax={op.totalBytes}
+                          aria-valuemax={op.totalBytes > 0 ? op.totalBytes : op.itemCount}
                           aria-label={op.label}
                         >
                           <div class="mb-1 flex items-center justify-between">

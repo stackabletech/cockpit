@@ -110,6 +110,10 @@ test.describe('Storage Search', () => {
       await expect(page.getByText('Page 2', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'report-26.txt' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'report-01.txt' })).not.toBeVisible();
+      await page.getByLabel('Search query').fill('report-01.txt');
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'report-01.txt' })).toBeVisible();
+      await expect(page.getByText('Page 1', { exact: true })).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, keys);
     }

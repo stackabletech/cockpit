@@ -81,7 +81,7 @@
       <div class="ml-auto flex items-center gap-1">
         <StorageSearch currentBucket={storage.bucket} />
         <button
-          class="btn btn-ghost btn-xs gap-1 text-white"
+          class="btn btn-ghost btn-xs text-base-content gap-1"
           title={m.storage_action_refresh()}
           onclick={() => storage.refresh()}
           disabled={storage.loading}

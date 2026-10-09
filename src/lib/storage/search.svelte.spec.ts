@@ -12,6 +12,54 @@ function deferred<T>() {
 }
 
 describe('StorageSearchState', () => {
+  it('closes interrupted sessions coherently and prevents late result updates', async () => {
+    const response = deferred<{ results: [] }>();
+    let update: ((update: StorageSearchUpdate) => void) | undefined;
+    const state = new StorageSearchState({
+      api: createMemoryStorageApi({
+        async search({ onUpdate }) {
+          update = onUpdate;
+          return response.promise;
+        }
+      }),
+      getBuckets: () => ['documents'],
+      getCurrentBucket: () => 'documents'
+    });
+    state.updateSession('s1', { query: 'report' });
+    const running = state.run('s1');
+    state.close();
+    update?.({
+      snapshot: false,
+      results: [{ key: 'late.txt', size: 1, lastModified: new Date(), isDirectory: false }]
+    });
+    response.resolve({ results: [] });
+    await running;
+    expect(state.active?.status).toBe('idle');
+    expect(state.active?.results).toEqual([]);
+  });
+  it('bounds bucket searches to four concurrent requests', async () => {
+    const gates: ReturnType<typeof deferred<{ results: [] }>>[] = [];
+    const state = new StorageSearchState({
+      api: createMemoryStorageApi({
+        async search() {
+          const gate = deferred<{ results: [] }>();
+          gates.push(gate);
+          return gate.promise;
+        }
+      }),
+      getBuckets: () => ['a', 'b', 'c', 'd', 'e', 'f'],
+      getCurrentBucket: () => undefined
+    });
+    state.updateSession('s1', { query: 'report' });
+    const running = state.run('s1');
+    expect(gates).toHaveLength(4);
+    for (const gate of gates) gate.resolve({ results: [] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(gates).toHaveLength(6);
+    for (const gate of gates) gate.resolve({ results: [] });
+    await running;
+    expect(state.active?.status).toBe('done');
+  });
   it('adds streamed matches before the search completes', async () => {
     const response = deferred<{ results: [] }>();
     const api = createMemoryStorageApi({
