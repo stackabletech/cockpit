@@ -6,6 +6,7 @@ import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/b
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
 import { requireBucketKey } from '../params.js';
 import type { RequestHandler } from './$types';
+import { requireStorageConfig } from '$lib/server/storage/connection.js';
 
 /**
  * GET /storage/api/preview?bucket=<bucket>&key=<object-key>
@@ -17,7 +18,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   const log = locals.logger;
   const { bucket, key } = requireBucketKey(url);
 
-  const provider = getProvider(locals.storageConfig!, bucket);
+  const provider = getProvider(requireStorageConfig(locals), bucket);
 
   try {
     const metadata = await provider.getMetadata(key);

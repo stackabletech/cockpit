@@ -108,7 +108,7 @@
       // Keep the entered connection after a successful save instead of resetting to the defaults.
       resetForm: false,
       onUpdated({ form }) {
-        const msg = form.message as ConnectionMessage | undefined;
+        const msg = form.message;
         if (msg?.type === 'success') {
           // Results belong to the previous connection; the server has cleared them too.
           resetAllQueryRunners();
@@ -586,7 +586,7 @@
             </div>
 
             {#if $connectionMessage}
-              {@const msg = $connectionMessage as ConnectionMessage}
+              {@const msg = $connectionMessage}
               {#if msg.type === 'success'}
                 <p class="text-success text-sm">{m.trino_connection_saved()}</p>
               {:else}

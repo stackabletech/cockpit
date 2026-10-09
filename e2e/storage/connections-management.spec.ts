@@ -117,6 +117,21 @@ test.describe('Storage — Connections management', () => {
     ).toBeVisible();
   });
 
+  test('edit page requires the secret key when the access key changes', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+    await page.goto('/storage/connections');
+    await waitForHydration(page);
+
+    await openFirstConnectionEditPage(page);
+
+    await page.getByLabel('Access key').fill('new-access-key');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(page.getByText('Enter the secret key for the new access key.')).toBeVisible();
+    await expect(page).toHaveURL(/\/edit$/);
+  });
+
   test('delete button on management page removes the connection after confirmation', async ({
     page
   }) => {

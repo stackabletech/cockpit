@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import { listObjects } from '$lib/server/storage/service.js';
 import { allowedPageSizes } from '$lib/client/feature-flags.js';
 import type { RequestHandler } from './$types';
+import { requireStorageConfig } from '$lib/server/storage/connection.js';
 
 /**
  * GET /storage/api/objects?bucket=<bucket>&prefix=<prefix>&pageSize=<n>&continuationToken=<token>
@@ -27,7 +28,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   );
 
   const page = await listObjects(
-    locals.storageConfig!,
+    requireStorageConfig(locals),
     bucket,
     prefix,
     pageSize,

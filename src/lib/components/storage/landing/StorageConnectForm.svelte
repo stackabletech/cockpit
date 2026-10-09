@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { SuperValidated } from 'sveltekit-superforms';
+  import type { Infer, InferIn, SuperValidated } from 'sveltekit-superforms';
   import { superForm } from 'sveltekit-superforms';
   import { zod4 as zod } from 'sveltekit-superforms/adapters';
   import { onMount, tick, untrack } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
-  import { StorageConnectionSchema } from '$lib/storage/schemas.js';
+  import { StorageConnectionSchema, type StorageConnectionMessage } from '$lib/storage/schemas.js';
   import {
     saveConnectionLocally,
     loadConnectionLocally,
@@ -12,10 +12,13 @@
   } from '$lib/storage/connection-storage.js';
   import { storageAutoConnectEnabled } from '$lib/client/feature-flags.js';
   import StorageConnectionSidebar from '$lib/components/storage/sidebar/StorageConnectionSidebar.svelte';
-  import type { z } from 'zod';
 
   interface Props {
-    connectionForm: SuperValidated<z.infer<typeof StorageConnectionSchema>, string>;
+    connectionForm: SuperValidated<
+      Infer<typeof StorageConnectionSchema>,
+      StorageConnectionMessage,
+      InferIn<typeof StorageConnectionSchema>
+    >;
   }
 
   let { connectionForm }: Props = $props();
@@ -40,7 +43,8 @@
     }
   );
 
-  function selectConnection(conn: SavedConnection) {
+  /** Fill the form from a saved connection and submit it. */
+  function submitSavedConnection(conn: SavedConnection) {
     $form.id = conn.id;
     $form.name = conn.name ?? '';
     $form.type = conn.type;
@@ -72,15 +76,7 @@
     const saved = loadConnectionLocally();
     if (saved) {
       autoConnecting = true;
-      $form.id = saved.id;
-      $form.type = saved.type;
-      $form.host = saved.host;
-      $form.port = saved.port;
-      $form.tls = saved.tls;
-      $form.accessStyle = saved.accessStyle;
-      $form.region = saved.region;
-      $form.credentials = saved.credentials;
-      tick().then(() => formRef?.requestSubmit());
+      submitSavedConnection(saved);
     }
   });
 </script>
@@ -92,7 +88,7 @@
   </div>
 {:else}
   <div class="flex flex-col gap-4 md:flex-row md:items-start">
-    <StorageConnectionSidebar onselect={selectConnection} />
+    <StorageConnectionSidebar onselect={submitSavedConnection} />
 
     <div class="min-w-0 flex-1">
       <h1 class="mb-1 text-xl font-semibold">{m.storage_connect_title()}</h1>
@@ -258,8 +254,8 @@
           {/if}
         </div>
 
-        {#if $message}
-          <p class="text-error text-sm">{$message}</p>
+        {#if $message?.type === 'error'}
+          <p class="text-error text-sm">{$message.message}</p>
         {/if}
 
         <button type="submit" class="btn btn-primary" disabled={$submitting}>
