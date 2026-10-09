@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
 /** Port of the mock Trino server (see start-mock-trino.ts). */
-export const MOCK_TRINO_PORT = 8080;
-const MOCK_TRINO_URL = `http://localhost:${MOCK_TRINO_PORT}`;
+export const MOCK_TRINO_PORT = 18080;
+/** Must match STACKABLE_COCKPIT_TRINO_URL in .env.test. */
+export const MOCK_TRINO_URL = `http://localhost:${MOCK_TRINO_PORT}`;
 
 export interface MockTrinoLogEntry {
   event: 'submitted' | 'cancelled';
@@ -21,14 +22,10 @@ export function mockMarker(): string {
 /** Statements containing `marker` that reached the mock, and their cancellations. */
 export async function mockTrinoLog(marker: string): Promise<MockTrinoLogEntry[]> {
   const res = await fetch(`${MOCK_TRINO_URL}/__mock/log?marker=${encodeURIComponent(marker)}`);
-  const body: unknown = res.ok ? await res.json() : null;
-  if (!Array.isArray(body)) {
-    // Playwright reuses a server already listening on the port (reuseExistingServer).
-    throw new Error(
-      'Mock Trino has no /__mock/log endpoint — stop the mock Trino server left over from an older checkout'
-    );
+  if (!res.ok) {
+    throw new Error(`Mock Trino log request failed: ${res.status} ${res.statusText}`);
   }
-  return body;
+  return (await res.json()) as MockTrinoLogEntry[];
 }
 
 /** SQL of the statements containing `marker` that recorded the given event. */

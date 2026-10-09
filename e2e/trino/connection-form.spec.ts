@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { stringify } from 'devalue';
 import { waitForHydration, waitForQueryComplete, setTabSql } from '../support/helpers';
+import { MOCK_TRINO_URL } from '../support/mock-trino';
 
 /**
  * Tests for the Trino connection form.
@@ -33,7 +34,7 @@ function interceptSaveSuccess(page: import('@playwright/test').Page) {
         posted: true,
         errors: {},
         data: {
-          connectionUrl: 'http://localhost:8080',
+          connectionUrl: MOCK_TRINO_URL,
           authType: 'none',
           authUsername: '',
           authPassword: ''
@@ -204,7 +205,7 @@ test.describe('Connection form (manual mode)', () => {
     await page.getByLabel('Edit connection').check();
 
     // Fill URL but leave credentials empty with basic auth selected.
-    await page.getByLabel('URL').fill('http://localhost:8080');
+    await page.getByLabel('URL').fill(MOCK_TRINO_URL);
     await page.getByRole('radio', { name: 'Basic' }).click();
 
     await page.getByRole('button', { name: 'Save' }).click();
@@ -220,7 +221,7 @@ test.describe('Connection form (manual mode)', () => {
 
     await page.getByLabel('Edit connection').check();
 
-    const testUrl = 'http://localhost:8080';
+    const testUrl = MOCK_TRINO_URL;
     await page.getByLabel('URL').fill(testUrl);
 
     // Verify localStorage was updated.
@@ -230,10 +231,10 @@ test.describe('Connection form (manual mode)', () => {
 
   test('stored connection is restored on page reload', async ({ page }) => {
     // Pre-populate localStorage with a connection URL.
-    await page.addInitScript(() => {
-      localStorage.setItem('trino_url', 'http://localhost:8080');
+    await page.addInitScript((url) => {
+      localStorage.setItem('trino_url', url);
       localStorage.setItem('trino_auth_type', 'none');
-    });
+    }, MOCK_TRINO_URL);
 
     await page.goto('/trino');
     await waitForHydration(page);
@@ -241,29 +242,29 @@ test.describe('Connection form (manual mode)', () => {
     await page.getByLabel('Edit connection').check();
 
     // The URL field should be pre-filled from localStorage.
-    await expect(page.getByLabel('URL')).toHaveValue('http://localhost:8080');
+    await expect(page.getByLabel('URL')).toHaveValue(MOCK_TRINO_URL);
   });
 
   test('connection summary shows host and auth type', async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem('trino_url', 'http://localhost:8080');
+    await page.addInitScript((url) => {
+      localStorage.setItem('trino_url', url);
       localStorage.setItem('trino_auth_type', 'none');
-    });
+    }, MOCK_TRINO_URL);
 
     await page.goto('/trino');
     await waitForHydration(page);
 
     // The collapse header should show a summary with the host.
-    await expect(page.getByText('localhost:8080')).toBeVisible();
+    await expect(page.getByText(new URL(MOCK_TRINO_URL).host)).toBeVisible();
   });
 
   test('failed reconnect of a stored connection opens the form with the error', async ({
     page
   }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem('trino_url', 'http://localhost:8080');
+    await page.addInitScript((url) => {
+      localStorage.setItem('trino_url', url);
       localStorage.setItem('trino_auth_type', 'none');
-    });
+    }, MOCK_TRINO_URL);
 
     // The server is env-configured, so the automatic reconnect is rejected.
     await page.goto('/trino');
@@ -272,14 +273,14 @@ test.describe('Connection form (manual mode)', () => {
     await expect(
       page.getByText('The connection is managed via environment variables.')
     ).toBeVisible();
-    await expect(page.getByLabel('URL')).toHaveValue('http://localhost:8080');
+    await expect(page.getByLabel('URL')).toHaveValue(MOCK_TRINO_URL);
   });
 
   test('network error during reconnect opens the form with the error', async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem('trino_url', 'http://localhost:8080');
+    await page.addInitScript((url) => {
+      localStorage.setItem('trino_url', url);
       localStorage.setItem('trino_auth_type', 'none');
-    });
+    }, MOCK_TRINO_URL);
     await page.route(
       (url) => url.pathname === '/trino' && url.search === '?/save',
       (route) => route.abort()
@@ -289,7 +290,7 @@ test.describe('Connection form (manual mode)', () => {
     await waitForHydration(page);
 
     await expect(page.getByText('Could not save the connection. Please try again.')).toBeVisible();
-    await expect(page.getByLabel('URL')).toHaveValue('http://localhost:8080');
+    await expect(page.getByLabel('URL')).toHaveValue(MOCK_TRINO_URL);
   });
 
   test('saving a connection clears previous query results', async ({ page }) => {
@@ -306,7 +307,7 @@ test.describe('Connection form (manual mode)', () => {
     await expect(page.getByRole('table', { name: 'Query results' })).toBeVisible();
 
     await page.getByLabel('Edit connection').check();
-    await page.getByLabel('URL').fill('http://localhost:8080');
+    await page.getByLabel('URL').fill(MOCK_TRINO_URL);
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(page.getByText('Connection saved')).toBeVisible();

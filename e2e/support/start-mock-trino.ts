@@ -1,5 +1,5 @@
 import * as http from 'node:http';
-import { MOCK_TRINO_PORT as PORT } from './mock-trino';
+import { MOCK_TRINO_PORT } from './mock-trino';
 
 /** SQL substring → fixture response. First match wins; fallback is a 3-row success. */
 const routes: [string, object][] = [
@@ -154,7 +154,7 @@ function release(id: string): void {
 }
 
 function nextUri(id: string, page: number): string {
-  return `http://localhost:${PORT}/v1/statement/executing/${id}/${page}`;
+  return `http://localhost:${MOCK_TRINO_PORT}/v1/statement/executing/${id}/${page}`;
 }
 
 function rows(from: number, count: number): unknown[][] {
@@ -259,7 +259,7 @@ function sendJson(res: http.ServerResponse, body: unknown): void {
 
 http
   .createServer((req, res) => {
-    const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
+    const url = new URL(req.url ?? '/', `http://localhost:${MOCK_TRINO_PORT}`);
 
     // --- Test control endpoints ---
     if (url.pathname.startsWith('/__mock/release/') && req.method === 'POST') {
@@ -315,4 +315,4 @@ http
       sendJson(res, { ...(match ? match[1] : DEFAULT_RESPONSE), id });
     });
   })
-  .listen(PORT, 'localhost', () => console.log(`Mock Trino on :${PORT}`));
+  .listen(MOCK_TRINO_PORT, 'localhost', () => console.log(`Mock Trino on :${MOCK_TRINO_PORT}`));
