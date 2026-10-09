@@ -6,12 +6,11 @@ import type * as Monaco from 'monaco-editor';
 import { CharStream } from 'antlr4ng';
 import { SqlBaseLexer } from './generated/SqlBaseLexer.js';
 import { tokenMap } from './tokenMap';
+import { TRINO_SQL_LANGUAGE_ID } from './language-id.js';
 import {
   createCompletionProvider,
   type CompletionDefaults
 } from './completion/completion-provider.js';
-
-const LANGUAGE_ID = 'trinosql';
 
 class TrinoSqlTokenizerState implements Monaco.languages.IState {
   clone(): Monaco.languages.IState {
@@ -39,20 +38,20 @@ export interface RegisterOptions {
 }
 
 export function registerTrinoSql(monaco: typeof Monaco, options: RegisterOptions = {}): void {
-  if (monaco.languages.getLanguages().some((lang) => lang.id === LANGUAGE_ID)) {
+  if (monaco.languages.getLanguages().some((lang) => lang.id === TRINO_SQL_LANGUAGE_ID)) {
     return;
   }
 
-  monaco.languages.register({ id: LANGUAGE_ID });
+  monaco.languages.register({ id: TRINO_SQL_LANGUAGE_ID });
 
   if (options.completionEnabled !== false) {
     monaco.languages.registerCompletionItemProvider(
-      LANGUAGE_ID,
+      TRINO_SQL_LANGUAGE_ID,
       createCompletionProvider(monaco, () => defaultsGetter())
     );
   }
 
-  monaco.languages.setTokensProvider(LANGUAGE_ID, {
+  monaco.languages.setTokensProvider(TRINO_SQL_LANGUAGE_ID, {
     getInitialState: () => new TrinoSqlTokenizerState(),
     tokenize: (line: string, state: Monaco.languages.IState) => {
       const inputStream = CharStream.fromString(line);
@@ -73,5 +72,3 @@ export function registerTrinoSql(monaco: typeof Monaco, options: RegisterOptions
     }
   });
 }
-
-export { LANGUAGE_ID as TRINO_SQL_LANGUAGE_ID };
