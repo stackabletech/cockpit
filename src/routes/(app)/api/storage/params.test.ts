@@ -39,10 +39,15 @@ describe('requireBucketKey', () => {
     expect(() => requireBucketKey(url)).toThrow(expect.objectContaining({ status: 400 }));
   });
 
-  it('returns both bucket and key trimmed', () => {
+  it('trims the bucket but returns the key unchanged', () => {
     const url = new URL(
       'http://localhost/storage/api/test?bucket=%20b1%20&key=%20path/file.txt%20'
     );
-    expect(requireBucketKey(url)).toEqual({ bucket: 'b1', key: 'path/file.txt' });
+    expect(requireBucketKey(url)).toEqual({ bucket: 'b1', key: ' path/file.txt ' });
+  });
+
+  it('accepts a whitespace-only key', () => {
+    const url = new URL('http://localhost/storage/api/test?bucket=b1&key=%20');
+    expect(requireBucketKey(url)).toEqual({ bucket: 'b1', key: ' ' });
   });
 });
