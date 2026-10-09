@@ -104,15 +104,16 @@
     "tar-stream": "^3.2.0",
     "undici": "^7.24.4"
   },
+  "//overrides": {
+    "@sveltejs/kit > cookie": "SvelteKit requests ^0.6.0, which excludes the cookie validation security fix in 0.7.x. Remove when SvelteKit requires a patched version.",
+    "monaco-editor > dompurify": "Monaco pins DOMPurify to 3.2.7. Use ^3.4.16 for subsequent sanitisation security fixes; remove when Monaco requires an equally patched or newer version."
+  },
   "overrides": {
     "@sveltejs/kit": {
       "cookie": "^0.7.2"
     },
     "monaco-editor": {
       "dompurify": "^3.4.16"
-    },
-    "sveltekit-superforms": {
-      "typebox": "1.2.19"
     }
   }
 }
