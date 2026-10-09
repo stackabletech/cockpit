@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { SuperValidated } from 'sveltekit-superforms';
+  import type { Infer, InferIn, SuperValidated } from 'sveltekit-superforms';
   import { superForm } from 'sveltekit-superforms';
   import { zod4 as zod } from 'sveltekit-superforms/adapters';
   import { onMount, tick, untrack } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
-  import { StorageConnectionSchema } from '$lib/storage/schemas.js';
+  import { StorageConnectionSchema, type StorageConnectionMessage } from '$lib/storage/schemas.js';
   import {
     saveConnectionLocally,
     loadConnectionLocally,
@@ -12,10 +12,13 @@
   } from '$lib/storage/connection-storage.js';
   import { storageAutoConnectEnabled } from '$lib/client/feature-flags.js';
   import StorageConnectionSidebar from '$lib/components/storage/sidebar/StorageConnectionSidebar.svelte';
-  import type { z } from 'zod';
 
   interface Props {
-    connectionForm: SuperValidated<z.infer<typeof StorageConnectionSchema>, string>;
+    connectionForm: SuperValidated<
+      Infer<typeof StorageConnectionSchema>,
+      StorageConnectionMessage,
+      InferIn<typeof StorageConnectionSchema>
+    >;
   }
 
   let { connectionForm }: Props = $props();
@@ -258,8 +261,8 @@
           {/if}
         </div>
 
-        {#if $message}
-          <p class="text-error text-sm">{$message}</p>
+        {#if $message?.type === 'error'}
+          <p class="text-error text-sm">{$message.message}</p>
         {/if}
 
         <button type="submit" class="btn btn-primary" disabled={$submitting}>

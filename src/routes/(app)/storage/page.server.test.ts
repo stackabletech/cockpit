@@ -72,7 +72,10 @@ describe('storage page actions', () => {
       request: new Request('http://localhost', { method: 'POST' }),
       locals: mockLocals()
     } as unknown as Parameters<typeof actions.connect>[0]);
-    expect(result).toHaveProperty('message', 'HDFS connections are not yet supported');
+    expect(result).toHaveProperty('message', {
+      type: 'error',
+      message: 'HDFS connections are not yet supported.'
+    });
   });
 
   it('connect: returns error message on connection test failure', async () => {
@@ -92,10 +95,10 @@ describe('storage page actions', () => {
       request: new Request('http://localhost', { method: 'POST' }),
       locals: mockLocals()
     } as unknown as Parameters<typeof actions.connect>[0]);
-    expect(result).toHaveProperty(
-      'message',
-      'Could not connect — check the endpoint and credentials.'
-    );
+    expect(result).toHaveProperty('message', {
+      type: 'error',
+      message: 'Could not connect — check the endpoint and credentials.'
+    });
   });
 
   it('connect: redirects on success', async () => {

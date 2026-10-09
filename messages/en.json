@@ -155,6 +155,7 @@
   "storage_connect_submit": "Connect",
   "storage_connect_reconnecting": "Reconnecting to storage…",
   "storage_connect_error": "Could not connect — check the endpoint and credentials.",
+  "storage_connect_error_hdfs": "HDFS connections are not yet supported.",
   "storage_connect_saved": "Saved connections",
   "storage_connect_no_saved": "No saved connections yet",
   "storage_connect_forget": "Delete",

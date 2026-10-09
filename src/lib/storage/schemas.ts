@@ -67,3 +67,6 @@ export const EditStorageConnectionSchema = baseStorageConnectionObject.superRefi
     });
   }
 });
+
+/** Superforms message returned by the storage connect and edit actions. */
+export type StorageConnectionMessage = { type: 'success' } | { type: 'error'; message: string };
