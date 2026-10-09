@@ -186,6 +186,7 @@
   "storage_connection_edit_name_hint": "Optional. Wird auf der Verbindungskachel anstelle des Hostnamens angezeigt.",
   "storage_connection_edit_save": "Änderungen speichern",
   "storage_connection_edit_credentials_hint": "Leer lassen, um die aktuellen Anmeldedaten beizubehalten.",
+  "storage_connection_edit_secret_key_required": "Geben Sie den geheimen Schlüssel für den neuen Zugriffsschlüssel ein.",
   "storage_connection_edit_success": "Verbindung erfolgreich aktualisiert.",
   "storage_connection_edit_active_notice": "Sie sind derzeit mit dieser Verbindung verbunden.",
   "storage_connection_edit_not_found": "Verbindung nicht gefunden.",
