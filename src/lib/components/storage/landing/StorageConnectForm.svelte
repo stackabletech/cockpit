@@ -43,7 +43,8 @@
     }
   );
 
-  function selectConnection(conn: SavedConnection) {
+  /** Fill the form from a saved connection and submit it. */
+  function submitSavedConnection(conn: SavedConnection) {
     $form.id = conn.id;
     $form.name = conn.name ?? '';
     $form.type = conn.type;
@@ -75,15 +76,7 @@
     const saved = loadConnectionLocally();
     if (saved) {
       autoConnecting = true;
-      $form.id = saved.id;
-      $form.type = saved.type;
-      $form.host = saved.host;
-      $form.port = saved.port;
-      $form.tls = saved.tls;
-      $form.accessStyle = saved.accessStyle;
-      $form.region = saved.region;
-      $form.credentials = saved.credentials;
-      tick().then(() => formRef?.requestSubmit());
+      submitSavedConnection(saved);
     }
   });
 </script>
@@ -95,7 +88,7 @@
   </div>
 {:else}
   <div class="flex flex-col gap-4 md:flex-row md:items-start">
-    <StorageConnectionSidebar onselect={selectConnection} />
+    <StorageConnectionSidebar onselect={submitSavedConnection} />
 
     <div class="min-w-0 flex-1">
       <h1 class="mb-1 text-xl font-semibold">{m.storage_connect_title()}</h1>
