@@ -31,13 +31,9 @@
   const lastPage = $derived(totalPages - 1);
   const rowStart = $derived(currentPage * pageSize + 1);
   const rowEnd = $derived(currentPage * pageSize + displayedRows.length);
-  const stmtError = $derived(
-    result.error && !result.error.startsWith('ROW_LIMIT:') ? result.error : null
-  );
+  const stmtError = $derived(result.error);
   const rowLimitWarning = $derived(
-    result.error?.startsWith('ROW_LIMIT:')
-      ? m.trino_row_limit_reached({ limit: result.error.split(':')[1] })
-      : null
+    result.rowLimit !== null ? m.trino_row_limit_reached({ limit: result.rowLimit }) : null
   );
   const showHeader = $derived(totalStatements > 1);
 
