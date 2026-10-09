@@ -30,6 +30,77 @@ test.describe('Storage S3 — Upload', () => {
     );
   });
 
+  for (const target of ['empty listing', 'folder row', 'browser toolbar']) {
+    test(`uploads files dropped on the ${target} to the current prefix`, async ({
+      page
+    }, testInfo) => {
+      const credentials = requireGarageCredentials();
+      const client = createS3Client(credentials);
+      const prefix = uniquePrefix(testInfo, 'drop-upload');
+      const fixture = createTextUploadFixture(testInfo.title);
+      const key = `${prefix}${fixture.name}`;
+      const nestedKey = `${prefix}child/existing.txt`;
+
+      try {
+        if (target === 'folder row') {
+          await putTextObject(client, credentials.bucket, nestedKey, 'existing child');
+        }
+        await connectAndOpenPrefix(page, credentials, prefix);
+
+        const browser = page.getByTestId('storage-file-browser');
+        const dropTarget =
+          target === 'folder row'
+            ? rowByName(page, 'child')
+            : target === 'empty listing'
+              ? page.getByTestId('storage-object-list').locator('tbody tr').last()
+              : browser.getByRole('button', { name: 'Upload', exact: true });
+        const transfer = await page.evaluateHandle(
+          ({ name, text }) => {
+            const dt = new DataTransfer();
+            dt.items.add(new File([text], name, { type: 'text/plain' }));
+            dt.items.add(new File(['second file'], 'second.txt', { type: 'text/plain' }));
+            return dt;
+          },
+          { name: fixture.name, text: fixture.fullText }
+        );
+        try {
+          await dropTarget.dispatchEvent('dragenter', { dataTransfer: transfer });
+          await dropTarget.dispatchEvent('dragover', { dataTransfer: transfer });
+          await expect(page.getByTestId('storage-upload-drop-overlay')).toBeVisible();
+          await dropTarget.dispatchEvent('dragleave', { dataTransfer: transfer });
+          await expect(page.getByTestId('storage-upload-drop-overlay')).not.toBeVisible();
+          await dropTarget.dispatchEvent('dragenter', { dataTransfer: transfer });
+          await dropTarget.dispatchEvent('drop', { dataTransfer: transfer });
+          await expect(page.getByTestId('storage-upload-drop-overlay')).not.toBeVisible();
+
+          const uploadModal = modalBox(page);
+          await expect(uploadModal.getByText(fixture.name, { exact: true })).toBeVisible();
+          await expect(uploadModal.getByText('second.txt', { exact: true })).toBeVisible();
+          await expect(uploadModal.getByText(`Uploading to: ${prefix}`)).toBeVisible();
+          // A drop selects files for review; it must not start an upload yet.
+          await expect(
+            uploadModal.getByRole('button', { name: 'Upload', exact: true })
+          ).toBeVisible();
+          await uploadModal.getByRole('button', { name: 'Cancel', exact: true }).click();
+          await expect(page.getByRole('dialog')).not.toBeVisible();
+
+          await dropTarget.dispatchEvent('drop', { dataTransfer: transfer });
+          await expect(uploadModal.getByText(fixture.name, { exact: true })).toBeVisible();
+          await expect(uploadModal.getByText('second.txt', { exact: true })).toBeVisible();
+          await uploadModal.getByRole('button', { name: 'Upload', exact: true }).click();
+          await expect(uploadModal.getByText('2 uploaded · 0 skipped · 0 failed')).toBeVisible();
+          await uploadModal.getByRole('button', { name: 'Done' }).click();
+          await expect(rowByName(page, fixture.name)).toBeVisible();
+          await expect(await getObjectText(client, credentials.bucket, key)).toBe(fixture.fullText);
+        } finally {
+          await transfer.dispose();
+        }
+      } finally {
+        await deleteKnownKeys(client, credentials.bucket, [key, `${prefix}second.txt`, nestedKey]);
+      }
+    });
+  }
+
   test('uploads realistic faker-generated text, csv, and image files', async ({
     page
   }, testInfo) => {
@@ -82,17 +153,19 @@ test.describe('Storage S3 — Upload', () => {
       await rowByName(page, textFixture.name).dblclick();
       await expect(page.getByRole('heading', { name: textFixture.name })).toBeVisible();
       await expect(page.getByText(textFixture.expectedSnippet)).toBeVisible();
-      await page.getByRole('button', { name: 'Close' }).last().click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+      await expect(page.getByRole('heading', { name: textFixture.name })).not.toBeVisible();
 
       await rowByName(page, csvFixture.name).dblclick();
       await expect(page.getByRole('heading', { name: csvFixture.name })).toBeVisible();
       await expect(page.getByText(csvFixture.expectedCell)).toBeVisible();
-      await page.getByRole('button', { name: 'Close' }).last().click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+      await expect(page.getByRole('heading', { name: csvFixture.name })).not.toBeVisible();
 
       await rowByName(page, imageFixture.name).dblclick();
       await expect(page.getByRole('heading', { name: imageFixture.name })).toBeVisible();
       await expect(page.getByAltText(`Preview of ${imageFixture.name}`)).toBeVisible();
-      await page.getByRole('button', { name: 'Close' }).last().click();
+      await page.keyboard.press('Escape');
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

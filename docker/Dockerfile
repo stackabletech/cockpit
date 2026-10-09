@@ -71,11 +71,12 @@ COPY project.inlang/ ./project.inlang/
 COPY messages/ ./messages/
 COPY svelte.config.js tsconfig.json vite.config.ts ./
 
-# Build the application. The dummy env vars let better-auth initialise during
-# SSR prerender; they are scoped to this single RUN and discarded with the
-# builder stage.
+# Build the application. The dummy env vars let better-auth and the database
+# module initialise during SSR prerender; they are scoped to this single RUN
+# and discarded with the builder stage.
 RUN STACKABLE_COCKPIT_SESSION_SECRET="build-time-placeholder" \
     STACKABLE_COCKPIT_BASE_URL="http://localhost:3000" \
+    DATABASE_PASSWORD="build-time-placeholder" \
     npm run build
 
 #
@@ -152,6 +153,7 @@ WORKDIR /stackable/app
 
 # Copy built application from builder stage
 COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/build ./build
+COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/src/lib/server/migrations ./migrations
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node_modules
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
 COPY --from=sbom      --chown=${STACKABLE_USER_UID}:0 /build/cockpit.cdx.json ./cockpit.cdx.json

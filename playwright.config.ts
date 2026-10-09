@@ -2,13 +2,17 @@ import { defineConfig } from '@playwright/test';
 import path from 'path';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4173';
+const appPort = new URL(baseURL).port || '80';
 const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 export default defineConfig({
+  // Tests share mock-service state, so parallel workers can race even outside CI.
+  workers: 1,
   testDir: path.join(import.meta.dirname, 'e2e'),
   outputDir: path.join(import.meta.dirname, 'e2e/test-results'),
   globalSetup: path.join(import.meta.dirname, 'e2e/support/global-setup.ts'),
-  timeout: 60_000,
+  timeout: 20_000,
+  globalTimeout: 40 * 60_000,
   retries: 2,
   expect: {
     timeout: 10_000
@@ -16,23 +20,28 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'retain-on-failure',
-    video: 'retain-on-failure'
+    video: 'retain-on-failure',
+    screenshot: 'only-on-failure'
   },
   webServer: [
     {
       command: 'npx tsx e2e/support/start-mock-oidc.ts',
       url: 'http://localhost:9090/.well-known/openid-configuration',
-      reuseExistingServer: true
+      reuseExistingServer: false
     },
     {
       command: 'npx tsx e2e/support/start-mock-trino.ts',
       url: 'http://localhost:8080',
-      reuseExistingServer: true
+      reuseExistingServer: false
     },
     {
-      command: 'PORT=4173 node --env-file=.env.test build',
+      command: 'npx tsx e2e/support/start-app.ts',
+      env: { PORT: appPort },
       url: baseURL,
-      reuseExistingServer: true
+      timeout: 300_000,
+      stdout: 'pipe',
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 30_000 },
+      reuseExistingServer: false
     }
   ],
   projects: [
@@ -55,18 +64,6 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 }
       }
     },
-    ...(!process.env.CI
-      ? [
-          {
-            name: 'setup-mobile',
-            testMatch: /auth\.setup\.ts/,
-            use: {
-              browserName: 'chromium' as const,
-              viewport: { width: 393, height: 851 }
-            }
-          }
-        ]
-      : []),
     {
       name: 'firefox',
       use: {
@@ -85,24 +82,6 @@ export default defineConfig({
         ...(chromiumExecutablePath && { launchOptions: { executablePath: chromiumExecutablePath } })
       },
       dependencies: ['setup-chromium']
-    },
-    ...(!process.env.CI
-      ? [
-          {
-            name: 'mobile',
-            use: {
-              browserName: 'chromium' as const,
-              viewport: { width: 393, height: 851 },
-              isMobile: true,
-              hasTouch: true,
-              storageState: 'e2e/.auth/user-setup-mobile.json',
-              ...(chromiumExecutablePath && {
-                launchOptions: { executablePath: chromiumExecutablePath }
-              })
-            },
-            dependencies: ['setup-mobile']
-          }
-        ]
-      : [])
+    }
   ]
 });

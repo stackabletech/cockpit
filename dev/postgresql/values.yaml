@@ -1,0 +1,16 @@
+---
+image:
+  repository: oci.stackable.tech/stackable/library/postgres
+  tag: '18.4-alpine3.24'
+  pullPolicy: IfNotPresent
+
+# Database configuration
+database:
+  name: cockpit
+  user: cockpit
+  password: cockpit-dev-password
+
+# NodePort value for host access.
+# PostgreSQL is exposed on nodePorts.postgres
+nodePorts:
+  postgres: 31432

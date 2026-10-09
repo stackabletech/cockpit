@@ -1,8 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('$lib/server/logging', () => ({
-  logger: { child: () => ({ info: vi.fn(), debug: vi.fn() }) }
-}));
+vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 const mockCreate = vi.fn().mockReturnValue({ listObjects: vi.fn() });
 vi.mock('./factory.js', () => ({

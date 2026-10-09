@@ -3,27 +3,24 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import UploadModal from './UploadModal.svelte';
+import { StorageError } from '$lib/storage/errors.js';
 
-const { mockCheckObjectExists, mockUploadFile, MockUploadError } = vi.hoisted(() => {
+const { mockCheckObjectExists, mockUploadFile } = vi.hoisted(() => {
   const mockCheckObjectExists = vi.fn().mockResolvedValue(false);
   const mockUploadFile = vi.fn().mockResolvedValue(undefined);
 
-  class MockUploadError extends Error {
-    code: string;
-    constructor(code: string, message: string) {
-      super(message);
-      this.code = code;
-      this.name = 'UploadError';
-    }
-  }
-
-  return { mockCheckObjectExists, mockUploadFile, MockUploadError };
+  return { mockCheckObjectExists, mockUploadFile };
 });
 
 vi.mock('$lib/storage/upload.js', () => ({
   checkObjectExists: mockCheckObjectExists,
-  uploadFile: mockUploadFile,
-  UploadError: MockUploadError
+  uploadFile: mockUploadFile
+}));
+
+// Provide a stable, isolated connection store so mutations from other test
+// files (e.g. StorageConnectForm.svelte.spec.ts) cannot bleed across.
+vi.mock('$lib/storage/connection-store.svelte.js', () => ({
+  connectionStore: { activeConnectionId: null, connections: [] }
 }));
 
 const defaultProps = {
@@ -119,6 +116,58 @@ describe('UploadModal', () => {
   });
 
   describe('selected phase (file list preview)', () => {
+    it('reviews dropped files when mounted closed and then opened', async () => {
+      const file = createFile('report.txt');
+      const screen = render(UploadModal, {
+        ...defaultProps,
+        open: false,
+        initialFiles: [{ file, relativePath: 'report.txt' }]
+      });
+
+      await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+      await screen.rerender({ open: true });
+
+      await expect.element(page.getByText('report.txt', { exact: true })).toBeInTheDocument();
+      expect(mockUploadFile).not.toHaveBeenCalled();
+      await page.getByRole('button', { name: 'Upload', exact: true }).click();
+      await expect.element(page.getByText('Upload complete', { exact: true })).toBeInTheDocument();
+      expect(mockUploadFile).toHaveBeenCalledWith(
+        defaultProps.bucket,
+        'report.txt',
+        file,
+        expect.any(Function),
+        ''
+      );
+    });
+
+    it('reviews dropped files and uploads their relative paths under the current prefix', async () => {
+      const file = createFile('report.txt');
+      render(UploadModal, {
+        ...defaultProps,
+        prefix: 'reports/',
+        initialFiles: [{ file, relativePath: 'folder/report.txt' }]
+      });
+
+      await expect
+        .element(page.getByText('folder/report.txt', { exact: true }))
+        .toBeInTheDocument();
+      expect(mockUploadFile).not.toHaveBeenCalled();
+      await page.getByRole('button', { name: 'Upload', exact: true }).click();
+      await expect.element(page.getByText('Upload complete', { exact: true })).toBeInTheDocument();
+      expect(mockCheckObjectExists).toHaveBeenCalledWith(
+        defaultProps.bucket,
+        'reports/folder/report.txt',
+        ''
+      );
+      expect(mockUploadFile).toHaveBeenCalledWith(
+        defaultProps.bucket,
+        'reports/folder/report.txt',
+        file,
+        expect.any(Function),
+        ''
+      );
+    });
+
     it('should show selected files after file selection', async () => {
       render(UploadModal, defaultProps);
       selectFiles([createFile('report.csv')]);
@@ -327,7 +376,7 @@ describe('UploadModal', () => {
     });
 
     it('should show error state when upload fails with UploadError (access_denied)', async () => {
-      mockUploadFile.mockRejectedValue(new MockUploadError('access_denied', 'Access denied'));
+      mockUploadFile.mockRejectedValue(new StorageError('access_denied', 'Access denied'));
       render(UploadModal, defaultProps);
       await selectAndUpload([createFile('a.txt')]);
 
@@ -346,7 +395,7 @@ describe('UploadModal', () => {
     });
 
     it('should handle not_connected error', async () => {
-      mockUploadFile.mockRejectedValue(new MockUploadError('not_connected', 'Not connected'));
+      mockUploadFile.mockRejectedValue(new StorageError('not_connected', 'Not connected'));
       render(UploadModal, defaultProps);
       await selectAndUpload([createFile('a.txt')]);
 
@@ -355,7 +404,7 @@ describe('UploadModal', () => {
     });
 
     it('should handle no_such_bucket error', async () => {
-      mockUploadFile.mockRejectedValue(new MockUploadError('no_such_bucket', 'No such bucket'));
+      mockUploadFile.mockRejectedValue(new StorageError('no_such_bucket', 'No such bucket'));
       render(UploadModal, defaultProps);
       await selectAndUpload([createFile('a.txt')]);
 
@@ -364,7 +413,7 @@ describe('UploadModal', () => {
     });
 
     it('should handle invalid_part error', async () => {
-      mockUploadFile.mockRejectedValue(new MockUploadError('invalid_part', 'Invalid part'));
+      mockUploadFile.mockRejectedValue(new StorageError('invalid_part', 'Invalid part'));
       render(UploadModal, defaultProps);
       await selectAndUpload([createFile('a.txt')]);
 
@@ -373,7 +422,7 @@ describe('UploadModal', () => {
     });
 
     it('should handle server_error', async () => {
-      mockUploadFile.mockRejectedValue(new MockUploadError('server_error', 'Server error'));
+      mockUploadFile.mockRejectedValue(new StorageError('server_error', 'Server error'));
       render(UploadModal, defaultProps);
       await selectAndUpload([createFile('a.txt')]);
 
@@ -382,7 +431,7 @@ describe('UploadModal', () => {
     });
 
     it('should show error filename in error list', async () => {
-      mockUploadFile.mockRejectedValue(new MockUploadError('access_denied', 'Denied'));
+      mockUploadFile.mockRejectedValue(new StorageError('access_denied', 'Denied'));
       render(UploadModal, defaultProps);
       await selectAndUpload([createFile('secret.txt')]);
 
@@ -676,7 +725,7 @@ describe('UploadModal', () => {
       let callIdx = 0;
       mockUploadFile.mockImplementation(async () => {
         callIdx++;
-        if (callIdx === 2) throw new MockUploadError('access_denied', 'Denied');
+        if (callIdx === 2) throw new StorageError('access_denied', 'Denied');
       });
 
       render(UploadModal, defaultProps);

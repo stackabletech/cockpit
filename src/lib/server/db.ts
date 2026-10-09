@@ -1,0 +1,60 @@
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import { logger } from './logging';
+
+const log = logger.child({ module: 'database' });
+
+// Vite loads .env.development into SvelteKit's env, not process.env.
+// The fallback also supports the standalone migration CLI used by dev/setup.sh.
+const envModule = await import('$env/dynamic/private').catch(() => null);
+const env = envModule?.env ?? process.env;
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction && !env.DATABASE_PASSWORD) {
+  throw new Error('DATABASE_PASSWORD must be set in production');
+}
+
+// Parse connection credentials from environment variables
+const dbHost = env.DATABASE_HOST || 'localhost';
+const dbPort = parseInt(env.DATABASE_PORT || '31432', 10);
+const dbName = env.DATABASE_NAME || 'cockpit';
+const dbUser = env.DATABASE_USER || 'cockpit';
+if (!env.DATABASE_PASSWORD) {
+  log.warn('DATABASE_PASSWORD not set, using default development password');
+}
+const dbPassword = env.DATABASE_PASSWORD || 'cockpit-dev-password';
+
+// Production certificates must chain to the operating system or Node.js trust store.
+// For a private CA, set NODE_EXTRA_CA_CERTS to the mounted CA certificate path.
+const sslMode = isProduction ? { rejectUnauthorized: true } : false;
+
+// Create a connection pool
+const pool = new Pool({
+  host: dbHost,
+  port: dbPort,
+  database: dbName,
+  user: dbUser,
+  password: dbPassword,
+  ssl: sslMode,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000
+});
+
+pool.on('error', (err) => {
+  log.error({ error: err }, 'Unexpected error on idle client');
+});
+
+// Create Drizzle instance
+export const db = drizzle({ client: pool });
+
+// Graceful shutdown
+export async function closeDb(): Promise<void> {
+  try {
+    await pool.end();
+    log.info('Database pool closed');
+  } catch (error) {
+    log.error({ error }, 'Error closing database pool');
+  }
+}

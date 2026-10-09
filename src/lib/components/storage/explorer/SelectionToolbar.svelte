@@ -1,6 +1,7 @@
 <script lang="ts">
   import IconVisibility from 'virtual:icons/material-symbols/visibility';
   import IconDownload from 'virtual:icons/material-symbols/download';
+  import IconInfo from 'virtual:icons/material-symbols/info';
   import IconDelete from 'virtual:icons/material-symbols/delete';
   import IconRefresh from 'virtual:icons/material-symbols/refresh';
   import * as m from '$lib/paraglide/messages.js';
@@ -45,17 +46,29 @@
       </button>
 
       <button
-        class="
-          btn btn-ghost btn-xs gap-1
-          {selectedCount > 0 ? 'text-error hover:bg-error/10' : ''}
-        "
-        title="{m.storage_action_delete()} (Del)"
-        onclick={() => storage.executeAction('delete')}
-        disabled={selectedCount === 0}
+        class="btn btn-ghost btn-xs gap-1"
+        title={m.storage_action_details()}
+        onclick={() => storage.executeAction('details')}
+        disabled={selectedCount !== 1}
       >
-        <IconDelete class="size-3.5" aria-hidden="true" />
-        {m.storage_action_delete()}
+        <IconInfo class="size-3.5" aria-hidden="true" />
+        {m.storage_action_details()}
       </button>
+
+      {#if !storage.archive.isInArchive}
+        <button
+          class="
+            btn btn-ghost btn-xs gap-1
+            {selectedCount > 0 ? 'text-error hover:bg-error/10' : ''}
+          "
+          title="{m.storage_action_delete()} (Del)"
+          onclick={() => storage.executeAction('delete')}
+          disabled={selectedCount === 0}
+        >
+          <IconDelete class="size-3.5" aria-hidden="true" />
+          {m.storage_action_delete()}
+        </button>
+      {/if}
 
       <div class="ml-auto">
         <button

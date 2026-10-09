@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconDraft from 'virtual:icons/material-symbols/draft';
   import IconUpload from 'virtual:icons/material-symbols/upload';
@@ -6,23 +7,28 @@
   import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
-  import { checkObjectExists, uploadFile, UploadError } from '$lib/storage/upload.js';
+  import { checkObjectExists, uploadFile } from '$lib/storage/upload.js';
+  import { StorageError } from '$lib/storage/errors.js';
   import { formatFileSize } from '$lib/storage/utils.js';
-  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { uploadConcurrency } from '$lib/client/feature-flags.js';
   import UploadDropzone from './UploadDropzone.svelte';
-  import UploadConflictEntry from './UploadConflictEntry.svelte';
   import UploadEntryStatus from './UploadEntryStatus.svelte';
-  import type { FileEntry, Phase, Resolution, RenameState } from './types.js';
+  import ConflictEntry from '../shared/ConflictEntry.svelte';
+  import type { ConflictEntry as ConflictEntryType } from '../shared/conflict-types.js';
+  import type { FileEntry, Phase } from './types.js';
+  import type { Resolution, RenameState } from '../shared/conflict-types.js';
+  import type { FilePair } from '$lib/storage/file-collection.js';
 
   interface Props {
     open: boolean;
     bucket: string;
     prefix: string;
+    initialFiles?: FilePair[];
     onSuccess: () => void;
   }
 
-  let { open = $bindable(false), bucket, prefix, onSuccess }: Props = $props();
+  let { open = $bindable(false), bucket, prefix, initialFiles = [], onSuccess }: Props = $props();
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -31,9 +37,16 @@
 
   let cancelRequested = $state(false);
 
-  // Reset when modal closes.
+  // Initialise on opening as well: the parent can mount this modal closed
+  // before resetting its bound open state after a previous cancellation.
   $effect(() => {
-    if (!open) {
+    if (open) {
+      untrack(() => {
+        entries = makeEntries(initialFiles);
+        phase = entries.length > 0 ? 'selected' : 'idle';
+        cancelRequested = false;
+      });
+    } else {
       phase = 'idle';
       entries = [];
     }
@@ -103,8 +116,7 @@
     cancelRequested = false;
     phase = 'checking';
 
-    const conn = loadConnectionLocally();
-    const connHeader = conn ? getConnectionHeader(conn) : '';
+    const connHeader = connectionStore.activeConnectionId ?? '';
 
     const results: { id: string; conflict: boolean }[] = [];
     for (let i = 0; i < entries.length; i += uploadConcurrency) {
@@ -183,8 +195,7 @@
     entries = entries.map((e) =>
       e.id === entry.id ? { ...e, status: 'uploading' as const, progress: 0 } : e
     );
-    const conn = loadConnectionLocally();
-    const connHeader = conn ? getConnectionHeader(conn) : '';
+    const connHeader = connectionStore.activeConnectionId ?? '';
     try {
       await uploadFile(
         bucket,
@@ -200,7 +211,7 @@
       );
     } catch (err) {
       const msg =
-        err instanceof UploadError ? mapUploadError(err) : m.storage_upload_error_unknown();
+        err instanceof StorageError ? mapUploadError(err) : m.storage_upload_error_unknown();
       entries = entries.map((e) =>
         e.id === entry.id ? { ...e, status: 'error' as const, errorMessage: msg } : e
       );
@@ -274,8 +285,7 @@
 
     entries = entries.map((e) => (e.id === id ? { ...e, renameState: 'checking' as const } : e));
     const newKey = resolvedKey(entry);
-    const conn = loadConnectionLocally();
-    const connHeader = conn ? getConnectionHeader(conn) : '';
+    const connHeader = connectionStore.activeConnectionId ?? '';
     try {
       const exists = await checkObjectExists(bucket, newKey, connHeader);
       const nextState: RenameState = exists ? 'conflict' : 'ok';
@@ -308,7 +318,7 @@
 
   // ── Error mapping ──────────────────────────────────────────────────────────
 
-  function mapUploadError(err: UploadError): string {
+  function mapUploadError(err: StorageError): string {
     switch (err.code) {
       case 'not_connected':
         return m.storage_upload_error_not_connected();
@@ -333,13 +343,15 @@
       <h2 class="text-base-content text-lg font-semibold">
         {m.storage_upload_title()}
       </h2>
-      <button
-        class="btn btn-ghost btn-sm btn-square"
-        onclick={handleCancel}
-        aria-label={m.storage_upload_close()}
-      >
-        <IconClose class="size-5" aria-hidden="true" />
-      </button>
+      <div class="tooltip tooltip-bottom" data-tip={m.storage_upload_close()}>
+        <button
+          class="btn btn-ghost btn-sm btn-square"
+          onclick={handleCancel}
+          aria-label={m.storage_upload_close()}
+        >
+          <IconClose class="size-5" aria-hidden="true" />
+        </button>
+      </div>
     </div>
 
     <!-- Target prefix info -->
@@ -421,8 +433,16 @@
         aria-label={m.storage_upload_conflicts_title()}
       >
         {#each conflictEntries as entry (entry.id)}
-          <UploadConflictEntry
-            {entry}
+          {@const mappedEntry: ConflictEntryType = {
+            id: entry.id,
+            originalName: entry.targetKey.split('/').at(-1) ?? entry.file.name,
+            conflict: entry.conflict,
+            resolution: entry.resolution,
+            customName: entry.customName,
+            renameState: entry.renameState
+          }}
+          <ConflictEntry
+            entry={mappedEntry}
             onSetResolution={(res) => setResolution(entry.id, res)}
             onSetCustomName={(name) => setCustomName(entry.id, name)}
             onRenameButtonClick={() => handleRenameButtonClick(entry.id)}

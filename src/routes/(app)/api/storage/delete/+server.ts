@@ -1,30 +1,26 @@
-import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { deleteObjects } from '$lib/server/storage/service.js';
-import { requireBucket } from '../params.js';
+import type { RequestHandler } from './$types';
+import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import { DeleteObjectsBodySchema } from '$lib/storage/schemas.js';
 
 /**
- * DELETE /storage/api/delete?bucket=<bucket>&keys=<key1>&keys=<key2>&...
+ * DELETE /api/storage/delete?bucket=<bucket>
  *
- * Deletes one or more S3 objects from the given bucket.
- * Authentication is enforced by the app-level auth guard in hooks.server.ts.
- *
- * The connection config is parsed and validated by the `handleStorageConnection`
- * middleware in hooks.server.ts before this handler runs.
+ * Deletes one or more objects from the storage bucket. The request body must
+ * be JSON: `{ keys: string[] }`. Returns the deletion result including any failures.
  */
-export const DELETE: RequestHandler = async ({ locals, url }) => {
-  const bucket = requireBucket(url);
+export const DELETE: RequestHandler = async (event) => {
+  const { provider, bucket } = createStorageProvider(event);
+  const body = DeleteObjectsBodySchema.safeParse(await event.request.json().catch(() => null));
+  const log = event.locals.logger;
+  if (!body.success) throw error(400, 'Invalid request body');
+  const { keys } = body.data;
 
-  const keys = url.searchParams.getAll('keys');
-  if (!keys.length) {
-    throw error(400, 'Missing required query parameter: keys');
-  }
+  log.debug({ bucket, key_count: keys.length }, 'delete request received');
 
-  locals.logger.debug({ bucket, key_count: keys.length }, 'delete request received');
+  const result = await provider.deleteObjects(keys);
 
-  const result = await deleteObjects(locals.storageConfig!, bucket, keys);
-
-  locals.logger.info(
+  log.info(
     { bucket, key_count: keys.length, failed_count: result.failed.length },
     'objects delete completed'
   );
