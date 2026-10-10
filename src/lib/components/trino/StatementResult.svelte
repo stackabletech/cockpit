@@ -1,6 +1,9 @@
 <script lang="ts">
   import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
+  import IconExpandMore from 'virtual:icons/material-symbols/expand-more';
+  import IconOpenInNew from 'virtual:icons/material-symbols/open-in-new';
+  import IconDownload from 'virtual:icons/material-symbols/download';
   import type { QuerySnapshot } from '$lib/types/query';
   import { initPageSize, type PageSize } from '$lib/types/pagination.js';
   import Pagination from '$lib/components/Pagination.svelte';
@@ -144,13 +147,7 @@
           {collapsed ? '' : 'rotate-180'}"
         aria-hidden="true"
       >
-        <svg class="size-4" viewBox="0 0 20 20" fill="currentColor">
-          <path
-            fill-rule="evenodd"
-            d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-            clip-rule="evenodd"
-          />
-        </svg>
+        <IconExpandMore class="size-4" />
       </span>
     </div>
   {/if}
@@ -169,20 +166,7 @@
             class="btn btn-ghost btn-xs"
           >
             {m.trino_view_in_trino()}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="size-3.5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"
-              />
-              <path
-                d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"
-              />
-            </svg>
+            <IconOpenInNew class="size-3.5" aria-hidden="true" />
           </a>
         {/if}
         {#if result.columns.length > 0}
@@ -190,19 +174,7 @@
             <div class="divider divider-horizontal mx-0"></div>
           {/if}
           <button class="btn btn-ghost btn-xs" onclick={downloadCsv}>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="size-4"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                clip-rule="evenodd"
-              />
-            </svg>
+            <IconDownload class="size-4" aria-hidden="true" />
             {m.trino_export_csv()}
           </button>
           <label

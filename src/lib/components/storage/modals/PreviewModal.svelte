@@ -293,7 +293,7 @@
   }
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open>
   <div
     class="modal-box flex flex-col p-0 transition-none
       {maximized ? 'h-dvh max-h-dvh w-screen max-w-none rounded-none' : 'w-full max-w-5xl'}"

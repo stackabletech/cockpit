@@ -142,7 +142,7 @@
 
 <svelte:window onbeforeunload={handleBeforeUnload} />
 
-<Modal bind:open={confirmLeaveOpen} class="modal">
+<Modal bind:open={confirmLeaveOpen}>
   <div class="modal-box">
     <h3 class="text-lg font-semibold">{m.storage_connection_edit_unsaved_title()}</h3>
     <p class="text-base-content/70 mt-2 text-sm">{m.storage_connection_edit_unsaved_body()}</p>

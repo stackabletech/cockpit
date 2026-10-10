@@ -7,7 +7,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
   import { checkObjectExists, uploadFile, UploadError } from '$lib/storage/upload.js';
-  import { formatFileSize } from '$lib/storage/utils.js';
+  import { formatFileSize, keyToName } from '$lib/storage/utils.js';
   import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
   import { uploadConcurrency } from '$lib/client/feature-flags.js';
   import UploadDropzone from './UploadDropzone.svelte';
@@ -326,7 +326,7 @@
   }
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open>
   <div class="modal-box w-full max-w-lg">
     <!-- Header -->
     <div class="mb-4 flex items-center justify-between">
@@ -488,7 +488,7 @@
             {@const errName =
               entry.resolution === 'rename' && entry.customName.trim()
                 ? entry.customName.trim()
-                : (entry.targetKey.split('/').at(-1) ?? entry.file.name)}
+                : keyToName(entry.targetKey) || entry.file.name}
             <li class="text-error py-1 text-xs">
               {errName}: {entry.errorMessage}
             </li>
