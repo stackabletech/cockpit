@@ -157,7 +157,7 @@
   </div>
 </Modal>
 
-<h1 class="mb-1 text-xl font-semibold">{m.storage_connection_edit_title()}</h1>
+<h2 class="mb-1 text-xl font-semibold">{m.storage_connection_edit_title()}</h2>
 
 {#if !loaded}
   <div class="flex items-center justify-center py-12">

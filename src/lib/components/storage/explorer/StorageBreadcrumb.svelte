@@ -105,7 +105,7 @@
     <button
       class="
           tooltip tooltip-bottom btn btn-ghost btn-xs group/pin z-60 size-5 p-0
-          {pinned ? 'hover:text-error' : 'hover:text-white'}
+          {pinned ? 'hover:text-error' : 'hover:text-primary'}
         "
       data-tip={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
       aria-label={pinned ? m.storage_action_unpin() : m.storage_action_pin()}
