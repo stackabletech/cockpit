@@ -307,9 +307,18 @@ export function compileFilterPredicates(
     }
     const parts = parseDateParts(spec.value, {});
     if (parts === null) continue;
-    if (/[T ]\d{1,2}:\d{2}/.test(spec.value.trim())) {
+    const timePart = spec.value.trim().split(/[T ]/)[1];
+    if (timePart !== undefined) {
       const time = wallClockToTime(parts, timeZone);
-      predicates.push((item) => compareSize(item.lastModified.getTime(), time, spec.operator));
+      // "=" matches the whole minute (or second, when given), like a date-only
+      // value matches the whole day; "<" and ">" compare to the exact instant.
+      const end = time + (timePart.split(':').length === 3 ? 1000 : 60_000);
+      const { operator } = spec;
+      predicates.push((item) => {
+        const actual = item.lastModified.getTime();
+        if (operator === '=') return actual >= time && actual < end;
+        return compareSize(actual, time, operator);
+      });
       continue;
     }
     const nextDay = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + 1));

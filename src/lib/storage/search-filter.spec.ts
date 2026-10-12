@@ -200,6 +200,24 @@ describe('compileFilterPredicates', () => {
     expect(time(item(1, new Date('2026-01-10T13:29:59Z')))).toBe(false);
   });
 
+  it('date "=" with a time matches the whole minute, or second when given', () => {
+    const minute = compileFilterPredicates(
+      [{ field: 'date', operator: '=', value: '2026-08-17 14:30' }],
+      'UTC'
+    );
+    expect(minute(item(1, new Date('2026-08-17T14:30:00.000Z')))).toBe(true);
+    expect(minute(item(1, new Date('2026-08-17T14:30:59.999Z')))).toBe(true);
+    expect(minute(item(1, new Date('2026-08-17T14:31:00.000Z')))).toBe(false);
+    expect(minute(item(1, new Date('2026-08-17T14:29:59.999Z')))).toBe(false);
+
+    const second = compileFilterPredicates(
+      [{ field: 'date', operator: '=', value: '2026-08-17T14:30:15' }],
+      'UTC'
+    );
+    expect(second(item(1, new Date('2026-08-17T14:30:15.500Z')))).toBe(true);
+    expect(second(item(1, new Date('2026-08-17T14:30:16.000Z')))).toBe(false);
+  });
+
   it('validates time zone names', () => {
     expect(isValidTimeZone('Europe/Berlin')).toBe(true);
     expect(isValidTimeZone('Mars/Olympus')).toBe(false);
