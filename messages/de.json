@@ -200,6 +200,7 @@
   "storage_connection_edit_name_placeholder": "z. B. Produktions-Garage",
   "storage_connection_edit_name_hint": "Optional. Wird auf der Verbindungskachel anstelle des Hostnamens angezeigt.",
   "storage_connection_edit_name_taken": "Sie haben bereits eine Verbindung mit diesem Namen.",
+  "storage_connection_edit_secret_required": "Geben Sie den geheimen Schlüssel zum neuen Zugriffsschlüssel ein.",
   "storage_connection_edit_save": "Änderungen speichern",
   "storage_connection_edit_credentials_hint": "Leer lassen, um die aktuellen Anmeldedaten beizubehalten.",
   "storage_connection_edit_success": "Verbindung erfolgreich aktualisiert.",

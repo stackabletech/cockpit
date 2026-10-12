@@ -158,19 +158,15 @@ export const actions: Actions = {
         const existing = StoredStorageConnectionSchema.parse(
           JSON.parse(decrypt(rows[0].encryptedPayload, storageEncryptionKey()))
         );
-        payload = {
-          host,
-          port,
-          tls,
-          accessStyle,
-          region,
-          credentials: existing.credentials
-            ? {
-                ...existing.credentials,
-                accessKey: credentials.accessKey || existing.credentials.accessKey
-              }
-            : undefined
-        };
+        if (credentials.accessKey && credentials.accessKey !== existing.credentials?.accessKey) {
+          log.debug({ connection_id: connectionId }, 'access key changed without a secret key');
+          return setError(
+            form,
+            'credentials.secretKey',
+            m.storage_connection_edit_secret_required()
+          );
+        }
+        payload = { host, port, tls, accessStyle, region, credentials: existing.credentials };
       } catch {
         return message(form, m.storage_connect_error(), { status: 500 });
       }

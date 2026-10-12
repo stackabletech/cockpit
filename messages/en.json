@@ -200,6 +200,7 @@
   "storage_connection_edit_name_placeholder": "e.g. Production Garage",
   "storage_connection_edit_name_hint": "Optional. Shown on the connection tile instead of the hostname.",
   "storage_connection_edit_name_taken": "You already have a connection with this name.",
+  "storage_connection_edit_secret_required": "Enter the secret key that belongs to the new access key.",
   "storage_connection_edit_save": "Save changes",
   "storage_connection_edit_credentials_hint": "Leave blank to keep the current credentials.",
   "storage_connection_edit_success": "Connection updated successfully.",
