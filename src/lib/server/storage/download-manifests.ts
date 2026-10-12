@@ -1,5 +1,6 @@
 import { and, desc, eq, gt, lte, inArray } from 'drizzle-orm';
 import { error, isHttpError } from '@sveltejs/kit';
+import { z } from 'zod';
 import { db } from '$lib/server/db.js';
 import { downloadHistoryRetentionMs } from '$lib/server/feature-flags.js';
 import { logger } from '$lib/server/logging';
@@ -176,6 +177,8 @@ export async function createDownloadManifest(input: {
 }
 
 async function loadOwnedManifest(userId: string, id: string): Promise<DownloadHistoryEntry | null> {
+  // The id column is a UUID; Postgres rejects other input with an error.
+  if (!z.uuid().safeParse(id).success) return null;
   const [row] = await db
     .select()
     .from(storageDownloadManifests)

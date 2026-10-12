@@ -39,6 +39,8 @@ function queryResult(rows: unknown[]) {
   return { limit: async () => rows };
 }
 
+const MANIFEST_ID = '00000000-0000-4000-8000-0000000000aa';
+
 describe('download manifests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -57,7 +59,7 @@ describe('download manifests', () => {
       getMetadata: mocks.getMetadata,
       getObject: mocks.getObject
     });
-    mocks.insertValues.mockReturnValue({ returning: async () => [{ id: 'manifest-1' }] });
+    mocks.insertValues.mockReturnValue({ returning: async () => [{ id: MANIFEST_ID }] });
     mocks.deleteWhere.mockResolvedValue(undefined);
   });
 
@@ -103,14 +105,20 @@ describe('download manifests', () => {
     expect(manifest.files.map((file) => file.filename)).toEqual(['a.txt', 'b.txt', 'c.txt']);
   });
 
+  it('treats a manifest id that is not a UUID as not found without querying', async () => {
+    await expect(openDownloadManifestPart('user-1', 'foo', 1)).resolves.toBeNull();
+    await expect(recreateDownloadManifest('user-1', 'foo', ['a.txt'])).resolves.toBeNull();
+    expect(mocks.selectWhere).not.toHaveBeenCalled();
+  });
+
   it('does not open an expired, foreign, or deleted-connection manifest', async () => {
     mocks.selectWhere.mockReturnValue(queryResult([]));
-    await expect(openDownloadManifestPart('user-1', 'manifest-1', 1)).resolves.toBeNull();
+    await expect(openDownloadManifestPart('user-1', MANIFEST_ID, 1)).resolves.toBeNull();
 
     mocks.selectWhere.mockReturnValue(
       queryResult([
         {
-          id: 'manifest-1',
+          id: MANIFEST_ID,
           bucket: 'bucket',
           connectionId: '00000000-0000-4000-8000-000000000001',
           entries: [{ key: 'a.txt', size: 5, isDirectory: false }],
@@ -120,7 +128,7 @@ describe('download manifests', () => {
       ])
     );
     mocks.getConnectionForUser.mockResolvedValue(null);
-    await expect(openDownloadManifestPart('user-1', 'manifest-1', 1)).resolves.toBeNull();
+    await expect(openDownloadManifestPart('user-1', MANIFEST_ID, 1)).resolves.toBeNull();
     expect(mocks.deleteWhere).toHaveBeenCalledWith(expect.anything());
   });
 
@@ -128,7 +136,7 @@ describe('download manifests', () => {
     mocks.selectWhere.mockReturnValue(
       queryResult([
         {
-          id: 'manifest-1',
+          id: MANIFEST_ID,
           bucket: 'bucket',
           connectionId: '00000000-0000-4000-8000-000000000001',
           entries: [
@@ -147,17 +155,17 @@ describe('download manifests', () => {
     mocks.getMetadata.mockImplementation(async (key: string) => ({
       size: key === 'a.txt' ? 40 : 9
     }));
-    await expect(
-      recreateDownloadManifest('user-1', 'manifest-1', ['a.txt'])
-    ).resolves.toMatchObject({ files: [{ filename: 'a.txt', size: 40 }] });
+    await expect(recreateDownloadManifest('user-1', MANIFEST_ID, ['a.txt'])).resolves.toMatchObject(
+      { files: [{ filename: 'a.txt', size: 40 }] }
+    );
     const persisted = mocks.insertValues.mock.calls[0]?.[0] as { entries: Array<{ size: number }> };
     expect(persisted.entries).toEqual([{ key: 'a.txt', size: 40, isDirectory: false }]);
     await expect(
-      recreateDownloadManifest('user-1', 'manifest-1', ['other.txt'])
+      recreateDownloadManifest('user-1', MANIFEST_ID, ['other.txt'])
     ).resolves.toBeNull();
     await expect(
-      recreateDownloadManifest('user-1', 'manifest-1', ['a.txt', 'a.txt'])
+      recreateDownloadManifest('user-1', MANIFEST_ID, ['a.txt', 'a.txt'])
     ).resolves.toBeNull();
-    await expect(recreateDownloadManifest('user-1', 'manifest-1', [])).resolves.toBeNull();
+    await expect(recreateDownloadManifest('user-1', MANIFEST_ID, [])).resolves.toBeNull();
   });
 });
