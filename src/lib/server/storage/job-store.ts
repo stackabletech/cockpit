@@ -46,11 +46,17 @@ function startCleanup(): void {
 startCleanup();
 
 /**
- * Create a new job entry.
+ * Create a new job entry. The same user may reuse the ID of a job that is no
+ * longer running, so a browser retry of a failed download (same URL, same job
+ * ID) can start again.
  */
 export function createJob(id: string, userId: string): void {
   if (!z.uuid().safeParse(id).success) throw error(400, 'Invalid job ID');
-  if (store.has(id)) throw error(409, 'Job already exists');
+  const existing = store.get(id);
+  if (existing && (existing.userId !== userId || existing.status === 'running')) {
+    throw error(409, 'Job already exists');
+  }
+  if (existing) log.debug({ job_id: id, previous_status: existing.status }, 'restarting job');
   store.set(id, {
     userId,
     status: 'running',

@@ -17,6 +17,17 @@ describe('job ownership and lifecycle', () => {
     expect(() => createJob(id, 'another')).toThrow();
     expect(getJob(id, 'owner')?.status).toBe('running');
   });
+  it('lets the same user restart a job that is no longer running', () => {
+    const id = randomUUID();
+    createJob(id, 'owner');
+    expect(() => createJob(id, 'owner')).toThrow();
+
+    failJob(id, 'connection reset');
+    expect(() => createJob(id, 'another')).toThrow();
+    createJob(id, 'owner');
+    expect(getJob(id, 'owner')?.status).toBe('running');
+    expect(getJob(id, 'owner')?.error).toBeUndefined();
+  });
   it('does not allow another user to inspect or cancel a job', async () => {
     const id = randomUUID();
     createJob(id, 'owner');
