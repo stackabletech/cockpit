@@ -69,6 +69,19 @@ describe('createZipStream', () => {
     expect(zip.getEntry('reports/one.txt')?.header.method).toBe(0);
   });
 
+  it('counts a single ZIP64 extra block for entries with large size and offset', () => {
+    const size = 0xffffffff;
+    const entries = [
+      { key: 'a', size, isDirectory: false },
+      { key: 'b', size, isDirectory: false }
+    ];
+    // Per entry: local header 30 + 1 + 20, data, descriptor 24.
+    const dataEnd = 2 * (51 + size + 24);
+    // Central headers 46 + 1 + extra: sizes only (4 + 16), then sizes and offset (4 + 16 + 8).
+    const centralDirectory = 46 + 1 + 20 + (46 + 1 + 28);
+    // ZIP64 end record, locator and classic end record.
+    expect(zipStreamSize(entries)).toBe(dataEnd + centralDirectory + 98);
+  });
   it('uses ZIP64 records when the central directory has 65,535 entries', async () => {
     const provider = {} as StorageProvider;
     const entries = Array.from({ length: 65_535 }, (_, index) => ({
