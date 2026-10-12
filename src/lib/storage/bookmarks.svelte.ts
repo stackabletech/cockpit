@@ -3,6 +3,9 @@ import {
   LS_PINS,
   LS_RECENT_FILES,
   LS_RECENT_LOCATIONS,
+  PinnedLocationSchema,
+  RecentFileSchema,
+  RecentLocationSchema,
   loadFromStorage,
   persistToStorage
 } from './persistence.js';
@@ -30,15 +33,17 @@ export class BookmarksState {
     this.connectionId = connectionId;
 
     this.pinnedLocations = dedupByKey(
-      loadFromStorage<PinnedLocation>(LS_PINS).filter((p) => p.connectionId === connectionId),
+      loadFromStorage(LS_PINS, PinnedLocationSchema).filter((p) => p.connectionId === connectionId),
       (p) => p.bucket + '\0' + p.prefix
     );
     this.recentFiles = dedupByKey(
-      loadFromStorage<RecentFile>(LS_RECENT_FILES).filter((f) => f.connectionId === connectionId),
+      loadFromStorage(LS_RECENT_FILES, RecentFileSchema).filter(
+        (f) => f.connectionId === connectionId
+      ),
       (f) => f.bucket + '\0' + f.key
     );
     this.recentLocations = dedupByKey(
-      loadFromStorage<RecentLocation>(LS_RECENT_LOCATIONS).filter(
+      loadFromStorage(LS_RECENT_LOCATIONS, RecentLocationSchema).filter(
         (l) => Boolean(l.bucket) && l.connectionId === connectionId
       ),
       (l) => l.bucket + '\0' + l.prefix
@@ -79,7 +84,7 @@ export class BookmarksState {
 
   private persistPins(): void {
     // Merge with entries from other connections so we don't wipe their pins.
-    const others = loadFromStorage<PinnedLocation>(LS_PINS).filter(
+    const others = loadFromStorage(LS_PINS, PinnedLocationSchema).filter(
       (p) => p.connectionId !== this.connectionId
     );
     persistToStorage(LS_PINS, [...others, ...this.pinnedLocations]);
@@ -97,7 +102,7 @@ export class BookmarksState {
     if (idx !== -1) this.recentFiles.splice(idx, 1);
     this.recentFiles.unshift(entry);
     if (this.recentFiles.length > maxRecentFiles) this.recentFiles.splice(maxRecentFiles);
-    const others = loadFromStorage<RecentFile>(LS_RECENT_FILES).filter(
+    const others = loadFromStorage(LS_RECENT_FILES, RecentFileSchema).filter(
       (f) => f.connectionId !== this.connectionId
     );
     persistToStorage(LS_RECENT_FILES, [...others, ...this.recentFiles]);
@@ -115,7 +120,7 @@ export class BookmarksState {
     if (idx !== -1) this.recentLocations.splice(idx, 1);
     this.recentLocations.unshift(entry);
     if (this.recentLocations.length > maxRecentFiles) this.recentLocations.splice(maxRecentFiles);
-    const others = loadFromStorage<RecentLocation>(LS_RECENT_LOCATIONS).filter(
+    const others = loadFromStorage(LS_RECENT_LOCATIONS, RecentLocationSchema).filter(
       (l) => l.connectionId !== this.connectionId
     );
     persistToStorage(LS_RECENT_LOCATIONS, [...others, ...this.recentLocations]);
@@ -128,7 +133,7 @@ export class BookmarksState {
     const keep = this.recentFiles.filter((f) => !(f.bucket === bucket && keySet.has(f.key)));
     if (keep.length !== before) {
       this.recentFiles.splice(0, this.recentFiles.length, ...keep);
-      const others = loadFromStorage<RecentFile>(LS_RECENT_FILES).filter(
+      const others = loadFromStorage(LS_RECENT_FILES, RecentFileSchema).filter(
         (f) => f.connectionId !== this.connectionId
       );
       persistToStorage(LS_RECENT_FILES, [...others, ...keep]);
@@ -145,7 +150,7 @@ export class BookmarksState {
     if (removedFiles > 0) {
       const keep = this.recentFiles.filter((f) => !(f.bucket === bucket && underAny(f.key)));
       this.recentFiles.splice(0, this.recentFiles.length, ...keep);
-      const others = loadFromStorage<RecentFile>(LS_RECENT_FILES).filter(
+      const others = loadFromStorage(LS_RECENT_FILES, RecentFileSchema).filter(
         (f) => f.connectionId !== this.connectionId
       );
       persistToStorage(LS_RECENT_FILES, [...others, ...keep]);
@@ -157,7 +162,7 @@ export class BookmarksState {
     if (removedLocs > 0) {
       const keep = this.recentLocations.filter((l) => !(l.bucket === bucket && underAny(l.prefix)));
       this.recentLocations.splice(0, this.recentLocations.length, ...keep);
-      const others = loadFromStorage<RecentLocation>(LS_RECENT_LOCATIONS).filter(
+      const others = loadFromStorage(LS_RECENT_LOCATIONS, RecentLocationSchema).filter(
         (l) => l.connectionId !== this.connectionId
       );
       persistToStorage(LS_RECENT_LOCATIONS, [...others, ...keep]);
