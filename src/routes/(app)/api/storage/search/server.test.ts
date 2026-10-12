@@ -108,7 +108,27 @@ describe('GET /api/storage/search', () => {
 
     const response = await GET(mockEvent('bucket=documents&q=report'));
 
-    await expect(response.text()).resolves.toContain('"code":"access_denied"');
+    const body = await response.text();
+    expect(body).toContain('"code":"access_denied"');
+    expect(body).toContain('"message":"Access denied"');
+  });
+
+  it('reports exceeding the result limit as too_many_results after streaming results', async () => {
+    mockProvider.search.mockImplementation(async (_query, { onMatch }) => {
+      const item = { key: 'report.txt', size: 1, lastModified: new Date(), isDirectory: false };
+      for (let i = 0; i <= 10_000; i++) onMatch(item);
+      return { results: [] };
+    });
+
+    const response = await GET(mockEvent('bucket=documents&q=report'));
+    const events = (await response.text())
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+
+    expect(events.filter((e) => e.type === 'batch').flatMap((e) => e.results)).toHaveLength(10_000);
+    expect(events.at(-1)).toMatchObject({ type: 'error', code: 'too_many_results' });
+    expect(storageSearchTotal.inc).toHaveBeenCalledWith({ outcome: 'too_many_results' });
   });
 
   it('rejects buckets outside the active connection', async () => {

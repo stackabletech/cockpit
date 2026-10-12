@@ -715,6 +715,7 @@
   "storage_search_no_results": "No results found.",
   "storage_search_failure_access_denied": "Access to one or more selected buckets was denied.",
   "storage_search_failure_generic": "One or more selected buckets could not be searched. Please try again.",
+  "storage_search_failure_too_many_results": "The search found more than 10,000 results; only the first ones are shown. Narrow the search to see all matches.",
   "storage_search_session_label": "Search {number}",
   "storage_search_running": "{count} running",
   "storage_search_completed": "{count} completed",

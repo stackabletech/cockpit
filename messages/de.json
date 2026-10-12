@@ -715,6 +715,7 @@
   "storage_search_no_results": "Keine Ergebnisse gefunden.",
   "storage_search_failure_access_denied": "Der Zugriff auf einen oder mehrere ausgewählte Buckets wurde verweigert.",
   "storage_search_failure_generic": "Ein oder mehrere ausgewählte Buckets konnten nicht durchsucht werden. Bitte versuchen Sie es erneut.",
+  "storage_search_failure_too_many_results": "Die Suche hat mehr als 10.000 Ergebnisse gefunden; nur die ersten werden angezeigt. Grenzen Sie die Suche ein, um alle Treffer zu sehen.",
   "storage_search_session_label": "Suche {number}",
   "storage_search_running": "{count} aktiv",
   "storage_search_completed": "{count} abgeschlossen",

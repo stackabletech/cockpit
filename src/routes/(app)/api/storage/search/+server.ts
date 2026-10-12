@@ -82,6 +82,7 @@ export const GET: RequestHandler = async (event) => {
     const stream = new ReadableStream({
       async start(controller) {
         let count = 0;
+        let limitReached = false;
         let batch: SearchResultItem[] = [];
         const send = (
           type: 'batch' | 'snapshot' | 'complete',
@@ -109,8 +110,11 @@ export const GET: RequestHandler = async (event) => {
               );
             },
             onMatch: (item) => {
-              if (++count > MAX_RESULTS)
-                throw error(400, 'Search exceeds 10000 results; narrow the query');
+              if (++count > MAX_RESULTS) {
+                // Thrown as an HttpError so the provider wrapper passes it through.
+                limitReached = true;
+                throw error(400, `Search exceeds ${MAX_RESULTS} results; narrow the query`);
+              }
               batch.push(item);
               if (batch.length >= BATCH_SIZE) {
                 send('batch', batch);
@@ -134,25 +138,34 @@ export const GET: RequestHandler = async (event) => {
         } catch (err) {
           if (cancelled || abort.signal.aborted) return;
           if (batch.length) send('batch', batch);
-          log.error({ err, bucket }, 'streamed storage search failed');
-          storageSearchTotal.inc({ outcome: 'error' });
-          const code = isHttpError(err)
-            ? err.status === 403
-              ? 'access_denied'
-              : err.status === 404
-                ? 'not_found'
-                : err.status >= 500
-                  ? 'server_error'
-                  : 'unknown'
-            : 'unknown';
+          let code: string;
+          let message: string;
+          if (limitReached) {
+            log.info({ bucket, max_results: MAX_RESULTS }, 'storage search hit the result limit');
+            storageSearchTotal.inc({ outcome: 'too_many_results' });
+            code = 'too_many_results';
+            message = `Search exceeds ${MAX_RESULTS} results; narrow the query`;
+          } else {
+            log.error({ err, bucket }, 'streamed storage search failed');
+            storageSearchTotal.inc({ outcome: 'error' });
+            code = isHttpError(err)
+              ? err.status === 403
+                ? 'access_denied'
+                : err.status === 404
+                  ? 'not_found'
+                  : err.status >= 500
+                    ? 'server_error'
+                    : 'unknown'
+              : 'unknown';
+            // SvelteKit's HttpError is not an Error instance.
+            message = isHttpError(err)
+              ? err.body.message
+              : err instanceof Error
+                ? err.message
+                : 'Search failed';
+          }
           controller.enqueue(
-            encoder.encode(
-              JSON.stringify({
-                type: 'error',
-                code,
-                message: err instanceof Error ? err.message : 'Search failed'
-              }) + '\n'
-            )
+            encoder.encode(JSON.stringify({ type: 'error', code, message }) + '\n')
           );
         } finally {
           event.request.signal.removeEventListener('abort', abortRequest);

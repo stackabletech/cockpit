@@ -62,6 +62,8 @@
 
   const failureMessage = $derived.by(() => {
     if (session.failures.length === 0) return undefined;
+    if (session.failures.some((failure) => failure.code === 'too_many_results'))
+      return m.storage_search_failure_too_many_results();
     return session.failures.every((failure) => failure.code === 'access_denied')
       ? m.storage_search_failure_access_denied()
       : m.storage_search_failure_generic();

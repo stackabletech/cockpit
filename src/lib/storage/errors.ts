@@ -11,6 +11,7 @@ export type StorageErrorCode =
   | 'no_such_bucket'
   | 'invalid_part'
   | 'file_too_large'
+  | 'too_many_results'
   | 'unknown';
 
 export class StorageError extends Error {
