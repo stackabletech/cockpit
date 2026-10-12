@@ -36,6 +36,15 @@ describe('processKeysSequentially', () => {
       false
     );
   });
+  it('treats a folder destination key without a trailing slash as a folder', async () => {
+    const source = provider({
+      listAllKeys: vi.fn().mockResolvedValue(['docs/', 'docs/a.txt'])
+    });
+    await processKeysSequentially(source, ['docs/'], '', { deleteOriginals: true }, 'renamed');
+    expect(source.listObjects).toHaveBeenCalledWith('renamed/', 1);
+    expect(source.copyObject).toHaveBeenCalledWith('docs/', 'renamed/');
+    expect(source.copyObject).toHaveBeenCalledWith('docs/a.txt', 'renamed/a.txt');
+  });
   it('resolves a conflicting folder root once for all children', async () => {
     const source = provider({
       listAllKeys: vi.fn().mockResolvedValue(['docs/', 'docs/a.txt', 'docs/nested/b.txt']),

@@ -124,7 +124,14 @@ export async function processKeysSequentially(
   const destinations: DestEntry[] = [];
   for (const sourceKey of sourceKeys) {
     const name = sourceKey.split('/').filter(Boolean).pop()!;
-    const base = destinationKey ?? destinationPrefix + name + (sourceKey.endsWith('/') ? '/' : '');
+    const folderSuffix = sourceKey.endsWith('/') ? '/' : '';
+    // A folder destination must end with '/' so children are joined below it
+    // and the existence check does not match sibling keys sharing the prefix.
+    const base = destinationKey
+      ? destinationKey.endsWith('/')
+        ? destinationKey
+        : destinationKey + folderSuffix
+      : destinationPrefix + name + folderSuffix;
     if (
       destinationKey &&
       sourceKey.endsWith('/') &&

@@ -772,7 +772,8 @@ export class ClipboardState {
           renameFailed++;
           continue;
         }
-        const newKey = pending.destPrefix + rename.newName;
+        const newKey =
+          pending.destPrefix + rename.newName + (rename.sourceKey.endsWith('/') ? '/' : '');
         try {
           await this._api.move({
             bucket,
