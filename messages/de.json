@@ -753,6 +753,7 @@
   "storage_search_path_prefix": "Suchpfad-Präfix",
   "storage_search_path_placeholder": "z. B. events/2024/",
   "storage_search_max_depth": "Maximale Ordnertiefe",
+  "storage_search_max_depth_invalid": "Geben Sie eine ganze Zahl von 1 bis 20 ein.",
   "storage_search_depth_placeholder": "unbegrenzt",
   "storage_search_searching": "Suche läuft...",
   "storage_search_results_elapsed": "{count} Ergebnisse · {elapsed} ms",

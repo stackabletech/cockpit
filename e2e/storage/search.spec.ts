@@ -85,6 +85,26 @@ test.describe('Storage Search', () => {
     await expect(searchInput).toBeHidden();
   });
 
+  test('rejects a max folder depth outside 1 to 20', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+
+    await page.getByRole('button', { name: 'Open search' }).first().click();
+    await page.getByLabel('Search query').fill('report');
+    await page.getByText('Advanced options').click();
+    const depth = page.getByLabel('Max folder depth');
+    const searchButton = page.getByRole('button', { name: 'Search', exact: true });
+
+    await depth.fill('25');
+    await expect(page.getByText('Enter a whole number from 1 to 20.')).toBeVisible();
+    await expect(depth).toHaveAttribute('aria-invalid', 'true');
+    await expect(searchButton).toBeDisabled();
+
+    await depth.fill('3');
+    await expect(page.getByText('Enter a whole number from 1 to 20.')).toBeHidden();
+    await expect(searchButton).toBeEnabled();
+  });
+
   test('searches all buckets from the landing page', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);

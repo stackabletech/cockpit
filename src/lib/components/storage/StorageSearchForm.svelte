@@ -63,6 +63,12 @@
     })
   );
 
+  // Must match the server's limit in /api/storage/search.
+  const depthValid = $derived(
+    session.maxDepth === undefined ||
+      (Number.isInteger(session.maxDepth) && session.maxDepth >= 1 && session.maxDepth <= 20)
+  );
+
   const regexValid = $derived(
     !session.useRegex || session.query.trim() === '' || isSafeRegex(session.query.trim())
   );
@@ -81,6 +87,7 @@
   class="flex flex-col gap-4"
   onsubmit={(event) => {
     event.preventDefault();
+    if (!depthValid) return;
     void state.run(session.id);
   }}
 >
@@ -126,7 +133,7 @@
       <button
         type="submit"
         class="btn btn-primary"
-        disabled={hasInvalidFilter || !regexValid || !session.query.trim()}
+        disabled={hasInvalidFilter || !regexValid || !depthValid || !session.query.trim()}
         ><IconSearch class="size-4" aria-hidden="true" />{m.storage_search_submit()}</button
       >
     {/if}
@@ -222,15 +229,23 @@
             >{m.storage_search_max_depth()}</label
           ><input
             id="{id}-depth"
-            class="input input-sm w-full font-mono"
+            class={['input input-sm w-full font-mono', !depthValid && 'input-error']}
             type="number"
             min="1"
             max="20"
+            step="1"
             value={session.maxDepth ?? ''}
             oninput={(event) =>
               update({ maxDepth: event.currentTarget.valueAsNumber || undefined })}
             placeholder={m.storage_search_depth_placeholder()}
+            aria-invalid={!depthValid || undefined}
+            aria-describedby={depthValid ? undefined : `${id}-depth-error`}
           />
+          {#if !depthValid}
+            <p id="{id}-depth-error" class="text-error mt-1 text-xs" role="alert">
+              {m.storage_search_max_depth_invalid()}
+            </p>
+          {/if}
         </div>
       </div>
     </div>

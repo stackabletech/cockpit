@@ -753,6 +753,7 @@
   "storage_search_path_prefix": "Search path prefix",
   "storage_search_path_placeholder": "e.g. events/2024/",
   "storage_search_max_depth": "Max folder depth",
+  "storage_search_max_depth_invalid": "Enter a whole number from 1 to 20.",
   "storage_search_depth_placeholder": "unlimited",
   "storage_search_searching": "Searching...",
   "storage_search_results_elapsed": "{count} results · {elapsed}ms",
