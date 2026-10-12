@@ -18,6 +18,7 @@ export async function readSearchStream(
   const decoder = new TextDecoder();
   const results = new Map<string, SearchResultItem>();
   let buffer = '';
+  let completed = false;
 
   const apply = (event: SearchStreamEvent, snapshot: boolean): void => {
     const eventResults = (event.results ?? []).map((result) => ({
@@ -29,6 +30,18 @@ export async function readSearchStream(
     onUpdate?.({ results: eventResults, snapshot });
   };
 
+  const handle = (line: string): void => {
+    if (!line.trim()) return;
+    const event = JSON.parse(line) as SearchStreamEvent;
+    if (event.type === 'error') {
+      throw new StorageError(event.code ?? 'unknown', event.message ?? 'Search failed');
+    }
+    if (event.type === 'batch') apply(event, false);
+    if (event.type === 'snapshot' || (event.type === 'complete' && event.results?.length))
+      apply(event, true);
+    if (event.type === 'complete') completed = true;
+  };
+
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -36,18 +49,12 @@ export async function readSearchStream(
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
-
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        const event = JSON.parse(line) as SearchStreamEvent;
-        if (event.type === 'error') {
-          throw new StorageError(event.code ?? 'unknown', event.message ?? 'Search failed');
-        }
-        if (event.type === 'batch') apply(event, false);
-        if (event.type === 'snapshot' || (event.type === 'complete' && event.results?.length))
-          apply(event, true);
-      }
+      for (const line of lines) handle(line);
     }
+    handle(buffer + decoder.decode());
+    // A stream cut off by a proxy timeout or restart ends without `complete`;
+    // its results are partial and must not be reported as a finished search.
+    if (!completed) throw new StorageError('server_error', 'Search ended unexpectedly');
   } catch (err) {
     await reader.cancel(err).catch(() => {});
     throw err;

@@ -53,6 +53,36 @@ describe('readSearchStream', () => {
     expect(result).toEqual({ results: [expect.objectContaining({ key: 'new.txt' })] });
   });
 
+  it('rejects a stream that ends without a complete event, keeping streamed results', async () => {
+    const onUpdate = vi.fn();
+    const result = readSearchStream(
+      createStream([
+        {
+          type: 'batch',
+          results: [{ key: 'a.txt', size: 1, lastModified: '2026-01-01', isDirectory: false }]
+        }
+      ]),
+      onUpdate
+    );
+
+    await expect(result).rejects.toMatchObject({ code: 'server_error' });
+    await expect(result).rejects.toBeInstanceOf(StorageError);
+    expect(onUpdate).toHaveBeenCalledWith({
+      snapshot: false,
+      results: [expect.objectContaining({ key: 'a.txt' })]
+    });
+  });
+
+  it('accepts a final complete event without a trailing newline', async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"type":"complete","results":[]}'));
+        controller.close();
+      }
+    });
+    await expect(readSearchStream(stream)).resolves.toEqual({ results: [] });
+  });
+
   it('throws a streamed error', async () => {
     await expect(
       readSearchStream(createStream([{ type: 'error', message: 'Failed' }]))
