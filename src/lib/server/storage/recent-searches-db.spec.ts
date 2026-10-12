@@ -6,6 +6,7 @@ import {
   listRecentSearches,
   recordRecentSearch,
   clearRecentSearches,
+  recentSearchKey,
   RECENT_SEARCHES_CAP
 } from './recent-searches-db.js';
 
@@ -167,7 +168,13 @@ describe('recent-searches-db', () => {
         useRegex: false,
         excludePatterns: ['_temp'],
         searchPath: 'events/',
-        maxDepth: 3
+        maxDepth: 3,
+        searchKey: recentSearchKey(['beta', 'bucket-1'], 'query-1', {
+          useRegex: false,
+          excludePatterns: ['_temp'],
+          searchPath: 'events/',
+          maxDepth: 3
+        })
       });
       expect(toQuery(insertValues.updatedAt).sql).toBe('clock_timestamp()');
 
@@ -178,12 +185,7 @@ describe('recent-searches-db', () => {
       expect(conflict.target).toEqual([
         userRecentSearches.userId,
         userRecentSearches.connectionId,
-        userRecentSearches.query,
-        userRecentSearches.useRegex,
-        userRecentSearches.excludePatterns,
-        userRecentSearches.searchPath,
-        userRecentSearches.maxDepth,
-        userRecentSearches.buckets
+        userRecentSearches.searchKey
       ]);
 
       expect(toQuery(conflict.set.updatedAt).sql).toBe('clock_timestamp()');
@@ -233,5 +235,28 @@ describe('recent-searches-db', () => {
       expect(whereSql.sql).toContain('"user_recent_searches"."connection_id" = $2');
       expect(whereSql.params).toEqual([USER_ID, CONNECTION_ID]);
     });
+  });
+});
+
+describe('recentSearchKey', () => {
+  const options = { useRegex: false, excludePatterns: ['_temp'], searchPath: '', maxDepth: null };
+
+  it('is a fixed-length hash regardless of input size', () => {
+    const key = recentSearchKey(['b'], 'q'.repeat(1024), {
+      ...options,
+      excludePatterns: Array.from({ length: 50 }, (_, i) => `${i}`.repeat(1024))
+    });
+    expect(key).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('distinguishes searches that differ in any parameter', () => {
+    const base = recentSearchKey(['b'], 'q', options);
+    expect(recentSearchKey(['b'], 'q', options)).toBe(base);
+    expect(recentSearchKey(['b'], 'q', { ...options, useRegex: true })).not.toBe(base);
+    expect(recentSearchKey(['b'], 'q', { ...options, maxDepth: 1 })).not.toBe(base);
+    expect(recentSearchKey(['b', 'c'], 'q', options)).not.toBe(base);
+    expect(recentSearchKey(['b'], 'q', { ...options, excludePatterns: ['_te', 'mp'] })).not.toBe(
+      base
+    );
   });
 });

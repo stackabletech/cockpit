@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { and, eq, desc, notInArray, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db.js';
 import { userRecentSearches } from '$lib/server/schema.js';
@@ -56,6 +57,27 @@ export async function listRecentSearches(
 }
 
 /**
+ * Identity of a recent search: a SHA-256 hash of the sorted buckets, query and
+ * advanced options. Used as the unique key instead of the raw values, which
+ * can be too large for a btree index.
+ */
+export function recentSearchKey(
+  sortedBuckets: string[],
+  query: string,
+  options: RecentSearchOptions
+): string {
+  const identity = JSON.stringify([
+    sortedBuckets,
+    query,
+    options.useRegex,
+    options.excludePatterns,
+    options.searchPath,
+    options.maxDepth
+  ]);
+  return createHash('sha256').update(identity, 'utf8').digest('hex');
+}
+
+/**
  * Record a search for a user and connection. If an identical search — same
  * buckets, query and advanced options — already exists it is bumped to the top,
  * otherwise a new row is inserted. Afterwards the history is pruned down to
@@ -72,13 +94,14 @@ export async function recordRecentSearch(
   options: RecentSearchOptions
 ): Promise<void> {
   const sortedBuckets = [...new Set(buckets)].sort();
+  const searchKey = recentSearchKey(sortedBuckets, query, options);
   await db.transaction(async (tx) => {
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${JSON.stringify([userId, connectionId])}, 0))`
     );
     const now = sql`clock_timestamp()`;
 
-    // Upsert on the unique (user, connection, buckets, query, options) key.
+    // Upsert on the unique (user, connection, search key) key.
     await tx
       .insert(userRecentSearches)
       .values({
@@ -90,18 +113,14 @@ export async function recordRecentSearch(
         excludePatterns: options.excludePatterns,
         searchPath: options.searchPath,
         maxDepth: options.maxDepth,
+        searchKey,
         updatedAt: now
       })
       .onConflictDoUpdate({
         target: [
           userRecentSearches.userId,
           userRecentSearches.connectionId,
-          userRecentSearches.query,
-          userRecentSearches.useRegex,
-          userRecentSearches.excludePatterns,
-          userRecentSearches.searchPath,
-          userRecentSearches.maxDepth,
-          userRecentSearches.buckets
+          userRecentSearches.searchKey
         ],
         set: { updatedAt: now }
       });

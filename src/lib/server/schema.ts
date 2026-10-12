@@ -39,6 +39,8 @@ export const userStorageConnections = pgTable(
 /**
  * Recent storage searches per user and connection. Buckets are sorted before
  * persistence so their order does not affect the unique search identity.
+ * Uniqueness is enforced on a hash of the search parameters because the
+ * parameters themselves can exceed the btree index row size limit.
  */
 export const userRecentSearches = pgTable(
   'user_recent_searches',
@@ -54,21 +56,12 @@ export const userRecentSearches = pgTable(
     excludePatterns: text('exclude_patterns').array().notNull().default([]),
     searchPath: text('search_path').notNull().default(''),
     maxDepth: integer('max_depth'),
+    // SHA-256 of the buckets, query and advanced options (see recent-searches-db.ts).
+    searchKey: text('search_key').notNull(),
     updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull()
   },
   (table) => [
-    unique('user_recent_searches_connection_query')
-      .on(
-        table.userId,
-        table.connectionId,
-        table.query,
-        table.useRegex,
-        table.excludePatterns,
-        table.searchPath,
-        table.maxDepth,
-        table.buckets
-      )
-      .nullsNotDistinct(),
+    unique('user_recent_searches_search_key').on(table.userId, table.connectionId, table.searchKey),
     index('user_recent_searches_connection_idx').on(table.userId, table.connectionId)
   ]
 );
