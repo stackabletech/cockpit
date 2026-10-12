@@ -68,16 +68,7 @@ export async function saveConnection(userId: string, config: S3ConnectionConfig)
       log.info({ connection_id: inserted.id }, 'storage connection saved');
       return inserted.id;
     } catch (err: unknown) {
-      const msg = [
-        err instanceof Error ? err.message : String(err),
-        err && typeof err === 'object' && 'cause' in err
-          ? String((err as { cause: unknown }).cause)
-          : ''
-      ].join(' ');
-      if (
-        msg.includes('user_storage_connections_user_id_name_unique') ||
-        /unique constraint|duplicate key/i.test(msg)
-      ) {
+      if (isConnectionNameConflict(err)) {
         // A concurrent request may have inserted the same connection after our
         // initial lookup. Reuse it rather than surfacing a database error.
         const duplicate = await db
@@ -155,4 +146,21 @@ export async function deleteConnection(userId: string, connectionId: string): Pr
       );
   });
   log.info({ connection_id: connectionId }, 'storage connection deleted');
+}
+
+/**
+ * True when a database error is a violation of the per-user unique
+ * connection name constraint (or another unique constraint on the table).
+ */
+export function isConnectionNameConflict(err: unknown): boolean {
+  const msg = [
+    err instanceof Error ? err.message : String(err),
+    err && typeof err === 'object' && 'cause' in err
+      ? String((err as { cause: unknown }).cause)
+      : ''
+  ].join(' ');
+  return (
+    msg.includes('user_storage_connections_user_id_name_unique') ||
+    /unique constraint|duplicate key/i.test(msg)
+  );
 }

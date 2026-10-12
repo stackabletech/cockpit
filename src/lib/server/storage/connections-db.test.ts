@@ -13,7 +13,12 @@ vi.mock('$lib/server/db.js', () => ({
 }));
 vi.mock('./encryption-key.js', () => ({ storageEncryptionKey: () => Buffer.alloc(32, 1) }));
 
-import { deleteConnection, getConnectionForUser, saveConnection } from './connections-db.js';
+import {
+  deleteConnection,
+  getConnectionForUser,
+  isConnectionNameConflict,
+  saveConnection
+} from './connections-db.js';
 
 const config = {
   type: 's3' as const,
@@ -73,6 +78,16 @@ describe('storage connections database', () => {
       2,
       expect.objectContaining({ name: 'storage.example.test 2' })
     );
+  });
+
+  it('recognises name conflicts wrapped in a driver error cause', () => {
+    const wrapped = new Error('Failed query: update ...', {
+      cause: new Error(
+        'duplicate key value violates unique constraint "user_storage_connections_user_id_name_unique"'
+      )
+    });
+    expect(isConnectionNameConflict(wrapped)).toBe(true);
+    expect(isConnectionNameConflict(new Error('connection refused'))).toBe(false);
   });
 
   it('reuses a concurrently created matching connection after a duplicate error', async () => {

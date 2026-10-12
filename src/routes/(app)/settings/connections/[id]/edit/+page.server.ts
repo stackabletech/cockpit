@@ -1,5 +1,5 @@
 import { error, fail, redirect, isHttpError } from '@sveltejs/kit';
-import { superValidate, message } from 'sveltekit-superforms';
+import { superValidate, message, setError } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { eq, and } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
@@ -13,6 +13,7 @@ import type { S3ConnectionConfig } from '$lib/server/storage/types.js';
 import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
 import { decrypt, encrypt, fingerprint } from '$lib/server/storage/encryption.js';
+import { isConnectionNameConflict } from '$lib/server/storage/connections-db.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
 import { logger } from '$lib/server/logging';
 import * as m from '$lib/paraglide/messages.js';
@@ -189,12 +190,25 @@ export const actions: Actions = {
       storageEncryptionKey()
     );
 
-    await db
-      .update(userStorageConnections)
-      .set({ encryptedPayload, hash, name: form.data.name ?? undefined })
-      .where(
-        and(eq(userStorageConnections.id, connectionId), eq(userStorageConnections.userId, userId))
-      );
+    // A blank name keeps the current one; the name column is required.
+    const name = form.data.name?.trim() || undefined;
+    try {
+      await db
+        .update(userStorageConnections)
+        .set({ encryptedPayload, hash, name })
+        .where(
+          and(
+            eq(userStorageConnections.id, connectionId),
+            eq(userStorageConnections.userId, userId)
+          )
+        );
+    } catch (err) {
+      if (name !== undefined && isConnectionNameConflict(err)) {
+        log.debug({ connection_id: connectionId }, 'storage connection name already in use');
+        return setError(form, 'name', m.storage_connection_edit_name_taken());
+      }
+      throw err;
+    }
 
     log.info({ connection_id: connectionId }, 'storage connection updated');
 
