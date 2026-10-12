@@ -22,7 +22,10 @@ vi.mock('$lib/server/db.js', () => ({
 vi.mock('./utils.js', () => ({ getProvider: mocks.getProvider }));
 vi.mock('./connections-db.js', () => ({ getConnectionForUser: mocks.getConnectionForUser }));
 
+import { PgDialect } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
 import {
+  clearDownloadHistory,
   createDownloadManifest,
   openDownloadManifestPart,
   recreateDownloadManifest
@@ -103,6 +106,14 @@ describe('download manifests', () => {
       config
     });
     expect(manifest.files.map((file) => file.filename)).toEqual(['a.txt', 'b.txt', 'c.txt']);
+  });
+
+  it('clears only the history of the given connection', async () => {
+    await clearDownloadHistory('user-1', '00000000-0000-4000-8000-000000000001');
+    const { sql, params } = new PgDialect().sqlToQuery(mocks.deleteWhere.mock.calls[0][0] as SQL);
+    expect(sql).toContain('"user_id" = $1');
+    expect(sql).toContain('"connection_id" = $2');
+    expect(params).toEqual(['user-1', '00000000-0000-4000-8000-000000000001']);
   });
 
   it('treats a manifest id that is not a UUID as not found without querying', async () => {

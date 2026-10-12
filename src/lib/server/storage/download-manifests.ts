@@ -306,9 +306,17 @@ export async function listDownloadHistory(
   return history;
 }
 
-/** Remove every retained download manifest for one user. */
-export async function clearDownloadHistory(userId: string): Promise<void> {
-  await db.delete(storageDownloadManifests).where(eq(storageDownloadManifests.userId, userId));
+/** Remove the retained download manifests of one user's storage connection. */
+export async function clearDownloadHistory(userId: string, connectionId: string): Promise<void> {
+  await db
+    .delete(storageDownloadManifests)
+    .where(
+      and(
+        eq(storageDownloadManifests.userId, userId),
+        eq(storageDownloadManifests.connectionId, connectionId)
+      )
+    );
+  log.info({ user_id: userId, connection_id: connectionId }, 'download history cleared');
 }
 
 /** Load an owned, unexpired manifest and resolve its current encrypted connection. */

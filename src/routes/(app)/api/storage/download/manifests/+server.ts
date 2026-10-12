@@ -55,6 +55,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 };
 
 export const DELETE: RequestHandler = async (event) => {
-  await clearDownloadHistory(event.locals.user?.id ?? 'anonymous');
+  const connectionId = requireStorageConnectionId(event);
+  if (!z.uuid().safeParse(connectionId).success) throw error(400, 'Invalid connection ID');
+  await clearDownloadHistory(event.locals.user?.id ?? 'anonymous', connectionId);
   return new Response(null, { status: 204 });
 };
