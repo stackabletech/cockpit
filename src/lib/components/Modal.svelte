@@ -47,6 +47,9 @@
       if (!dialogEl?.open) return;
       const dialogs = [...document.querySelectorAll('dialog[open]')];
       if (dialogs.at(-1) !== dialogEl) return;
+      // An open auto popover inside the dialog (e.g. a date picker) is closed
+      // by the browser on Escape; the dialog itself must stay open.
+      if (dialogEl.querySelector('[popover]:not([popover="manual"]):popover-open')) return;
       e.preventDefault();
       if (closeguard && !closeguard()) return;
       open = false;

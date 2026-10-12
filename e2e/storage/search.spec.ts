@@ -63,6 +63,28 @@ test.describe('Storage Search', () => {
     }
   });
 
+  test('Escape closes an open date picker without closing the search', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+
+    await page.getByRole('button', { name: 'Open search' }).first().click();
+    const searchInput = page.getByLabel('Search query');
+    await expect(searchInput).toBeVisible();
+    await page.getByText('Advanced options').click();
+    await page.getByRole('button', { name: 'Add filter' }).click();
+    await page.getByLabel('Filter field').last().selectOption('date');
+    await page.getByRole('button', { name: 'Open date picker' }).last().click();
+    const picker = page.getByRole('dialog', { name: 'Date picker' });
+    await expect(picker).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(picker).toBeHidden();
+    await expect(searchInput).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(searchInput).toBeHidden();
+  });
+
   test('searches all buckets from the landing page', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);

@@ -35,6 +35,20 @@ describe('Modal', () => {
     expect(dialog.open).toBe(false);
   });
 
+  it('leaves Escape to an open popover inside the dialog', async () => {
+    render(Modal, { open: true, children: textSnippet('Content') });
+    const dialog = document.querySelector('dialog')!;
+    const popover = document.createElement('div');
+    popover.popover = 'auto';
+    dialog.appendChild(popover);
+    popover.showPopover();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+    await tick();
+
+    expect(dialog.open).toBe(true);
+  });
+
   it('respects the close guard when a focused widget stops propagation', async () => {
     render(Modal, {
       open: true,
