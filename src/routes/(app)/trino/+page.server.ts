@@ -1,5 +1,5 @@
 import { fail } from '@sveltejs/kit';
-import { superValidate, message } from 'sveltekit-superforms';
+import { superValidate, message, type Infer, type InferIn } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { getUserId } from '$lib/server/auth-utils.js';
 import { getAllQuerySummaries, resetTabQueries } from '$lib/server/trino/queries.js';
@@ -18,9 +18,14 @@ import { ConnectionSchema, type ConnectionMessage } from './validation.js';
 import type { Actions, PageServerLoad } from './$types';
 import * as m from '$lib/paraglide/messages.js';
 
+type ConnectionData = Infer<typeof ConnectionSchema>;
+type ConnectionInput = InferIn<typeof ConnectionSchema>;
+
 export const load: PageServerLoad = async ({ locals }) => {
   locals.logger.debug('loading Trino page');
-  const connectionForm = await superValidate(zod(ConnectionSchema));
+  const connectionForm = await superValidate<ConnectionData, ConnectionMessage, ConnectionInput>(
+    zod(ConnectionSchema)
+  );
   const userId = getUserId(locals);
   const activeQueries = getAllQuerySummaries(userId);
   const userClientExists = getUserTrinoClient(userId) !== null;
@@ -31,7 +36,10 @@ export const actions: Actions = {
   save: async ({ request, locals }) => {
     const log = locals.logger;
 
-    const form = await superValidate(request, zod(ConnectionSchema));
+    const form = await superValidate<ConnectionData, ConnectionMessage, ConnectionInput>(
+      request,
+      zod(ConnectionSchema)
+    );
 
     if (trinoConfigured) {
       log.debug('connection save rejected, Trino is configured via environment variables');

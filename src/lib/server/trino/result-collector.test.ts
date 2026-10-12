@@ -27,6 +27,7 @@ function makeQuery(client: Partial<TrinoQuery['client']>): TrinoQuery {
     columns: [],
     rows: [],
     error: null,
+    rowLimit: null,
     sql: 'SELECT * FROM big',
     startedAt: 0,
     nextUri: 'http://trino/next-1',
@@ -57,7 +58,8 @@ describe('collectResults row limit', () => {
 
     expect(cancelViaUri).toHaveBeenCalledWith('http://trino/next-3', 'alice');
     expect(cancel).not.toHaveBeenCalled();
-    expect(query.error).toBe(`ROW_LIMIT:${MAX_CLIENT_ROWS}`);
+    expect(query.rowLimit).toBe(MAX_CLIENT_ROWS);
+    expect(query.error).toBeNull();
     expect(query.state).toBe('FINISHED');
     expect(query.rows.length).toBeGreaterThanOrEqual(MAX_CLIENT_ROWS);
   });
@@ -77,7 +79,8 @@ describe('collectResults row limit', () => {
 
     expect(cancelViaUri).not.toHaveBeenCalled();
     expect(cancel).toHaveBeenCalledWith('q1', 'alice');
-    expect(query.error).toBe(`ROW_LIMIT:${MAX_CLIENT_ROWS}`);
+    expect(query.rowLimit).toBe(MAX_CLIENT_ROWS);
+    expect(query.error).toBeNull();
     expect(query.state).toBe('FINISHED');
   });
 });

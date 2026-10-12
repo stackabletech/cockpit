@@ -29,6 +29,7 @@ export interface TrinoQuery {
   columns: Column[];
   rows: unknown[][];
   error: string | null;
+  rowLimit: number | null;
   sql: string;
   startedAt: number;
   nextUri: string | undefined;
@@ -121,6 +122,7 @@ function buildSnapshot(
     columns: lightweight ? [] : query.columns,
     rows: lightweight ? [] : query.rows,
     error: query.error,
+    rowLimit: query.rowLimit,
     sql: query.sql,
     startedAt: query.startedAt
   };
@@ -165,6 +167,7 @@ async function submitStatement(
     columns: submitResult.columns ?? [],
     rows: submitResult.data ?? [],
     error: null,
+    rowLimit: null,
     sql,
     startedAt: Date.now(),
     nextUri: submitResult.nextUri,
