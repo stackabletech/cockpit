@@ -1,7 +1,11 @@
 import { error, isHttpError } from '@sveltejs/kit';
 import { createStorageProvider } from '$lib/server/storage/request-context.js';
 import { createSafeSearchRegex, UnsafeSearchRegexError } from '$lib/storage/search-regex.js';
-import { compileFilterPredicates, parseFilterParam } from '$lib/storage/search-filter.js';
+import {
+  compileFilterPredicates,
+  isValidTimeZone,
+  parseFilterParam
+} from '$lib/storage/search-filter.js';
 import { storageSearchTotal } from '$lib/server/metrics.js';
 import type { SearchResultItem } from '$lib/storage/types.js';
 import type { RequestHandler } from './$types';
@@ -43,7 +47,9 @@ export const GET: RequestHandler = async (event) => {
       throw err;
     }
   }
-  const matchesFilters = compileFilterPredicates(filters);
+  const timeZone = event.url.searchParams.get('tz') ?? undefined;
+  if (timeZone !== undefined && !isValidTimeZone(timeZone)) throw error(400, 'Invalid time zone');
+  const matchesFilters = compileFilterPredicates(filters, timeZone);
 
   log.debug(
     {
@@ -53,7 +59,8 @@ export const GET: RequestHandler = async (event) => {
       max_depth: maxDepth,
       use_regex: useRegex,
       exclude_count: excludePatterns.length,
-      filter_count: filters.length
+      filter_count: filters.length,
+      time_zone: timeZone
     },
     'running storage search'
   );

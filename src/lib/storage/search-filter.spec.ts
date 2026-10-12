@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   compileFilterPredicates,
+  isValidTimeZone,
   formatDateValue,
   isUsableFilter,
   parseDateInput,
@@ -167,6 +168,41 @@ describe('compileFilterPredicates', () => {
     expect(predicate(item(1, new Date(2026, 7, 17, 23, 59, 59)))).toBe(true);
     expect(predicate(item(1, new Date(2026, 7, 16, 23, 59, 59)))).toBe(false);
     expect(predicate(item(1, new Date(2026, 7, 18, 0, 0, 0)))).toBe(false);
+  });
+
+  it('interprets dates in the given time zone, not the runtime one', () => {
+    const predicate = compileFilterPredicates(
+      [{ field: 'date', operator: '=', value: '2026-08-17' }],
+      'Europe/Berlin'
+    );
+    // 17 August in Berlin (CEST, UTC+2) runs from 16 Aug 22:00 to 17 Aug 22:00 UTC.
+    expect(predicate(item(1, new Date('2026-08-16T22:00:00Z')))).toBe(true);
+    expect(predicate(item(1, new Date('2026-08-17T21:59:59Z')))).toBe(true);
+    expect(predicate(item(1, new Date('2026-08-16T21:59:59Z')))).toBe(false);
+    expect(predicate(item(1, new Date('2026-08-17T22:00:00Z')))).toBe(false);
+  });
+
+  it('handles DST transitions and explicit times in the given time zone', () => {
+    // 29 March 2026 is 23 hours long in Berlin (CET → CEST).
+    const day = compileFilterPredicates(
+      [{ field: 'date', operator: '=', value: '2026-03-29' }],
+      'Europe/Berlin'
+    );
+    expect(day(item(1, new Date('2026-03-28T23:00:00Z')))).toBe(true);
+    expect(day(item(1, new Date('2026-03-29T21:59:59Z')))).toBe(true);
+    expect(day(item(1, new Date('2026-03-29T22:00:00Z')))).toBe(false);
+
+    const time = compileFilterPredicates(
+      [{ field: 'date', operator: '>', value: '2026-01-10 08:30' }],
+      'America/New_York'
+    );
+    expect(time(item(1, new Date('2026-01-10T13:30:01Z')))).toBe(true);
+    expect(time(item(1, new Date('2026-01-10T13:29:59Z')))).toBe(false);
+  });
+
+  it('validates time zone names', () => {
+    expect(isValidTimeZone('Europe/Berlin')).toBe(true);
+    expect(isValidTimeZone('Mars/Olympus')).toBe(false);
   });
 
   it('date ">" matches days strictly after the given day', () => {

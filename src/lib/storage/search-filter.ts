@@ -81,6 +81,23 @@ const DATE_PART_RE = /^(?:(\d{1,4})([./-]))?(\d{1,2})\2?(\d{1,4})$/;
  * Returns null when the value is not a valid date.
  */
 export function parseDateInput(input: string, options: ParseDateOptions = {}): Date | null {
+  const parts = parseDateParts(input, options);
+  if (parts === null) return null;
+  const { year, month, day, hours, minutes, seconds } = parts;
+  return new Date(year, month - 1, day, hours, minutes, seconds, 0);
+}
+
+/** Wall-clock date and time components of a parsed date filter value. */
+interface DateParts {
+  year: number;
+  month: number;
+  day: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+}
+
+function parseDateParts(input: string, options: ParseDateOptions): DateParts | null {
   const trimmed = input.trim();
   const parts = trimmed.split(/[T ]/);
   if (parts.length === 0 || parts.length > 2) return null;
@@ -129,7 +146,8 @@ export function parseDateInput(input: string, options: ParseDateOptions = {}): D
 
   if (!Number.isInteger(month) || month < 1 || month > 12) return null;
   if (!Number.isInteger(day) || day < 1 || day > 31) return null;
-  if (year < 1) return null;
+  // Date.UTC maps years 0–99 to 1900–1999.
+  if (year < 100) return null;
 
   let hours = 0;
   let minutes = 0;
@@ -143,16 +161,65 @@ export function parseDateInput(input: string, options: ParseDateOptions = {}): D
     if (hours > 23 || minutes > 59 || seconds > 59) return null;
   }
 
-  const parsed = new Date(year, month - 1, day, hours, minutes, seconds, 0);
   // Reject invalid calendar dates such as 30 February.
-  if (
-    parsed.getFullYear() !== year ||
-    parsed.getMonth() !== month - 1 ||
-    parsed.getDate() !== day
-  ) {
+  const calendarDate = new Date(Date.UTC(year, month - 1, day));
+  if (calendarDate.getUTCMonth() !== month - 1 || calendarDate.getUTCDate() !== day) {
     return null;
   }
-  return parsed;
+  return { year, month, day, hours, minutes, seconds };
+}
+
+/**
+ * Convert wall-clock time in an IANA time zone to a UTC timestamp. Without a
+ * time zone, the runtime's local time zone is used.
+ */
+function wallClockToTime(parts: DateParts, timeZone?: string): number {
+  const { year, month, day, hours, minutes, seconds } = parts;
+  if (timeZone === undefined) {
+    return new Date(year, month - 1, day, hours, minutes, seconds, 0).getTime();
+  }
+  const wallClock = Date.UTC(year, month - 1, day, hours, minutes, seconds);
+  // Correct by the zone's offset, then once more in case the first guess
+  // landed on the other side of a DST transition.
+  const firstGuess = wallClock - timeZoneOffset(wallClock, timeZone);
+  return wallClock - timeZoneOffset(firstGuess, timeZone);
+}
+
+/** Offset of a time zone from UTC at the given instant, in milliseconds. */
+function timeZoneOffset(time: number, timeZone: string): number {
+  const values = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric'
+    })
+      .formatToParts(new Date(time))
+      .map((part) => [part.type, Number(part.value)])
+  );
+  const asUtc = Date.UTC(
+    values.year,
+    values.month - 1,
+    values.day,
+    values.hour,
+    values.minute,
+    values.second
+  );
+  return asUtc - (time - (((time % 1000) + 1000) % 1000));
+}
+
+/** True when the value is an IANA time zone name known to the runtime. */
+export function isValidTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Format a Date as an ISO-style date string (YYYY-MM-DD, local time). */
@@ -220,9 +287,12 @@ function compareSize(actual: number, target: number, operator: SearchFilterOpera
  * cannot be parsed are skipped, so callers may pass user-provided rows freely.
  * As soon as a usable size filter is present, directories are excluded: folder
  * entries have no well-defined size and must not satisfy size constraints.
+ * Date values are interpreted as wall-clock time in `timeZone` (the user's
+ * zone), falling back to the runtime's local time zone.
  */
 export function compileFilterPredicates(
-  specs: SearchFilterSpec[]
+  specs: SearchFilterSpec[],
+  timeZone?: string
 ): (item: FilterableItem) => boolean {
   const predicates: Array<(item: FilterableItem) => boolean> = [];
   let hasSizeFilter = false;
@@ -235,20 +305,26 @@ export function compileFilterPredicates(
       predicates.push((item) => compareSize(item.size, target, spec.operator));
       continue;
     }
-    const date = parseDateFilterValue(spec);
-    if (date === null) continue;
+    const parts = parseDateParts(spec.value, {});
+    if (parts === null) continue;
     if (/[T ]\d{1,2}:\d{2}/.test(spec.value.trim())) {
-      predicates.push((item) =>
-        compareSize(item.lastModified.getTime(), date.getTime(), spec.operator)
-      );
+      const time = wallClockToTime(parts, timeZone);
+      predicates.push((item) => compareSize(item.lastModified.getTime(), time, spec.operator));
       continue;
     }
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    const startTime = start.getTime();
-    const endTime = end.getTime();
+    const nextDay = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + 1));
+    const startTime = wallClockToTime({ ...parts, hours: 0, minutes: 0, seconds: 0 }, timeZone);
+    const endTime = wallClockToTime(
+      {
+        year: nextDay.getUTCFullYear(),
+        month: nextDay.getUTCMonth() + 1,
+        day: nextDay.getUTCDate(),
+        hours: 0,
+        minutes: 0,
+        seconds: 0
+      },
+      timeZone
+    );
     const { operator } = spec;
     predicates.push((item) => {
       const time = item.lastModified.getTime();

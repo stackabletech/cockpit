@@ -227,6 +227,7 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       if (useRegex) params.set('regex', 'true');
       for (const pattern of excludePatterns ?? []) params.append('exclude', pattern);
       for (const filter of filters ?? []) params.append('filter', serializeFilter(filter));
+      if (filters?.length) params.set('tz', Intl.DateTimeFormat().resolvedOptions().timeZone);
       const res = await fetch_(`/api/storage/search?${params}`, { signal });
       const { readSearchStream } = await import('./search-stream.js');
       return readSearchStream(res.body, onUpdate);
