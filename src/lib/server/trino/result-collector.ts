@@ -60,8 +60,8 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
       query.progress = toQueryProgress(result.stats);
     }
 
-    if (result.error) {
-      query.error = result.error.message ?? 'Query failed';
+    if (result.error || result.stats?.state === 'FAILED') {
+      query.error = result.error?.message ?? 'Query failed';
       terminateQuery(query, 'FAILED');
       trinoQueryTotal.inc({ outcome: 'failed' });
       return;
