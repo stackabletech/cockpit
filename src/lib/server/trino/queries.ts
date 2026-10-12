@@ -199,7 +199,7 @@ async function submitStatement(
   const query: TrinoQuery = {
     trinoQueryId,
     // As in collectResults: don't expose a terminal state before all result pages
-    // are drained. startScript terminates the query once that has happened.
+    // are drained. The query is terminated once that has happened.
     state: isTerminal(initialState) ? 'RUNNING' : initialState,
     progress: toQueryProgress(submitResult.stats),
     columns: submitResult.columns ?? [],
