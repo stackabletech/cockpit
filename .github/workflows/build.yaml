@@ -121,7 +121,9 @@ jobs:
             TARGETARCH=${{ matrix.runner.arch }}
           container-file: docker/Dockerfile
 
+      # Dependabot PRs have no access to repository secrets, so they build the image without publishing it.
       - name: Publish Container Image
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         uses: stackabletech/actions/publish-image@e8aed001d347bcf693e41b61f4098b0cb94b4ab6 # v0.18.0
         with:
           image-registry-uri: oci.stackable.tech
@@ -133,7 +135,7 @@ jobs:
 
   publish-index-manifest:
     name: Publish/Sign ${{ needs.build-container-image.outputs.image-version }} Index
-    if: (github.event_name != 'merge_group') && needs.detect-changes.outputs.detected == 'true'
+    if: (github.event_name != 'merge_group') && needs.detect-changes.outputs.detected == 'true' && github.event.pull_request.user.login != 'dependabot[bot]'
     needs:
       - detect-changes
       - build-container-image
@@ -162,6 +164,7 @@ jobs:
     needs:
       - detect-changes
       - build-container-image
+      - publish-index-manifest
     permissions:
       contents: read
       id-token: write
@@ -213,14 +216,20 @@ jobs:
     if: always()
     needs:
       - openshift-preflight-check
+      - detect-changes
+      - build-container-image
+      - publish-index-manifest
       - publish-helm-chart
     runs-on: ubuntu-latest
     steps:
       - name: Check results
+        env:
+          NEEDS_RESULTS: ${{ toJSON(needs.*.result) }}
         run: |
           set -euo pipefail
-          if [[ "${{ needs.openshift-preflight-check.result }}" == "failure" || "${{ needs.publish-helm-chart.result }}" == "failure" ]]; then
-            echo "One or more required jobs failed"
+          echo "$NEEDS_RESULTS"
+          if jq -e 'any(. == "failure" or . == "cancelled")' <<<"$NEEDS_RESULTS" >/dev/null; then
+            echo "One or more required jobs failed or were cancelled"
             exit 1
           fi
           echo "All required jobs passed or were skipped"

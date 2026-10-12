@@ -28,8 +28,8 @@ export interface TrinoQuery {
   progress: QueryProgress;
   columns: Column[];
   rows: unknown[][];
-  rowLimitReached: boolean;
   error: string | null;
+  rowLimitReached: boolean;
   sql: string;
   startedAt: number;
   nextUri: string | undefined;
@@ -121,8 +121,8 @@ function buildSnapshot(
     columns: lightweight ? [] : query.columns,
     rows: lightweight ? [] : query.rows,
     rowCount: query.rows.length,
-    rowLimitReached: query.rowLimitReached,
     error: query.error,
+    rowLimitReached: query.rowLimitReached,
     sql: query.sql,
     startedAt: query.startedAt
   };
@@ -166,8 +166,8 @@ async function submitStatement(
     progress: toQueryProgress(submitResult.stats),
     columns: submitResult.columns ?? [],
     rows: submitResult.data ?? [],
-    rowLimitReached: false,
     error: null,
+    rowLimitReached: false,
     sql,
     startedAt: Date.now(),
     nextUri: submitResult.nextUri,

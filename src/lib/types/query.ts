@@ -40,9 +40,9 @@ export interface QuerySnapshot {
   rows: unknown[][];
   /** Rows fetched so far. Populated even in lightweight snapshots, where `rows` is empty. */
   rowCount: number;
+  error: string | null;
   /** Fetching stopped and the query was cancelled because MAX_CLIENT_ROWS was reached. */
   rowLimitReached: boolean;
-  error: string | null;
   sql: string;
   startedAt: number;
 }
