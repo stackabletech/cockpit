@@ -599,6 +599,28 @@ describe('job polling via reconcileInterruptedOps', () => {
     expect(state.operations[0].completedCount).toBe(1);
   });
 
+  it('keeps polling a not-yet-started job until the grace period ends', async () => {
+    vi.useFakeTimers();
+    const api = makeMockApi();
+    api.pollJob = vi.fn().mockResolvedValue({ status: 'not_found' });
+
+    localStorage.setItem(
+      OPERATIONS_HISTORY_KEY,
+      JSON.stringify([
+        makeOp({ id: 'op-1', status: 'running', fileJobIds: ['job-1'], itemCount: 1 })
+      ])
+    );
+
+    const state = new OperationsState(api, makeOpts());
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(state.operations[0].status).toBe('running');
+
+    await vi.advanceTimersByTimeAsync(32_000);
+    expect(state.operations[0].status).toBe('error');
+    vi.useRealTimers();
+  });
+
   it('handles pollJob failures gracefully (marks op as error)', async () => {
     const api = makeMockApi();
     api.pollJob = vi.fn().mockRejectedValue(new Error('Network error'));

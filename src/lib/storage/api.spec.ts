@@ -493,6 +493,15 @@ describe('createFetchStorageApi', () => {
       const [url] = vi.mocked(globalThis.fetch).mock.calls[0]!;
       expect(url).toContain('/api/storage/copy/job/job-abc');
     });
+
+    it('reports a missing job as not_found instead of throwing', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        jsonResponse({ status: 'not_found' }, { status: 404 })
+      );
+
+      await expect(api.pollJob('job-abc')).resolves.toEqual({ status: 'not_found' });
+    });
   });
 
   describe('checkObjectExists', () => {

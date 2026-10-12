@@ -16,6 +16,7 @@ if (browser) {
 
 const OPERATIONS_HISTORY_KEY = 'storage_operations_history';
 const MAX_HISTORY_ENTRIES = 30;
+const JOB_START_GRACE_MS = 60_000;
 
 function loadPersistedOperations(): StorageOperation[] {
   if (!browser) return [];
@@ -61,6 +62,9 @@ export class OperationsState {
 
   private _abortControllers = new SvelteMap<string, AbortController>();
   private _pollTimers = new SvelteMap<string, ReturnType<typeof setTimeout>>();
+  // When each job was first reported missing, to tell a download the browser
+  // has not started yet apart from a job that expired or never existed.
+  private _jobMissingSince = new SvelteMap<string, number>();
   private _api: StorageApi;
   private _getBucket: () => string;
   private _getPrefix: () => string;
@@ -222,6 +226,7 @@ export class OperationsState {
     for (const jobId of op.fileJobIds!) {
       try {
         const job = await this._api.pollJob(jobId);
+        if (job.status !== 'not_found') this._jobMissingSince.delete(jobId);
         completedBytes += job.progress?.completedBytes ?? 0;
         if (job.status === 'done') {
           completedCount++;
@@ -229,8 +234,11 @@ export class OperationsState {
           anyRunning = true;
           currentFileName = job.progress?.currentFileName;
         } else if (job.status === 'not_found') {
-          // The browser may not have opened the native download request yet.
-          anyRunning = true;
+          // The browser may not have opened the native download request yet
+          // (e.g. a save dialog is open). Give up after a grace period.
+          const missingSince = this._jobMissingSince.get(jobId) ?? Date.now();
+          this._jobMissingSince.set(jobId, missingSince);
+          if (Date.now() - missingSince < JOB_START_GRACE_MS) anyRunning = true;
         } else if (job.status === 'cancelled') {
           anyCancelled = true;
         } else {

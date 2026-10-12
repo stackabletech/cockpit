@@ -331,8 +331,13 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
     },
 
     async pollJob(jobId) {
-      const res = await fetch_(`/api/storage/copy/job/${jobId}`);
-      return (await res.json()) as JobStatus;
+      try {
+        const res = await fetch_(`/api/storage/copy/job/${jobId}`);
+        return (await res.json()) as JobStatus;
+      } catch (err) {
+        if (err instanceof StorageError && err.code === 'not_found') return { status: 'not_found' };
+        throw err;
+      }
     },
 
     async cancelJob(jobId) {
