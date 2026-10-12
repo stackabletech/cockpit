@@ -41,8 +41,22 @@
     {
       dataType: 'json',
       validators: zod(EditStorageConnectionSchema),
+      onSubmit: ({ cancel }) => {
+        // A blank secret key means "keep the existing credentials". That only works if the
+        // access key is unchanged, otherwise the new access key would be silently dropped.
+        const { accessKey, secretKey } = $form.credentials;
+        const storedAccessKey = connection?.credentials?.accessKey ?? '';
+        if (accessKey && !secretKey && accessKey !== storedAccessKey) {
+          $errors.credentials = {
+            ...$errors.credentials,
+            secretKey: [m.storage_connection_edit_secret_key_required()]
+          };
+          cancel();
+        }
+      },
       onResult: ({ result, cancel }) => {
-        if (result.type === 'success' && result.data?.form?.message === 'ok') {
+        // Errors are returned with a 4xx status, so only a successful save yields 'success'.
+        if (result.type === 'success') {
           if (connection) {
             // If credentials were left blank, preserve the existing stored credentials.
             const savedCredentials =
@@ -347,8 +361,8 @@
       {/if}
     </div>
 
-    {#if $message && $message !== 'ok'}
-      <p class="text-error text-sm">{$message}</p>
+    {#if $message?.type === 'error'}
+      <p class="text-error text-sm">{$message.message}</p>
     {/if}
 
     <div class="flex items-center gap-3">

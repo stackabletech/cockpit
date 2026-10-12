@@ -41,6 +41,8 @@ export interface QuerySnapshot {
   columns: Column[];
   rows: unknown[][];
   error: string | null;
+  /** Set to the row limit when the result was truncated at MAX_CLIENT_ROWS. */
+  rowLimit: number | null;
   sql: string;
   startedAt: number;
 }

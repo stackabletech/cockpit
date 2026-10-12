@@ -69,7 +69,7 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
 
     // Row limit check.
     if (query.rows.length >= MAX_CLIENT_ROWS) {
-      query.error = `ROW_LIMIT:${MAX_CLIENT_ROWS}`;
+      query.rowLimit = MAX_CLIENT_ROWS;
       try {
         if (result.nextUri) {
           await query.client.cancelViaUri(result.nextUri, query.trinoUser);
