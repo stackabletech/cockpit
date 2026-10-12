@@ -20,15 +20,11 @@ const LOGOS: Record<string, Picture> = {
   superset: logos['../logos/superset.png'],
   airflow: logos['../logos/airflow.png'],
   nifi: logos['../logos/nifi.png'],
-  kafka: logos['../logos/kafka.png'],
   druid: logos['../logos/druid.png'],
   opensearch: logos['../logos/opensearch.png'],
   hdfs: logos['../logos/hdfs.png'],
   hbase: logos['../logos/hbase.png'],
-  spark: logos['../logos/spark.png'],
-  zookeeper: logos['../logos/zookeeper.png'],
-  hive: logos['../logos/hive.png'],
-  opa: logos['../logos/openpolicyagent.png']
+  spark: logos['../logos/spark.png']
 };
 
 export const PRODUCTS: Product[] = [
@@ -63,14 +59,6 @@ export const PRODUCTS: Product[] = [
     color: '#728E2B',
     logo: LOGOS['nifi'],
     defaultName: 'Data Flow'
-  },
-  {
-    id: 'kafka',
-    name: 'Kafka',
-    initials: 'KF',
-    color: '#231F20',
-    logo: LOGOS['kafka'],
-    defaultName: 'Event Stream'
   },
   {
     id: 'druid',
@@ -111,30 +99,6 @@ export const PRODUCTS: Product[] = [
     color: '#E25A1C',
     logo: LOGOS['spark'],
     defaultName: 'Processing'
-  },
-  {
-    id: 'zookeeper',
-    name: 'ZooKeeper',
-    initials: 'ZK',
-    color: '#314D45',
-    logo: LOGOS['zookeeper'],
-    defaultName: 'Coordinator'
-  },
-  {
-    id: 'hive',
-    name: 'Hive',
-    initials: 'HV',
-    color: '#FDEE21',
-    logo: LOGOS['hive'],
-    defaultName: 'Warehouse'
-  },
-  {
-    id: 'opa',
-    name: 'OPA',
-    initials: 'OP',
-    color: '#7D56F4',
-    logo: LOGOS['opa'],
-    defaultName: 'Policy'
   },
   {
     id: 'custom',
