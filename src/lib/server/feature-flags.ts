@@ -123,27 +123,36 @@ export const maxEditableFileSize: number = (() => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 5 * 1024 * 1024;
 })();
 
-// ── Storage browser: Context actions (cut, copy, paste, rename) ────────────
+// ── Storage browser: Context actions (cut, copy, paste, rename, move) ──────
+//
+// Server-side enforcement (cost control, not authorisation):
+// - `POST /api/storage/copy` requires paste.
+// - `POST /api/storage/move` that renames (a `destinationKey` in the same bucket
+//   and folder as the source) requires rename or paste. Paste uses that request
+//   to apply a "keep both" name after pasting.
+// - Any other `POST /api/storage/move` requires move or paste, because
+//   drag-and-drop and cut-and-paste send the same request.
+// Cut/copy only fill the client clipboard and have no endpoint of their own.
 
 /** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED=true`, the context
- *  menu shows Cut/Copy actions. Uses the PUBLIC_ key so the same env var gates
- *  both client and server. Disabled by default. */
+ *  menu shows Cut/Copy actions and items can be dragged. Client-only: it fills
+ *  the clipboard and is not checked by any endpoint. Disabled by default. */
 export const storageCutCopyEnabled =
   (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED ?? 'false') === 'true';
 
 /** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED=true`, the context
- *  menu shows Paste and the paste API endpoint is active.
+ *  menu shows Paste and the copy and move endpoints accept paste requests.
  *  Uses PUBLIC_ key. Disabled by default. */
 export const storagePasteEnabled =
   (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED ?? 'false') === 'true';
 
-/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED=true`, the rename
- *  API endpoint is active. Uses PUBLIC_ key. Disabled by default. */
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED=true`, the move
+ *  endpoint accepts same-folder renames. Uses PUBLIC_ key. Disabled by default. */
 export const storageRenameEnabled =
   (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED ?? 'false') === 'true';
 
 /** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED=true`, the move
- *  API endpoint (drag-and-drop) is active. Uses PUBLIC_ key. Disabled by default. */
+ *  endpoint accepts drag-and-drop moves. Uses PUBLIC_ key. Disabled by default. */
 export const storageMoveEnabled =
   (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED ?? 'false') === 'true';
 

@@ -6,8 +6,18 @@ import {
 } from '$lib/server/storage/request-context.js';
 import { performCopyOrMove } from '$lib/server/storage/copy-move.js';
 import { CopyObjectsBodySchema } from '$lib/storage/schemas.js';
+import { storagePasteEnabled } from '$lib/server/feature-flags.js';
 
 export const POST: RequestHandler = async (event) => {
+  // Copy is only issued by paste; cut/copy themselves just fill the client clipboard.
+  if (!storagePasteEnabled) {
+    event.locals.logger.warn(
+      { operation: 'paste', user_id: event.locals.user?.id },
+      'storage operation rejected: feature disabled'
+    );
+    throw error(404, 'Storage paste is disabled');
+  }
+
   const { provider: destinationProvider, bucket } = createStorageProvider(event);
   const streamProgress = event.url.searchParams.get('progress') === 'true';
   const { locals, request } = event;

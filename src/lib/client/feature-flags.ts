@@ -112,21 +112,23 @@ export const uploadConcurrency: number = (() => {
 // ── Storage browser: Context actions (cut, copy, paste, rename) ────────────
 
 /** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED=true`, the context
- *  menu shows "Cut" and "Copy" actions and Ctrl+X / Ctrl+C keyboard shortcuts
- *  are active. These are costly S3 operations (list + copy) on most backends.
- *  Disabled by default. */
+ *  menu shows "Cut" and "Copy" actions, Ctrl+X / Ctrl+C keyboard shortcuts
+ *  are active, and items can be dragged. Cut and copy only fill the clipboard;
+ *  the costly S3 work (list + copy) happens on paste or move, which the server
+ *  gates with those flags. Disabled by default. */
 export const storageCutCopyEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED ?? 'false') === 'true';
 
 /** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED=true`, the context
  *  menu shows "Paste" (when clipboard is non-empty) and Ctrl+V is active
- *  to paste cut/copied items into the current prefix. Disabled by default. */
+ *  to paste cut/copied items into the current prefix. Also enforced by the
+ *  copy and move endpoints. Disabled by default. */
 export const storagePasteEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED ?? 'false') === 'true';
 
 /** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED=true`, the context
- *  menu shows "Rename" and F2 is active to rename the selected item.
- *  Disabled by default. */
+ *  menu shows "Rename" and F2 is active to rename the selected item. Also
+ *  enforced by the move endpoint. Disabled by default. */
 export const storageRenameEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED ?? 'false') === 'true';
 
@@ -134,6 +136,7 @@ export const storageRenameEnabled =
  *  move is active (folder-row, breadcrumb, sidebar, and tab drop targets).
  *  This is a separate flag from paste because move is a costly S3 operation
  *  (list + copy + delete per directory level) and may be undesirable in
- *  high-egress-cost environments. Disabled by default. */
+ *  high-egress-cost environments. Also enforced by the move endpoint.
+ *  Disabled by default. */
 export const storageMoveEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED ?? 'false') === 'true';
