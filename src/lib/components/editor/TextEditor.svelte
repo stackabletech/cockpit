@@ -95,8 +95,7 @@
     psm1: 'powershell',
     clj: 'clojure',
     cljs: 'clojure',
-    edn: 'clojure',
-    coffe: 'coffeescript',
+    edn: 'clojure', // typos:ignore-line
     coffee: 'coffeescript',
     dockerfile: 'dockerfile',
     ini: 'ini',

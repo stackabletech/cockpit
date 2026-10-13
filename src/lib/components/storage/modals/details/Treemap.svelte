@@ -174,21 +174,21 @@
 
     if (!isContainer) return;
 
-    const ix = x + PAD;
-    const iy = y + PAD;
-    const iw = Math.max(0, w - 2 * PAD);
-    const ih = Math.max(0, h - 2 * PAD);
-    if (iw <= 0 || ih <= 0) return;
+    const innerX = x + PAD;
+    const innerY = y + PAD;
+    const innerW = Math.max(0, w - 2 * PAD);
+    const innerH = Math.max(0, h - 2 * PAD);
+    if (innerW <= 0 || innerH <= 0) return;
 
     const total = node.size || 1;
-    let cx = ix;
-    let cy = iy;
-    let remW = iw;
-    let remH = ih;
+    let cx = innerX;
+    let cy = innerY;
+    let remW = innerW;
+    let remH = innerH;
     let horizontal = remW >= remH;
 
     for (const child of children!) {
-      const area = (child.size / total) * iw * ih;
+      const area = (child.size / total) * innerW * innerH;
       let cw: number;
       let ch: number;
       if (horizontal) {
