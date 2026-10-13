@@ -141,34 +141,7 @@ export async function connectAndOpenPrefix(
   const connection = new URL(credentials.endpoint).hostname;
   const route = bucketRoute(connection, credentials.bucket, prefix);
 
-  // A session update can redirect a just-opened bucket route to the storage
-  // overview after hydration. Retry once if that happens while loading.
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    await page.goto(route);
-    await waitForHydration(page);
-
-    const objectsLoaded = waitForObjectsLoaded(page, 15_000).then(() => 'objects');
-    const storageOverview = page
-      .getByRole('heading', { name: 'Buckets', exact: true })
-      .waitFor({ timeout: 5_000 })
-      .then(() => 'overview' as const)
-      // Keep waiting for the bucket list when the overview is not rendered.
-      .catch(() => new Promise<never>(() => {}));
-
-    let pageContent: 'objects' | 'overview' | undefined;
-    try {
-      pageContent = await Promise.race([objectsLoaded, storageOverview]);
-    } catch {
-      // A just-created session can briefly leave the browse request without a
-      // connection. Reconnect and retry the route rather than failing the test.
-    }
-    if (pageContent === 'objects' && page.url().includes(encodeURIComponent(credentials.bucket))) {
-      return;
-    }
-
-    await connectToStorage(page, credentials);
-  }
-
+  await page.goto(route);
   await waitForObjectsLoaded(page);
 }
 
