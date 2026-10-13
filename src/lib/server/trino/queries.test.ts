@@ -263,7 +263,7 @@ describe('startScript', () => {
       error: { message: 'line 1:1: mismatched input' }
     });
 
-    await q.startScript(trinoClient(), USER, TAB, ['SELEC 1', 'SELECT 2'], OPTS);
+    await q.startScript(trinoClient(), USER, TAB, ['SELEC 1', 'SELECT 2'], OPTS); // typos:ignore-line
 
     expect(client.submit).toHaveBeenCalledTimes(1);
     expect(mocks.collectResults).not.toHaveBeenCalled();
