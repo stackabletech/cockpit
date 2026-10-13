@@ -157,6 +157,15 @@ export class ClipboardState {
     const pasteClipboard = this.clipboard;
     if (!pasteClipboard) return;
 
+    // A folder pasted into itself would copy (or replace) its own subtree.
+    if (
+      pasteClipboard.sourceBucket === bucket &&
+      pasteClipboard.keys.some((key) => this._isFolderIntoItself(key, destPrefix))
+    ) {
+      addToast('warning', m.storage_action_paste_into_itself_error());
+      return;
+    }
+
     const wasCut = pasteClipboard.action === 'cut';
     // Moving an item into the folder it already lives in is a no-op.
     const pasteKeys = pasteClipboard.keys.filter(
@@ -317,8 +326,11 @@ export class ClipboardState {
 
     // Don't move items that are already directly inside destPrefix (no-op).
     // Don't move a folder into itself
-    for (const k of moveKeys) {
-      if (k.endsWith('/') && destPrefix.startsWith(k)) return;
+    if (
+      destBucket === this._callbacks.getBucket() &&
+      moveKeys.some((k) => this._isFolderIntoItself(k, destPrefix))
+    ) {
+      return;
     }
 
     // Collect per-item metadata for the confirmation dialog
@@ -1032,11 +1044,20 @@ export class ClipboardState {
     return parentPrefix === destPrefix;
   }
 
-  /** True when the key would be pasted onto itself in the same bucket. */
-  private _isSelfDestination(key: string, destPrefix: string, sourceBucket: string): boolean {
+  /**
+   * True when the key would be pasted or moved onto itself. `otherBucket` is the
+   * source bucket of a paste or the destination bucket of a move; the other side
+   * is always the current bucket.
+   */
+  private _isSelfDestination(key: string, destPrefix: string, otherBucket: string): boolean {
     return (
-      sourceBucket === this._callbacks.getBucket() && this._isAlreadyInDestination(key, destPrefix)
+      otherBucket === this._callbacks.getBucket() && this._isAlreadyInDestination(key, destPrefix)
     );
+  }
+
+  /** True when `key` is a folder and `destPrefix` lies inside it. */
+  private _isFolderIntoItself(key: string, destPrefix: string): boolean {
+    return key.endsWith('/') && destPrefix.startsWith(key);
   }
 
   /** Destination key for pasting `key` into `destPrefix`; folders keep their trailing slash. */
@@ -1046,7 +1067,8 @@ export class ClipboardState {
 
   /**
    * Destination key that "replace" deletes before pasting `sourceKey`, or null
-   * when deleting it (recursively for folders) would remove the source itself.
+   * when source and destination overlap: deleting it (recursively for folders)
+   * would remove the source, or the destination lies inside a source folder.
    */
   private _replaceTarget(
     sourceKey: string,
@@ -1057,7 +1079,9 @@ export class ClipboardState {
     const destKey = this._destKey(sourceKey, destPrefix);
     const destroysSource =
       sourceBucket === destBucket &&
-      (sourceKey === destKey || (destKey.endsWith('/') && sourceKey.startsWith(destKey)));
+      (sourceKey === destKey ||
+        (destKey.endsWith('/') && sourceKey.startsWith(destKey)) ||
+        (sourceKey.endsWith('/') && destKey.startsWith(sourceKey)));
     return destroysSource ? null : destKey;
   }
 

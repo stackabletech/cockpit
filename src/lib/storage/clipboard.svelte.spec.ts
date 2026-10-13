@@ -31,6 +31,7 @@ import type { ClipboardData } from './types.js';
 import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
 import { createMemoryStorageApi } from './api.test-utils.js';
 import { makePage } from './state.test-utils.js';
+import { addToast } from '$lib/stores/toast.svelte.js';
 
 /** Existing bucket contents: file `file.txt` and folder `dir/` (with a child, no marker). */
 const EXISTING_FILES = new Set(['file.txt', 'dir/child.txt']);
@@ -230,7 +231,57 @@ describe('cut and paste with conflicts', () => {
   });
 });
 
+describe('paste a folder into itself', () => {
+  it.each(['copy', 'cut'] as const)(
+    'refuses to %s a folder into its own subfolder',
+    async (action) => {
+      // `docs/sub/docs/` exists, so a Replace would delete part of the source tree.
+      const api = makeApi({
+        checkObjectExists: async ({ key }) => key === 'docs/sub/docs/'
+      });
+      const state = makeState(api, clipboard(action, ['docs/']));
+      state.prefix = 'docs/sub/';
+
+      await pasteResolvingWith(state, 'replace');
+
+      expect(state.activeModal).toBeNull();
+      expect(deletedKeys(api)).toEqual([]);
+      expect(transferredKeys(api)).toEqual([]);
+      expect(addToast).toHaveBeenCalledWith('warning', 'Cannot paste a folder into itself.');
+    }
+  );
+
+  it('allows pasting a folder into a same-named path in another bucket', async () => {
+    const api = makeApi();
+    const state = makeState(api, {
+      ...clipboard('copy', ['docs/']),
+      sourceBucket: 'other-bucket'
+    });
+    state.prefix = 'docs/sub/';
+
+    await state.executeAction('paste');
+
+    expect(transferredKeys(api)).toEqual(['docs/']);
+  });
+});
+
 describe('performMove', () => {
+  it('moves a folder into a same-named path in another bucket', () => {
+    const state = makeState(makeApi(), clipboard('copy', []));
+
+    state.performMove('dir/sub/', ['dir/'], 'other-bucket');
+
+    expect(state.activeModal?.type).toBe('confirm-move');
+  });
+
+  it('refuses to move a folder into itself', () => {
+    const state = makeState(makeApi(), clipboard('copy', []));
+
+    state.performMove('dir/sub/', ['dir/']);
+
+    expect(state.activeModal).toBeNull();
+  });
+
   it('moves an item to the same path in another bucket', () => {
     const state = makeState(makeApi(), clipboard('copy', []));
 

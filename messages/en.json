@@ -638,6 +638,7 @@
   ],
   "storage_action_paste_error_source_not_found": "Could not paste — the source items may have been deleted or moved.",
   "storage_action_paste_archive_error": "Cannot paste inside an archive.",
+  "storage_action_paste_into_itself_error": "Cannot paste a folder into itself.",
   "storage_action_move_success": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

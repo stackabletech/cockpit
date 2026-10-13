@@ -638,6 +638,7 @@
   ],
   "storage_action_paste_error_source_not_found": "Einfügen fehlgeschlagen — die Quell-Elemente wurden möglicherweise gelöscht oder verschoben.",
   "storage_action_paste_archive_error": "Einfügen innerhalb eines Archivs nicht möglich.",
+  "storage_action_paste_into_itself_error": "Ein Ordner kann nicht in sich selbst eingefügt werden.",
   "storage_action_move_success": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
