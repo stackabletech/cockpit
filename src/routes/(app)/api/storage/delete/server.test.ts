@@ -60,4 +60,12 @@ describe('DELETE /api/storage/delete', () => {
     expect(mockProvider.deleteObjects).toHaveBeenCalledWith(keys);
     expect(await response.json()).toEqual(result);
   });
+
+  it('deletes keys with characters and segments S3 allows', async () => {
+    const keys = ['odd/what?.csv', 'odd/a"b<c>d\\e|f', 'odd/..', 'odd/./x', '../escape.txt'];
+    mockProvider.deleteObjects.mockResolvedValue({ deleted: keys, failed: [] });
+
+    await DELETE(mockEvent({ bucket: 'b1' }, keys));
+    expect(mockProvider.deleteObjects).toHaveBeenCalledWith(keys);
+  });
 });

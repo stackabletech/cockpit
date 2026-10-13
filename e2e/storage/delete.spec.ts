@@ -56,6 +56,39 @@ test.describe('Storage S3 — Delete & Selection', () => {
     }
   });
 
+  test('deletes files whose keys use characters and segments S3 allows', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'delete-odd-keys');
+    const names = ['what?.csv', 'a"b<c>d|e\\f.txt', '..'];
+    const cleanupKeys = names.map((name) => `${prefix}${name}`);
+
+    try {
+      for (const key of cleanupKeys) {
+        await putTextObject(client, credentials.bucket, key, 'odd');
+      }
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await page.getByRole('button', { name: 'Toggle selection mode' }).click();
+      for (const name of names) {
+        await page.getByLabel(`Select ${name}`, { exact: true }).check();
+      }
+
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Delete permanently' }).click();
+
+      await expect(page.getByText('This bucket is empty')).toBeVisible();
+      for (const key of cleanupKeys) {
+        expect(await objectExists(client, credentials.bucket, key)).toBe(false);
+      }
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   test('cancel delete does not remove the selected file', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);

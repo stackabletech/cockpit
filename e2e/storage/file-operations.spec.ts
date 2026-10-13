@@ -406,6 +406,32 @@ test.describe('Storage S3 — File Operations', () => {
     }
   });
 
+  test('renames a file whose key uses characters S3 allows', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'rename-odd-key');
+    const oldKey = `${prefix}what?<a|b>.csv`;
+    const newKey = `${prefix}renamed.csv`;
+    const cleanupKeys = [oldKey, newKey];
+
+    try {
+      await putTextObject(client, credentials.bucket, oldKey, 'odd rename');
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'what?<a|b>.csv').click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Rename' }).click();
+      await page.locator('.modal-box input').fill('renamed.csv');
+      await page.getByRole('button', { name: 'Rename' }).click();
+
+      await expect.poll(() => objectExists(client, credentials.bucket, newKey)).toBe(true);
+      expect(await objectExists(client, credentials.bucket, oldKey)).toBe(false);
+      expect(await getObjectText(client, credentials.bucket, newKey)).toBe('odd rename');
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   test('rename conflict creates a uniquely named file', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);

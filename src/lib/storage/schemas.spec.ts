@@ -4,6 +4,7 @@ import {
   EditStorageConnectionSchema,
   ConnectionIdSchema,
   StorageObjectNameSchema,
+  StorageObjectKeySchema,
   CopyObjectsBodySchema,
   MoveObjectsBodySchema,
   DeleteObjectsBodySchema
@@ -257,6 +258,47 @@ describe('storage object schemas', () => {
       }).success
     ).toBe(false);
     expect(DeleteObjectsBodySchema.safeParse({ keys: [''] }).success).toBe(false);
+  });
+
+  const legalKeys = [
+    'reports/what?.csv',
+    'quote"d.txt',
+    '<tag>.html',
+    'back\\slash.txt',
+    'pipe|name',
+    'dir/.',
+    'dir/..',
+    '../escape.txt',
+    'a/./b/../c'
+  ];
+
+  it.each(legalKeys)('accepts the legal S3 key %j as an existing key', (key) => {
+    expect(StorageObjectKeySchema.safeParse(key).success).toBe(true);
+  });
+
+  it('rejects empty, over-long and control-character keys', () => {
+    expect(StorageObjectKeySchema.safeParse('').success).toBe(false);
+    expect(StorageObjectKeySchema.safeParse('a'.repeat(1024)).success).toBe(true);
+    expect(StorageObjectKeySchema.safeParse('ä'.repeat(513)).success).toBe(false);
+    expect(StorageObjectKeySchema.safeParse('bad\nname').success).toBe(false);
+    expect(StorageObjectKeySchema.safeParse('nul\u0000').success).toBe(false);
+  });
+
+  it('accepts legal S3 keys in delete, move and copy request bodies', () => {
+    expect(DeleteObjectsBodySchema.safeParse({ keys: legalKeys }).success).toBe(true);
+    expect(
+      MoveObjectsBodySchema.safeParse({
+        sourceKeys: ['odd/what?.csv'],
+        destinationKey: 'odd/../renamed.csv'
+      }).success
+    ).toBe(true);
+    expect(
+      MoveObjectsBodySchema.safeParse({ sourceKeys: legalKeys, destinationPrefix: 'x|y/../' })
+        .success
+    ).toBe(true);
+    expect(
+      CopyObjectsBodySchema.safeParse({ sourceKeys: legalKeys, destinationPrefix: 'a\\b/' }).success
+    ).toBe(true);
   });
 
   it('keeps leading and trailing whitespace in object keys', () => {

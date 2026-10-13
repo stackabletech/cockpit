@@ -24,12 +24,19 @@ function isValidHost(host: string): boolean {
   );
 }
 
-function hasInvalidStorageNameCharacter(value: string): boolean {
+function hasControlCharacter(value: string): boolean {
   return [...value].some((char) => {
     const codePoint = char.codePointAt(0)!;
-    return codePoint <= 0x1f || codePoint === 0x7f || '<>\\|?"'.includes(char);
+    return codePoint <= 0x1f || codePoint === 0x7f;
   });
 }
+
+function hasInvalidStorageNameCharacter(value: string): boolean {
+  return hasControlCharacter(value) || [...value].some((char) => '<>\\|?"'.includes(char));
+}
+
+/** S3 limits object keys to 1024 bytes of UTF-8. */
+const MAX_OBJECT_KEY_BYTES = 1024;
 
 const baseStorageConnectionObject = z.object({
   id: z.string().uuid().optional(),
@@ -105,8 +112,25 @@ export const ConnectionIdSchema = z.object({
 });
 
 /**
- * Object names accepted by the storage UI and API. Not trimmed: S3 keys may legitimately start or
- * end with whitespace, and trimming would address a different object. Callers trim user input.
+ * An existing object key sent back to the server (delete, move or copy source, rename source and
+ * destination). Other tools can create any key S3 accepts, including `?`, `\` or `..` segments,
+ * so only what S3 itself rejects is refused here, plus control characters. Not trimmed: trimming
+ * would address a different object. Keys never become local paths without sanitising.
+ */
+export const StorageObjectKeySchema = z
+  .string()
+  .min(1, 'Object key is required')
+  .refine(
+    (value) => new TextEncoder().encode(value).length <= MAX_OBJECT_KEY_BYTES,
+    'Object key is too long'
+  )
+  .refine((value) => !hasControlCharacter(value), 'Object key contains control characters');
+
+/**
+ * Object names the user types when creating or renaming. Stricter than StorageObjectKeySchema as a
+ * UX policy: names that are awkward in shells, URLs or other tools are refused. Not trimmed: S3
+ * keys may legitimately start or end with whitespace, and trimming would address a different
+ * object. Callers trim user input.
  */
 export const StorageObjectNameSchema = z
   .string()
@@ -129,19 +153,12 @@ export const ConflictRenameNameSchema = StorageObjectNameSchema.refine(
   'Name cannot contain "/"'
 );
 
-const StoragePrefixSchema = z
-  .string()
-  .refine(
-    (value) =>
-      value === '' ||
-      (!hasInvalidStorageNameCharacter(value) &&
-        value.split('/').every((part) => part !== '.' && part !== '..')),
-    'Object prefix contains invalid characters'
-  );
+/** An existing folder to paste into; empty for the bucket root. */
+const StoragePrefixSchema = z.union([z.literal(''), StorageObjectKeySchema]);
 
 export const CopyObjectsBodySchema = z
   .object({
-    sourceKeys: z.array(StorageObjectNameSchema).min(1, 'At least one source key is required'),
+    sourceKeys: z.array(StorageObjectKeySchema).min(1, 'At least one source key is required'),
     destinationPrefix: StoragePrefixSchema,
     sourceBucket: z.string().trim().min(1).optional(),
     jobId: z.string().min(1).optional()
@@ -150,9 +167,9 @@ export const CopyObjectsBodySchema = z
 
 export const MoveObjectsBodySchema = z
   .object({
-    sourceKeys: z.array(StorageObjectNameSchema).min(1, 'At least one source key is required'),
+    sourceKeys: z.array(StorageObjectKeySchema).min(1, 'At least one source key is required'),
     destinationPrefix: StoragePrefixSchema.optional(),
-    destinationKey: StorageObjectNameSchema.optional(),
+    destinationKey: StorageObjectKeySchema.optional(),
     sourceBucket: z.string().trim().min(1).optional(),
     jobId: z.string().min(1).optional()
   })
@@ -175,7 +192,7 @@ export const MoveObjectsBodySchema = z
   });
 
 export const DeleteObjectsBodySchema = z
-  .object({ keys: z.array(StorageObjectNameSchema).min(1, 'At least one object key is required') })
+  .object({ keys: z.array(StorageObjectKeySchema).min(1, 'At least one object key is required') })
   .strict();
 
 export const AddConnectionBucketBodySchema = z
