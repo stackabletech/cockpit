@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import { createStorageProvider, requireObjectKey } from '$lib/server/storage/request-context.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -14,8 +14,7 @@ import type { RequestHandler } from './$types';
  */
 export const POST: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
-  const key = event.url.searchParams.get('key');
-  if (!key) throw error(400, 'Missing required query parameter: key');
+  const key = requireObjectKey(event);
   const { locals, request } = event;
   const log = locals.logger;
 

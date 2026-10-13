@@ -6,7 +6,7 @@ import { getParquetPreview } from '$lib/server/storage/preview/parquet';
 import { getCsvPreview } from '$lib/server/storage/preview/csv';
 import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
-import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import { createStorageProvider, requireObjectKey } from '$lib/server/storage/request-context.js';
 import { infiniteScrollEnabled, filePreviewRows } from '$lib/server/feature-flags';
 import { PREVIEW_CHUNK_ROWS } from '$lib/storage/types.js';
 import type { RequestHandler } from './$types';
@@ -34,8 +34,7 @@ const previewRangeSchema = z.object({
  */
 export const GET: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
-  const key = event.url.searchParams.get('key');
-  if (!key) throw error(400, 'Missing required query parameter: key');
+  const key = requireObjectKey(event);
   const { url, locals } = event;
   const log = locals.logger;
 

@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { extractArchiveEntry, getArchiveFormat } from '$lib/server/storage/archive.js';
 import { getProvider } from '$lib/server/storage/utils.js';
+import { requireObjectKey } from '$lib/server/storage/request-context.js';
 import { withStorageHttpErrors } from '$lib/server/storage/wrap-provider.js';
 import { archivePreviewMaxBytes } from '$lib/server/feature-flags.js';
 import type { RequestHandler } from './$types';
@@ -22,12 +23,12 @@ import type { RequestHandler } from './$types';
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.
  */
-export const GET: RequestHandler = async ({ locals, url }) => {
+export const GET: RequestHandler = async (event) => {
+  const { locals, url } = event;
   const bucket = url.searchParams.get('bucket')?.trim();
   if (!bucket) throw error(400, 'Missing required query parameter: bucket');
 
-  const key = url.searchParams.get('key');
-  if (!key) throw error(400, 'Missing required query parameter: key');
+  const key = requireObjectKey(event);
 
   const internalPath = url.searchParams.get('path')?.trim();
   if (!internalPath) throw error(400, 'Missing required query parameter: path');

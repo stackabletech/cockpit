@@ -1,11 +1,10 @@
 import { error, isHttpError, json } from '@sveltejs/kit';
 import { z } from 'zod';
-import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import { createStorageProvider, requireObjectKey } from '$lib/server/storage/request-context.js';
 import { maxEditableFileSize } from '$lib/server/feature-flags.js';
 import type { RequestHandler } from './$types';
 
 const saveTextQuerySchema = z.object({
-  key: z.string().min(1, 'Missing required query parameter: key'),
   etag: z.string().trim().min(1, 'Missing required query parameter: etag'),
   contentType: z
     .string()
@@ -35,15 +34,15 @@ export const POST: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
   const log = event.locals.logger;
 
+  const key = requireObjectKey(event);
   const query = saveTextQuerySchema.safeParse({
-    key: event.url.searchParams.get('key') ?? '',
     etag: event.url.searchParams.get('etag') ?? '',
     contentType: event.url.searchParams.get('contentType') ?? undefined
   });
   if (!query.success) {
     throw error(400, query.error.issues[0]?.message ?? 'Invalid query parameters');
   }
-  const { key, etag, contentType } = query.data;
+  const { etag, contentType } = query.data;
 
   if (!event.request.body) throw error(400, 'Missing request body');
 

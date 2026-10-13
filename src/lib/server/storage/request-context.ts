@@ -4,11 +4,21 @@ import { getProvider } from './utils.js';
 import { withStorageHttpErrors } from './wrap-provider.js';
 import type { StorageProvider } from './provider.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
+import { StorageObjectKeySchema } from '$lib/storage/schemas.js';
 
 export function requireBucket(event: RequestEvent): string {
   const bucket = event.url.searchParams.get('bucket')?.trim();
   if (!bucket) throw error(400, 'Missing required query parameter: bucket');
   return bucket;
+}
+
+/** The `key` query parameter, validated as an S3 object key. */
+export function requireObjectKey(event: RequestEvent): string {
+  const key = event.url.searchParams.get('key');
+  if (!key) throw error(400, 'Missing required query parameter: key');
+  const parsed = StorageObjectKeySchema.safeParse(key);
+  if (!parsed.success) throw error(400, 'Invalid query parameter: key');
+  return parsed.data;
 }
 
 export function requireConfig(event: RequestEvent) {

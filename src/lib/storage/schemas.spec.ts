@@ -55,6 +55,27 @@ describe('StorageConnectionSchema', () => {
     expect(StorageConnectionSchema.safeParse({ host: '%/()$=("?§/(' }).success).toBe(false);
   });
 
+  it.each([
+    ['[::1]', '[::1]'],
+    ['[fd00::1]', '[fd00::1]'],
+    ['::1', '[::1]'],
+    ['http://[::1]:9000', '[::1]'],
+    ['https://[fd00::1]/path', '[fd00::1]']
+  ])('accepts IPv6 host %s and stores it bracketed', (host, expected) => {
+    const result = StorageConnectionSchema.safeParse({ host });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.host).toBe(expected);
+    }
+  });
+
+  it.each(['[::1', '::1]', '[]', '[not-ipv6]', '[127.0.0.1]', '[::1]:9000', 's3.example.com:9000'])(
+    'rejects invalid host %s',
+    (host) => {
+      expect(StorageConnectionSchema.safeParse({ host }).success).toBe(false);
+    }
+  );
+
   it('accepts port', () => {
     const result = StorageConnectionSchema.safeParse({ host: 's3.example.com', port: 9000 });
     expect(result.success).toBe(true);

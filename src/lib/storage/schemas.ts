@@ -15,13 +15,14 @@ function isValidHostname(host: string): boolean {
   });
 }
 
+function isIpv6(host: string): boolean {
+  return z.ipv6().safeParse(host).success;
+}
+
+/** Hosts are stored as they appear in a URL, so IPv6 literals are bracketed (`[::1]`). */
 function isValidHost(host: string): boolean {
-  return (
-    host === 'localhost' ||
-    z.ipv4().safeParse(host).success ||
-    z.ipv6().safeParse(host).success ||
-    isValidHostname(host)
-  );
+  if (host.startsWith('[') && host.endsWith(']')) return isIpv6(host.slice(1, -1));
+  return host === 'localhost' || z.ipv4().safeParse(host).success || isValidHostname(host);
 }
 
 function hasControlCharacter(value: string): boolean {
@@ -51,8 +52,8 @@ const baseStorageConnectionObject = z.object({
       return z.url().safeParse(value).success;
     }, 'Host must be a valid hostname or IP address')
     .transform((v) => {
-      if (!v.includes('://')) return v;
-      return new URL(v).hostname;
+      if (v.includes('://')) return new URL(v).hostname;
+      return isIpv6(v) ? `[${v}]` : v;
     })
     .refine(isValidHost, 'Host must be a valid hostname or IP address'),
   port: z.coerce
