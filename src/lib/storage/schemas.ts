@@ -114,9 +114,10 @@ export const ConnectionIdSchema = z.object({
 
 /**
  * An existing object key sent back to the server (delete, move or copy source, rename source and
- * destination). Other tools can create any key S3 accepts, including `?`, `\` or `..` segments,
- * so only what S3 itself rejects is refused here, plus control characters. Not trimmed: trimming
- * would address a different object. Keys never become local paths without sanitising.
+ * destination). Other tools can create any key S3 accepts, including `?`, `\`, `..` segments or
+ * control characters, so exactly S3's own constraint applies: non-empty and at most 1024 bytes of
+ * UTF-8. Not trimmed: trimming would address a different object. Keys never become local paths
+ * or header values without sanitising.
  */
 export const StorageObjectKeySchema = z
   .string()
@@ -124,8 +125,7 @@ export const StorageObjectKeySchema = z
   .refine(
     (value) => new TextEncoder().encode(value).length <= MAX_OBJECT_KEY_BYTES,
     'Object key is too long'
-  )
-  .refine((value) => !hasControlCharacter(value), 'Object key contains control characters');
+  );
 
 /**
  * Object names the user types when creating or renaming. Stricter than StorageObjectKeySchema as a

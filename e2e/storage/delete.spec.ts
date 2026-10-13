@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import { DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import {
   createS3Client,
   hasGarageCredentials,
@@ -86,6 +88,86 @@ test.describe('Storage S3 — Delete & Selection', () => {
       }
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('lists, previews, downloads and deletes keys with control characters, spaces, "+" and "%"', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'delete-encoded-keys');
+    // Displayed names collapse whitespace, as Playwright's text matching does.
+    const files = [
+      { name: 'tab\there.txt', shown: 'tab here.txt', body: 'tab body' },
+      { name: 'new\nline.txt', shown: 'new line.txt', body: 'newline body' },
+      { name: 'carriage\rreturn.txt', shown: 'carriage return.txt', body: 'return body' },
+      // XML cannot carry U+0001, so it is deleted outside the DeleteObjects batch.
+      { name: 'start\u0001of-heading.txt', shown: 'start\u0001of-heading.txt', body: 'soh body' },
+      { name: 'with space.txt', shown: 'with space.txt', body: 'space body' },
+      { name: 'plus+sign.txt', shown: 'plus+sign.txt', body: 'plus body' },
+      { name: '100%.txt', shown: '100%.txt', body: 'percent body' }
+    ];
+    const cleanupKeys = files.map(({ name }) => `${prefix}${name}`);
+
+    try {
+      for (const { name, body } of files) {
+        await putTextObject(client, credentials.bucket, `${prefix}${name}`, body);
+      }
+
+      // Garage supports url-encoded listings, echoes the encoding type the app checks before
+      // decoding, and its encoding decodes back to the stored keys with the app's rule (`+` is a
+      // space, then percent-decoding).
+      const listing = await client.send(
+        new ListObjectsV2Command({
+          Bucket: credentials.bucket,
+          Prefix: prefix,
+          EncodingType: 'url'
+        })
+      );
+      expect(listing.EncodingType).toBe('url');
+      const decoded = (listing.Contents ?? []).map(({ Key }) =>
+        decodeURIComponent((Key ?? '').replaceAll('+', ' '))
+      );
+      expect(decoded.sort()).toEqual([...cleanupKeys].sort());
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+      for (const { shown } of files) {
+        await expect(rowByName(page, shown)).toBeVisible();
+      }
+
+      for (const { shown, body } of files) {
+        await rowByName(page, shown).dblclick();
+        await expect(page.getByRole('heading', { name: shown })).toBeVisible();
+        await expect(page.getByText(body, { exact: true })).toBeVisible();
+        await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+        await expect(page.getByRole('heading', { name: shown })).not.toBeVisible();
+      }
+
+      for (const { shown, body } of files) {
+        await rowByName(page, shown).click({ button: 'right' });
+        const [download] = await Promise.all([
+          page.waitForEvent('download'),
+          page.getByRole('menuitem', { name: 'Download' }).click()
+        ]);
+        expect(await download.failure()).toBeNull();
+        expect(await readFile((await download.path())!, 'utf8')).toBe(body);
+      }
+
+      await page.getByRole('button', { name: 'Toggle selection mode' }).click();
+      await page.getByLabel('Select all').check();
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Delete permanently' }).click();
+
+      await expect(page.getByText('This bucket is empty')).toBeVisible();
+      for (const key of cleanupKeys) {
+        expect(await objectExists(client, credentials.bucket, key)).toBe(false);
+      }
+    } finally {
+      // DeleteObjects cannot name the U+0001 key, so every key is deleted on its own.
+      for (const key of cleanupKeys) {
+        await client.send(new DeleteObjectCommand({ Bucket: credentials.bucket, Key: key }));
+      }
     }
   });
 

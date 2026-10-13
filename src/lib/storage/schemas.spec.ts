@@ -290,19 +290,25 @@ describe('storage object schemas', () => {
     'dir/.',
     'dir/..',
     '../escape.txt',
-    'a/./b/../c'
+    'a/./b/../c',
+    'tab\tname.txt',
+    'new\nline.txt',
+    'carriage\rreturn.txt',
+    'start\u0001of heading.txt',
+    'nul\u0000.txt',
+    'del\u007f.txt'
   ];
 
   it.each(legalKeys)('accepts the legal S3 key %j as an existing key', (key) => {
     expect(StorageObjectKeySchema.safeParse(key).success).toBe(true);
   });
 
-  it('rejects empty, over-long and control-character keys', () => {
+  it('rejects only empty and over-long keys, as S3 does', () => {
     expect(StorageObjectKeySchema.safeParse('').success).toBe(false);
     expect(StorageObjectKeySchema.safeParse('a'.repeat(1024)).success).toBe(true);
+    expect(StorageObjectKeySchema.safeParse('ä'.repeat(512)).success).toBe(true);
     expect(StorageObjectKeySchema.safeParse('ä'.repeat(513)).success).toBe(false);
-    expect(StorageObjectKeySchema.safeParse('bad\nname').success).toBe(false);
-    expect(StorageObjectKeySchema.safeParse('nul\u0000').success).toBe(false);
+    expect(StorageObjectKeySchema.safeParse('\t'.repeat(1024)).success).toBe(true);
   });
 
   it('accepts legal S3 keys in delete, move and copy request bodies', () => {

@@ -29,11 +29,15 @@ describe('requireObjectKey', () => {
     );
   });
 
-  it.each([
-    ['too long', 'a'.repeat(1025)],
-    ['with control characters', 'a\nb']
-  ])('rejects a key %s with 400', (_, key) => {
-    expect(() => requireObjectKey(eventWithQuery({ key }))).toThrow(
+  it.each(['tab\tname', 'new\nline', 'carriage\rreturn', 'start\u0001of heading'])(
+    'accepts the control-character key %j, as S3 does',
+    (key) => {
+      expect(requireObjectKey(eventWithQuery({ key }))).toBe(key);
+    }
+  );
+
+  it('rejects a key longer than 1024 bytes with 400', () => {
+    expect(() => requireObjectKey(eventWithQuery({ key: 'a'.repeat(1025) }))).toThrow(
       expect.objectContaining({ status: 400, body: { message: 'Invalid query parameter: key' } })
     );
   });

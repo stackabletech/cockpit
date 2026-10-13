@@ -28,6 +28,7 @@ describe('objectNameError', () => {
 
   it('only checks the folder against S3 limits', () => {
     expect(objectNameError('new.txt', { prefix: 'reports?2024/../', folder: false })).toBeNull();
+    expect(objectNameError('new.txt', { prefix: 'tab\there/', folder: false })).toBeNull();
   });
 
   it('explains a name that makes the full key too long', () => {

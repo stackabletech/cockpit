@@ -5,6 +5,7 @@ import {
   ListObjectsV2Command,
   GetObjectCommand,
   HeadObjectCommand,
+  DeleteObjectCommand,
   DeleteObjectsCommand,
   PutObjectCommand,
   GetBucketVersioningCommand,
@@ -41,6 +42,52 @@ import { createS3Client } from './s3-client.js';
 import { mapS3ErrorToHttp } from './s3-errors.js';
 
 const log = logger.child({ module: 's3-provider' });
+
+/**
+ * Listings request `EncodingType: 'url'` so that keys with characters XML cannot carry (most
+ * control characters) or that XML parsing normalises (`\r`) arrive intact. S3 then encodes
+ * `Key`, `Prefix`, `CommonPrefixes[].Prefix`, `StartAfter` and `Delimiter` in the response, using
+ * form encoding: AWS sends a space as `+` and a literal `+` as `%2B`, so `+` is decoded as a space
+ * before percent-decoding, as botocore (the AWS SDK for Python) does. Continuation tokens are not
+ * encoded.
+ */
+const LIST_ENCODING_TYPE = 'url';
+
+/** Deletes of keys DeleteObjects cannot name run with this many requests in flight. */
+const SINGLE_DELETE_CONCURRENCY = 4;
+
+/**
+ * The decoder for a listing response's key fields. Only a response that echoes
+ * `EncodingType: 'url'` is decoded (as botocore does): a store that ignores the parameter returns
+ * raw keys, where `+` and `%` are literal.
+ */
+function listingDecoder(output: { EncodingType?: string }): (value: string) => string {
+  return output.EncodingType === LIST_ENCODING_TYPE ? decodeListingValue : (value) => value;
+}
+
+/** Decodes a url-encoded listing field. A malformed value is returned unchanged. */
+function decodeListingValue(value: string): string {
+  try {
+    return decodeURIComponent(value.replaceAll('+', ' '));
+  } catch {
+    log.warn({ encoded_value: value }, 'S3 listing returned a malformed url-encoded value');
+    return value;
+  }
+}
+
+/**
+ * Whether XML 1.0 can carry `key`. DeleteObjects names keys in an XML body, and S3 rejects the
+ * whole request as MalformedXML when a key holds a C0 control character other than tab, newline
+ * or carriage return (the SDK escapes those), a non-character or an unpaired surrogate.
+ */
+function isXmlSafeKey(key: string): boolean {
+  if (!key.isWellFormed()) return false;
+  return [...key].every((char) => {
+    const codePoint = char.codePointAt(0)!;
+    if (codePoint < 0x20) return codePoint === 0x09 || codePoint === 0x0a || codePoint === 0x0d;
+    return codePoint !== 0xfffe && codePoint !== 0xffff;
+  });
+}
 
 /** Runs `fn` and maps any S3ServiceException to an HTTP error via `mapS3ErrorToHttp`. */
 async function withS3Errors<T>(
@@ -90,25 +137,28 @@ export class S3StorageProvider implements StorageProvider {
             Prefix: prefix || undefined,
             Delimiter: '/',
             MaxKeys: pageSize,
-            ContinuationToken: continuationToken ?? undefined
+            ContinuationToken: continuationToken ?? undefined,
+            EncodingType: LIST_ENCODING_TYPE
           })
         ),
       { bucket: this.bucket, operation: 'listObjects' }
     );
 
+    const decode = listingDecoder(output);
     const objects: StorageObject[] = [
       ...(output.CommonPrefixes ?? []).map((cp) => ({
-        key: cp.Prefix ?? '',
+        key: decode(cp.Prefix ?? ''),
         size: 0,
         lastModified: new Date(0),
         isDirectory: true,
         contentType: undefined
       })),
       ...(output.Contents ?? [])
+        .map((obj) => ({ ...obj, Key: decode(obj.Key ?? '') }))
         // Filter out the prefix itself (S3 sometimes echoes it back)
         .filter((obj) => obj.Key !== prefix)
         .map((obj) => ({
-          key: obj.Key ?? '',
+          key: obj.Key,
           size: obj.Size ?? 0,
           lastModified: obj.LastModified ?? new Date(0),
           isDirectory: false,
@@ -327,8 +377,12 @@ export class S3StorageProvider implements StorageProvider {
     const MAX_KEYS = 1000;
     const allFailed: Array<{ key: string; code?: string; message?: string }> = [];
 
-    for (let i = 0; i < resolvedKeys.length; i += MAX_KEYS) {
-      const chunk = resolvedKeys.slice(i, i + MAX_KEYS);
+    // Keys XML cannot carry are deleted one by one, so they neither fail nor block a batch.
+    const batchKeys = resolvedKeys.filter(isXmlSafeKey);
+    allFailed.push(...(await this.deleteSingly(resolvedKeys.filter((key) => !isXmlSafeKey(key)))));
+
+    for (let i = 0; i < batchKeys.length; i += MAX_KEYS) {
+      const chunk = batchKeys.slice(i, i + MAX_KEYS);
       log.trace(
         { bucket: this.bucket, chunk_offset: i, chunk_size: chunk.length },
         'S3 DeleteObjects chunk'
@@ -361,6 +415,29 @@ export class S3StorageProvider implements StorageProvider {
       );
     }
     return { failed: allFailed };
+  }
+
+  /** Deletes keys with individual DeleteObject requests, a few at a time. */
+  private async deleteSingly(
+    keys: string[]
+  ): Promise<Array<{ key: string; code?: string; message?: string }>> {
+    const failed: Array<{ key: string; code?: string; message?: string }> = [];
+    const pending = [...keys];
+    const worker = async () => {
+      for (let key = pending.shift(); key !== undefined; key = pending.shift()) {
+        log.debug({ bucket: this.bucket, key }, 'S3 DeleteObject (key not representable in XML)');
+        try {
+          await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+        } catch (err) {
+          if (!(err instanceof S3ServiceException)) throw err;
+          failed.push({ key, code: err.name, message: err.message });
+        }
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(SINGLE_DELETE_CONCURRENCY, keys.length) }, worker)
+    );
+    return failed;
   }
 
   async getBucketVersioning(): Promise<'Enabled' | 'Suspended' | 'Disabled'> {
@@ -470,7 +547,8 @@ export class S3StorageProvider implements StorageProvider {
         new ListObjectsV2Command({
           Bucket: this.bucket,
           Prefix: prefix,
-          ContinuationToken: token
+          ContinuationToken: token,
+          EncodingType: LIST_ENCODING_TYPE
         }),
         { abortSignal: options?.signal }
       );
@@ -481,10 +559,15 @@ export class S3StorageProvider implements StorageProvider {
     while (inFlight.length > 0) {
       const output = await inFlight.shift()!;
 
+      const decode = listingDecoder(output);
       const batch: Array<{ key: string; size: number; lastModified?: Date }> = [];
       for (const obj of output.Contents ?? []) {
         if (obj.Key) {
-          batch.push({ key: obj.Key, size: obj.Size ?? 0, lastModified: obj.LastModified });
+          batch.push({
+            key: decode(obj.Key),
+            size: obj.Size ?? 0,
+            lastModified: obj.LastModified
+          });
         }
       }
       if (batch.length > 0) {
@@ -576,11 +659,13 @@ export class S3StorageProvider implements StorageProvider {
         new ListObjectsV2Command({
           Bucket: this.bucket,
           Prefix: prefix,
-          ContinuationToken: continuationToken
+          ContinuationToken: continuationToken,
+          EncodingType: LIST_ENCODING_TYPE
         })
       );
+      const decode = listingDecoder(output);
       for (const obj of output.Contents ?? []) {
-        if (obj.Key) keys.push(obj.Key);
+        if (obj.Key) keys.push(decode(obj.Key));
       }
       continuationToken = output.IsTruncated ? output.NextContinuationToken : undefined;
     } while (continuationToken);
