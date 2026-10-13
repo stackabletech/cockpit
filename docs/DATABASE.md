@@ -8,7 +8,7 @@ The following environment variables are required for database connection:
 
 ```env
 DATABASE_HOST=localhost          # PostgreSQL host
-DATABASE_PORT=31432              # PostgreSQL port (default: 5432)
+DATABASE_PORT=31432              # PostgreSQL port (default: 31432)
 DATABASE_NAME=cockpit            # Database name
 DATABASE_USER=cockpit            # Database user
 DATABASE_PASSWORD=cockpit-dev-password  # Database password
