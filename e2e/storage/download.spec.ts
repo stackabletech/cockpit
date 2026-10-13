@@ -136,13 +136,15 @@ test.describe('Storage S3 — Download', () => {
       expect(download.suggestedFilename()).toMatch(/\.zip$/);
       expect(await download.failure()).toBeNull();
       const zip = new AdmZip(await readFile((await download.path())!));
+      // Entries are named relative to the current folder; the content is the full key.
+      const entryName = (key: string) => key.slice(prefix.length);
       expect(
         zip
           .getEntries()
           .map((entry) => entry.entryName)
           .sort()
-      ).toEqual([...cleanupKeys].sort());
-      for (const key of cleanupKeys) expect(zip.readAsText(key)).toBe(key);
+      ).toEqual(cleanupKeys.map(entryName).sort());
+      for (const key of cleanupKeys) expect(zip.readAsText(entryName(key))).toBe(key);
       await expect
         .poll(() =>
           page.evaluate(() => {
@@ -167,7 +169,7 @@ test.describe('Storage S3 — Download', () => {
       ]);
       expect(await redownload.failure()).toBeNull();
       const recreatedZip = new AdmZip(await readFile((await redownload.path())!));
-      for (const key of cleanupKeys) expect(recreatedZip.readAsText(key)).toBe(key);
+      for (const key of cleanupKeys) expect(recreatedZip.readAsText(entryName(key))).toBe(key);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -196,7 +198,8 @@ test.describe('Storage S3 — Download', () => {
       expect(download.suggestedFilename()).toMatch(/\.zip$/);
       expect(await download.failure()).toBeNull();
       const zip = new AdmZip(await readFile((await download.path())!));
-      for (const key of cleanupKeys) expect(zip.readAsText(key)).toBe(key);
+      // Entries are named relative to the current folder; the content is the full key.
+      for (const key of cleanupKeys) expect(zip.readAsText(key.slice(prefix.length))).toBe(key);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
