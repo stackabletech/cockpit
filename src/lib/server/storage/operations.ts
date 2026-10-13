@@ -162,6 +162,13 @@ export async function processKeysSequentially(
 
   const resolvedDestinations: Array<DestEntry & { destKey: string }> = [];
   for (const { sourceKey, baseDestKey } of destinations) {
+    // Never copy an object onto itself: a move would then delete its only copy.
+    if (destinationProvider === provider && baseDestKey === sourceKey) {
+      logger?.warn({ bucket, source_key: sourceKey }, `${operationName} source equals destination`);
+      failed.push({ sourceKey, error: 'Source and destination are the same' });
+      await onCopyFailed?.(sourceKey, baseDestKey, 'Source and destination are the same');
+      continue;
+    }
     if (destinationKey && (await destinationProvider.exists(baseDestKey))) {
       failed.push({ sourceKey, error: 'Destination already exists' });
       await onCopyFailed?.(sourceKey, baseDestKey, 'Destination already exists');

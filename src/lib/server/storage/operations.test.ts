@@ -79,6 +79,18 @@ describe('processKeysSequentially', () => {
     expect(result.failed).toHaveLength(1);
     expect(source.deleteObjects).toHaveBeenCalledWith(['docs/good.txt'], false);
   });
+  it('never moves an object onto itself and deletes the source', async () => {
+    // `exists` reporting false simulates a stale check; the source must survive regardless.
+    const source = provider();
+    const result = await processKeysSequentially(source, ['docs/a.txt'], 'docs/', {
+      deleteOriginals: true
+    });
+    expect(source.copyObject).not.toHaveBeenCalled();
+    expect(source.deleteObjects).not.toHaveBeenCalled();
+    expect(result.failed).toEqual([
+      { sourceKey: 'docs/a.txt', error: 'Source and destination are the same' }
+    ]);
+  });
   it('streams a progress-enabled cross-bucket copy through the destination provider', async () => {
     const stream = new ReadableStream();
     const source = provider({

@@ -370,16 +370,16 @@ describe('executeAction("paste")', () => {
 
     it('calls the move API and updates clipboard to destination keys', async () => {
       const moveSpy = vi.fn().mockResolvedValue({
-        results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
+        results: [{ sourceKey: 'src/file.txt', destKey: 'file.txt' }],
         failed: 0
       });
       const state = makeState({ move: moveSpy });
       state.clipboardState.clipboard = {
         action: 'cut',
-        keys: ['file.txt'],
+        keys: ['src/file.txt'],
         sourceBucket: 'test-bucket',
-        sourcePrefix: '',
-        fileSizes: { 'file.txt': 100 }
+        sourcePrefix: 'src/',
+        fileSizes: { 'src/file.txt': 100 }
       };
 
       await state.executeAction('paste');
@@ -387,13 +387,13 @@ describe('executeAction("paste")', () => {
       expect(moveSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           bucket: 'test-bucket',
-          sourceKeys: ['file.txt']
+          sourceKeys: ['src/file.txt']
         })
       );
       // Clipboard updated to destination keys with action='copy'
       expect(state.clipboard).not.toBeNull();
       expect(state.clipboard!.action).toBe('copy');
-      expect(state.clipboard!.keys).toEqual(['dest/file.txt']);
+      expect(state.clipboard!.keys).toEqual(['file.txt']);
       expect(state.clipboard!.sourceBucket).toBe('test-bucket');
     });
 
@@ -402,17 +402,17 @@ describe('executeAction("paste")', () => {
       const state = makeState({ move: moveSpy });
       state.clipboardState.clipboard = {
         action: 'cut',
-        keys: ['file.txt'],
+        keys: ['src/file.txt'],
         sourceBucket: 'test-bucket',
-        sourcePrefix: '',
-        fileSizes: { 'file.txt': 100 }
+        sourcePrefix: 'src/',
+        fileSizes: { 'src/file.txt': 100 }
       };
 
       await state.executeAction('paste');
 
-      // Clipboard unchanged (still cut keys)
-      expect(state.clipboard!.action).toBe('cut');
-      expect(state.clipboard!.keys).toEqual(['file.txt']);
+      expect(moveSpy).toHaveBeenCalled();
+      expect(state.clipboard!.action).toBe('cut'); // Clipboard unchanged (still cut keys)
+      expect(state.clipboard!.keys).toEqual(['src/file.txt']);
     });
   });
 });

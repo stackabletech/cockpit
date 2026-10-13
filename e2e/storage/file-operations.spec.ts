@@ -196,6 +196,89 @@ test.describe('Storage S3 — File Operations', () => {
     }
   });
 
+  test('pasting a folder over an existing folder asks before replacing it', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'paste-folder-conflict');
+    const srcFile = `${prefix}src/docs/new.txt`;
+    const destRoot = `${prefix}dest/docs/`;
+    const cleanupKeys = [
+      `${prefix}src/`,
+      srcFile,
+      `${prefix}dest/`,
+      `${destRoot}old.txt`,
+      `${destRoot}new.txt`,
+      `${prefix}dest/docs (1)/new.txt`
+    ];
+
+    try {
+      await putDirectoryMarker(client, credentials.bucket, `${prefix}src/`);
+      await putTextObject(client, credentials.bucket, srcFile, 'new');
+      await putDirectoryMarker(client, credentials.bucket, `${prefix}dest/`);
+      await putTextObject(client, credentials.bucket, `${destRoot}old.txt`, 'old');
+
+      await connectAndOpenPrefix(page, credentials, `${prefix}src/`);
+      await rowByName(page, 'docs').click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Copy', exact: true }).click();
+
+      await page.locator('tbody tr').first().click();
+      await rowByName(page, 'dest').dblclick();
+      await expect(rowByName(page, 'docs')).toBeVisible();
+      await page.locator('table').click();
+      await page.keyboard.press('Control+v');
+
+      const conflictDialog = page.getByRole('dialog');
+      await expect(conflictDialog.getByText('Files already exist', { exact: true })).toBeVisible();
+      await conflictDialog.getByRole('button', { name: 'Replace all' }).click();
+      await conflictDialog.getByRole('button', { name: 'Paste', exact: true }).click();
+
+      await expect
+        .poll(() => objectExists(client, credentials.bucket, `${destRoot}new.txt`))
+        .toBe(true);
+      expect(await objectExists(client, credentials.bucket, `${destRoot}old.txt`)).toBe(false);
+      expect(await getObjectText(client, credentials.bucket, srcFile)).toBe('new');
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('copying items into their own folder never deletes them', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'paste-same-folder');
+    const file = `${prefix}keep.txt`;
+    const folderFile = `${prefix}docs/inner.txt`;
+    const cleanupKeys = [file, folderFile, `${prefix}keep (1).txt`, `${prefix}docs (1)/inner.txt`];
+
+    try {
+      await putTextObject(client, credentials.bucket, file, 'keep');
+      await putTextObject(client, credentials.bucket, folderFile, 'inner');
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await page.getByRole('button', { name: 'Toggle selection mode' }).click();
+      await page.getByLabel('Select keep.txt').check();
+      await page.getByLabel('Select docs').check();
+      await page.keyboard.press('Control+c');
+      await page.keyboard.press('Control+v');
+
+      // Before the fix the folder was missed, so a dialog offered to replace the file.
+      await page.waitForTimeout(1000);
+      const conflictDialog = page.getByRole('dialog');
+      if (await conflictDialog.getByText('Files already exist', { exact: true }).isVisible()) {
+        await conflictDialog.getByRole('button', { name: 'Replace all' }).click();
+        await conflictDialog.getByRole('button', { name: 'Paste', exact: true }).click();
+        await page.waitForTimeout(1000);
+      }
+
+      expect(await getObjectText(client, credentials.bucket, file)).toBe('keep');
+      expect(await getObjectText(client, credentials.bucket, folderFile)).toBe('inner');
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   // ──────────────────────────────────────────────────────────────────────────
   // Rename
   // ──────────────────────────────────────────────────────────────────────────
