@@ -146,53 +146,27 @@ describe('paste conflict detection', () => {
 });
 
 describe('paste into the source folder', () => {
-  it('never deletes the source when copying a file and folder back with Replace', async () => {
+  it('copies items pasted into their own folder without asking, so the server renames them', async () => {
     const api = makeApi();
     const state = makeState(api, clipboard('copy', ['file.txt', 'dir/']));
 
-    await pasteResolvingWith(state, 'replace');
+    await state.executeAction('paste');
 
+    expect(state.activeModal).toBeNull();
     expect(deletedKeys(api)).toEqual([]);
-    expect(transferredKeys(api)).toEqual([]);
+    expect(transferredKeys(api)).toEqual(['file.txt', 'dir/']);
+    expect(api.copy).toHaveBeenCalledWith(expect.objectContaining({ destinationPrefix: '' }));
   });
 
-  it('never deletes the source when a same-folder copy has only partial conflicts', async () => {
-    // The folder check fails, so only `file.txt` is reported as a conflict.
-    const api = makeApi({
-      checkObjectExists: async ({ key }) => {
-        if (key === 'dir/') throw new Error('network');
-        return EXISTING_FILES.has(key);
-      }
-    });
-    const state = makeState(api, clipboard('copy', ['file.txt', 'dir/']));
+  it('never offers Replace for an item pasted into its own folder', async () => {
+    const api = makeApi();
+    const state = makeState(api, clipboard('copy', ['file.txt', 'other/dir/']));
 
     const entries = await pasteResolvingWith(state, 'replace');
 
-    expect(entries?.filter((e) => e.conflict).map((e) => e.originalName)).toEqual(['file.txt']);
-    expect(deletedKeys(api)).not.toContain('file.txt');
-    expect(transferredKeys(api)).not.toContain('file.txt');
-  });
-
-  it('still allows Keep both when copying into the source folder', async () => {
-    const api = makeApi({
-      copy: vi.fn().mockResolvedValue({
-        results: [{ sourceKey: 'file.txt', destKey: 'file (1).txt' }],
-        failed: 0
-      }),
-      checkObjectExists: async ({ key }) => key === 'file.txt'
-    });
-    const state = makeState(api, clipboard('copy', ['file.txt', 'other/new.txt']));
-
-    await state.executeAction('paste');
-    const entries = (state.activeModal!.payload as { entries: ConflictEntry[] }).entries;
-    await state.confirmConflictResolution(
-      entries.map((e) => ({ ...e, resolution: 'rename', customName: `copy-${e.originalName}` }))
-    );
-
-    expect(deletedKeys(api)).toEqual([]);
-    expect(api.move).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceKeys: ['file (1).txt'], destinationKey: 'copy-file.txt' })
-    );
+    expect(entries?.filter((e) => e.conflict).map((e) => e.originalName)).toEqual(['dir']);
+    expect(deletedKeys(api)).toEqual(['dir/']);
+    expect(transferredKeys(api)).toEqual(['file.txt', 'other/dir/']);
   });
 
   it('skips cut items already in the destination and moves only the others', async () => {
@@ -229,5 +203,47 @@ describe('paste into the source folder', () => {
 
     expect(deletedKeys(api)).toEqual([]);
     expect(transferredKeys(api)).toEqual([]);
+  });
+});
+
+describe('cut and paste with conflicts', () => {
+  it('points the clipboard at the moved items so a second paste cannot delete them', async () => {
+    const api = makeApi({
+      move: vi.fn().mockResolvedValue({
+        results: [{ sourceKey: 'src/file.txt', destKey: 'file.txt' }],
+        failed: 0
+      })
+    });
+    const state = makeState(api, clipboard('cut', ['src/file.txt']));
+
+    await pasteResolvingWith(state, 'replace');
+
+    expect(deletedKeys(api)).toEqual(['file.txt']);
+    expect(state.clipboard).toEqual(
+      expect.objectContaining({ action: 'copy', keys: ['file.txt'], sourceBucket: 'test-bucket' })
+    );
+
+    await pasteResolvingWith(state, 'replace');
+
+    expect(deletedKeys(api)).toEqual(['file.txt']);
+    expect(api.copy).toHaveBeenCalledWith(expect.objectContaining({ sourceKeys: ['file.txt'] }));
+  });
+});
+
+describe('performMove', () => {
+  it('moves an item to the same path in another bucket', () => {
+    const state = makeState(makeApi(), clipboard('copy', []));
+
+    state.performMove('', ['file.txt'], 'other-bucket');
+
+    expect(state.activeModal?.type).toBe('confirm-move');
+  });
+
+  it('ignores a move into the folder the item already lives in', () => {
+    const state = makeState(makeApi(), clipboard('copy', []));
+
+    state.performMove('', ['file.txt']);
+
+    expect(state.activeModal).toBeNull();
   });
 });

@@ -244,7 +244,7 @@ test.describe('Storage S3 — File Operations', () => {
     }
   });
 
-  test('copying items into their own folder never deletes them', async ({ page }, testInfo) => {
+  test('copying items into their own folder creates renamed copies', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'paste-same-folder');
@@ -263,15 +263,14 @@ test.describe('Storage S3 — File Operations', () => {
       await page.keyboard.press('Control+c');
       await page.keyboard.press('Control+v');
 
-      // Before the fix the folder was missed, so a dialog offered to replace the file.
-      await page.waitForTimeout(1000);
-      const conflictDialog = page.getByRole('dialog');
-      if (await conflictDialog.getByText('Files already exist', { exact: true }).isVisible()) {
-        await conflictDialog.getByRole('button', { name: 'Replace all' }).click();
-        await conflictDialog.getByRole('button', { name: 'Paste', exact: true }).click();
-        await page.waitForTimeout(1000);
-      }
-
+      // Pasting onto themselves is not a conflict: the server copies to unique names.
+      await expect
+        .poll(() => objectExists(client, credentials.bucket, `${prefix}keep (1).txt`))
+        .toBe(true);
+      await expect
+        .poll(() => objectExists(client, credentials.bucket, `${prefix}docs (1)/inner.txt`))
+        .toBe(true);
+      await expect(page.getByText('Files already exist', { exact: true })).toHaveCount(0);
       expect(await getObjectText(client, credentials.bucket, file)).toBe('keep');
       expect(await getObjectText(client, credentials.bucket, folderFile)).toBe('inner');
     } finally {

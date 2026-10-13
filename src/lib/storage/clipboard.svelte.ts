@@ -165,11 +165,13 @@ export class ClipboardState {
     if (pasteKeys.length === 0) return;
 
     // ── Check for name conflicts at destination ──────────────────────
-    const conflictEntries = await this._checkDestinationConflicts(pasteKeys, destPrefix);
+    const conflictEntries = await this._checkDestinationConflicts(
+      pasteKeys,
+      destPrefix,
+      bucket,
+      pasteClipboard.sourceBucket
+    );
     const hasConflicts = conflictEntries.some((e) => e.conflict);
-    // Replacing items with themselves would delete the sources before the move
-    // runs. Treat a fully conflicting same-location paste as a no-op instead.
-    if (this._isSameLocationPaste(pasteClipboard, destPrefix, conflictEntries)) return;
     if (hasConflicts) {
       const totalBytes = pasteKeys.reduce((sum, k) => sum + (pasteClipboard.fileSizes[k] ?? 0), 0);
       this._pendingConflictOp = {
@@ -270,21 +272,12 @@ export class ClipboardState {
       } else {
         addToast('success', m.storage_action_paste_success({ count: results.length }));
       }
-      // After a cut paste (move), update clipboard keys to the destination
-      // keys so subsequent pastes copy from the newly created files.
-      if (wasCut && results.length > 0) {
-        const destKeys = results.map((r) => r.destKey);
-        // Invalidate source tabs so they refetch (items moved out)
-        if (pasteClipboard.sourcePrefix) {
-          this._callbacks.invalidateSourceTabs(pasteClipboard.sourcePrefix);
-        }
-        this.clipboard = {
-          action: 'copy',
-          keys: destKeys,
-          sourceBucket: bucket,
-          sourcePrefix: this._callbacks.getPrefix(),
-          fileSizes: newFileSizes
-        };
+      if (wasCut) {
+        this._pointClipboardAtMovedItems(
+          results.map((r) => r.destKey),
+          newFileSizes,
+          pasteClipboard.sourcePrefix
+        );
       }
       this._callbacks.refresh();
       // Invalidate background tabs viewing the destination
@@ -317,7 +310,9 @@ export class ClipboardState {
     if (!storageMoveEnabled) return;
     const objects = this._callbacks.getObjects();
     const requestedKeys = keys ?? [...this._callbacks.getSelectedKeys()];
-    const moveKeys = requestedKeys.filter((key) => !this._isAlreadyInDestination(key, destPrefix));
+    const moveKeys = requestedKeys.filter(
+      (key) => !this._isSelfDestination(key, destPrefix, destBucket)
+    );
     if (moveKeys.length === 0) return;
 
     // Don't move items that are already directly inside destPrefix (no-op).
@@ -352,7 +347,12 @@ export class ClipboardState {
     const bucket = this._callbacks.getBucket();
 
     // ── Check for name conflicts at destination ──────────────────────────
-    const conflictEntries = await this._checkDestinationConflicts(moveKeys, destPrefix, destBucket);
+    const conflictEntries = await this._checkDestinationConflicts(
+      moveKeys,
+      destPrefix,
+      destBucket,
+      bucket
+    );
     const hasConflicts = conflictEntries.some((e) => e.conflict);
     if (hasConflicts) {
       const totalBytes = items.reduce((sum, item) => sum + (item.size ?? 0), 0);
@@ -641,12 +641,15 @@ export class ClipboardState {
 
   /**
    * Check which destination keys already exist, returning ConflictEntry[]
-   * with conflict=true for existing keys.
+   * with conflict=true for existing keys. An item pasted onto itself is never
+   * a conflict: the server copies it to a unique name, and offering "replace"
+   * would delete the source.
    */
   private async _checkDestinationConflicts(
     keys: string[],
     destPrefix: string,
-    bucket = this._callbacks.getBucket()
+    bucket: string,
+    sourceBucket: string
   ): Promise<ConflictEntry[]> {
     const results: ConflictEntry[] = [];
 
@@ -655,7 +658,9 @@ export class ClipboardState {
       const destKey = this._destKey(key, destPrefix);
       let conflict = false;
       try {
-        conflict = await this._destinationExists(bucket, destKey);
+        conflict =
+          !(sourceBucket === bucket && destKey === key) &&
+          (await this._destinationExists(bucket, destKey));
       } catch {
         // If the check fails, assume no conflict and proceed
       }
@@ -677,22 +682,7 @@ export class ClipboardState {
    * Delete conflicting destination files before copy/move to prevent
    * the server from auto-renaming them with " (2)" suffix.
    */
-  private async _deleteConflictingDests(
-    destPrefix: string,
-    resolvedEntries: ConflictEntry[],
-    bucket: string,
-    sourceBucket: string
-  ): Promise<void> {
-    const keysToDelete: string[] = [];
-    for (const entry of resolvedEntries) {
-      if (entry.resolution === 'skip' || entry.resolution === 'rename') continue;
-      if (!entry.conflict) continue;
-      const sourceKey = entry.sourceKey ?? entry.originalName;
-      const destKey = this._destKey(sourceKey, destPrefix);
-      if (sourceBucket === bucket && this._replaceDestroysSource(sourceKey, destKey)) continue;
-      keysToDelete.push(destKey);
-    }
-
+  private async _deleteConflictingDests(bucket: string, keysToDelete: string[]): Promise<void> {
     if (keysToDelete.length === 0) return;
 
     try {
@@ -718,19 +708,17 @@ export class ClipboardState {
     // Split keys by resolution
     const replaceKeys: string[] = [];
     const renameKeys: Array<{ sourceKey: string; newName: string }> = [];
+    const keysToDelete: string[] = [];
 
     for (const key of pending.keys) {
       const entry = resolvedMap.get(key) ?? resolvedMap.get(keyToName(key));
       if (!entry || entry.resolution === 'skip') continue;
       if (entry.resolution === 'rename') {
         renameKeys.push({ sourceKey: key, newName: entry.customName.trim() });
-      } else if (
-        entry.conflict &&
-        pending.sourceBucket === bucket &&
-        this._replaceDestroysSource(key, this._destKey(key, pending.destPrefix))
-      ) {
-        // Replacing an item with itself (or with a folder that contains it) is a no-op.
-        continue;
+      } else if (entry.conflict) {
+        const target = this._replaceTarget(key, pending.destPrefix, pending.sourceBucket, bucket);
+        if (target === null) continue;
+        keysToDelete.push(target);
       }
       replaceKeys.push(key);
     }
@@ -756,12 +744,7 @@ export class ClipboardState {
       pending.totalBytes
     );
 
-    await this._deleteConflictingDests(
-      pending.destPrefix,
-      resolvedEntries,
-      bucket,
-      pending.sourceBucket
-    );
+    await this._deleteConflictingDests(bucket, keysToDelete);
 
     try {
       const { results, failed } = await this._performPasteSequential(
@@ -783,6 +766,7 @@ export class ClipboardState {
 
       // Handle renamed files: rename the already-pasted destination file
       const destKeyMap = new SvelteMap(results.map((r) => [r.sourceKey, r.destKey]));
+      const renamedDestKeys = new SvelteMap<string, string>();
       let renameFailed = 0;
       for (const rename of renameKeys) {
         if (abortController.signal.aborted) break;
@@ -800,6 +784,7 @@ export class ClipboardState {
             destinationPrefix: '',
             destinationKey: newKey
           });
+          renamedDestKeys.set(destKey, newKey);
           this._operations.updateOpProgress(
             opId,
             replaceKeys.length + renameKeys.indexOf(rename) + 1,
@@ -822,6 +807,16 @@ export class ClipboardState {
           'success',
           m.storage_action_paste_success({ count: replaceKeys.length + renameKeys.length })
         );
+      }
+      if (pending.wasCut) {
+        const movedKeys: string[] = [];
+        const movedSizes: Record<string, number> = {};
+        for (const r of results) {
+          const destKey = renamedDestKeys.get(r.destKey) ?? r.destKey;
+          movedKeys.push(destKey);
+          if (!destKey.endsWith('/')) movedSizes[destKey] = pending.fileSizes[r.sourceKey] ?? 0;
+        }
+        this._pointClipboardAtMovedItems(movedKeys, movedSizes, pending.sourcePrefix);
       }
       this._callbacks.refresh();
     } catch (err: unknown) {
@@ -857,19 +852,26 @@ export class ClipboardState {
     // They will be renamed at source first, then added to replaceKeys before the move loop.
     const replaceKeys: string[] = [];
     const renameKeys: Array<{ sourceKey: string; newName: string }> = [];
+    const keysToDelete: string[] = [];
 
     for (const key of pending.keys) {
       const entry = resolvedMap.get(key) ?? resolvedMap.get(keyToName(key));
       if (!entry || entry.resolution === 'skip') continue;
       if (entry.resolution === 'rename') {
         renameKeys.push({ sourceKey: key, newName: entry.customName.trim() });
-      } else if (
-        !entry.conflict ||
-        this._callbacks.getBucket() !== bucket ||
-        !this._replaceDestroysSource(key, this._destKey(key, pending.destPrefix))
-      ) {
-        replaceKeys.push(key);
+        continue;
       }
+      if (entry.conflict) {
+        const target = this._replaceTarget(
+          key,
+          pending.destPrefix,
+          this._callbacks.getBucket(),
+          bucket
+        );
+        if (target === null) continue;
+        keysToDelete.push(target);
+      }
+      replaceKeys.push(key);
     }
 
     if (replaceKeys.length === 0 && renameKeys.length === 0) return;
@@ -895,12 +897,7 @@ export class ClipboardState {
     );
 
     // Only delete conflicting destinations for "replace" entries
-    await this._deleteConflictingDests(
-      pending.destPrefix,
-      resolvedEntries,
-      bucket,
-      this._callbacks.getBucket()
-    );
+    await this._deleteConflictingDests(bucket, keysToDelete);
 
     try {
       const results: Array<{ sourceKey: string; destKey: string }> = [];
@@ -1047,9 +1044,44 @@ export class ClipboardState {
     return destPrefix + keyToName(key) + (key.endsWith('/') ? '/' : '');
   }
 
-  /** True when deleting `destKey` (recursively for folders) would remove `sourceKey`. */
-  private _replaceDestroysSource(sourceKey: string, destKey: string): boolean {
-    return sourceKey === destKey || (destKey.endsWith('/') && sourceKey.startsWith(destKey));
+  /**
+   * Destination key that "replace" deletes before pasting `sourceKey`, or null
+   * when deleting it (recursively for folders) would remove the source itself.
+   */
+  private _replaceTarget(
+    sourceKey: string,
+    destPrefix: string,
+    sourceBucket: string,
+    destBucket: string
+  ): string | null {
+    const destKey = this._destKey(sourceKey, destPrefix);
+    const destroysSource =
+      sourceBucket === destBucket &&
+      (sourceKey === destKey || (destKey.endsWith('/') && sourceKey.startsWith(destKey)));
+    return destroysSource ? null : destKey;
+  }
+
+  /**
+   * After a cut has been pasted, point the clipboard at the moved items so a
+   * later paste copies them instead of re-moving (and replacing) the originals.
+   */
+  private _pointClipboardAtMovedItems(
+    destKeys: string[],
+    fileSizes: Record<string, number>,
+    sourcePrefix: string
+  ): void {
+    if (destKeys.length === 0) return;
+    // Invalidate source tabs so they refetch (items moved out)
+    if (sourcePrefix) {
+      this._callbacks.invalidateSourceTabs(sourcePrefix);
+    }
+    this.clipboard = {
+      action: 'copy',
+      keys: destKeys,
+      sourceBucket: this._callbacks.getBucket(),
+      sourcePrefix: this._callbacks.getPrefix(),
+      fileSizes
+    };
   }
 
   /** Check whether a file or folder (marker or any child) exists at `destKey`. */
@@ -1058,19 +1090,5 @@ export class ClipboardState {
     if (!destKey.endsWith('/')) return false;
     const page = await this._api.list({ bucket, prefix: destKey, pageSize: 1 });
     return page.objects.length > 0;
-  }
-
-  /** A paste can only overwrite its source when every item is already at its destination. */
-  private _isSameLocationPaste(
-    clipboard: ClipboardData,
-    destPrefix: string,
-    conflictEntries: ConflictEntry[]
-  ): boolean {
-    return (
-      clipboard.sourceBucket === this._callbacks.getBucket() &&
-      clipboard.sourcePrefix === destPrefix &&
-      clipboard.keys.every((key) => this._isAlreadyInDestination(key, destPrefix)) &&
-      conflictEntries.every((entry) => entry.conflict)
-    );
   }
 }
