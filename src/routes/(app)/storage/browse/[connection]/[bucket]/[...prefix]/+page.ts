@@ -22,8 +22,13 @@ const EMPTY_PAGE: StoragePage = {
  * On success during SSR we still return hydrating data; the client re-fetches
  * and updates the page after hydration.
  */
-export const load: PageLoad = async ({ fetch, url, data }) => {
+export const load: PageLoad = async ({ fetch, url, data, parent }) => {
   const { connection, bucket, prefix } = data;
+
+  // The storage layout load populates `connectionStore`. Without waiting for it,
+  // the store can still be empty after a full page load and the hostname check
+  // below would redirect a valid browse route to the overview.
+  if (browser) await parent();
 
   const connectionId = connectionStore.activeConnectionId ?? data.activeConnectionId;
   if (!connectionId) throw redirect(303, '/storage');
