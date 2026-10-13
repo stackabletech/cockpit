@@ -128,6 +128,13 @@ ENV STACKABLE_USER_UID=782252253 \
     STACKABLE_USER_NAME=stackable \
     NODE_ENV=production
 
+# adapter-node rejects request bodies above BODY_SIZE_LIMIT (default 512K).
+# The text editor saves whole files of up to
+# PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE (default 5 MiB), so the limit
+# must be at least that; 6M leaves headroom. Raise both together. The E2E app
+# reads this value from here (e2e/support/start-app.ts).
+ENV BODY_SIZE_LIMIT=6M
+
 # The runtime only needs the node binary itself: the adapter-node output is
 # started with `node build/index.js` and never shells out to npm. Copying just
 # the binary keeps npm/npx/corepack and their bundled dependencies out of the

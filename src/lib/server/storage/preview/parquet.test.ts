@@ -42,6 +42,7 @@ function makeProvider(overrides: Partial<StorageProvider> = {}): StorageProvider
     getMetadata: vi.fn(),
     exists: vi.fn(),
     putObject: vi.fn(),
+    putObjectIfMatch: vi.fn(),
     deleteObjects: vi.fn(),
     listAllKeys: vi.fn(),
     listAllKeysProgressively: vi.fn(),

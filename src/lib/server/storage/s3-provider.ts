@@ -19,6 +19,7 @@ import {
   type ListObjectsV2CommandOutput
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
+import { error } from '@sveltejs/kit';
 import type {
   StorageProvider,
   ObjectDownload,
@@ -244,6 +245,59 @@ export class S3StorageProvider implements StorageProvider {
       });
     }
     await withS3Errors(() => upload.done(), { bucket: this.bucket, key, operation: 'putObject' });
+  }
+
+  async putObjectIfMatch(
+    key: string,
+    body: Buffer,
+    contentType: string,
+    etag: string
+  ): Promise<string | undefined> {
+    log.trace(
+      { bucket: this.bucket, key, content_type: contentType, content_length: body.length },
+      'S3 PutObject (If-Match)'
+    );
+    const put = (ifMatch?: string) =>
+      this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: body,
+          ContentType: contentType,
+          ContentLength: body.length,
+          ...(ifMatch !== undefined ? { IfMatch: ifMatch } : {})
+        })
+      );
+
+    try {
+      return (await put(etag)).ETag;
+    } catch (err) {
+      if (!(err instanceof S3ServiceException)) throw err;
+      const status = err.$metadata?.httpStatusCode;
+      // 412: ETag no longer matches. 409: concurrent conditional write.
+      // 404: the object was deleted since it was loaded.
+      if (status === 412 || status === 409 || status === 404) {
+        log.info(
+          { bucket: this.bucket, key, error_code: err.name, status_code: status },
+          'conditional PutObject rejected: object changed since it was loaded'
+        );
+        throw error(409, 'The object was modified since it was loaded');
+      }
+      // Providers without conditional-write support reject the header. The
+      // caller's HEAD comparison is then the only (racy) guard.
+      if (status === 501) {
+        log.warn(
+          { bucket: this.bucket, key, error_code: err.name },
+          'S3 provider does not support If-Match on PutObject; retrying unconditionally'
+        );
+        return withS3Errors(async () => (await put()).ETag, {
+          bucket: this.bucket,
+          key,
+          operation: 'putObject'
+        });
+      }
+      return mapS3ErrorToHttp(err, { bucket: this.bucket, key, operation: 'putObject' });
+    }
   }
 
   async deleteObjects(keys: string[], expandDirectories = true): Promise<DeleteObjectsResult> {

@@ -1,134 +1,104 @@
-import { error } from '@sveltejs/kit';
+import { error, isHttpError, json } from '@sveltejs/kit';
+import { z } from 'zod';
 import { createStorageProvider } from '$lib/server/storage/request-context.js';
 import { maxEditableFileSize } from '$lib/server/feature-flags.js';
 import type { RequestHandler } from './$types';
 
+const saveTextQuerySchema = z.object({
+  key: z.string().min(1, 'Missing required query parameter: key'),
+  etag: z.string().trim().min(1, 'Missing required query parameter: etag'),
+  contentType: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || 'text/plain')
+});
+
+const conflictMessage = 'The object was modified since it was loaded';
+
 /**
- * POST /api/storage/save-text?bucket=<bucket>&key=<object-key>&originalSize=<n>&previewBytes=<n>&contentType=<type>
+ * POST /api/storage/save-text?bucket=<bucket>&key=<object-key>&etag=<etag>&contentType=<type>
  *
- * Saves edited text content for a storage object. The request body is the raw
- * text to save. When `previewBytes < originalSize`, the tail of the original
- * file is fetched and merged with the edited portion so only the beginning of
- * the file was transmitted to the client for editing.
+ * Replaces a storage object with the edited text in the request body. The body
+ * is the complete new file content; the client only offers editing when it
+ * loaded the complete, losslessly decoded file.
+ *
+ * `etag` is the ETag the content was loaded with. The save is refused with 409
+ * when the object changed (or was deleted) since then: the current ETag is
+ * compared via HEAD, and the PUT itself is conditional (`If-Match`) on
+ * providers that support it. Responds with `{ etag }` of the written object.
  *
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.
  */
 export const POST: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
-  const key = event.url.searchParams.get('key');
-  if (!key) throw error(400, 'Missing required query parameter: key');
   const log = event.locals.logger;
 
-  const contentType = event.url.searchParams.get('contentType')?.trim() || 'text/plain';
-  const rawOriginalSize = event.url.searchParams.get('originalSize');
-  const rawPreviewBytes = event.url.searchParams.get('previewBytes');
-  const originalSize = rawOriginalSize ? parseInt(rawOriginalSize, 10) : NaN;
-  const previewBytes = rawPreviewBytes ? parseInt(rawPreviewBytes, 10) : originalSize;
-
-  if (!Number.isFinite(originalSize) || originalSize < 0) {
-    throw error(400, 'Invalid originalSize: must be a non-negative integer');
+  const query = saveTextQuerySchema.safeParse({
+    key: event.url.searchParams.get('key') ?? '',
+    etag: event.url.searchParams.get('etag') ?? '',
+    contentType: event.url.searchParams.get('contentType') ?? undefined
+  });
+  if (!query.success) {
+    throw error(400, query.error.issues[0]?.message ?? 'Invalid query parameters');
   }
-  if (!Number.isFinite(previewBytes) || previewBytes < 0) {
-    throw error(400, 'Invalid previewBytes: must be a non-negative integer');
-  }
+  const { key, etag, contentType } = query.data;
 
   if (!event.request.body) throw error(400, 'Missing request body');
 
-  if (originalSize > maxEditableFileSize) {
+  log.debug({ bucket, key, content_type: contentType, etag }, 'save-text request received');
+
+  const reader = event.request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    totalBytes += value.length;
+    if (totalBytes > maxEditableFileSize) {
+      await reader.cancel();
+      log.warn(
+        { bucket, key, max_editable_size: maxEditableFileSize },
+        'save-text rejected: body exceeds max editable size'
+      );
+      throw error(413, 'File exceeds the maximum editable size and is read-only');
+    }
+  }
+  const body = Buffer.concat(chunks, totalBytes);
+
+  // Compare the current ETag right before writing. This is the only guard on
+  // providers that ignore `If-Match` on PUT; elsewhere the conditional PUT
+  // below also closes the window between this HEAD and the write.
+  let current;
+  try {
+    current = await provider.getMetadata(key);
+  } catch (err) {
+    if (isHttpError(err) && err.status === 404) {
+      log.info({ bucket, key }, 'save-text rejected: object was deleted since it was loaded');
+      throw error(409, conflictMessage);
+    }
+    throw err;
+  }
+  if (current.etag !== etag) {
+    log.info(
+      { bucket, key, expected_etag: etag, current_etag: current.etag },
+      'save-text rejected: object was modified since it was loaded'
+    );
+    throw error(409, conflictMessage);
+  }
+  if (current.size > maxEditableFileSize) {
     log.warn(
-      {
-        bucket,
-        key,
-        original_size: originalSize,
-        max_editable_size: maxEditableFileSize
-      },
+      { bucket, key, original_size: current.size, max_editable_size: maxEditableFileSize },
       'save-text rejected: file exceeds max editable size (read-only)'
     );
     throw error(413, 'File exceeds the maximum editable size and is read-only');
   }
 
-  const truncated = previewBytes > 0 && previewBytes < originalSize;
+  const newEtag = await provider.putObjectIfMatch(key, body, contentType, etag);
 
-  log.debug(
-    {
-      bucket,
-      key,
-      content_type: contentType,
-      original_size: originalSize,
-      preview_bytes: previewBytes,
-      truncated
-    },
-    'save-text request received'
-  );
+  log.info({ bucket, key, total_bytes: totalBytes }, 'save-text completed');
 
-  const editReader = event.request.body.getReader();
-  const editChunks: Uint8Array[] = [];
-  let totalEditBytes = 0;
-  while (true) {
-    const { done, value } = await editReader.read();
-    if (done) break;
-    editChunks.push(value);
-    totalEditBytes += value.length;
-    if (totalEditBytes > maxEditableFileSize) {
-      editReader.cancel();
-      throw error(413, 'File exceeds the maximum editable size and is read-only');
-    }
-  }
-
-  let mergedBuffer: Buffer;
-  let totalLength: number;
-
-  if (truncated) {
-    const tailStream = await provider.getObjectRange(key, previewBytes, originalSize - 1);
-    const tailReader = tailStream.getReader();
-    const tailChunks: Uint8Array[] = [];
-    let totalTailBytes = 0;
-    while (true) {
-      const { done, value } = await tailReader.read();
-      if (done) break;
-      tailChunks.push(value);
-      totalTailBytes += value.length;
-    }
-
-    const merged = new Uint8Array(totalEditBytes + totalTailBytes);
-    let offset = 0;
-    for (const chunk of editChunks) {
-      merged.set(chunk, offset);
-      offset += chunk.length;
-    }
-    for (const chunk of tailChunks) {
-      merged.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    mergedBuffer = Buffer.from(merged.buffer);
-    totalLength = merged.length;
-
-    log.info(
-      {
-        bucket,
-        key,
-        edit_bytes: totalEditBytes,
-        tail_bytes: totalTailBytes,
-        total_bytes: totalLength
-      },
-      'saving truncated file with tail merge'
-    );
-  } else {
-    const merged = new Uint8Array(totalEditBytes);
-    let offset = 0;
-    for (const chunk of editChunks) {
-      merged.set(chunk, offset);
-      offset += chunk.length;
-    }
-    mergedBuffer = Buffer.from(merged.buffer);
-    totalLength = totalEditBytes;
-  }
-
-  await provider.putObject(key, mergedBuffer, contentType, totalLength);
-
-  log.info({ bucket, key }, 'save-text completed');
-
-  return new Response(null, { status: 200 });
+  return json({ etag: newEtag ?? null });
 };

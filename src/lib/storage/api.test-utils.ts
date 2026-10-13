@@ -114,7 +114,7 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
     },
 
     async saveText() {
-      // no-op
+      return { etag: null };
     },
 
     async details(): Promise<FileDetails> {

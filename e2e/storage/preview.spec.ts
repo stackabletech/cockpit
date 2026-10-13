@@ -8,6 +8,7 @@ import {
 import {
   connectAndOpenPrefix,
   deleteKnownKeys,
+  getObjectText,
   putTextObject,
   rowByName,
   uniquePrefix
@@ -539,6 +540,70 @@ test.describe('Storage S3 — Preview', () => {
       await expect(table.locator('td', { hasText: '100' })).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('saves the complete content of a text file larger than the preview limit', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'preview-save-large');
+    const key = `${prefix}large.txt`;
+
+    // ~583 KiB of two-byte characters: above the 256 KiB text preview limit
+    // and adapter-node's default 512K body limit, below the 5 MiB edit limit,
+    // with a character straddling byte 262144.
+    const line = `${'ä'.repeat(99)}\n`;
+    const original = line.repeat(3000);
+
+    try {
+      await putTextObject(client, credentials.bucket, key, original);
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'large.txt').dblclick();
+      const editor = page.getByRole('application', { name: 'Text editor' });
+      await expect(editor).toHaveAttribute('data-ready', 'true');
+      await expect(page.getByTestId('editor-readonly-notice')).not.toBeVisible();
+      await expect(editor.locator(':focus')).toHaveCount(1);
+
+      await page.keyboard.press('ControlOrMeta+Home');
+      await page.keyboard.type('EDIT-');
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+
+      expect(await getObjectText(client, credentials.bucket, key)).toBe(`EDIT-${original}`);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [key]);
+    }
+  });
+
+  test('refuses to save over a file that changed after it was opened', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'preview-save-conflict');
+    const key = `${prefix}conflict.txt`;
+
+    try {
+      await putTextObject(client, credentials.bucket, key, 'original content\n');
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'conflict.txt').dblclick();
+      const editor = page.getByRole('application', { name: 'Text editor' });
+      await expect(editor).toHaveAttribute('data-ready', 'true');
+      await expect(editor.locator(':focus')).toHaveCount(1);
+      await page.keyboard.press('ControlOrMeta+Home');
+      await page.keyboard.type('mine ');
+
+      await putTextObject(client, credentials.bucket, key, 'concurrent change\n');
+
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(page.getByText(/changed or deleted after you opened it/)).toBeVisible();
+      expect(await getObjectText(client, credentials.bucket, key)).toBe('concurrent change\n');
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [key]);
     }
   });
 

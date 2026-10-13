@@ -31,7 +31,8 @@ export const infiniteScrollEnabled =
 /** Maximum bytes fetched when streaming a text, CSV, or JSON file preview.
  *  Controlled by `STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES`. Default: 262144 (256 KiB).
  *  Larger values allow more of a file to be visible in-browser but increase
- *  memory pressure and response latency. */
+ *  memory pressure and response latency. Only applies to files larger than
+ *  `maxEditableFileSize`; editable files are always fetched completely. */
 export const textPreviewBytes =
   parseInt(env.STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES ?? '', 10) || 256 * 1024;
 
@@ -111,8 +112,9 @@ export const parquetDisallowedCompression = parseParquetDisallowed(
 // ── Storage browser: Text editor ─────────────────────────────────────────────
 
 /** Maximum file size (in bytes) that may be saved via the inline text editor.
- *  Files with an `originalSize` exceeding this limit are treated as read-only
- *  and save requests are rejected with HTTP 413. Mirrors the client-side flag
+ *  Text previews of files up to this size are fetched completely. Larger files
+ *  are read-only and save requests (stored object or body) are rejected with
+ *  HTTP 413. Mirrors the client-side flag
  *  `maxEditableFileSize` so that the restriction is enforced even if the client
  *  check is bypassed.
  *  Controlled by `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`. Default: 5242880 (5 MiB). */

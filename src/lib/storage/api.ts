@@ -167,14 +167,18 @@ export interface StorageApi {
     data?: boolean;
   }): Promise<Response>;
 
+  /**
+   * Replace a text object with `body`. `etag` is the ETag the content was
+   * loaded with; the server rejects the save with 409 (`conflict`) when the
+   * object changed since. Resolves to the ETag of the written object.
+   */
   saveText(params: {
     bucket: string;
     key: string;
     body: string;
-    originalSize: number;
-    previewBytes: number;
+    etag: string;
     contentType: string;
-  }): Promise<void>;
+  }): Promise<{ etag: string | null }>;
 
   details(params: { bucket: string; key: string }): Promise<FileDetails>;
 
@@ -412,18 +416,14 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       return fetch_(`/api/storage/preview?${params}`);
     },
 
-    async saveText({ bucket, key, body, originalSize, previewBytes, contentType }) {
-      const params = new URLSearchParams({
-        bucket,
-        key,
-        originalSize: String(originalSize),
-        previewBytes: String(previewBytes),
-        contentType
-      });
-      await fetch_(`/api/storage/save-text?${params}`, {
+    async saveText({ bucket, key, body, etag, contentType }) {
+      const params = new URLSearchParams({ bucket, key, etag, contentType });
+      const res = await fetch_(`/api/storage/save-text?${params}`, {
         method: 'POST',
         body
       });
+      const result = (await res.json().catch(() => null)) as { etag?: unknown } | null;
+      return { etag: typeof result?.etag === 'string' ? result.etag : null };
     },
 
     async details({ bucket, key }) {

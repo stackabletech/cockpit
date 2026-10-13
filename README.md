@@ -101,12 +101,18 @@ Create a `.env` file at the project root, or set them in your deployment environ
 
 ### Storage Preview Limits
 
-| Variable                                | Type              | Default             | Description                                                                                | Example                                          |
-| --------------------------------------- | ----------------- | ------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------ |
-| `STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES`  | `integer` (bytes) | `262144` (256 KiB)  | Maximum bytes fetched when previewing text, CSV, or JSON files.                            | `STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES=524288`    |
-| `STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES` | `integer` (bytes) | `5242880` (5 MiB)   | Maximum bytes fetched when previewing image files.                                         | `STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES=10485760` |
-| `STACKABLE_COCKPIT_PDF_PREVIEW_BYTES`   | `integer` (bytes) | `26214400` (25 MiB) | Maximum bytes fetched when previewing PDF files.                                           | `STACKABLE_COCKPIT_PDF_PREVIEW_BYTES=52428800`   |
-| `STACKABLE_COCKPIT_FILE_PREVIEW_ROWS`   | `integer` (rows)  | `250`               | Maximum number of rows included in a tabular file preview (e.g. Parquet converted to CSV). | `STACKABLE_COCKPIT_FILE_PREVIEW_ROWS=500`        |
+| Variable                                | Type              | Default             | Description                                                                                                                                                                                             | Example                                          |
+| --------------------------------------- | ----------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES`  | `integer` (bytes) | `262144` (256 KiB)  | Maximum bytes fetched when previewing text, TSV, or JSON files. Editable text files (text types except CSV/TSV, up to `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`) are always fetched completely. | `STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES=524288`    |
+| `STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES` | `integer` (bytes) | `5242880` (5 MiB)   | Maximum bytes fetched when previewing image files.                                                                                                                                                      | `STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES=10485760` |
+| `STACKABLE_COCKPIT_PDF_PREVIEW_BYTES`   | `integer` (bytes) | `26214400` (25 MiB) | Maximum bytes fetched when previewing PDF files.                                                                                                                                                        | `STACKABLE_COCKPIT_PDF_PREVIEW_BYTES=52428800`   |
+| `STACKABLE_COCKPIT_FILE_PREVIEW_ROWS`   | `integer` (rows)  | `250`               | Maximum number of rows included in a tabular file preview (e.g. Parquet converted to CSV).                                                                                                              | `STACKABLE_COCKPIT_FILE_PREVIEW_ROWS=500`        |
+
+### Request Body Size
+
+| Variable          | Type             | Default                                       | Description                                                                                                                                                                                                                                                                            | Example               |
+| ----------------- | ---------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `BODY_SIZE_LIMIT` | `string` (bytes) | `6M` in the container image (adapter: `512K`) | Maximum request body size accepted by the Node.js server ([adapter-node](https://svelte.dev/docs/kit/adapter-node#Environment-variables-BODY_SIZE_LIMIT)). Must be at least `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`, otherwise saving larger files in the text editor fails. | `BODY_SIZE_LIMIT=12M` |
 
 ## Documentation
 

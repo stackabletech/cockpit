@@ -78,8 +78,9 @@ export const defaultPageSize: number = (() => {
 /** Maximum file size (in bytes) that can be edited inline in the text editor.
  *  Files larger than this will show a read-only preview without the save button.
  *  Controlled by `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`. Default: 5242880 (5 MiB).
- *  Raise to allow editing larger files; lower to avoid excessive S3 bandwidth
- *  when saving truncated files (the full file must be re-uploaded). */
+ *  Files up to this size are previewed completely (not truncated to the text
+ *  preview limit) so they can be edited. Raise to allow editing larger files;
+ *  lower to reduce preview bandwidth and browser memory. */
 export const maxEditableFileSize: number = (() => {
   const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE ?? '', 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 5 * 1024 * 1024;

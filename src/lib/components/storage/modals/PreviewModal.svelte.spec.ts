@@ -44,6 +44,7 @@ function mockFetchResponse(
     totalSize?: number;
     previewBytes?: number;
     renderable?: boolean;
+    etag?: string;
   }
 ): Response {
   return new Response(body, {
@@ -53,7 +54,8 @@ function mockFetchResponse(
       'X-Preview-Format': 'text',
       'X-Preview-Truncated': String(opts?.truncated ?? false),
       'X-Preview-Total-Size': String(opts?.totalSize ?? 11),
-      'X-Preview-Bytes': String(opts?.previewBytes ?? 11)
+      'X-Preview-Bytes': String(opts?.previewBytes ?? 11),
+      ...(opts?.etag ? { 'X-Preview-ETag': opts.etag } : {})
     }
   });
 }
@@ -753,6 +755,57 @@ describe('PreviewModal basics', () => {
     });
   });
 
+  describe('editing safeguards', () => {
+    const saveButton = () => page.getByRole('button', { name: 'Save', exact: true });
+
+    it('offers saving for complete UTF-8 content with an ETag', async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse('Hello world', { etag: '"e1"' }));
+      render(PreviewModal, defaultProps);
+
+      await expect.element(page.getByText('Hello world')).toBeInTheDocument();
+      await expect.element(saveButton()).toBeInTheDocument();
+      await expect.element(page.getByTestId('editor-readonly-notice')).not.toBeInTheDocument();
+    });
+
+    it('makes truncated content read-only even below the edit limit', async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse('Partial content', {
+          truncated: true,
+          totalSize: 50000,
+          previewBytes: 1024,
+          etag: '"e1"'
+        })
+      );
+      render(PreviewModal, defaultProps);
+
+      await expect
+        .element(page.getByText(/only the beginning of this file was loaded/i))
+        .toBeInTheDocument();
+      await expect.element(saveButton()).not.toBeInTheDocument();
+    });
+
+    it('makes UTF-16 content read-only', async () => {
+      const bytes = new Uint8Array([0xff, 0xfe, 0x48, 0x00, 0x69, 0x00]);
+      fetchMock.mockResolvedValue(
+        mockFetchResponse(new Blob([bytes]), { totalSize: 6, previewBytes: 6, etag: '"e1"' })
+      );
+      render(PreviewModal, defaultProps);
+
+      await expect.element(page.getByText(/is not UTF-8 text/i)).toBeInTheDocument();
+      await expect.element(saveButton()).not.toBeInTheDocument();
+    });
+
+    it('makes content without an ETag read-only', async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse('Hello world'));
+      render(PreviewModal, defaultProps);
+
+      await expect
+        .element(page.getByText(/version of this file could not be determined/i))
+        .toBeInTheDocument();
+      await expect.element(saveButton()).not.toBeInTheDocument();
+    });
+  });
+
   describe('UTF-16 BOM detection', () => {
     it('should decode UTF-16 LE BOM content', async () => {
       // UTF-16 LE BOM (0xFF 0xFE) followed by "Hi" in UTF-16 LE
@@ -775,7 +828,7 @@ describe('PreviewModal basics', () => {
       );
       render(PreviewModal, defaultProps);
 
-      await expect.element(page.getByText('Hi')).toBeInTheDocument();
+      await expect.element(page.getByText('Hi', { exact: true })).toBeInTheDocument();
     });
 
     it('should decode UTF-16 BE BOM content', async () => {

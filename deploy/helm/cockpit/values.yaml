@@ -121,7 +121,7 @@ terminationGracePeriodSeconds: 30
 #     maxRecentFiles: 15
 #     # Maximum parallel requests for file uploads. Default: 3 (application default).
 #     uploadConcurrency: 3
-#     # Maximum bytes fetched for text, CSV, and JSON previews. Default: 262144 (application default).
+#     # Maximum bytes fetched for text, TSV, and JSON previews; editable text files are fetched completely. Default: 262144 (application default).
 #     textPreviewBytes: 262144
 #     # Maximum bytes fetched for image previews. Default: 5242880 (application default).
 #     imagePreviewBytes: 5242880
@@ -145,6 +145,9 @@ affinity: {}
 config:
   # Node.js environment
   nodeEnv: production
+  # Maximum request body size (BODY_SIZE_LIMIT), e.g. "12M". Empty uses the image default (6M).
+  # Must be at least the editable file size limit of the storage text editor (5 MiB by default).
+  bodySizeLimit: ""
 
 # Session secret for signing cookies. Chart auto-generates one if secretKeyRef.name is empty.
 sessionSecret:

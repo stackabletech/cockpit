@@ -70,6 +70,18 @@ export interface StorageProvider {
     contentType: string,
     contentLength?: number
   ): Promise<void>;
+  /**
+   * Replace an existing object in a single request, but only if its current
+   * ETag still equals `etag` (S3 conditional write, `If-Match`). Throws an
+   * HTTP 409 error when the object changed or vanished in the meantime.
+   * Returns the ETag of the newly written object.
+   */
+  putObjectIfMatch(
+    key: string,
+    body: Buffer,
+    contentType: string,
+    etag: string
+  ): Promise<string | undefined>;
   deleteObjects(keys: string[], expandDirectories?: boolean): Promise<DeleteObjectsResult>;
   /**
    * List all object keys under a prefix, recursively (no delimiter).

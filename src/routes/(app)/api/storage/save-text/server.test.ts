@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { error } from '@sveltejs/kit';
 
-const mockProvider = { putObject: vi.fn(), getObjectRange: vi.fn() };
+const mockProvider = {
+  putObject: vi.fn(),
+  putObjectIfMatch: vi.fn(),
+  getObjectRange: vi.fn(),
+  getMetadata: vi.fn()
+};
 vi.mock('$lib/server/storage/utils.js', () => ({
   getProvider: () => mockProvider
 }));
@@ -31,9 +37,7 @@ function mockEvent(params: string, body?: ReadableStream | null) {
   } as unknown as Parameters<typeof POST>[0];
 }
 
-function textBody(text: string): ReadableStream {
-  const encoder = new TextEncoder();
-  const bytes = encoder.encode(text);
+function bytesBody(bytes: Uint8Array): ReadableStream {
   return new ReadableStream({
     start(controller) {
       controller.enqueue(bytes);
@@ -42,109 +46,143 @@ function textBody(text: string): ReadableStream {
   });
 }
 
+function textBody(text: string): ReadableStream {
+  return bytesBody(new TextEncoder().encode(text));
+}
+
+/** `error()` throws, so capture the HttpError it creates for use as a rejection. */
+function httpError(status: number, message: string): unknown {
+  try {
+    error(status, message);
+  } catch (err) {
+    return err;
+  }
+}
+
+const ETAG = '"abc123"';
+const etagParam = `etag=${encodeURIComponent(ETAG)}`;
+
 describe('POST /api/storage/save-text', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockProvider.getMetadata.mockResolvedValue({ size: 11, etag: ETAG });
+    mockProvider.putObjectIfMatch.mockResolvedValue('"def456"');
+  });
 
-  it('saves text body without truncation', async () => {
-    mockProvider.putObject.mockResolvedValue(undefined);
-    const body = textBody('hello world');
+  it('writes the body conditionally on the loaded ETag and returns the new ETag', async () => {
+    const res = await POST(mockEvent(`bucket=b1&key=file.txt&${etagParam}`, textBody('hello')));
 
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ etag: '"def456"' });
+    expect(mockProvider.putObjectIfMatch).toHaveBeenCalledWith(
+      'file.txt',
+      Buffer.from('hello'),
+      'text/plain',
+      ETAG
+    );
+    expect(mockProvider.putObject).not.toHaveBeenCalled();
+  });
+
+  it('writes exactly the bytes it received (no tail merge from the stored object)', async () => {
+    // Old behaviour: previewBytes < originalSize appended the stored tail to
+    // the edited head, corrupting multi-byte and UTF-16 content.
     const res = await POST(
-      mockEvent('bucket=b1&key=file.txt&originalSize=11&previewBytes=11', body)
+      mockEvent(
+        `bucket=b1&key=file.txt&${etagParam}&originalSize=100&previewBytes=10`,
+        textBody('edited')
+      )
     );
 
     expect(res.status).toBe(200);
-    expect(mockProvider.putObject).toHaveBeenCalledWith(
-      'file.txt',
-      expect.anything(),
-      'text/plain',
-      11
-    );
     expect(mockProvider.getObjectRange).not.toHaveBeenCalled();
-  });
-
-  it('saves newly created empty files', async () => {
-    mockProvider.putObject.mockResolvedValue(undefined);
-
-    const res = await POST(
-      mockEvent('bucket=b1&key=file.txt&originalSize=0&previewBytes=0', textBody('new text'))
-    );
-
-    expect(res.status).toBe(200);
-    expect(mockProvider.putObject).toHaveBeenCalledWith(
+    expect(mockProvider.putObjectIfMatch).toHaveBeenCalledWith(
       'file.txt',
-      expect.anything(),
+      Buffer.from('edited'),
       'text/plain',
-      8
+      ETAG
     );
   });
 
-  it('merges edit tail when truncated', async () => {
-    const tailBytes = new TextEncoder().encode('...tail');
-    const tailStream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(tailBytes);
-        controller.close();
-      }
-    });
-    mockProvider.getObjectRange.mockResolvedValue(tailStream);
-    mockProvider.putObject.mockResolvedValue(undefined);
+  it('preserves multi-byte UTF-8 content byte for byte', async () => {
+    const bytes = new TextEncoder().encode('﻿grüße – 日本語 🚀');
+    await POST(mockEvent(`bucket=b1&key=file.txt&${etagParam}`, bytesBody(bytes)));
 
-    const body = textBody('edited');
+    const written = mockProvider.putObjectIfMatch.mock.calls[0][1] as Buffer;
+    expect(new Uint8Array(written)).toEqual(bytes);
+  });
 
-    const res = await POST(
-      mockEvent('bucket=b1&key=file.txt&originalSize=100&previewBytes=10', body)
+  it('passes the content type through', async () => {
+    await POST(
+      mockEvent(`bucket=b1&key=a.json&${etagParam}&contentType=application%2Fjson`, textBody('{}'))
     );
-
-    expect(res.status).toBe(200);
-    expect(mockProvider.getObjectRange).toHaveBeenCalledWith('file.txt', 10, 99);
-    expect(mockProvider.putObject).toHaveBeenCalledWith(
-      'file.txt',
+    expect(mockProvider.putObjectIfMatch).toHaveBeenCalledWith(
+      'a.json',
       expect.anything(),
-      'text/plain',
-      13 // 6 ("edited") + 7 ("...tail")
+      'application/json',
+      ETAG
     );
+  });
+
+  it('returns 409 when the ETag changed since the content was loaded', async () => {
+    mockProvider.getMetadata.mockResolvedValue({ size: 11, etag: '"someone-else"' });
+
+    await expect(
+      POST(mockEvent(`bucket=b1&key=file.txt&${etagParam}`, textBody('mine')))
+    ).rejects.toThrow(expect.objectContaining({ status: 409 }));
+    expect(mockProvider.putObjectIfMatch).not.toHaveBeenCalled();
+  });
+
+  it('returns 409 when the object was deleted since it was loaded', async () => {
+    mockProvider.getMetadata.mockRejectedValue(httpError(404, 'Object not found'));
+
+    await expect(
+      POST(mockEvent(`bucket=b1&key=file.txt&${etagParam}`, textBody('mine')))
+    ).rejects.toThrow(expect.objectContaining({ status: 409 }));
+    expect(mockProvider.putObjectIfMatch).not.toHaveBeenCalled();
+  });
+
+  it('propagates a 409 from the conditional write', async () => {
+    mockProvider.putObjectIfMatch.mockRejectedValue(httpError(409, 'modified'));
+
+    await expect(
+      POST(mockEvent(`bucket=b1&key=file.txt&${etagParam}`, textBody('mine')))
+    ).rejects.toThrow(expect.objectContaining({ status: 409 }));
+  });
+
+  it('returns 400 when the ETag is missing', async () => {
+    await expect(POST(mockEvent('bucket=b1&key=file.txt', textBody('x')))).rejects.toThrow(
+      expect.objectContaining({ status: 400 })
+    );
+    expect(mockProvider.putObjectIfMatch).not.toHaveBeenCalled();
   });
 
   it('returns 400 when key is missing', async () => {
-    await expect(POST(mockEvent('bucket=b1&originalSize=10'))).rejects.toThrow(
-      expect.objectContaining({ status: 400 })
-    );
-  });
-
-  it('returns 400 when originalSize is invalid', async () => {
-    await expect(POST(mockEvent('bucket=b1&key=file.txt&originalSize=abc'))).rejects.toThrow(
+    await expect(POST(mockEvent(`bucket=b1&${etagParam}`, textBody('x')))).rejects.toThrow(
       expect.objectContaining({ status: 400 })
     );
   });
 
   it('returns 400 when request body is missing', async () => {
-    await expect(POST(mockEvent('bucket=b1&key=file.txt&originalSize=10'))).rejects.toThrow(
+    await expect(POST(mockEvent(`bucket=b1&key=file.txt&${etagParam}`))).rejects.toThrow(
       expect.objectContaining({ status: 400 })
     );
   });
 
-  it('returns 413 when file exceeds max editable size', async () => {
-    const body = textBody('content');
+  it('returns 413 when the stored file exceeds max editable size', async () => {
+    mockProvider.getMetadata.mockResolvedValue({ size: 6_000_000, etag: ETAG });
 
     await expect(
-      POST(mockEvent('bucket=b1&key=file.txt&originalSize=6000000', body))
+      POST(mockEvent(`bucket=b1&key=file.txt&${etagParam}`, textBody('content')))
     ).rejects.toThrow(expect.objectContaining({ status: 413 }));
+    expect(mockProvider.putObjectIfMatch).not.toHaveBeenCalled();
   });
 
   it('cancels read when body exceeds max size mid-stream', async () => {
-    mockProvider.putObject.mockResolvedValue(undefined);
-
-    const largeChunk = new Uint8Array(3_000_000);
-    const smallChunk = new Uint8Array(3_000_000);
     let callCount = 0;
     const body = new ReadableStream({
       pull(controller) {
-        if (callCount === 0) {
-          controller.enqueue(largeChunk);
-          callCount++;
-        } else if (callCount === 1) {
-          controller.enqueue(smallChunk);
+        if (callCount < 2) {
+          controller.enqueue(new Uint8Array(3_000_000));
           callCount++;
         } else {
           controller.close();
@@ -152,8 +190,9 @@ describe('POST /api/storage/save-text', () => {
       }
     });
 
-    await expect(
-      POST(mockEvent('bucket=b1&key=file.txt&originalSize=7000000', body))
-    ).rejects.toThrow(expect.objectContaining({ status: 413 }));
+    await expect(POST(mockEvent(`bucket=b1&key=file.txt&${etagParam}`, body))).rejects.toThrow(
+      expect.objectContaining({ status: 413 })
+    );
+    expect(mockProvider.putObjectIfMatch).not.toHaveBeenCalled();
   });
 });

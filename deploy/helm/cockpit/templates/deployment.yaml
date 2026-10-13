@@ -61,6 +61,10 @@ spec:
               value: {{ .Values.config.nodeEnv | quote }}
             - name: PORT
               value: {{ .Values.service.targetPort | quote }}
+            {{- with .Values.config.bodySizeLimit }}
+            - name: BODY_SIZE_LIMIT
+              value: {{ . | quote }}
+            {{- end }}
             {{- if hasKey $completion "enabled" }}
             - name: STACKABLE_COCKPIT_COMPLETION_ENABLED
               value: {{ index $completion "enabled" | quote }}

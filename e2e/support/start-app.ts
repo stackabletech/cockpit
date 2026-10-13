@@ -26,6 +26,17 @@ async function stop(exitCode: number) {
   process.exit(exitCode);
 }
 
+/** Run the E2E app with the same adapter-node body size limit as the image. */
+async function productionBodySizeLimit(): Promise<string> {
+  const dockerfile = await fs.readFile(
+    path.join(import.meta.dirname, '../../docker/Dockerfile'),
+    'utf-8'
+  );
+  const limit = /^ENV BODY_SIZE_LIMIT=(\S+)$/m.exec(dockerfile)?.[1];
+  if (!limit) throw new Error('BODY_SIZE_LIMIT not found in docker/Dockerfile');
+  return limit;
+}
+
 async function main() {
   // Own the containers in the webServer process so both direct Playwright runs
   // and npm run test:e2e use the same startup order and automatic teardown.
@@ -44,7 +55,7 @@ async function main() {
   // The server's init hook runs migrations before it starts accepting requests.
   app = spawn(process.execPath, ['build/index.js'], {
     stdio: 'inherit',
-    env: process.env
+    env: { ...process.env, BODY_SIZE_LIMIT: await productionBodySizeLimit() }
   });
   app.on('error', (err) => {
     console.error('Failed to start the E2E app server:', err);

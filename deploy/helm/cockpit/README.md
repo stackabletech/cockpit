@@ -83,6 +83,7 @@ The following table lists the configurable parameters of the Cockpit chart and t
 | Parameter | Description | Default |
 | --- | --- | --- |
 | `config.nodeEnv` | Node.js environment | `production` |
+| `config.bodySizeLimit` | Sets `BODY_SIZE_LIMIT`, the maximum request body size (e.g. `12M`). Must be at least the editable file size limit (`PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`, 5 MiB by default), otherwise saving larger files in the text editor fails. | `""` (image default `6M`) |
 
 ### Feature Parameters
 
@@ -97,7 +98,7 @@ All feature parameters are optional. Omit them to use the application defaults.
 | `features.storage.defaultPageSize` | Default page size; must be included in `pageSizes`. | First configured page size (application default) |
 | `features.storage.maxRecentFiles` | Number of recently visited storage locations retained locally. | `15` (application default) |
 | `features.storage.uploadConcurrency` | Maximum parallel requests for file uploads. | `3` (application default) |
-| `features.storage.textPreviewBytes` | Maximum bytes fetched for text, CSV, and JSON previews. | `262144` (application default) |
+| `features.storage.textPreviewBytes` | Maximum bytes fetched for text, TSV, and JSON previews. Editable text files (text types except CSV/TSV, up to the editable file size limit) are always fetched completely. | `262144` (application default) |
 | `features.storage.imagePreviewBytes` | Maximum bytes fetched for image previews. | `5242880` (application default) |
 | `features.storage.pdfPreviewBytes` | Maximum bytes fetched for PDF previews. | `26214400` (application default) |
 | `features.storage.filePreviewRows` | Maximum rows in tabular file previews. | `250` (application default) |

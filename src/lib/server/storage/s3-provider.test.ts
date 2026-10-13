@@ -863,3 +863,68 @@ describe('S3StorageProvider.deleteObjects directory expansion', () => {
     expect(send).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// putObjectIfMatch
+// ---------------------------------------------------------------------------
+
+describe('S3StorageProvider.putObjectIfMatch', () => {
+  it('sends a single PutObject with If-Match and returns the new ETag', async () => {
+    const { provider, send } = makeProvider();
+    send.mockResolvedValue({ ETag: '"new"' });
+    const body = Buffer.from('hello');
+
+    await expect(provider.putObjectIfMatch('file.txt', body, 'text/plain', '"old"')).resolves.toBe(
+      '"new"'
+    );
+
+    expect(send).toHaveBeenCalledTimes(1);
+    const cmd = send.mock.calls[0][0] as PutObjectCommand;
+    expect(cmd).toBeInstanceOf(PutObjectCommand);
+    expect(cmd.input).toMatchObject({
+      Bucket: 'test-bucket',
+      Key: 'file.txt',
+      Body: body,
+      ContentType: 'text/plain',
+      ContentLength: 5,
+      IfMatch: '"old"'
+    });
+  });
+
+  it.each([
+    ['PreconditionFailed', 412],
+    ['ConditionalRequestConflict', 409],
+    ['NoSuchKey', 404]
+  ])('maps %s (%i) to an HTTP 409 conflict', async (name, status) => {
+    const { provider, send } = makeProvider();
+    send.mockRejectedValue(makeS3Error(name, status));
+
+    await expect(
+      provider.putObjectIfMatch('file.txt', Buffer.from('x'), 'text/plain', '"old"')
+    ).rejects.toMatchObject({ status: 409 });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries without If-Match when the provider does not implement it', async () => {
+    const { provider, send } = makeProvider();
+    send
+      .mockRejectedValueOnce(makeS3Error('NotImplemented', 501))
+      .mockResolvedValueOnce({ ETag: '"new"' });
+
+    await expect(
+      provider.putObjectIfMatch('file.txt', Buffer.from('x'), 'text/plain', '"old"')
+    ).resolves.toBe('"new"');
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect((send.mock.calls[1][0] as PutObjectCommand).input.IfMatch).toBeUndefined();
+  });
+
+  it('maps other S3 errors via the shared mapping', async () => {
+    const { provider, send } = makeProvider();
+    send.mockRejectedValue(makeS3Error('AccessDenied', 403));
+
+    await expect(
+      provider.putObjectIfMatch('file.txt', Buffer.from('x'), 'text/plain', '"old"')
+    ).rejects.toMatchObject({ status: 403 });
+  });
+});

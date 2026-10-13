@@ -537,28 +537,42 @@ describe('createFetchStorageApi', () => {
   });
 
   describe('saveText', () => {
-    it('includes preview metadata required by the save endpoint', async () => {
+    it('sends the loaded ETag and returns the new one', async () => {
       const api = createFetchStorageApi(() => 'conn-1');
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 200 }));
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify({ etag: '"new"' }), { status: 200 })
+      );
 
-      await api.saveText({
+      const result = await api.saveText({
         bucket: 'b',
         key: 'new file.txt',
         body: 'new text',
-        originalSize: 0,
-        previewBytes: 0,
+        etag: '"old"',
         contentType: 'text/plain'
       });
+
+      expect(result).toEqual({ etag: '"new"' });
 
       const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
       expect(url).toContain('/api/storage/save-text');
       expect(url).toContain('bucket=b');
       expect(url).toContain('key=new+file.txt');
-      expect(url).toContain('originalSize=0');
-      expect(url).toContain('previewBytes=0');
+      expect(url).toContain('etag=%22old%22');
+      expect(url).not.toContain('previewBytes');
       expect(url).toContain('contentType=text%2Fplain');
       expect(init?.method).toBe('POST');
       expect(init?.body).toBe('new text');
+    });
+
+    it('maps a 409 response to a conflict error', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify({ message: 'modified' }), { status: 409 })
+      );
+
+      await expect(
+        api.saveText({ bucket: 'b', key: 'k', body: 'x', etag: '"old"', contentType: 'text/plain' })
+      ).rejects.toMatchObject({ code: 'conflict' });
     });
   });
 });

@@ -22,6 +22,7 @@
   import FallbackPreview from './preview/FallbackPreview.svelte';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
   import { StorageError } from '$lib/storage/errors.js';
+  import { decodePreviewText } from '$lib/storage/text-decode.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
   import { maxEditableFileSize, infiniteScrollEnabled } from '$lib/client/feature-flags.js';
   import { getStorageState } from '$lib/storage/context.js';
@@ -71,6 +72,11 @@
         truncated: boolean;
         totalSize: number;
         previewBytes: number;
+        /** ETag the content was loaded with; saves are conditional on it. */
+        etag: string | null;
+        /** Re-encoding the text as UTF-8 reproduces the stored bytes. */
+        lossless: boolean;
+        utf8Bom: boolean;
       }
     | {
         kind: 'csv';
@@ -152,10 +158,18 @@
   });
 
   const filename = $derived(objectKey ? keyToName(objectKey) : '');
-  function isTooLargeToEdit(): boolean {
-    if (preview.kind !== 'text') return false;
-    return preview.totalSize > maxEditableFileSize;
-  }
+  /** Why the loaded text must not be saved back, or `null` when it may be. */
+  const readOnlyMessage = $derived.by(() => {
+    if (preview.kind !== 'text') return null;
+    if (preview.totalSize > maxEditableFileSize) {
+      return m.storage_editor_too_large_badge({ limit: formatFileSize(maxEditableFileSize) });
+    }
+    if (preview.truncated) return m.storage_editor_readonly_truncated();
+    if (!preview.lossless) return m.storage_editor_readonly_encoding();
+    if (archiveKey) return m.storage_editor_readonly_archive();
+    if (!preview.etag) return m.storage_editor_readonly_no_etag();
+    return null;
+  });
   onDestroy(() => {
     for (const url of blobUrls) {
       URL.revokeObjectURL(url);
@@ -355,11 +369,15 @@
         return;
       }
 
-      const text = await readTextSafely(res, key, contentType);
-      if (text === null) {
+      const decoded = await res
+        .arrayBuffer()
+        .then((buf) => decodePreviewText(new Uint8Array(buf), { key, contentType, truncated }))
+        .catch(() => null);
+      if (decoded === null) {
         preview = { kind: 'fallback', contentType, isBinary: true };
         return;
       }
+      const { text } = decoded;
 
       if (
         contentType === 'text/csv' ||
@@ -381,65 +399,21 @@
         return;
       }
 
-      preview = { kind: 'text', text, contentType, truncated, totalSize, previewBytes };
+      preview = {
+        kind: 'text',
+        text,
+        contentType,
+        truncated,
+        totalSize,
+        previewBytes,
+        etag: res.headers.get('X-Preview-ETag'),
+        lossless: decoded.lossless,
+        utf8Bom: decoded.utf8Bom
+      };
       editorText = text;
       originalText = text;
     } catch {
       preview = { kind: 'error', message: m.storage_preview_error_desc() };
-    }
-  }
-
-  function isTextContentType(contentType: string): boolean {
-    if (contentType.startsWith('text/')) return true;
-    if (contentType === 'application/json') return true;
-    if (contentType === 'application/yaml') return true;
-    if (contentType === 'application/xml') return true;
-    if (contentType === 'application/csv') return true;
-    if (contentType === 'application/x-ndjson') return true;
-    return false;
-  }
-
-  async function readTextSafely(
-    res: Response,
-    key: string,
-    contentType: string
-  ): Promise<string | null> {
-    try {
-      const buf = await res.arrayBuffer();
-      const bytes = new Uint8Array(buf);
-      const truncated = res.headers.get('X-Preview-Truncated') === 'true';
-      if (bytes.length >= 2) {
-        if (bytes[0] === 0xff && bytes[1] === 0xfe) {
-          return new TextDecoder('utf-16le').decode(buf);
-        }
-        if (bytes[0] === 0xfe && bytes[1] === 0xff) {
-          return new TextDecoder('utf-16be').decode(buf);
-        }
-      }
-
-      try {
-        return new TextDecoder('utf-8', { fatal: true }).decode(buf);
-      } catch {
-        // If the content was truncated, the invalid bytes might be at the
-        // truncation boundary (a multi-byte character cut in half). Decode
-        // without fatal and strip trailing replacement characters.
-        // Only do this for text-like content types — binary files should
-        // fall through to the FallbackPreview.
-        if (truncated && isTextContentType(contentType)) {
-          const text = new TextDecoder('utf-8').decode(buf);
-          return text.replace(/\uFFFD+$/, '');
-        }
-
-        // For CSV/TSV files try Windows-1252 — the default encoding used by
-        // Excel on Windows when exporting to CSV.
-        const lowerKey = key.toLowerCase();
-        if (lowerKey.endsWith('.csv') || lowerKey.endsWith('.tsv')) {
-          return new TextDecoder('windows-1252').decode(buf);
-        }
-        return null;
-      }
-    } catch {
-      return null;
     }
   }
 
@@ -613,29 +587,34 @@
   }
 
   async function handleSave() {
-    if (!objectKey) return;
-    if (isTooLargeToEdit()) {
-      addToast('error', m.storage_editor_too_large({ limit: formatFileSize(maxEditableFileSize) }));
+    // Ctrl+S can fire while a save is in flight; a second request would
+    // still carry the old ETag and be rejected as a conflict.
+    if (saving || !objectKey || preview.kind !== 'text') return;
+    if (readOnlyMessage || !preview.etag) {
+      addToast('error', readOnlyMessage ?? m.storage_editor_error());
       return;
     }
-    if (preview.kind !== 'text') return;
+    const loaded = preview;
+    const savedText = editorText;
 
     saving = true;
     try {
-      await storage.api.saveText({
+      const { etag } = await storage.api.saveText({
         bucket,
         key: objectKey,
-        body: editorText,
-        originalSize: preview.totalSize,
-        previewBytes: preview.previewBytes,
-        contentType: preview.contentType
+        body: (loaded.utf8Bom ? '\uFEFF' : '') + savedText,
+        etag: loaded.etag!,
+        contentType: loaded.contentType
       });
 
-      originalText = editorText;
+      loaded.etag = etag;
+      originalText = savedText;
       addToast('success', m.storage_editor_saved());
     } catch (err) {
       if (err instanceof StorageError) {
-        if (err.code === 'not_connected') {
+        if (err.code === 'conflict') {
+          addToast('error', m.storage_editor_conflict());
+        } else if (err.code === 'not_connected') {
           addToast('error', m.storage_upload_error_not_connected());
         } else if (err.code === 'access_denied') {
           addToast('error', m.storage_upload_error_access_denied());
@@ -1009,14 +988,13 @@
               <span class="sr-only">{m.storage_preview_loading()}</span>
             </div>
           {/if}
-          {#if isTooLargeToEdit()}
+          {#if readOnlyMessage}
             <div
               class="bg-base-200 border-base-300 flex shrink-0 items-center gap-2 border-b px-4 py-2"
+              data-testid="editor-readonly-notice"
             >
               <IconBlock class="text-base-content/50 size-4" aria-hidden="true" />
-              <span class="text-base-content/60 text-xs">
-                {m.storage_editor_too_large_badge({ limit: formatFileSize(maxEditableFileSize) })}
-              </span>
+              <span class="text-base-content/60 text-xs">{readOnlyMessage}</span>
             </div>
           {/if}
           <div class="min-h-0 flex-1">
@@ -1025,7 +1003,7 @@
               bind:ready={editorReady}
               contentType={preview.contentType}
               {filename}
-              readonly={isTooLargeToEdit()}
+              readonly={readOnlyMessage !== null}
               onSave={handleSave}
             />
           </div>
@@ -1085,7 +1063,7 @@
             {m.storage_preview_download_full()}
           </button>
         {/if}
-        {#if preview.kind === 'text' && !isTooLargeToEdit()}
+        {#if preview.kind === 'text' && !readOnlyMessage}
           <button
             type="button"
             class="btn btn-primary btn-sm gap-1.5"
