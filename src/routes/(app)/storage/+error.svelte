@@ -6,13 +6,30 @@
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
   import * as m from '$lib/paraglide/messages.js';
 
-  const bucket = $derived(page.params.bucket ?? '');
-  const connection = $derived(page.params.connection ?? '');
+  function safeDecode(value: string): string {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }
 
-  const prefixParts = $derived.by(() => {
-    const segments = page.url?.pathname?.split('/').filter(Boolean) ?? [];
-    return decodeURIComponent(segments.slice(4).join('/') || '');
-  });
+  // Path segments of /storage/browse/[connection]/[bucket]/[...prefix].
+  const segments = $derived(page.url?.pathname?.split('/').filter(Boolean) ?? []);
+  const isBrowseRoute = $derived(segments[0] === 'storage' && segments[1] === 'browse');
+
+  // page.params may lack the child-route params when a client-side universal
+  // load throws (the error boundary sits at the parent /storage level, and
+  // SvelteKit does not always populate them in that case). Fall back to
+  // parsing the segments directly from the URL path.
+  const connection = $derived(
+    page.params.connection || (isBrowseRoute ? safeDecode(segments[2] ?? '') : '')
+  );
+  const bucket = $derived(
+    page.params.bucket || (isBrowseRoute ? safeDecode(segments[3] ?? '') : '')
+  );
+
+  const prefixParts = $derived(isBrowseRoute ? safeDecode(segments.slice(4).join('/')) : '');
 
   function bucketErrorMessage(status: number, name: string): string | null {
     if (!name) return null;
@@ -27,28 +44,30 @@
 
 <div class="bg-base-100 flex flex-1 flex-col overflow-hidden">
   <div class="border-base-300 flex items-center gap-3 border-b px-6 py-3">
-    <nav
-      aria-label={m.storage_error_breadcrumb()}
-      class="flex min-w-0 flex-1 items-center gap-1 text-sm"
-    >
-      <span class="flex shrink-0 items-center gap-1">
-        <a
-          href={resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
-            connection: encodeURIComponent(connection),
-            bucket: encodeURIComponent(bucket),
-            prefix: ''
-          })}
-          class="text-base-content/70 hover:bg-base-200 hover:text-base-content flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 transition-colors"
-        >
-          <IconStorage class="size-4" aria-hidden="true" />
-          {bucket}
-        </a>
-      </span>
-      {#if prefixParts}
-        <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
-        <span class="text-base-content/50 min-w-0 truncate">{prefixParts}</span>
-      {/if}
-    </nav>
+    {#if connection && bucket}
+      <nav
+        aria-label={m.storage_error_breadcrumb()}
+        class="flex min-w-0 flex-1 items-center gap-1 text-sm"
+      >
+        <span class="flex shrink-0 items-center gap-1">
+          <a
+            href={resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
+              connection: encodeURIComponent(connection),
+              bucket: encodeURIComponent(bucket),
+              prefix: ''
+            })}
+            class="text-base-content/70 hover:bg-base-200 hover:text-base-content flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 transition-colors"
+          >
+            <IconStorage class="size-4" aria-hidden="true" />
+            {bucket}
+          </a>
+        </span>
+        {#if prefixParts}
+          <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
+          <span class="text-base-content/50 min-w-0 truncate">{prefixParts}</span>
+        {/if}
+      </nav>
+    {/if}
   </div>
 
   <div

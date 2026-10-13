@@ -399,6 +399,7 @@
   "storage_preview_maximise": "Maximieren",
   "storage_preview_restore": "Wiederherstellen",
   "storage_editor_save": "Speichern",
+  "storage_editor_save_action": "Datei speichern",
   "storage_editor_label": "Text-Editor",
   "storage_editor_saving": "Speichern…",
   "storage_editor_saved": "Gespeichert",

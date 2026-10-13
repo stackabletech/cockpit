@@ -399,6 +399,7 @@
   "storage_preview_maximise": "Maximise",
   "storage_preview_restore": "Restore",
   "storage_editor_save": "Save",
+  "storage_editor_save_action": "Save file",
   "storage_editor_label": "Text editor",
   "storage_editor_saving": "Saving…",
   "storage_editor_saved": "Saved",

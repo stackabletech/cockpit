@@ -198,7 +198,7 @@
     if (onSave) {
       editor.addAction({
         id: 'save-file',
-        label: 'Save File',
+        label: m.storage_editor_save_action(),
         keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
         run: onSave
       });
