@@ -254,6 +254,12 @@ export interface RecentSearchEntry {
   maxDepth: number | null;
 }
 
+// ── Tabular preview ──────────────────────────────────────────────────────────
+
+/** Rows the CSV and Parquet previews request per infinite-scroll chunk. The
+ *  preview endpoint always accepts at least this many rows per request. */
+export const PREVIEW_CHUNK_ROWS = 250;
+
 // ── Archive navigation ───────────────────────────────────────────────────────
 
 export const ARCHIVE_EXTENSIONS = ['.zip', '.tar.gz', '.tgz', '.tar'] as const;

@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { S3ServiceException } from '@aws-sdk/client-s3';
+import { z } from 'zod';
 import { mapS3ErrorToHttp } from '$lib/server/storage/s3-errors.js';
 import { getParquetPreview } from '$lib/server/storage/preview/parquet';
 import { getCsvPreview } from '$lib/server/storage/preview/csv';
@@ -7,7 +8,23 @@ import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/b
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
 import { createStorageProvider } from '$lib/server/storage/request-context.js';
 import { infiniteScrollEnabled, filePreviewRows } from '$lib/server/feature-flags';
+import { PREVIEW_CHUNK_ROWS } from '$lib/storage/types.js';
 import type { RequestHandler } from './$types';
+
+/** Upper bound for rows returned by a single preview request. Applies whether
+ *  or not infinite scroll is enabled, so one request can never ask the server
+ *  to decode an unbounded number of rows. Never below the client chunk size. */
+const maxPreviewRowsPerRequest = Math.max(filePreviewRows, PREVIEW_CHUNK_ROWS);
+
+const previewRangeSchema = z.object({
+  offset: z.coerce.number().int().nonnegative().default(0),
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(maxPreviewRowsPerRequest)
+    .default(PREVIEW_CHUNK_ROWS)
+});
 
 /**
  * GET /api/storage/preview?bucket=<bucket>&key=<object-key>
@@ -22,6 +39,28 @@ export const GET: RequestHandler = async (event) => {
   const { url, locals } = event;
   const log = locals.logger;
 
+  const range = previewRangeSchema.safeParse({
+    offset: url.searchParams.get('offset') ?? undefined,
+    limit: url.searchParams.get('limit') ?? undefined
+  });
+  if (!range.success) {
+    log.warn(
+      {
+        bucket,
+        key,
+        offset: url.searchParams.get('offset'),
+        limit: url.searchParams.get('limit'),
+        max_limit: maxPreviewRowsPerRequest
+      },
+      'rejected preview request with invalid row range'
+    );
+    throw error(
+      400,
+      `offset must be a non-negative integer and limit an integer between 1 and ${maxPreviewRowsPerRequest}`
+    );
+  }
+  let { offset, limit } = range.data;
+
   try {
     const metadata = await provider.getMetadata(key);
     const rawContentType = metadata.contentType ?? 'application/octet-stream';
@@ -34,8 +73,6 @@ export const GET: RequestHandler = async (event) => {
       rawContentType === 'application/x-parquet' ||
       lowerKey.endsWith('.parquet');
 
-    let offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
-    let limit = parseInt(url.searchParams.get('limit') ?? '250', 10);
     const includeData = url.searchParams.get('data') === 'true';
 
     // When infinite scroll is disabled, restrict to the first page only (no chunked loading)

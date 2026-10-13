@@ -2,6 +2,7 @@
   import { untrack, onMount } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getLocale } from '$lib/paraglide/runtime.js';
+  import { PREVIEW_CHUNK_ROWS } from '$lib/storage/types.js';
 
   interface Props {
     headers: string[];
@@ -30,7 +31,7 @@
 
   // ── Virtual scroll mode: chunked data loading ──
 
-  const CHUNK_SIZE = 250;
+  const CHUNK_SIZE = PREVIEW_CHUNK_ROWS;
   const ROW_HEIGHT = 32;
 
   let containerHeight = $state(400);
