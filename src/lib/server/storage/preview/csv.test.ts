@@ -70,18 +70,38 @@ async function readNdjsonResponse(
 
 function sliceProvider(content: string) {
   const enc = new TextEncoder();
-  return makeProvider(async (_key: string, start: number, end: number) => {
-    const slice = content.slice(start, end + 1);
+  const bytes = enc.encode(content);
+  const provider = makeProvider(async (_key: string, start: number, end: number) => {
+    const slice = bytes.slice(start, end + 1);
     return new ReadableStream({
       start(controller) {
-        controller.enqueue(enc.encode(slice));
+        controller.enqueue(slice);
         controller.close();
       }
     });
   });
+  vi.mocked(provider.getMetadata).mockResolvedValue({
+    size: bytes.length,
+    etag: content
+  } as Awaited<ReturnType<StorageProvider['getMetadata']>>);
+  return provider;
 }
 
 describe('getCsvPreview', () => {
+  it('uses UTF-8 byte ranges for non-ASCII rows across chunks', async () => {
+    const content = 'h\nä\n中\n😀\nfin\n';
+    const provider = sliceProvider(content);
+    await getCsvPreview(provider, 'unicode', 0, 250, 18, mockLog, false);
+    const result = await getCsvPreview(provider, 'unicode', 1, 250, 18, mockLog, true);
+    expect((await readNdjsonResponse(result)).rows).toEqual([['中'], ['😀'], ['fin']]);
+  });
+  it('invalidates the index when an equal-size object is replaced', async () => {
+    const first = sliceProvider('h\na\nb\n');
+    await getCsvPreview(first, 'replacement', 0, 250, 6, mockLog, true);
+    const second = sliceProvider('h\nabc\n');
+    const response = await getCsvPreview(second, 'replacement', 0, 250, 6, mockLog, true);
+    expect((await readNdjsonResponse(response)).rows).toEqual([['abc']]);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -11,7 +11,14 @@ vi.mock('@smithy/node-http-handler', () => ({
 
 import { createS3Client } from './s3-client.js';
 import { S3Client } from '@aws-sdk/client-s3';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
+import type { Agent } from 'https';
 const mockS3Client = vi.mocked(S3Client);
+const mockHandler = vi.mocked(NodeHttpHandler);
+
+function handlerAgents(call: number) {
+  return mockHandler.mock.calls[call]![0] as { httpAgent: Agent; httpsAgent: Agent };
+}
 
 function baseConfig(overrides: Partial<S3ConnectionConfig> = {}): S3ConnectionConfig {
   return {
@@ -24,6 +31,24 @@ function baseConfig(overrides: Partial<S3ConnectionConfig> = {}): S3ConnectionCo
 }
 
 describe('createS3Client', () => {
+  it('shares keep-alive agents across clients so idle connections are reused', () => {
+    mockHandler.mockClear();
+    createS3Client(baseConfig({ tls: { verification: 'Full' } }));
+    createS3Client(baseConfig({ host: 'other.example.com', tls: { verification: 'Full' } }));
+    expect(handlerAgents(0).httpAgent).toBe(handlerAgents(1).httpAgent);
+    expect(handlerAgents(0).httpsAgent).toBe(handlerAgents(1).httpsAgent);
+    expect(handlerAgents(0).httpsAgent.options.keepAlive).toBe(true);
+    expect(handlerAgents(0).httpsAgent.options.rejectUnauthorized).not.toBe(false);
+  });
+
+  it('uses a separate unverified agent when TLS verification is disabled', () => {
+    mockHandler.mockClear();
+    createS3Client(baseConfig({ tls: { verification: 'Full' } }));
+    createS3Client(baseConfig({ tls: { verification: 'None' } }));
+    expect(handlerAgents(1).httpsAgent).not.toBe(handlerAgents(0).httpsAgent);
+    expect(handlerAgents(1).httpsAgent.options.rejectUnauthorized).toBe(false);
+  });
+
   it('builds an http endpoint when tls is absent', () => {
     createS3Client(baseConfig({ tls: undefined }));
     expect(mockS3Client).toHaveBeenCalledWith(

@@ -82,7 +82,7 @@ describe('ContextMenu', () => {
     await expect.element(previewBtn).toHaveAttribute('disabled');
   });
 
-  it('should disable download when context is a folder with no selected files', async () => {
+  it('should enable download when context is a folder', async () => {
     const folder = makeFolder('docs/');
     const state = createState([folder], {
       contextMenu: { x: 100, y: 100, key: 'docs/' },
@@ -91,7 +91,7 @@ describe('ContextMenu', () => {
     render(ContextMenuWrapper, { state });
 
     const downloadBtn = page.getByRole('menuitem', { name: 'Download' });
-    await expect.element(downloadBtn).toHaveAttribute('disabled');
+    await expect.element(downloadBtn).not.toHaveAttribute('disabled');
   });
 
   it('should enable download when context is a file', async () => {

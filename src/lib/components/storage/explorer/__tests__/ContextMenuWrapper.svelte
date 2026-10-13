@@ -24,7 +24,7 @@
       key: 'download',
       icon: IconDownload,
       label: 'Download',
-      disabled: state.selectedFiles.length === 0,
+      disabled: state.selectedKeys.size === 0,
       hidden: false
     },
     {

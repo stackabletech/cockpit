@@ -70,6 +70,9 @@ export function fingerprint(
     region: string;
     accessKeyId: string;
     secretAccessKey: string;
+    port?: number;
+    tls?: { verification: 'Full' | 'None' };
+    accessStyle?: string;
   },
   key: Buffer
 ): string {
@@ -78,7 +81,10 @@ export function fingerprint(
     credentials.endpoint,
     credentials.region,
     credentials.accessKeyId,
-    credentials.secretAccessKey
+    credentials.secretAccessKey,
+    String(credentials.port ?? ''),
+    JSON.stringify(credentials.tls ?? null),
+    credentials.accessStyle ?? ''
   ]
     .map((field) => `${Buffer.byteLength(field, 'utf8')}:${field}`)
     .join('');

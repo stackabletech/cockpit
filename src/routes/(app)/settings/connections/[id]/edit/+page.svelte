@@ -4,7 +4,7 @@
   import { resolve } from '$app/paths';
   import type { Pathname } from '$app/types';
   import { superForm } from 'sveltekit-superforms';
-  import { zod4 as zod } from 'sveltekit-superforms/adapters';
+  import { zod4Client as zod } from 'sveltekit-superforms/adapters';
   import { untrack } from 'svelte';
   import IconInfo from 'virtual:icons/material-symbols/info';
   import * as m from '$lib/paraglide/messages.js';
@@ -146,10 +146,13 @@
         id="{uid}-name"
         name="name"
         type="text"
-        class="input w-full"
+        class={['input w-full', $errors?.name && 'input-error']}
         placeholder={m.storage_connection_edit_name_placeholder()}
         bind:value={$form.name}
       />
+      {#if $errors?.name}
+        <p class="text-error mt-1 text-xs">{$errors.name}</p>
+      {/if}
       <p class="text-base-content/50 mt-1 text-xs">{m.storage_connection_edit_name_hint()}</p>
     </div>
 

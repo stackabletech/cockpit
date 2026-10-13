@@ -19,7 +19,12 @@ import {
   storagePasteEnabled,
   storageRenameEnabled
 } from '$lib/client/feature-flags.js';
-import { downloadObject } from '$lib/storage/download.js';
+import {
+  estimateArchiveSize,
+  startDownload,
+  triggerManifestDownloads
+} from '$lib/storage/download.js';
+import type { DownloadHistoryEntry } from '$lib/storage/api.js';
 import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import { StorageError, getActionErrorMessage } from './errors.js';
@@ -44,6 +49,8 @@ export class StorageState {
   });
   buckets = $state<string[]>([]);
   connected = $state(false);
+  downloadHistory = $state.raw<DownloadHistoryEntry[]>([]);
+  downloadHistoryLoading = $state(false);
 
   // ── Derived views ──
   folders = $derived(this.objects.objects.filter((o: StorageObject) => o.isDirectory));
@@ -225,6 +232,80 @@ export class StorageState {
     this.loading = false;
     this.selectedKeys = new SvelteSet<string>();
     this.archive.reset();
+    void this.refreshDownloadHistory();
+  }
+
+  private historyGeneration = 0;
+  async refreshDownloadHistory(): Promise<void> {
+    const generation = ++this.historyGeneration;
+    if (!this.connectionId) {
+      this.downloadHistory = [];
+      this.downloadHistoryLoading = false;
+      return;
+    }
+    this.downloadHistoryLoading = true;
+    try {
+      const history = await this._api.listDownloadHistory(this.connectionId);
+      if (generation === this.historyGeneration) this.downloadHistory = history;
+    } catch {
+      // Preserve the last successful history on transient failures.
+    } finally {
+      if (generation === this.historyGeneration) this.downloadHistoryLoading = false;
+    }
+  }
+
+  async redownloadHistory(manifestId: string, keys: string[]): Promise<void> {
+    const entry = this.downloadHistory.find((candidate) => candidate.id === manifestId);
+    const selectedEntries = entry ? entry.entries.filter((item) => keys.includes(item.key)) : [];
+    const operationId = crypto.randomUUID();
+    const controller = new AbortController();
+    this.operations_.startOp(
+      operationId,
+      m.storage_action_download(),
+      'download',
+      keys.length,
+      controller,
+      undefined,
+      keys.map(keyToName),
+      estimateArchiveSize(selectedEntries),
+      false
+    );
+    try {
+      const manifest = await this._api.recreateDownloadManifest(
+        manifestId,
+        keys,
+        controller.signal
+      );
+      const jobIds = await triggerManifestDownloads(manifest, controller.signal, (ids) =>
+        this.operations_.updateOpJobIds(operationId, ids)
+      );
+      this.operations_.updateOpTotalBytes(
+        operationId,
+        manifest.files.reduce((total, file) => total + file.size, 0)
+      );
+      this.operations_.updateOpJobIds(operationId, jobIds);
+      this.operations_.trackDownload(operationId);
+      await this.refreshDownloadHistory();
+    } catch (err) {
+      if (err instanceof StorageError && err.code === 'not_found') {
+        this.operations_.finishOp(
+          operationId,
+          'error',
+          m.storage_download_history_file_not_found({ path: err.message })
+        );
+        this.downloadHistory = this.downloadHistory.filter((entry) => entry.id !== manifestId);
+        await this.refreshDownloadHistory();
+      } else {
+        this.operations_.finishOp(operationId, 'error');
+      }
+      if (!controller.signal.aborted)
+        addToast(
+          'error',
+          err instanceof StorageError
+            ? getActionErrorMessage(err)
+            : m.storage_download_error_unknown()
+        );
+    }
   }
 
   /** Add a bucket to the in-memory list (no server-side persistence). */
@@ -441,26 +522,58 @@ export class StorageState {
         this.openModal('preview', { key });
         return;
 
-      case 'download':
-        if (!key) {
+      case 'download': {
+        const downloadItems = [...this.selectedFolders, ...this.selectedFiles];
+        if (downloadItems.length === 0) {
           addToast('warning', m.storage_action_download_no_selection());
           return;
         }
         if (this.archive.isInArchive) {
+          if (!key) {
+            addToast('warning', m.storage_action_download_no_selection());
+            return;
+          }
           void this.archive.downloadFromArchive(key);
           return;
         }
-        for (const f of effectiveSelectedFiles) {
+        for (const f of downloadItems) {
           this.bookmarks.recordFileVisit(this.bucket, f.key, f.size);
         }
+        const operationId = crypto.randomUUID();
         try {
-          const connectionId = connectionStore.activeConnectionId;
-          if (!connectionId) {
+          if (!connectionStore.activeConnectionId) {
             addToast('error', m.storage_download_error_unknown());
             return;
           }
-          await downloadObject(this.bucket, key, connectionId);
+          const keys = downloadItems.map((file) => file.key);
+          const abortController = new AbortController();
+          this.operations_.startOp(
+            operationId,
+            m.storage_action_download(),
+            'download',
+            keys.length,
+            abortController,
+            undefined,
+            downloadItems.map((file) => keyToName(file.key)),
+            estimateArchiveSize(downloadItems),
+            false
+          );
+          const result = await startDownload(
+            this._api,
+            this.bucket,
+            this.prefix,
+            keys,
+            abortController.signal,
+            (ids) => this.operations_.updateOpJobIds(operationId, ids)
+          );
+          // The manifest reports the authoritative payload total, which also
+          // covers folder contents that were unknown before.
+          this.operations_.updateOpTotalBytes(operationId, result.totalBytes);
+          this.operations_.updateOpJobIds(operationId, result.jobIds);
+          this.operations_.trackDownload(operationId);
+          await this.refreshDownloadHistory();
         } catch (err: unknown) {
+          this.operations_.finishOp(operationId, 'error');
           if (err instanceof StorageError) {
             addToast('error', getActionErrorMessage(err));
           } else {
@@ -468,6 +581,7 @@ export class StorageState {
           }
         }
         return;
+      }
 
       case 'pin':
         this.bookmarks.pin(this.bucket, ctxKey ?? this.prefix);
@@ -864,6 +978,7 @@ export class StorageState {
 
   handleKeydown = (e: KeyboardEvent): void => {
     if (this.activeModal) return;
+    if (e.target instanceof Element && e.target.closest('dialog[open]')) return;
     if (this.archive.isInArchive && e.key !== 'Escape') return;
 
     const isCtrl = e.ctrlKey || e.metaKey;
@@ -908,8 +1023,14 @@ export class StorageState {
     this.operations_.cancelOp(id);
   };
 
-  clearOperationHistory = (): void => {
+  clearOperationHistory = async (): Promise<void> => {
     this.operations_.clearOperationHistory();
+    try {
+      await this._api.clearDownloadHistory();
+      this.downloadHistory = [];
+    } catch {
+      await this.refreshDownloadHistory();
+    }
   };
 
   // ────────────────────────────────────────────────────────────────────────────

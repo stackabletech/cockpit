@@ -99,6 +99,42 @@ test.describe('Storage — Connections management', () => {
     await expect(page.getByRole('heading', { name: 'Manage connections' })).toBeVisible();
   });
 
+  test('edit page keeps the current name when the name field is cleared', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+    await page.goto('/settings/connections');
+    await waitForHydration(page);
+
+    await openFirstConnectionEditPage(page);
+    const nameInput = page.getByLabel('Connection name');
+    const originalName = await nameInput.inputValue();
+    expect(originalName).not.toBe('');
+
+    await nameInput.fill('   ');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await waitForHydration(page);
+    await expect(page).toHaveURL('/settings/connections');
+
+    await openFirstConnectionEditPage(page);
+    await expect(page.getByLabel('Connection name')).toHaveValue(originalName);
+  });
+
+  test('edit page requires the secret key when the access key changes', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+    await page.goto('/settings/connections');
+    await waitForHydration(page);
+
+    await openFirstConnectionEditPage(page);
+    await page.getByLabel('Access key').fill('GKnewaccesskey');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(
+      page.getByText('Enter the secret key that belongs to the new access key.')
+    ).toBeVisible();
+    await expect(page).toHaveURL(/\/edit$/);
+  });
+
   test('edit page shows error for invalid credentials', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);

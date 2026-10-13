@@ -16,6 +16,7 @@ if (browser) {
 
 const OPERATIONS_HISTORY_KEY = 'storage_operations_history';
 const MAX_HISTORY_ENTRIES = 30;
+const JOB_START_GRACE_MS = 60_000;
 
 function loadPersistedOperations(): StorageOperation[] {
   if (!browser) return [];
@@ -61,6 +62,9 @@ export class OperationsState {
 
   private _abortControllers = new SvelteMap<string, AbortController>();
   private _pollTimers = new SvelteMap<string, ReturnType<typeof setTimeout>>();
+  // When each job was first reported missing, to tell a download the browser
+  // has not started yet apart from a job that expired or never existed.
+  private _jobMissingSince = new SvelteMap<string, number>();
   private _api: StorageApi;
   private _getBucket: () => string;
   private _getPrefix: () => string;
@@ -85,7 +89,8 @@ export class OperationsState {
     abortController?: AbortController,
     destPath?: string,
     sourceNames?: string[],
-    totalBytes = 0
+    totalBytes = 0,
+    persist = true
   ): void {
     this.operations = [
       ...this.operations,
@@ -106,18 +111,25 @@ export class OperationsState {
     if (abortController) {
       this._abortControllers.set(id, abortController);
     }
-    saveOperationsToStorage(this.operations);
+    if (persist) saveOperationsToStorage(this.operations);
   }
 
   updateOpProgress(
     id: string,
     completedCount: number,
     completedBytes: number,
-    currentFileName?: string
+    currentFileName?: string,
+    totalBytes?: number
   ): void {
     this.operations = this.operations.map((op) =>
       op.id === id && op.status !== 'cancelled'
-        ? { ...op, completedCount, completedBytes, currentFileName }
+        ? {
+            ...op,
+            completedCount,
+            completedBytes,
+            currentFileName,
+            totalBytes: totalBytes ?? op.totalBytes
+          }
         : op
     );
   }
@@ -127,20 +139,51 @@ export class OperationsState {
     saveOperationsToStorage(this.operations);
   }
 
+  trackDownload(id: string): void {
+    const operation = this.operations.find((op) => op.id === id);
+    // Native downloads begin asynchronously after their anchor click. Wait for
+    // the first request to register its server-side job before polling it.
+    if (operation?.status === 'running' && operation.fileJobIds?.length) {
+      const timer = setTimeout(() => void this._pollJobStatus(operation), 500);
+      this._pollTimers.set(id, timer);
+    }
+  }
+
+  /** Refine the expected transfer size once the download manifest is known. */
+  updateOpTotalBytes(id: string, totalBytes: number): void {
+    this.operations = this.operations.map((op) => (op.id === id ? { ...op, totalBytes } : op));
+  }
+
   finishOp(id: string, status: 'done' | 'error' | 'cancelled', errorMessage?: string): void {
+    clearTimeout(this._pollTimers.get(id));
+    this._pollTimers.delete(id);
+    const operation = this.operations.find((op) => op.id === id);
     this.operations = this.operations.map((op) =>
       op.id === id && op.status !== 'cancelled'
         ? { ...op, status, errorMessage, completedAt: Date.now() }
         : op
     );
     this._abortControllers.delete(id);
+    if (operation?.type !== 'download') saveOperationsToStorage(this.operations);
+  }
+
+  removeOp(id: string): void {
+    clearTimeout(this._pollTimers.get(id));
+    this._pollTimers.delete(id);
+    this.operations = this.operations.filter((op) => op.id !== id);
+    this._abortControllers.delete(id);
     saveOperationsToStorage(this.operations);
   }
 
   cancelOp(id: string): void {
+    const operation = this.operations.find((op) => op.id === id);
     const controller = this._abortControllers.get(id);
     if (controller) {
       controller.abort();
+    }
+    if (operation?.type === 'download') {
+      for (const jobId of operation.fileJobIds ?? [])
+        void this._api.cancelJob(jobId).catch(() => {});
     }
     const timer = this._pollTimers.get(id);
     if (timer) {
@@ -167,26 +210,46 @@ export class OperationsState {
   }
 
   private async _pollJobStatus(op: StorageOperation): Promise<void> {
-    if (this.operations.find((o) => o.id === op.id)?.status === 'cancelled') return;
+    const isActive = () =>
+      ['running', 'interrupted'].includes(
+        this.operations.find((o) => o.id === op.id)?.status ?? ''
+      );
+    if (!isActive()) return;
 
     let completedCount = 0;
     let completedBytes = 0;
     let anyRunning = false;
+    let anyError = false;
+    let anyCancelled = false;
+    let currentFileName: string | undefined;
 
     for (const jobId of op.fileJobIds!) {
       try {
         const job = await this._api.pollJob(jobId);
+        if (job.status !== 'not_found') this._jobMissingSince.delete(jobId);
+        completedBytes += job.progress?.completedBytes ?? 0;
         if (job.status === 'done') {
           completedCount++;
         } else if (job.status === 'running') {
           anyRunning = true;
-          completedBytes += job.progress?.completedBytes ?? 0;
+          currentFileName = job.progress?.currentFileName;
+        } else if (job.status === 'not_found') {
+          // The browser may not have opened the native download request yet
+          // (e.g. a save dialog is open). Give up after a grace period.
+          const missingSince = this._jobMissingSince.get(jobId) ?? Date.now();
+          this._jobMissingSince.set(jobId, missingSince);
+          if (Date.now() - missingSince < JOB_START_GRACE_MS) anyRunning = true;
+        } else if (job.status === 'cancelled') {
+          anyCancelled = true;
+        } else {
+          anyError = true;
         }
       } catch {
         // Job may have expired
       }
     }
 
+    if (!isActive()) return;
     if (anyRunning) {
       this.operations = this.operations.map((o) =>
         o.id === op.id
@@ -195,6 +258,7 @@ export class OperationsState {
               status: 'running' as const,
               completedCount,
               completedBytes,
+              currentFileName,
               completedAt: undefined
             }
           : o
@@ -206,7 +270,13 @@ export class OperationsState {
         o.id === op.id
           ? {
               ...o,
-              status: (completedCount === op.itemCount ? 'done' : 'error') as 'done' | 'error',
+              status: (anyCancelled
+                ? 'cancelled'
+                : anyError ||
+                    completedCount !==
+                      (op.type === 'download' ? op.fileJobIds!.length : op.itemCount)
+                  ? 'error'
+                  : 'done') as 'done' | 'error' | 'cancelled',
               completedCount,
               completedBytes,
               completedAt: Date.now()

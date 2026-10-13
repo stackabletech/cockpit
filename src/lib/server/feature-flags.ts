@@ -144,3 +144,15 @@ export const storageRenameEnabled =
  *  API endpoint (drag-and-drop) is active. Uses PUBLIC_ key. Disabled by default. */
 export const storageMoveEnabled =
   (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED ?? 'false') === 'true';
+
+// ── Storage browser: downloads ─────────────────────────────────────────────
+
+/** Days that a user's download history remains available. Controlled by
+ * `STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS`. */
+const retentionDays = Number(env.STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS ?? 30);
+if (!Number.isInteger(retentionDays) || retentionDays < 1 || retentionDays > 3650) {
+  throw new Error(
+    'STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS must be an integer between 1 and 3650'
+  );
+}
+export const downloadHistoryRetentionMs = retentionDays * 24 * 60 * 60 * 1000;
