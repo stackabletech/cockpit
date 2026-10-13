@@ -1,5 +1,6 @@
 import type { StorageProvider } from './provider.js';
 import type pino from 'pino';
+import { numberedName } from '$lib/storage/numbered-name.js';
 
 export interface DestEntry {
   sourceKey: string;
@@ -71,7 +72,8 @@ export async function computeDestinations(
 
 /**
  * Given a desired destination key, check if it already exists and generate
- * a unique name by appending ` (1)`, ` (2)`, etc. before the extension.
+ * a unique name by appending ` (1)`, ` (2)`, etc. to the item's own name
+ * (see `numberedName`).
  * Returns the first key that does not exist.
  */
 export async function uniqueDestKey(provider: StorageProvider, baseKey: string): Promise<string> {
@@ -80,15 +82,9 @@ export async function uniqueDestKey(provider: StorageProvider, baseKey: string):
     (key.endsWith('/') && (await provider.listObjects(key, 1)).objects.length > 0);
   if (!(await exists(baseKey))) return baseKey;
 
-  const name = baseKey.endsWith('/') ? baseKey.slice(0, -1) : baseKey;
-  const lastDot = name.lastIndexOf('.');
-  const stem = lastDot > 0 ? name.slice(0, lastDot) : name;
-  const ext = lastDot > 0 && !baseKey.endsWith('/') ? name.slice(lastDot) : '';
-  const suffix = baseKey.endsWith('/') ? '/' : '';
-
   let counter = 1;
   while (true) {
-    const candidate = `${stem} (${counter})${ext}${suffix}`;
+    const candidate = numberedName(baseKey, counter);
     if (!(await exists(candidate))) return candidate;
     counter++;
   }

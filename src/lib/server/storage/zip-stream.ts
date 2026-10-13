@@ -1,3 +1,4 @@
+import { numberedName } from '$lib/storage/numbered-name.js';
 import type { StorageProvider } from './provider.js';
 
 const ZIP_VERSION = 20;
@@ -233,11 +234,8 @@ function sanitiseEntryName(key: string, prefix: string): string {
 
 function uniqueName(name: string, used: Set<string>): string {
   if (!used.has(name)) return name;
-  const slash = name.lastIndexOf('/');
-  const dot = name.lastIndexOf('.');
-  const extensionStart = dot > slash + 1 ? dot : name.length;
   for (let index = 2; ; index++) {
-    const candidate = `${name.slice(0, extensionStart)} (${index})${name.slice(extensionStart)}`;
+    const candidate = numberedName(name, index);
     if (!used.has(candidate)) return candidate;
   }
 }

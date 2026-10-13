@@ -278,6 +278,38 @@ test.describe('Storage S3 — File Operations', () => {
     }
   });
 
+  test('renamed copies keep dotted folder names intact', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = `${uniquePrefix(testInfo, 'paste-dotted')}dir.v2/`;
+    const file = `${prefix}file`;
+    const folderFile = `${prefix}v1.2/sub/inner.txt`;
+    const copiedFile = `${prefix}file (1)`;
+    const copiedFolderFile = `${prefix}v1.2 (1)/sub/inner.txt`;
+    const cleanupKeys = [file, folderFile, copiedFile, copiedFolderFile];
+
+    try {
+      await putTextObject(client, credentials.bucket, file, 'file');
+      await putTextObject(client, credentials.bucket, folderFile, 'inner');
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await page.getByRole('button', { name: 'Toggle selection mode' }).click();
+      await page.getByLabel('Select file', { exact: true }).check();
+      await page.getByLabel('Select v1.2', { exact: true }).check();
+      await page.keyboard.press('Control+c');
+      await page.keyboard.press('Control+v');
+
+      // Only the copied item's own name is numbered, never a parent folder.
+      await expect.poll(() => objectExists(client, credentials.bucket, copiedFile)).toBe(true);
+      await expect
+        .poll(() => objectExists(client, credentials.bucket, copiedFolderFile))
+        .toBe(true);
+      expect(await getObjectText(client, credentials.bucket, copiedFolderFile)).toBe('inner');
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   // ──────────────────────────────────────────────────────────────────────────
   // Rename
   // ──────────────────────────────────────────────────────────────────────────

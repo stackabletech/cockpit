@@ -31,6 +31,7 @@ import { StorageError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
 import { connectionStore } from '$lib/storage/connection-store.svelte.js';
 import { isArchiveExtension, keyToName } from '$lib/storage/utils.js';
+import { numberedName } from '$lib/storage/numbered-name.js';
 import type { StorageApi } from './api.js';
 import { createFetchStorageApi } from './api.js';
 import { OperationsState } from './operations.svelte.js';
@@ -721,15 +722,11 @@ export class StorageState {
       }
 
       // Do not let a repeated default name overwrite an edited file.
-      let finalName = sanitized;
-      let finalKey = this.prefix + finalName + (isFolder ? '/' : '');
+      const baseKey = this.prefix + sanitized + (isFolder ? '/' : '');
+      let finalKey = baseKey;
       let copyNumber = 2;
       while (await this.api.checkObjectExists({ bucket: this.bucket, key: finalKey })) {
-        const extensionIndex = sanitized.lastIndexOf('.');
-        const base = extensionIndex > 0 ? sanitized.slice(0, extensionIndex) : sanitized;
-        const extension = extensionIndex > 0 ? sanitized.slice(extensionIndex) : '';
-        finalName = `${base} (${copyNumber})${extension}`;
-        finalKey = this.prefix + finalName + (isFolder ? '/' : '');
+        finalKey = numberedName(baseKey, copyNumber);
         copyNumber++;
       }
       await this.api.create({ bucket: this.bucket, key: finalKey });

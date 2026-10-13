@@ -58,6 +58,23 @@ describe('processKeysSequentially', () => {
       'target/docs (1)/nested/b.txt'
     );
   });
+  it('numbers only the file name when the destination folder contains a dot', async () => {
+    const source = provider({
+      exists: vi.fn(async (key: string) => key === 'dir.v2/file')
+    });
+    await processKeysSequentially(source, ['src/file'], 'dir.v2/');
+    expect(source.copyObject).toHaveBeenCalledWith('src/file', 'dir.v2/file (1)');
+  });
+  it('keeps a dotted folder name whole and moves its children under the numbered root', async () => {
+    const source = provider({
+      listAllKeys: vi.fn().mockResolvedValue(['v1.2/', 'v1.2/a.txt', 'v1.2/sub/b.txt']),
+      exists: vi.fn(async (key: string) => key === 'target/v1.2/')
+    });
+    await processKeysSequentially(source, ['v1.2/'], 'target/');
+    expect(source.copyObject).toHaveBeenCalledWith('v1.2/', 'target/v1.2 (1)/');
+    expect(source.copyObject).toHaveBeenCalledWith('v1.2/a.txt', 'target/v1.2 (1)/a.txt');
+    expect(source.copyObject).toHaveBeenCalledWith('v1.2/sub/b.txt', 'target/v1.2 (1)/sub/b.txt');
+  });
   it('deletes successful folder markers without recursive prefix expansion', async () => {
     const source = provider({ listAllKeys: vi.fn().mockResolvedValue(['docs/', 'docs/a.txt']) });
     await processKeysSequentially(source, ['docs/'], 'target/', { deleteOriginals: true });
