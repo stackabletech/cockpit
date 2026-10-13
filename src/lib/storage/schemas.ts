@@ -120,6 +120,15 @@ export const StorageObjectNameSchema = z
     'Object name cannot contain relative path segments'
   );
 
+/**
+ * A replacement name chosen in the conflict dialog. It renames the item in place, so it is a
+ * single path segment: a `/` would move the item into another folder.
+ */
+export const ConflictRenameNameSchema = StorageObjectNameSchema.refine(
+  (value) => !value.includes('/'),
+  'Name cannot contain "/"'
+);
+
 const StoragePrefixSchema = z
   .string()
   .refine(

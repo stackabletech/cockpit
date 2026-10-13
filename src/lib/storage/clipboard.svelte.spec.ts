@@ -32,6 +32,7 @@ import type { ConflictEntry } from '$lib/components/storage/modals/shared/confli
 import { createMemoryStorageApi } from './api.test-utils.js';
 import { makePage } from './state.test-utils.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
+import { StorageError } from './errors.js';
 
 /** Existing bucket contents: file `file.txt` and folder `dir/` (with a child, no marker). */
 const EXISTING_FILES = new Set(['file.txt', 'dir/child.txt']);
@@ -296,5 +297,257 @@ describe('performMove', () => {
     state.performMove('', ['file.txt']);
 
     expect(state.activeModal).toBeNull();
+  });
+});
+
+describe('rename on conflict', () => {
+  /**
+   * A move endpoint that refuses a taken explicit destination key with a per-item failure in a
+   * successful response (how the server answered before the fix, and still does when streaming).
+   */
+  function refusingTransfer(existing: Set<string>) {
+    return vi.fn(
+      async ({
+        sourceKeys,
+        destinationPrefix,
+        destinationKey
+      }: Parameters<StorageApi['move']>[0]) => {
+        const sourceKey = sourceKeys[0];
+        const destKey = destinationKey ?? destinationPrefix + sourceKey.split('/').pop();
+        if (destinationKey && existing.has(destinationKey)) return { results: [], failed: 1 };
+        return { results: [{ sourceKey, destKey }], failed: 0 };
+      }
+    );
+  }
+
+  function movedSourceKeys(api: StorageApi): string[][] {
+    return vi.mocked(api.move).mock.calls.map(([params]) => params.sourceKeys);
+  }
+
+  /** Drag `keys` into `destPrefix`, then rename every conflict to `customName`. */
+  async function moveRenamingTo(state: StorageState, keys: string[], customName: string) {
+    state.performMove('', keys);
+    await state.confirmMove();
+    expect(state.activeModal?.type).toBe('resolve-conflicts');
+    const entries = (state.activeModal!.payload as { entries: ConflictEntry[] }).entries;
+    await state.confirmConflictResolution(
+      entries.map((e) =>
+        e.conflict
+          ? { ...e, resolution: 'rename', customName, renameState: 'ok' }
+          : { ...e, resolution: 'replace' }
+      )
+    );
+  }
+
+  it('moves the dragged item straight to its new name, never a source sibling', async () => {
+    // `src/b.txt` exists next to the source; the destination has no `b.txt`.
+    const api = makeApi({
+      checkObjectExists: async ({ key }) => key === 'a.txt',
+      move: refusingTransfer(new Set(['a.txt', 'src/a.txt', 'src/b.txt']))
+    });
+    const state = makeState(api, clipboard('copy', []));
+    state.prefix = 'src/';
+
+    await moveRenamingTo(state, ['src/a.txt'], 'b.txt');
+
+    expect(movedSourceKeys(api)).toEqual([['src/a.txt']]);
+    expect(api.move).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceKeys: ['src/a.txt'], destinationKey: 'b.txt' })
+    );
+    expect(addToast).toHaveBeenCalledWith('success', '1 item moved');
+  });
+
+  it('reports a refused rename as an error and moves nothing else', async () => {
+    const api = makeApi({
+      checkObjectExists: async ({ key }) => key === 'a.txt',
+      move: refusingTransfer(new Set(['a.txt', 'b.txt', 'src/a.txt']))
+    });
+    const state = makeState(api, clipboard('copy', []));
+    state.prefix = 'src/';
+
+    await moveRenamingTo(state, ['src/a.txt'], 'b.txt');
+
+    expect(movedSourceKeys(api)).toEqual([['src/a.txt']]);
+    expect(addToast).toHaveBeenCalledWith(
+      'error',
+      'Could not rename "a.txt" to "b.txt". The name may already be in use.'
+    );
+    expect(addToast).not.toHaveBeenCalledWith('success', expect.anything());
+  });
+
+  it('reports a rename the server rejects with 409 as an error', async () => {
+    const api = makeApi({
+      checkObjectExists: async ({ key }) => key === 'a.txt',
+      move: vi.fn().mockRejectedValue(new StorageError('conflict', 'Destination already exists'))
+    });
+    const state = makeState(api, clipboard('copy', []));
+    state.prefix = 'src/';
+
+    await moveRenamingTo(state, ['src/a.txt'], 'b.txt');
+
+    expect(movedSourceKeys(api)).toEqual([['src/a.txt']]);
+    expect(addToast).toHaveBeenCalledWith(
+      'error',
+      'Could not rename "a.txt" to "b.txt". The name may already be in use.'
+    );
+    expect(addToast).not.toHaveBeenCalledWith('success', expect.anything());
+  });
+
+  it.each(['sub/b.txt', '', '..'])('refuses the invalid name %j without moving', async (name) => {
+    const api = makeApi({ checkObjectExists: async ({ key }) => key === 'a.txt' });
+    const state = makeState(api, clipboard('copy', []));
+    state.prefix = 'src/';
+
+    await moveRenamingTo(state, ['src/a.txt'], name);
+
+    expect(api.move).not.toHaveBeenCalled();
+    expect(addToast).toHaveBeenCalledWith('error', expect.stringContaining('Could not rename'));
+  });
+
+  it('reports a refused rename after a paste and keeps the clipboard on the pasted item', async () => {
+    // The server pastes `file.txt` as `file (2).txt`; renaming it to the taken `b.txt` fails.
+    const api = makeApi({
+      move: vi.fn(async ({ sourceKeys, destinationKey }: Parameters<StorageApi['move']>[0]) =>
+        destinationKey
+          ? { results: [], failed: 1 }
+          : { results: [{ sourceKey: sourceKeys[0], destKey: 'file (2).txt' }], failed: 0 }
+      )
+    });
+    const state = makeState(api, clipboard('cut', ['src/file.txt']));
+
+    await state.executeAction('paste');
+    const entries = (state.activeModal!.payload as { entries: ConflictEntry[] }).entries;
+    await state.confirmConflictResolution(
+      entries.map((e) => ({ ...e, resolution: 'rename', customName: 'b.txt', renameState: 'ok' }))
+    );
+
+    expect(addToast).toHaveBeenCalledWith(
+      'error',
+      'Could not rename "file.txt" to "b.txt". The name may already be in use.'
+    );
+    expect(addToast).not.toHaveBeenCalledWith('success', expect.anything());
+    expect(state.clipboard).toEqual(expect.objectContaining({ keys: ['file (2).txt'] }));
+  });
+
+  /** Paste the clipboard, then rename every conflict to `customName`. */
+  async function pasteRenamingTo(state: StorageState, customName: string) {
+    await state.executeAction('paste');
+    expect(state.activeModal?.type).toBe('resolve-conflicts');
+    const entries = (state.activeModal!.payload as { entries: ConflictEntry[] }).entries;
+    await state.confirmConflictResolution(
+      entries.map((e) => ({ ...e, resolution: 'rename', customName, renameState: 'ok' }))
+    );
+  }
+
+  /** Server pasting `other/dir/` as `dir (2)/` (children only, no marker), then renaming it. */
+  function folderTransfer(renameResult?: { results: number; failed: number }) {
+    return vi.fn(async ({ sourceKeys, destinationKey }: Parameters<StorageApi['move']>[0]) => {
+      if (!destinationKey) {
+        return {
+          results: [
+            { sourceKey: 'other/dir/a.txt', destKey: 'dir (2)/a.txt' },
+            { sourceKey: 'other/dir/sub/b.txt', destKey: 'dir (2)/sub/b.txt' }
+          ],
+          failed: 0
+        };
+      }
+      const all = [
+        { sourceKey: `${sourceKeys[0]}a.txt`, destKey: `${destinationKey}a.txt` },
+        { sourceKey: `${sourceKeys[0]}sub/b.txt`, destKey: `${destinationKey}sub/b.txt` }
+      ];
+      return {
+        results: all.slice(0, renameResult?.results ?? 2),
+        failed: renameResult?.failed ?? 0
+      };
+    });
+  }
+
+  it.each(['copy', 'cut'] as const)(
+    'renames a pasted folder via its root derived from child results (%s)',
+    async (action) => {
+      const transfer = folderTransfer();
+      const api = makeApi({ copy: transfer, move: transfer });
+      const state = makeState(api, clipboard(action, ['other/dir/']));
+
+      await pasteRenamingTo(state, 'renamed');
+
+      expect(api.move).toHaveBeenCalledWith(
+        expect.objectContaining({ sourceKeys: ['dir (2)/'], destinationKey: 'renamed/' })
+      );
+      expect(addToast).toHaveBeenCalledWith('success', '1 item pasted');
+      expect(addToast).not.toHaveBeenCalledWith('error', expect.anything());
+      if (action === 'cut') {
+        expect(state.clipboard).toEqual(expect.objectContaining({ keys: ['renamed/'] }));
+      }
+    }
+  );
+
+  it('reports a folder paste whose root cannot be derived as a failed rename', async () => {
+    const api = makeApi();
+    const state = makeState(api, clipboard('copy', ['other/dir/']));
+
+    await pasteRenamingTo(state, 'renamed');
+
+    expect(api.move).not.toHaveBeenCalled();
+    expect(addToast).toHaveBeenCalledWith(
+      'error',
+      'Could not rename "dir" to "renamed". The name may already be in use.'
+    );
+    expect(addToast).not.toHaveBeenCalledWith('success', expect.anything());
+  });
+
+  it('reports a partly renamed folder without claiming success', async () => {
+    const transfer = folderTransfer({ results: 1, failed: 1 });
+    const api = makeApi({ copy: transfer, move: transfer });
+    const state = makeState(api, clipboard('cut', ['other/dir/']));
+
+    await pasteRenamingTo(state, 'renamed');
+
+    expect(addToast).toHaveBeenCalledWith(
+      'error',
+      '"dir" was only partly renamed to "renamed". Some items kept their previous name.'
+    );
+    expect(addToast).not.toHaveBeenCalledWith('success', expect.anything());
+    expect(state.clipboard).toEqual(
+      expect.objectContaining({ keys: ['renamed/a.txt', 'dir (2)/sub/b.txt'] })
+    );
+  });
+
+  it('moves a dragged folder straight to its new name', async () => {
+    const api = makeApi({
+      move: vi.fn().mockResolvedValue({
+        results: [{ sourceKey: 'src/dir/a.txt', destKey: 'renamed/a.txt' }],
+        failed: 0
+      })
+    });
+    const state = makeState(api, clipboard('copy', []));
+    state.prefix = 'src/';
+
+    await moveRenamingTo(state, ['src/dir/'], 'renamed');
+
+    expect(movedSourceKeys(api)).toEqual([['src/dir/']]);
+    expect(api.move).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceKeys: ['src/dir/'], destinationKey: 'renamed/' })
+    );
+    expect(addToast).toHaveBeenCalledWith('success', '1 item moved');
+  });
+
+  it('reports a partly moved folder rename without claiming success', async () => {
+    const api = makeApi({
+      move: vi.fn().mockResolvedValue({
+        results: [{ sourceKey: 'src/dir/a.txt', destKey: 'renamed/a.txt' }],
+        failed: 1
+      })
+    });
+    const state = makeState(api, clipboard('copy', []));
+    state.prefix = 'src/';
+
+    await moveRenamingTo(state, ['src/dir/'], 'renamed');
+
+    expect(addToast).toHaveBeenCalledWith(
+      'error',
+      '"dir" was only partly renamed to "renamed". Some items kept their previous name.'
+    );
+    expect(addToast).not.toHaveBeenCalledWith('success', expect.anything());
   });
 });

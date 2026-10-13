@@ -4,6 +4,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
   import ConflictEntry from './ConflictEntry.svelte';
+  import { ConflictRenameNameSchema } from '$lib/storage/schemas.js';
   import type {
     ConflictEntry as ConflictEntryType,
     Resolution,
@@ -111,7 +112,8 @@
     const entry = localEntries.find((e) => e.id === id);
     if (!entry || entry.resolution !== 'rename') return;
     const newName = entry.customName.trim();
-    if (newName === '' || newName === entry.originalName) return;
+    if (newName === entry.originalName || !ConflictRenameNameSchema.safeParse(newName).success)
+      return;
 
     localEntries = localEntries.map((e) =>
       e.id === id ? { ...e, renameState: 'checking' as const } : e

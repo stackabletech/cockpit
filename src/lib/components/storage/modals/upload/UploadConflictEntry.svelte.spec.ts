@@ -158,6 +158,21 @@ describe('ConflictEntry', () => {
         .toBeInTheDocument();
     });
 
+    it('should show an error when the new name contains a slash', async () => {
+      const entry = makeEntry({
+        resolution: 'rename',
+        renameState: 'editing',
+        originalName: 'original.txt',
+        customName: 'sub/new.txt'
+      });
+      const screen = render(ConflictEntry, { entry, ...defaultCallbacks });
+      await expect
+        .element(screen.getByText(/Enter a single name without "\/"/))
+        .toBeInTheDocument();
+      await expect.element(screen.getByRole('textbox')).toHaveClass('input-error');
+      await expect.element(screen.getByRole('textbox')).toHaveAttribute('aria-invalid', 'true');
+    });
+
     it('should show an error when rename conflicts with existing file', async () => {
       const entry = makeEntry({
         resolution: 'rename',

@@ -1,6 +1,6 @@
 import type { StorageProvider } from './provider.js';
 import type pino from 'pino';
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { processKeysSequentially } from './operations.js';
 import { createProgressStream, type StreamableOpResult } from './streaming.js';
 import { createJob } from './job-store.js';
@@ -44,9 +44,28 @@ export async function performCopyOrMove(options: PerformCopyOrMoveOptions): Prom
       { logger, bucket, destinationProvider, deleteOriginals },
       destinationKey
     );
+    // An explicit destination key is a single-item rename. Report a refused
+    // rename as an HTTP error so callers cannot mistake it for success.
+    if (destinationKey && succeeded.length === 0 && failed.length > 0) {
+      const reason = failed[0].error;
+      const status =
+        reason === 'Destination already exists'
+          ? 409
+          : reason === 'Source and destination are the same'
+            ? 400
+            : 500;
+      const level = status === 500 ? 'warn' : 'info';
+      logger[level](
+        { bucket, destination_key: destinationKey, failed: failed.length, status_code: status },
+        `${operationName} to explicit destination refused`
+      );
+      throw error(status, reason);
+    }
     return json({ [resultKey]: succeeded, failed });
   }
 
+  // Streaming has already answered 200, so a refused `destinationKey` arrives as a per-item
+  // `failed` event instead of an HTTP error. Callers must check the failures.
   if (jobId) {
     createJob(jobId, options.userId);
   }

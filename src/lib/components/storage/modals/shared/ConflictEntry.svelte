@@ -2,6 +2,7 @@
   import IconCheck from 'virtual:icons/material-symbols/check';
   import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
+  import { ConflictRenameNameSchema } from '$lib/storage/schemas.js';
   import type { ConflictEntry, Resolution } from './conflict-types.js';
 
   interface Props {
@@ -17,10 +18,16 @@
 
   const uid = $props.id();
 
-  let badRename = $derived(
+  let sameName = $derived(
     entry.resolution === 'rename' &&
       (entry.customName.trim() === '' || entry.customName.trim() === entry.originalName)
   );
+  let invalidName = $derived(
+    entry.resolution === 'rename' &&
+      !sameName &&
+      !ConflictRenameNameSchema.safeParse(entry.customName.trim()).success
+  );
+  let badRename = $derived(sameName || invalidName);
 </script>
 
 <li class="px-4 py-3">
@@ -91,13 +98,18 @@
         oninput={(e) => onSetCustomName((e.target as HTMLInputElement).value)}
         onkeydown={(e) => e.key === 'Enter' && void onCheckRename()}
         placeholder={m.storage_upload_rename_label()}
+        aria-invalid={badRename || entry.renameState === 'conflict'}
         aria-describedby={badRename || entry.renameState === 'conflict'
           ? `${uid}-rename-err-${entry.id}`
           : undefined}
       />
-      {#if badRename}
+      {#if sameName}
         <p id="{uid}-rename-err-{entry.id}" class="text-error mt-1 text-xs" role="alert">
           {m.storage_upload_rename_same_name_error()}
+        </p>
+      {:else if invalidName}
+        <p id="{uid}-rename-err-{entry.id}" class="text-error mt-1 text-xs" role="alert">
+          {m.storage_conflict_rename_invalid_name()}
         </p>
       {:else if entry.renameState === 'conflict'}
         <p id="{uid}-rename-err-{entry.id}" class="text-error mt-1 text-xs" role="alert">

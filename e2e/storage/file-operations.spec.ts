@@ -244,6 +244,60 @@ test.describe('Storage S3 — File Operations', () => {
     }
   });
 
+  test('renaming a pasted folder in the conflict dialog renames the whole folder', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'paste-folder-rename');
+    const srcFile = `${prefix}src/docs/new.txt`;
+    const destRoot = `${prefix}dest/docs/`;
+    const renamedFile = `${prefix}dest/renamed/new.txt`;
+    const cleanupKeys = [
+      `${prefix}src/`,
+      srcFile,
+      `${prefix}dest/`,
+      `${destRoot}old.txt`,
+      renamedFile,
+      `${prefix}dest/docs (1)/new.txt`
+    ];
+
+    try {
+      await putDirectoryMarker(client, credentials.bucket, `${prefix}src/`);
+      await putTextObject(client, credentials.bucket, srcFile, 'new');
+      await putDirectoryMarker(client, credentials.bucket, `${prefix}dest/`);
+      await putTextObject(client, credentials.bucket, `${destRoot}old.txt`, 'old');
+
+      await connectAndOpenPrefix(page, credentials, `${prefix}src/`);
+      await rowByName(page, 'docs').click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Copy', exact: true }).click();
+
+      await page.locator('tbody tr').first().click();
+      await rowByName(page, 'dest').dblclick();
+      await expect(rowByName(page, 'docs')).toBeVisible();
+      await page.locator('table').click();
+      await page.keyboard.press('Control+v');
+
+      const conflictDialog = page.getByRole('dialog');
+      await expect(conflictDialog.getByText('Files already exist', { exact: true })).toBeVisible();
+      const conflictItem = conflictDialog.getByRole('listitem');
+      await conflictItem.getByRole('button', { name: 'Rename', exact: true }).click();
+      await conflictItem.getByLabel('New file name').fill('renamed');
+      await conflictItem.getByRole('button', { name: 'Confirm name' }).click();
+      await conflictDialog.getByRole('button', { name: 'Paste', exact: true }).click();
+
+      await expect.poll(() => objectExists(client, credentials.bucket, renamedFile)).toBe(true);
+      expect(await getObjectText(client, credentials.bucket, renamedFile)).toBe('new');
+      expect(await objectExists(client, credentials.bucket, `${prefix}dest/docs (1)/new.txt`)).toBe(
+        false
+      );
+      expect(await getObjectText(client, credentials.bucket, `${destRoot}old.txt`)).toBe('old');
+      await expect(page.getByText('1 item pasted')).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   test('copying items into their own folder creates renamed copies', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
@@ -542,6 +596,48 @@ test.describe('Storage S3 — File Operations', () => {
       // File should be moved to destination folder
       expect(await objectExists(client, credentials.bucket, srcFile)).toBe(false);
       expect(await objectExists(client, credentials.bucket, destFile)).toBe(true);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('renaming during a move conflict moves only the dragged file', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'move-conflict-rename');
+    const destFolder = `${prefix}dest-folder/`;
+    const fileA = `${prefix}a.txt`;
+    const fileB = `${prefix}b.txt`;
+    const destA = `${destFolder}a.txt`;
+    const destB = `${destFolder}b.txt`;
+    const cleanupKeys = [fileA, fileB, destA, destB, destFolder];
+
+    try {
+      await putTextObject(client, credentials.bucket, fileA, 'file a');
+      // A sibling of the dragged file already carries the chosen name.
+      await putTextObject(client, credentials.bucket, fileB, 'file b');
+      await putTextObject(client, credentials.bucket, destA, 'existing a');
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'a.txt').dragTo(rowByName(page, 'dest-folder'));
+      await page.getByRole('button', { name: 'Move' }).click();
+
+      const conflictDialog = page.getByRole('dialog');
+      await expect(conflictDialog.getByText('Files already exist', { exact: true })).toBeVisible();
+      const conflictItem = conflictDialog.getByRole('listitem');
+      await conflictItem.getByRole('button', { name: 'Rename', exact: true }).click();
+      await conflictItem.getByLabel('New file name').fill('b.txt');
+      await conflictItem.getByRole('button', { name: 'Confirm name' }).click();
+      await conflictDialog.getByRole('button', { name: 'Move', exact: true }).click();
+
+      await expect.poll(() => objectExists(client, credentials.bucket, destB)).toBe(true);
+      expect(await getObjectText(client, credentials.bucket, destB)).toBe('file a');
+      expect(await objectExists(client, credentials.bucket, fileA)).toBe(false);
+      expect(await getObjectText(client, credentials.bucket, fileB)).toBe('file b');
+      expect(await getObjectText(client, credentials.bucket, destA)).toBe('existing a');
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

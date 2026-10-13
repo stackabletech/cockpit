@@ -1,10 +1,11 @@
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { tick } from 'svelte';
 import * as m from '$lib/paraglide/messages.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
 import type { StoragePage, ClipboardData, ModalType } from '$lib/storage/types.js';
 import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
 import { keyToName } from '$lib/storage/utils.js';
+import { ConflictRenameNameSchema } from '$lib/storage/schemas.js';
 import { StorageError, getActionErrorMessage } from './errors.js';
 import { pageUnloading } from './operations.svelte.js';
 import { storageMoveEnabled } from '$lib/client/feature-flags.js';
@@ -34,6 +35,9 @@ type PendingMoveOp = {
   sourcePrefix: string | null;
   totalBytes: number;
 };
+
+/** A conflict rename that failed, or (`partial`) moved only some of a folder's objects. */
+type RenameError = { name: string; newName: string; partial?: boolean };
 
 type PendingConflictOp = PendingPasteOp | PendingMoveOp | null;
 
@@ -721,12 +725,18 @@ export class ClipboardState {
     const replaceKeys: string[] = [];
     const renameKeys: Array<{ sourceKey: string; newName: string }> = [];
     const keysToDelete: string[] = [];
+    const renameErrors: RenameError[] = [];
 
     for (const key of pending.keys) {
       const entry = resolvedMap.get(key) ?? resolvedMap.get(keyToName(key));
       if (!entry || entry.resolution === 'skip') continue;
       if (entry.resolution === 'rename') {
-        renameKeys.push({ sourceKey: key, newName: entry.customName.trim() });
+        const newName = entry.customName.trim();
+        if (!ConflictRenameNameSchema.safeParse(newName).success) {
+          renameErrors.push({ name: keyToName(key), newName });
+          continue;
+        }
+        renameKeys.push({ sourceKey: key, newName });
       } else if (entry.conflict) {
         const target = this._replaceTarget(key, pending.destPrefix, pending.sourceBucket, bucket);
         if (target === null) continue;
@@ -735,7 +745,10 @@ export class ClipboardState {
       replaceKeys.push(key);
     }
 
-    if (replaceKeys.length === 0 && renameKeys.length === 0) return;
+    if (replaceKeys.length === 0) {
+      this._toastRenameErrors(renameErrors);
+      return;
+    }
 
     const opId = crypto.randomUUID();
     const abortController = new AbortController();
@@ -776,27 +789,34 @@ export class ClipboardState {
         }
       );
 
-      // Handle renamed files: rename the already-pasted destination file
-      const destKeyMap = new SvelteMap(results.map((r) => [r.sourceKey, r.destKey]));
-      const renamedDestKeys = new SvelteMap<string, string>();
-      let renameFailed = 0;
+      // Handle renamed items: rename the already-pasted destination item. A folder is
+      // reported per child, so its pasted root is derived from the child results.
+      const renamedRoots = new SvelteMap<string, string>();
+      const renamedKeys = new SvelteMap<string, string>();
       for (const rename of renameKeys) {
         if (abortController.signal.aborted) break;
-        const destKey = destKeyMap.get(rename.sourceKey);
-        if (!destKey) {
-          renameFailed++;
+        const isFolder = rename.sourceKey.endsWith('/');
+        const pastedRoot = this._pastedRoot(rename.sourceKey, results);
+        const renameError = { name: keyToName(rename.sourceKey), newName: rename.newName };
+        if (pastedRoot === null) {
+          renameErrors.push(renameError);
           continue;
         }
-        const newKey =
-          pending.destPrefix + rename.newName + (rename.sourceKey.endsWith('/') ? '/' : '');
+        const newKey = pending.destPrefix + rename.newName + (isFolder ? '/' : '');
         try {
-          await this._api.move({
+          const renamed = await this._api.move({
             bucket,
-            sourceKeys: [destKey],
+            sourceKeys: [pastedRoot],
             destinationPrefix: '',
             destinationKey: newKey
           });
-          renamedDestKeys.set(destKey, newKey);
+          for (const r of renamed.results) renamedKeys.set(r.sourceKey, r.destKey);
+          // On failure the item (or part of it) stays under its server-assigned name.
+          if (renamed.failed > 0 || renamed.results.length === 0) {
+            renameErrors.push({ ...renameError, partial: renamed.results.length > 0 });
+            continue;
+          }
+          renamedRoots.set(pastedRoot, newKey);
           this._operations.updateOpProgress(
             opId,
             replaceKeys.length + renameKeys.indexOf(rename) + 1,
@@ -804,31 +824,35 @@ export class ClipboardState {
             rename.newName
           );
         } catch {
-          renameFailed++;
+          renameErrors.push(renameError);
         }
       }
 
       await tick();
-      const totalFailed = failed + renameFailed;
+      const totalFailed = failed + renameErrors.length;
       this._operations.finishOp(opId, totalFailed > 0 ? 'error' : 'done');
 
-      if (totalFailed > 0) {
-        addToast('warning', m.storage_action_paste_partial({ count: totalFailed }));
-      } else {
-        addToast(
-          'success',
-          m.storage_action_paste_success({ count: replaceKeys.length + renameKeys.length })
-        );
+      if (failed > 0) {
+        addToast('warning', m.storage_action_paste_partial({ count: failed }));
+      } else if (renameErrors.length === 0) {
+        addToast('success', m.storage_action_paste_success({ count: replaceKeys.length }));
       }
+      this._toastRenameErrors(renameErrors);
       if (pending.wasCut) {
-        const movedKeys: string[] = [];
+        const movedKeys = new SvelteSet<string>();
         const movedSizes: Record<string, number> = {};
         for (const r of results) {
-          const destKey = renamedDestKeys.get(r.destKey) ?? r.destKey;
-          movedKeys.push(destKey);
+          const root = [...renamedRoots.keys()].find(
+            (old) => r.destKey === old || (old.endsWith('/') && r.destKey.startsWith(old))
+          );
+          const destKey =
+            root !== undefined
+              ? renamedRoots.get(root)!
+              : (renamedKeys.get(r.destKey) ?? r.destKey);
+          movedKeys.add(destKey);
           if (!destKey.endsWith('/')) movedSizes[destKey] = pending.fileSizes[r.sourceKey] ?? 0;
         }
-        this._pointClipboardAtMovedItems(movedKeys, movedSizes, pending.sourcePrefix);
+        this._pointClipboardAtMovedItems([...movedKeys], movedSizes, pending.sourcePrefix);
       }
       this._callbacks.refresh();
     } catch (err: unknown) {
@@ -847,9 +871,8 @@ export class ClipboardState {
   /**
    * Execute a move operation with conflict resolutions.
    * For "replace" entries: delete the conflicting destination first, then move.
-   * For "rename" entries: rename the source at its current location first,
-   * then move the renamed source to the destination — the file never appears
-   * at the original name in the destination.
+   * For "rename" entries: move the source straight to its new name in the
+   * destination. The server refuses (and nothing moves) if that name is taken.
    */
   private async _executeMoveWithConflicts(
     pending: PendingMoveOp,
@@ -860,17 +883,22 @@ export class ClipboardState {
       resolvedEntries.map((e) => [e.sourceKey ?? e.originalName, e])
     );
 
-    // Split keys by resolution — rename entries are NOT added to replaceKeys here.
-    // They will be renamed at source first, then added to replaceKeys before the move loop.
+    // Split keys by resolution. Renamed entries move with an explicit destination key.
     const replaceKeys: string[] = [];
-    const renameKeys: Array<{ sourceKey: string; newName: string }> = [];
+    const renameTargets = new SvelteMap<string, string>();
     const keysToDelete: string[] = [];
+    const renameErrors: RenameError[] = [];
 
     for (const key of pending.keys) {
       const entry = resolvedMap.get(key) ?? resolvedMap.get(keyToName(key));
       if (!entry || entry.resolution === 'skip') continue;
       if (entry.resolution === 'rename') {
-        renameKeys.push({ sourceKey: key, newName: entry.customName.trim() });
+        const newName = entry.customName.trim();
+        if (ConflictRenameNameSchema.safeParse(newName).success) {
+          renameTargets.set(key, pending.destPrefix + newName + (key.endsWith('/') ? '/' : ''));
+        } else {
+          renameErrors.push({ name: keyToName(key), newName });
+        }
         continue;
       }
       if (entry.conflict) {
@@ -886,12 +914,15 @@ export class ClipboardState {
       replaceKeys.push(key);
     }
 
-    if (replaceKeys.length === 0 && renameKeys.length === 0) return;
+    if (replaceKeys.length === 0 && renameTargets.size === 0) {
+      this._toastRenameErrors(renameErrors);
+      return;
+    }
 
     const opId = crypto.randomUUID();
     const abortController = new AbortController();
     const sourceNames = pending.keys.map((k) => keyToName(k));
-    const totalCount = replaceKeys.length + renameKeys.length;
+    const totalCount = replaceKeys.length + renameTargets.size;
     const isSingleMove = totalCount === 1;
     const moveLabel = isSingleMove
       ? `${m.storage_operation_move_one({ count: 1 })}: ${sourceNames[0]}`
@@ -913,35 +944,7 @@ export class ClipboardState {
 
     try {
       const results: Array<{ sourceKey: string; destKey: string }> = [];
-      let renameFailed = 0;
       let failed = 0;
-
-      // ── Pre-processing: rename rename entries at source before moving ─────
-      for (const rename of renameKeys) {
-        if (abortController.signal.aborted) break;
-
-        const parts = rename.sourceKey.split('/');
-        parts.pop();
-        const parentPrefix = parts.length > 0 ? parts.join('/') + '/' : '';
-        const renamedSourceKey =
-          parentPrefix + rename.newName + (rename.sourceKey.endsWith('/') ? '/' : '');
-
-        try {
-          await this._api.move({
-            bucket: this._callbacks.getBucket(),
-            sourceKeys: [rename.sourceKey],
-            destinationPrefix: '',
-            destinationKey: renamedSourceKey
-          });
-          replaceKeys.push(renamedSourceKey);
-        } catch {
-          renameFailed++;
-        }
-      }
-
-      failed = renameFailed;
-
-      // ── Move all entries ────────────────────────────────────────────────────
 
       for (const key of replaceKeys) {
         if (abortController.signal.aborted) {
@@ -976,12 +979,44 @@ export class ClipboardState {
         this._operations.updateOpProgress(opId, results.length, 0, keyToName(key));
       }
 
+      // Renamed entries move in one request each, straight to their new name. The server
+      // refuses the move if the name is taken; nothing else is moved in that case.
+      for (const [key, destinationKey] of renameTargets) {
+        if (abortController.signal.aborted) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
+        try {
+          const result = await this._api.move({
+            bucket,
+            sourceBucket: this._callbacks.getBucket(),
+            sourceKeys: [key],
+            destinationPrefix: pending.destPrefix,
+            destinationKey,
+            signal: abortController.signal
+          });
+          results.push(...result.results);
+          if (result.failed > 0 || result.results.length === 0) {
+            renameErrors.push({
+              name: keyToName(key),
+              newName: keyToName(destinationKey),
+              partial: result.results.length > 0
+            });
+          }
+        } catch (err: unknown) {
+          if (err instanceof DOMException && err.name === 'AbortError') throw err;
+          renameErrors.push({ name: keyToName(key), newName: keyToName(destinationKey) });
+        }
+        this._operations.updateOpProgress(opId, results.length, 0, keyToName(key));
+      }
+
       await tick();
-      const totalFailed = renameFailed + failed;
+      const totalFailed = renameErrors.length + failed;
       this._operations.finishOp(opId, totalFailed === 0 ? 'done' : 'error');
 
       if (results.length > 0) {
-        addToast('success', m.storage_action_move_success({ count: results.length }));
+        if (renameErrors.length === 0) {
+          addToast('success', m.storage_action_move_success({ count: results.length }));
+        }
         const movedKeys = results.map((r) => r.sourceKey).filter((k) => !k.endsWith('/'));
         if (movedKeys.length > 0) {
           this._callbacks.removeFiles(bucket, movedKeys);
@@ -995,9 +1030,10 @@ export class ClipboardState {
           }
         }
       }
-      if (totalFailed > 0) {
-        addToast('warning', m.storage_action_move_partial({ count: totalFailed }));
+      if (failed > 0) {
+        addToast('warning', m.storage_action_move_partial({ count: failed }));
       }
+      this._toastRenameErrors(renameErrors);
 
       this._callbacks.clearSelection();
       if (pending.sourcePrefix !== null) {
@@ -1020,6 +1056,35 @@ export class ClipboardState {
   }
 
   // ── Private: Helpers ───────────────────────────────────────────────────────
+
+  /** Report each conflict rename that could not be applied, or was applied only in part. */
+  private _toastRenameErrors(errors: RenameError[]): void {
+    for (const { name, newName, partial } of errors) {
+      addToast(
+        'error',
+        partial
+          ? m.storage_conflict_rename_partial({ name, newName })
+          : m.storage_conflict_rename_failed({ name, newName })
+      );
+    }
+  }
+
+  /**
+   * Where a pasted item landed: its own result, or for a folder the root shared by its
+   * children's results (a folder without a marker object has no result of its own).
+   */
+  private _pastedRoot(
+    sourceKey: string,
+    results: Array<{ sourceKey: string; destKey: string }>
+  ): string | null {
+    for (const r of results) {
+      if (r.sourceKey === sourceKey) return r.destKey;
+      if (!sourceKey.endsWith('/') || !r.sourceKey.startsWith(sourceKey)) continue;
+      const suffix = r.sourceKey.slice(sourceKey.length);
+      if (r.destKey.endsWith(suffix)) return r.destKey.slice(0, r.destKey.length - suffix.length);
+    }
+    return null;
+  }
 
   /** Returns the longest common directory prefix of the given keys. */
   private _commonPrefix(keys: string[]): string {
