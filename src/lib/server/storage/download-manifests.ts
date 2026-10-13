@@ -103,12 +103,17 @@ async function expandKeys(provider: StorageProvider, keys: string[]): Promise<Do
  * Build the manifest file list. For archives the reported size is the
  * exact output size is derived from the immutable manifest metadata.
  */
-function filesFor(entries: DownloadEntry[], archive: boolean, archiveName: string): DownloadFile[] {
+function filesFor(
+  entries: DownloadEntry[],
+  prefix: string,
+  archive: boolean,
+  archiveName: string
+): DownloadFile[] {
   return archive
     ? [
         {
           filename: archiveName,
-          size: zipStreamSize(entries),
+          size: zipStreamSize(entries, prefix),
           part: 1
         }
       ]
@@ -144,7 +149,7 @@ async function persistManifest(input: {
     .returning({ id: storageDownloadManifests.id });
   return {
     id: manifest.id,
-    files: filesFor(input.entries, input.archive, input.archiveName),
+    files: filesFor(input.entries, input.prefix, input.archive, input.archiveName),
     expiresAt
   };
 }
@@ -340,8 +345,12 @@ export async function openDownloadManifestPart(
   if (manifest.archive) {
     if (part !== 1 || !manifest.archiveFilename) return null;
     return {
-      stream: createZipStream(provider, manifest.entries),
-      file: { filename: manifest.archiveFilename, size: zipStreamSize(manifest.entries), part: 1 }
+      stream: createZipStream(provider, manifest.entries, manifest.prefix),
+      file: {
+        filename: manifest.archiveFilename,
+        size: zipStreamSize(manifest.entries, manifest.prefix),
+        part: 1
+      }
     };
   }
   const entry = manifest.entries[part - 1];
