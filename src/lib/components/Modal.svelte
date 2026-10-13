@@ -27,7 +27,11 @@
     }
   });
 
-  function handleClose() {
+  function handleClose(e: Event) {
+    // The `close` event fires in a later task than `dialog.close()`. If this
+    // component was destroyed in the meantime, the shared `open` binding may
+    // already belong to a newly opened dialog, which must not be closed.
+    if (e.currentTarget !== dialogEl) return;
     open = false;
   }
 

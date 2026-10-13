@@ -73,6 +73,47 @@ describe('Modal', () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  it('ignores a close event that arrives after the modal was destroyed', async () => {
+    let open = true;
+    const writes: boolean[] = [];
+    const { unmount } = render(Modal, {
+      get open() {
+        return open;
+      },
+      set open(value: boolean) {
+        writes.push(value);
+        open = value;
+      },
+      children: textSnippet('Content')
+    });
+    const dialog = document.querySelector('dialog')!;
+    unmount();
+
+    // The browser fires `close` in a later task, possibly after a new dialog
+    // reusing the same binding has opened.
+    dialog.dispatchEvent(new Event('close'));
+    await tick();
+
+    expect(writes).toEqual([]);
+  });
+
+  it('sets open to false when the dialog closes itself', async () => {
+    let open = true;
+    render(Modal, {
+      get open() {
+        return open;
+      },
+      set open(value: boolean) {
+        open = value;
+      },
+      children: textSnippet('Content')
+    });
+    document.querySelector('dialog')!.dispatchEvent(new Event('close'));
+    await tick();
+
+    expect(open).toBe(false);
+  });
+
   it('does not open the dialog when open is false', () => {
     render(Modal, { open: false, children: textSnippet('Content') });
     const dialog = document.querySelector('dialog');
