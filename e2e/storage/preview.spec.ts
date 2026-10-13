@@ -636,4 +636,75 @@ test.describe('Storage S3 — Preview', () => {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
   });
+
+  test('Escape closes the editor find widget before the preview', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'preview-escape-find');
+    const cleanupKeys = [`${prefix}find.txt`];
+
+    try {
+      await putTextObject(client, credentials.bucket, `${prefix}find.txt`, 'find me\n');
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'find.txt').dblclick();
+      const heading = page.getByRole('heading', { name: 'find.txt' });
+      await expect(heading).toBeVisible();
+      const editor = page.getByRole('application', { name: 'Text editor' });
+      await expect(editor).toHaveAttribute('data-ready', 'true');
+      await expect(editor.locator(':focus')).toHaveCount(1);
+
+      await page.keyboard.press('ControlOrMeta+f');
+      const findWidget = editor.locator('.find-widget.visible');
+      await expect(findWidget).toBeVisible();
+
+      await page.keyboard.press('Escape');
+      await expect(findWidget).toHaveCount(0);
+      await expect(heading).toBeVisible();
+
+      await page.keyboard.press('Escape');
+      await expect(heading).not.toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('Escape closes a search opened over the preview before the preview', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'preview-escape-search');
+    const cleanupKeys = [`${prefix}layers.txt`];
+
+    try {
+      await putTextObject(client, credentials.bucket, `${prefix}layers.txt`, 'layers\n');
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'layers.txt').dblclick();
+      const heading = page.getByRole('heading', { name: 'layers.txt' });
+      await expect(heading).toBeVisible();
+      const editor = page.getByRole('application', { name: 'Text editor' });
+      await expect(editor).toHaveAttribute('data-ready', 'true');
+
+      // Ctrl+K outside the editor opens the search on top of the preview.
+      await page
+        .getByRole('dialog')
+        .filter({ has: heading })
+        .getByLabel('Close', { exact: true })
+        .focus();
+      await page.keyboard.press('ControlOrMeta+k');
+      const searchInput = page.getByLabel('Search query');
+      await expect(searchInput).toBeVisible();
+
+      await page.keyboard.press('Escape');
+      await expect(searchInput).toBeHidden();
+      await expect(heading).toBeVisible();
+
+      await page.keyboard.press('Escape');
+      await expect(heading).not.toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
 });

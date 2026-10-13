@@ -1,3 +1,19 @@
+<script lang="ts" module>
+  // Dialogs in the order they were opened. The browser's top layer follows
+  // this order, while document order (e.g. `querySelectorAll`) does not: a
+  // modal opened on top of another can come earlier in the DOM.
+  const openOrder: HTMLDialogElement[] = [];
+
+  function forget(dialog: HTMLDialogElement): void {
+    const index = openOrder.indexOf(dialog);
+    if (index !== -1) openOrder.splice(index, 1);
+  }
+
+  function topmostDialog(): HTMLDialogElement | undefined {
+    return openOrder.filter((dialog) => dialog.open && dialog.isConnected).at(-1);
+  }
+</script>
+
 <script lang="ts">
   let {
     open = $bindable(false),
@@ -22,6 +38,8 @@
     if (!dialogEl) return;
     if (open && !dialogEl.open) {
       dialogEl.showModal();
+      forget(dialogEl);
+      openOrder.push(dialogEl);
     } else if (!open && dialogEl.open) {
       dialogEl.close();
     }
@@ -41,16 +59,32 @@
     }
   }
 
-  // Firefox does not reliably close <dialog> on Escape via the cancel event,
-  // so we handle Escape at the window level as a fallback. Use capture so
-  // focused widgets such as Monaco cannot stop it reaching this handler.
+  $effect(() => {
+    const dialog = dialogEl;
+    return () => {
+      if (dialog) forget(dialog);
+    };
+  });
+
+  // Firefox does not reliably close <dialog> on Escape via the cancel event
+  // (Monaco's text-area input, used there, always prevents the default of
+  // Escape), so we handle Escape at the window level as a fallback. This runs
+  // in the bubbling phase so that inner layers (a popover, Monaco's find or
+  // suggest widget, a nested modal) get Escape first: an inner handler that
+  // stops propagation and prevents the default keeps the dialog open.
   $effect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
-      if (e.defaultPrevented) return;
+      // Monaco's text-area input (Firefox) prevents the default of every
+      // Escape, also when no widget uses it; a widget that does also stops
+      // propagation. Chromium's EditContext path does neither.
+      if (
+        e.defaultPrevented &&
+        !(e.target instanceof Element && e.target.closest('.monaco-editor'))
+      )
+        return;
       if (!dialogEl?.open) return;
-      const dialogs = [...document.querySelectorAll('dialog[open]')];
-      if (dialogs.at(-1) !== dialogEl) return;
+      if (topmostDialog() !== dialogEl) return;
       // An open auto popover inside the dialog (e.g. a date picker) is closed
       // by the browser on Escape; the dialog itself must stay open.
       if (dialogEl.querySelector('[popover]:not([popover="manual"]):popover-open')) return;
@@ -58,8 +92,8 @@
       if (closeguard && !closeguard()) return;
       open = false;
     }
-    window.addEventListener('keydown', onKeyDown, { capture: true });
-    return () => window.removeEventListener('keydown', onKeyDown, { capture: true });
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   });
 
   function handleBackdropClick(e: MouseEvent) {
