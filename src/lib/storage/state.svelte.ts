@@ -36,6 +36,7 @@ import { createFetchStorageApi } from './api.js';
 import { OperationsState } from './operations.svelte.js';
 import { ArchiveState } from './archive.svelte.js';
 import { ClipboardState } from './clipboard.svelte.js';
+import { isStorageShortcutTarget } from './keyboard-scope.js';
 
 export class StorageState {
   // ── Core data (synced from server load) ──
@@ -977,7 +978,9 @@ export class StorageState {
   // ────────────────────────────────────────────────────────────────────────────
 
   handleKeydown = (e: KeyboardEvent): void => {
+    if (e.defaultPrevented) return;
     if (this.activeModal) return;
+    if (!isStorageShortcutTarget(e.target)) return;
     if (e.target instanceof Element && e.target.closest('dialog[open]')) return;
     if (this.archive.isInArchive && e.key !== 'Escape') return;
 

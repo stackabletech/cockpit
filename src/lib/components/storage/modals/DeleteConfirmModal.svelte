@@ -16,12 +16,6 @@
   const count = $derived(keys.length);
   const firstName = $derived(keys[0]?.split('/').filter(Boolean).pop() ?? '');
   const hasDirectories = $derived(keys.some((k) => k.endsWith('/')));
-
-  function handleKeydown(event: KeyboardEvent) {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    onConfirm();
-  }
 </script>
 
 <Modal bind:open class="modal">
@@ -50,7 +44,7 @@
     {/if}
 
     <div class="modal-action mt-6">
-      <button type="button" class="btn btn-ghost" onclick={onCancel} onkeydown={handleKeydown}>
+      <button type="button" class="btn btn-ghost" onclick={onCancel}>
         {m.storage_delete_cancel()}
       </button>
       <button type="button" class="btn btn-outline btn-error" onclick={onConfirm}>

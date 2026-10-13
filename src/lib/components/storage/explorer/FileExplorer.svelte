@@ -373,7 +373,11 @@
 
   <StorageBreadcrumb />
 
-  <div bind:this={objectListEl} class="relative min-h-0 flex-1 overflow-hidden">
+  <div
+    bind:this={objectListEl}
+    data-storage-shortcut-scope
+    class="relative min-h-0 flex-1 overflow-hidden"
+  >
     {#if storage.loading || storage.deleting || storage.archive.archiveLoading || navigating.to}
       <div
         data-testid="storage-object-list-loading"

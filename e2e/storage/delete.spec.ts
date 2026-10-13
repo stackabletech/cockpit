@@ -151,4 +151,57 @@ test.describe('Storage S3 — Delete & Selection', () => {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
   });
+
+  test('Delete outside the file listing does not open the delete modal', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'kb-delete-scope');
+    const cleanupKeys = [`${prefix}keep-me.txt`];
+
+    try {
+      await putTextObject(client, credentials.bucket, `${prefix}keep-me.txt`, 'keep me');
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'keep-me.txt').click();
+      await expect(page.getByLabel('Select keep-me.txt')).toBeChecked();
+
+      // Delete on the (only) tab in the tab bar must not reach the file shortcuts
+      await page.getByRole('tab').first().focus();
+      await page.keyboard.press('Delete');
+
+      await expect(page.getByText('This action cannot be undone.')).not.toBeVisible();
+      await expect(page.getByLabel('Select keep-me.txt')).toBeChecked();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('Enter on the focused Cancel button cancels the delete', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'kb-delete-cancel');
+    const cleanupKeys = [`${prefix}keep-me.txt`];
+
+    try {
+      await putTextObject(client, credentials.bucket, `${prefix}keep-me.txt`, 'keep me');
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'keep-me.txt').click();
+      await page.keyboard.press('Delete');
+      await expect(page.getByText('This action cannot be undone.')).toBeVisible();
+
+      await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).focus();
+      await page.keyboard.press('Enter');
+
+      await expect(page.getByText('This action cannot be undone.')).not.toBeVisible();
+      await expect(rowByName(page, 'keep-me.txt')).toBeVisible();
+      expect(await objectExists(client, credentials.bucket, `${prefix}keep-me.txt`)).toBe(true);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
 });
