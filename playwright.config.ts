@@ -39,7 +39,8 @@ export default defineConfig({
       env: { PORT: appPort },
       url: baseURL,
       timeout: 300_000,
-      stdout: 'pipe',
+      // App logs drown out the test output; set E2E_SERVER_LOGS=1 to see them.
+      stdout: process.env.E2E_SERVER_LOGS ? 'pipe' : 'ignore',
       gracefulShutdown: { signal: 'SIGTERM', timeout: 30_000 },
       reuseExistingServer: false
     }
