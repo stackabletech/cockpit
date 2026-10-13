@@ -57,8 +57,14 @@
     if (continuationToken) url.searchParams.set('continuationToken', String(continuationToken));
     if (pageSize) url.searchParams.set('pageSize', String(pageSize));
 
+    // Each history entry carries its own previous-page token stack so that
+    // Back/Forward restore the matching pagination context.
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- base path is built with resolve(); URL object is needed to append query params
-    goto(url, { replaceState: false, invalidateAll });
+    goto(url, {
+      replaceState: false,
+      invalidateAll,
+      state: { storagePrevTokens: [...storage.prevTokens] }
+    });
   });
 
   // Inject refresh handler — navigates to the current bucket/prefix using
@@ -106,7 +112,12 @@
     ) {
       return;
     }
-    storage.syncFromServer(data.bucket, data.prefix, data.objects);
+    storage.syncFromServer(
+      data.bucket,
+      data.prefix,
+      data.objects,
+      untrack(() => page.state.storagePrevTokens)
+    );
     untrack(() => tabsState.completeNavigation());
   });
 </script>

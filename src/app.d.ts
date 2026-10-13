@@ -28,7 +28,10 @@ declare global {
       storageConnectionId: string | null;
     }
     // interface PageData {}
-    // interface PageState {}
+    interface PageState {
+      /** Previous-page continuation tokens of the storage listing in this history entry. */
+      storagePrevTokens?: (string | null)[];
+    }
     // interface Platform {}
   }
 }

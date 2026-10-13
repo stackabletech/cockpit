@@ -225,12 +225,32 @@ export class StorageState {
   // Server data sync
   // ────────────────────────────────────────────────────────────────────────────
 
-  syncFromServer(bucket: string, prefix: string, objects: StoragePage): void {
-    const bucketChanged = bucket !== this.bucket;
+  /**
+   * Applies a freshly loaded listing. `historyPrevTokens` is the previous-page
+   * token stack stored in the browser history entry being shown, so that
+   * Back/Forward restore the pagination context of that entry instead of
+   * reusing the stack of whichever page was shown last.
+   */
+  syncFromServer(
+    bucket: string,
+    prefix: string,
+    objects: StoragePage,
+    historyPrevTokens?: (string | null)[]
+  ): void {
+    const locationChanged = bucket !== this.bucket || prefix !== this.prefix;
     this.bucket = bucket;
     this.prefix = prefix;
     this.objects = objects;
-    if (bucketChanged) this.prevTokens = [];
+    if (!objects.continuationToken) {
+      // First page of a listing: there is nothing to go back to.
+      this.prevTokens = [];
+    } else if (historyPrevTokens) {
+      this.prevTokens = [...historyPrevTokens];
+    } else if (locationChanged) {
+      this.prevTokens = [];
+    }
+    // Otherwise (e.g. a refresh via invalidateAll, which drops page.state)
+    // the current stack still belongs to the page being reloaded.
     this.loading = false;
     this.selectedKeys = new SvelteSet<string>();
     this.archive.reset();
