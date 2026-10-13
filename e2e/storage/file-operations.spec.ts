@@ -432,6 +432,38 @@ test.describe('Storage S3 — File Operations', () => {
     }
   });
 
+  test('explains an invalid new name instead of closing the rename dialog', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'rename-invalid');
+    const oldKey = `${prefix}keep.txt`;
+    const cleanupKeys = [oldKey, `${prefix}a/b.txt`];
+
+    try {
+      await putTextObject(client, credentials.bucket, oldKey, 'keep');
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'keep.txt').click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Rename' }).click();
+      const input = page.getByLabel('New name');
+      await input.fill('a/b.txt');
+      await input.press('Enter');
+
+      const message = page.getByRole('dialog').locator('.modal-box p[aria-live="polite"]');
+      await expect(message).toContainText('Enter a single name without "/"');
+      await expect(input).toHaveAttribute('aria-invalid', 'true');
+      await expect(input).toHaveAttribute('aria-describedby', (await message.getAttribute('id'))!);
+      await expect(page.getByRole('button', { name: 'Rename' })).toBeDisabled();
+      await expect(input).toBeVisible();
+      expect(await objectExists(client, credentials.bucket, oldKey)).toBe(true);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   test('rename conflict creates a uniquely named file', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);

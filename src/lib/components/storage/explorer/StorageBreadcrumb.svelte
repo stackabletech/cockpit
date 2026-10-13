@@ -17,7 +17,7 @@
   import { getStorageState } from '$lib/storage/context.js';
   import type { StorageLocation } from '$lib/storage/types.js';
   import { keyToName } from '$lib/storage/utils.js';
-  import { StorageObjectNameSchema } from '$lib/storage/schemas.js';
+  import { objectNameError } from '$lib/storage/name-validation.js';
   import { storageMoveEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import OperationsButton from './OperationsButton.svelte';
@@ -79,6 +79,9 @@
   let createStep = $state<'choose' | 'name'>('choose');
   let creating = $state(false);
   let createError = $state('');
+  const createNameError = $derived(
+    objectNameError(createName, { prefix: storage.prefix, folder: createType === 'folder' })
+  );
 
   function openCreate() {
     createOpen = true;
@@ -100,14 +103,10 @@
   }
 
   async function handleCreate() {
-    const parsedName = StorageObjectNameSchema.safeParse(createName);
-    if (!parsedName.success) {
-      createError = m.storage_create_error({ name: createName });
-      return;
-    }
+    if (createNameError) return;
     creating = true;
     try {
-      const created = await storage.confirmCreate(parsedName.data, createType);
+      const created = await storage.confirmCreate(createName.trim(), createType);
       if (created) {
         closeCreate();
       } else {
@@ -609,23 +608,34 @@
           <input
             id={uid + '-create-name-input'}
             class="input input-sm w-full"
+            class:input-error={!!createNameError}
             bind:value={createName}
+            oninput={() => (createError = '')}
             placeholder={m.storage_create_placeholder()}
+            aria-invalid={createNameError ? 'true' : undefined}
+            aria-describedby={createNameError || createError
+              ? uid + '-create-name-error'
+              : undefined}
             onkeydown={(e) => {
               if (e.key === 'Enter') handleCreate();
               if (e.key === 'Escape') closeCreate();
             }}
           />
-          {#if createError}
-            <p class="text-error mt-1 text-xs">{createError}</p>
-          {/if}
+          <p
+            id={uid + '-create-name-error'}
+            class="text-error text-xs"
+            class:mt-1={!!(createNameError || createError)}
+            aria-live="polite"
+          >
+            {createNameError ?? createError}
+          </p>
           <div class="mt-2 flex justify-end gap-2">
             <button class="btn btn-ghost btn-xs" disabled={creating} onclick={closeCreate}>
               {m.storage_create_cancel()}
             </button>
             <button
               class="btn btn-primary btn-xs"
-              disabled={creating || !createName.trim()}
+              disabled={creating || !!createNameError}
               onclick={handleCreate}
             >
               {m.storage_create_confirm()}

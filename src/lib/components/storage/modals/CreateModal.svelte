@@ -3,11 +3,13 @@
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
-  import { StorageObjectNameSchema } from '$lib/storage/schemas.js';
+  import { objectNameError } from '$lib/storage/name-validation.js';
 
   interface Props {
     open?: boolean;
     type: 'file' | 'folder';
+    /** The folder the item is created in; empty for the bucket root. */
+    prefix?: string;
     onConfirm: (name: string) => void;
     onCancel: () => void;
     loading?: boolean;
@@ -17,6 +19,7 @@
   let {
     open = $bindable(false),
     type,
+    prefix = '',
     onConfirm,
     onCancel,
     loading = false,
@@ -26,10 +29,11 @@
   const uid = $props.id();
   let name = $state('');
   let inputEl = $state<HTMLInputElement | null>(null);
+  const nameError = $derived(objectNameError(name, { prefix, folder: type === 'folder' }));
 
   function handleConfirm() {
-    const result = StorageObjectNameSchema.safeParse(name);
-    if (result.success) onConfirm(result.data);
+    if (loading || nameError) return;
+    onConfirm(name.trim());
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -76,10 +80,21 @@
       id={uid + '-create-input'}
       class="input input-sm w-full"
       placeholder={m.storage_create_placeholder()}
+      class:input-error={!!nameError}
       bind:value={name}
       onkeydown={handleKeydown}
       disabled={loading}
+      aria-invalid={nameError ? 'true' : undefined}
+      aria-describedby={nameError ? uid + '-create-name-error' : undefined}
     />
+    <p
+      id={uid + '-create-name-error'}
+      class="text-error text-sm"
+      class:mt-2={!!nameError}
+      aria-live="polite"
+    >
+      {nameError ?? ''}
+    </p>
 
     {#if error}
       <p class="text-error mt-2 text-sm">{error}</p>
@@ -91,7 +106,7 @@
       </button>
       <button
         class="btn btn-primary btn-sm"
-        disabled={!name.trim() || loading}
+        disabled={!!nameError || loading}
         onclick={handleConfirm}
       >
         {#if loading}

@@ -135,9 +135,16 @@
 
 {#if storage.activeModal?.type === 'rename'}
   {@const modalPayload = storage.activeModal.payload}
+  {@const renameFolder = modalPayload.key.endsWith('/')}
+  {@const renameName = keyToName(modalPayload.key)}
   <RenameModal
     bind:open={renameOpen}
-    currentName={keyToName(modalPayload.key)}
+    currentName={renameName}
+    prefix={modalPayload.key.slice(
+      0,
+      modalPayload.key.length - renameName.length - (renameFolder ? 1 : 0)
+    )}
+    folder={renameFolder}
     onConfirm={(newName: string) => storage.confirmRename(modalPayload.key, newName)}
     onCancel={() => {
       storage.renameError = null;
@@ -166,6 +173,7 @@
   <CreateModal
     bind:open={createOpen}
     type={modalPayload.type}
+    prefix={storage.prefix}
     onConfirm={(name: string) => storage.confirmCreate(name, modalPayload.type)}
     onCancel={storage.cancelCreate}
   />

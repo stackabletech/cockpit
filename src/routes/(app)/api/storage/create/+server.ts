@@ -1,18 +1,20 @@
 import { error } from '@sveltejs/kit';
 import { createStorageProvider } from '$lib/server/storage/request-context.js';
 import type { RequestHandler } from './$types';
-import { StorageObjectNameSchema } from '$lib/storage/schemas.js';
+import { StorageObjectKeySchema } from '$lib/storage/schemas.js';
 
 /**
  * POST /api/storage/create?bucket=<bucket>&key=<object-key>
  *
  * Creates an empty object (or directory marker when the key ends with `/`).
+ * The key may contain anything S3 accepts: the folder it is created in may come from another tool,
+ * and move already accepts any such destination. The client checks the typed name strictly.
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.
  */
 export const POST: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
-  const parsedKey = StorageObjectNameSchema.safeParse(event.url.searchParams.get('key'));
+  const parsedKey = StorageObjectKeySchema.safeParse(event.url.searchParams.get('key'));
   if (!parsedKey.success) throw error(400, 'Invalid query parameter: key');
   const key = parsedKey.data;
   const log = event.locals.logger;

@@ -61,6 +61,29 @@ describe('POST /api/storage/create', () => {
     );
   });
 
+  it('creates inside a folder whose name S3 allows but new names may not use', async () => {
+    mockProvider.putObject.mockResolvedValue(undefined);
+    const params = new URLSearchParams({ bucket: 'b1', key: 'reports?2024/../a\\b/new.txt' });
+
+    const res = await POST(mockEvent(params.toString()));
+
+    expect(res.status).toBe(201);
+    expect(mockProvider.putObject).toHaveBeenCalledWith(
+      'reports?2024/../a\\b/new.txt',
+      expect.any(Buffer),
+      'text/plain',
+      0
+    );
+  });
+
+  it('rejects keys longer than S3 allows', async () => {
+    const params = new URLSearchParams({ bucket: 'b1', key: 'a'.repeat(1025) });
+
+    await expect(POST(mockEvent(params.toString()))).rejects.toThrow(
+      expect.objectContaining({ status: 400 })
+    );
+  });
+
   it('propagates provider errors as 502', async () => {
     mockProvider.putObject.mockRejectedValue(new Error('S3 connection refused'));
 
