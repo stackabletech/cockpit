@@ -1,8 +1,8 @@
-# Configuration for typos (https://github.com/crate-ci/typos), run via the prek
-# hook in .pre-commit-config.yaml.
+# Configuration for typos (https://github.com/crate-ci/typos), run via the typos
+# hook in .pre-commit-config.yaml (enforced by the pre-commit job in CI).
 
 [files]
-# Bare `typos` skips hidden dirs by default, but prek passes explicit paths and
+# Bare `typos` skips hidden dirs by default, but the hook passes explicit paths and
 # so does check them. Turn it off so both agree.
 ignore-hidden = false
 

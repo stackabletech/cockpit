@@ -10,7 +10,7 @@ repos:
         # Drop the upstream default `--write-changes` so the hook only
         # reports failures instead of writing changes.
         # Keep `--force-exclude` so the excludes in typos.toml still
-        # apply to the paths prek passes in.
+        # apply to the paths the hook is given.
         args: ['--force-exclude']
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
