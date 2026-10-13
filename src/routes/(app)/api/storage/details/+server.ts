@@ -10,7 +10,7 @@ import type { RequestHandler } from './$types';
  */
 export const GET: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
-  const key = event.url.searchParams.get('key')?.trim();
+  const key = event.url.searchParams.get('key');
   if (!key) throw error(400, 'Missing required query parameter: key');
 
   event.locals.logger.debug({ bucket, key }, 'fetching object details');

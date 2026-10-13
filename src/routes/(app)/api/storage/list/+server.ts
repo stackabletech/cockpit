@@ -9,7 +9,7 @@ import type { RequestHandler } from './$types';
  */
 export const GET: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
-  const prefix = event.url.searchParams.get('prefix')?.trim() ?? undefined;
+  const prefix = event.url.searchParams.get('prefix') ?? undefined;
   const rawPageSize = event.url.searchParams.get('pageSize');
   const requestedPageSize = rawPageSize ? parseInt(rawPageSize, 10) : 25;
   const pageSize = Number.isFinite(requestedPageSize)

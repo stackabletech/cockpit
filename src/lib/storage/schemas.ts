@@ -104,10 +104,12 @@ export const ConnectionIdSchema = z.object({
   connectionId: z.string().uuid()
 });
 
-/** Object names accepted by the storage UI and API. */
+/**
+ * Object names accepted by the storage UI and API. Not trimmed: S3 keys may legitimately start or
+ * end with whitespace, and trimming would address a different object. Callers trim user input.
+ */
 export const StorageObjectNameSchema = z
   .string()
-  .trim()
   .min(1, 'Object name is required')
   .refine(
     (value) => !hasInvalidStorageNameCharacter(value),
@@ -180,3 +182,6 @@ export const StoredStorageConnectionSchema = z.object({
   region: z.object({ name: z.string().min(1) }),
   credentials: z.object({ accessKey: z.string(), secretKey: z.string() }).optional()
 });
+
+/** Superforms message returned by the storage connect and edit actions. */
+export type StorageConnectionMessage = { type: 'success' } | { type: 'error'; message: string };

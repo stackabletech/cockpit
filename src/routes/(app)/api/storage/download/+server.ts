@@ -22,7 +22,7 @@ function filenameFromKey(key: string): string {
  */
 export const GET: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
-  const key = event.url.searchParams.get('key')?.trim();
+  const key = event.url.searchParams.get('key');
   if (!key) throw error(400, 'Missing required query parameter: key');
   const { locals, request } = event;
 
@@ -81,7 +81,7 @@ export const GET: RequestHandler = async (event) => {
  */
 export const HEAD: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
-  const key = event.url.searchParams.get('key')?.trim();
+  const key = event.url.searchParams.get('key');
   if (!key) throw error(400, 'Missing required query parameter: key');
 
   event.locals.logger.debug({ bucket, key }, 'download pre-flight check');

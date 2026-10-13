@@ -23,7 +23,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   const bucket = url.searchParams.get('bucket')?.trim();
   if (!bucket) throw error(400, 'Missing required query parameter: bucket');
 
-  const key = url.searchParams.get('key')?.trim();
+  const key = url.searchParams.get('key');
   if (!key) throw error(400, 'Missing required query parameter: key');
 
   const internalPrefix = url.searchParams.get('internalPrefix') ?? '';

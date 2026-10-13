@@ -1,11 +1,13 @@
 import { error, fail, redirect, isHttpError } from '@sveltejs/kit';
 import { superValidate, message, setError } from 'sveltekit-superforms';
+import type { Infer, InferIn } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { eq, and } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 import {
   EditStorageConnectionSchema,
-  StoredStorageConnectionSchema
+  StoredStorageConnectionSchema,
+  type StorageConnectionMessage
 } from '$lib/storage/schemas.js';
 import type { z } from 'zod';
 import { getConnectionProvider } from '$lib/server/storage/utils.js';
@@ -17,6 +19,9 @@ import { isConnectionNameConflict } from '$lib/server/storage/connections-db.js'
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
 import { logger } from '$lib/server/logging';
 import * as m from '$lib/paraglide/messages.js';
+
+type EditData = Infer<typeof EditStorageConnectionSchema>;
+type EditInput = InferIn<typeof EditStorageConnectionSchema>;
 
 const log = logger.child({ module: 'connection-edit' });
 
@@ -46,7 +51,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     throw error(500, 'Failed to load connection');
   }
 
-  const editForm = await superValidate(
+  const editForm = await superValidate<EditData, StorageConnectionMessage, EditInput>(
     {
       id: params.id,
       name: row.name ?? '',
@@ -75,7 +80,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
   update: async ({ request, locals, params }) => {
-    const form = await superValidate(request, zod(EditStorageConnectionSchema));
+    const form = await superValidate<EditData, StorageConnectionMessage, EditInput>(
+      request,
+      zod(EditStorageConnectionSchema)
+    );
 
     if (!form.valid) {
       log.debug({ errors: form.errors }, 'storage connection edit form validation failed');
@@ -87,7 +95,11 @@ export const actions: Actions = {
     const userId = locals.user!.id;
 
     if (type !== 's3') {
-      return message(form, m.storage_connect_error_hdfs(), { status: 400 });
+      return message(
+        form,
+        { type: 'error', message: m.storage_connect_error_hdfs() },
+        { status: 400 }
+      );
     }
 
     const resolvedCredentials =
@@ -132,7 +144,7 @@ export const actions: Actions = {
           msg = m.storage_connect_error();
         }
 
-        return message(form, msg, { status: 400 });
+        return message(form, { type: 'error', message: msg }, { status: 400 });
       }
     }
 
@@ -153,7 +165,11 @@ export const actions: Actions = {
           )
           .limit(1);
         if (rows.length === 0) {
-          return message(form, m.storage_connect_error_not_found(), { status: 404 });
+          return message(
+            form,
+            { type: 'error', message: m.storage_connect_error_not_found() },
+            { status: 404 }
+          );
         }
         const existing = StoredStorageConnectionSchema.parse(
           JSON.parse(decrypt(rows[0].encryptedPayload, storageEncryptionKey()))
@@ -168,7 +184,11 @@ export const actions: Actions = {
         }
         payload = { host, port, tls, accessStyle, region, credentials: existing.credentials };
       } catch {
-        return message(form, m.storage_connect_error(), { status: 500 });
+        return message(
+          form,
+          { type: 'error', message: m.storage_connect_error() },
+          { status: 500 }
+        );
       }
     }
 
@@ -208,6 +228,6 @@ export const actions: Actions = {
 
     log.info({ connection_id: connectionId }, 'storage connection updated');
 
-    return message(form, 'ok');
+    return message(form, { type: 'success' });
   }
 };

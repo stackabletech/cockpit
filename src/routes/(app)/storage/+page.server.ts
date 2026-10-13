@@ -3,10 +3,12 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { desc, eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
+import type { Infer, InferIn } from 'sveltekit-superforms';
 import {
   StorageConnectionSchema,
   ConnectionIdSchema,
-  StoredStorageConnectionSchema
+  StoredStorageConnectionSchema,
+  type StorageConnectionMessage
 } from '$lib/storage/schemas.js';
 import { getConnectionProvider } from '$lib/server/storage/utils.js';
 import {
@@ -23,13 +25,16 @@ import type { S3ConnectionConfig } from '$lib/server/storage/types.js';
 import type { ConnectionMetadata } from '$lib/storage/connection-types.js';
 import * as m from '$lib/paraglide/messages.js';
 
+type ConnectionData = Infer<typeof StorageConnectionSchema>;
+type ConnectionInput = InferIn<typeof StorageConnectionSchema>;
+
 export const load: PageServerLoad = async ({ locals }) => {
   const log = locals.logger;
-  const connectionForm = await superValidate(
-    { tls: { verification: 'Full' } },
-    zod(StorageConnectionSchema),
-    { errors: false }
-  );
+  const connectionForm = await superValidate<
+    ConnectionData,
+    StorageConnectionMessage,
+    ConnectionInput
+  >({ tls: { verification: 'Full' } }, zod(StorageConnectionSchema), { errors: false });
   log.debug('loading storage page');
 
   const userId = locals.user?.id;
@@ -63,7 +68,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
   connect: async ({ request, locals }) => {
     const log = locals.logger;
-    const form = await superValidate(request, zod(StorageConnectionSchema));
+    const form = await superValidate<ConnectionData, StorageConnectionMessage, ConnectionInput>(
+      request,
+      zod(StorageConnectionSchema)
+    );
 
     if (!form.valid) {
       log.debug({ errors: form.errors }, 'storage connection form validation failed');
@@ -73,7 +81,11 @@ export const actions: Actions = {
     const { type, host, port, tls, accessStyle, region, credentials } = form.data;
 
     if (type !== 's3') {
-      return message(form, m.storage_connect_error_hdfs(), { status: 400 });
+      return message(
+        form,
+        { type: 'error', message: m.storage_connect_error_hdfs() },
+        { status: 400 }
+      );
     }
 
     const resolvedCredentials =
@@ -117,7 +129,7 @@ export const actions: Actions = {
         msg = m.storage_connect_error();
       }
 
-      return message(form, msg, { status: 400 });
+      return message(form, { type: 'error', message: msg }, { status: 400 });
     }
 
     const id = await saveConnection(locals.user!.id, config);

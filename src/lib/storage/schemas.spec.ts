@@ -258,4 +258,10 @@ describe('storage object schemas', () => {
     ).toBe(false);
     expect(DeleteObjectsBodySchema.safeParse({ keys: [''] }).success).toBe(false);
   });
+
+  it('keeps leading and trailing whitespace in object keys', () => {
+    expect(StorageObjectNameSchema.parse(' a ')).toBe(' a ');
+    const result = DeleteObjectsBodySchema.safeParse({ keys: ['a '] });
+    expect(result.success && result.data.keys).toEqual(['a ']);
+  });
 });

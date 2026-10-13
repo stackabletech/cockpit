@@ -373,7 +373,7 @@ describe('StorageConnectForm', () => {
   it('should display server message when present', async () => {
     render(StorageConnectForm, {
       connectionForm: createMockForm({
-        message: 'Connection refused: unable to reach endpoint'
+        message: { type: 'error', message: 'Connection refused: unable to reach endpoint' }
       }),
       connections: [],
       connectError: null
@@ -403,7 +403,7 @@ describe('StorageConnectForm', () => {
             secretKey: ['Secret key required']
           }
         },
-        message: 'Validation failed'
+        message: { type: 'error', message: 'Validation failed' }
       }),
       connections: [],
       connectError: null

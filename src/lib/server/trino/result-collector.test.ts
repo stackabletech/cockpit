@@ -25,6 +25,7 @@ function makeQuery(client: Partial<TrinoQuery['client']>): TrinoQuery {
     columns: [],
     rows: [],
     error: null,
+    rowLimit: null,
     sql: 'SELECT * FROM big',
     startedAt: 0,
     nextUri: 'http://trino/next-1',
@@ -55,7 +56,8 @@ describe('collectResults row limit', () => {
 
     expect(cancelViaUri).toHaveBeenCalledWith('http://trino/next-3', 'alice');
     expect(cancel).not.toHaveBeenCalled();
-    expect(query.error).toBe(`ROW_LIMIT:${MAX_CLIENT_ROWS}`);
+    expect(query.rowLimit).toBe(MAX_CLIENT_ROWS);
+    expect(query.error).toBeNull();
     expect(query.state).toBe('FINISHED');
     expect(query.rows.length).toBeGreaterThanOrEqual(MAX_CLIENT_ROWS);
   });
@@ -75,7 +77,42 @@ describe('collectResults row limit', () => {
 
     expect(cancelViaUri).not.toHaveBeenCalled();
     expect(cancel).toHaveBeenCalledWith('q1', 'alice');
-    expect(query.error).toBe(`ROW_LIMIT:${MAX_CLIENT_ROWS}`);
+    expect(query.rowLimit).toBe(MAX_CLIENT_ROWS);
+    expect(query.error).toBeNull();
     expect(query.state).toBe('FINISHED');
+  });
+});
+
+describe('collectResults failure', () => {
+  it('fails with the Trino error message', async () => {
+    const poll = vi.fn(async () => ({
+      id: 'q1',
+      stats: { state: 'FAILED' },
+      error: { message: 'Division by zero' }
+    }));
+
+    const query = makeQuery({ poll });
+    await collectResults(query);
+
+    expect(query.state).toBe('FAILED');
+    expect(query.error).toBe('Division by zero');
+  });
+
+  it('fails on a FAILED state without error details', async () => {
+    const poll = vi
+      .fn()
+      .mockResolvedValueOnce({
+        id: 'q1',
+        nextUri: 'http://trino/next-2',
+        stats: { state: 'FAILED' }
+      })
+      .mockResolvedValue({ id: 'q1', stats: { state: 'FAILED' } });
+
+    const query = makeQuery({ poll });
+    await collectResults(query);
+
+    expect(poll).toHaveBeenCalledTimes(1);
+    expect(query.state).toBe('FAILED');
+    expect(query.error).toBe('Query failed');
   });
 });

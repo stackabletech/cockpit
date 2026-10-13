@@ -30,7 +30,7 @@
       dataType: 'json',
       validators: zod(EditStorageConnectionSchema),
       onResult: ({ result, cancel }) => {
-        if (result.type === 'success' && result.data?.form?.message === 'ok') {
+        if (result.type === 'success' && result.data?.form?.message?.type === 'success') {
           cancel();
           bypassDirtyCheck = true;
           goto(resolve('/settings/connections'));
@@ -311,8 +311,8 @@
       {/if}
     </div>
 
-    {#if $message && $message !== 'ok'}
-      <p class="text-error text-sm">{$message}</p>
+    {#if $message?.type === 'error'}
+      <p class="text-error text-sm">{$message.message}</p>
     {/if}
 
     <button type="submit" class="btn btn-primary self-start" disabled={$submitting}>

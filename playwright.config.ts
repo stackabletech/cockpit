@@ -26,12 +26,12 @@ export default defineConfig({
   webServer: [
     {
       command: 'npx tsx e2e/support/start-mock-oidc.ts',
-      url: 'http://localhost:9090/.well-known/openid-configuration',
+      url: 'http://localhost:19090/.well-known/openid-configuration',
       reuseExistingServer: false
     },
     {
       command: 'npx tsx e2e/support/start-mock-trino.ts',
-      url: 'http://localhost:8080',
+      url: 'http://localhost:18080',
       reuseExistingServer: false
     },
     {

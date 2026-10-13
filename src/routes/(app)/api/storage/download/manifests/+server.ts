@@ -16,7 +16,7 @@ export const POST: RequestHandler = async (event) => {
   const bucket = requireBucket(event);
   const config = requireConfig(event);
   const connectionId = requireStorageConnectionId(event);
-  const prefix = event.url.searchParams.get('prefix')?.trim() ?? '';
+  const prefix = event.url.searchParams.get('prefix') ?? '';
   const keys = ((await event.request.json()) as { keys?: unknown }).keys;
   if (
     !Array.isArray(keys) ||
