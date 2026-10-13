@@ -617,7 +617,56 @@ describe('job polling via reconcileInterruptedOps', () => {
     expect(state.operations[0].status).toBe('running');
 
     await vi.advanceTimersByTimeAsync(32_000);
-    expect(state.operations[0].status).toBe('error');
+    expect(state.operations[0].status).toBe('unknown');
+    vi.useRealTimers();
+  });
+
+  it('keeps the outcome of a finished part after the server forgets it', async () => {
+    vi.useFakeTimers();
+    const api = makeMockApi();
+    let secondDone = false;
+    let firstPolls = 0;
+    api.pollJob = vi.fn(async (jobId: string) => {
+      if (jobId === 'part-1')
+        return ++firstPolls <= 2
+          ? { status: 'done', progress: { completedBytes: 40 } }
+          : { status: 'not_found' };
+      return secondDone
+        ? { status: 'done', progress: { completedBytes: 60 } }
+        : { status: 'running', progress: { completedBytes: 10 } };
+    });
+    const state = new OperationsState(api, makeOpts());
+    state.startOp('dl', 'Download', 'download', 2, undefined, undefined, undefined, 100, false);
+    state.updateOpJobIds('dl', ['part-1', 'part-2']);
+    state.trackDownload('dl');
+
+    // The server drops the finished first part long before the second ends.
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(state.operations[0].status).toBe('running');
+    secondDone = true;
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(state.operations[0]).toMatchObject({
+      status: 'done',
+      completedCount: 2,
+      completedBytes: 100
+    });
+    vi.useRealTimers();
+  });
+
+  it('reports an unknown outcome when a running job disappears', async () => {
+    vi.useFakeTimers();
+    const api = makeMockApi();
+    api.pollJob = vi
+      .fn()
+      .mockResolvedValueOnce({ status: 'running', progress: { completedBytes: 10 } })
+      .mockResolvedValue({ status: 'not_found' });
+    const state = new OperationsState(api, makeOpts());
+    state.startOp('dl', 'Download', 'download', 1, undefined, undefined, undefined, 100, false);
+    state.updateOpJobIds('dl', ['part-1']);
+    state.trackDownload('dl');
+
+    await vi.advanceTimersByTimeAsync(2_500);
+    expect(state.operations[0]).toMatchObject({ status: 'unknown', completedBytes: 10 });
     vi.useRealTimers();
   });
 

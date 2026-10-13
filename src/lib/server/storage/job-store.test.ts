@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import {
   createJob,
@@ -45,5 +45,54 @@ describe('job ownership and lifecycle', () => {
       else await cancelJob(id, 'owner');
       expect(getJob(id, 'owner')?.cancel).toBeUndefined();
     }
+  });
+});
+
+describe('job expiry', () => {
+  const MINUTE = 60_000;
+
+  async function freshStore() {
+    vi.resetModules();
+    return import('./job-store.js');
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('keeps a running job while it keeps reporting progress', async () => {
+    const store = await freshStore();
+    const id = randomUUID();
+    store.createJob(id, 'owner');
+    for (let minute = 1; minute <= 45; minute++) {
+      await vi.advanceTimersByTimeAsync(MINUTE);
+      store.updateJobProgress(id, { completedBytes: minute });
+    }
+    expect(store.getJob(id, 'owner')?.status).toBe('running');
+  });
+
+  it('expires a running job after 30 minutes without progress', async () => {
+    const store = await freshStore();
+    const id = randomUUID();
+    store.createJob(id, 'owner');
+    await vi.advanceTimersByTimeAsync(29 * MINUTE);
+    expect(store.getJob(id, 'owner')).not.toBeNull();
+    await vi.advanceTimersByTimeAsync(2 * MINUTE + 1);
+    expect(store.getJob(id, 'owner')).toBeNull();
+  });
+
+  it('retains a finished job for five minutes counted from completion', async () => {
+    const store = await freshStore();
+    const id = randomUUID();
+    store.createJob(id, 'owner');
+    await vi.advanceTimersByTimeAsync(10 * MINUTE);
+    store.completeJob(id, null);
+    await vi.advanceTimersByTimeAsync(4 * MINUTE);
+    expect(store.getJob(id, 'owner')?.status).toBe('done');
+    await vi.advanceTimersByTimeAsync(2 * MINUTE + 1);
+    expect(store.getJob(id, 'owner')).toBeNull();
   });
 });

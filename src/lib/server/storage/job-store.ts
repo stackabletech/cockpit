@@ -16,13 +16,19 @@ interface JobEntry<T> {
   result: T | null;
   error?: string;
   createdAt: number;
+  /** Last progress update while running; time of completion once finished. */
+  updatedAt: number;
   progress: JobProgress;
   cancel?: () => Promise<void> | void;
 }
 
 const store = new Map<string, JobEntry<unknown>>();
 
+// A running job expires only after this long without progress. Transfers that
+// report no progress until they finish (e.g. a cross-provider copy) can still
+// expire if they take longer than this.
 const RUNNING_TTL = 30 * 60 * 1000;
+// A finished job is kept this long after it finished, not after it started.
 const DONE_TTL = 5 * 60 * 1000;
 const CLEANUP_INTERVAL = 60_000;
 
@@ -34,7 +40,7 @@ function startCleanup(): void {
     const now = Date.now();
     for (const [id, entry] of store) {
       const ttl = entry.status === 'running' ? RUNNING_TTL : DONE_TTL;
-      if (now - entry.createdAt > ttl) {
+      if (now - entry.updatedAt > ttl) {
         store.delete(id);
         log.trace({ job_id: id, status: entry.status }, 'cleaned up expired job');
       }
@@ -62,6 +68,7 @@ export function createJob(id: string, userId: string): void {
     status: 'running',
     result: null,
     createdAt: Date.now(),
+    updatedAt: Date.now(),
     progress: { completedCount: 0, completedBytes: 0 }
   });
 }
@@ -77,6 +84,7 @@ export async function cancelJob(id: string, userId: string): Promise<boolean> {
   const entry = store.get(id);
   if (!entry || entry.userId !== userId || entry.status !== 'running') return false;
   entry.status = 'cancelled';
+  entry.updatedAt = Date.now();
   const cancel = entry.cancel;
   entry.cancel = undefined;
   await cancel?.();
@@ -90,6 +98,7 @@ export async function cancelJob(id: string, userId: string): Promise<boolean> {
 export function updateJobProgress(id: string, progress: Partial<JobProgress>): void {
   const entry = store.get(id);
   if (!entry || entry.status !== 'running') return;
+  entry.updatedAt = Date.now();
   if (progress.completedCount !== undefined)
     entry.progress.completedCount = progress.completedCount;
   if (progress.completedBytes !== undefined)
@@ -105,6 +114,7 @@ export function completeJob<T>(id: string, result: T): void {
   const entry = store.get(id);
   if (!entry || entry.status !== 'running') return;
   entry.status = 'done' as const;
+  entry.updatedAt = Date.now();
   entry.cancel = undefined;
   (entry as JobEntry<T>).result = result;
   log.trace({ job_id: id }, 'job completed');
@@ -117,6 +127,7 @@ export function failJob(id: string, error: string): void {
   const entry = store.get(id);
   if (!entry || entry.status !== 'running') return;
   entry.status = 'error' as const;
+  entry.updatedAt = Date.now();
   entry.cancel = undefined;
   entry.error = error;
   log.trace({ job_id: id, error }, 'job failed');
@@ -127,6 +138,7 @@ export function cancelJobFromStream(id: string): void {
   const entry = store.get(id);
   if (!entry || entry.status !== 'running') return;
   entry.status = 'cancelled';
+  entry.updatedAt = Date.now();
   entry.cancel = undefined;
   log.trace({ job_id: id }, 'job cancelled by download stream');
 }

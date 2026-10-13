@@ -10,6 +10,7 @@
   import IconError from 'virtual:icons/material-symbols/error-outline';
   import IconCancel from 'virtual:icons/material-symbols/cancel-outline';
   import IconPowerOff from 'virtual:icons/material-symbols/power-off';
+  import IconHelp from 'virtual:icons/material-symbols/help-outline';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconDeleteSweep from 'virtual:icons/material-symbols/delete-sweep-outline';
   import IconHistory from 'virtual:icons/material-symbols/history';
@@ -67,6 +68,7 @@
       case 'cancelled':
         return 'text-base-content/40';
       case 'interrupted':
+      case 'unknown':
         return 'text-warning';
       default:
         return 'text-error';
@@ -82,6 +84,7 @@
       case 'cancelled':
         return 'bg-base-content/5';
       case 'interrupted':
+      case 'unknown':
         return 'bg-warning/10';
       default:
         return 'bg-error/10';
@@ -96,6 +99,8 @@
         return m.storage_operation_cancelled();
       case 'interrupted':
         return m.storage_operation_interrupted();
+      case 'unknown':
+        return m.storage_operation_unknown();
       default:
         return op.errorMessage ?? m.storage_operation_failed();
     }
@@ -415,6 +420,8 @@
                           <IconError class="size-3.5" />
                         {:else if op.status === 'cancelled'}
                           <IconCancel class="size-3.5" />
+                        {:else if op.status === 'unknown'}
+                          <IconHelp class="size-3.5" />
                         {:else}
                           <IconPowerOff class="size-3.5" />
                         {/if}
@@ -448,14 +455,19 @@
                       <div class="text-warning/60 mt-1 pl-5 text-[10px]">
                         {m.storage_operations_interrupted_tooltip()}
                       </div>
+                    {:else if op.status === 'unknown'}
+                      <div class="text-warning/60 mt-1 pl-5 text-[10px]">
+                        {m.storage_operations_unknown_tooltip()}
+                      </div>
                     {/if}
 
                     <!-- Partial progress for interrupted / error -->
-                    {#if (op.status === 'interrupted' || op.status === 'error') && op.totalBytes > 0}
+                    {#if (op.status === 'interrupted' || op.status === 'unknown' || op.status === 'error') && op.totalBytes > 0}
                       <div class="mt-1.5 pl-5">
                         <div class="bg-base-300 h-1 w-full overflow-hidden rounded-full">
                           <div
-                            class="h-full rounded-full {op.status === 'interrupted'
+                            class="h-full rounded-full {op.status === 'interrupted' ||
+                            op.status === 'unknown'
                               ? 'bg-warning'
                               : 'bg-error'}"
                             style="width: {percent(op)}%"

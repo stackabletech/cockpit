@@ -125,7 +125,14 @@ export interface ClipboardData {
 
 // ── Operations (paste / move / rename progress tracking) ─────────────────────
 
-export type OperationStatus = 'running' | 'done' | 'error' | 'cancelled' | 'interrupted';
+export type OperationStatus =
+  | 'running'
+  | 'done'
+  | 'error'
+  | 'cancelled'
+  | 'interrupted'
+  /** The server no longer knows the operation's jobs, so its outcome is unknown. */
+  | 'unknown';
 
 export type OperationType = 'paste' | 'move' | 'rename' | 'delete' | 'download';
 

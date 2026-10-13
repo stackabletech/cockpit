@@ -1,7 +1,7 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { browser } from '$app/environment';
 import type { StorageOperation } from '$lib/storage/types.js';
-import type { StorageApi } from './api.js';
+import type { JobStatus, StorageApi } from './api.js';
 
 // ── Page-unloading flag ─────────────────────────────────────────────────────
 
@@ -65,6 +65,10 @@ export class OperationsState {
   // When each job was first reported missing, to tell a download the browser
   // has not started yet apart from a job that expired or never existed.
   private _jobMissingSince = new SvelteMap<string, number>();
+  // The last status the server reported for each job. The server forgets
+  // finished jobs after a while, so a job that has gone missing keeps the
+  // outcome it was last seen with instead of counting as failed.
+  private _lastKnownJobs = new SvelteMap<string, JobStatus>();
   private _api: StorageApi;
   private _getBucket: () => string;
   private _getPrefix: () => string;
@@ -221,13 +225,20 @@ export class OperationsState {
     let anyRunning = false;
     let anyError = false;
     let anyCancelled = false;
+    let anyUnknown = false;
     let currentFileName: string | undefined;
 
     for (const jobId of op.fileJobIds!) {
       try {
-        const job = await this._api.pollJob(jobId);
-        if (job.status !== 'not_found') this._jobMissingSince.delete(jobId);
-        completedBytes += job.progress?.completedBytes ?? 0;
+        let job = await this._api.pollJob(jobId);
+        const lastKnown = this._lastKnownJobs.get(jobId);
+        if (job.status !== 'not_found') {
+          this._jobMissingSince.delete(jobId);
+          this._lastKnownJobs.set(jobId, job);
+        } else if (lastKnown && lastKnown.status !== 'running') {
+          job = lastKnown;
+        }
+        completedBytes += (job.progress ?? lastKnown?.progress)?.completedBytes ?? 0;
         if (job.status === 'done') {
           completedCount++;
         } else if (job.status === 'running') {
@@ -235,10 +246,12 @@ export class OperationsState {
           currentFileName = job.progress?.currentFileName;
         } else if (job.status === 'not_found') {
           // The browser may not have opened the native download request yet
-          // (e.g. a save dialog is open). Give up after a grace period.
+          // (e.g. a save dialog is open). Give up after a grace period. A job
+          // that disappeared while running has an unknown outcome straight away.
           const missingSince = this._jobMissingSince.get(jobId) ?? Date.now();
           this._jobMissingSince.set(jobId, missingSince);
-          if (Date.now() - missingSince < JOB_START_GRACE_MS) anyRunning = true;
+          if (!lastKnown && Date.now() - missingSince < JOB_START_GRACE_MS) anyRunning = true;
+          else anyUnknown = true;
         } else if (job.status === 'cancelled') {
           anyCancelled = true;
         } else {
@@ -272,11 +285,14 @@ export class OperationsState {
               ...o,
               status: (anyCancelled
                 ? 'cancelled'
-                : anyError ||
-                    completedCount !==
-                      (op.type === 'download' ? op.fileJobIds!.length : op.itemCount)
+                : anyError
                   ? 'error'
-                  : 'done') as 'done' | 'error' | 'cancelled',
+                  : anyUnknown
+                    ? 'unknown'
+                    : completedCount !==
+                        (op.type === 'download' ? op.fileJobIds!.length : op.itemCount)
+                      ? 'error'
+                      : 'done') as 'done' | 'error' | 'cancelled' | 'unknown',
               completedCount,
               completedBytes,
               completedAt: Date.now()
@@ -284,6 +300,10 @@ export class OperationsState {
           : o
       );
       saveOperationsToStorage(this.operations);
+      for (const jobId of op.fileJobIds!) {
+        this._jobMissingSince.delete(jobId);
+        this._lastKnownJobs.delete(jobId);
+      }
 
       const existing = this._pollTimers.get(op.id);
       if (existing) {
