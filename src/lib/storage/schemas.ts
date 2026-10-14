@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_TRANSFER_ITEMS } from './transfer-types.js';
 
 function isValidHostname(host: string): boolean {
   if (host.length > 253 || host.length === 0) return false;
@@ -163,39 +164,69 @@ export const ConflictRenameNameSchema = StorageObjectNameSchema.refine(
 );
 
 /** An existing folder to paste into; empty for the bucket root. */
-export const StoragePrefixSchema = z.union([z.literal(''), StorageObjectKeySchema]);
+export const StoragePrefixSchema = z.union([
+  z.literal(''),
+  // A folder: without the trailing `/`, `archive` + `report.csv` would become `archivereport.csv`.
+  StorageObjectKeySchema.refine((value) => value.endsWith('/'), 'A folder prefix ends with "/"')
+]);
 
-export const CopyObjectsBodySchema = z
+const TransferBucketSchema = z.string().trim().min(1);
+
+/** Body of `POST /api/storage/transfer/plan`. */
+export const TransferPlanBodySchema = z
   .object({
-    sourceKeys: z.array(StorageObjectKeySchema).min(1, 'At least one source key is required'),
-    destinationPrefix: StoragePrefixSchema,
-    sourceBucket: z.string().trim().min(1).optional(),
-    jobId: z.string().min(1).optional()
+    op: z.enum(['copy', 'move']),
+    source: z
+      .object({
+        bucket: TransferBucketSchema,
+        keys: z.array(StorageObjectKeySchema).min(1).max(MAX_TRANSFER_ITEMS)
+      })
+      .strict(),
+    dest: z.object({ bucket: TransferBucketSchema, prefix: StoragePrefixSchema }).strict()
   })
   .strict();
 
-export const MoveObjectsBodySchema = z
+/** Body of `POST /api/storage/transfer`. */
+export const TransferBodySchema = z
   .object({
-    sourceKeys: z.array(StorageObjectKeySchema).min(1, 'At least one source key is required'),
-    destinationPrefix: StoragePrefixSchema.optional(),
-    destinationKey: StorageObjectKeySchema.optional(),
-    sourceBucket: z.string().trim().min(1).optional(),
-    jobId: z.string().min(1).optional()
+    op: z.enum(['copy', 'move', 'rename']),
+    jobId: z.uuid(),
+    source: z.object({ bucket: TransferBucketSchema }).strict(),
+    dest: z
+      .object({ bucket: TransferBucketSchema, prefix: StoragePrefixSchema })
+      .strict()
+      .optional(),
+    items: z
+      .array(
+        z
+          .object({
+            sourceKey: StorageObjectKeySchema,
+            policy: z.enum(['replace', 'merge', 'keepBoth', 'rename']).optional(),
+            name: z.string().optional()
+          })
+          .strict()
+      )
+      .min(1)
+      .max(MAX_TRANSFER_ITEMS)
   })
   .strict()
   .superRefine((data, ctx) => {
-    if (data.destinationPrefix === undefined && data.destinationKey === undefined) {
+    if (data.op === 'rename') {
+      if (data.dest !== undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['dest'],
+          message: 'A rename keeps each item in its folder'
+        });
+      }
+      if (data.items.some((item) => item.policy !== undefined)) {
+        ctx.addIssue({ code: 'custom', path: ['items'], message: 'A rename takes no policy' });
+      }
+    } else if (data.dest === undefined) {
       ctx.addIssue({
         code: 'custom',
-        path: ['destinationPrefix'],
-        message: 'A destination prefix or destination key is required'
-      });
-    }
-    if (data.destinationKey !== undefined && data.sourceKeys.length !== 1) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['destinationKey'],
-        message: 'A destination key requires exactly one source key'
+        path: ['dest'],
+        message: 'A copy or move needs a destination'
       });
     }
   });

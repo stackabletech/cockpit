@@ -1,5 +1,11 @@
 import { SvelteSet } from 'svelte/reactivity';
 import { storageCutCopyEnabled, storageMoveEnabled } from '$lib/client/feature-flags.js';
+import { connectionStore } from './connection-store.svelte.js';
+import type { DragSource } from './clipboard.svelte.js';
+
+const KEYS_TYPE = 'application/x-storage-keys';
+/** Where the dragged items come from: connection and bucket at drag start. */
+const SOURCE_TYPE = 'application/x-storage-source';
 
 /**
  * Auto-select the dragged item if not already selected, then attach
@@ -11,25 +17,35 @@ import { storageCutCopyEnabled, storageMoveEnabled } from '$lib/client/feature-f
 export function handleRowDragStart(
   e: DragEvent,
   itemKey: string,
-  state: { selectedKeys: Set<string>; archive: { isInArchive: boolean } }
+  state: { selectedKeys: Set<string>; bucket: string; archive: { isInArchive: boolean } }
 ): void {
   if (!storageCutCopyEnabled || state.archive.isInArchive) return;
   if (!state.selectedKeys.has(itemKey)) {
     state.selectedKeys = new SvelteSet<string>([itemKey]);
   }
-  e.dataTransfer?.setData('application/x-storage-keys', JSON.stringify([...state.selectedKeys]));
+  e.dataTransfer?.setData(KEYS_TYPE, JSON.stringify([...state.selectedKeys]));
+  const source: DragSource = {
+    connectionId: connectionStore.activeConnectionId,
+    bucket: state.bucket
+  };
+  e.dataTransfer?.setData(SOURCE_TYPE, JSON.stringify(source));
   e.dataTransfer!.effectAllowed = 'move';
 }
 
 /**
- * Parse storage keys from a drop event's data transfer.
- * Returns null if the data is missing or invalid.
+ * Parse the dragged keys and where they come from. Returns null if either is
+ * missing or invalid, e.g. a drag from an older page or another application.
  */
-export function parseStorageDropKeys(e: DragEvent): string[] | null {
-  const raw = e.dataTransfer?.getData('application/x-storage-keys');
-  if (!raw) return null;
+export function parseStorageDrop(e: DragEvent): { keys: string[]; source: DragSource } | null {
+  const rawKeys = e.dataTransfer?.getData(KEYS_TYPE);
+  const rawSource = e.dataTransfer?.getData(SOURCE_TYPE);
+  if (!rawKeys || !rawSource) return null;
   try {
-    return JSON.parse(raw) as string[];
+    const keys = JSON.parse(rawKeys) as unknown;
+    const source = JSON.parse(rawSource) as Partial<DragSource>;
+    if (!Array.isArray(keys) || !keys.every((key) => typeof key === 'string')) return null;
+    if (typeof source.bucket !== 'string') return null;
+    return { keys, source: { connectionId: source.connectionId ?? null, bucket: source.bucket } };
   } catch {
     return null;
   }

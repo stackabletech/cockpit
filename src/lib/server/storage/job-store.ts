@@ -19,7 +19,24 @@ interface JobEntry<T> {
   /** Last progress update while running; time of completion once finished. */
   updatedAt: number;
   progress: JobProgress;
+  /** Per-item results, recorded in every state, including after a cancel. */
+  items: unknown[];
+  /** A cancel was requested; for a job that settles itself the status is still `running`. */
+  cancelRequested: boolean;
+  /** Whether a cancel sets the final status, or the job settles itself via {@link finishJob}. */
+  cancelSettles: boolean;
   cancel?: () => Promise<void> | void;
+}
+
+export interface CreateJobOptions {
+  /** Whether the same user may reuse the ID of a job that is no longer running. Default `true`. */
+  allowRestart?: boolean;
+  /**
+   * Whether a cancel immediately marks the job `cancelled`. Default `true`. A job
+   * that still has work to report after a cancel (a transfer finishing its
+   * deletes) passes `false` and calls {@link finishJob} when it really ends.
+   */
+  cancelSettles?: boolean;
 }
 
 const store = new Map<string, JobEntry<unknown>>();
@@ -52,14 +69,16 @@ function startCleanup(): void {
 startCleanup();
 
 /**
- * Create a new job entry. The same user may reuse the ID of a job that is no
- * longer running, so a browser retry of a failed download (same URL, same job
- * ID) can start again.
+ * Create a new job entry. By default the same user may reuse the ID of a job
+ * that is no longer running, so a browser retry of a failed download (same
+ * URL, same job ID) can start again. With `allowRestart: false` every ID can
+ * be used once, so a retried request never runs again.
  */
-export function createJob(id: string, userId: string): void {
+export function createJob(id: string, userId: string, options: CreateJobOptions = {}): void {
+  const { allowRestart = true, cancelSettles = true } = options;
   if (!z.uuid().safeParse(id).success) throw error(400, 'Invalid job ID');
   const existing = store.get(id);
-  if (existing && (existing.userId !== userId || existing.status === 'running')) {
+  if (existing && (!allowRestart || existing.userId !== userId || existing.status === 'running')) {
     throw error(409, 'Job already exists');
   }
   if (existing) log.debug({ job_id: id, previous_status: existing.status }, 'restarting job');
@@ -69,7 +88,10 @@ export function createJob(id: string, userId: string): void {
     result: null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    progress: { completedCount: 0, completedBytes: 0 }
+    progress: { completedCount: 0, completedBytes: 0 },
+    items: [],
+    cancelRequested: false,
+    cancelSettles
   });
 }
 
@@ -79,17 +101,49 @@ export function setJobCancellation(id: string, cancel: () => Promise<void> | voi
   if (entry?.status === 'running') entry.cancel = cancel;
 }
 
-/** Cancel a job and its active response stream. */
+/**
+ * Cancel a running job and its active work. A job created with
+ * `cancelSettles: false` stays `running` until it calls {@link finishJob}.
+ */
 export async function cancelJob(id: string, userId: string): Promise<boolean> {
   const entry = store.get(id);
   if (!entry || entry.userId !== userId || entry.status !== 'running') return false;
-  entry.status = 'cancelled';
+  entry.cancelRequested = true;
   entry.updatedAt = Date.now();
+  if (entry.cancelSettles) entry.status = 'cancelled';
   const cancel = entry.cancel;
   entry.cancel = undefined;
   await cancel?.();
-  log.trace({ job_id: id }, 'job cancelled');
+  log.trace({ job_id: id, settled: entry.cancelSettles }, 'job cancel requested');
   return true;
+}
+
+/** Keep a running job from expiring while it works without reporting progress. */
+export function touchJob(id: string): void {
+  const entry = store.get(id);
+  if (entry?.status === 'running') entry.updatedAt = Date.now();
+}
+
+/** Record the result of one item of a job, in any state. */
+export function recordJobItem(id: string, item: unknown): void {
+  const entry = store.get(id);
+  if (!entry) return;
+  entry.items.push(item);
+  entry.updatedAt = Date.now();
+}
+
+/**
+ * Settle a job created with `cancelSettles: false`: `cancelled` if a cancel
+ * was requested, otherwise `done`. Stores the result either way.
+ */
+export function finishJob<T>(id: string, result: T): void {
+  const entry = store.get(id);
+  if (!entry || entry.status !== 'running') return;
+  entry.status = entry.cancelRequested ? 'cancelled' : 'done';
+  entry.updatedAt = Date.now();
+  entry.cancel = undefined;
+  (entry as JobEntry<T>).result = result;
+  log.trace({ job_id: id, status: entry.status }, 'job finished');
 }
 
 /**

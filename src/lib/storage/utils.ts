@@ -54,6 +54,15 @@ export function keyToName(key: string): string {
   return stripped.split('/').at(-1) ?? key;
 }
 
+/**
+ * The folder an object or folder key lives in (`a/b/` → `a/`, `a/x.txt` → `a/`,
+ * `a//b.txt` → `a//`). The single parent derivation for server and client.
+ */
+export function parentPrefix(key: string): string {
+  const trimmed = key.endsWith('/') ? key.slice(0, -1) : key;
+  return trimmed.slice(0, trimmed.lastIndexOf('/') + 1);
+}
+
 /** Format a byte count using the active UI locale. */
 export function formatFileSize(
   bytes: number,

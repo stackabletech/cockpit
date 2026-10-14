@@ -1,5 +1,9 @@
 import type { Component } from 'svelte';
 import type { FilePair } from './file-collection.js';
+import type {
+  ConflictEntry,
+  RefusedEntry
+} from '$lib/components/storage/modals/shared/conflict-types.js';
 
 // ── Modal types ─────────────────────────────────────────────────────────────
 
@@ -37,22 +41,14 @@ export interface ModalPayloads {
     items: Array<{ key: string; name: string; isDirectory: boolean; size?: number }>;
   };
   'resolve-conflicts': {
-    /** Conflict entries to resolve. */
-    entries: Array<{
-      id: string;
-      originalName: string;
-      conflict: boolean;
-      resolution: 'replace' | 'skip' | 'rename' | null;
-      customName: string;
-      renameState: 'idle' | 'editing' | 'checking' | 'ok' | 'conflict';
-    }>;
-    bucket: string;
-    /** Destination prefix for rename-conflict checking. */
-    destPrefix: string;
-    /** Optional: label for the confirm button (e.g. "Paste" or "Move"). */
-    confirmLabel?: string;
-    /** Operation that opened the resolver when it is not handled by the clipboard. */
-    operation?: 'rename';
+    /** Conflicting items the user decides on. */
+    entries: ConflictEntry[];
+    /** Items that cannot be transferred, shown with their reason. */
+    refused: RefusedEntry[];
+    /** Nothing would be sent whatever is chosen: offer only Close. */
+    closeOnly: boolean;
+    /** Label for the confirm button (e.g. "Paste" or "Move"). */
+    confirmLabel: string;
   };
   create: { type: 'file' | 'folder' };
 }
@@ -113,8 +109,14 @@ export type ActionName =
 export interface ClipboardData {
   /** 'cut' items are rendered shaded; 'copy' items are not. */
   action: 'cut' | 'copy';
-  /** S3 keys of the items in the clipboard. */
+  /**
+   * S3 keys of the items in the clipboard. A key ending in `/` is a folder, the
+   * same rule the transfer API uses: listings show such a key as a folder, and
+   * transferring it includes the object `x/` itself with any content it has.
+   */
   keys: string[];
+  /** The storage connection the items belong to; paste is refused in another one. */
+  connectionId: string | null;
   /** Bucket the items belong to. */
   sourceBucket: string;
   /** Prefix where the items were cut from (used to invalidate source tabs). */

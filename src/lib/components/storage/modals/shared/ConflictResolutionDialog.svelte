@@ -5,8 +5,10 @@
   import Modal from '$lib/components/Modal.svelte';
   import ConflictEntry from './ConflictEntry.svelte';
   import { ConflictRenameNameSchema } from '$lib/storage/schemas.js';
+  import { objectNameError } from '$lib/storage/name-validation.js';
   import type {
     ConflictEntry as ConflictEntryType,
+    RefusedEntry,
     Resolution,
     RenameState
   } from './conflict-types.js';
@@ -28,6 +30,10 @@
      * When not provided, rename is always accepted as available.
      */
     onCheckRename?: (entry: ConflictEntryType) => Promise<boolean>;
+    /** Optional: items that cannot be transferred, shown with their reason. */
+    refused?: RefusedEntry[];
+    /** Nothing would be sent whatever is chosen: offer only Close. */
+    closeOnly?: boolean;
     onConfirm: (entries: ConflictEntryType[]) => void;
     onCancel: () => void;
   }
@@ -39,6 +45,8 @@
     description,
     confirmLabel,
     onCheckRename,
+    refused = [],
+    closeOnly = false,
     onConfirm,
     onCancel
   }: Props = $props();
@@ -59,6 +67,8 @@
     localEntries.some((e) => e.resolution === 'rename' && e.renameState !== 'ok')
   );
   const canProceed = $derived(!hasUnresolved && !hasUnconfirmedRename);
+  const hasFileConflicts = $derived(conflictEntries.some((e) => e.kind !== 'folder'));
+  const hasFolderConflicts = $derived(conflictEntries.some((e) => e.kind === 'folder'));
 
   // ── Bulk resolution ────────────────────────────────────────────────────────
 
@@ -70,7 +80,24 @@
 
   function replaceAll() {
     localEntries = localEntries.map((e) =>
-      e.conflict ? { ...e, resolution: 'replace', renameState: 'idle' } : e
+      e.conflict && e.kind !== 'folder' ? { ...e, resolution: 'replace', renameState: 'idle' } : e
+    );
+  }
+
+  function mergeAll() {
+    localEntries = localEntries.map((e) =>
+      e.conflict && e.kind === 'folder' ? { ...e, resolution: 'merge', renameState: 'idle' } : e
+    );
+  }
+
+  function renameError(entry: ConflictEntryType, newName: string): boolean {
+    if (entry.destPrefix === undefined) return !ConflictRenameNameSchema.safeParse(newName).success;
+    return (
+      objectNameError(newName, {
+        prefix: entry.destPrefix,
+        folder: entry.kind === 'folder',
+        singleSegment: true
+      }) !== null
     );
   }
 
@@ -112,8 +139,7 @@
     const entry = localEntries.find((e) => e.id === id);
     if (!entry || entry.resolution !== 'rename') return;
     const newName = entry.customName.trim();
-    if (newName === entry.originalName || !ConflictRenameNameSchema.safeParse(newName).success)
-      return;
+    if (newName === entry.originalName || renameError(entry, newName)) return;
 
     localEntries = localEntries.map((e) =>
       e.id === id ? { ...e, renameState: 'checking' as const } : e
@@ -150,17 +176,30 @@
       </div>
     </div>
 
-    <div class="mb-2 flex justify-end gap-2">
-      <button class="btn btn-ghost btn-xs" onclick={skipAll}>
-        {m.storage_upload_skip_all()}
-      </button>
-      <button class="btn btn-ghost btn-xs" onclick={replaceAll}>
-        {m.storage_upload_replace_all()}
-      </button>
-    </div>
+    {#if conflictEntries.length > 0}
+      <div class="mb-2 flex flex-wrap justify-end gap-2">
+        <button class="btn btn-ghost btn-xs" onclick={skipAll}>
+          {m.storage_upload_skip_all()}
+        </button>
+        {#if hasFileConflicts}
+          <button class="btn btn-ghost btn-xs" onclick={replaceAll}>
+            {m.storage_upload_replace_all()}
+          </button>
+        {/if}
+        {#if hasFolderConflicts}
+          <button class="btn btn-ghost btn-xs" onclick={mergeAll}>
+            {m.storage_transfer_merge_all()}
+          </button>
+        {/if}
+      </div>
+      {#if hasFolderConflicts}
+        <p class="text-base-content/60 mb-2 text-xs">{m.storage_transfer_merge_note()}</p>
+      {/if}
+    {/if}
 
     <ul
       class="border-base-300 mb-4 max-h-72 divide-y overflow-y-auto rounded-lg border"
+      class:hidden={conflictEntries.length === 0}
       aria-label={title ?? m.storage_upload_conflicts_title()}
     >
       {#each conflictEntries as entry (entry.id)}
@@ -174,19 +213,44 @@
       {/each}
     </ul>
 
-    <div class="flex justify-end gap-2">
-      <button class="btn btn-ghost btn-sm" onclick={onCancel}>
-        {m.storage_upload_overwrite_cancel()}
-      </button>
-      <button
-        class="btn btn-primary btn-sm gap-1"
-        onclick={handleConfirm}
-        disabled={!canProceed}
-        aria-disabled={!canProceed}
+    {#if refused.length > 0}
+      {#if conflictEntries.length > 0}
+        <p class="text-base-content mb-1 text-sm font-semibold">
+          {m.storage_transfer_refused_title()}
+        </p>
+      {/if}
+      <ul
+        class="border-base-300 mb-4 max-h-40 divide-y overflow-y-auto rounded-lg border"
+        aria-label={m.storage_transfer_refused_title()}
       >
-        <IconCheckCircle class="size-4" aria-hidden="true" />
-        {confirmLabel ?? m.storage_upload_start()}
-      </button>
+        {#each refused as item, index (index)}
+          <li class="px-4 py-2 text-sm">
+            <span class="text-base-content font-medium">&ldquo;{item.name}&rdquo;</span>
+            <span class="text-base-content/70 block">{item.reason}</span>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    <div class="flex justify-end gap-2">
+      {#if closeOnly}
+        <button class="btn btn-primary btn-sm" onclick={onCancel}>
+          {m.storage_transfer_close()}
+        </button>
+      {:else}
+        <button class="btn btn-ghost btn-sm" onclick={onCancel}>
+          {m.storage_upload_overwrite_cancel()}
+        </button>
+        <button
+          class="btn btn-primary btn-sm gap-1"
+          onclick={handleConfirm}
+          disabled={!canProceed}
+          aria-disabled={!canProceed}
+        >
+          <IconCheckCircle class="size-4" aria-hidden="true" />
+          {confirmLabel ?? m.storage_upload_start()}
+        </button>
+      {/if}
     </div>
   </div>
 </Modal>

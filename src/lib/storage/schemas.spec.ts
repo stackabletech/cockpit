@@ -5,8 +5,8 @@ import {
   ConnectionIdSchema,
   StorageObjectNameSchema,
   StorageObjectKeySchema,
-  CopyObjectsBodySchema,
-  MoveObjectsBodySchema,
+  TransferBodySchema,
+  TransferPlanBodySchema,
   DeleteObjectsBodySchema
 } from './schemas.js';
 
@@ -284,19 +284,32 @@ describe('storage object schemas', () => {
     expect(StorageObjectNameSchema.safeParse(name).success).toBe(false);
   });
 
-  it('validates copy, move, and delete request bodies at runtime', () => {
+  it('validates transfer and delete request bodies at runtime', () => {
+    const jobId = '0b5f3e1e-6d0c-4a4c-9a77-3c5f4e2a1b10';
+    const copy = {
+      op: 'copy',
+      jobId,
+      source: { bucket: 'source' },
+      dest: { bucket: 'dest', prefix: '' },
+      items: [{ sourceKey: 'source.csv' }]
+    };
+    expect(TransferBodySchema.safeParse(copy).success).toBe(true);
+    expect(TransferBodySchema.safeParse({ ...copy, dest: undefined }).success).toBe(false);
+    expect(TransferBodySchema.safeParse({ ...copy, jobId: 'not-a-uuid' }).success).toBe(false);
     expect(
-      CopyObjectsBodySchema.safeParse({
-        sourceKeys: ['source.csv'],
-        destinationPrefix: '',
-        sourceBucket: 'source'
+      TransferBodySchema.safeParse({
+        ...copy,
+        op: 'rename',
+        dest: undefined,
+        items: [{ sourceKey: 'source.csv', name: 'x.csv' }]
       }).success
     ).toBe(true);
-    expect(MoveObjectsBodySchema.safeParse({ sourceKeys: ['source.csv'] }).success).toBe(false);
+    expect(TransferBodySchema.safeParse({ ...copy, op: 'rename' }).success).toBe(false);
     expect(
-      MoveObjectsBodySchema.safeParse({
-        sourceKeys: ['source.csv', 'second.csv'],
-        destinationKey: 'target.csv'
+      TransferPlanBodySchema.safeParse({
+        op: 'rename',
+        source: { bucket: 'b', keys: ['a'] },
+        dest: { bucket: 'b', prefix: '' }
       }).success
     ).toBe(false);
     expect(DeleteObjectsBodySchema.safeParse({ keys: [''] }).success).toBe(false);
@@ -332,20 +345,34 @@ describe('storage object schemas', () => {
     expect(StorageObjectKeySchema.safeParse('\t'.repeat(1024)).success).toBe(true);
   });
 
-  it('accepts legal S3 keys in delete, move and copy request bodies', () => {
+  it('accepts only folders as destination prefixes', () => {
+    const body = (prefix: string) => ({
+      op: 'move',
+      source: { bucket: 'b', keys: ['data/report.csv'] },
+      dest: { bucket: 'b', prefix }
+    });
+    expect(TransferPlanBodySchema.safeParse(body('')).success).toBe(true);
+    expect(TransferPlanBodySchema.safeParse(body('archive/')).success).toBe(true);
+    expect(TransferPlanBodySchema.safeParse(body('archive')).success).toBe(false);
+  });
+
+  it('accepts legal S3 keys in delete and transfer request bodies', () => {
     expect(DeleteObjectsBodySchema.safeParse({ keys: legalKeys }).success).toBe(true);
     expect(
-      MoveObjectsBodySchema.safeParse({
-        sourceKeys: ['odd/what?.csv'],
-        destinationKey: 'odd/../renamed.csv'
+      TransferPlanBodySchema.safeParse({
+        op: 'move',
+        source: { bucket: 'b', keys: legalKeys },
+        dest: { bucket: 'b', prefix: 'x|y/../' }
       }).success
     ).toBe(true);
     expect(
-      MoveObjectsBodySchema.safeParse({ sourceKeys: legalKeys, destinationPrefix: 'x|y/../' })
-        .success
-    ).toBe(true);
-    expect(
-      CopyObjectsBodySchema.safeParse({ sourceKeys: legalKeys, destinationPrefix: 'a\\b/' }).success
+      TransferBodySchema.safeParse({
+        op: 'copy',
+        jobId: '0b5f3e1e-6d0c-4a4c-9a77-3c5f4e2a1b10',
+        source: { bucket: 'b' },
+        dest: { bucket: 'b', prefix: 'a\\b/' },
+        items: legalKeys.map((sourceKey) => ({ sourceKey }))
+      }).success
     ).toBe(true);
   });
 

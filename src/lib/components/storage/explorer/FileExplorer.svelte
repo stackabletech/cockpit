@@ -220,7 +220,7 @@
           key: 'paste' as ActionName,
           icon: IconPaste,
           label: m.storage_action_paste(),
-          disabled: storage.clipboard === null || storage.archive.isInArchive,
+          disabled: !storage.clipboardState.canPaste || storage.archive.isInArchive,
           hidden: !storagePasteEnabled || storage.archive.isInArchive
         }
       ];
@@ -266,7 +266,7 @@
         key: 'paste' as ActionName,
         icon: IconPaste,
         label: m.storage_action_paste(),
-        disabled: storage.clipboard === null || storage.archive.isInArchive,
+        disabled: !storage.clipboardState.canPaste || storage.archive.isInArchive,
         hidden: !storagePasteEnabled || storage.archive.isInArchive
       },
       {

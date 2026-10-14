@@ -6,7 +6,9 @@ import {
   cancelJob,
   completeJob,
   failJob,
-  setJobCancellation
+  setJobCancellation,
+  recordJobItem,
+  finishJob
 } from './job-store.js';
 
 describe('job ownership and lifecycle', () => {
@@ -48,6 +50,54 @@ describe('job ownership and lifecycle', () => {
   });
 });
 
+describe('jobs that settle themselves', () => {
+  it('refuses to reuse a job ID when restarts are not allowed', () => {
+    const id = randomUUID();
+    createJob(id, 'owner', { allowRestart: false });
+    finishJob(id, null);
+    expect(() => createJob(id, 'owner', { allowRestart: false })).toThrow(
+      expect.objectContaining({ status: 409 })
+    );
+  });
+
+  it('tracks a cancel request separately from the final status', async () => {
+    const id = randomUUID();
+    const cancel = vi.fn();
+    createJob(id, 'owner', { allowRestart: false, cancelSettles: false });
+    setJobCancellation(id, cancel);
+
+    expect(await cancelJob(id, 'owner')).toBe(true);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(getJob(id, 'owner')).toMatchObject({ status: 'running', cancelRequested: true });
+
+    recordJobItem(id, { sourceKey: 'a', status: 'done' });
+    finishJob(id, { done: 1 });
+    expect(getJob(id, 'owner')).toMatchObject({
+      status: 'cancelled',
+      result: { done: 1 },
+      items: [{ sourceKey: 'a', status: 'done' }]
+    });
+  });
+
+  it('finishes as done without a cancel request', () => {
+    const id = randomUUID();
+    createJob(id, 'owner', { cancelSettles: false });
+    finishJob(id, null);
+    expect(getJob(id, 'owner')?.status).toBe('done');
+  });
+
+  it('records item results in every state', async () => {
+    const id = randomUUID();
+    createJob(id, 'owner');
+    await cancelJob(id, 'owner');
+    recordJobItem(id, { sourceKey: 'late' });
+    expect(getJob(id, 'owner')).toMatchObject({
+      status: 'cancelled',
+      items: [{ sourceKey: 'late' }]
+    });
+  });
+});
+
 describe('job expiry', () => {
   const MINUTE = 60_000;
 
@@ -70,6 +120,17 @@ describe('job expiry', () => {
     for (let minute = 1; minute <= 45; minute++) {
       await vi.advanceTimersByTimeAsync(MINUTE);
       store.updateJobProgress(id, { completedBytes: minute });
+    }
+    expect(store.getJob(id, 'owner')?.status).toBe('running');
+  });
+
+  it('keeps a running job alive with a heartbeat', async () => {
+    const store = await freshStore();
+    const id = randomUUID();
+    store.createJob(id, 'owner');
+    for (let minute = 1; minute <= 45; minute++) {
+      await vi.advanceTimersByTimeAsync(MINUTE);
+      store.touchJob(id);
     }
     expect(store.getJob(id, 'owner')?.status).toBe('running');
   });

@@ -81,12 +81,12 @@ describe('HDFSStorageProvider', () => {
   describe('deleteObjects', () => {
     it('throws "HDFS not implemented"', () => {
       const provider = new HDFSStorageProvider(config);
-      expectThrows(() => provider.deleteObjects(['key1', 'key2']));
+      expectThrows(() => provider.deleteObjects(['key1', 'key2'], true));
     });
 
     it('throws with empty array', () => {
       const provider = new HDFSStorageProvider(config);
-      expectThrows(() => provider.deleteObjects([]));
+      expectThrows(() => provider.deleteObjects([], true));
     });
   });
 

@@ -26,29 +26,6 @@ function ndjsonResponse(lines: string[]): Response {
   });
 }
 
-function makeNdjsonLines(data: {
-  results?: Array<{ sourceKey: string; destKey: string }>;
-  moved?: Array<{ sourceKey: string; destKey: string }>;
-  failed?: Array<{ sourceKey: string; error: string }>;
-}): string[] {
-  const items = data.results ?? data.moved ?? [];
-  const lines: string[] = [];
-  for (const r of items) {
-    lines.push(JSON.stringify({ type: 'done', sourceKey: r.sourceKey, destKey: r.destKey }));
-  }
-  for (const f of data.failed ?? []) {
-    lines.push(JSON.stringify({ type: 'failed', sourceKey: f.sourceKey, error: f.error }));
-  }
-  lines.push(
-    JSON.stringify({
-      type: 'complete',
-      results: items,
-      failed: data.failed ?? []
-    })
-  );
-  return lines;
-}
-
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
@@ -198,171 +175,6 @@ describe('createFetchStorageApi', () => {
     });
   });
 
-  describe('copy', () => {
-    it('sends a POST request with JSON body', async () => {
-      const api = createFetchStorageApi(() => 'conn-1');
-      const copyResult = {
-        results: [{ sourceKey: 'a.txt', destKey: 'dest/a.txt' }],
-        failed: []
-      };
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(copyResult));
-
-      const result = await api.copy({
-        bucket: 'my-bucket',
-        sourceKeys: ['a.txt'],
-        destinationPrefix: 'dest/'
-      });
-
-      expect(result.results).toHaveLength(1);
-      expect(result.failed).toBe(0);
-
-      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
-      expect(url).toContain('/api/storage/copy');
-      expect(url).toContain('bucket=my-bucket');
-      expect(init?.method).toBe('POST');
-      const body = JSON.parse(init?.body as string);
-      expect(body.sourceKeys).toEqual(['a.txt']);
-      expect(body.destinationPrefix).toBe('dest/');
-    });
-
-    it('uses NDJSON streaming when progress=true', async () => {
-      const api = createFetchStorageApi(() => 'conn-1');
-      const lines = makeNdjsonLines({
-        results: [{ sourceKey: 'a.txt', destKey: 'dest/a.txt' }]
-      });
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(ndjsonResponse(lines));
-
-      const result = await api.copy({
-        bucket: 'my-bucket',
-        sourceKeys: ['a.txt'],
-        destinationPrefix: 'dest/',
-        progress: true
-      });
-
-      expect(result.results).toHaveLength(1);
-      expect(result.results[0].sourceKey).toBe('a.txt');
-      expect(result.failed).toBe(0);
-    });
-
-    it('includes the source bucket for cross-bucket copies', async () => {
-      const api = createFetchStorageApi(() => 'conn-1');
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ results: [], failed: [] }));
-
-      await api.copy({
-        bucket: 'destination',
-        sourceBucket: 'source',
-        sourceKeys: ['a.txt'],
-        destinationPrefix: ''
-      });
-
-      const [, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
-      expect(JSON.parse(init?.body as string).sourceBucket).toBe('source');
-    });
-
-    it('includes jobId in the request body when provided', async () => {
-      const api = createFetchStorageApi(() => 'conn-1');
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ results: [], failed: [] }));
-
-      await api.copy({
-        bucket: 'b',
-        sourceKeys: ['x.txt'],
-        destinationPrefix: 'd/',
-        jobId: 'job-123'
-      });
-
-      const [, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
-      const body = JSON.parse(init?.body as string);
-      expect(body.jobId).toBe('job-123');
-    });
-
-    it('forwards AbortSignal', async () => {
-      const api = createFetchStorageApi(() => 'conn-1');
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ results: [], failed: [] }));
-      const controller = new AbortController();
-
-      await api.copy({
-        bucket: 'b',
-        sourceKeys: ['x.txt'],
-        destinationPrefix: 'd/',
-        signal: controller.signal
-      });
-
-      const [, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
-      expect(init?.signal).toBe(controller.signal);
-    });
-  });
-
-  describe('move', () => {
-    it('sends a POST to /api/storage/move', async () => {
-      const api = createFetchStorageApi(() => 'conn-1');
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        jsonResponse({ moved: [{ sourceKey: 'a.txt', destKey: 'dest/a.txt' }], failed: [] })
-      );
-
-      const result = await api.move({
-        bucket: 'b',
-        sourceKeys: ['a.txt'],
-        destinationPrefix: 'dest/'
-      });
-
-      const [url] = vi.mocked(globalThis.fetch).mock.calls[0]!;
-      expect(url).toContain('/api/storage/move');
-      expect(result.results).toHaveLength(1);
-      expect(result.results[0].sourceKey).toBe('a.txt');
-    });
-
-    it('uses NDJSON streaming when progress=true', async () => {
-      const api = createFetchStorageApi(() => 'conn-1');
-      const lines = makeNdjsonLines({
-        results: [{ sourceKey: 'a.txt', destKey: 'dest/a.txt' }]
-      });
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(ndjsonResponse(lines));
-
-      const result = await api.move({
-        bucket: 'b',
-        sourceKeys: ['a.txt'],
-        destinationPrefix: 'dest/',
-        progress: true
-      });
-
-      expect(result.results).toHaveLength(1);
-      expect(result.failed).toBe(0);
-    });
-
-    it('includes the source bucket for cross-bucket moves', async () => {
-      const api = createFetchStorageApi(() => 'conn-1');
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ moved: [], failed: [] }));
-
-      await api.move({
-        bucket: 'destination',
-        sourceBucket: 'source',
-        sourceKeys: ['a.txt'],
-        destinationPrefix: ''
-      });
-
-      const [, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
-      expect(JSON.parse(init?.body as string).sourceBucket).toBe('source');
-    });
-
-    it('reports failed items from NDJSON stream', async () => {
-      const api = createFetchStorageApi(() => 'conn-1');
-      const lines = makeNdjsonLines({
-        failed: [{ sourceKey: 'bad.txt', error: 'Access denied' }]
-      });
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(ndjsonResponse(lines));
-
-      const result = await api.move({
-        bucket: 'b',
-        sourceKeys: ['bad.txt'],
-        destinationPrefix: 'dest/',
-        progress: true
-      });
-
-      expect(result.results).toHaveLength(0);
-      expect(result.failed).toBe(1);
-    });
-  });
-
   describe('delete', () => {
     it('sends DELETE with keys in a JSON body', async () => {
       const api = createFetchStorageApi(() => 'conn-1');
@@ -477,6 +289,127 @@ describe('createFetchStorageApi', () => {
     });
   });
 
+  describe('transfers', () => {
+    it('posts a plan and returns its items', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      const items = [{ sourceKey: 'a', kind: 'file', destKey: 'd/a', conflict: 'none' }];
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ items }));
+      const body = {
+        op: 'copy' as const,
+        source: { bucket: 'b', keys: ['a'] },
+        dest: { bucket: 'b', prefix: 'd/' }
+      };
+
+      expect(await api.planTransfer(body)).toEqual(items);
+
+      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      expect(url).toBe('/api/storage/transfer/plan');
+      expect(JSON.parse(init?.body as string)).toEqual(body);
+    });
+
+    it('passes every transfer event on and reports whether complete arrived', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      const events = [
+        { type: 'item-start', sourceKey: 'a', destRoot: 'd/a', totalObjects: 1, totalBytes: 3 },
+        {
+          type: 'item-done',
+          sourceKey: 'a',
+          destRoot: 'd/a',
+          status: 'done',
+          copied: 1,
+          failed: [],
+          deletedOriginals: 0
+        },
+        { type: 'complete', summary: { done: 1, partial: 0, failed: 0, refused: 0, cancelled: 0 } }
+      ];
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        ndjsonResponse(events.map((event) => JSON.stringify(event)))
+      );
+      const onEvent = vi.fn();
+
+      const result = await api.transfer(
+        {
+          op: 'copy',
+          jobId: 'job-1',
+          source: { bucket: 'b' },
+          dest: { bucket: 'b', prefix: 'd/' },
+          items: [{ sourceKey: 'a' }]
+        },
+        onEvent
+      );
+
+      expect(result).toEqual({ complete: true });
+      expect(onEvent.mock.calls.map(([event]) => event)).toEqual(events);
+      expect(vi.mocked(globalThis.fetch).mock.calls[0]![0]).toBe('/api/storage/transfer');
+    });
+
+    it('raises errors from the event handler and malformed lines instead of polling', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      const body = { op: 'rename' as const, jobId: 'j', source: { bucket: 'b' }, items: [] };
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(ndjsonResponse(['{"type":"complete","summary":{}}']))
+        .mockResolvedValueOnce(ndjsonResponse(['{"type":']));
+
+      await expect(
+        api.transfer(body, () => {
+          throw new Error('client bug');
+        })
+      ).rejects.toThrow('client bug');
+      await expect(api.transfer(body, vi.fn())).rejects.toThrow('Malformed NDJSON line');
+    });
+
+    it('treats a dropped connection as an incomplete stream', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"type":"progress"}\n'));
+          controller.error(new TypeError('network error'));
+        }
+      });
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(stream, { status: 200 }));
+
+      expect(
+        await api.transfer(
+          { op: 'rename', jobId: 'j', source: { bucket: 'b' }, items: [] },
+          vi.fn()
+        )
+      ).toEqual({ complete: false });
+    });
+
+    it('reports a stream that ends without complete', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(ndjsonResponse([]));
+
+      expect(
+        await api.transfer(
+          { op: 'rename', jobId: 'job-1', source: { bucket: 'b' }, items: [] },
+          vi.fn()
+        )
+      ).toEqual({ complete: false });
+    });
+
+    it('raises request-level errors as StorageError', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        jsonResponse({ message: 'Job already exists' }, { status: 409 })
+      );
+
+      await expect(
+        api.transfer({ op: 'rename', jobId: 'j', source: { bucket: 'b' }, items: [] }, vi.fn())
+      ).rejects.toMatchObject({ code: 'conflict' });
+    });
+
+    it('reads a transfer job, reporting a missing one as not_found', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(jsonResponse({ status: 'done', items: [] }))
+        .mockResolvedValueOnce(jsonResponse({ status: 'not_found' }, { status: 404 }));
+
+      expect(await api.readTransferJob('job-1')).toEqual({ status: 'done', items: [] });
+      expect(await api.readTransferJob('job-2')).toEqual({ status: 'not_found' });
+    });
+  });
+
   describe('pollJob', () => {
     it('fetches job status by ID', async () => {
       const api = createFetchStorageApi(() => 'conn-1');
@@ -574,100 +507,5 @@ describe('createFetchStorageApi', () => {
         api.saveText({ bucket: 'b', key: 'k', body: 'x', etag: '"old"', contentType: 'text/plain' })
       ).rejects.toMatchObject({ code: 'conflict' });
     });
-  });
-});
-
-describe('NDJSON streaming via copy', () => {
-  it('calls onProgress callback during streaming', async () => {
-    const api = createFetchStorageApi(() => 'conn-1');
-    const onProgress = vi.fn();
-    const lines = [
-      JSON.stringify({
-        type: 'progress',
-        sourceKey: 'big.bin',
-        destKey: 'dest/big.bin',
-        loaded: 50,
-        total: 100
-      }),
-      JSON.stringify({
-        type: 'progress',
-        sourceKey: 'big.bin',
-        destKey: 'dest/big.bin',
-        loaded: 100,
-        total: 100
-      }),
-      JSON.stringify({ type: 'done', sourceKey: 'big.bin', destKey: 'dest/big.bin' }),
-      JSON.stringify({
-        type: 'complete',
-        results: [{ sourceKey: 'big.bin', destKey: 'dest/big.bin' }],
-        failed: []
-      })
-    ];
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(ndjsonResponse(lines));
-
-    await api.copy({
-      bucket: 'b',
-      sourceKeys: ['big.bin'],
-      destinationPrefix: 'dest/',
-      progress: true,
-      callbacks: { onProgress }
-    });
-
-    expect(onProgress).toHaveBeenCalledTimes(2);
-    expect(onProgress).toHaveBeenCalledWith('big.bin', 'dest/big.bin', 50, 100);
-    expect(onProgress).toHaveBeenCalledWith('big.bin', 'dest/big.bin', 100, 100);
-  });
-
-  it('calls onDone callback for each completed item', async () => {
-    const api = createFetchStorageApi(() => 'conn-1');
-    const onDone = vi.fn();
-    const lines = [
-      JSON.stringify({ type: 'done', sourceKey: 'a.txt', destKey: 'dest/a.txt' }),
-      JSON.stringify({ type: 'done', sourceKey: 'b.txt', destKey: 'dest/b.txt' }),
-      JSON.stringify({
-        type: 'complete',
-        results: [
-          { sourceKey: 'a.txt', destKey: 'dest/a.txt' },
-          { sourceKey: 'b.txt', destKey: 'dest/b.txt' }
-        ],
-        failed: []
-      })
-    ];
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(ndjsonResponse(lines));
-
-    await api.copy({
-      bucket: 'b',
-      sourceKeys: ['a.txt', 'b.txt'],
-      destinationPrefix: 'dest/',
-      progress: true,
-      callbacks: { onDone }
-    });
-
-    expect(onDone).toHaveBeenCalledTimes(2);
-    expect(onDone).toHaveBeenCalledWith('a.txt', 'dest/a.txt');
-    expect(onDone).toHaveBeenCalledWith('b.txt', 'dest/b.txt');
-  });
-
-  it('calls onComplete with aggregated results', async () => {
-    const api = createFetchStorageApi(() => 'conn-1');
-    const onComplete = vi.fn();
-    const lines = makeNdjsonLines({
-      results: [{ sourceKey: 'a.txt', destKey: 'dest/a.txt' }],
-      failed: [{ sourceKey: 'b.txt', error: 'Permission denied' }]
-    });
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(ndjsonResponse(lines));
-
-    await api.copy({
-      bucket: 'b',
-      sourceKeys: ['a.txt', 'b.txt'],
-      destinationPrefix: 'dest/',
-      progress: true,
-      callbacks: { onComplete }
-    });
-
-    expect(onComplete).toHaveBeenCalledOnce();
-    const [results, failed] = onComplete.mock.calls[0]!;
-    expect(results).toHaveLength(1);
-    expect(failed).toHaveLength(1);
   });
 });

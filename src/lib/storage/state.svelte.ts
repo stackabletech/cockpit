@@ -1,5 +1,4 @@
 import { SvelteSet } from 'svelte/reactivity';
-import { tick } from 'svelte';
 import { invalidateAll } from '$app/navigation';
 import * as m from '$lib/paraglide/messages.js';
 import type { StoragePage, StorageObject } from '$lib/storage/types.js';
@@ -30,13 +29,14 @@ import { addToast } from '$lib/stores/toast.svelte.js';
 import { StorageError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
 import { connectionStore } from '$lib/storage/connection-store.svelte.js';
-import { isArchiveExtension, keyToName } from '$lib/storage/utils.js';
+import { isArchiveExtension, keyToName, parentPrefix } from '$lib/storage/utils.js';
 import { numberedName } from '$lib/storage/numbered-name.js';
 import type { StorageApi } from './api.js';
 import { createFetchStorageApi } from './api.js';
 import { OperationsState } from './operations.svelte.js';
 import { ArchiveState } from './archive.svelte.js';
-import { ClipboardState } from './clipboard.svelte.js';
+import { ClipboardState, type DragSource } from './clipboard.svelte.js';
+import { refusalMessage, runTransfer, type ItemOutcome } from './transfer.js';
 import { isStorageShortcutTarget } from './keyboard-scope.js';
 
 export class StorageState {
@@ -102,12 +102,6 @@ export class StorageState {
   // ── Rename inline ──
   renameLoading = $state(false);
   renameError = $state<string | null>(null);
-  private _pendingRenameConflict: {
-    key: string;
-    newName: string;
-    parentPrefix: string;
-    isDirectory: boolean;
-  } | null = null;
 
   // ── Connection identity ──
   connectionId = $state<string | null>(null);
@@ -202,6 +196,7 @@ export class StorageState {
     this.clipboardState = new ClipboardState(this._api, this.operations_, {
       getBucket: () => this.bucket,
       getPrefix: () => this.prefix,
+      getConnectionId: () => connectionStore.activeConnectionId,
       getObjects: () => this.objects,
       getSelectedKeys: () => this.selectedKeys,
       openModal: (type, payload) => this.openModal(type as never, payload as never),
@@ -663,6 +658,10 @@ export class StorageState {
         if (!storagePasteEnabled) return;
         if (!this.clipboardState.clipboard || this.clipboardState.clipboard.keys.length === 0)
           return;
+        if (!this.clipboardState.canPaste) {
+          addToast('warning', m.storage_transfer_other_connection());
+          return;
+        }
         if (this.archive.isInArchive) {
           addToast('warning', m.storage_action_paste_archive_error());
           return;
@@ -741,11 +740,12 @@ export class StorageState {
         await this.api.create({ bucket: this.bucket, key: dirKey });
       }
 
-      // Do not let a repeated default name overwrite an edited file.
+      // Do not let a repeated default name overwrite an edited file. Numbering starts
+      // at (1), as for copies that keep both.
       const baseKey = this.prefix + sanitized + (isFolder ? '/' : '');
       let finalKey = baseKey;
-      let copyNumber = 2;
-      while (await this.api.checkObjectExists({ bucket: this.bucket, key: finalKey })) {
+      let copyNumber = 1;
+      while (await this.keyTaken(finalKey)) {
         finalKey = numberedName(baseKey, copyNumber);
         copyNumber++;
       }
@@ -806,8 +806,13 @@ export class StorageState {
   // ── Delegate methods ───────────────────────────────────────────────────────
 
   /** Delegated to clipboardState. */
-  performMove = (destPrefix: string, keys?: string[], destBucket?: string): void => {
-    this.clipboardState.performMove(destPrefix, keys, destBucket);
+  performMove = (
+    destPrefix: string,
+    keys?: string[],
+    destBucket?: string,
+    source?: DragSource
+  ): void => {
+    this.clipboardState.performMove(destPrefix, keys, destBucket, source);
   };
 
   /** Delegated to clipboardState. */
@@ -822,19 +827,11 @@ export class StorageState {
 
   /** Delegated to clipboardState. */
   confirmConflictResolution = (entries: ConflictEntry[]): Promise<void> => {
-    if (this._pendingRenameConflict) {
-      return this.confirmRenameConflictResolution(entries);
-    }
     return this.clipboardState.confirmConflictResolution(entries);
   };
 
   /** Delegated to clipboardState. */
   cancelConflictResolution = (): void => {
-    if (this._pendingRenameConflict) {
-      this._pendingRenameConflict = null;
-      this.closeModal();
-      return;
-    }
     this.clipboardState.cancelConflictResolution();
   };
 
@@ -842,151 +839,88 @@ export class StorageState {
   // Rename
   // ────────────────────────────────────────────────────────────────────────────
 
+  /**
+   * Rename an item within its folder. A rename never overwrites: a taken name
+   * is refused by the server, and the modal shows the error and stays open.
+   */
   confirmRename = async (key: string, newName: string): Promise<void> => {
+    if (!newName.trim()) return;
+    const newKey = parentPrefix(key) + newName + (key.endsWith('/') ? '/' : '');
+    if (newKey === key) {
+      this.closeModal();
+      return;
+    }
+
     this.renameLoading = true;
     this.renameError = null;
+    const bucket = this.bucket;
+    const renamedFile = this.files.find((f) => f.key === key);
 
-    if (!newName.trim()) {
-      this.renameLoading = false;
-      return;
-    }
-
-    const parts = key.split('/').filter(Boolean);
-    parts.pop();
-    const parentPrefix = parts.length > 0 ? parts.join('/') + '/' : '';
-    const newKey = parentPrefix + newName + (key.endsWith('/') ? '/' : '');
-
-    if (newKey === key) {
+    let result: ItemOutcome | undefined;
+    try {
+      [result] = await runTransfer({
+        api: this.api,
+        operations: this.operations_,
+        body: { op: 'rename', source: { bucket }, items: [{ sourceKey: key, name: newName }] },
+        label: `${m.storage_operation_rename()}: ${keyToName(key)} → ${newName}`,
+        type: 'rename',
+        destPath: `${bucket}/${newKey}`
+      });
+    } catch (err: unknown) {
       this.renameLoading = false;
       this.closeModal();
+      let msg = m.storage_rename_error({ name: newName });
+      if (err instanceof StorageError && err.code === 'access_denied')
+        msg = m.storage_rename_error_access_denied();
+      else if (err instanceof StorageError && err.code === 'not_found')
+        msg = m.storage_rename_error_not_found();
+      addToast('error', msg);
+      return;
+    }
+    this.renameLoading = false;
+
+    if (result?.status === 'refused') {
+      this.renameError =
+        result.reason === 'conflict' || !result.reason
+          ? m.storage_rename_error_conflict({ name: newName })
+          : refusalMessage(result.reason);
       return;
     }
 
-    try {
-      if (await this.api.checkObjectExists({ bucket: this.bucket, key: newKey })) {
-        this.renameLoading = false;
-        this._pendingRenameConflict = {
-          key,
-          newName,
-          parentPrefix,
-          isDirectory: key.endsWith('/')
-        };
-        this.openModal('resolve-conflicts', {
-          entries: [
-            {
-              id: key,
-              originalName: newName,
-              conflict: true,
-              resolution: null,
-              customName: newName,
-              renameState: 'idle'
-            }
-          ],
-          bucket: this.bucket,
-          destPrefix: parentPrefix,
-          confirmLabel: m.storage_action_rename(),
-          operation: 'rename'
-        });
-        return;
-      }
-    } catch {
-      // Let the move endpoint report a failed existence check as it does for other operations.
-    }
-
-    await this.performRename(key, newName, newKey);
-  };
-
-  private confirmRenameConflictResolution = async (entries: ConflictEntry[]): Promise<void> => {
-    const pending = this._pendingRenameConflict;
-    this._pendingRenameConflict = null;
-    if (!pending) return;
-
-    const entry = entries[0];
-    if (!entry || entry.resolution === 'skip') {
-      this.closeModal();
-      return;
-    }
-
-    const newName = entry.resolution === 'rename' ? entry.customName.trim() : pending.newName;
-    const newKey = pending.parentPrefix + newName + (pending.isDirectory ? '/' : '');
-
-    this.renameLoading = true;
-    if (entry.resolution === 'replace') {
-      try {
-        await this.api.delete({ bucket: this.bucket, keys: [newKey] });
-      } catch {
-        this.renameLoading = false;
-        this.closeModal();
-        addToast('error', m.storage_rename_error({ name: newName }));
-        return;
-      }
-    }
-
-    await this.performRename(pending.key, newName, newKey);
-  };
-
-  private performRename = async (key: string, newName: string, newKey: string): Promise<void> => {
-    const opId = crypto.randomUUID();
-    const renameObj = this.files.find((f) => f.key === key);
-    this.operations_.startOp(
-      opId,
-      `${m.storage_operation_rename()}: ${keyToName(key)} → ${newName}`,
-      'rename',
-      1,
-      undefined,
-      `${this.bucket}/${newKey}`,
-      [keyToName(key)],
-      renameObj?.size ?? 0
-    );
-
-    try {
-      try {
-        await this.api.move({
-          bucket: this.bucket,
-          sourceKeys: [key],
-          destinationPrefix: '',
-          destinationKey: newKey
-        });
-      } catch (err: unknown) {
-        this.operations_.finishOp(opId, 'error');
-        this.renameLoading = false;
-        if (err instanceof StorageError && err.code === 'conflict') {
-          this.renameError = m.storage_rename_error_conflict({ name: newName });
-          return;
-        }
-        this.closeModal();
-        let msg = m.storage_rename_error({ name: newName });
-        if (err instanceof StorageError && err.code === 'access_denied')
-          msg = m.storage_rename_error_access_denied();
-        else if (err instanceof StorageError && err.code === 'not_found')
-          msg = m.storage_rename_error_not_found();
-        addToast('error', msg);
-        return;
-      }
-
-      // Update recent files
+    this.closeModal();
+    if (result?.status === 'done') {
       if (!key.endsWith('/')) {
-        this.bookmarks.removeFiles(this.bucket, [key]);
-        const obj = this.files.find((f) => f.key === key);
-        if (obj) {
-          this.bookmarks.recordFileVisit(this.bucket, newKey, obj.size);
-        }
+        this.bookmarks.removeFiles(bucket, [key]);
+        if (renamedFile) this.bookmarks.recordFileVisit(bucket, newKey, renamedFile.size);
       }
-
-      this.operations_.updateOpProgress(opId, 1, renameObj?.size ?? 0);
-      await tick();
-      this.operations_.finishOp(opId, 'done');
-      this.renameLoading = false;
-      this.closeModal();
       addToast('success', m.storage_rename_success({ name: newName }));
-      this.refresh();
-    } catch {
-      this.operations_.finishOp(opId, 'error');
-      this.renameLoading = false;
-      this.closeModal();
+    } else if (result?.status === 'partial' || result?.status === 'unknown') {
+      addToast(
+        'warning',
+        m.storage_transfer_item_line({
+          name: keyToName(key),
+          reason:
+            result.status === 'partial'
+              ? m.storage_transfer_item_partial()
+              : m.storage_transfer_item_unknown()
+        })
+      );
+    } else {
       addToast('error', m.storage_rename_error({ name: newName }));
     }
+    this.refresh();
   };
+
+  /**
+   * Whether `key` is taken in the current bucket. A folder is taken by its marker
+   * or by any object under it; the listing hides the marker, so both are checked.
+   */
+  private async keyTaken(key: string): Promise<boolean> {
+    if (await this.api.checkObjectExists({ bucket: this.bucket, key })) return true;
+    if (!key.endsWith('/')) return false;
+    const page = await this.api.list({ bucket: this.bucket, prefix: key, pageSize: 1 });
+    return page.objects.length > 0;
+  }
 
   // ── (Move and conflict resolution moved to ClipboardState) ──
 

@@ -440,8 +440,6 @@
   "storage_upload_rename_confirm_action": "Namen bestätigen",
   "storage_upload_rename_taken": "Dieser Name existiert bereits an diesem Speicherort. Bitte wählen Sie einen anderen Namen.",
   "storage_conflict_rename_invalid_name": "Geben Sie einen einzelnen Namen ein: ohne \"/\", nicht \".\" oder \"..\" und ohne die Zeichen < > \\ | ? \".",
-  "storage_conflict_rename_failed": "\"{name}\" konnte nicht in \"{newName}\" umbenannt werden. Der Name wird möglicherweise bereits verwendet.",
-  "storage_conflict_rename_partial": "\"{name}\" wurde nur teilweise in \"{newName}\" umbenannt. Einige Elemente haben ihren bisherigen Namen behalten.",
   "storage_upload_uploading": "Wird hochgeladen… {pct}%",
   "storage_upload_status_queued": "ausstehend",
   "storage_upload_status_done": "fertig",
@@ -639,19 +637,7 @@
     }
   ],
   "storage_action_paste_error": "Elemente konnten nicht eingefügt werden. Bitte versuchen Sie es erneut.",
-  "storage_action_paste_partial": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "1 Element konnte nicht eingefügt werden.",
-        "countPlural=other": "{count} Elemente konnten nicht eingefügt werden."
-      }
-    }
-  ],
-  "storage_action_paste_error_source_not_found": "Einfügen fehlgeschlagen — die Quell-Elemente wurden möglicherweise gelöscht oder verschoben.",
   "storage_action_paste_archive_error": "Einfügen innerhalb eines Archivs nicht möglich.",
-  "storage_action_paste_into_itself_error": "Ein Ordner kann nicht in sich selbst eingefügt werden.",
   "storage_action_move_success": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
@@ -659,16 +645,6 @@
       "match": {
         "countPlural=one": "1 Element verschoben",
         "countPlural=other": "{count} Elemente verschoben"
-      }
-    }
-  ],
-  "storage_action_move_partial": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "1 Element konnte nicht verschoben werden.",
-        "countPlural=other": "{count} Elemente konnten nicht verschoben werden."
       }
     }
   ],
@@ -851,5 +827,38 @@
         "n=other": "vor {count} J."
       }
     }
-  ]
+  ],
+  "storage_transfer_reason_same_location": "Es befindet sich bereits an diesem Ort.",
+  "storage_transfer_reason_into_itself": "Ein Ordner kann nicht in sich selbst abgelegt werden.",
+  "storage_transfer_reason_overlaps_source": "Das Ziel überschneidet sich mit einem ausgewählten Element.",
+  "storage_transfer_reason_duplicate_destination": "Ein anderes ausgewähltes Element hat bereits dieses Ziel.",
+  "storage_transfer_reason_conflict": "Ein Element mit diesem Namen ist bereits vorhanden.",
+  "storage_transfer_reason_policy_mismatch": "Diese Auswahl gilt nicht für dieses Element.",
+  "storage_transfer_reason_invalid_name": "Der neue Name ist ungültig.",
+  "storage_transfer_reason_name_too_long": "Der Name ist zu lang. Der vollständige Pfad darf höchstens 1024 Bytes lang sein.",
+  "storage_transfer_item_partial": "nur teilweise übertragen",
+  "storage_transfer_item_failed": "fehlgeschlagen",
+  "storage_transfer_item_cancelled": "abgebrochen",
+  "storage_transfer_status_done": "{count} erledigt",
+  "storage_transfer_status_partial": "{count} teilweise erledigt",
+  "storage_transfer_status_failed": "{count} fehlgeschlagen",
+  "storage_transfer_status_refused": "{count} abgelehnt",
+  "storage_transfer_status_cancelled": "{count} abgebrochen",
+  "storage_transfer_summary_paste": "Einfügen abgeschlossen: {counts}.",
+  "storage_transfer_summary_move": "Verschieben abgeschlossen: {counts}.",
+  "storage_transfer_item_line": "{name}: {reason}",
+  "storage_transfer_more": "+ {count} weitere",
+  "storage_transfer_resolution_merge": "Zusammenführen",
+  "storage_transfer_resolution_keep_both": "Beide behalten",
+  "storage_transfer_merge_all": "Alle zusammenführen",
+  "storage_transfer_merge_note": "Beim Zusammenführen bleiben Dateien erhalten, die nur im Ziel existieren. Gleichnamige Dateien werden ersetzt.",
+  "storage_transfer_refused_title": "Kann nicht übertragen werden",
+  "storage_transfer_close": "Schließen",
+  "storage_transfer_too_many": "Es können höchstens {max} Elemente auf einmal eingefügt oder verschoben werden.",
+  "storage_transfer_other_connection": "Diese Elemente gehören zu einer anderen Speicherverbindung und können hier nicht eingefügt oder verschoben werden.",
+  "storage_transfer_failed_paste": "Einfügen nicht möglich: {counts}.",
+  "storage_transfer_failed_move": "Verschieben nicht möglich: {counts}.",
+  "storage_transfer_status_unknown": "{count} mit unbekanntem Ergebnis",
+  "storage_transfer_item_unknown": "Ergebnis unbekannt, bitte den Ordner prüfen",
+  "storage_transfer_running": "Ein Einfüge- oder Verschiebevorgang läuft noch. Bitte warten Sie, bis er abgeschlossen ist."
 }

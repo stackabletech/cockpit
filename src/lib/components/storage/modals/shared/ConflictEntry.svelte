@@ -3,6 +3,7 @@
   import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
   import { ConflictRenameNameSchema } from '$lib/storage/schemas.js';
+  import { objectNameError } from '$lib/storage/name-validation.js';
   import type { ConflictEntry, Resolution } from './conflict-types.js';
 
   interface Props {
@@ -22,12 +23,23 @@
     entry.resolution === 'rename' &&
       (entry.customName.trim() === '' || entry.customName.trim() === entry.originalName)
   );
-  let invalidName = $derived(
-    entry.resolution === 'rename' &&
-      !sameName &&
-      !ConflictRenameNameSchema.safeParse(entry.customName.trim()).success
-  );
-  let badRename = $derived(sameName || invalidName);
+  // A transfer knows its destination folder, so the full key length is checked too.
+  let nameError = $derived.by(() => {
+    if (entry.resolution !== 'rename' || sameName) return null;
+    const name = entry.customName.trim();
+    if (entry.destPrefix !== undefined) {
+      return objectNameError(name, {
+        prefix: entry.destPrefix,
+        folder: entry.kind === 'folder',
+        singleSegment: true
+      });
+    }
+    return ConflictRenameNameSchema.safeParse(name).success
+      ? null
+      : m.storage_conflict_rename_invalid_name();
+  });
+  let badRename = $derived(sameName || nameError !== null);
+  const folder = $derived(entry.kind === 'folder');
 </script>
 
 <li class="px-4 py-3">
@@ -40,14 +52,35 @@
     role="group"
     aria-label="{m.storage_upload_conflicts_title()} — {entry.originalName}"
   >
-    <button
-      type="button"
-      class="btn btn-xs {entry.resolution === 'replace' ? 'btn-warning' : 'btn-ghost'}"
-      onclick={() => onSetResolution('replace')}
-      aria-pressed={entry.resolution === 'replace'}
-    >
-      {m.storage_upload_resolution_replace()}
-    </button>
+    {#if folder}
+      <button
+        type="button"
+        class="btn btn-xs {entry.resolution === 'merge' ? 'btn-warning' : 'btn-ghost'}"
+        onclick={() => onSetResolution('merge')}
+        aria-pressed={entry.resolution === 'merge'}
+      >
+        {m.storage_transfer_resolution_merge()}
+      </button>
+    {:else}
+      <button
+        type="button"
+        class="btn btn-xs {entry.resolution === 'replace' ? 'btn-warning' : 'btn-ghost'}"
+        onclick={() => onSetResolution('replace')}
+        aria-pressed={entry.resolution === 'replace'}
+      >
+        {m.storage_upload_resolution_replace()}
+      </button>
+    {/if}
+    {#if entry.allowKeepBoth}
+      <button
+        type="button"
+        class="btn btn-xs {entry.resolution === 'keepBoth' ? 'btn-info' : 'btn-ghost'}"
+        onclick={() => onSetResolution('keepBoth')}
+        aria-pressed={entry.resolution === 'keepBoth'}
+      >
+        {m.storage_transfer_resolution_keep_both()}
+      </button>
+    {/if}
     <button
       type="button"
       class="btn btn-xs {entry.resolution === 'skip' ? 'btn-neutral' : 'btn-ghost'}"
@@ -107,9 +140,9 @@
         <p id="{uid}-rename-err-{entry.id}" class="text-error mt-1 text-xs" role="alert">
           {m.storage_upload_rename_same_name_error()}
         </p>
-      {:else if invalidName}
+      {:else if nameError}
         <p id="{uid}-rename-err-{entry.id}" class="text-error mt-1 text-xs" role="alert">
-          {m.storage_conflict_rename_invalid_name()}
+          {nameError}
         </p>
       {:else if entry.renameState === 'conflict'}
         <p id="{uid}-rename-err-{entry.id}" class="text-error mt-1 text-xs" role="alert">

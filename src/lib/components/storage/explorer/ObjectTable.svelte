@@ -15,7 +15,7 @@
     if (selectAllEl) selectAllEl.indeterminate = storage.someSelected;
   });
 
-  import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
+  import { parseStorageDrop, canStorageDrop } from '$lib/storage/drag-handlers.js';
 
   function navigateUp() {
     if (storage.archive.isInArchive) {
@@ -129,9 +129,9 @@
     tableDragOver = false;
     if (!canStorageDrop(storage)) return;
     e.preventDefault();
-    const keys = parseStorageDropKeys(e);
-    if (!keys) return;
-    void storage.performMove(storage.prefix, keys);
+    const drop = parseStorageDrop(e);
+    if (!drop) return;
+    void storage.performMove(storage.prefix, drop.keys, undefined, drop.source);
   }
 
   function handleParentDragOver(e: DragEvent) {
@@ -149,9 +149,9 @@
     parentDragOver = false;
     if (!canStorageDrop(storage) || !storage.prefix) return;
     e.preventDefault();
-    const keys = parseStorageDropKeys(e);
-    if (!keys) return;
-    void storage.performMove(parentPrefix(), keys);
+    const drop = parseStorageDrop(e);
+    if (!drop) return;
+    void storage.performMove(parentPrefix(), drop.keys, undefined, drop.source);
   }
 
   function handleEmptyDragOver(e: DragEvent) {
@@ -172,9 +172,9 @@
     if (!canStorageDrop(storage)) return;
     e.preventDefault();
     e.stopPropagation();
-    const keys = parseStorageDropKeys(e);
-    if (!keys) return;
-    void storage.performMove(storage.prefix, keys);
+    const drop = parseStorageDrop(e);
+    if (!drop) return;
+    void storage.performMove(storage.prefix, drop.keys, undefined, drop.source);
   }
 </script>
 

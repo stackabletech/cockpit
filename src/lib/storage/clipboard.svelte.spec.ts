@@ -1,4 +1,5 @@
 vi.mock('$lib/client/feature-flags.js', () => ({
+  storageMoveEnabled: true,
   storageAutoConnectEnabled: false,
   storageRestoreTabsEnabled: false,
   allowedPageSizes: [25, 50, 100],
@@ -8,8 +9,7 @@ vi.mock('$lib/client/feature-flags.js', () => ({
   uploadConcurrency: 3,
   storageCutCopyEnabled: true,
   storagePasteEnabled: true,
-  storageRenameEnabled: true,
-  storageMoveEnabled: true
+  storageRenameEnabled: true
 }));
 
 vi.mock('$lib/storage/connection-store.svelte.js', () => ({
@@ -29,525 +29,481 @@ import { StorageState } from './state.svelte.js';
 import type { StorageApi } from './api.js';
 import type { ClipboardData } from './types.js';
 import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
-import { createMemoryStorageApi } from './api.test-utils.js';
+import type { PlanItem, TransferBody } from './transfer-types.js';
+import { createMemoryStorageApi, fakeTransfer } from './api.test-utils.js';
 import { makePage } from './state.test-utils.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
-import { StorageError } from './errors.js';
 
-/** Existing bucket contents: file `file.txt` and folder `dir/` (with a child, no marker). */
-const EXISTING_FILES = new Set(['file.txt', 'dir/child.txt']);
+type ConflictPayload = {
+  entries: ConflictEntry[];
+  refused: Array<{ name: string; reason: string }>;
+  closeOnly: boolean;
+};
 
-function makeApi(overrides?: Partial<StorageApi>): StorageApi {
-  return createMemoryStorageApi({
-    list: async ({ prefix }) =>
-      makePage(
-        prefix
-          ? [...EXISTING_FILES]
-              .filter((key) => key.startsWith(prefix) && key !== prefix)
-              .map((key) => ({
-                key,
-                size: 1,
-                lastModified: new Date('2025-01-01'),
-                isDirectory: false,
-                contentType: 'text/plain'
-              }))
-          : undefined
-      ),
-    checkObjectExists: async ({ key }) => EXISTING_FILES.has(key),
-    copy: vi.fn().mockResolvedValue({ results: [], failed: 0 }),
-    move: vi.fn().mockResolvedValue({ results: [], failed: 0 }),
-    delete: vi.fn().mockResolvedValue({ failed: [] }),
-    ...overrides
-  });
-}
-
-function makeState(api: StorageApi, clipboard: ClipboardData): StorageState {
+function makeState(api: StorageApi, clip: ClipboardData | null = null): StorageState {
   const state = new StorageState({ connected: true, buckets: ['test-bucket'], api });
   state.bucket = 'test-bucket';
-  state.prefix = '';
+  state.prefix = 'dest/';
   state.objects = makePage();
-  state.clipboardState.clipboard = clipboard;
+  state.clipboardState.clipboard = clip;
   return state;
 }
 
-function clipboard(action: 'copy' | 'cut', keys: string[]): ClipboardData {
-  return { action, keys, sourceBucket: 'test-bucket', sourcePrefix: '', fileSizes: {} };
+function clipboard(action: 'copy' | 'cut', keys: string[], sourceBucket = 'test-bucket') {
+  return {
+    action,
+    keys,
+    connectionId: 'test-connection-id',
+    sourceBucket,
+    sourcePrefix: 'src/',
+    fileSizes: {}
+  } satisfies ClipboardData;
 }
 
-/** Paste, then answer the conflict dialog (if any) with `resolution` for every conflict. */
-async function pasteResolvingWith(
-  state: StorageState,
-  resolution: ConflictEntry['resolution']
-): Promise<ConflictEntry[] | null> {
-  await state.executeAction('paste');
-  if (state.activeModal?.type !== 'resolve-conflicts') return null;
-  const entries = (state.activeModal.payload as { entries: ConflictEntry[] }).entries;
-  await state.confirmConflictResolution(
-    entries.map((e) => ({ ...e, resolution: e.conflict ? resolution : 'replace' }))
-  );
-  return entries;
+/** A plan with the given per-key fields; other keys plan without conflict. */
+function planWith(fields: Record<string, Partial<PlanItem>>): StorageApi['planTransfer'] {
+  return async (body) =>
+    body.source.keys.map((sourceKey) => ({
+      sourceKey,
+      kind: sourceKey.endsWith('/') ? 'folder' : 'file',
+      destKey: body.dest.prefix + sourceKey.split('/').filter(Boolean).pop(),
+      conflict: 'none',
+      ...fields[sourceKey]
+    }));
 }
 
-function deletedKeys(api: StorageApi): string[] {
-  return vi.mocked(api.delete).mock.calls.flatMap(([params]) => params.keys);
+function sentBody(transfer: StorageApi['transfer']): TransferBody {
+  return vi.mocked(transfer).mock.calls[0][0];
 }
 
-function transferredKeys(api: StorageApi): string[] {
-  return [...vi.mocked(api.copy).mock.calls, ...vi.mocked(api.move).mock.calls].flatMap(
-    ([params]) => params.sourceKeys
-  );
+function conflictPayload(state: StorageState): ConflictPayload {
+  expect(state.activeModal?.type).toBe('resolve-conflicts');
+  return (state.activeModal as unknown as { payload: ConflictPayload }).payload;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('paste conflict detection', () => {
-  it('detects a conflict between a pasted folder and an existing folder', async () => {
-    const api = makeApi();
-    const state = makeState(api, clipboard('copy', ['other/dir/']));
-
-    await state.executeAction('paste');
-
-    expect(state.activeModal?.type).toBe('resolve-conflicts');
-    const entries = (state.activeModal!.payload as { entries: ConflictEntry[] }).entries;
-    expect(entries).toEqual([expect.objectContaining({ originalName: 'dir', conflict: true })]);
-  });
-
-  it('does not treat a file named like the pasted folder as a conflict', async () => {
-    const api = makeApi({ checkObjectExists: async ({ key }) => key === 'reports' });
-    const state = makeState(api, clipboard('copy', ['other/reports/']));
-
-    await state.executeAction('paste');
-
-    expect(state.activeModal).toBeNull();
-    expect(api.copy).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceKeys: ['other/reports/'], destinationPrefix: '' })
+describe('paste', () => {
+  it('sends one request for the whole selection', async () => {
+    const transfer = vi.fn(fakeTransfer());
+    const state = makeState(
+      createMemoryStorageApi({ transfer }),
+      clipboard('copy', ['src/a', 'src/b/'])
     );
-  });
 
-  it('does not treat a folder named like the pasted file as a conflict', async () => {
-    const api = makeApi();
-    const state = makeState(api, clipboard('copy', ['other/dir']));
+    await state.clipboardState.paste('dest/');
 
-    await state.executeAction('paste');
-
-    expect(state.activeModal).toBeNull();
-    expect(api.copy).toHaveBeenCalledWith(expect.objectContaining({ sourceKeys: ['other/dir'] }));
-  });
-
-  it('replaces an existing folder by deleting the folder prefix', async () => {
-    const api = makeApi();
-    const state = makeState(api, clipboard('copy', ['other/dir/']));
-
-    await pasteResolvingWith(state, 'replace');
-
-    expect(deletedKeys(api)).toEqual(['dir/']);
-    expect(transferredKeys(api)).toEqual(['other/dir/']);
-  });
-});
-
-describe('paste into the source folder', () => {
-  it('copies items pasted into their own folder without asking, so the server renames them', async () => {
-    const api = makeApi();
-    const state = makeState(api, clipboard('copy', ['file.txt', 'dir/']));
-
-    await state.executeAction('paste');
-
-    expect(state.activeModal).toBeNull();
-    expect(deletedKeys(api)).toEqual([]);
-    expect(transferredKeys(api)).toEqual(['file.txt', 'dir/']);
-    expect(api.copy).toHaveBeenCalledWith(expect.objectContaining({ destinationPrefix: '' }));
-  });
-
-  it('never offers Replace for an item pasted into its own folder', async () => {
-    const api = makeApi();
-    const state = makeState(api, clipboard('copy', ['file.txt', 'other/dir/']));
-
-    const entries = await pasteResolvingWith(state, 'replace');
-
-    expect(entries?.filter((e) => e.conflict).map((e) => e.originalName)).toEqual(['dir']);
-    expect(deletedKeys(api)).toEqual(['dir/']);
-    expect(transferredKeys(api)).toEqual(['file.txt', 'other/dir/']);
-  });
-
-  it('skips cut items already in the destination and moves only the others', async () => {
-    const api = makeApi();
-    const state = makeState(api, clipboard('cut', ['file.txt', 'other/new.txt']));
-
-    await pasteResolvingWith(state, 'replace');
-
-    expect(deletedKeys(api)).toEqual([]);
-    expect(transferredKeys(api)).toEqual(['other/new.txt']);
-  });
-
-  it('never deletes a folder that contains the pasted item', async () => {
-    // Pasting `dir/dir/` into the root would "replace" `dir/`, which holds the source.
-    const api = makeApi({
-      list: async ({ prefix }) =>
-        makePage(
-          prefix === 'dir/'
-            ? [
-                {
-                  key: 'dir/dir/',
-                  size: 0,
-                  lastModified: new Date('2025-01-01'),
-                  isDirectory: true,
-                  contentType: undefined
-                }
-              ]
-            : []
-        )
+    expect(transfer).toHaveBeenCalledTimes(1);
+    expect(sentBody(transfer)).toMatchObject({
+      op: 'copy',
+      source: { bucket: 'test-bucket' },
+      dest: { bucket: 'test-bucket', prefix: 'dest/' },
+      items: [{ sourceKey: 'src/a' }, { sourceKey: 'src/b/' }]
     });
-    const state = makeState(api, clipboard('cut', ['dir/dir/']));
+  });
 
-    await pasteResolvingWith(state, 'replace');
+  it('keeps both for a copy onto itself without asking', async () => {
+    const transfer = vi.fn(fakeTransfer());
+    const api = createMemoryStorageApi({
+      transfer,
+      planTransfer: planWith({ 'dest/a.txt': { conflict: 'file', selfConflict: true } })
+    });
+    const state = makeState(api, clipboard('copy', ['dest/a.txt']));
 
-    expect(deletedKeys(api)).toEqual([]);
-    expect(transferredKeys(api)).toEqual([]);
+    await state.clipboardState.paste('dest/');
+
+    expect(state.activeModal).toBeNull();
+    expect(sentBody(transfer).items).toEqual([{ sourceKey: 'dest/a.txt', policy: 'keepBoth' }]);
+  });
+
+  it('blocks a second paste while one is running', async () => {
+    let finish!: () => void;
+    const running = new Promise<void>((resolve) => (finish = resolve));
+    const transfer = vi.fn(
+      async (body: TransferBody, onEvent: Parameters<StorageApi['transfer']>[1]) => {
+        await running;
+        return fakeTransfer()(body, onEvent);
+      }
+    );
+    const state = makeState(createMemoryStorageApi({ transfer }), clipboard('cut', ['src/a']));
+
+    const first = state.clipboardState.paste('dest/');
+    await vi.waitFor(() => expect(transfer).toHaveBeenCalledTimes(1));
+    await state.clipboardState.paste('other/');
+    finish();
+    await first;
+
+    expect(transfer).toHaveBeenCalledTimes(1);
+    expect(addToast).toHaveBeenCalledWith('info', expect.stringContaining('still running'));
+  });
+
+  it('blocks a drag-move while a paste is running, and a paste while a move runs', async () => {
+    let finish!: () => void;
+    const running = new Promise<void>((resolve) => (finish = resolve));
+    const transfer = vi.fn(
+      async (body: TransferBody, onEvent: Parameters<StorageApi['transfer']>[1]) => {
+        await running;
+        return fakeTransfer()(body, onEvent);
+      }
+    );
+    const state = makeState(createMemoryStorageApi({ transfer }), clipboard('cut', ['src/a']));
+
+    const paste = state.clipboardState.paste('dest/');
+    await vi.waitFor(() => expect(transfer).toHaveBeenCalledTimes(1));
+    state.performMove('other/', ['src/a']);
+    expect(state.activeModal).toBeNull();
+    finish();
+    await paste;
+
+    let finishMove!: () => void;
+    const moving = new Promise<void>((resolve) => (finishMove = resolve));
+    transfer.mockImplementationOnce(async (body, onEvent) => {
+      await moving;
+      return fakeTransfer()(body, onEvent);
+    });
+    state.performMove('other/', ['src/b']);
+    const move = state.confirmMove();
+    await vi.waitFor(() => expect(transfer).toHaveBeenCalledTimes(2));
+    await state.clipboardState.paste('dest/');
+    finishMove();
+    await move;
+
+    expect(transfer).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(addToast).mock.calls.filter(([type]) => type === 'info')).toHaveLength(2);
+  });
+
+  it('refuses more than 1000 items up front without a request', async () => {
+    const planTransfer = vi.fn();
+    const keys = Array.from({ length: 1001 }, (_, i) => `src/${i}`);
+    const state = makeState(createMemoryStorageApi({ planTransfer }), clipboard('copy', keys));
+
+    await state.clipboardState.paste('dest/');
+
+    expect(planTransfer).not.toHaveBeenCalled();
+    expect(addToast).toHaveBeenCalledWith('error', expect.stringContaining('1000'));
+  });
+
+  it('keeps the destination fixed when the user switches tab during a paste (R1)', async () => {
+    let releasePlan!: () => void;
+    const planned = new Promise<void>((resolve) => (releasePlan = resolve));
+    const transfer = vi.fn(fakeTransfer());
+    const api = createMemoryStorageApi({
+      transfer,
+      planTransfer: async (body) => {
+        await planned;
+        return planWith({})(body);
+      }
+    });
+    const state = makeState(api, clipboard('copy', ['src/a']));
+
+    const paste = state.clipboardState.paste('dest/');
+    state.bucket = 'other-bucket';
+    state.prefix = 'elsewhere/';
+    releasePlan();
+    await paste;
+
+    expect(sentBody(transfer).dest).toEqual({ bucket: 'test-bucket', prefix: 'dest/' });
   });
 });
 
-describe('cut and paste with conflicts', () => {
-  it('points the clipboard at the moved items so a second paste cannot delete them', async () => {
-    const api = makeApi({
-      move: vi.fn().mockResolvedValue({
-        results: [{ sourceKey: 'src/file.txt', destKey: 'file.txt' }],
-        failed: 0
+describe('conflict dialog', () => {
+  const api = () =>
+    createMemoryStorageApi({
+      transfer: vi.fn(fakeTransfer()),
+      planTransfer: planWith({
+        'src/a.txt': { conflict: 'file', suggestedName: 'a (1).txt' },
+        'src/docs/': { conflict: 'folder', suggestedName: 'docs (1)' },
+        'src/dest/': { refused: 'into_itself' }
       })
     });
-    const state = makeState(api, clipboard('cut', ['src/file.txt']));
 
-    await pasteResolvingWith(state, 'replace');
-
-    expect(deletedKeys(api)).toEqual(['file.txt']);
-    expect(state.clipboard).toEqual(
-      expect.objectContaining({ action: 'copy', keys: ['file.txt'], sourceBucket: 'test-bucket' })
+  it('offers per-kind choices and lists refused items with their reason', async () => {
+    const state = makeState(
+      api(),
+      clipboard('copy', ['src/a.txt', 'src/docs/', 'src/dest/', 'src/new'])
     );
 
-    await pasteResolvingWith(state, 'replace');
+    await state.clipboardState.paste('dest/');
 
-    expect(deletedKeys(api)).toEqual(['file.txt']);
-    expect(api.copy).toHaveBeenCalledWith(expect.objectContaining({ sourceKeys: ['file.txt'] }));
+    const payload = conflictPayload(state);
+    expect(payload.entries).toEqual([
+      expect.objectContaining({
+        sourceKey: 'src/a.txt',
+        kind: 'file',
+        allowKeepBoth: true,
+        customName: 'a (1).txt',
+        destPrefix: 'dest/'
+      }),
+      expect.objectContaining({ sourceKey: 'src/docs/', kind: 'folder' })
+    ]);
+    expect(payload.refused).toEqual([
+      { name: 'dest', reason: 'A folder cannot be placed inside itself.' }
+    ]);
+    expect(payload.closeOnly).toBe(false);
   });
-});
 
-describe('paste a folder into itself', () => {
-  it.each(['copy', 'cut'] as const)(
-    'refuses to %s a folder into its own subfolder',
-    async (action) => {
-      // `docs/sub/docs/` exists, so a Replace would delete part of the source tree.
-      const api = makeApi({
-        checkObjectExists: async ({ key }) => key === 'docs/sub/docs/'
-      });
-      const state = makeState(api, clipboard(action, ['docs/']));
-      state.prefix = 'docs/sub/';
+  it('sends the chosen policies in selection order and leaves skipped items out', async () => {
+    const transferApi = api();
+    const state = makeState(
+      transferApi,
+      clipboard('copy', ['src/a.txt', 'src/new', 'src/docs/', 'src/dest/'])
+    );
+    await state.clipboardState.paste('dest/');
+    const { entries } = conflictPayload(state);
 
-      await pasteResolvingWith(state, 'replace');
+    await state.confirmConflictResolution([
+      { ...entries[0], resolution: 'rename', customName: ' b.txt ' },
+      { ...entries[1], resolution: 'merge' }
+    ]);
 
-      expect(state.activeModal).toBeNull();
-      expect(deletedKeys(api)).toEqual([]);
-      expect(transferredKeys(api)).toEqual([]);
-      expect(addToast).toHaveBeenCalledWith('warning', 'Cannot paste a folder into itself.');
-    }
-  );
+    expect(sentBody(transferApi.transfer).items).toEqual([
+      { sourceKey: 'src/a.txt', policy: 'rename', name: 'b.txt' },
+      { sourceKey: 'src/new' },
+      { sourceKey: 'src/docs/', policy: 'merge' }
+    ]);
+  });
 
-  it('allows pasting a folder into a same-named path in another bucket', async () => {
-    const api = makeApi();
-    const state = makeState(api, {
-      ...clipboard('copy', ['docs/']),
-      sourceBucket: 'other-bucket'
+  it('keeps the dialog open while another transfer runs, then sends on a later confirm', async () => {
+    const transferApi = api();
+    let finish!: () => void;
+    const running = new Promise<void>((resolve) => (finish = resolve));
+    const transfer = vi.mocked(transferApi.transfer);
+    const state = makeState(transferApi, clipboard('copy', ['src/a.txt']));
+    await state.clipboardState.paste('dest/');
+    const { entries } = conflictPayload(state);
+    const chosen = [{ ...entries[0], resolution: 'replace' as const }];
+
+    // A drag-move starts while the dialog is open.
+    transfer.mockImplementationOnce(async (body, onEvent) => {
+      await running;
+      return fakeTransfer()(body, onEvent);
     });
-    state.prefix = 'docs/sub/';
+    state.clipboardState.performMove('other/', ['src/b']);
+    const move = state.clipboardState.confirmMove();
+    await vi.waitFor(() => expect(transfer).toHaveBeenCalledTimes(1));
 
-    await state.executeAction('paste');
+    await state.confirmConflictResolution(chosen);
+    expect(transfer).toHaveBeenCalledTimes(1);
+    expect(addToast).toHaveBeenCalledWith('info', expect.stringContaining('still running'));
 
-    expect(transferredKeys(api)).toEqual(['docs/']);
+    finish();
+    await move;
+    await state.confirmConflictResolution(chosen);
+    expect(transfer).toHaveBeenCalledTimes(2);
+    expect(sentBody(transfer).items).toEqual([{ sourceKey: 'src/b' }]);
+    expect(transfer.mock.calls[1][0].items).toEqual([
+      { sourceKey: 'src/a.txt', policy: 'replace' }
+    ]);
+  });
+
+  it('sends nothing when every conflict is skipped', async () => {
+    const transferApi = api();
+    const state = makeState(transferApi, clipboard('copy', ['src/a.txt']));
+    await state.clipboardState.paste('dest/');
+    const { entries } = conflictPayload(state);
+
+    await state.confirmConflictResolution([{ ...entries[0], resolution: 'skip' }]);
+
+    expect(transferApi.transfer).not.toHaveBeenCalled();
+  });
+
+  it('only offers Close when every item is refused', async () => {
+    const state = makeState(api(), clipboard('copy', ['src/dest/']));
+
+    await state.clipboardState.paste('dest/');
+
+    expect(conflictPayload(state)).toMatchObject({ entries: [], closeOnly: true });
   });
 });
 
-describe('performMove', () => {
-  it('moves a folder into a same-named path in another bucket', () => {
-    const state = makeState(makeApi(), clipboard('copy', []));
+describe('clipboard after a cut', () => {
+  it('copies moved folders from their new location, still as folders (F2)', async () => {
+    const state = makeState(createMemoryStorageApi(), clipboard('cut', ['src/docs/', 'src/a.txt']));
 
-    state.performMove('dir/sub/', ['dir/'], 'other-bucket');
+    await state.clipboardState.paste('dest/');
 
-    expect(state.activeModal?.type).toBe('confirm-move');
+    expect(state.clipboard).toMatchObject({
+      action: 'copy',
+      keys: ['dest/docs/', 'dest/a.txt'],
+      sourceBucket: 'test-bucket',
+      sourcePrefix: 'dest/'
+    });
   });
 
-  it('refuses to move a folder into itself', () => {
-    const state = makeState(makeApi(), clipboard('copy', []));
+  it('keeps unmoved items cut at the source and drops the moved ones', async () => {
+    const api = createMemoryStorageApi({
+      transfer: fakeTransfer({ 'src/b.txt': { status: 'failed', copied: 0 } })
+    });
+    const state = makeState(api, clipboard('cut', ['src/a.txt', 'src/b.txt']));
 
-    state.performMove('dir/sub/', ['dir/']);
+    await state.clipboardState.paste('dest/');
 
-    expect(state.activeModal).toBeNull();
+    expect(state.clipboard).toMatchObject({ action: 'cut', keys: ['src/b.txt'] });
+  });
+
+  it('points a partly moved item at its destination copy', async () => {
+    const api = createMemoryStorageApi({
+      transfer: fakeTransfer({ 'src/docs/': { status: 'partial' } })
+    });
+    const state = makeState(api, clipboard('cut', ['src/docs/']));
+
+    await state.clipboardState.paste('dest/');
+
+    expect(state.clipboard).toMatchObject({ action: 'copy', keys: ['dest/docs/'] });
+  });
+
+  it('keeps a partial move whose copies failed cut, so a paste retries the move', async () => {
+    const api = createMemoryStorageApi({
+      transfer: fakeTransfer({ 'src/docs/': { status: 'partial', deletedOriginals: 0 } })
+    });
+    const state = makeState(api, clipboard('cut', ['src/docs/']));
+
+    await state.clipboardState.paste('dest/');
+
+    expect(state.clipboard).toMatchObject({ action: 'cut', keys: ['src/docs/'] });
+  });
+
+  it('leaves a clipboard alone that was replaced during the move', async () => {
+    const state = makeState(createMemoryStorageApi(), clipboard('cut', ['src/a.txt']));
+    const replacement = clipboard('copy', ['other.txt']);
+    const api = state.api;
+    const transfer = api.transfer;
+    api.transfer = async (body, onEvent) => {
+      state.clipboardState.clipboard = replacement;
+      return transfer(body, onEvent);
+    };
+
+    await state.clipboardState.paste('dest/');
+
+    expect(state.clipboard).toEqual(replacement);
+  });
+});
+
+describe('drag and drop', () => {
+  it('moves from the drag source bucket into the bucket of the tab it is dropped on (R5)', async () => {
+    const transfer = vi.fn(fakeTransfer());
+    const state = makeState(createMemoryStorageApi({ transfer }));
+
+    state.performMove('target/', ['a.txt'], 'tab-bucket', {
+      connectionId: 'test-connection-id',
+      bucket: 'drag-bucket'
+    });
+    await state.confirmMove();
+
+    expect(sentBody(transfer)).toMatchObject({
+      op: 'move',
+      source: { bucket: 'drag-bucket' },
+      dest: { bucket: 'tab-bucket', prefix: 'target/' }
+    });
   });
 
   it('moves an item to the same path in another bucket', () => {
-    const state = makeState(makeApi(), clipboard('copy', []));
+    const state = makeState(createMemoryStorageApi());
 
     state.performMove('', ['file.txt'], 'other-bucket');
 
     expect(state.activeModal?.type).toBe('confirm-move');
   });
-
-  it('ignores a move into the folder the item already lives in', () => {
-    const state = makeState(makeApi(), clipboard('copy', []));
-
-    state.performMove('', ['file.txt']);
-
-    expect(state.activeModal).toBeNull();
-  });
 });
 
-describe('rename on conflict', () => {
-  /**
-   * A move endpoint that refuses a taken explicit destination key with a per-item failure in a
-   * successful response (how the server answered before the fix, and still does when streaming).
-   */
-  function refusingTransfer(existing: Set<string>) {
-    return vi.fn(
-      async ({
-        sourceKeys,
-        destinationPrefix,
-        destinationKey
-      }: Parameters<StorageApi['move']>[0]) => {
-        const sourceKey = sourceKeys[0];
-        const destKey = destinationKey ?? destinationPrefix + sourceKey.split('/').pop();
-        if (destinationKey && existing.has(destinationKey)) return { results: [], failed: 1 };
-        return { results: [{ sourceKey, destKey }], failed: 0 };
-      }
-    );
-  }
-
-  function movedSourceKeys(api: StorageApi): string[][] {
-    return vi.mocked(api.move).mock.calls.map(([params]) => params.sourceKeys);
-  }
-
-  /** Drag `keys` into `destPrefix`, then rename every conflict to `customName`. */
-  async function moveRenamingTo(state: StorageState, keys: string[], customName: string) {
-    state.performMove('', keys);
-    await state.confirmMove();
-    expect(state.activeModal?.type).toBe('resolve-conflicts');
-    const entries = (state.activeModal!.payload as { entries: ConflictEntry[] }).entries;
-    await state.confirmConflictResolution(
-      entries.map((e) =>
-        e.conflict
-          ? { ...e, resolution: 'rename', customName, renameState: 'ok' }
-          : { ...e, resolution: 'replace' }
-      )
-    );
-  }
-
-  it('moves the dragged item straight to its new name, never a source sibling', async () => {
-    // `src/b.txt` exists next to the source; the destination has no `b.txt`.
-    const api = makeApi({
-      checkObjectExists: async ({ key }) => key === 'a.txt',
-      move: refusingTransfer(new Set(['a.txt', 'src/a.txt', 'src/b.txt']))
+describe('feedback', () => {
+  it('shows exactly one toast with counts and a capped name list', async () => {
+    const keys = ['src/1', 'src/2', 'src/3', 'src/4', 'src/5', 'src/6'];
+    const api = createMemoryStorageApi({
+      transfer: fakeTransfer({
+        'src/2': { status: 'failed', copied: 0 },
+        'src/3': { status: 'refused', reason: 'conflict', copied: 0 },
+        'src/4': { status: 'partial' },
+        'src/5': { status: 'failed', copied: 0 },
+        'src/6': { status: 'cancelled', copied: 0 }
+      })
     });
-    const state = makeState(api, clipboard('copy', []));
-    state.prefix = 'src/';
+    const state = makeState(api, clipboard('cut', keys));
 
-    await moveRenamingTo(state, ['src/a.txt'], 'b.txt');
+    await state.clipboardState.paste('dest/');
 
-    expect(movedSourceKeys(api)).toEqual([['src/a.txt']]);
-    expect(api.move).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceKeys: ['src/a.txt'], destinationKey: 'b.txt' })
-    );
-    expect(addToast).toHaveBeenCalledWith('success', '1 item moved');
+    expect(addToast).toHaveBeenCalledTimes(1);
+    const [type, message] = vi.mocked(addToast).mock.calls[0];
+    expect(type).toBe('warning');
+    expect(message).toContain('1 done, 1 partly done, 2 failed, 1 refused, 1 cancelled');
+    expect(message).toContain('2: failed');
+    expect(message).toContain('3: An item with this name already exists.');
+    expect(message).toContain('4: only partly transferred');
+    expect(message).toContain('+ 2 more');
   });
 
-  it('reports a refused rename as an error and moves nothing else', async () => {
-    const api = makeApi({
-      checkObjectExists: async ({ key }) => key === 'a.txt',
-      move: refusingTransfer(new Set(['a.txt', 'b.txt', 'src/a.txt']))
-    });
-    const state = makeState(api, clipboard('copy', []));
-    state.prefix = 'src/';
+  it('reports items without any result as unknown, never as success', async () => {
+    const keys = ['src/1', 'src/2', 'src/3', 'src/4', 'src/5'];
+    // The stream drops after two items and the job cannot be read back either.
+    const transfer: StorageApi['transfer'] = async (body, onEvent) => {
+      await fakeTransfer()({ ...body, items: body.items.slice(0, 2) }, (event) => {
+        if (event.type !== 'complete') onEvent(event);
+      });
+      return { complete: false };
+    };
+    const state = makeState(createMemoryStorageApi({ transfer }), clipboard('cut', keys));
 
-    await moveRenamingTo(state, ['src/a.txt'], 'b.txt');
+    await state.clipboardState.paste('dest/');
 
-    expect(movedSourceKeys(api)).toEqual([['src/a.txt']]);
-    expect(addToast).toHaveBeenCalledWith(
-      'error',
-      'Could not rename "a.txt" to "b.txt". The name may already be in use.'
-    );
-    expect(addToast).not.toHaveBeenCalledWith('success', expect.anything());
+    expect(addToast).toHaveBeenCalledTimes(1);
+    const [type, message] = vi.mocked(addToast).mock.calls[0];
+    expect(type).toBe('warning');
+    expect(message).toContain('2 done, 3 with unknown outcome.');
+    expect(message).toContain('3: outcome unknown');
+    expect(state.operations.at(-1)?.status).toBe('error');
+    // Only the items known to be moved leave the clipboard.
+    expect(state.clipboard).toMatchObject({ action: 'cut', keys: ['src/3', 'src/4', 'src/5'] });
   });
 
-  it('reports a rename the server rejects with 409 as an error', async () => {
-    const api = makeApi({
-      checkObjectExists: async ({ key }) => key === 'a.txt',
-      move: vi.fn().mockRejectedValue(new StorageError('conflict', 'Destination already exists'))
-    });
-    const state = makeState(api, clipboard('copy', []));
-    state.prefix = 'src/';
+  it('reports a stream that drops before the first result', async () => {
+    const api = createMemoryStorageApi({ transfer: async () => ({ complete: false }) });
+    const state = makeState(api, clipboard('copy', ['src/a', 'src/b']));
 
-    await moveRenamingTo(state, ['src/a.txt'], 'b.txt');
-
-    expect(movedSourceKeys(api)).toEqual([['src/a.txt']]);
-    expect(addToast).toHaveBeenCalledWith(
-      'error',
-      'Could not rename "a.txt" to "b.txt". The name may already be in use.'
-    );
-    expect(addToast).not.toHaveBeenCalledWith('success', expect.anything());
-  });
-
-  it.each(['sub/b.txt', '', '..'])('refuses the invalid name %j without moving', async (name) => {
-    const api = makeApi({ checkObjectExists: async ({ key }) => key === 'a.txt' });
-    const state = makeState(api, clipboard('copy', []));
-    state.prefix = 'src/';
-
-    await moveRenamingTo(state, ['src/a.txt'], name);
-
-    expect(api.move).not.toHaveBeenCalled();
-    expect(addToast).toHaveBeenCalledWith('error', expect.stringContaining('Could not rename'));
-  });
-
-  it('reports a refused rename after a paste and keeps the clipboard on the pasted item', async () => {
-    // The server pastes `file.txt` as `file (2).txt`; renaming it to the taken `b.txt` fails.
-    const api = makeApi({
-      move: vi.fn(async ({ sourceKeys, destinationKey }: Parameters<StorageApi['move']>[0]) =>
-        destinationKey
-          ? { results: [], failed: 1 }
-          : { results: [{ sourceKey: sourceKeys[0], destKey: 'file (2).txt' }], failed: 0 }
-      )
-    });
-    const state = makeState(api, clipboard('cut', ['src/file.txt']));
-
-    await state.executeAction('paste');
-    const entries = (state.activeModal!.payload as { entries: ConflictEntry[] }).entries;
-    await state.confirmConflictResolution(
-      entries.map((e) => ({ ...e, resolution: 'rename', customName: 'b.txt', renameState: 'ok' }))
-    );
+    await state.clipboardState.paste('dest/');
 
     expect(addToast).toHaveBeenCalledWith(
-      'error',
-      'Could not rename "file.txt" to "b.txt". The name may already be in use.'
+      'warning',
+      expect.stringContaining('2 with unknown outcome.'),
+      8000
     );
-    expect(addToast).not.toHaveBeenCalledWith('success', expect.anything());
-    expect(state.clipboard).toEqual(expect.objectContaining({ keys: ['file (2).txt'] }));
+    expect(state.operations.at(-1)?.status).toBe('error');
   });
 
-  /** Paste the clipboard, then rename every conflict to `customName`. */
-  async function pasteRenamingTo(state: StorageState, customName: string) {
-    await state.executeAction('paste');
-    expect(state.activeModal?.type).toBe('resolve-conflicts');
-    const entries = (state.activeModal!.payload as { entries: ConflictEntry[] }).entries;
-    await state.confirmConflictResolution(
-      entries.map((e) => ({ ...e, resolution: 'rename', customName, renameState: 'ok' }))
-    );
-  }
+  it('reads the results back from the job when the stream ends without complete (#21)', async () => {
+    const readTransferJob = vi
+      .fn()
+      .mockResolvedValueOnce({ status: 'running' })
+      .mockResolvedValueOnce({
+        status: 'done',
+        items: [
+          {
+            sourceKey: 'src/a.txt',
+            destRoot: 'dest/a.txt',
+            status: 'done',
+            copied: 1,
+            failed: [],
+            deletedOriginals: 0
+          }
+        ]
+      });
+    vi.useFakeTimers();
+    try {
+      const api = createMemoryStorageApi({
+        transfer: async () => ({ complete: false }),
+        readTransferJob
+      });
+      const state = makeState(api, clipboard('copy', ['src/a.txt']));
 
-  /** Server pasting `other/dir/` as `dir (2)/` (children only, no marker), then renaming it. */
-  function folderTransfer(renameResult?: { results: number; failed: number }) {
-    return vi.fn(async ({ sourceKeys, destinationKey }: Parameters<StorageApi['move']>[0]) => {
-      if (!destinationKey) {
-        return {
-          results: [
-            { sourceKey: 'other/dir/a.txt', destKey: 'dir (2)/a.txt' },
-            { sourceKey: 'other/dir/sub/b.txt', destKey: 'dir (2)/sub/b.txt' }
-          ],
-          failed: 0
-        };
-      }
-      const all = [
-        { sourceKey: `${sourceKeys[0]}a.txt`, destKey: `${destinationKey}a.txt` },
-        { sourceKey: `${sourceKeys[0]}sub/b.txt`, destKey: `${destinationKey}sub/b.txt` }
-      ];
-      return {
-        results: all.slice(0, renameResult?.results ?? 2),
-        failed: renameResult?.failed ?? 0
-      };
-    });
-  }
+      const paste = state.clipboardState.paste('dest/');
+      await vi.runAllTimersAsync();
+      await paste;
 
-  it.each(['copy', 'cut'] as const)(
-    'renames a pasted folder via its root derived from child results (%s)',
-    async (action) => {
-      const transfer = folderTransfer();
-      const api = makeApi({ copy: transfer, move: transfer });
-      const state = makeState(api, clipboard(action, ['other/dir/']));
-
-      await pasteRenamingTo(state, 'renamed');
-
-      expect(api.move).toHaveBeenCalledWith(
-        expect.objectContaining({ sourceKeys: ['dir (2)/'], destinationKey: 'renamed/' })
-      );
-      expect(addToast).toHaveBeenCalledWith('success', '1 item pasted');
-      expect(addToast).not.toHaveBeenCalledWith('error', expect.anything());
-      if (action === 'cut') {
-        expect(state.clipboard).toEqual(expect.objectContaining({ keys: ['renamed/'] }));
-      }
+      expect(readTransferJob).toHaveBeenCalledTimes(2);
+      expect(addToast).toHaveBeenCalledWith('success', expect.stringContaining('1 item pasted'));
+    } finally {
+      vi.useRealTimers();
     }
-  );
-
-  it('reports a folder paste whose root cannot be derived as a failed rename', async () => {
-    const api = makeApi();
-    const state = makeState(api, clipboard('copy', ['other/dir/']));
-
-    await pasteRenamingTo(state, 'renamed');
-
-    expect(api.move).not.toHaveBeenCalled();
-    expect(addToast).toHaveBeenCalledWith(
-      'error',
-      'Could not rename "dir" to "renamed". The name may already be in use.'
-    );
-    expect(addToast).not.toHaveBeenCalledWith('success', expect.anything());
-  });
-
-  it('reports a partly renamed folder without claiming success', async () => {
-    const transfer = folderTransfer({ results: 1, failed: 1 });
-    const api = makeApi({ copy: transfer, move: transfer });
-    const state = makeState(api, clipboard('cut', ['other/dir/']));
-
-    await pasteRenamingTo(state, 'renamed');
-
-    expect(addToast).toHaveBeenCalledWith(
-      'error',
-      '"dir" was only partly renamed to "renamed". Some items kept their previous name.'
-    );
-    expect(addToast).not.toHaveBeenCalledWith('success', expect.anything());
-    expect(state.clipboard).toEqual(
-      expect.objectContaining({ keys: ['renamed/a.txt', 'dir (2)/sub/b.txt'] })
-    );
-  });
-
-  it('moves a dragged folder straight to its new name', async () => {
-    const api = makeApi({
-      move: vi.fn().mockResolvedValue({
-        results: [{ sourceKey: 'src/dir/a.txt', destKey: 'renamed/a.txt' }],
-        failed: 0
-      })
-    });
-    const state = makeState(api, clipboard('copy', []));
-    state.prefix = 'src/';
-
-    await moveRenamingTo(state, ['src/dir/'], 'renamed');
-
-    expect(movedSourceKeys(api)).toEqual([['src/dir/']]);
-    expect(api.move).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceKeys: ['src/dir/'], destinationKey: 'renamed/' })
-    );
-    expect(addToast).toHaveBeenCalledWith('success', '1 item moved');
-  });
-
-  it('reports a partly moved folder rename without claiming success', async () => {
-    const api = makeApi({
-      move: vi.fn().mockResolvedValue({
-        results: [{ sourceKey: 'src/dir/a.txt', destKey: 'renamed/a.txt' }],
-        failed: 1
-      })
-    });
-    const state = makeState(api, clipboard('copy', []));
-    state.prefix = 'src/';
-
-    await moveRenamingTo(state, ['src/dir/'], 'renamed');
-
-    expect(addToast).toHaveBeenCalledWith(
-      'error',
-      '"dir" was only partly renamed to "renamed". Some items kept their previous name.'
-    );
-    expect(addToast).not.toHaveBeenCalledWith('success', expect.anything());
   });
 });

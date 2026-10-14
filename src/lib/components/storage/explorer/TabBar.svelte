@@ -9,6 +9,7 @@
   import type { ContextMenuAction } from '$lib/storage/types.js';
   import { getStorageState } from '$lib/storage/context.js';
   import { storageMoveEnabled } from '$lib/client/feature-flags.js';
+  import { parseStorageDrop } from '$lib/storage/drag-handlers.js';
   import ContextMenu from './ContextMenu.svelte';
   import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
 
@@ -264,19 +265,11 @@
     clearHoverTimer();
 
     if (isFileDrag(e)) {
-      // Drop files onto tab → move to that tab's prefix
-      const raw = e.dataTransfer?.getData('application/x-storage-keys');
-      if (raw) {
-        try {
-          const keys: string[] = JSON.parse(raw);
-          const tab = tabsState.tabs[toIdx];
-          if (tab) {
-            const destPrefix = tab.snapshot.prefix;
-            storage.performMove(destPrefix, keys);
-          }
-        } catch {
-          // invalid JSON - ignore
-        }
+      // Drop files onto tab → move to that tab's bucket and prefix
+      const drop = parseStorageDrop(e);
+      const tab = tabsState.tabs[toIdx];
+      if (drop && tab) {
+        storage.performMove(tab.snapshot.prefix, drop.keys, tab.snapshot.bucket, drop.source);
       }
     } else {
       // Tab reorder

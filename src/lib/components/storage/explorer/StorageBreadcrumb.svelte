@@ -19,7 +19,7 @@
   import { keyToName } from '$lib/storage/utils.js';
   import { objectNameError } from '$lib/storage/name-validation.js';
   import { storageMoveEnabled } from '$lib/client/feature-flags.js';
-  import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
+  import { parseStorageDrop, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import OperationsButton from './OperationsButton.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
@@ -207,9 +207,9 @@
     if (!canStorageDrop(storage)) return;
     e.preventDefault();
     e.stopPropagation();
-    const keys = parseStorageDropKeys(e);
-    if (!keys) return;
-    void storage.performMove(prefix, keys);
+    const drop = parseStorageDrop(e);
+    if (!drop) return;
+    void storage.performMove(prefix, drop.keys, undefined, drop.source);
   }
 </script>
 

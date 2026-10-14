@@ -114,6 +114,10 @@ spec:
             - name: STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS
               value: {{ . | int64 | quote }}
             {{- end }}
+            {{- with .transferConcurrency }}
+            - name: STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY
+              value: {{ . | int64 | quote }}
+            {{- end }}
             {{- end }}
             {{- if .Values.trino.queryTtl }}
             - name: STACKABLE_COCKPIT_QUERY_TTL

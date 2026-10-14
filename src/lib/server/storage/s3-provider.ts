@@ -27,7 +27,8 @@ import type {
   DeleteObjectsResult,
   SearchOptions,
   SearchResult,
-  ProgressiveListOptions
+  ProgressiveListOptions,
+  CopyObjectOptions
 } from './provider.js';
 import type { S3Config } from './types.js';
 import type {
@@ -350,7 +351,7 @@ export class S3StorageProvider implements StorageProvider {
     }
   }
 
-  async deleteObjects(keys: string[], expandDirectories = true): Promise<DeleteObjectsResult> {
+  async deleteObjects(keys: string[], expandDirectories: boolean): Promise<DeleteObjectsResult> {
     log.trace({ bucket: this.bucket, key_count: keys.length }, 'S3 DeleteObjects');
 
     if (keys.length === 0) {
@@ -677,106 +678,146 @@ export class S3StorageProvider implements StorageProvider {
     return keys;
   }
 
+  async prefixExists(prefix: string, signal?: AbortSignal): Promise<boolean> {
+    log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (prefix exists)');
+    const output = await withS3Errors(
+      () =>
+        this.client.send(
+          new ListObjectsV2Command({
+            Bucket: this.bucket,
+            Prefix: prefix,
+            MaxKeys: 1,
+            EncodingType: LIST_ENCODING_TYPE
+          }),
+          { abortSignal: signal }
+        ),
+      { bucket: this.bucket, operation: 'prefixExists' }
+    );
+    return (output.Contents ?? []).length > 0;
+  }
+
   async copyObject(
     sourceKey: string,
     destKey: string,
-    onProgress?: (loaded: number, total: number) => void
+    options: CopyObjectOptions = {}
   ): Promise<void> {
-    log.trace({ bucket: this.bucket, source_key: sourceKey, dest_key: destKey }, 'S3 CopyObject');
+    const { onProgress, signal } = options;
+    const sourceBucket = options.sourceBucket ?? this.bucket;
+    const copySource = `/${sourceBucket}/${encodeURIComponent(sourceKey)}`;
+    // The HEAD reads the source; every later request writes the destination.
+    const sourceContext = { bucket: sourceBucket, key: sourceKey, operation: 'copyObject' };
+    const context = { bucket: this.bucket, key: destKey, operation: 'copyObject' };
+    log.trace(
+      {
+        bucket: this.bucket,
+        source_bucket: sourceBucket,
+        source_key: sourceKey,
+        dest_key: destKey
+      },
+      'S3 CopyObject'
+    );
 
     // S3 CopyObject has a 5 GB limit. For larger objects we use server-side
     // multipart copy (UploadPartCopy) so data never streams through the server.
     const HEAD_LIMIT = 5 * 1024 * 1024 * 1024;
-    const metadata = await this.getMetadata(sourceKey);
+    const head = await withS3Errors(
+      () =>
+        this.client.send(new HeadObjectCommand({ Bucket: sourceBucket, Key: sourceKey }), {
+          abortSignal: signal
+        }),
+      sourceContext
+    );
+    const size = head.ContentLength ?? 0;
 
-    if (metadata.size <= HEAD_LIMIT) {
+    if (size <= HEAD_LIMIT) {
       await withS3Errors(
         () =>
           this.client.send(
-            new CopyObjectCommand({
-              Bucket: this.bucket,
-              CopySource: `/${this.bucket}/${encodeURIComponent(sourceKey)}`,
-              Key: destKey
-            })
+            new CopyObjectCommand({ Bucket: this.bucket, CopySource: copySource, Key: destKey }),
+            { abortSignal: signal }
           ),
-        { bucket: this.bucket, key: sourceKey, operation: 'copyObject' }
+        context
       );
       return;
     }
 
     log.info(
-      { bucket: this.bucket, source_key: sourceKey, size: metadata.size },
+      { bucket: this.bucket, source_bucket: sourceBucket, source_key: sourceKey, size },
       'object exceeds CopyObject limit, using server-side multipart copy'
     );
 
-    await withS3Errors(
-      async () => {
-        const totalSize = metadata.size!;
-        // 256 MiB parts — well within the 10 000-part limit even for multi-TB objects
-        const PART_SIZE = 256 * 1024 * 1024;
-        const numParts = Math.ceil(totalSize / PART_SIZE);
+    await withS3Errors(async () => {
+      // 256 MiB parts — well within the 10 000-part limit even for multi-TB objects
+      const PART_SIZE = 256 * 1024 * 1024;
+      const numParts = Math.ceil(size / PART_SIZE);
 
-        const { UploadId } = await this.client.send(
-          new CreateMultipartUploadCommand({
-            Bucket: this.bucket,
-            Key: destKey,
-            ContentType: metadata.contentType ?? 'application/octet-stream'
-          })
-        );
-        const uploadId = UploadId!;
+      // Not tied to `signal`: an upload created while the request is aborted would
+      // have no ID to clean up with. A cancel is checked right after instead.
+      const { UploadId } = await this.client.send(
+        new CreateMultipartUploadCommand({
+          Bucket: this.bucket,
+          Key: destKey,
+          ContentType: head.ContentType ?? 'application/octet-stream'
+        })
+      );
+      const uploadId = UploadId!;
 
-        const parts: Array<{ PartNumber: number; ETag: string }> = [];
-        try {
-          for (let i = 0; i < numParts; i++) {
-            const partNumber = i + 1;
-            const startByte = i * PART_SIZE;
-            const endByte = Math.min(startByte + PART_SIZE - 1, totalSize - 1);
+      const parts: Array<{ PartNumber: number; ETag: string }> = [];
+      try {
+        signal?.throwIfAborted();
+        for (let i = 0; i < numParts; i++) {
+          const partNumber = i + 1;
+          const startByte = i * PART_SIZE;
+          const endByte = Math.min(startByte + PART_SIZE - 1, size - 1);
 
-            const { CopyPartResult } = await this.client.send(
-              new UploadPartCopyCommand({
-                Bucket: this.bucket,
-                Key: destKey,
-                UploadId: uploadId,
-                PartNumber: partNumber,
-                CopySource: `/${this.bucket}/${encodeURIComponent(sourceKey)}`,
-                CopySourceRange: `bytes=${startByte}-${endByte}`
-              })
-            );
-
-            parts.push({
-              PartNumber: partNumber,
-              ETag: CopyPartResult?.ETag ?? ''
-            });
-
-            if (onProgress) {
-              onProgress(Math.min((i + 1) * PART_SIZE, totalSize), totalSize);
-            }
-          }
-
-          await this.client.send(
-            new CompleteMultipartUploadCommand({
+          const { CopyPartResult } = await this.client.send(
+            new UploadPartCopyCommand({
               Bucket: this.bucket,
               Key: destKey,
               UploadId: uploadId,
-              MultipartUpload: { Parts: parts }
+              PartNumber: partNumber,
+              CopySource: copySource,
+              CopySourceRange: `bytes=${startByte}-${endByte}`
+            }),
+            { abortSignal: signal }
+          );
+
+          parts.push({
+            PartNumber: partNumber,
+            ETag: CopyPartResult?.ETag ?? ''
+          });
+
+          if (onProgress) {
+            onProgress(Math.min((i + 1) * PART_SIZE, size), size);
+          }
+        }
+
+        // Not tied to `signal` either: once every part is copied, aborting the
+        // completion could leave it unknown whether the object was written.
+        signal?.throwIfAborted();
+        await this.client.send(
+          new CompleteMultipartUploadCommand({
+            Bucket: this.bucket,
+            Key: destKey,
+            UploadId: uploadId,
+            MultipartUpload: { Parts: parts }
+          })
+        );
+      } catch (err) {
+        // Not tied to `signal`: an aborted copy must still release its parts.
+        try {
+          await this.client.send(
+            new AbortMultipartUploadCommand({
+              Bucket: this.bucket,
+              Key: destKey,
+              UploadId: uploadId
             })
           );
-        } catch (err) {
-          try {
-            await this.client.send(
-              new AbortMultipartUploadCommand({
-                Bucket: this.bucket,
-                Key: destKey,
-                UploadId: uploadId
-              })
-            );
-          } catch {
-            // best-effort cleanup
-          }
-          throw err;
+        } catch {
+          // best-effort cleanup
         }
-      },
-      { bucket: this.bucket, key: sourceKey, operation: 'copyObject' }
-    );
+        throw err;
+      }
+    }, context);
   }
 }

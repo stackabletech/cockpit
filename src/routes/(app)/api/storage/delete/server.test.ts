@@ -57,7 +57,7 @@ describe('DELETE /api/storage/delete', () => {
     mockProvider.deleteObjects.mockResolvedValue(result);
 
     const response = await DELETE(mockEvent({ bucket: 'b1' }, keys));
-    expect(mockProvider.deleteObjects).toHaveBeenCalledWith(keys);
+    expect(mockProvider.deleteObjects).toHaveBeenCalledWith(keys, true);
     expect(await response.json()).toEqual(result);
   });
 
@@ -66,6 +66,6 @@ describe('DELETE /api/storage/delete', () => {
     mockProvider.deleteObjects.mockResolvedValue({ deleted: keys, failed: [] });
 
     await DELETE(mockEvent({ bucket: 'b1' }, keys));
-    expect(mockProvider.deleteObjects).toHaveBeenCalledWith(keys);
+    expect(mockProvider.deleteObjects).toHaveBeenCalledWith(keys, true);
   });
 });

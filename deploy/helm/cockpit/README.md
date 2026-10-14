@@ -103,6 +103,7 @@ All feature parameters are optional. Omit them to use the application defaults.
 | `features.storage.pdfPreviewBytes` | Maximum bytes fetched for PDF previews. | `26214400` (application default) |
 | `features.storage.filePreviewRows` | Maximum rows in tabular file previews. | `250` (application default) |
 | `features.storage.filePreviewColumns` | Maximum columns in tabular file previews. | `50` (application default) |
+| `features.storage.transferConcurrency` | Objects copied at once within one copy, move or rename request. | `8` (application default) |
 
 ### Authentication Parameters
 

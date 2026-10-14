@@ -63,7 +63,11 @@ export class HDFSStorageProvider implements StorageProvider {
     throw new Error('HDFS not implemented');
   }
 
-  deleteObjects(_keys: string[]): Promise<DeleteObjectsResult> {
+  deleteObjects(_keys: string[], _expandDirectories: boolean): Promise<DeleteObjectsResult> {
+    throw new Error('HDFS not implemented');
+  }
+
+  prefixExists(_prefix: string, _signal?: AbortSignal): Promise<boolean> {
     throw new Error('HDFS not implemented');
   }
 

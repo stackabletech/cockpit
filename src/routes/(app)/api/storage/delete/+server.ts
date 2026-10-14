@@ -18,7 +18,7 @@ export const DELETE: RequestHandler = async (event) => {
 
   log.debug({ bucket, key_count: keys.length }, 'delete request received');
 
-  const result = await provider.deleteObjects(keys);
+  const result = await provider.deleteObjects(keys, true);
 
   log.info(
     { bucket, key_count: keys.length, failed_count: result.failed.length },

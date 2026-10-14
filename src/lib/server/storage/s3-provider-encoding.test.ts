@@ -138,7 +138,7 @@ describe('S3StorageProvider listing encoding', () => {
       })
       .mockResolvedValueOnce({});
 
-    await provider.deleteObjects(['dir/']);
+    await provider.deleteObjects(['dir/'], true);
 
     expect(send.mock.calls[1][0].input.Delete.Objects).toEqual([{ Key: 'dir/a b\n.txt' }]);
   });
@@ -157,7 +157,10 @@ describe('S3StorageProvider listing encoding', () => {
       return {};
     });
 
-    const result = await provider.deleteObjects(['tab\tok.txt', ...unsafeKeys, 'new\nline.txt']);
+    const result = await provider.deleteObjects(
+      ['tab\tok.txt', ...unsafeKeys, 'new\nline.txt'],
+      true
+    );
 
     const batches = send.mock.calls
       .map(([command]) => command)
@@ -211,7 +214,7 @@ describe('S3StorageProvider listing encoding', () => {
       return {};
     });
 
-    const result = await provider.deleteObjects(unsafeKeys);
+    const result = await provider.deleteObjects(unsafeKeys, true);
 
     const deleted = send.mock.calls.map(([command]) => command.input.Key);
     expect(deleted.sort()).toEqual([...unsafeKeys].sort());

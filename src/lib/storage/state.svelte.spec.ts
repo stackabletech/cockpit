@@ -37,7 +37,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SvelteSet } from 'svelte/reactivity';
 import { StorageState } from './state.svelte.js';
 import type { StorageApi, DownloadHistoryEntry } from './api.js';
-import { createMemoryStorageApi } from './api.test-utils.js';
+import type { ClipboardData } from './types.js';
+import { createMemoryStorageApi, fakeTransfer } from './api.test-utils.js';
 import { makePage } from './state.test-utils.js';
 import { StorageError } from './errors.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
@@ -101,6 +102,17 @@ describe('selection and navigation', () => {
 
 function makeApi(overrides?: Partial<StorageApi>): StorageApi {
   return createMemoryStorageApi({ list: async () => makePage(), ...overrides });
+}
+
+function clip(action: 'cut' | 'copy', keys: string[], sourcePrefix = ''): ClipboardData {
+  return {
+    action,
+    keys,
+    connectionId: 'test-connection-id',
+    sourceBucket: 'test-bucket',
+    sourcePrefix,
+    fileSizes: {}
+  };
 }
 
 function makeState(
@@ -202,6 +214,7 @@ describe('isCutKey', () => {
     state.clipboardState.clipboard = {
       action: 'cut',
       keys: ['file.txt', 'dir/'],
+      connectionId: 'test-connection-id',
       sourceBucket: 'test-bucket',
       sourcePrefix: '',
       fileSizes: {}
@@ -216,6 +229,7 @@ describe('isCutKey', () => {
     state.clipboardState.clipboard = {
       action: 'cut',
       keys: ['file.txt'],
+      connectionId: 'test-connection-id',
       sourceBucket: 'test-bucket',
       sourcePrefix: '',
       fileSizes: {}
@@ -229,6 +243,7 @@ describe('isCutKey', () => {
     state.clipboardState.clipboard = {
       action: 'copy',
       keys: ['file.txt'],
+      connectionId: 'test-connection-id',
       sourceBucket: 'test-bucket',
       sourcePrefix: '',
       fileSizes: {}
@@ -242,6 +257,7 @@ describe('isCutKey', () => {
     state.clipboardState.clipboard = {
       action: 'cut',
       keys: ['file.txt'],
+      connectionId: 'test-connection-id',
       sourceBucket: 'other-bucket',
       sourcePrefix: '',
       fileSizes: {}
@@ -261,13 +277,7 @@ describe('isCutKey', () => {
 describe('executeAction("paste")', () => {
   it('shows warning when inside an archive', async () => {
     const state = makeState();
-    state.clipboardState.clipboard = {
-      action: 'copy',
-      keys: ['file.txt'],
-      sourceBucket: 'test-bucket',
-      sourcePrefix: '',
-      fileSizes: {}
-    };
+    state.clipboardState.clipboard = clip('copy', ['file.txt']);
     state.archive.archiveKey = 'archive.zip';
 
     await state.executeAction('paste');
@@ -275,145 +285,36 @@ describe('executeAction("paste")', () => {
     expect(addToast).toHaveBeenCalledWith('warning', expect.any(String));
   });
 
-  describe('from copy', () => {
-    it('calls the copy API and shows success', async () => {
-      const copySpy = vi.fn().mockResolvedValue({
-        results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-        failed: 0
-      });
-      const state = makeState({ copy: copySpy });
-      state.clipboardState.clipboard = {
-        action: 'copy',
-        keys: ['file.txt'],
-        sourceBucket: 'test-bucket',
-        sourcePrefix: '',
-        fileSizes: { 'file.txt': 100 }
-      };
+  it('copies through the transfer API and shows one success toast', async () => {
+    const transfer = vi.fn(fakeTransfer());
+    const state = makeState({ transfer });
+    state.clipboardState.clipboard = clip('copy', ['file.txt']);
 
-      await state.executeAction('paste');
+    await state.executeAction('paste');
 
-      expect(copySpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          bucket: 'test-bucket',
-          sourceKeys: ['file.txt'],
-          destinationPrefix: ''
-        })
-      );
-      expect(addToast).toHaveBeenCalledWith('success', expect.stringContaining('pasted'));
-      expect(invalidateAll).toHaveBeenCalled();
-    });
-
-    it('shows error toast when all items fail (source not found)', async () => {
-      const copySpy = vi.fn().mockResolvedValue({ results: [], failed: 1 });
-      const state = makeState({ copy: copySpy });
-      state.clipboardState.clipboard = {
-        action: 'copy',
-        keys: ['file.txt'],
-        sourceBucket: 'test-bucket',
-        sourcePrefix: '',
-        fileSizes: {}
-      };
-
-      await state.executeAction('paste');
-
-      expect(addToast).toHaveBeenCalledWith(
-        'error',
-        expect.stringMatching(/source.*deleted|not found/i)
-      );
-      expect(invalidateAll).not.toHaveBeenCalled();
-    });
-
-    it('shows warning when some items fail', async () => {
-      const copySpy = vi.fn().mockResolvedValue({
-        results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-        failed: 1
-      });
-      const state = makeState({ copy: copySpy });
-      state.clipboardState.clipboard = {
-        action: 'copy',
-        keys: ['file.txt', 'photo.jpg'],
-        sourceBucket: 'test-bucket',
-        sourcePrefix: '',
-        fileSizes: { 'file.txt': 100, 'photo.jpg': 500 }
-      };
-
-      await state.executeAction('paste');
-
-      expect(addToast).toHaveBeenCalledWith(
-        'warning',
-        expect.stringContaining('could not be pasted')
-      );
-    });
+    expect(transfer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        op: 'copy',
+        source: { bucket: 'test-bucket' },
+        dest: { bucket: 'test-bucket', prefix: '' },
+        items: [{ sourceKey: 'file.txt' }]
+      }),
+      expect.any(Function)
+    );
+    expect(addToast).toHaveBeenCalledTimes(1);
+    expect(addToast).toHaveBeenCalledWith('success', expect.stringContaining('pasted'));
+    expect(invalidateAll).toHaveBeenCalled();
   });
 
-  describe('from cut', () => {
-    it('does not replace items when pasting them into their current location', async () => {
-      const moveSpy = vi.fn();
-      const state = makeState({
-        move: moveSpy,
-        checkObjectExists: vi.fn().mockResolvedValue(true)
-      });
-      state.clipboardState.clipboard = {
-        action: 'cut',
-        keys: ['file.txt', 'photo.jpg'],
-        sourceBucket: 'test-bucket',
-        sourcePrefix: '',
-        fileSizes: { 'file.txt': 100, 'photo.jpg': 500 }
-      };
+  it('refuses a clipboard from another connection', async () => {
+    const transfer = vi.fn();
+    const state = makeState({ transfer });
+    state.clipboardState.clipboard = { ...clip('copy', ['file.txt']), connectionId: 'other' };
 
-      await state.executeAction('paste');
+    await state.executeAction('paste');
 
-      expect(moveSpy).not.toHaveBeenCalled();
-      expect(state.activeModal).toBeNull();
-      expect(addToast).not.toHaveBeenCalled();
-    });
-
-    it('calls the move API and updates clipboard to destination keys', async () => {
-      const moveSpy = vi.fn().mockResolvedValue({
-        results: [{ sourceKey: 'src/file.txt', destKey: 'file.txt' }],
-        failed: 0
-      });
-      const state = makeState({ move: moveSpy });
-      state.clipboardState.clipboard = {
-        action: 'cut',
-        keys: ['src/file.txt'],
-        sourceBucket: 'test-bucket',
-        sourcePrefix: 'src/',
-        fileSizes: { 'src/file.txt': 100 }
-      };
-
-      await state.executeAction('paste');
-
-      expect(moveSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          bucket: 'test-bucket',
-          sourceKeys: ['src/file.txt']
-        })
-      );
-      // Clipboard updated to destination keys with action='copy'
-      expect(state.clipboard).not.toBeNull();
-      expect(state.clipboard!.action).toBe('copy');
-      expect(state.clipboard!.keys).toEqual(['file.txt']);
-      expect(state.clipboard!.sourceBucket).toBe('test-bucket');
-    });
-
-    it('keeps original clipboard on failed move (no results)', async () => {
-      const moveSpy = vi.fn().mockResolvedValue({ results: [], failed: 1 });
-      const state = makeState({ move: moveSpy });
-      state.clipboardState.clipboard = {
-        action: 'cut',
-        keys: ['src/file.txt'],
-        sourceBucket: 'test-bucket',
-        sourcePrefix: 'src/',
-        fileSizes: { 'src/file.txt': 100 }
-      };
-
-      await state.executeAction('paste');
-
-      expect(moveSpy).toHaveBeenCalled();
-      expect(state.clipboard!.action).toBe('cut'); // Clipboard unchanged (still cut keys)
-      expect(state.clipboard!.keys).toEqual(['src/file.txt']);
-    });
+    expect(transfer).not.toHaveBeenCalled();
+    expect(addToast).toHaveBeenCalledWith('warning', expect.stringContaining('another storage'));
   });
 });
 
@@ -425,7 +326,6 @@ describe('confirmRename', () => {
   it('closes modal if new name is same as current', async () => {
     const state = makeState();
     state.openModal('rename', { key: 'file.txt' });
-    expect(state.activeModal).not.toBeNull();
 
     await state.confirmRename('file.txt', 'file.txt');
 
@@ -433,11 +333,28 @@ describe('confirmRename', () => {
     expect(state.renameLoading).toBe(false);
   });
 
-  it('shows inline error on conflict and keeps modal open', async () => {
-    const moveSpy = vi
-      .fn()
-      .mockRejectedValue(new StorageError('conflict', 'Object already exists'));
-    const state = makeState({ move: moveSpy });
+  it('sends a rename that keeps the item in its folder', async () => {
+    const transfer = vi.fn(fakeTransfer());
+    const state = makeState({ transfer });
+    state.openModal('rename', { key: 'a//b.txt' });
+
+    await state.confirmRename('a//b.txt', 'c.txt');
+
+    expect(transfer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        op: 'rename',
+        source: { bucket: 'test-bucket' },
+        items: [{ sourceKey: 'a//b.txt', name: 'c.txt' }]
+      }),
+      expect.any(Function)
+    );
+    expect(transfer.mock.calls[0][0].dest).toBeUndefined();
+  });
+
+  it('shows a taken name in the modal, keeps it open and never overwrites', async () => {
+    const state = makeState({
+      transfer: fakeTransfer({ 'file.txt': { status: 'refused', reason: 'conflict' } })
+    });
     state.openModal('rename', { key: 'file.txt' });
 
     await state.confirmRename('file.txt', 'renamed.txt');
@@ -445,59 +362,13 @@ describe('confirmRename', () => {
     expect(state.activeModal?.type).toBe('rename');
     expect(state.renameError).toContain('already exists');
     expect(state.renameLoading).toBe(false);
-  });
-
-  it('opens conflict resolution before renaming to an existing name', async () => {
-    const moveSpy = vi.fn();
-    const state = makeState({ move: moveSpy, checkObjectExists: vi.fn().mockResolvedValue(true) });
-    state.openModal('rename', { key: 'file.txt' });
-
-    await state.confirmRename('file.txt', 'renamed.txt');
-
-    expect(moveSpy).not.toHaveBeenCalled();
-    expect(state.activeModal).toEqual(
-      expect.objectContaining({
-        type: 'resolve-conflicts',
-        payload: expect.objectContaining({
-          confirmLabel: 'Rename',
-          operation: 'rename',
-          entries: [expect.objectContaining({ originalName: 'renamed.txt', conflict: true })]
-        })
-      })
-    );
-  });
-
-  it('replaces the destination before completing a conflicting rename', async () => {
-    const deleteSpy = vi.fn().mockResolvedValue({ failed: [] });
-    const moveSpy = vi.fn().mockResolvedValue({ results: [], failed: 0 });
-    const state = makeState({
-      move: moveSpy,
-      delete: deleteSpy,
-      checkObjectExists: vi.fn().mockResolvedValue(true)
-    });
-    state.openModal('rename', { key: 'file.txt' });
-    await state.confirmRename('file.txt', 'renamed.txt');
-
-    await state.confirmConflictResolution([
-      {
-        id: 'file.txt',
-        originalName: 'renamed.txt',
-        conflict: true,
-        resolution: 'replace',
-        customName: 'renamed.txt',
-        renameState: 'idle'
-      }
-    ]);
-
-    expect(deleteSpy).toHaveBeenCalledWith({ bucket: 'test-bucket', keys: ['renamed.txt'] });
-    expect(moveSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceKeys: ['file.txt'], destinationKey: 'renamed.txt' })
-    );
+    expect(addToast).not.toHaveBeenCalled();
   });
 
   it('shows toast on access_denied and closes modal', async () => {
-    const moveSpy = vi.fn().mockRejectedValue(new StorageError('access_denied', 'Access denied'));
-    const state = makeState({ move: moveSpy });
+    const state = makeState({
+      transfer: vi.fn().mockRejectedValue(new StorageError('access_denied', 'Access denied'))
+    });
     state.openModal('rename', { key: 'file.txt' });
 
     await state.confirmRename('file.txt', 'renamed.txt');
@@ -506,22 +377,9 @@ describe('confirmRename', () => {
     expect(addToast).toHaveBeenCalledWith('error', expect.stringContaining('denied'));
   });
 
-  it('shows toast on not_found and closes modal', async () => {
-    const moveSpy = vi.fn().mockRejectedValue(new StorageError('not_found', 'Not found'));
-    const state = makeState({ move: moveSpy });
-    state.openModal('rename', { key: 'file.txt' });
-
-    await state.confirmRename('file.txt', 'renamed.txt');
-
-    expect(state.activeModal).toBeNull();
-    expect(addToast).toHaveBeenCalledWith('error', expect.stringContaining('could not be found'));
-  });
-
   it('shows success toast on successful rename and updates recent files', async () => {
-    const moveSpy = vi.fn().mockResolvedValue({ results: [], failed: 0 });
-    const state = makeState({ move: moveSpy });
+    const state = makeState();
     state.openModal('rename', { key: 'file.txt' });
-    // Seed a recent file entry for the old key
     state.bookmarks.recordFileVisit('test-bucket', 'file.txt', 100);
 
     await state.confirmRename('file.txt', 'renamed.txt');
@@ -529,19 +387,51 @@ describe('confirmRename', () => {
     expect(state.activeModal).toBeNull();
     expect(addToast).toHaveBeenCalledWith('success', expect.stringContaining('Renamed'));
     expect(invalidateAll).toHaveBeenCalled();
-    // Recent files updated
     expect(state.bookmarks.recentFiles.some((f) => f.key === 'renamed.txt')).toBe(true);
     expect(state.bookmarks.recentFiles.some((f) => f.key === 'file.txt')).toBe(false);
   });
+});
 
-  it('handles directory rename (trailing slash)', async () => {
-    const moveSpy = vi.fn().mockResolvedValue({ results: [], failed: 0 });
-    const state = makeState({ move: moveSpy });
-    state.openModal('rename', { key: 'dir/' });
+// ────────────────────────────────────────────────────────────────────────────
+// confirmCreate
+// ────────────────────────────────────────────────────────────────────────────
 
-    await state.confirmRename('dir/', 'renamed-dir');
+describe('confirmCreate', () => {
+  it('numbers a taken name from (1), as copies do', async () => {
+    const create = vi.fn().mockResolvedValue(undefined);
+    const taken = new Set(['report.txt', 'report (1).txt']);
+    const state = makeState({
+      create,
+      checkObjectExists: async ({ key }) => taken.has(key)
+    });
 
-    expect(addToast).toHaveBeenCalledWith('success', expect.stringContaining('Renamed'));
+    await state.confirmCreate('report.txt', 'file');
+
+    expect(create).toHaveBeenLastCalledWith({ bucket: 'test-bucket', key: 'report (2).txt' });
+  });
+
+  it('treats a folder without a marker object as taken', async () => {
+    const create = vi.fn().mockResolvedValue(undefined);
+    const state = makeState({
+      create,
+      checkObjectExists: async () => false,
+      list: async ({ prefix }) =>
+        prefix === 'docs/'
+          ? makePage([
+              {
+                key: 'docs/child.txt',
+                size: 1,
+                lastModified: new Date('2025-01-01'),
+                isDirectory: false,
+                contentType: 'text/plain'
+              }
+            ])
+          : makePage([])
+    });
+
+    await state.confirmCreate('docs', 'folder');
+
+    expect(create).toHaveBeenLastCalledWith({ bucket: 'test-bucket', key: 'docs (1)/' });
   });
 });
 
@@ -550,20 +440,11 @@ describe('confirmRename', () => {
 // ────────────────────────────────────────────────────────────────────────────
 
 describe('performMove', () => {
-  it('does nothing when destination is the same prefix', () => {
+  it('does nothing when every item is already in the destination', () => {
     const state = makeState();
     state.selectedKeys = new SvelteSet<string>(['file.txt']);
 
     state.performMove('');
-
-    expect(state.activeModal).toBeNull();
-  });
-
-  it('does nothing when moving a folder into itself', () => {
-    const state = makeState();
-    state.selectedKeys = new SvelteSet<string>(['dir/']);
-
-    state.performMove('dir/sub/');
 
     expect(state.activeModal).toBeNull();
   });
@@ -582,79 +463,50 @@ describe('performMove', () => {
     expect(payload?.destPrefix).toBe('dest/');
   });
 
-  it('uses explicit keys when provided', () => {
+  it('refuses a drag from another connection', () => {
     const state = makeState();
 
-    state.performMove('dest/', ['dir/file.ts']);
-
-    expect(state.activeModal?.type).toBe('confirm-move');
-    const payload = (state.activeModal as { type: 'confirm-move'; payload: { keys: string[] } })
-      ?.payload;
-    expect(payload?.keys).toEqual(['dir/file.ts']);
-  });
-
-  it('does nothing when storageMoveEnabled is false', () => {
-    // storageMoveEnabled is set to true in the module-level vi.mock above, so
-    // this test verifies the same-prefix guard which also prevents the modal
-    // from opening (the flag guard is covered by the integration with the
-    // component-level mocks in other test files).
-    const state = makeState();
-    state.selectedKeys = new SvelteSet<string>(['file.txt']);
-
-    // Same prefix → should not open modal regardless of flag
-    state.performMove('');
+    state.performMove('dest/', ['file.txt'], 'test-bucket', {
+      connectionId: 'other',
+      bucket: 'test-bucket'
+    });
 
     expect(state.activeModal).toBeNull();
+    expect(addToast).toHaveBeenCalledWith('warning', expect.stringContaining('another storage'));
   });
 });
 
 describe('confirmMove', () => {
-  it('calls the move API and shows success toast', async () => {
-    const moveSpy = vi.fn().mockResolvedValue({
-      results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-      failed: 0
-    });
-    const state = makeState({ move: moveSpy });
+  it('moves through the transfer API and shows success toast', async () => {
+    const transfer = vi.fn(fakeTransfer());
+    const state = makeState({ transfer });
     state.selectedKeys = new SvelteSet<string>(['file.txt']);
     state.performMove('dest/');
 
     await state.confirmMove();
 
-    expect(moveSpy).toHaveBeenCalledWith(
+    expect(transfer).toHaveBeenCalledWith(
       expect.objectContaining({
-        bucket: 'test-bucket',
-        sourceKeys: ['file.txt'],
-        destinationPrefix: 'dest/'
-      })
+        op: 'move',
+        dest: { bucket: 'test-bucket', prefix: 'dest/' },
+        items: [{ sourceKey: 'file.txt' }]
+      }),
+      expect.any(Function)
     );
     expect(addToast).toHaveBeenCalledWith('success', expect.stringContaining('moved'));
     expect(state.activeModal).toBeNull();
   });
 
-  it('shows warning on partial failures', async () => {
-    const moveSpy = vi.fn().mockResolvedValue({
-      results: [{ sourceKey: 'file.txt', destKey: 'dest/file.txt' }],
-      failed: 1
-    });
-    const state = makeState({ move: moveSpy });
-    state.selectedKeys = new SvelteSet<string>(['file.txt', 'photo.jpg']);
-    state.performMove('dest/');
-
-    await state.confirmMove();
-
-    expect(addToast).toHaveBeenCalledWith('warning', expect.stringContaining('could not be moved'));
-  });
-
   it('cancelMove closes the modal without calling API', () => {
-    const moveSpy = vi.fn();
-    const state = makeState({ move: moveSpy });
+    const transfer = vi.fn();
+    const state = makeState({ transfer });
     state.selectedKeys = new SvelteSet<string>(['file.txt']);
     state.performMove('dest/');
 
     state.cancelMove();
 
     expect(state.activeModal).toBeNull();
-    expect(moveSpy).not.toHaveBeenCalled();
+    expect(transfer).not.toHaveBeenCalled();
   });
 });
 
@@ -694,18 +546,8 @@ describe('handleKeydown', () => {
   });
 
   it('Ctrl+V triggers paste when clipboard non-empty', async () => {
-    const copySpy = vi.fn().mockResolvedValue({
-      results: [{ sourceKey: 'file.txt', destKey: 'paste/file.txt' }],
-      failed: 0
-    });
-    const state = makeState({ copy: copySpy });
-    state.clipboardState.clipboard = {
-      action: 'copy',
-      keys: ['file.txt'],
-      sourceBucket: 'test-bucket',
-      sourcePrefix: '',
-      fileSizes: {}
-    };
+    const state = makeState();
+    state.clipboardState.clipboard = clip('copy', ['file.txt']);
 
     await state.executeAction('paste');
 
@@ -787,6 +629,7 @@ describe('performDelete clipboard cleanup', () => {
     state.clipboardState.clipboard = {
       action: 'cut',
       keys: ['file.txt', 'photo.jpg', 'nested/file.js'],
+      connectionId: 'test-connection-id',
       sourceBucket: 'test-bucket',
       sourcePrefix: '',
       fileSizes: { 'file.txt': 100, 'photo.jpg': 500, 'nested/file.js': 200 }
@@ -805,6 +648,7 @@ describe('performDelete clipboard cleanup', () => {
     state.clipboardState.clipboard = {
       action: 'copy',
       keys: ['file.txt'],
+      connectionId: 'test-connection-id',
       sourceBucket: 'test-bucket',
       sourcePrefix: '',
       fileSizes: { 'file.txt': 100 }
@@ -823,6 +667,7 @@ describe('performDelete clipboard cleanup', () => {
     state.clipboardState.clipboard = {
       action: 'copy',
       keys: ['file.txt'],
+      connectionId: 'test-connection-id',
       sourceBucket: 'other-bucket',
       sourcePrefix: '',
       fileSizes: {}

@@ -413,7 +413,7 @@ describe('S3StorageProvider.deleteObjects', () => {
 
   it('returns empty failed list on full success', async () => {
     send.mockResolvedValue({ Errors: [] });
-    const result = await provider.deleteObjects(['a.txt', 'b.txt']);
+    const result = await provider.deleteObjects(['a.txt', 'b.txt'], true);
     expect(result.failed).toHaveLength(0);
   });
 
@@ -421,7 +421,7 @@ describe('S3StorageProvider.deleteObjects', () => {
     send.mockResolvedValue({
       Errors: [{ Key: 'b.txt', Code: 'AccessDenied', Message: 'No permission' }]
     });
-    const result = await provider.deleteObjects(['a.txt', 'b.txt']);
+    const result = await provider.deleteObjects(['a.txt', 'b.txt'], true);
     expect(result.failed).toEqual([
       { key: 'b.txt', code: 'AccessDenied', message: 'No permission' }
     ]);
@@ -431,19 +431,19 @@ describe('S3StorageProvider.deleteObjects', () => {
     send.mockResolvedValue({
       Errors: [{ Code: 'InternalError', Message: 'oops' }]
     });
-    const result = await provider.deleteObjects(['x.txt']);
+    const result = await provider.deleteObjects(['x.txt'], true);
     expect(result.failed[0].key).toBe('');
   });
 
   it('handles undefined Errors from S3', async () => {
     send.mockResolvedValue({});
-    const result = await provider.deleteObjects(['a.txt']);
+    const result = await provider.deleteObjects(['a.txt'], true);
     expect(result.failed).toHaveLength(0);
   });
 
   it('sends correct Delete structure to S3', async () => {
     send.mockResolvedValue({ Errors: [] });
-    await provider.deleteObjects(['x.txt', 'y.txt']);
+    await provider.deleteObjects(['x.txt', 'y.txt'], true);
     const sentCommand = send.mock.calls[0][0];
     expect(sentCommand.input.Delete.Objects).toEqual([{ Key: 'x.txt' }, { Key: 'y.txt' }]);
     expect(sentCommand.input.Delete.Quiet).toBe(true);
@@ -632,7 +632,7 @@ describe('S3StorageProvider.copyObject', () => {
     // CompleteMultipartUpload
     send.mockResolvedValueOnce({});
 
-    await provider.copyObject('src/video.mp4', 'dst/video.mp4', onProgress);
+    await provider.copyObject('src/video.mp4', 'dst/video.mp4', { onProgress });
 
     expect(onProgress).toHaveBeenCalledTimes(numParts);
     // Each call reports cumulative progress
@@ -806,12 +806,12 @@ describe('S3StorageProvider error handling', () => {
 
   it('deleteObjects: maps AccessDenied to HTTP 403', async () => {
     send.mockRejectedValue(makeS3Error('AccessDenied', 403));
-    await expect(provider.deleteObjects(['file.txt'])).rejects.toMatchObject({ status: 403 });
+    await expect(provider.deleteObjects(['file.txt'], true)).rejects.toMatchObject({ status: 403 });
   });
 
   it('deleteObjects: re-throws non-S3 errors', async () => {
     send.mockRejectedValue(new Error('network'));
-    await expect(provider.deleteObjects(['file.txt'])).rejects.toThrow('network');
+    await expect(provider.deleteObjects(['file.txt'], true)).rejects.toThrow('network');
   });
 });
 
@@ -836,7 +836,7 @@ describe('S3StorageProvider.deleteObjects directory expansion', () => {
     // Second call: DeleteObjects
     send.mockResolvedValueOnce({ Errors: [] });
 
-    const result = await provider.deleteObjects(['file.txt', 'dir/']);
+    const result = await provider.deleteObjects(['file.txt', 'dir/'], true);
 
     const deleteCall = send.mock.calls[1][0];
     expect(deleteCall.input.Delete.Objects).toEqual([
@@ -851,14 +851,14 @@ describe('S3StorageProvider.deleteObjects directory expansion', () => {
     send.mockResolvedValueOnce({ IsTruncated: false }); // listAllKeys returns []
     send.mockResolvedValueOnce({ Errors: [] }); // deleteObjects
 
-    await provider.deleteObjects(['empty/']);
+    await provider.deleteObjects(['empty/'], true);
 
     const deleteCall = send.mock.calls[1][0];
     expect(deleteCall.input.Delete.Objects).toEqual([{ Key: 'empty/' }]);
   });
 
   it('returns empty result for no keys', async () => {
-    const result = await provider.deleteObjects([]);
+    const result = await provider.deleteObjects([], true);
     expect(result).toEqual({ failed: [] });
     expect(send).not.toHaveBeenCalled();
   });

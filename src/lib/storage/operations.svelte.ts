@@ -185,10 +185,9 @@ export class OperationsState {
     if (controller) {
       controller.abort();
     }
-    if (operation?.type === 'download') {
-      for (const jobId of operation.fileJobIds ?? [])
-        void this._api.cancelJob(jobId).catch(() => {});
-    }
+    // Downloads and transfers run on the server; cancel their jobs there.
+    for (const jobId of operation?.fileJobIds ?? [])
+      void this._api.cancelJob(jobId).catch(() => {});
     const timer = this._pollTimers.get(id);
     if (timer) {
       clearTimeout(timer);
@@ -239,7 +238,20 @@ export class OperationsState {
           job = lastKnown;
         }
         completedBytes += (job.progress ?? lastKnown?.progress)?.completedBytes ?? 0;
-        if (job.status === 'done') {
+        if (op.type !== 'download' && job.items && job.status !== 'not_found') {
+          // A transfer is one job for all its items, so count the items it reports.
+          // Download jobs also carry an (always empty) item list; they count per job.
+          // Items without a result leave completedCount short of itemCount: error.
+          const done = job.items.filter((item) => item.status === 'done').length;
+          completedCount += done;
+          if (job.status === 'running') anyRunning = true;
+          else if (
+            job.status === 'cancelled' ||
+            job.items.some((item) => item.status === 'cancelled')
+          )
+            anyCancelled = true;
+          else if (job.status !== 'done' || done < job.items.length) anyError = true;
+        } else if (job.status === 'done') {
           completedCount++;
         } else if (job.status === 'running') {
           anyRunning = true;

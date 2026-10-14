@@ -125,13 +125,12 @@ export const maxEditableFileSize: number = (() => {
 
 // ── Storage browser: Context actions (cut, copy, paste, rename, move) ──────
 //
-// Server-side enforcement (cost control, not authorisation):
-// - `POST /api/storage/copy` requires paste.
-// - `POST /api/storage/move` that renames (a `destinationKey` in the same bucket
-//   and folder as the source) requires rename or paste. Paste uses that request
-//   to apply a "keep both" name after pasting.
-// - Any other `POST /api/storage/move` requires move or paste, because
-//   drag-and-drop and cut-and-paste send the same request.
+// Server-side enforcement (cost control, not authorisation) on
+// `POST /api/storage/transfer` and its `/plan`, by the request's `op`:
+// - `copy` requires paste.
+// - `move` requires move or paste, because drag-and-drop and cut-and-paste
+//   both move.
+// - `rename` requires rename.
 // Cut/copy only fill the client clipboard and have no endpoint of their own.
 
 /** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED=true`, the context
@@ -141,20 +140,29 @@ export const storageCutCopyEnabled =
   (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED ?? 'false') === 'true';
 
 /** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED=true`, the context
- *  menu shows Paste and the copy and move endpoints accept paste requests.
+ *  menu shows Paste and the transfer endpoint accepts copies and moves.
  *  Uses PUBLIC_ key. Disabled by default. */
 export const storagePasteEnabled =
   (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED ?? 'false') === 'true';
 
-/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED=true`, the move
- *  endpoint accepts same-folder renames. Uses PUBLIC_ key. Disabled by default. */
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED=true`, the transfer
+ *  endpoint accepts renames. Uses PUBLIC_ key. Disabled by default. */
 export const storageRenameEnabled =
   (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED ?? 'false') === 'true';
 
-/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED=true`, the move
- *  endpoint accepts drag-and-drop moves. Uses PUBLIC_ key. Disabled by default. */
+/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED=true`, the transfer
+ *  endpoint accepts moves. Uses PUBLIC_ key. Disabled by default. */
 export const storageMoveEnabled =
   (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED ?? 'false') === 'true';
+
+/** Objects copied at once within one transfer request (copy, move, rename).
+ *  Controlled by `STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY`. Default: 8;
+ *  a missing or invalid value falls back to the default. */
+export const storageTransferConcurrency: number = (() => {
+  // Number() rather than parseInt, so "8x" or "1.5" fall back instead of being truncated.
+  const parsed = Number(env.STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY?.trim() || NaN);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 8;
+})();
 
 // ── Storage browser: downloads ─────────────────────────────────────────────
 

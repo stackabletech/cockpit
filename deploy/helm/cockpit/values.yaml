@@ -131,6 +131,8 @@ terminationGracePeriodSeconds: 30
 #     filePreviewRows: 250
 #     # Maximum columns in tabular file previews. Default: 50 (application default).
 #     filePreviewColumns: 50
+#     # Objects copied at once within one copy, move or rename request. Default: 8 (application default).
+#     transferConcurrency: 8
 
 logging:
   level: ""

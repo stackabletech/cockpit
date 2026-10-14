@@ -28,6 +28,14 @@ export interface ProgressiveListOptions {
   signal?: AbortSignal;
 }
 
+/** Options accepted by {@link StorageProvider.copyObject}. */
+export interface CopyObjectOptions {
+  /** Bucket of the same connection to copy from. Defaults to the provider's bucket. */
+  sourceBucket?: string;
+  onProgress?: (loaded: number, total: number) => void;
+  signal?: AbortSignal;
+}
+
 /** Result of a bucket-scoped search. */
 export interface SearchResult {
   results: SearchResultItem[];
@@ -82,7 +90,16 @@ export interface StorageProvider {
     contentType: string,
     etag: string
   ): Promise<string | undefined>;
-  deleteObjects(keys: string[], expandDirectories?: boolean): Promise<DeleteObjectsResult>;
+  /**
+   * Delete objects. With `expandDirectories`, a key ending in `/` also deletes
+   * every object under it; without, only the named keys are deleted.
+   */
+  deleteObjects(keys: string[], expandDirectories: boolean): Promise<DeleteObjectsResult>;
+  /**
+   * Whether any object exists under `prefix`, including a folder marker equal
+   * to `prefix` itself. Lists without a delimiter, so the marker is not hidden.
+   */
+  prefixExists(prefix: string, signal?: AbortSignal): Promise<boolean>;
   /**
    * List all object keys under a prefix, recursively (no delimiter).
    * Used to expand directory prefixes before deletion.
@@ -103,19 +120,17 @@ export interface StorageProvider {
   getBucketTags(): Promise<Record<string, string>>;
   getBucketAcl(): Promise<BucketAcl>;
   /**
-   * Copy an object from `sourceKey` to `destKey` within the same bucket.
-   * For objects <= 5 GB uses S3 CopyObject; for larger objects streams the
-   * data through via multipart upload. Throws if the source does not exist
-   * or access is denied. Existing destination objects are silently overwritten.
+   * Copy an object from `sourceKey` to `destKey` in this provider's bucket.
+   * The source is read from `options.sourceBucket` (default: this bucket) of
+   * the same connection. The copy runs entirely in the storage backend: S3
+   * CopyObject for objects up to 5 GB, multipart UploadPartCopy above. Throws
+   * if the source does not exist or access is denied. Existing destination
+   * objects are silently overwritten.
    *
-   * When provided, `onProgress` is called with `(loaded, total)` bytes during
-   * the multipart upload for large objects (> 5 GB). It is NOT called for
-   * small objects that use the native S3 CopyObject (which is server-side and
-   * has no streaming phase).
+   * `options.onProgress` is called with `(loaded, total)` bytes after each part
+   * of a multipart copy (> 5 GB); a single CopyObject reports nothing.
+   * `options.signal` aborts the running requests; an aborted multipart copy is
+   * still cleaned up.
    */
-  copyObject(
-    sourceKey: string,
-    destKey: string,
-    onProgress?: (loaded: number, total: number) => void
-  ): Promise<void>;
+  copyObject(sourceKey: string, destKey: string, options?: CopyObjectOptions): Promise<void>;
 }

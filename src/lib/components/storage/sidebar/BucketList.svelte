@@ -15,7 +15,7 @@
   import { getStorageState } from '$lib/storage/context.js';
   import FloatingMenu from '../shared/FloatingMenu.svelte';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
-  import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
+  import { parseStorageDrop, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import { pinnedLabel, pinnedHref } from '$lib/storage/display-helpers.js';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
@@ -127,9 +127,9 @@
     if (!canStorageDrop(storage)) return;
     e.preventDefault();
     e.stopPropagation();
-    const keys = parseStorageDropKeys(e);
-    if (!keys) return;
-    void storage.performMove(prefix, keys, bucket);
+    const drop = parseStorageDrop(e);
+    if (!drop) return;
+    void storage.performMove(prefix, drop.keys, bucket, drop.source);
   }
 </script>
 

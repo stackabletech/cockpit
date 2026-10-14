@@ -7,7 +7,7 @@
   import { storageCutCopyEnabled } from '$lib/client/feature-flags.js';
   import {
     handleRowDragStart,
-    parseStorageDropKeys,
+    parseStorageDrop,
     canStorageDrop
   } from '$lib/storage/drag-handlers.js';
   import * as m from '$lib/paraglide/messages.js';
@@ -49,12 +49,12 @@
     if (!canStorageDrop(storage)) return;
     e.preventDefault();
     e.stopPropagation();
-    const keys = parseStorageDropKeys(e);
-    if (!keys) return;
+    const drop = parseStorageDrop(e);
+    if (!drop) return;
     // Don't drop onto a selected folder
-    if (keys.includes(folder.key)) return;
+    if (drop.keys.includes(folder.key)) return;
     // Move items into this folder
-    void storage.performMove(folder.key, keys);
+    void storage.performMove(folder.key, drop.keys, undefined, drop.source);
   }
 </script>
 

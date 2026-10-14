@@ -440,8 +440,6 @@
   "storage_upload_rename_confirm_action": "Confirm name",
   "storage_upload_rename_taken": "This name already exists here. Please choose a different name.",
   "storage_conflict_rename_invalid_name": "Enter a single name without \"/\", not \".\" or \"..\", and without the characters < > \\ | ? \".",
-  "storage_conflict_rename_failed": "Could not rename \"{name}\" to \"{newName}\". The name may already be in use.",
-  "storage_conflict_rename_partial": "\"{name}\" was only partly renamed to \"{newName}\". Some items kept their previous name.",
   "storage_upload_uploading": "Uploading… {pct}%",
   "storage_upload_status_queued": "queued",
   "storage_upload_status_done": "done",
@@ -639,19 +637,7 @@
     }
   ],
   "storage_action_paste_error": "Could not paste items. Please try again.",
-  "storage_action_paste_partial": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "1 item could not be pasted.",
-        "countPlural=other": "{count} items could not be pasted."
-      }
-    }
-  ],
-  "storage_action_paste_error_source_not_found": "Could not paste — the source items may have been deleted or moved.",
   "storage_action_paste_archive_error": "Cannot paste inside an archive.",
-  "storage_action_paste_into_itself_error": "Cannot paste a folder into itself.",
   "storage_action_move_success": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
@@ -659,16 +645,6 @@
       "match": {
         "countPlural=one": "1 item moved",
         "countPlural=other": "{count} items moved"
-      }
-    }
-  ],
-  "storage_action_move_partial": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "1 item could not be moved.",
-        "countPlural=other": "{count} items could not be moved."
       }
     }
   ],
@@ -851,5 +827,38 @@
         "n=other": "{count}y ago"
       }
     }
-  ]
+  ],
+  "storage_transfer_reason_same_location": "It is already in this location.",
+  "storage_transfer_reason_into_itself": "A folder cannot be placed inside itself.",
+  "storage_transfer_reason_overlaps_source": "The destination overlaps a selected item.",
+  "storage_transfer_reason_duplicate_destination": "Another selected item already goes to this destination.",
+  "storage_transfer_reason_conflict": "An item with this name already exists.",
+  "storage_transfer_reason_policy_mismatch": "This choice does not apply to this item.",
+  "storage_transfer_reason_invalid_name": "The new name is not valid.",
+  "storage_transfer_reason_name_too_long": "The name is too long. The full path can be at most 1024 bytes.",
+  "storage_transfer_item_partial": "only partly transferred",
+  "storage_transfer_item_failed": "failed",
+  "storage_transfer_item_cancelled": "cancelled",
+  "storage_transfer_status_done": "{count} done",
+  "storage_transfer_status_partial": "{count} partly done",
+  "storage_transfer_status_failed": "{count} failed",
+  "storage_transfer_status_refused": "{count} refused",
+  "storage_transfer_status_cancelled": "{count} cancelled",
+  "storage_transfer_summary_paste": "Paste finished: {counts}.",
+  "storage_transfer_summary_move": "Move finished: {counts}.",
+  "storage_transfer_item_line": "{name}: {reason}",
+  "storage_transfer_more": "+ {count} more",
+  "storage_transfer_resolution_merge": "Merge",
+  "storage_transfer_resolution_keep_both": "Keep both",
+  "storage_transfer_merge_all": "Merge all",
+  "storage_transfer_merge_note": "Merging keeps files that exist only in the destination. Files with the same name are replaced.",
+  "storage_transfer_refused_title": "Cannot be transferred",
+  "storage_transfer_close": "Close",
+  "storage_transfer_too_many": "At most {max} items can be pasted or moved at once.",
+  "storage_transfer_other_connection": "These items belong to another storage connection and cannot be pasted or moved here.",
+  "storage_transfer_failed_paste": "Could not paste: {counts}.",
+  "storage_transfer_failed_move": "Could not move: {counts}.",
+  "storage_transfer_status_unknown": "{count} with unknown outcome",
+  "storage_transfer_item_unknown": "outcome unknown, check the folder",
+  "storage_transfer_running": "A paste or move is still running. Wait until it has finished."
 }

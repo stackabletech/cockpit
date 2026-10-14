@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fileIconKind, keyToName, formatDate, isArchiveExtension } from './utils.js';
+import { fileIconKind, keyToName, formatDate, isArchiveExtension, parentPrefix } from './utils.js';
 
 vi.mock('$lib/paraglide/runtime.js', () => ({
   getLocale: () => 'en-GB'
@@ -94,5 +94,19 @@ describe('isArchiveExtension', () => {
 
   it('returns false for empty string', () => {
     expect(isArchiveExtension('')).toBe(false);
+  });
+});
+
+describe('parentPrefix', () => {
+  it('returns the folder a file or folder lives in', () => {
+    expect(parentPrefix('a/x.txt')).toBe('a/');
+    expect(parentPrefix('a/b/')).toBe('a/');
+    expect(parentPrefix('x.txt')).toBe('');
+    expect(parentPrefix('b/')).toBe('');
+  });
+
+  it('keeps empty path segments', () => {
+    expect(parentPrefix('a//b.txt')).toBe('a//');
+    expect(parentPrefix('a//')).toBe('a/');
   });
 });

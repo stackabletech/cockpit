@@ -10,9 +10,54 @@
  *   });
  */
 
-import type { StorageApi, CopyMoveResult, DeleteResult, JobStatus } from './api.js';
+import type { StorageApi, DeleteResult, JobStatus } from './api.js';
 import type { StoragePage, ArchiveListingResponse } from './types.js';
 import type { FileDetails, DirectoryMetadata, BucketDetails } from './details-types.js';
+import type {
+  PlanItem,
+  TransferBody,
+  TransferEvent,
+  TransferItemResult,
+  TransferSummary
+} from './transfer-types.js';
+import { keyToName, parentPrefix } from './utils.js';
+
+/** Where an item of a transfer request lands when nothing is in the way. */
+export function plainDestRoot(body: TransferBody, item: TransferBody['items'][number]): string {
+  const suffix = item.sourceKey.endsWith('/') ? '/' : '';
+  if (body.op === 'rename') return parentPrefix(item.sourceKey) + item.name + suffix;
+  const name = item.policy === 'rename' ? item.name! : keyToName(item.sourceKey);
+  return body.dest!.prefix + name + suffix;
+}
+
+/**
+ * A `transfer` implementation that streams the given per-item outcomes (by
+ * source key; default `done`) and ends with `complete` unless `complete: false`.
+ */
+export function fakeTransfer(
+  outcomes: Record<string, Partial<TransferItemResult>> = {},
+  options: { complete?: boolean } = {}
+): StorageApi['transfer'] {
+  return async (body, onEvent) => {
+    const summary: TransferSummary = { done: 0, partial: 0, failed: 0, refused: 0, cancelled: 0 };
+    for (const item of body.items) {
+      const result: TransferItemResult = {
+        sourceKey: item.sourceKey,
+        destRoot: plainDestRoot(body, item),
+        status: 'done',
+        copied: 1,
+        failed: [],
+        deletedOriginals: body.op === 'copy' ? 0 : 1,
+        ...outcomes[item.sourceKey]
+      };
+      summary[result.status]++;
+      onEvent({ type: 'item-done', ...result } satisfies TransferEvent);
+    }
+    const complete = options.complete ?? true;
+    if (complete) onEvent({ type: 'complete', summary });
+    return { complete };
+  };
+}
 
 const emptyPage: StoragePage = {
   objects: [],
@@ -49,12 +94,19 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
       // no-op
     },
 
-    async copy(): Promise<CopyMoveResult> {
-      return { results: [], failed: 0 };
+    async planTransfer(body): Promise<PlanItem[]> {
+      return body.source.keys.map((sourceKey) => ({
+        sourceKey,
+        kind: sourceKey.endsWith('/') ? 'folder' : 'file',
+        destKey: body.dest.prefix + keyToName(sourceKey) + (sourceKey.endsWith('/') ? '/' : ''),
+        conflict: 'none'
+      }));
     },
 
-    async move(): Promise<CopyMoveResult> {
-      return { results: [], failed: 0 };
+    transfer: fakeTransfer(),
+
+    async readTransferJob() {
+      return { status: 'not_found' };
     },
 
     async delete(): Promise<DeleteResult> {

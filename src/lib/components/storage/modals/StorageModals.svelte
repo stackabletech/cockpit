@@ -1,6 +1,7 @@
 <script lang="ts">
+  import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { keyToName } from '$lib/storage/utils.js';
+  import { keyToName, parentPrefix } from '$lib/storage/utils.js';
   import DeleteConfirmModal from './DeleteConfirmModal.svelte';
   import PreviewModal from './PreviewModal.svelte';
   import UploadModal from './upload/UploadModal.svelte';
@@ -9,8 +10,6 @@
   import CreateModal from './CreateModal.svelte';
   import MoveConfirmModal from './MoveConfirmModal.svelte';
   import ConflictResolutionDialog from './shared/ConflictResolutionDialog.svelte';
-  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
-  import { checkObjectExists } from '$lib/storage/upload.js';
 
   const storage = getStorageState();
 
@@ -140,10 +139,7 @@
   <RenameModal
     bind:open={renameOpen}
     currentName={renameName}
-    prefix={modalPayload.key.slice(
-      0,
-      modalPayload.key.length - renameName.length - (renameFolder ? 1 : 0)
-    )}
+    prefix={parentPrefix(modalPayload.key)}
     folder={renameFolder}
     onConfirm={(newName: string) => storage.confirmRename(modalPayload.key, newName)}
     onCancel={() => {
@@ -185,16 +181,10 @@
     bind:open={resolveConflictsOpen}
     entries={modalPayload.entries}
     confirmLabel={modalPayload.confirmLabel}
-    onCheckRename={async (entry) => {
-      const connectionId = connectionStore.activeConnectionId;
-      if (!connectionId) return true;
-      try {
-        const fullKey = modalPayload.destPrefix + entry.customName.trim();
-        return !(await checkObjectExists(modalPayload.bucket, fullKey, connectionId));
-      } catch {
-        return true;
-      }
-    }}
+    refused={modalPayload.refused}
+    closeOnly={modalPayload.closeOnly}
+    title={modalPayload.entries.length === 0 ? m.storage_transfer_refused_title() : undefined}
+    description={modalPayload.entries.length === 0 ? '' : undefined}
     onConfirm={(entries) => storage.confirmConflictResolution(entries)}
     onCancel={() => storage.cancelConflictResolution()}
   />

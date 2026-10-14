@@ -38,3 +38,18 @@ export const storageSearchHistoryTotal = new Counter({
   labelNames: ['operation', 'outcome'],
   registers: [register]
 });
+
+export const storageTransferItemsTotal = new Counter({
+  name: 'storage_transfer_items_total',
+  help: 'Selected items of storage copy, move and rename transfers, by final status',
+  labelNames: ['op', 'status'],
+  registers: [register]
+});
+
+export const storageTransferDuration = new Histogram({
+  name: 'storage_transfer_duration_seconds',
+  help: 'Duration of storage copy, move and rename transfers in seconds',
+  labelNames: ['op'],
+  buckets: [1, 10, 60, 300, 1800],
+  registers: [register]
+});

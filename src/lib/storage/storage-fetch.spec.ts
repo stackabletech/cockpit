@@ -184,9 +184,13 @@ describe('createStorageFetch', () => {
   it('forwards body and method from init', async () => {
     const storageFetch = createStorageFetch(() => 'conn-1');
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeResponse());
-    const body = JSON.stringify({ sourceKeys: ['a.txt'], destinationPrefix: 'dest/' });
+    const body = JSON.stringify({
+      op: 'copy',
+      source: { bucket: 'b', keys: ['a.txt'] },
+      dest: { bucket: 'b', prefix: 'dest/' }
+    });
 
-    await storageFetch('/api/storage/copy?bucket=b', {
+    await storageFetch('/api/storage/transfer/plan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body

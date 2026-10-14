@@ -516,6 +516,60 @@ describe('job polling via reconcileInterruptedOps', () => {
     expect(state.operations[0].completedCount).toBe(2);
   });
 
+  it.each([
+    ['done', [{ status: 'done' }, { status: 'done' }, { status: 'done' }], 'done'],
+    ['done', [{ status: 'done' }, { status: 'failed' }, { status: 'done' }], 'error'],
+    ['done', [{ status: 'done' }], 'error'],
+    ['cancelled', [{ status: 'done' }, { status: 'cancelled' }], 'cancelled']
+  ])(
+    'settles a transfer (one job, %s) from its item results',
+    async (jobStatus, items, expected) => {
+      const api = makeMockApi();
+      api.pollJob = vi.fn().mockResolvedValue({ status: jobStatus, items });
+      localStorage.setItem(
+        OPERATIONS_HISTORY_KEY,
+        JSON.stringify([
+          makeOp({
+            id: 'op-1',
+            type: 'paste',
+            status: 'running',
+            fileJobIds: ['job-1'],
+            itemCount: 3
+          })
+        ])
+      );
+
+      const state = new OperationsState(api, makeOpts());
+
+      await vi.waitFor(() => {
+        expect(state.operations.find((o) => o.id === 'op-1')?.status).toBe(expected);
+      });
+    }
+  );
+
+  it('settles download jobs per job even though they report an empty item list', async () => {
+    const api = makeMockApi();
+    api.pollJob = vi.fn().mockResolvedValue({ status: 'done', items: [] });
+    localStorage.setItem(
+      OPERATIONS_HISTORY_KEY,
+      JSON.stringify([
+        makeOp({
+          id: 'op-1',
+          type: 'download',
+          status: 'running',
+          fileJobIds: ['job-1', 'job-2'],
+          itemCount: 4
+        })
+      ])
+    );
+
+    const state = new OperationsState(api, makeOpts());
+
+    await vi.waitFor(() => {
+      expect(state.operations.find((o) => o.id === 'op-1')?.status).toBe('done');
+    });
+  });
+
   it('polls again when some jobs are still running', async () => {
     const pollJob = vi
       .fn()

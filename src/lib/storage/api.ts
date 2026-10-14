@@ -13,7 +13,7 @@
 import { STORAGE_CONNECTION_ID_HEADER } from './connection-id-header.js';
 import { createStorageFetch } from './storage-fetch.js';
 import { StorageError } from './errors.js';
-import { readNdjsonStream, type NdjsonStreamCallbacks } from './ndjson-stream.js';
+import { NdjsonParseError, readNdjsonLines } from './ndjson-stream.js';
 import { serializeFilter, type SearchFilterSpec } from './search-filter.js';
 import type {
   StoragePage,
@@ -23,13 +23,15 @@ import type {
   RecentSearchEntry
 } from './types.js';
 import type { FileDetails, DirectoryMetadata, BucketDetails } from './details-types.js';
+import type {
+  PlanItem,
+  TransferBody,
+  TransferEvent,
+  TransferJobState,
+  TransferPlanBody
+} from './transfer-types.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
-
-export interface CopyMoveResult {
-  results: Array<{ sourceKey: string; destKey: string }>;
-  failed: number;
-}
 
 export interface DeleteResult {
   failed: Array<{ key: string; code?: string; message?: string }>;
@@ -37,6 +39,8 @@ export interface DeleteResult {
 
 export interface JobStatus {
   status: string;
+  /** Transfers only: one job covers all items, each with its own result. */
+  items?: Array<{ status: string }>;
   progress?: {
     completedCount?: number;
     completedBytes?: number;
@@ -91,28 +95,21 @@ export interface StorageApi {
 
   clearRecentSearches(): Promise<void>;
 
-  copy(params: {
-    bucket: string;
-    sourceBucket?: string;
-    sourceKeys: string[];
-    destinationPrefix: string;
-    progress?: boolean;
-    jobId?: string;
-    signal?: AbortSignal;
-    callbacks?: NdjsonStreamCallbacks;
-  }): Promise<CopyMoveResult>;
+  /** Preview a copy or move for the conflict dialog. */
+  planTransfer(body: TransferPlanBody, signal?: AbortSignal): Promise<PlanItem[]>;
 
-  move(params: {
-    bucket: string;
-    sourceBucket?: string;
-    sourceKeys: string[];
-    destinationPrefix: string;
-    destinationKey?: string;
-    progress?: boolean;
-    jobId?: string;
-    signal?: AbortSignal;
-    callbacks?: NdjsonStreamCallbacks;
-  }): Promise<CopyMoveResult>;
+  /**
+   * Run a copy, move or rename, passing every NDJSON event to `onEvent`.
+   * Resolves with whether the stream ended with `complete`; throws a
+   * StorageError for request-level HTTP errors.
+   */
+  transfer(
+    body: TransferBody,
+    onEvent: (event: TransferEvent) => void
+  ): Promise<{ complete: boolean }>;
+
+  /** Read a transfer job, e.g. after its stream ended without `complete`. */
+  readTransferJob(jobId: string): Promise<TransferJobState>;
 
   delete(params: { bucket: string; keys: string[] }): Promise<DeleteResult>;
 
@@ -254,50 +251,51 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       await fetch_('/api/storage/search/history', { method: 'DELETE' });
     },
 
-    async copy({
-      bucket,
-      sourceBucket,
-      sourceKeys,
-      destinationPrefix,
-      progress,
-      jobId,
-      signal,
-      callbacks
-    }) {
-      return copyMoveRequest(fetch_, '/api/storage/copy', {
-        bucket,
-        sourceBucket,
-        sourceKeys,
-        destinationPrefix,
-        progress,
-        jobId,
-        signal,
-        callbacks
+    async planTransfer(body, signal) {
+      const res = await fetch_('/api/storage/transfer/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal
       });
+      return ((await res.json()) as { items: PlanItem[] }).items;
     },
 
-    async move({
-      bucket,
-      sourceBucket,
-      sourceKeys,
-      destinationPrefix,
-      destinationKey,
-      progress,
-      jobId,
-      signal,
-      callbacks
-    }) {
-      return copyMoveRequest(fetch_, '/api/storage/move', {
-        bucket,
-        sourceBucket,
-        sourceKeys,
-        destinationPrefix,
-        destinationKey,
-        progress,
-        jobId,
-        signal,
-        callbacks
+    async transfer(body, onEvent) {
+      const res = await fetch_('/api/storage/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
+      let complete = false;
+      let handlerError: unknown = null;
+      try {
+        await readNdjsonLines(res.body, (line) => {
+          const event = line as TransferEvent;
+          if (event.type === 'complete') complete = true;
+          try {
+            onEvent(event);
+          } catch (err) {
+            handlerError = err;
+            throw err;
+          }
+        });
+      } catch (err) {
+        // A client bug or a malformed line is not a dropped connection: report it.
+        if (handlerError !== null || err instanceof NdjsonParseError) throw err;
+        // The connection dropped; the caller reads the outcome from the job.
+      }
+      return { complete };
+    },
+
+    async readTransferJob(jobId) {
+      try {
+        const res = await fetch_(`/api/storage/copy/job/${encodeURIComponent(jobId)}`);
+        return (await res.json()) as TransferJobState;
+      } catch (err) {
+        if (err instanceof StorageError && err.code === 'not_found') return { status: 'not_found' };
+        throw err;
+      }
     },
 
     async delete({ bucket, keys }) {
@@ -468,57 +466,3 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-/**
- * Shared implementation for copy and move requests.
- * When `progress=true`, the response is an NDJSON stream.
- */
-async function copyMoveRequest(
-  fetch_: (path: string, init?: RequestInit) => Promise<Response>,
-  endpoint: string,
-  params: {
-    bucket: string;
-    sourceKeys: string[];
-    destinationPrefix: string;
-    destinationKey?: string;
-    sourceBucket?: string;
-    progress?: boolean;
-    jobId?: string;
-    signal?: AbortSignal;
-    callbacks?: NdjsonStreamCallbacks;
-  }
-): Promise<CopyMoveResult> {
-  const urlParams = new URLSearchParams({ bucket: params.bucket });
-  if (params.progress) {
-    urlParams.set('progress', 'true');
-  }
-
-  const res = await fetch_(`${endpoint}?${urlParams}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sourceKeys: params.sourceKeys,
-      sourceBucket: params.sourceBucket,
-      destinationPrefix: params.destinationPrefix,
-      destinationKey: params.destinationKey,
-      jobId: params.jobId
-    }),
-    signal: params.signal
-  });
-
-  if (params.progress) {
-    const streamResult = await readNdjsonStream(res.body, params.callbacks);
-    return {
-      results: streamResult.results,
-      failed: streamResult.failed.length
-    };
-  }
-
-  const data = (await res.json()) as {
-    results?: Array<{ sourceKey: string; destKey: string }>;
-    moved?: Array<{ sourceKey: string; destKey: string }>;
-    failed?: Array<unknown>;
-  };
-  const results = data.results ?? data.moved ?? [];
-  return { results, failed: data.failed?.length ?? 0 };
-}
