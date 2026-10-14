@@ -29,7 +29,7 @@ export default defineConfig(
       // It will currently also error on external links or links with query parameters
       // https://github.com/sveltejs/eslint-plugin-svelte/issues/1353
       'svelte/no-navigation-without-resolve': 'warn',
-      // Too common occurance in this project, disabling for now
+      // Too common occurrence in this project, disabling for now
       'security/detect-object-injection': 'off'
     }
   },

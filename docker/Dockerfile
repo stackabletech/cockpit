@@ -162,7 +162,7 @@ RUN chown -R ${STACKABLE_USER_UID}:0 /stackable && \
 
 USER ${STACKABLE_USER_UID}
 
-# These labels have mostly been superceded by the OpenContainer spec annotations below but it doesn't hurt to include them
+# These labels have mostly been superseded by the OpenContainer spec annotations below but it doesn't hurt to include them
 # http://label-schema.org/rc1/
 LABEL maintainer="info@stackable.tech"
 LABEL vendor="Stackable GmbH"
