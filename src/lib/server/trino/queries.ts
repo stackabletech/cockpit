@@ -29,7 +29,7 @@ export interface TrinoQuery {
   columns: Column[];
   rows: unknown[][];
   error: string | null;
-  rowLimit: number | null;
+  rowLimitReached: boolean;
   sql: string;
   startedAt: number;
   nextUri: string | undefined;
@@ -52,7 +52,6 @@ export function toQueryProgress(stats: TrinoQueryStats | undefined): QueryProgre
   if (!stats) return INITIAL_PROGRESS;
   return {
     progressPercentage: stats.progressPercentage ?? 0,
-    processedRows: stats.processedRows ?? 0,
     elapsedTimeMillis: stats.elapsedTimeMillis ?? 0
   };
 }
@@ -154,8 +153,9 @@ function buildSnapshot(
     progress: query.progress,
     columns: lightweight ? [] : query.columns,
     rows: lightweight ? [] : query.rows,
+    rowCount: query.rows.length,
     error: query.error,
-    rowLimit: query.rowLimit,
+    rowLimitReached: query.rowLimitReached,
     sql: query.sql,
     startedAt: query.startedAt
   };
@@ -207,7 +207,7 @@ async function submitStatement(
     columns: submitResult.columns ?? [],
     rows: submitResult.data ?? [],
     error: null,
-    rowLimit: null,
+    rowLimitReached: false,
     sql,
     startedAt: Date.now(),
     nextUri: submitResult.nextUri,

@@ -188,6 +188,28 @@ function startPagedQuery(id: string, sql: string): Page | null {
     });
     return { id, nextUri: nextUri(id, 1), stats: { state: 'QUEUED' } };
   }
+  if (sql.includes('FROM huge_table')) {
+    // First page is empty; the follow-up page exceeds MAX_CLIENT_ROWS.
+    queries.set(id, {
+      sql,
+      pages: [
+        {
+          id,
+          columns: [{ name: 'id', type: 'integer' }],
+          data: Array.from({ length: 10_001 }, (_, i) => [i + 1]),
+          nextUri: nextUri(id, 2),
+          stats: { state: 'RUNNING' }
+        }
+      ]
+    });
+    return {
+      id,
+      columns: [{ name: 'id', type: 'integer' }],
+      data: [],
+      nextUri: nextUri(id, 1),
+      stats: { state: 'RUNNING' }
+    };
+  }
   if (sql.includes('FROM finished_paged_table')) {
     queries.set(id, { sql, pages: [{ id, data: rows(11, 10), stats: { state: 'FINISHED' } }] });
     return {

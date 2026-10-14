@@ -36,6 +36,50 @@ test.describe('Trino query editor', () => {
     await expect(table.getByRole('cell', { name: '1' })).toBeVisible();
     await expect(table.getByRole('cell', { name: 'Alice' })).toBeVisible();
     await expect(page.getByText('Rows 1–3 of 3')).toBeVisible();
+    await expect(page.getByText(/^3 rows returned \|/)).toBeVisible();
+  });
+
+  test('hitting the row limit is reported in the status bar', async ({ page }) => {
+    await setTabSql(page, 'SELECT * FROM huge_table');
+    await page.goto('/trino');
+    await waitForHydration(page);
+    await page.locator('.monaco-editor').first().click();
+
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    await waitForQueryComplete(page);
+
+    const status = page.locator('[data-query-state="FINISHED"]');
+    await expect(status.getByText('Row limit reached', { exact: true })).toBeVisible();
+    await expect(status.getByText(/^10,000 rows returned \|/)).toBeVisible();
+    await expect(status).not.toContainText('rows processed');
+    await expect(page.getByRole('table', { name: 'Query results' })).toBeVisible();
+    // A single statement's row limit is only reported in the status bar.
+    await expect(page.getByText(/query cancelled/)).toHaveCount(0);
+  });
+
+  test('row limit in a multi-statement script is reported on the affected statement', async ({
+    page
+  }) => {
+    await setTabSql(page, 'SELECT * FROM huge_table; SELECT id, name FROM users');
+    await page.goto('/trino');
+    await waitForHydration(page);
+    await page.locator('.monaco-editor').first().click();
+
+    await page.keyboard.press('Control+Shift+Enter');
+    await expect(page.getByRole('table', { name: 'Query results — Statement 2' })).toBeVisible();
+
+    const panelFor = async (index: number) => {
+      const toggle = page.getByRole('button', { name: `Toggle statement ${index} results` });
+      return page.locator(`[id="${await toggle.getAttribute('aria-controls')}"]`);
+    };
+    const warning = 'Row limit of 10,000 reached — query cancelled.';
+    await expect((await panelFor(1)).getByText(warning)).toBeVisible();
+    await expect((await panelFor(2)).getByText(warning)).toHaveCount(0);
+
+    // The status bar describes the last statement, which completed normally.
+    const status = page.locator('[data-query-state="FINISHED"]');
+    await expect(status.getByText('Finished', { exact: true })).toBeVisible();
+    await expect(status.getByText(/^3 rows returned \|/)).toBeVisible();
   });
 
   test('Ctrl+Enter triggers query execution', async ({ page }) => {
