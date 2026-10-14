@@ -17,7 +17,7 @@ describe('objectNameError', () => {
   });
 
   it('explains invalid characters and relative segments', () => {
-    for (const name of ['x?y', 'a<b', '..', 'a/./b']) {
+    for (const name of ['x?y', 'a<b', 'a\tb', '..', 'a/./b']) {
       expect(objectNameError(name, create)).toMatch(/without the characters/);
     }
   });

@@ -263,6 +263,16 @@ describe('storage object schemas', () => {
     expect(StorageObjectNameSchema.safeParse('report?.csv').success).toBe(false);
   });
 
+  it.each([
+    'tab\tname.txt',
+    'new\nline.txt',
+    'nul\u0000.txt',
+    'unit\u001fsep.txt',
+    'del\u007f.txt'
+  ])('rejects the control character in the typed name %j', (name) => {
+    expect(StorageObjectNameSchema.safeParse(name).success).toBe(false);
+  });
+
   it('validates copy, move, and delete request bodies at runtime', () => {
     expect(
       CopyObjectsBodySchema.safeParse({

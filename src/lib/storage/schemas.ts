@@ -25,15 +25,11 @@ function isValidHost(host: string): boolean {
   return host === 'localhost' || z.ipv4().safeParse(host).success || isValidHostname(host);
 }
 
-function hasControlCharacter(value: string): boolean {
+function hasInvalidStorageNameCharacter(value: string): boolean {
   return [...value].some((char) => {
     const codePoint = char.codePointAt(0)!;
-    return codePoint <= 0x1f || codePoint === 0x7f;
+    return codePoint <= 0x1f || codePoint === 0x7f || '<>\\|?"'.includes(char);
   });
-}
-
-function hasInvalidStorageNameCharacter(value: string): boolean {
-  return hasControlCharacter(value) || [...value].some((char) => '<>\\|?"'.includes(char));
 }
 
 /** S3 limits object keys to 1024 bytes of UTF-8. */
@@ -113,11 +109,13 @@ export const ConnectionIdSchema = z.object({
 });
 
 /**
- * An existing object key sent back to the server (delete, move or copy source, rename source and
- * destination). Other tools can create any key S3 accepts, including `?`, `\`, `..` segments or
- * control characters, so exactly S3's own constraint applies: non-empty and at most 1024 bytes of
- * UTF-8. Not trimmed: trimming would address a different object. Keys never become local paths
- * or header values without sanitising.
+ * Object keys the storage API receives in key parameters and bodies: existing keys (read routes,
+ * delete, move and copy sources), keys about to be written (create, upload, save-text, move
+ * destination) and destination prefixes. Other tools can create any key S3 accepts, including `?`,
+ * `\`, `..` segments or control characters, so exactly S3's own constraint applies: non-empty and
+ * at most 1024 bytes of UTF-8. Names the user types are checked on the client with
+ * StorageObjectNameSchema. Not trimmed: trimming would address a different object. Keys never
+ * become local paths or header values without sanitising.
  */
 export const StorageObjectKeySchema = z
   .string()
@@ -195,6 +193,14 @@ export const MoveObjectsBodySchema = z
 export const DeleteObjectsBodySchema = z
   .object({ keys: z.array(StorageObjectKeySchema).min(1, 'At least one object key is required') })
   .strict();
+
+export const DownloadManifestBodySchema = z.object({
+  keys: z.array(StorageObjectKeySchema).min(1).max(1000)
+});
+
+export const RedownloadManifestBodySchema = z.object({
+  keys: z.array(StorageObjectKeySchema).min(1).max(10_000)
+});
 
 export const AddConnectionBucketBodySchema = z
   .object({ bucket: z.string().trim().min(1, 'Bucket name is required') })

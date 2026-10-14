@@ -11,23 +11,16 @@ import {
   requireConfig,
   requireStorageConnectionId
 } from '$lib/server/storage/request-context.js';
+import { DownloadManifestBodySchema } from '$lib/storage/schemas.js';
 
 export const POST: RequestHandler = async (event) => {
   const bucket = requireBucket(event);
   const config = requireConfig(event);
   const connectionId = requireStorageConnectionId(event);
   const prefix = event.url.searchParams.get('prefix') ?? '';
-  const keys = ((await event.request.json()) as { keys?: unknown }).keys;
-  if (
-    !Array.isArray(keys) ||
-    keys.length === 0 ||
-    keys.length > 1000 ||
-    keys.some(
-      (key) => typeof key !== 'string' || !key || new TextEncoder().encode(key).length > 1024
-    )
-  ) {
-    throw error(400, 'Request body must contain one or more object keys');
-  }
+  const parsed = DownloadManifestBodySchema.safeParse(await event.request.json());
+  if (!parsed.success) throw error(400, 'Request body must contain one or more object keys');
+  const { keys } = parsed.data;
   const userId = event.locals.user?.id ?? 'anonymous';
   const manifest = await createDownloadManifest({
     userId,
