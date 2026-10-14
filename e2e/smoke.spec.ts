@@ -21,6 +21,10 @@ test.describe('Smoke tests', () => {
     // Dashboard content is rendered
     await expect(page.getByText('Welcome back')).toBeVisible();
 
+    // Services card counts the enabled data tools
+    const servicesCard = page.getByText('Services', { exact: true }).locator('..');
+    await expect(servicesCard).toHaveText(/^\s*Services\s*2\s*$/);
+
     // Trino nav item is present and navigable
     const trinoLink = page.getByRole('link', { name: 'Trino' });
     await expect(trinoLink).toBeVisible();
