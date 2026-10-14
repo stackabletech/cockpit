@@ -258,6 +258,17 @@ describe('storage object schemas', () => {
     expect(StorageObjectNameSchema.safeParse('Bücher/verträge.pdf').success).toBe(true);
   });
 
+  it.each(['/a', 'a//b', '//', '/', 'a/', 'a/b/'])(
+    'rejects the empty path segment in %j',
+    (name) => {
+      expect(StorageObjectNameSchema.safeParse(name).success).toBe(false);
+    }
+  );
+
+  it('accepts nested names without empty segments', () => {
+    expect(StorageObjectNameSchema.safeParse('a/b/c.txt').success).toBe(true);
+  });
+
   it('rejects relative segments and unsupported characters', () => {
     expect(StorageObjectNameSchema.safeParse('../secrets.txt').success).toBe(false);
     expect(StorageObjectNameSchema.safeParse('report?.csv').success).toBe(false);

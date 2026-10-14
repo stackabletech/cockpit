@@ -475,6 +475,7 @@
   "storage_create_error": "Failed to create {name}",
   "storage_create_invalid_name": "Enter a name without \".\" or \"..\" as a path part, and without the characters < > \\ | ? \".",
   "storage_name_required": "Enter a name.",
+  "storage_name_empty_segment": "Remove the extra \"/\". A name cannot start or end with \"/\" or contain \"//\".",
   "storage_name_too_long": "This name is too long. The full path can be at most 1024 bytes.",
   "storage_tab_new": "New Tab",
   "storage_tab_close": "Close tab",

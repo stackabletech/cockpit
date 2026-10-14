@@ -36,6 +36,22 @@ describe('CreateModal', () => {
     await expect.element(message).toHaveTextContent('Enter a name.');
   });
 
+  it('explains an empty path segment and does not submit it', async () => {
+    const { onConfirm, input, message } = renderModal({ type: 'folder' });
+
+    for (const name of ['/a', 'a//b', 'a/']) {
+      await input.fill(name);
+      await expect.element(message).toHaveTextContent(/extra "\/"/);
+      await expect.element(input).toHaveAttribute('aria-invalid', 'true');
+    }
+    await expect.element(page.getByRole('button', { name: 'Create' })).toBeDisabled();
+    await userEvent.keyboard('{Enter}');
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    await input.fill('a/b/c');
+    await expect.poll(() => message.textContent?.trim()).toBe('');
+  });
+
   it('explains a name that makes the key too long', async () => {
     const { input, message } = renderModal({ prefix: 'a'.repeat(1000) + '/' });
 

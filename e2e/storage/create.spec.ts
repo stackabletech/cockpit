@@ -109,6 +109,10 @@ test.describe('Storage S3 — Create via context menu', () => {
     await input.fill('..');
     await expect(message).toContainText('".."');
 
+    await input.fill('notes//ok.txt');
+    await expect(message).toContainText('Remove the extra "/"');
+    await expect(input).toHaveAttribute('aria-invalid', 'true');
+
     await input.fill('ok.txt');
     await expect(message).toBeEmpty();
     await expect(input).not.toHaveAttribute('aria-invalid');

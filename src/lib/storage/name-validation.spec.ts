@@ -22,8 +22,19 @@ describe('objectNameError', () => {
     }
   });
 
+  it.each(['/a', 'a//b', '//', 'a/', 'a/b/', '/'])(
+    'explains the empty path segment in %j on create',
+    (name) => {
+      for (const folder of [false, true]) {
+        expect(objectNameError(name, { prefix: 'reports/', folder })).toMatch(/extra "\/"/);
+      }
+    }
+  );
+
   it('refuses "/" on rename', () => {
-    expect(objectNameError('a/b', rename)).toMatch(/single name without "\/"/);
+    for (const name of ['a/b', '/a', 'a//b', 'a/']) {
+      expect(objectNameError(name, rename)).toMatch(/single name without "\/"/);
+    }
   });
 
   it('only checks the folder against S3 limits', () => {

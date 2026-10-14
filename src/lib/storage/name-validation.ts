@@ -2,7 +2,8 @@ import * as m from '$lib/paraglide/messages.js';
 import {
   ConflictRenameNameSchema,
   StorageObjectKeySchema,
-  StorageObjectNameSchema
+  StorageObjectNameSchema,
+  hasEmptyPathSegment
 } from '$lib/storage/schemas.js';
 
 interface ObjectNameOptions {
@@ -22,6 +23,9 @@ interface ObjectNameOptions {
 export function objectNameError(name: string, options: ObjectNameOptions): string | null {
   const trimmed = name.trim();
   if (!trimmed) return m.storage_name_required();
+
+  // A rename refuses any `/`, which its own message already explains.
+  if (!options.singleSegment && hasEmptyPathSegment(trimmed)) return m.storage_name_empty_segment();
 
   const nameSchema = options.singleSegment ? ConflictRenameNameSchema : StorageObjectNameSchema;
   if (!nameSchema.safeParse(trimmed).success) {

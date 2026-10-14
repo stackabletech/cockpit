@@ -12,8 +12,9 @@ import { POST } from './+server.js';
 
 const CONNECTION_ID = '6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f';
 
-function mockEvent(body: unknown) {
-  const url = new URL('http://localhost/api/storage/download/manifests?bucket=b1&prefix=reports/');
+function mockEvent(body: unknown, prefix: string | null = 'reports/') {
+  const url = new URL('http://localhost/api/storage/download/manifests?bucket=b1');
+  if (prefix !== null) url.searchParams.set('prefix', prefix);
   return {
     url,
     request: new Request(url, {
@@ -71,5 +72,26 @@ describe('POST /api/storage/download/manifests', () => {
         keys: ['reports/a.csv', 'reports/what?.csv', 'x'.repeat(1024)]
       })
     );
+  });
+
+  it.each([
+    ['an absent prefix', null],
+    ['an empty prefix', '']
+  ])('defaults to the bucket root for %s', async (_, prefix) => {
+    mockManifests.createDownloadManifest.mockResolvedValue({ id: 'm1' });
+
+    const response = await POST(mockEvent({ keys: ['a.csv'] }, prefix));
+
+    expect(response.status).toBe(201);
+    expect(mockManifests.createDownloadManifest).toHaveBeenCalledWith(
+      expect.objectContaining({ prefix: '' })
+    );
+  });
+
+  it('throws 400 for a prefix over 1024 bytes', async () => {
+    await expect(POST(mockEvent({ keys: ['a.csv'] }, 'a'.repeat(1025)))).rejects.toThrow(
+      expect.objectContaining({ status: 400, body: { message: 'Invalid prefix' } })
+    );
+    expect(mockManifests.createDownloadManifest).not.toHaveBeenCalled();
   });
 });

@@ -32,6 +32,15 @@ function hasInvalidStorageNameCharacter(value: string): boolean {
   });
 }
 
+/**
+ * Whether a typed name has an empty path segment: a leading or trailing `/`, or `//`. Create builds
+ * a folder marker for every segment and appends the folder `/` itself, so an empty segment would
+ * produce keys like `prefix//` or turn a file into a folder marker.
+ */
+export function hasEmptyPathSegment(value: string): boolean {
+  return value.split('/').includes('');
+}
+
 /** S3 limits object keys to 1024 bytes of UTF-8. */
 const MAX_OBJECT_KEY_BYTES = 1024;
 
@@ -141,7 +150,8 @@ export const StorageObjectNameSchema = z
   .refine(
     (value) => value.split('/').every((part) => part !== '.' && part !== '..'),
     'Object name cannot contain relative path segments'
-  );
+  )
+  .refine((value) => !hasEmptyPathSegment(value), 'Object name cannot contain empty path segments');
 
 /**
  * A replacement name chosen in the conflict dialog. It renames the item in place, so it is a
@@ -153,7 +163,7 @@ export const ConflictRenameNameSchema = StorageObjectNameSchema.refine(
 );
 
 /** An existing folder to paste into; empty for the bucket root. */
-const StoragePrefixSchema = z.union([z.literal(''), StorageObjectKeySchema]);
+export const StoragePrefixSchema = z.union([z.literal(''), StorageObjectKeySchema]);
 
 export const CopyObjectsBodySchema = z
   .object({

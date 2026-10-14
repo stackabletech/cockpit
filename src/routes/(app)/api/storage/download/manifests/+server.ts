@@ -11,13 +11,15 @@ import {
   requireConfig,
   requireStorageConnectionId
 } from '$lib/server/storage/request-context.js';
-import { DownloadManifestBodySchema } from '$lib/storage/schemas.js';
+import { DownloadManifestBodySchema, StoragePrefixSchema } from '$lib/storage/schemas.js';
 
 export const POST: RequestHandler = async (event) => {
   const bucket = requireBucket(event);
   const config = requireConfig(event);
   const connectionId = requireStorageConnectionId(event);
-  const prefix = event.url.searchParams.get('prefix') ?? '';
+  const parsedPrefix = StoragePrefixSchema.safeParse(event.url.searchParams.get('prefix') ?? '');
+  if (!parsedPrefix.success) throw error(400, 'Invalid prefix');
+  const prefix = parsedPrefix.data;
   const parsed = DownloadManifestBodySchema.safeParse(await event.request.json());
   if (!parsed.success) throw error(400, 'Request body must contain one or more object keys');
   const { keys } = parsed.data;

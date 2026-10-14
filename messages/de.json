@@ -475,6 +475,7 @@
   "storage_create_error": "{name} konnte nicht erstellt werden",
   "storage_create_invalid_name": "Geben Sie einen Namen ohne \".\" oder \"..\" als Pfadteil und ohne die Zeichen < > \\ | ? \" ein.",
   "storage_name_required": "Geben Sie einen Namen ein.",
+  "storage_name_empty_segment": "Entfernen Sie den überzähligen \"/\". Ein Name darf nicht mit \"/\" beginnen oder enden und kein \"//\" enthalten.",
   "storage_name_too_long": "Dieser Name ist zu lang. Der vollständige Pfad darf höchstens 1024 Bytes lang sein.",
   "storage_tab_new": "Neuer Tab",
   "storage_tab_close": "Tab schließen",
