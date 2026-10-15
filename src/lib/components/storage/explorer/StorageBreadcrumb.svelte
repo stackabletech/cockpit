@@ -519,14 +519,16 @@
       data-tip={m.storage_folder_count({ count: storage.folders.length })}
     >
       <IconFolderOutline class="size-4" aria-hidden="true" />
-      <span class="font-bold">{storage.folders.length}</span>
+      <span class="font-bold" aria-hidden="true">{storage.folders.length}</span>
+      <span class="sr-only">{m.storage_folder_count({ count: storage.folders.length })}</span>
     </span>
     <span
       class="tooltip tooltip-bottom badge badge-soft badge-primary badge-sm pointer-events-none z-30 gap-1"
       data-tip={m.storage_file_count({ count: storage.files.length })}
     >
       <IconDescriptionOutline class="size-4" aria-hidden="true" />
-      <span class="font-bold">{storage.files.length}</span>
+      <span class="font-bold" aria-hidden="true">{storage.files.length}</span>
+      <span class="sr-only">{m.storage_file_count({ count: storage.files.length })}</span>
     </span>
   </div>
 

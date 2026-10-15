@@ -81,8 +81,19 @@ describe('StorageBreadcrumb', () => {
       const state = createState({ folders: makeFolders(3), files: makeFiles(5) });
       render(StorageBreadcrumbWrapper, { state });
 
-      await expect.element(page.getByText('3')).toBeInTheDocument();
-      await expect.element(page.getByText('5')).toBeInTheDocument();
+      await expect.element(page.getByText('3', { exact: true })).toBeInTheDocument();
+      await expect.element(page.getByText('5', { exact: true })).toBeInTheDocument();
+    });
+
+    it('should give the count badges a text alternative', async () => {
+      const state = createState({ folders: makeFolders(3), files: makeFiles(1) });
+      render(StorageBreadcrumbWrapper, { state });
+
+      await expect.element(page.getByText('3 folders', { exact: true })).toBeInTheDocument();
+      await expect.element(page.getByText('1 file', { exact: true })).toBeInTheDocument();
+      await expect
+        .element(page.getByText('3', { exact: true }))
+        .toHaveAttribute('aria-hidden', 'true');
     });
   });
 

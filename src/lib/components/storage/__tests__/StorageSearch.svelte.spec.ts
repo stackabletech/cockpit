@@ -173,6 +173,35 @@ describe('StorageSearch', () => {
     );
   });
 
+  it('shows an invalid filter value as text tied to the input', async () => {
+    const { state } = createState();
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByText('Advanced options').click();
+    const size = page.getByLabelText('Size filter value');
+    await size.fill('lots');
+    const error = page.getByText('Enter a valid filter value');
+    await expect.element(error).toBeVisible();
+    const errorId = error.element().id;
+    await expect.element(size).toHaveAttribute('aria-describedby', errorId);
+    await size.fill('10 MB');
+    await expect.element(error).not.toBeInTheDocument();
+    await expect.element(size).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('ties an invalid date filter value to its error text', async () => {
+    const { state } = createState();
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByText('Advanced options').click();
+    const date = page.getByLabelText('Date filter value');
+    await date.fill('soon');
+    const error = page.getByText('Enter a valid filter value');
+    await expect.element(error).toBeVisible();
+    await expect.element(date).toHaveAttribute('aria-describedby', error.element().id);
+    await expect.element(date).toHaveAttribute('aria-invalid', 'true');
+  });
+
   it('makes the bucket dropdown divider non-interactive', async () => {
     const { state } = createState();
     render(StorageSearchWrapper, { state });

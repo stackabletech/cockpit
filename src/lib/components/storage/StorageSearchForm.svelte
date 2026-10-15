@@ -242,7 +242,7 @@
             aria-describedby={depthValid ? undefined : `${id}-depth-error`}
           />
           {#if !depthValid}
-            <p id="{id}-depth-error" class="text-error mt-1 text-xs" role="alert">
+            <p id="{id}-depth-error" class="text-error mt-1 text-xs">
               {m.storage_search_max_depth_invalid()}
             </p>
           {/if}

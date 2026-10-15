@@ -22,6 +22,8 @@
     placeholder?: string;
     /** Marks the control as invalid so it can be styled by the parent. */
     invalid?: boolean;
+    /** The id of an element describing the input, such as an error message. */
+    describedby?: string;
     class?: string;
     onchange?: (value: string) => void;
   }
@@ -31,6 +33,7 @@
     id,
     placeholder,
     invalid = false,
+    describedby,
     class: className = '',
     onchange
   }: Props = $props();
@@ -133,7 +136,12 @@
       if (!supportsAnchorPositioning() && triggerEl && popoverEl) {
         positionPopoverRelativeToTrigger(triggerEl, popoverEl, { align: 'end' });
       }
-    } else triggerEl?.focus();
+    } else {
+      // Return focus only if it was inside the calendar (or got dropped on
+      // body); a click on another control must keep focus there.
+      const active = document.activeElement;
+      if (!active || active === document.body || popoverEl?.contains(active)) triggerEl?.focus();
+    }
   }
 
   function shiftMonth(delta: number): void {
@@ -145,6 +153,12 @@
       viewMonth = 0;
       viewYear += 1;
     }
+    // Keep the roving tab stop inside the visible month, so Tab still reaches
+    // the day grid. Focus stays on the month button.
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    focusedDate.setTime(
+      new Date(viewYear, viewMonth, Math.min(focusedDate.getDate(), daysInMonth)).getTime()
+    );
   }
 
   function selectDate(date: Date): void {
@@ -168,6 +182,7 @@
       onchange?.(value);
     }}
     aria-invalid={invalid || undefined}
+    aria-describedby={describedby}
     {placeholder}
   />
   <button
