@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconDraft from 'virtual:icons/material-symbols/draft';
   import IconUpload from 'virtual:icons/material-symbols/upload';
   import IconWarning from 'virtual:icons/material-symbols/warning';
+  import IconError from 'virtual:icons/material-symbols/error';
   import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
@@ -36,6 +37,9 @@
   let entries = $state<FileEntry[]>([]);
 
   let cancelRequested = $state(false);
+  /** The conflict check failed, so nothing was uploaded. */
+  let checkFailed = $state(false);
+  let uploadButton = $state<HTMLButtonElement>();
 
   // Initialise on opening as well: the parent can mount this modal closed
   // before resetting its bound open state after a previous cancellation.
@@ -45,10 +49,12 @@
         entries = makeEntries(initialFiles);
         phase = entries.length > 0 ? 'selected' : 'idle';
         cancelRequested = false;
+        checkFailed = false;
       });
     } else {
       phase = 'idle';
       entries = [];
+      checkFailed = false;
     }
   });
 
@@ -106,6 +112,7 @@
 
   function handleFilesSelected(pairs: { file: File; relativePath: string }[]) {
     entries = makeEntries(pairs);
+    checkFailed = false;
     phase = 'selected';
   }
 
@@ -114,33 +121,48 @@
   async function startUploadFlow() {
     if (phase !== 'selected') return;
     cancelRequested = false;
+    checkFailed = false;
     phase = 'checking';
 
     const connHeader = connectionStore.activeConnectionId ?? '';
 
     const results: { id: string; conflict: boolean }[] = [];
-    for (let i = 0; i < entries.length; i += uploadConcurrency) {
+    try {
+      for (let i = 0; i < entries.length; i += uploadConcurrency) {
+        if (cancelRequested) {
+          phase = 'idle';
+          entries = [];
+          return;
+        }
+        const batch = entries.slice(i, i + uploadConcurrency);
+        const batchResults = await Promise.all(
+          batch.map(async (e) => ({
+            id: e.id,
+            conflict: await checkObjectExists(bucket, e.targetKey, connHeader)
+          }))
+        );
+        results.push(...batchResults);
+      }
+    } catch {
+      // An unknown result must not count as "no conflict", or the upload could
+      // silently overwrite. Upload nothing and let the user retry.
       if (cancelRequested) {
         phase = 'idle';
         entries = [];
         return;
       }
-      const batch = entries.slice(i, i + uploadConcurrency);
-      const batchResults = await Promise.all(
-        batch.map(async (e) => {
-          try {
-            return { id: e.id, conflict: await checkObjectExists(bucket, e.targetKey, connHeader) };
-          } catch {
-            return { id: e.id, conflict: false };
-          }
-        })
-      );
-      results.push(...batchResults);
+      await showCheckFailed();
+      return;
     }
 
     if (cancelRequested) {
       phase = 'idle';
       entries = [];
+      return;
+    }
+    // Every entry needs a result; a missing one must not default to "no conflict".
+    if (results.length !== entries.length) {
+      await showCheckFailed();
       return;
     }
 
@@ -157,6 +179,14 @@
     } else {
       await doUploadAll();
     }
+  }
+
+  /** Back to the selection with the error shown; focus Upload so the user can retry. */
+  async function showCheckFailed() {
+    checkFailed = true;
+    phase = 'selected';
+    await tick();
+    uploadButton?.focus();
   }
 
   async function confirmAndUpload() {
@@ -389,11 +419,21 @@
           size: formatFileSize(totalSize)
         })}
       </p>
+      {#if checkFailed}
+        <div role="alert" class="alert alert-error mb-4 text-sm">
+          <IconError class="size-5 shrink-0" aria-hidden="true" />
+          <span>{m.storage_upload_check_error()}</span>
+        </div>
+      {/if}
       <div class="flex justify-end gap-2">
         <button class="btn btn-ghost btn-sm" onclick={handleCancel}>
           {m.storage_upload_overwrite_cancel()}
         </button>
-        <button class="btn btn-primary btn-sm gap-1" onclick={startUploadFlow}>
+        <button
+          bind:this={uploadButton}
+          class="btn btn-primary btn-sm gap-1"
+          onclick={startUploadFlow}
+        >
           <IconUpload class="size-4" aria-hidden="true" />
           {m.storage_upload_start()}
         </button>

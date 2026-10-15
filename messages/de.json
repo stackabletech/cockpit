@@ -428,6 +428,7 @@
   "storage_upload_total_size": "Gesamt: {size}",
   "storage_upload_start": "Hochladen",
   "storage_upload_checking": "Auf Konflikte prüfen…",
+  "storage_upload_check_error": "Es konnte nicht geprüft werden, ob die Dateien bereits vorhanden sind. Es wurde nichts hochgeladen. Bitte versuchen Sie es erneut.",
   "storage_upload_conflicts_title": "Dateien bereits vorhanden",
   "storage_upload_conflicts_desc": "Wählen Sie für jede Konfliktdatei eine Aktion.",
   "storage_upload_skip_all": "Alle überspringen",

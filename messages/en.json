@@ -428,6 +428,7 @@
   "storage_upload_total_size": "Total: {size}",
   "storage_upload_start": "Upload",
   "storage_upload_checking": "Checking for conflicts…",
+  "storage_upload_check_error": "Could not check for existing files. Nothing was uploaded. Please try again.",
   "storage_upload_conflicts_title": "Files already exist",
   "storage_upload_conflicts_desc": "Choose what to do for each conflicting file.",
   "storage_upload_skip_all": "Skip all",

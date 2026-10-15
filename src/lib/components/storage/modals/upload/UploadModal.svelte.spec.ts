@@ -366,13 +366,43 @@ describe('UploadModal', () => {
   });
 
   describe('upload flow - error handling', () => {
-    it('should handle checkObjectExists failures gracefully', async () => {
+    it('should upload nothing and show an error when the conflict check fails', async () => {
       mockCheckObjectExists.mockRejectedValue(new Error('Network error'));
       render(UploadModal, defaultProps);
       await selectAndUpload([createFile('a.txt')]);
 
-      // Should proceed to upload (conflict defaults to false on error)
-      expect(mockUploadFile).toHaveBeenCalled();
+      // An unknown result must not be treated as "no conflict" (silent overwrite).
+      expect(mockUploadFile).not.toHaveBeenCalled();
+      await expect.element(page.getByRole('alert')).toHaveTextContent(/nothing was uploaded/i);
+      // Back on the selection so the user can retry.
+      await expect.element(page.getByText('a.txt')).toBeInTheDocument();
+      // Focus returns to Upload so keyboard users can retry directly.
+      await expect.element(page.getByRole('button', { name: /upload/i })).toHaveFocus();
+    });
+
+    it('should abort when the check fails for only one of several files', async () => {
+      mockCheckObjectExists.mockImplementation(async (_bucket: string, key: string) => {
+        if (key === 'b.txt') throw new StorageError('server_error', 'Boom');
+        return false;
+      });
+      render(UploadModal, defaultProps);
+      await selectAndUpload([createFile('a.txt'), createFile('b.txt'), createFile('c.txt')]);
+
+      expect(mockUploadFile).not.toHaveBeenCalled();
+      await expect.element(page.getByRole('alert')).toBeInTheDocument();
+    });
+
+    it('should upload on retry after a failed conflict check', async () => {
+      mockCheckObjectExists.mockRejectedValueOnce(new Error('Network error'));
+      render(UploadModal, defaultProps);
+      await selectAndUpload([createFile('a.txt')]);
+      expect(mockUploadFile).not.toHaveBeenCalled();
+
+      await page.getByRole('button', { name: /upload/i }).click();
+      await tick(300);
+
+      expect(mockUploadFile).toHaveBeenCalledTimes(1);
+      await expect.element(page.getByRole('alert')).not.toBeInTheDocument();
     });
 
     it('should show error state when upload fails with UploadError (access_denied)', async () => {

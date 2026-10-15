@@ -23,7 +23,9 @@ export type UploadErrorCode = StorageErrorCode;
  *
  * Uses a HEAD request to the download endpoint (which calls HeadObject internally)
  * so no object body is transferred. Returns `true` if the object exists, `false`
- * if it does not. Throws `UploadError` for auth or server errors.
+ * if it does not. Throws on any other failure (`StorageError` for auth or server
+ * errors, the fetch error for network failures); callers must not treat that as
+ * "does not exist".
  */
 export async function checkObjectExists(
   bucket: string,
@@ -32,13 +34,12 @@ export async function checkObjectExists(
 ): Promise<boolean> {
   const fetch_ = createStorageFetch(() => connectionId);
   try {
-    const res = await fetch_(
+    // storageFetch throws on any non-2xx response, so reaching here means it exists.
+    await fetch_(
       `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`,
-      {
-        method: 'HEAD'
-      }
+      { method: 'HEAD' }
     );
-    return res.ok;
+    return true;
   } catch (err) {
     if (err instanceof StorageError && err.code === 'not_found') return false;
     throw err;

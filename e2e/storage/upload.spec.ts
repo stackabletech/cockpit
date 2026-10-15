@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Route } from '@playwright/test';
 import {
   createS3Client,
   hasGarageCredentials,
@@ -267,6 +267,41 @@ test.describe('Storage S3 — Upload', () => {
       );
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('uploads nothing when the conflict check fails', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'upload-check-fails');
+    const key = `${prefix}existing.txt`;
+    const failHead = (route: Route) =>
+      route.request().method() === 'HEAD' ? route.fulfill({ status: 500 }) : route.fallback();
+
+    try {
+      await putTextObject(client, credentials.bucket, key, 'old content');
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await page.route('**/api/storage/download?*', failHead);
+      await page.getByRole('button', { name: 'Upload' }).click();
+      const uploadModal = modalBox(page);
+      await uploadModal.locator('input[aria-label="Select files"]').setInputFiles({
+        name: 'existing.txt',
+        mimeType: 'text/plain',
+        buffer: Buffer.from('new content')
+      });
+      await uploadModal.getByRole('button', { name: 'Upload', exact: true }).click();
+
+      await expect(uploadModal.getByRole('alert')).toContainText('Nothing was uploaded');
+      await expect(await getObjectText(client, credentials.bucket, key)).toBe('old content');
+
+      // Once the check works again, the retry finds the conflict instead of overwriting.
+      await page.unroute('**/api/storage/download?*', failHead);
+      await uploadModal.getByRole('button', { name: 'Upload', exact: true }).click();
+      await expect(uploadModal.getByText('Files already exist')).toBeVisible();
+      await expect(uploadModal.getByRole('alert')).not.toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [key]);
     }
   });
 });

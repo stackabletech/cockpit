@@ -395,10 +395,9 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
     async checkObjectExists({ bucket, key }) {
       const params = new URLSearchParams({ bucket, key });
       try {
-        const res = await fetch_(`/api/storage/download?${params}`, {
-          method: 'HEAD'
-        });
-        return res.ok;
+        // storageFetch throws on any non-2xx response, so reaching here means it exists.
+        await fetch_(`/api/storage/download?${params}`, { method: 'HEAD' });
+        return true;
       } catch (err) {
         if (err instanceof StorageError && err.code === 'not_found') return false;
         throw err;
