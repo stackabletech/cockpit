@@ -1,6 +1,5 @@
 vi.mock('$lib/client/feature-flags.js', () => ({
   storageMoveEnabled: true,
-  storageAutoConnectEnabled: false,
   storageRestoreTabsEnabled: false,
   allowedPageSizes: [25, 50, 100],
   defaultPageSize: 25,

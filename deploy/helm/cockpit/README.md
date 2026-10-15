@@ -122,7 +122,6 @@ All feature parameters are optional. Omit them to use the application defaults.
 | --- | --- | --- |
 | `features.trino.completion.enabled` | Enable SQL code completion. | `true` (application default) |
 | `features.storage.enabled` | Show the S3/HDFS file browser and enable routes under `/storage`. | `false` (application default) |
-| `features.storage.autoConnect` | Reconnect to the most recently used storage connection when visiting the storage page. | `false` (application default) |
 | `features.storage.pageSizes` | Comma-separated page size options. | `25,50,100` (application default) |
 | `features.storage.defaultPageSize` | Default page size; must be included in `pageSizes`. | First configured page size (application default) |
 | `features.storage.maxRecentFiles` | Number of recently visited storage locations retained locally. | `15` (application default) |
@@ -133,6 +132,16 @@ All feature parameters are optional. Omit them to use the application defaults.
 | `features.storage.filePreviewRows` | Maximum rows in tabular file previews. | `250` (application default) |
 | `features.storage.filePreviewColumns` | Maximum columns in tabular file previews. | `50` (application default) |
 | `features.storage.transferConcurrency` | Objects copied at once within one copy, move or rename request. | `8` (application default) |
+| `features.storage.restoreTabs` | Restore open file browser tabs from the last session. | `false` (application default) |
+| `features.storage.infiniteScroll` | Load CSV and Parquet preview rows lazily while scrolling. | `true` (application default) |
+| `features.storage.cutCopy` | Show Cut/Copy and allow dragging items. Client-only: the server work happens on paste or move. | `false` (application default) |
+| `features.storage.paste` | Show Paste. The transfer API accepts copies only when this is enabled, and moves when this or `move` is enabled. | `false` (application default) |
+| `features.storage.rename` | Show Rename. The transfer API only accepts renames when this is enabled. | `false` (application default) |
+| `features.storage.move` | Allow drag-and-drop move. Dragging also needs `cutCopy`. The transfer API accepts moves when this or `paste` is enabled. | `false` (application default) |
+| `features.storage.maxEditableFileSize` | Maximum size in bytes of files that can be edited and saved in the text editor. `config.bodySizeLimit` must be at least this large. | `5242880` (application default) |
+| `features.storage.archivePreviewMaxMb` | Maximum size in MB of an archive opened for preview, checked against its compressed size, the total size of the listed entries and the size of an extracted entry. The archive cache is raised to at least twice this value, so keep `tmp.sizeLimit` above that. | `100` (application default) |
+| `features.storage.parquetPreviewDisallowedCompressionTypes` | Comma-separated Parquet compression codecs that are not previewed. A `-no_offset` suffix (e.g. `gzip-no_offset`) only blocks files without an offset index. | `gzip-no_offset` (application default) |
+| `features.storage.downloadHistoryRetentionDays` | Days a user's download history is kept. Integer from 1 to 3650. | `30` (application default) |
 
 ### Authentication Parameters
 

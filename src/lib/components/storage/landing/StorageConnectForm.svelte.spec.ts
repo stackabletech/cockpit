@@ -10,10 +10,7 @@ type ConnectionFormProp = ComponentProps<typeof StorageConnectForm>['connectionF
 // Note: $app/navigation is not mocked; invalidateAll is a no-op in test environments.
 
 // Mock feature flags to disable auto-connect
-vi.mock('$lib/client/feature-flags.js', () => ({
-  storageAutoConnectEnabled: false,
-  storageAutoConnectTimeoutMs: 15_000
-}));
+vi.mock('$lib/client/feature-flags.js', () => ({}));
 
 // Mock paraglide messages
 vi.mock('$lib/paraglide/messages.js', () => ({

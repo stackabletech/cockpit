@@ -111,8 +111,6 @@ terminationGracePeriodSeconds: 30
 #   storage:
 #     # Show the S3/HDFS file browser and enable routes under /storage. Default: false (application default).
 #     enabled: false
-#     # Reconnect to the most recently used storage connection on the storage page. Default: false (application default).
-#     autoConnect: false
 #     # Comma-separated page size options for paginated list views. Default: "25,50,100" (application default).
 #     pageSizes: "25,50,100"
 #     # Page size selected when no user preference is stored. Must be included in pageSizes. Default: first page size (application default).
@@ -133,6 +131,31 @@ terminationGracePeriodSeconds: 30
 #     filePreviewColumns: 50
 #     # Objects copied at once within one copy, move or rename request. Default: 8 (application default).
 #     transferConcurrency: 8
+#     # Restore open file browser tabs from the last session. Default: false (application default).
+#     restoreTabs: false
+#     # Load CSV and Parquet preview rows lazily while scrolling. Default: true (application default).
+#     infiniteScroll: true
+#     # Show Cut/Copy and allow dragging items. Client-only: the server work happens on paste or move. Default: false (application default).
+#     cutCopy: false
+#     # Show Paste; the transfer API accepts copies only with this, and moves with this or move. Default: false (application default).
+#     paste: false
+#     # Show Rename; the transfer API accepts renames. Default: false (application default).
+#     rename: false
+#     # Allow drag-and-drop move (dragging also needs cutCopy); the transfer API accepts moves with this or paste. Default: false (application default).
+#     move: false
+#     # Maximum size in bytes of files that can be edited and saved in the text editor.
+#     # config.bodySizeLimit must be at least this large. Default: 5242880 (application default).
+#     maxEditableFileSize: 5242880
+#     # Maximum size in MB of an archive opened for preview, checked against its compressed size,
+#     # the total size of the listed entries and the size of an extracted entry. The archive cache
+#     # (config.archiveCacheMaxMb) is raised to at least twice this value. Default: 100 (application default).
+#     archivePreviewMaxMb: 100
+#     # Comma-separated Parquet compression codecs that are not previewed. A "-no_offset" suffix
+#     # only blocks files without an offset index. Default: "gzip-no_offset" (application default).
+#     parquetPreviewDisallowedCompressionTypes: "gzip-no_offset"
+#     # Days a user's download history is kept. Integer from 1 to 3650.
+#     # Default: 30 (application default).
+#     downloadHistoryRetentionDays: 30
 
 logging:
   level: ""

@@ -2,7 +2,6 @@
 // from the live process env so consumers don't repeat the env-name + parsing.
 
 import { env } from '$env/dynamic/private';
-import { env as publicEnv } from '$env/dynamic/public';
 import { logger } from '$lib/server/logging';
 
 const log = logger.child({ module: 'feature-flags' });
@@ -18,16 +17,6 @@ export const completionEnabled = env.STACKABLE_COCKPIT_COMPLETION_ENABLED !== 'f
  *  active. Disabled by default — opt in explicitly to expose storage
  *  credentials and the file-browser UI. */
 export const storageBrowserEnabled = env.STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED === 'true';
-
-// ── Infinite scroll preview ───────────────────────────────────────────────────
-
-/** When `STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED=false`, the CSV and Parquet
- *  file previews load a fixed number of rows without virtual scrolling / infinite
- *  loading. Enabled by default — the previews fetch row chunks lazily as the
- *  user scrolls, reducing S3 costs and browser memory for large files.
- *  Controlled by `STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED`. Default: `true`. */
-export const infiniteScrollEnabled =
-  publicEnv.PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED !== 'false';
 
 // ── Storage preview limits ───────────────────────────────────────────────────
 
@@ -134,51 +123,28 @@ export const parquetDisallowedCompression = parseParquetDisallowed(
   env.STACKABLE_COCKPIT_PARQUET_PREVIEW_DISALLOWED_COMPRESSION_TYPES ?? 'gzip-no_offset'
 );
 
-// ── Storage browser: Text editor ─────────────────────────────────────────────
-
-/** Maximum file size (in bytes) that may be saved via the inline text editor.
- *  Text previews of files up to this size are fetched completely. Larger files
- *  are read-only and save requests (stored object or body) are rejected with
- *  HTTP 413. Mirrors the client-side flag
- *  `maxEditableFileSize` so that the restriction is enforced even if the client
- *  check is bypassed.
- *  Controlled by `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`. Default: 5242880 (5 MiB). */
-export const maxEditableFileSize: number = (() => {
-  const parsed = parseInt(publicEnv.PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE ?? '', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5 * 1024 * 1024;
-})();
-
-// ── Storage browser: Context actions (cut, copy, paste, rename, move) ──────
+// ── Flags shared with the client ─────────────────────────────────────────────
 //
-// Server-side enforcement (cost control, not authorisation) on
+// These are `PUBLIC_` settings that the server enforces too. They are defined
+// once in `$lib/client/feature-flags` so both sides parse them identically.
+//
+// `maxEditableFileSize`: save requests above it are rejected with HTTP 413.
+//
+// Context actions: server-side enforcement (cost control, not authorisation) on
 // `POST /api/storage/transfer` and its `/plan`, by the request's `op`:
 // - `copy` requires paste.
 // - `move` requires move or paste, because drag-and-drop and cut-and-paste
 //   both move.
 // - `rename` requires rename.
 // Cut/copy only fill the client clipboard and have no endpoint of their own.
-
-/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED=true`, the context
- *  menu shows Cut/Copy actions and items can be dragged. Client-only: it fills
- *  the clipboard and is not checked by any endpoint. Disabled by default. */
-export const storageCutCopyEnabled =
-  (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED ?? 'false') === 'true';
-
-/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED=true`, the context
- *  menu shows Paste and the transfer endpoint accepts copies and moves.
- *  Uses PUBLIC_ key. Disabled by default. */
-export const storagePasteEnabled =
-  (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED ?? 'false') === 'true';
-
-/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED=true`, the transfer
- *  endpoint accepts renames. Uses PUBLIC_ key. Disabled by default. */
-export const storageRenameEnabled =
-  (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED ?? 'false') === 'true';
-
-/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED=true`, the transfer
- *  endpoint accepts moves. Uses PUBLIC_ key. Disabled by default. */
-export const storageMoveEnabled =
-  (publicEnv.PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED ?? 'false') === 'true';
+export {
+  infiniteScrollEnabled,
+  maxEditableFileSize,
+  storageCutCopyEnabled,
+  storagePasteEnabled,
+  storageRenameEnabled,
+  storageMoveEnabled
+} from '$lib/client/feature-flags.js';
 
 /** Objects copied at once within one transfer request (copy, move, rename).
  *  Controlled by `STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY`. Default: 8;

@@ -1,7 +1,6 @@
 // The flags are read once per module in the browser project, so the disabled
 // move flag gets its own spec file.
 vi.mock('$lib/client/feature-flags.js', () => ({
-  storageAutoConnectEnabled: false,
   storageRestoreTabsEnabled: false,
   allowedPageSizes: [25, 50, 100],
   defaultPageSize: 25,

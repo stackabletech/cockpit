@@ -1,15 +1,10 @@
-// Client-accessible feature flags. These are embedded at build time via
-// SvelteKit's $env/static/public and are safe to expose to the browser.
-// All variables must be prefixed PUBLIC_.
+// Client-accessible feature flags. These are read at runtime via SvelteKit's
+// $env/dynamic/public and are safe to expose to the browser. All variables
+// must be prefixed PUBLIC_. The server re-exports the flags it enforces from
+// here (see `$lib/server/feature-flags`), so each is parsed in one place.
+// Keep this module free of browser-only code: it is also loaded on the server.
 
 import { env } from '$env/dynamic/public';
-
-/** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT=true`, the storage page
- *  automatically reconnects to the most recently used connection when the
- *  user navigates to `/storage`. Disabled by default — the user must choose
- *  a connection manually. */
-export const storageAutoConnectEnabled =
-  (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT ?? 'false') === 'true';
 
 /** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RESTORE_TABS=true`, the file browser
  *  saves open tabs (their name, order, and location) to localStorage and
@@ -20,19 +15,13 @@ export const storageRestoreTabsEnabled =
     env.PUBLIC_STACKABLE_UI_STORAGE_RESTORE_TABS ??
     'false') === 'true';
 
-/** Timeout in milliseconds for the storage auto-connect attempt. Default: 15 000 (15 s).
- *  Controlled by `PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT_TIMEOUT_MS`. */
-export const storageAutoConnectTimeoutMs: number = (() => {
-  const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT_TIMEOUT_MS ?? '', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 15_000;
-})();
-
 // ── Infinite scroll preview ───────────────────────────────────────────────────
 
 /** When `PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED=false`, the CSV and
  *  Parquet file previews load a fixed number of rows without virtual scrolling /
  *  infinite loading. Enabled by default — the previews fetch row chunks lazily
  *  as the user scrolls, reducing S3 costs and browser memory for large files.
+ *  Any value other than `true` disables it. Also read by the server.
  *  Controlled by `PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED`. Default: `true`. */
 export const infiniteScrollEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED ?? 'true') === 'true';
@@ -80,7 +69,8 @@ export const defaultPageSize: number = (() => {
  *  Controlled by `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`. Default: 5242880 (5 MiB).
  *  Files up to this size are previewed completely (not truncated to the text
  *  preview limit) so they can be edited. Raise to allow editing larger files;
- *  lower to reduce preview bandwidth and browser memory. */
+ *  lower to reduce preview bandwidth and browser memory. Also enforced by the
+ *  save endpoint, which rejects larger saves with HTTP 413. */
 export const maxEditableFileSize: number = (() => {
   const parsed = parseInt(env.PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE ?? '', 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 5 * 1024 * 1024;
@@ -122,13 +112,13 @@ export const storageCutCopyEnabled =
 /** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED=true`, the context
  *  menu shows "Paste" (when clipboard is non-empty) and Ctrl+V is active
  *  to paste cut/copied items into the current prefix. Also enforced by the
- *  copy and move endpoints. Disabled by default. */
+ *  transfer endpoint for copies and moves. Disabled by default. */
 export const storagePasteEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED ?? 'false') === 'true';
 
 /** When `PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED=true`, the context
  *  menu shows "Rename" and F2 is active to rename the selected item. Also
- *  enforced by the move endpoint. Disabled by default. */
+ *  enforced by the transfer endpoint. Disabled by default. */
 export const storageRenameEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED ?? 'false') === 'true';
 
@@ -136,7 +126,7 @@ export const storageRenameEnabled =
  *  move is active (folder-row, breadcrumb, sidebar, and tab drop targets).
  *  This is a separate flag from paste because move is a costly S3 operation
  *  (list + copy + delete per directory level) and may be undesirable in
- *  high-egress-cost environments. Also enforced by the move endpoint.
+ *  high-egress-cost environments. Also enforced by the transfer endpoint.
  *  Disabled by default. */
 export const storageMoveEnabled =
   (env.PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED ?? 'false') === 'true';

@@ -79,10 +79,6 @@ spec:
             - name: STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED
               value: {{ .enabled | quote }}
             {{- end }}
-            {{- if hasKey . "autoConnect" }}
-            - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT
-              value: {{ .autoConnect | quote }}
-            {{- end }}
             {{- with .pageSizes }}
             - name: PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES
               value: {{ . | quote }}
@@ -121,6 +117,46 @@ spec:
             {{- end }}
             {{- with .transferConcurrency }}
             - name: STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- if hasKey . "restoreTabs" }}
+            - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_RESTORE_TABS
+              value: {{ .restoreTabs | quote }}
+            {{- end }}
+            {{- if hasKey . "infiniteScroll" }}
+            - name: PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED
+              value: {{ .infiniteScroll | quote }}
+            {{- end }}
+            {{- if hasKey . "cutCopy" }}
+            - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED
+              value: {{ .cutCopy | quote }}
+            {{- end }}
+            {{- if hasKey . "paste" }}
+            - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED
+              value: {{ .paste | quote }}
+            {{- end }}
+            {{- if hasKey . "rename" }}
+            - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED
+              value: {{ .rename | quote }}
+            {{- end }}
+            {{- if hasKey . "move" }}
+            - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED
+              value: {{ .move | quote }}
+            {{- end }}
+            {{- with .maxEditableFileSize }}
+            - name: PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- with .archivePreviewMaxMb }}
+            - name: STACKABLE_COCKPIT_ARCHIVE_PREVIEW_MAX_MB
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- with .parquetPreviewDisallowedCompressionTypes }}
+            - name: STACKABLE_COCKPIT_PARQUET_PREVIEW_DISALLOWED_COMPRESSION_TYPES
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .downloadHistoryRetentionDays }}
+            - name: STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS
               value: {{ . | int64 | quote }}
             {{- end }}
             {{- end }}

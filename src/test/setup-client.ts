@@ -5,7 +5,6 @@ import { vi, beforeEach } from 'vitest';
 // browser environment. Values match the defaults used in production when no
 // env vars are set.
 vi.mock('$lib/client/feature-flags.js', () => ({
-  storageAutoConnectEnabled: false,
   storageRestoreTabsEnabled: false,
   infiniteScrollEnabled: true,
   allowedPageSizes: [25, 50, 100],
@@ -16,8 +15,7 @@ vi.mock('$lib/client/feature-flags.js', () => ({
   storageCutCopyEnabled: false,
   storagePasteEnabled: false,
   storageRenameEnabled: false,
-  storageMoveEnabled: false,
-  storageAutoConnectTimeoutMs: 15_000
+  storageMoveEnabled: false
 }));
 
 // Prevent components from auto-submitting forms in browser tests.
