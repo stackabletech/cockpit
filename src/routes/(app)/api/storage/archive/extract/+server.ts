@@ -1,5 +1,9 @@
 import { error } from '@sveltejs/kit';
-import { extractArchiveEntry, getArchiveFormat } from '$lib/server/storage/archive.js';
+import {
+  ArchiveCacheFullError,
+  extractArchiveEntry,
+  getArchiveFormat
+} from '$lib/server/storage/archive.js';
 import { getProvider } from '$lib/server/storage/utils.js';
 import { requireObjectKey } from '$lib/server/storage/request-context.js';
 import { withStorageHttpErrors } from '$lib/server/storage/wrap-provider.js';
@@ -55,16 +59,22 @@ export const GET: RequestHandler = async (event) => {
   const downloadFn = (k: string) => provider.getObject(k).then((d) => d.stream);
   const metadataFn = (k: string) => provider.getMetadata(k);
 
-  const data = await extractArchiveEntry(
-    bucket,
-    key,
-    internalPath,
-    downloadFn,
-    metadataFn,
-    nestedArchivePath,
-    archivePreviewMaxBytes,
-    connectionId
-  );
+  let data;
+  try {
+    data = await extractArchiveEntry(bucket, key, internalPath, downloadFn, metadataFn, {
+      nestedArchivePath,
+      maxBytes: archivePreviewMaxBytes,
+      connectionId,
+      signal: event.request.signal
+    });
+  } catch (err) {
+    if (err instanceof ArchiveCacheFullError) {
+      throw error(503, 'Archive preview is busy, please try again later');
+    }
+    // The client went away; there is nobody to answer.
+    if (event.request.signal.aborted) return new Response(null, { status: 499 });
+    throw err;
+  }
 
   if (!data) {
     throw error(404, `File "${internalPath}" not found in archive`);

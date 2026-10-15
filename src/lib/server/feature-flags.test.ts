@@ -1,5 +1,21 @@
-import { describe, it, expect } from 'vitest';
-import { parseParquetDisallowed } from './feature-flags.js';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
+
+import { parseParquetDisallowed, resolveArchiveCacheMaxBytes } from './feature-flags.js';
+
+const MB = 1024 * 1024;
+
+describe('resolveArchiveCacheMaxBytes', () => {
+  it('keeps a limit of at least twice the preview limit', () => {
+    expect(resolveArchiveCacheMaxBytes(512 * MB, 100 * MB)).toBe(512 * MB);
+    expect(resolveArchiveCacheMaxBytes(200 * MB, 100 * MB)).toBe(200 * MB);
+  });
+
+  it('raises a lower limit to twice the preview limit', () => {
+    expect(resolveArchiveCacheMaxBytes(150 * MB, 100 * MB)).toBe(200 * MB);
+  });
+});
 
 describe('parseParquetDisallowed', () => {
   it('defaults to GZIP with requireOffsetIndex when value is undefined', () => {

@@ -3,6 +3,9 @@
 
 import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
+import { logger } from '$lib/server/logging';
+
+const log = logger.child({ module: 'feature-flags' });
 
 /** When `STACKABLE_COCKPIT_COMPLETION_ENABLED=false`, the SQL editor's
  *  code-completion provider is not registered and the metadata endpoint
@@ -72,6 +75,28 @@ export const filePreviewColumns =
 export const archivePreviewMaxBytes =
   parseInt(env.STACKABLE_COCKPIT_ARCHIVE_PREVIEW_MAX_MB ?? '', 10) * 1024 * 1024 ||
   100 * 1024 * 1024;
+
+/** Maximum total size of the archive files cached on local disk (`/tmp`) for
+ *  archive previews, nested archives included. When the cache is full, the
+ *  least recently used idle archive is evicted; if every cached archive is in
+ *  use, the request is rejected. Never lower than twice `archivePreviewMaxBytes`:
+ *  a nested archive preview keeps the outer archive cached while the nested one
+ *  is written, so it needs room for both.
+ *  Controlled by `STACKABLE_COCKPIT_ARCHIVE_CACHE_MAX_MB`. Default: 512 MB. */
+export const archiveCacheMaxBytes = resolveArchiveCacheMaxBytes(
+  parseInt(env.STACKABLE_COCKPIT_ARCHIVE_CACHE_MAX_MB ?? '', 10) * 1024 * 1024 || 512 * 1024 * 1024,
+  archivePreviewMaxBytes
+);
+
+export function resolveArchiveCacheMaxBytes(configured: number, previewMaxBytes: number): number {
+  const minimum = 2 * previewMaxBytes;
+  if (configured >= minimum) return configured;
+  log.warn(
+    { configured_bytes: configured, minimum_bytes: minimum },
+    'archive cache limit is below twice the archive preview limit, raising it'
+  );
+  return minimum;
+}
 
 // ── Parquet preview restrictions ───────────────────────────────────────────
 

@@ -66,6 +66,10 @@ spec:
             - name: BODY_SIZE_LIMIT
               value: {{ . | quote }}
             {{- end }}
+            {{- with .Values.config.archiveCacheMaxMb }}
+            - name: STACKABLE_COCKPIT_ARCHIVE_CACHE_MAX_MB
+              value: {{ . | quote }}
+            {{- end }}
             {{- if hasKey $completion "enabled" }}
             - name: STACKABLE_COCKPIT_COMPLETION_ENABLED
               value: {{ index $completion "enabled" | quote }}
@@ -280,7 +284,12 @@ spec:
             {{- end }}
       volumes:
         - name: tmp
-          emptyDir: {}
+          emptyDir:
+            {{- with .Values.tmp.sizeLimit }}
+            {{- /* A plain number arrives as float64 and would render as 1e+09. */}}
+            sizeLimit: {{ if kindIs "float64" . }}{{ int64 . }}{{ else }}{{ . | quote }}{{ end }}
+            {{- else }} {}
+            {{- end }}
         {{- if .Values.trino.tls.secretClass }}
         - name: trino-tls
           ephemeral:

@@ -53,3 +53,16 @@ export const storageTransferDuration = new Histogram({
   buckets: [1, 10, 60, 300, 1800],
   registers: [register]
 });
+
+export const storageArchiveCacheBytes = new Gauge({
+  name: 'storage_archive_cache_bytes',
+  help: 'Bytes of archive files cached on local disk for archive previews',
+  registers: [register]
+});
+
+export const storageArchiveCacheEvictionsTotal = new Counter({
+  name: 'storage_archive_cache_evictions_total',
+  help: 'Archive files removed from the local archive preview cache, by reason',
+  labelNames: ['reason'],
+  registers: [register]
+});

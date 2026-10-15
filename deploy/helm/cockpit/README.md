@@ -95,6 +95,8 @@ The following table lists the configurable parameters of the Cockpit chart and t
 | --- | --- | --- |
 | `config.nodeEnv` | Node.js environment | `production` |
 | `config.bodySizeLimit` | Sets `BODY_SIZE_LIMIT`, the maximum request body size (e.g. `12M`). Must be at least the editable file size limit (`PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`, 5 MiB by default), otherwise saving larger files in the text editor fails. | `""` (image default `6M`) |
+| `config.archiveCacheMaxMb` | Sets `STACKABLE_COCKPIT_ARCHIVE_CACHE_MAX_MB`, the maximum total size in MB of the archive preview cache in `/tmp`. Keep it below `tmp.sizeLimit`. | `""` (app default `512`) |
+| `tmp.sizeLimit` | Size limit of the `/tmp` emptyDir. The kubelet evicts the pod when it is exceeded. Keep it above `config.archiveCacheMaxMb`. Empty means no limit. | `1Gi` |
 
 ### Database Parameters
 

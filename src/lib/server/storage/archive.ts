@@ -2,17 +2,27 @@ import {
   createReadStream,
   createWriteStream,
   existsSync,
+  mkdirSync,
   mkdtempSync,
-  writeFileSync,
-  rmSync
+  readdirSync,
+  rmSync,
+  statSync
 } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, extname } from 'node:path';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { threadId } from 'node:worker_threads';
 import { createGunzip } from 'node:zlib';
 import AdmZip from 'adm-zip';
 import * as tar from 'tar-stream';
-import { Readable } from 'node:stream';
 import { logger } from '$lib/server/logging';
+import { archiveCacheMaxBytes } from '$lib/server/feature-flags.js';
+import {
+  storageArchiveCacheBytes,
+  storageArchiveCacheEvictionsTotal
+} from '$lib/server/metrics.js';
 
 const log = logger.child({ module: 'archive-service' });
 
@@ -30,31 +40,69 @@ export interface ArchiveListing {
   tooLarge?: boolean;
 }
 
+/** Thrown when an archive does not fit into the cache because every cached
+ *  archive is in use. Callers should answer with 503. */
+export class ArchiveCacheFullError extends Error {
+  constructor() {
+    super('Archive preview cache is full');
+    this.name = 'ArchiveCacheFullError';
+  }
+}
+
+/** Thrown when an archive exceeds the preview size limit while downloading. */
+class ArchiveTooLargeError extends Error {
+  constructor(limit: number) {
+    super(`Archive exceeds the preview size limit of ${limit} bytes`);
+    this.name = 'ArchiveTooLargeError';
+  }
+}
+
+// ── Disk cache ───────────────────────────────────────────────────────────────
+//
+// Archives are downloaded to `<tmpdir>/cockpit-archive-cache/<pid>.<thread>-*/`
+// and kept for CACHE_TTL. The total size is capped at `archiveCacheMaxBytes`:
+// space is reserved before a download starts, and the least recently used idle
+// archive is evicted to make room. Readers hold a lease on an entry, and leased
+// entries are never deleted. Concurrent requests for the same archive share one
+// download, which is aborted once every waiting request has gone away.
+
 const CACHE_TTL = 30 * 60 * 1000;
 const CLEANUP_INTERVAL = 60_000;
+const CACHE_ROOT = join(tmpdir(), 'cockpit-archive-cache');
 
 interface CacheEntry {
+  dir: string;
   path: string;
+  size: number;
   expiresAt: number;
-  bucket: string;
-  key: string;
+  lastUsed: number;
+  leases: number;
+  /** Replaced by a newer entry for the same key; removed once no longer leased. */
+  superseded: boolean;
+  removed: boolean;
+}
+
+interface ArchiveLease {
+  path: string;
+  release(): void;
+}
+
+interface InflightJob {
+  promise: Promise<void>;
+  waiters: number;
+  controller: AbortController;
 }
 
 const archiveCache = new Map<string, CacheEntry>();
+const inflight = new Map<string, InflightJob>();
+let cachedBytes = 0;
+let reservedBytes = 0;
+let processCacheDir: string | null = null;
 
 const cleanupTimer = setInterval(() => {
   const now = Date.now();
-  for (const [cacheKey, entry] of archiveCache) {
-    if (now > entry.expiresAt) {
-      try {
-        const dir = join(entry.path, '..');
-        // eslint-disable-next-line security/detect-non-literal-fs-filename
-        if (existsSync(dir)) rmRecursive(dir);
-      } catch (err) {
-        log.warn({ err, cache_key: cacheKey }, 'failed to clean up archive temp file');
-      }
-      archiveCache.delete(cacheKey);
-    }
+  for (const [key, entry] of archiveCache) {
+    if (now > entry.expiresAt && entry.leases === 0) removeEntry(key, entry, 'expired');
   }
 }, CLEANUP_INTERVAL);
 
@@ -64,53 +112,266 @@ function cacheKey(connectionId: string, bucket: string, key: string): string {
   return `${connectionId}:${bucket}:${key}`;
 }
 
-function getCachedPath(connectionId: string, bucket: string, key: string): string | null {
-  const entry = archiveCache.get(cacheKey(connectionId, bucket, key));
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  if (entry && Date.now() < entry.expiresAt && existsSync(entry.path)) {
-    return entry.path;
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === 'EPERM';
   }
-  if (entry) archiveCache.delete(cacheKey(connectionId, bucket, key));
-  return null;
 }
 
-function cacheArchive(connectionId: string, bucket: string, key: string, path: string): void {
-  archiveCache.set(cacheKey(connectionId, bucket, key), {
-    path,
-    expiresAt: Date.now() + CACHE_TTL,
-    bucket,
-    key
-  });
+/**
+ * Remove cache directories left behind by earlier processes. `/tmp` is an
+ * emptyDir that survives container restarts, and the restarted process often
+ * gets the same PID, so directories of this PID and thread are stale as well.
+ */
+function removeStaleCacheDirs(): void {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  for (const name of readdirSync(CACHE_ROOT)) {
+    const match = /^(\d+)\.(\d+)-/.exec(name);
+    if (match) {
+      const pid = Number(match[1]);
+      const ownProcess = pid === process.pid;
+      if (ownProcess && Number(match[2]) !== threadId) continue;
+      if (!ownProcess && isProcessAlive(pid)) continue;
+    }
+    try {
+      rmRecursive(join(CACHE_ROOT, name));
+      log.info({ dir: name }, 'removed stale archive cache directory');
+    } catch (err) {
+      log.warn({ err, dir: name }, 'failed to remove stale archive cache directory');
+    }
+  }
 }
 
-function streamToTempFile(stream: ReadableStream, ext: string): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'archive-'));
-    const tmpPath = join(tmpDir, `archive${ext}`);
+function cacheDir(): string {
+  if (!processCacheDir) {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
-    const writable = createWriteStream(tmpPath);
-    const nodeStream = Readable.fromWeb(stream as import('stream/web').ReadableStream);
+    mkdirSync(CACHE_ROOT, { recursive: true });
+    removeStaleCacheDirs();
+    processCacheDir = mkdtempSync(join(CACHE_ROOT, `${process.pid}.${threadId}-`));
+  }
+  return processCacheDir;
+}
 
-    function cleanup() {
-      try {
-        rmRecursive(tmpDir);
-      } catch {
-        /* noop */
+function updateCacheGauge(): void {
+  storageArchiveCacheBytes.set(cachedBytes);
+}
+
+function removeEntry(key: string, entry: CacheEntry, reason: 'expired' | 'evicted' | 'missing') {
+  if (entry.removed) return;
+  entry.removed = true;
+  if (archiveCache.get(key) === entry) archiveCache.delete(key);
+  cachedBytes -= entry.size;
+  updateCacheGauge();
+  storageArchiveCacheEvictionsTotal.inc({ reason });
+  log.debug({ cache_key: key, size: entry.size, reason }, 'removing cached archive');
+  try {
+    rmRecursive(entry.dir);
+  } catch (err) {
+    log.warn({ err, cache_key: key }, 'failed to clean up archive temp file');
+  }
+}
+
+/** Lease a cached archive so it is not deleted while it is being read. */
+function acquire(key: string): ArchiveLease | null {
+  const entry = archiveCache.get(key);
+  if (!entry) return null;
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  if (Date.now() > entry.expiresAt || !existsSync(entry.path)) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    if (entry.leases === 0) removeEntry(key, entry, existsSync(entry.path) ? 'expired' : 'missing');
+    return null;
+  }
+  entry.leases++;
+  entry.lastUsed = Date.now();
+  let released = false;
+  return {
+    path: entry.path,
+    release() {
+      if (released) return;
+      released = true;
+      entry.leases--;
+      entry.lastUsed = Date.now();
+      if (entry.leases === 0 && (entry.superseded || Date.now() > entry.expiresAt)) {
+        removeEntry(key, entry, 'expired');
       }
     }
+  };
+}
 
-    nodeStream.pipe(writable);
-    nodeStream.on('error', (err) => {
-      writable.destroy();
-      cleanup();
-      reject(err);
-    });
-    writable.on('finish', () => resolve(tmpPath));
-    writable.on('error', (err) => {
-      cleanup();
-      reject(err);
-    });
+/**
+ * Reserve `bytes` of cache space, evicting idle archives (least recently used
+ * first) as needed. Returns a function that gives the reservation back.
+ */
+function reserve(bytes: number): () => void {
+  while (cachedBytes + reservedBytes + bytes > archiveCacheMaxBytes) {
+    let victim: [string, CacheEntry] | null = null;
+    for (const item of archiveCache) {
+      if (item[1].leases === 0 && (!victim || item[1].lastUsed < victim[1].lastUsed)) {
+        victim = item;
+      }
+    }
+    if (!victim) {
+      log.info(
+        {
+          requested_bytes: bytes,
+          cached_bytes: cachedBytes,
+          reserved_bytes: reservedBytes,
+          max_bytes: archiveCacheMaxBytes
+        },
+        'archive cache full, all cached archives in use'
+      );
+      throw new ArchiveCacheFullError();
+    }
+    removeEntry(victim[0], victim[1], 'evicted');
+  }
+  reservedBytes += bytes;
+  let returned = false;
+  return () => {
+    if (returned) return;
+    returned = true;
+    reservedBytes -= bytes;
+  };
+}
+
+/**
+ * Add a freshly written file to the cache. Two fills for the same key can
+ * overlap (e.g. an aborted job that still finished while a new one started):
+ * a valid existing entry wins, and an outdated one is removed, or marked so
+ * that its last reader removes it.
+ */
+function addEntry(key: string, dir: string, path: string): void {
+  const existing = archiveCache.get(key);
+  if (existing) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    if (Date.now() <= existing.expiresAt && existsSync(existing.path)) {
+      log.debug({ cache_key: key }, 'archive already cached, discarding duplicate download');
+      rmRecursive(dir);
+      return;
+    }
+    archiveCache.delete(key);
+    if (existing.leases === 0) removeEntry(key, existing, 'expired');
+    else existing.superseded = true;
+  }
+
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  const size = statSync(path).size;
+  const now = Date.now();
+  archiveCache.set(key, {
+    dir,
+    path,
+    size,
+    expiresAt: now + CACHE_TTL,
+    lastUsed: now,
+    leases: 0,
+    superseded: false,
+    removed: false
   });
+  cachedBytes += size;
+  updateCacheGauge();
+}
+
+/** Resolve with `promise`, or reject as soon as `signal` aborts. */
+function waitFor<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  signal.throwIfAborted();
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));
+  });
+}
+
+/**
+ * Return a lease on the cached file for `key`, running `fill` to create it on a
+ * cache miss. Concurrent callers share one `fill`. The signal passed to `fill`
+ * aborts once every caller waiting for it has aborted.
+ */
+async function ensureCached(
+  key: string,
+  fill: (signal: AbortSignal) => Promise<void>,
+  signal?: AbortSignal
+): Promise<ArchiveLease> {
+  const cached = acquire(key);
+  if (cached) {
+    log.debug({ cache_key: key }, 'archive cache hit');
+    return cached;
+  }
+
+  let job = inflight.get(key);
+  if (job) {
+    log.debug({ cache_key: key }, 'joining in-flight archive download');
+  } else {
+    const controller = new AbortController();
+    const promise = fill(controller.signal).finally(() => {
+      if (inflight.get(key) === newJob) inflight.delete(key);
+    });
+    promise.catch(() => {});
+    const newJob: InflightJob = { promise, waiters: 0, controller };
+    inflight.set(key, newJob);
+    job = newJob;
+  }
+
+  job.waiters++;
+  try {
+    await waitFor(job.promise, signal);
+  } finally {
+    job.waiters--;
+    if (job.waiters === 0) {
+      // Nobody waits any more: stop the download (a no-op if it has finished)
+      // and make sure later requests do not join the aborted job.
+      if (inflight.get(key) === job) inflight.delete(key);
+      job.controller.abort();
+    }
+  }
+
+  const lease = acquire(key);
+  // Only possible if the archive was evicted right after it was cached.
+  if (!lease) throw new ArchiveCacheFullError();
+  return lease;
+}
+
+/** A pass-through stream that fails once more than `limit` bytes went through. */
+function byteLimit(limit: number): Transform {
+  let total = 0;
+  return new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      total += chunk.length;
+      if (total > limit) callback(new ArchiveTooLargeError(limit));
+      else callback(null, chunk);
+    }
+  });
+}
+
+/**
+ * Write the result of `write` to a new cache entry, reserving `reserveBytes`
+ * up front. On failure the partial file is removed.
+ */
+async function fillEntry(
+  key: string,
+  ext: string,
+  reserveBytes: number,
+  write: (path: string) => Promise<void>
+): Promise<void> {
+  const unreserve = reserve(reserveBytes);
+  let dir: string | undefined;
+  try {
+    dir = mkdtempSync(join(cacheDir(), 'archive-'));
+    const path = join(dir, `archive${ext}`);
+    await write(path);
+    addEntry(key, dir, path);
+  } catch (err) {
+    try {
+      if (dir) rmRecursive(dir);
+    } catch (rmErr) {
+      log.warn({ err: rmErr, cache_key: key }, 'failed to clean up partial archive temp file');
+    }
+    throw err;
+  } finally {
+    unreserve();
+  }
 }
 
 const ARCHIVE_EXT_PATTERNS = [
@@ -490,84 +751,159 @@ function rmRecursive(dir: string): void {
 export type ArchiveDownloadFn = (key: string) => Promise<ReadableStream>;
 export type ArchiveMetadataFn = (key: string) => Promise<{ size: number; contentType?: string }>;
 
-/**
- * Resolve the archive file to a local temp path.
- * For nested archives, first download the outer archive, then extract the nested one.
- */
-async function resolveArchivePath(
-  connectionId: string,
-  bucket: string,
-  key: string,
-  nestedArchivePath: string | undefined,
-  downloadFn: ArchiveDownloadFn,
+export interface ArchiveOptions {
+  /** Path of an archive inside the outer archive to operate on instead. */
+  nestedArchivePath?: string;
+  /** Preview size limit for the downloaded archive, the total decompressed
+   *  listing size and a single extracted entry. */
+  maxBytes?: number;
+  /** Storage connection the archive belongs to. Part of the cache key. */
+  connectionId?: string;
+  /** Stops waiting for the archive, and stops its download once no other
+   *  request waits for it either. */
+  signal?: AbortSignal;
+}
+
+async function extractEntry(
+  format: string,
+  tempPath: string,
+  internalPath: string,
   maxBytes?: number
-): Promise<string> {
-  let tempPath = getCachedPath(connectionId, bucket, key);
-  if (!tempPath) {
-    log.info({ bucket, key }, 'downloading archive');
-    const ext = extname(key) || '.bin';
-    const stream = await downloadFn(key);
-    tempPath = await streamToTempFile(stream, ext);
-    cacheArchive(connectionId, bucket, key, tempPath);
-  }
-
-  if (!nestedArchivePath) return tempPath;
-
-  // Resolve nested archive — cache it under a composite key
-  const nestedCacheKey = cacheKey(connectionId, bucket, `${key}!/${nestedArchivePath}`);
-  const cachedEntry = archiveCache.get(nestedCacheKey);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  if (cachedEntry && Date.now() < cachedEntry.expiresAt && existsSync(cachedEntry.path)) {
-    return cachedEntry.path;
-  }
-  if (cachedEntry) archiveCache.delete(nestedCacheKey);
-
-  log.info({ bucket, key, nested_archive_path: nestedArchivePath }, 'extracting nested archive');
-
-  // Extract nested archive from outer archive
-  const format = getArchiveFormat(key);
-  if (!format) throw new Error(`Unsupported archive format: ${key}`);
-
-  let nestedData: Buffer | null = null;
-  const normNestedPath = normalizePath(nestedArchivePath);
-
+): Promise<Buffer | null> {
   switch (format) {
     case 'zip':
-      nestedData = extractZipEntry(tempPath, normNestedPath, maxBytes) ?? null;
-      break;
+      return extractZipEntry(tempPath, internalPath, maxBytes);
     case 'tar':
-      nestedData = await extractTarEntry(tempPath, normNestedPath, maxBytes);
-      break;
+      return extractTarEntry(tempPath, internalPath, maxBytes);
     case 'tar.gz':
     case 'tgz':
-      nestedData = await extractTarGzEntry(tempPath, normNestedPath, maxBytes);
-      break;
+      return extractTarGzEntry(tempPath, internalPath, maxBytes);
+    default:
+      return null;
   }
+}
 
-  if (!nestedData) throw new Error(`Nested archive "${nestedArchivePath}" not found in ${key}`);
+/**
+ * Lease the outer archive from the cache, downloading it on a cache miss.
+ * The download is refused when the object is larger than the limit, checked
+ * via HEAD first and enforced while streaming in any case.
+ */
+function leaseOuterArchive(
+  bucket: string,
+  key: string,
+  downloadFn: ArchiveDownloadFn,
+  metadataFn: ArchiveMetadataFn,
+  options: ArchiveOptions
+): Promise<ArchiveLease> {
+  const { maxBytes, connectionId = '', signal } = options;
+  const limit = maxBytes ?? archiveCacheMaxBytes;
+  const outerCacheKey = cacheKey(connectionId, bucket, key);
 
-  // Save nested archive to temp file and cache it
-  const nestedExt = extname(nestedArchivePath) || '.bin';
-  const nestedDir = mkdtempSync(join(tmpdir(), 'archive-nested-'));
-  const nestedPath = join(nestedDir, `archive${nestedExt}`);
+  return ensureCached(
+    outerCacheKey,
+    async (jobSignal) => {
+      let size: number | undefined;
+      try {
+        size = (await metadataFn(key)).size;
+      } catch (err) {
+        log.debug(
+          { err, bucket, key },
+          'archive metadata unavailable, checking size while downloading'
+        );
+      }
+      // HEAD cannot be aborted; do not reserve space or start a GET for nobody.
+      jobSignal.throwIfAborted();
+      if (size !== undefined && size > limit) {
+        log.info(
+          { bucket, key, compressed_size: size, max_bytes: limit },
+          'archive compressed size exceeds limit'
+        );
+        throw new ArchiveTooLargeError(limit);
+      }
 
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  writeFileSync(nestedPath, nestedData);
+      log.info({ bucket, key }, 'downloading archive');
+      await fillEntry(
+        outerCacheKey,
+        extname(key) || '.bin',
+        Math.min(size ?? limit, limit),
+        async (path) => {
+          const stream = await downloadFn(key);
+          await pipeline(
+            Readable.fromWeb(stream as import('stream/web').ReadableStream),
+            byteLimit(limit),
+            // eslint-disable-next-line security/detect-non-literal-fs-filename
+            createWriteStream(path),
+            { signal: jobSignal }
+          );
+        }
+      );
+    },
+    signal
+  );
+}
 
-  archiveCache.set(nestedCacheKey, {
-    path: nestedPath,
-    expiresAt: Date.now() + CACHE_TTL,
-    bucket,
-    key: `${key}!/${nestedArchivePath}`
-  });
+/**
+ * Lease the archive to operate on. For nested archives, the outer archive is
+ * leased first and the nested one is extracted from it into its own cache entry.
+ */
+function leaseArchive(
+  bucket: string,
+  key: string,
+  downloadFn: ArchiveDownloadFn,
+  metadataFn: ArchiveMetadataFn,
+  options: ArchiveOptions
+): Promise<ArchiveLease> {
+  const { nestedArchivePath, maxBytes, connectionId = '', signal } = options;
+  if (!nestedArchivePath) return leaseOuterArchive(bucket, key, downloadFn, metadataFn, options);
 
-  return nestedPath;
+  const nestedCacheKey = cacheKey(connectionId, bucket, `${key}!/${nestedArchivePath}`);
+  return ensureCached(
+    nestedCacheKey,
+    async (jobSignal) => {
+      const outer = await leaseOuterArchive(bucket, key, downloadFn, metadataFn, {
+        maxBytes,
+        connectionId,
+        signal: jobSignal
+      });
+      try {
+        log.info(
+          { bucket, key, nested_archive_path: nestedArchivePath },
+          'extracting nested archive'
+        );
+        const format = getArchiveFormat(key);
+        if (!format) throw new Error(`Unsupported archive format: ${key}`);
+
+        const nestedData = await extractEntry(
+          format,
+          outer.path,
+          normalizePath(nestedArchivePath),
+          maxBytes
+        );
+        if (!nestedData) {
+          throw new Error(`Nested archive "${nestedArchivePath}" not found in ${key}`);
+        }
+        jobSignal.throwIfAborted();
+
+        await fillEntry(
+          nestedCacheKey,
+          extname(nestedArchivePath) || '.bin',
+          nestedData.length,
+          (path) =>
+            // eslint-disable-next-line security/detect-non-literal-fs-filename
+            writeFile(path, nestedData, { signal: jobSignal })
+        );
+      } finally {
+        outer.release();
+      }
+    },
+    signal
+  );
 }
 
 /**
  * List the contents of an archive at a given internal prefix.
- * Downloads the archive from S3 once and caches it server-side for 30 minutes.
- * Supports nested archives via the optional `nestedArchivePath` parameter.
+ * Downloads the archive once and caches it on local disk for 30 minutes.
+ * Supports nested archives via `options.nestedArchivePath`.
  */
 export async function listArchiveContents(
   bucket: string,
@@ -575,66 +911,53 @@ export async function listArchiveContents(
   internalPrefix: string,
   downloadFn: ArchiveDownloadFn,
   metadataFn: ArchiveMetadataFn,
-  nestedArchivePath?: string,
-  maxBytes?: number,
-  connectionId = ''
+  options: ArchiveOptions = {}
 ): Promise<ArchiveListing> {
+  const { nestedArchivePath, maxBytes } = options;
   const effectiveKey = nestedArchivePath ? `${key}!/${nestedArchivePath}` : key;
   const format = getArchiveFormat(effectiveKey);
   if (!format) throw new Error(`Unsupported archive format: ${key}`);
 
-  // Pre-check: if compressed size exceeds the limit, bail out before downloading
-  if (maxBytes !== undefined && !nestedArchivePath) {
-    try {
-      const meta = await metadataFn(key);
-      if (meta.size > maxBytes) {
-        log.info(
-          { bucket, key, compressed_size: meta.size, max_bytes: maxBytes },
-          'archive compressed size exceeds limit'
-        );
-        return { entries: [], hasMore: false, tooLarge: true };
-      }
-    } catch {
-      // metadataFn failure is non-fatal — proceed with download
-    }
+  let lease: ArchiveLease;
+  try {
+    lease = await leaseArchive(bucket, key, downloadFn, metadataFn, options);
+  } catch (err) {
+    if (err instanceof ArchiveTooLargeError) return { entries: [], hasMore: false, tooLarge: true };
+    throw err;
   }
 
-  const tempPath = await resolveArchivePath(
-    connectionId,
-    bucket,
-    key,
-    nestedArchivePath,
-    downloadFn,
-    maxBytes
-  );
+  try {
+    log.debug(
+      {
+        bucket,
+        key,
+        internal_prefix: internalPrefix,
+        nested_archive_path: nestedArchivePath,
+        format
+      },
+      'listing archive contents'
+    );
 
-  log.debug(
-    {
-      bucket,
-      key,
-      internal_prefix: internalPrefix,
-      nested_archive_path: nestedArchivePath,
-      format
-    },
-    'listing archive contents'
-  );
-
-  switch (format) {
-    case 'zip':
-      return listZip(tempPath, internalPrefix, maxBytes);
-    case 'tar':
-      return listTar(tempPath, internalPrefix, maxBytes);
-    case 'tar.gz':
-    case 'tgz':
-      return listTarGz(tempPath, internalPrefix, maxBytes);
-    default:
-      throw new Error(`Unsupported archive format: ${format}`);
+    switch (format) {
+      case 'zip':
+        return listZip(lease.path, internalPrefix, maxBytes);
+      case 'tar':
+        return await listTar(lease.path, internalPrefix, maxBytes);
+      case 'tar.gz':
+      case 'tgz':
+        return await listTarGz(lease.path, internalPrefix, maxBytes);
+      default:
+        throw new Error(`Unsupported archive format: ${format}`);
+    }
+  } finally {
+    lease.release();
   }
 }
 
 /**
  * Extract a single file from an archive and return its content as a Buffer.
- * Supports nested archives via the optional `nestedArchivePath` parameter.
+ * Returns null if the file does not exist or exceeds the size limit.
+ * Supports nested archives via `options.nestedArchivePath`.
  */
 export async function extractArchiveEntry(
   bucket: string,
@@ -642,60 +965,33 @@ export async function extractArchiveEntry(
   internalPath: string,
   downloadFn: ArchiveDownloadFn,
   metadataFn: ArchiveMetadataFn,
-  nestedArchivePath?: string,
-  maxBytes?: number,
-  connectionId = ''
+  options: ArchiveOptions = {}
 ): Promise<Buffer | null> {
+  const { nestedArchivePath, maxBytes } = options;
   const effectiveKey = nestedArchivePath ? `${key}!/${nestedArchivePath}` : key;
   const format = getArchiveFormat(effectiveKey);
   if (!format) throw new Error(`Unsupported archive format: ${key}`);
 
-  // Pre-check: if compressed size exceeds the limit, bail out before downloading
-  if (maxBytes !== undefined && !nestedArchivePath) {
-    try {
-      const meta = await metadataFn(key);
-      if (meta.size > maxBytes) {
-        log.info(
-          { bucket, key, compressed_size: meta.size, max_bytes: maxBytes },
-          'archive compressed size exceeds limit, extraction aborted'
-        );
-        return null;
-      }
-    } catch {
-      // metadataFn failure is non-fatal
+  let lease: ArchiveLease;
+  try {
+    lease = await leaseArchive(bucket, key, downloadFn, metadataFn, options);
+  } catch (err) {
+    if (err instanceof ArchiveTooLargeError) {
+      log.info({ bucket, key }, 'archive exceeds size limit, extraction aborted');
+      return null;
     }
+    throw err;
   }
 
-  const tempPath = await resolveArchivePath(
-    connectionId,
-    bucket,
-    key,
-    nestedArchivePath,
-    downloadFn,
-    maxBytes
-  );
-
-  log.debug(
-    { bucket, key, internal_path: internalPath, nested_archive_path: nestedArchivePath, format },
-    'extracting archive entry'
-  );
-
-  const normalizedPath = normalizePath(internalPath);
-
-  let data: Buffer | null = null;
-  switch (format) {
-    case 'zip':
-      data = extractZipEntry(tempPath, normalizedPath, maxBytes) ?? null;
-      break;
-    case 'tar':
-      data = await extractTarEntry(tempPath, normalizedPath, maxBytes);
-      break;
-    case 'tar.gz':
-    case 'tgz':
-      data = await extractTarGzEntry(tempPath, normalizedPath, maxBytes);
-      break;
-    default:
-      return null;
+  let data: Buffer | null;
+  try {
+    log.debug(
+      { bucket, key, internal_path: internalPath, nested_archive_path: nestedArchivePath, format },
+      'extracting archive entry'
+    );
+    data = await extractEntry(format, lease.path, normalizePath(internalPath), maxBytes);
+  } finally {
+    lease.release();
   }
 
   // Post-extraction size check
@@ -717,17 +1013,16 @@ export async function extractArchiveEntry(
 }
 
 /**
- * Clean up all cached archive temp files. Useful for testing.
+ * Abort in-flight downloads and remove all cached archive temp files.
+ * Useful for testing.
  */
 export function clearArchiveCache(): void {
-  for (const [cacheKey, entry] of archiveCache) {
-    try {
-      const dir = join(entry.path, '..');
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
-      if (existsSync(dir)) rmRecursive(dir);
-    } catch {
-      /* noop */
-    }
-    archiveCache.delete(cacheKey);
-  }
+  for (const job of inflight.values()) job.controller.abort();
+  inflight.clear();
+  for (const [key, entry] of archiveCache) removeEntry(key, entry, 'evicted');
+}
+
+/** Bytes currently held by the archive cache. Useful for testing. */
+export function archiveCacheBytes(): number {
+  return cachedBytes;
 }

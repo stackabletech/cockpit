@@ -161,6 +161,16 @@ config:
   # Maximum request body size (BODY_SIZE_LIMIT), e.g. "12M". Empty uses the image default (6M).
   # Must be at least the editable file size limit of the storage text editor (5 MiB by default).
   bodySizeLimit: ""
+  # Maximum total size in MB of the archive preview cache in /tmp
+  # (STACKABLE_COCKPIT_ARCHIVE_CACHE_MAX_MB). Empty uses the application default (512).
+  # Keep it below tmp.sizeLimit.
+  archiveCacheMaxMb: ""
+
+# Scratch volume mounted at /tmp, used for the archive preview cache.
+tmp:
+  # Size limit of the emptyDir. The kubelet evicts the pod when it is exceeded,
+  # so keep it above config.archiveCacheMaxMb (512 MB by default). Empty means no limit.
+  sizeLimit: 1Gi
 
 # Session secret for signing cookies. Chart auto-generates one if secretKeyRef.name is empty.
 sessionSecret:
