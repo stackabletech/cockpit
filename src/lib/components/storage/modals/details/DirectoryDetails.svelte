@@ -8,8 +8,7 @@
   import type {
     DirectorySizeEvent,
     DirectoryMetadata,
-    DirectoryChildItem,
-    TreemapNode
+    DirectorySizeResult
   } from '$lib/storage/details-types.js';
   import Treemap from './Treemap.svelte';
   import DirectorySizeList from './DirectorySizeList.svelte';
@@ -33,16 +32,11 @@
   let calculating = $state(false);
   let error = $state<string | null>(null);
   let progress = $state<{ keysFound: number; totalSize: number } | null>(null);
-  let result = $state<{
-    totalSize: number;
-    totalKeys: number;
-    totalFiles: number;
-    totalDirectories: number;
-    tree: TreemapNode;
-    childrenByDepth: Record<number, DirectoryChildItem[]>;
-    maxDepth: number;
-    durationMs: number;
-  } | null>(null);
+  let result = $state.raw<DirectorySizeResult | null>(null);
+  // Cancels the listing on the server when the modal closes mid-calculation.
+  let sizeRequest: AbortController | null = null;
+
+  $effect(() => () => sizeRequest?.abort());
 
   let meta = $state<DirectoryMetadata | null>(null);
   let metaError = $state<string | null>(null);
@@ -77,9 +71,12 @@
     error = null;
     progress = null;
     result = null;
+    sizeRequest?.abort();
+    const request = new AbortController();
+    sizeRequest = request;
 
     try {
-      const res = await storage.api.directorySize({ bucket, prefix });
+      const res = await storage.api.directorySize({ bucket, prefix, signal: request.signal });
 
       if (!res.ok) {
         error = m.storage_details_error_calc_size({ status: res.status });
@@ -112,16 +109,7 @@
             if (event.type === 'progress') {
               progress = { keysFound: event.keysFound, totalSize: event.totalSize };
             } else if (event.type === 'complete') {
-              result = {
-                totalSize: event.totalSize,
-                totalKeys: event.totalKeys,
-                totalFiles: event.totalFiles,
-                totalDirectories: event.totalDirectories,
-                tree: event.tree,
-                childrenByDepth: event.childrenByDepth,
-                maxDepth: event.maxDepth,
-                durationMs: event.durationMs
-              };
+              result = event;
             } else if (event.type === 'error') {
               error = event.message;
             }
@@ -131,13 +119,17 @@
         }
       }
     } catch (err) {
+      if (request.signal.aborted) return;
       if (err instanceof StorageError) {
         error = err.message;
       } else {
         error = err instanceof Error ? err.message : m.storage_details_error_unknown();
       }
     } finally {
-      calculating = false;
+      if (sizeRequest === request) {
+        sizeRequest = null;
+        calculating = false;
+      }
     }
   }
 </script>
@@ -288,6 +280,18 @@
     </div>
   {/if}
 
+  <!-- Always rendered, so screen readers announce the warning when it appears. -->
+  <div role="status">
+    {#if result?.truncated}
+      <div class="alert alert-warning alert-soft">
+        <IconWarning class="size-5 shrink-0" aria-hidden="true" />
+        <p class="text-sm">
+          {m.storage_details_truncated({ count: result.totalKeys.toLocaleString(getLocale()) })}
+        </p>
+      </div>
+    {/if}
+  </div>
+
   {#if result}
     <div class="flex flex-wrap gap-6">
       <div class="stats">
@@ -358,7 +362,9 @@
             {/each}
           </select>
         </div>
-        <DirectorySizeList items={result.childrenByDepth[depth] ?? []} />
+        <DirectorySizeList
+          list={result.childrenByDepth[depth] ?? { items: [], omittedCount: 0, omittedSize: 0 }}
+        />
       </div>
     {/if}
   {/if}

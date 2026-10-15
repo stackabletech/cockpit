@@ -1,77 +1,101 @@
 import { error } from '@sveltejs/kit';
 import type { DirectorySizeEvent } from '$lib/storage/details-types.js';
-import { buildTree, buildChildrenByDepth } from '$lib/server/storage/directory-tree.js';
+import {
+  DIRECTORY_SIZE_MAX_KEYS,
+  DirectorySizeAggregator
+} from '$lib/server/storage/directory-tree.js';
 import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import { storageDirectorySizeCalculationsTotal } from '$lib/server/metrics.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
   const prefix = event.url.searchParams.get('prefix');
+  const log = event.locals.logger;
 
   if (!prefix) throw error(400, 'Missing required query parameter: prefix');
 
-  event.locals.logger.debug({ bucket, prefix }, 'calculating directory size');
+  log.debug({ bucket, prefix }, 'calculating directory size');
 
-  const allKeys: Array<{ key: string; size: number; lastModified?: Date }> = [];
+  const aggregator = new DirectorySizeAggregator(prefix, DIRECTORY_SIZE_MAX_KEYS);
   const startTime = Date.now();
   const encoder = new TextEncoder();
+  // Aborted when the client disconnects, so the listing stops with it.
+  const abort = new AbortController();
+  event.request.signal.addEventListener('abort', () => abort.abort(), { once: true });
 
   const stream = new ReadableStream({
     async start(controller) {
-      try {
-        await provider.listAllKeysProgressively(prefix, (batch) => {
-          allKeys.push(...batch);
-
-          const progress: DirectorySizeEvent = {
-            type: 'progress',
-            keysFound: allKeys.length,
-            totalSize: allKeys.reduce((sum, k) => sum + k.size, 0)
-          };
-
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
-        });
-
-        const tree = buildTree(prefix, allKeys);
-        const actualMaxDepth =
-          allKeys.length > 0
-            ? Math.max(
-                1,
-                ...allKeys.map(({ key }) => {
-                  const relative = key.slice(prefix.length);
-                  return relative.split('/').filter(Boolean).length;
-                })
-              )
-            : 1;
-        const childrenByDepth = buildChildrenByDepth(prefix, allKeys, actualMaxDepth);
-        let totalFiles = 0;
-        let totalDirectories = 0;
-        for (const { key } of allKeys) {
-          if (key.endsWith('/')) totalDirectories++;
-          else totalFiles++;
+      const send = (payload: DirectorySizeEvent) => {
+        if (!abort.signal.aborted) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
         }
+      };
+      // After cancel() the stream is already closed, and close() throws.
+      const closeQuietly = () => {
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
+      };
 
-        const result: DirectorySizeEvent = {
-          type: 'complete',
-          totalSize: allKeys.reduce((sum, k) => sum + k.size, 0),
-          totalKeys: allKeys.length,
-          totalFiles,
-          totalDirectories,
-          tree,
-          childrenByDepth,
-          maxDepth: actualMaxDepth,
-          durationMs: Date.now() - startTime
-        };
-
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(result)}\n\n`));
-        controller.close();
+      try {
+        await provider.listAllKeysProgressively(
+          prefix,
+          (batch) => {
+            if (abort.signal.aborted) return false;
+            const more = aggregator.add(batch);
+            send({
+              type: 'progress',
+              keysFound: aggregator.totalKeys,
+              totalSize: aggregator.totalSize
+            });
+            return more;
+          },
+          { signal: abort.signal }
+        );
       } catch (err) {
-        const errorEvent: DirectorySizeEvent = {
-          type: 'error',
-          message: err instanceof Error ? err.message : 'Unknown error'
-        };
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`));
+        if (abort.signal.aborted) {
+          storageDirectorySizeCalculationsTotal.inc({ outcome: 'aborted' });
+          log.debug({ bucket, prefix }, 'directory size cancelled by client');
+          closeQuietly();
+          return;
+        }
+        storageDirectorySizeCalculationsTotal.inc({ outcome: 'error' });
+        log.warn({ err, bucket, prefix }, 'directory size calculation failed');
+        send({ type: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
         controller.close();
+        return;
       }
+
+      if (abort.signal.aborted) {
+        storageDirectorySizeCalculationsTotal.inc({ outcome: 'aborted' });
+        log.debug({ bucket, prefix }, 'directory size cancelled by client');
+        closeQuietly();
+        return;
+      }
+
+      const durationMs = Date.now() - startTime;
+      const result = aggregator.result(durationMs);
+      storageDirectorySizeCalculationsTotal.inc({
+        outcome: result.truncated ? 'truncated' : 'complete'
+      });
+      log.info(
+        {
+          bucket,
+          prefix,
+          total_keys: result.totalKeys,
+          truncated: result.truncated,
+          duration_ms: durationMs
+        },
+        'directory size calculated'
+      );
+      send(result);
+      controller.close();
+    },
+    cancel() {
+      abort.abort();
     }
   });
 

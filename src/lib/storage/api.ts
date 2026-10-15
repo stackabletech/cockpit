@@ -181,7 +181,11 @@ export interface StorageApi {
 
   directoryMetadata(params: { bucket: string; prefix: string }): Promise<DirectoryMetadata>;
 
-  directorySize(params: { bucket: string; prefix: string }): Promise<Response>;
+  directorySize(params: {
+    bucket: string;
+    prefix: string;
+    signal?: AbortSignal;
+  }): Promise<Response>;
 
   bucketDetails(params: { bucket: string }): Promise<BucketDetails>;
 
@@ -436,9 +440,9 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       return (await res.json()) as DirectoryMetadata;
     },
 
-    async directorySize({ bucket, prefix }) {
+    async directorySize({ bucket, prefix, signal }) {
       const params = new URLSearchParams({ bucket, prefix });
-      return fetch_(`/api/storage/directory-size?${params}`);
+      return fetch_(`/api/storage/directory-size?${params}`, { signal });
     },
 
     async bucketDetails({ bucket }) {

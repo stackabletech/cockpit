@@ -21,6 +21,9 @@ export interface TreemapNode {
   path?: string;
   /** Full S3 key including the prefix (leaf nodes only). */
   fullKey?: string;
+  /** Set on a synthetic node that stands for this many files left out of the
+   *  treemap; `name` is empty and the client renders a label. */
+  moreCount?: number;
 }
 
 /** Progress event from the directory-size SSE endpoint. */
@@ -37,10 +40,13 @@ export interface DirectorySizeResult {
   totalKeys: number;
   totalFiles: number;
   totalDirectories: number;
+  /** Pruned to the largest files; the rest is grouped into `moreCount` nodes. */
   tree: TreemapNode;
-  childrenByDepth: Record<number, DirectoryChildItem[]>;
+  childrenByDepth: Record<number, DirectoryChildList>;
   maxDepth: number;
   durationMs: number;
+  /** Listing stopped at the configured key limit; all figures are partial. */
+  truncated: boolean;
 }
 
 /** Metadata about an S3 directory/folder (bucket ACL + optional directory marker object). */
@@ -68,6 +74,13 @@ export interface DirectoryChildItem {
   size: number;
   lastModified: string | undefined;
   isDirectory: boolean;
+}
+
+/** The largest entries at one depth, plus what was left out. */
+export interface DirectoryChildList {
+  items: DirectoryChildItem[];
+  omittedCount: number;
+  omittedSize: number;
 }
 
 /** Error event from the directory-size SSE endpoint. */

@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import { formatFileSize } from '$lib/storage/utils.js';
-  import type { DirectoryChildItem } from '$lib/storage/details-types.js';
+  import type { DirectoryChildList } from '$lib/storage/details-types.js';
   import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
   import IconFolder from 'virtual:icons/material-symbols/folder';
   import IconDescription from 'virtual:icons/material-symbols/description';
@@ -10,10 +10,10 @@
   import IconUnfoldMore from 'virtual:icons/material-symbols/unfold-more';
 
   interface Props {
-    items: DirectoryChildItem[];
+    list: DirectoryChildList;
   }
 
-  let { items }: Props = $props();
+  let { list }: Props = $props();
 
   type SortKey = 'name' | 'size' | 'lastModified';
   type SortDir = 'asc' | 'desc';
@@ -32,7 +32,7 @@
   }
 
   const sortedItems = $derived.by(() => {
-    return [...items].sort((a, b) => {
+    return [...list.items].sort((a, b) => {
       let cmp = 0;
       if (sortKey === 'name') {
         cmp = a.name.localeCompare(b.name);
@@ -143,5 +143,19 @@
         </tr>
       {/each}
     </tbody>
+    {#if list.omittedCount > 0}
+      <tfoot>
+        <tr>
+          <td aria-hidden="true"></td>
+          <td class="text-base-content/60 text-sm font-normal italic">
+            {m.storage_details_list_omitted({ count: list.omittedCount })}
+          </td>
+          <td class="text-base-content/60 text-right font-mono text-sm font-normal tabular-nums">
+            {formatFileSize(list.omittedSize)}
+          </td>
+          <td></td>
+        </tr>
+      </tfoot>
+    {/if}
   </table>
 </div>

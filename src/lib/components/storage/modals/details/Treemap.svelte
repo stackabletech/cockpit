@@ -37,10 +37,6 @@
     return () => ro.disconnect();
   });
 
-  // Maximum number of file (leaf) nodes to render; the smallest ones are
-  // grouped per their immediate parent directory into a single “N more” node.
-  const MAX_VISIBLE_LEAVES = 30;
-
   const containerFills = [
     'fill-primary/8',
     'fill-secondary/8',
@@ -74,70 +70,9 @@
     fullKey: string | undefined;
   }
 
-  /**
-   * Prune leaf nodes to at most MAX_VISIBLE_LEAVES.
-   * Smallest leaves are grouped per their immediate parent into a single
-   * synthetic “N more” node so the treemap stays hierarchically accurate.
-   */
-  function pruneTree(root: TreemapNode, moreLabel: (count: number) => string): TreemapNode {
-    function countLeaves(node: TreemapNode): number {
-      if (!node.children || node.children.length === 0) return 1;
-      return node.children.reduce((sum, child) => sum + countLeaves(child), 0);
-    }
-
-    if (countLeaves(root) <= MAX_VISIBLE_LEAVES) return root;
-
-    const allLeaves: TreemapNode[] = [];
-    function collectLeaves(node: TreemapNode) {
-      if (!node.children || node.children.length === 0) {
-        allLeaves.push(node);
-      } else {
-        for (const child of node.children) collectLeaves(child);
-      }
-    }
-    collectLeaves(root);
-
-    const sorted = [...allLeaves].sort((a, b) => b.size - a.size);
-    const kept = new Set<TreemapNode>(sorted.slice(0, MAX_VISIBLE_LEAVES));
-
-    function rebuild(node: TreemapNode): TreemapNode {
-      if (!node.children || node.children.length === 0) return node;
-
-      const newChildren: TreemapNode[] = [];
-      let overflowSize = 0;
-      let overflowCount = 0;
-
-      for (const child of node.children) {
-        if (!child.children || child.children.length === 0) {
-          if (kept.has(child)) {
-            newChildren.push(child);
-          } else {
-            overflowSize += child.size;
-            overflowCount++;
-          }
-        } else {
-          const rebuilt = rebuild(child);
-          if (rebuilt.children && rebuilt.children.length > 0) newChildren.push(rebuilt);
-        }
-      }
-
-      if (overflowCount > 0) {
-        newChildren.push({ name: moreLabel(overflowCount), size: overflowSize });
-      }
-
-      return { ...node, children: newChildren.sort((a, b) => b.size - a.size) };
-    }
-
-    return rebuild(root);
-  }
-
-  const prunedData = $derived(
-    pruneTree(data, (count) => m.storage_details_treemap_more({ count }))
-  );
-
   const rects = $derived.by(() => {
     const result: LayoutRect[] = [];
-    layoutNode(prunedData, 0, 0, W, H, 0, result);
+    layoutNode(data, 0, 0, W, H, 0, result);
     return result;
   });
 
@@ -164,7 +99,11 @@
       y,
       w,
       h,
-      name: node.name,
+      // The server prunes the tree and leaves "N more" nodes for us to label.
+      name:
+        node.moreCount !== undefined
+          ? m.storage_details_treemap_more({ count: node.moreCount })
+          : node.name,
       size: node.size,
       depth,
       isContainer,

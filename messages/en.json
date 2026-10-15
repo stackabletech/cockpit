@@ -606,6 +606,17 @@
   "storage_details_object_lock": "Object lock",
   "storage_details_object_lock_mode": "Lock mode",
   "storage_details_object_lock_until": "Retain until",
+  "storage_details_truncated": "Stopped after {count} objects. Size, counts and breakdown only cover the objects listed so far.",
+  "storage_details_list_omitted": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 smaller entry not shown",
+        "countPlural=other": "{count} smaller entries not shown"
+      }
+    }
+  ],
   "storage_action_cut_success": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

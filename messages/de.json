@@ -606,6 +606,17 @@
   "storage_details_object_lock": "Objektsperre",
   "storage_details_object_lock_mode": "Sperrmodus",
   "storage_details_object_lock_until": "Aufbewahren bis",
+  "storage_details_truncated": "Nach {count} Objekten abgebrochen. Größe, Anzahl und Aufschlüsselung umfassen nur die bisher aufgelisteten Objekte.",
+  "storage_details_list_omitted": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 kleinerer Eintrag nicht angezeigt",
+        "countPlural=other": "{count} kleinere Einträge nicht angezeigt"
+      }
+    }
+  ],
   "storage_action_cut_success": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

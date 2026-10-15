@@ -54,6 +54,13 @@ export const storageTransferDuration = new Histogram({
   registers: [register]
 });
 
+export const storageDirectorySizeCalculationsTotal = new Counter({
+  name: 'storage_directory_size_calculations_total',
+  help: 'Directory size calculations, by outcome (complete, truncated, aborted, error)',
+  labelNames: ['outcome'],
+  registers: [register]
+});
+
 export const storageArchiveCacheBytes = new Gauge({
   name: 'storage_archive_cache_bytes',
   help: 'Bytes of archive files cached on local disk for archive previews',
