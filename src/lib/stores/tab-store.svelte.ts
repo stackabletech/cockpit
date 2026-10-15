@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import { z } from 'zod';
 import * as m from '$lib/paraglide/messages.js';
+import { randomUUID } from '$lib/utils/uuid.js';
 
 const MAX_TABS = 8;
 const INDEX_KEY = 'trino_tabs_index';
@@ -34,7 +35,7 @@ const IndexDataSchema = z.object({
 type IndexData = z.infer<typeof IndexDataSchema>;
 
 function generateId(): string {
-  return crypto.randomUUID();
+  return randomUUID();
 }
 
 function makeTab(sql: string = DEFAULT_SQL): TabState {

@@ -10,6 +10,7 @@
   import { formatFileSize } from '$lib/storage/utils.js';
   import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
   import { uploadConcurrency } from '$lib/client/feature-flags.js';
+  import { randomUUID } from '$lib/utils/uuid.js';
   import UploadDropzone from './UploadDropzone.svelte';
   import UploadConflictEntry from './UploadConflictEntry.svelte';
   import UploadEntryStatus from './UploadEntryStatus.svelte';
@@ -76,7 +77,7 @@
 
   function makeEntries(pairs: { file: File; relativePath: string }[]): FileEntry[] {
     return pairs.map(({ file, relativePath }) => ({
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       file,
       displayPath: relativePath,
       targetKey: buildTargetKey(relativePath),

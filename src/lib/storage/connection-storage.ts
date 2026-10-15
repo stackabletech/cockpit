@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import { randomUUID } from '$lib/utils/uuid.js';
 import { StorageConnectionSchema } from './schemas.js';
 
 /** Raw form data — `id` may be absent when creating a new connection. */
@@ -58,7 +59,7 @@ export function saveConnectionLocally(data: StoredConnection): void {
             c.port === data.port &&
             c.credentials?.accessKey === data.credentials?.accessKey
         );
-    const id = existing?.id ?? data.id ?? crypto.randomUUID();
+    const id = existing?.id ?? data.id ?? randomUUID();
     const connection: SavedConnection = { ...data, id };
     const filtered = all.filter((c) => c.id !== id);
     filtered.push(connection);
