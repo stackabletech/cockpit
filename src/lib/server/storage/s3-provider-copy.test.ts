@@ -82,6 +82,43 @@ describe('S3StorageProvider.copyObject options', () => {
     expect(send.mock.calls[2][0].input).toMatchObject({ UploadId: 'upload-4' });
   });
 
+  it('pins every part of a multipart copy to the source ETag', async () => {
+    send.mockResolvedValueOnce({ ContentLength: 6 * 1024 * 1024 * 1024, ETag: '"v1"' });
+    send.mockResolvedValueOnce({ UploadId: 'upload-5' });
+    send.mockResolvedValue({ CopyPartResult: { ETag: '"part"' } });
+
+    await provider.copyObject('src/big', 'dst/big');
+
+    const partCopies = send.mock.calls
+      .map((call) => call[0])
+      .filter((cmd) => cmd.constructor.name === 'UploadPartCopyCommand');
+    expect(partCopies).toHaveLength(24);
+    for (const cmd of partCopies) {
+      expect(cmd.input.CopySourceIfMatch).toBe('"v1"');
+    }
+  });
+
+  it('fails and releases the upload when the source changes mid-copy', async () => {
+    send.mockResolvedValueOnce({ ContentLength: 6 * 1024 * 1024 * 1024, ETag: '"v1"' });
+    send.mockResolvedValueOnce({ UploadId: 'upload-6' });
+    send.mockResolvedValueOnce({ CopyPartResult: { ETag: '"part-1"' } });
+    send.mockRejectedValueOnce(
+      Object.assign(new Error('At least one of the pre-conditions you specified did not hold'), {
+        name: 'PreconditionFailed',
+        $fault: 'client',
+        $metadata: { httpStatusCode: 412 }
+      })
+    );
+    send.mockResolvedValueOnce({});
+
+    await expect(provider.copyObject('src/big', 'dst/big')).rejects.toThrow();
+
+    const commands = send.mock.calls.map((call) => call[0].constructor.name);
+    expect(commands).not.toContain('CompleteMultipartUploadCommand');
+    expect(commands.at(-1)).toBe('AbortMultipartUploadCommand');
+    expect(send.mock.calls.at(-1)?.[0].input).toMatchObject({ UploadId: 'upload-6' });
+  });
+
   it('aborts a cancelled multipart copy without the cancelled signal', async () => {
     const controller = new AbortController();
     send.mockResolvedValueOnce({ ContentLength: 6 * 1024 * 1024 * 1024 });

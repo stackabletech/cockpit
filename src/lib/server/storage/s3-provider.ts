@@ -811,7 +811,10 @@ export class S3StorageProvider implements StorageProvider {
               UploadId: uploadId,
               PartNumber: partNumber,
               CopySource: copySource,
-              CopySourceRange: `bytes=${startByte}-${endByte}`
+              CopySourceRange: `bytes=${startByte}-${endByte}`,
+              // Pin every part to the version the HEAD saw: if the source is
+              // overwritten mid-copy, S3 answers 412 instead of mixing versions.
+              CopySourceIfMatch: head.ETag
             }),
             { abortSignal: signal }
           );
