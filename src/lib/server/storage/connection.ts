@@ -8,29 +8,27 @@ import { storageEncryptionKey } from './encryption-key.js';
 import type { S3ConnectionConfig } from './types.js';
 import { logger } from '$lib/server/logging';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
+import { StoredStorageConnectionSchema } from '$lib/storage/schemas.js';
 
 const log = logger.child({ module: 'storage-connection' });
 
-/** The shape of the JSON stored inside encrypted_payload. */
-interface StoredPayload {
-  host: string;
-  port?: number;
-  tls?: { verification: 'Full' | 'None' };
-  accessStyle: 'Path' | 'VirtualHosted';
-  region: { name: string };
-  credentials?: { accessKey: string; secretKey: string };
-}
+/** Minimum age of `updated_at` before a request refreshes it again. */
+const LAST_USED_TOUCH_INTERVAL_MS = 5 * 60_000;
+
+const AdditionalBucketsSchema = z.array(z.string());
 
 /**
  * Look up a storage connection by UUID and authenticated user ID, decrypt the
  * payload, and return the {@link S3ConnectionConfig}.
  *
- * Also updates `updated_at` on the connection row (fire-and-forget) so that
- * auto-connect picks the most-recently-used connection on the next page load.
+ * Also refreshes `updated_at` on the connection row (fire-and-forget) so that
+ * connection lists are ordered most-recently-used first.
+ * The write is skipped while `updated_at` is younger than
+ * {@link LAST_USED_TOUCH_INTERVAL_MS}, so not every storage request hits the database.
  *
  * Returns `null` if the header is absent.
  * Throws 401 if the connection is not found or does not belong to the user.
- * Throws 500 if decryption fails.
+ * Throws 500 if decryption fails or the payload does not match the stored schema.
  */
 export async function getConnectionFromHeader(
   request: Request,
@@ -55,21 +53,34 @@ export async function getConnectionFromHeader(
 
   const row = rows[0];
 
-  let payload: StoredPayload;
+  let payload;
   try {
-    payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey())) as StoredPayload;
+    payload = StoredStorageConnectionSchema.parse(
+      JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey()))
+    );
   } catch (err) {
-    log.error({ err, connection_id: connectionId }, 'failed to decrypt storage connection payload');
+    log.error(
+      { err, connection_id: connectionId },
+      'failed to decrypt or parse storage connection payload'
+    );
     throw error(500, 'Failed to decrypt storage connection');
   }
 
+  const additionalBuckets = AdditionalBucketsSchema.safeParse(row.additionalBuckets);
+  if (!additionalBuckets.success) {
+    log.warn({ connection_id: connectionId }, 'invalid additional buckets on storage connection');
+  }
+
   // Update updated_at asynchronously — do not block the request on this.
-  db.update(userStorageConnections)
-    .set({ updatedAt: new Date() })
-    .where(eq(userStorageConnections.id, connectionId))
-    .catch((err) =>
-      log.warn({ err, connection_id: connectionId }, 'failed to update connection updated_at')
-    );
+  if (Date.now() - row.updatedAt.getTime() > LAST_USED_TOUCH_INTERVAL_MS) {
+    log.debug({ connection_id: connectionId }, 'refreshing storage connection updated_at');
+    db.update(userStorageConnections)
+      .set({ updatedAt: new Date() })
+      .where(eq(userStorageConnections.id, connectionId))
+      .catch((err) =>
+        log.warn({ err, connection_id: connectionId }, 'failed to update connection updated_at')
+      );
+  }
 
   const resolvedCredentials =
     payload.credentials?.accessKey && payload.credentials?.secretKey
@@ -84,6 +95,6 @@ export async function getConnectionFromHeader(
     accessStyle: payload.accessStyle,
     region: payload.region,
     credentials: resolvedCredentials,
-    additionalBuckets: (row.additionalBuckets as string[]) ?? []
+    additionalBuckets: additionalBuckets.success ? additionalBuckets.data : []
   };
 }
