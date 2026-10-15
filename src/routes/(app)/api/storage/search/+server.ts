@@ -79,6 +79,7 @@ export const GET: RequestHandler = async (event) => {
     if (event.request.signal.aborted) abort.abort();
     let cancelled = false;
     const normalisedQuery = query.toLowerCase();
+    const normalisedExcludes = excludePatterns.map((pattern) => pattern.toLowerCase());
     const stream = new ReadableStream({
       async start(controller) {
         let count = 0;
@@ -100,12 +101,13 @@ export const GET: RequestHandler = async (event) => {
             maxDepth,
             signal: abort.signal,
             matches: (item) => {
+              const normalisedKey = item.key.toLowerCase();
               const matched = regex
                 ? regex.test(item.key)
-                : item.key.toLowerCase().includes(normalisedQuery);
+                : normalisedKey.includes(normalisedQuery);
               return (
                 matched &&
-                !excludePatterns.some((pattern) => item.key.includes(pattern)) &&
+                !normalisedExcludes.some((pattern) => normalisedKey.includes(pattern)) &&
                 matchesFilters(item)
               );
             },

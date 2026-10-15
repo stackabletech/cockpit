@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
   import Pagination from '$lib/components/Pagination.svelte';
+  import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
   import type { SearchResult, SearchSession } from '$lib/storage/search.svelte.js';
   import { initPageSize, type PageSize } from '$lib/types/pagination.js';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
@@ -130,6 +131,8 @@
           class="badge badge-success badge-sm">{m.storage_search_status_done()}</span
         >{:else if session.status === 'done'}<span class="badge badge-warning badge-sm"
           >{m.storage_search_status_partial()}</span
+        >{:else if session.status === 'cancelled'}<span class="badge badge-ghost badge-sm"
+          >{m.storage_search_status_cancelled()}</span
         >{:else}<span class="badge badge-error badge-sm">{m.storage_search_status_error()}</span
         >{/if}
     </div>
@@ -212,7 +215,7 @@
                 ><td class="text-base-content/60 font-mono text-xs"
                   >{result.isDirectory ? '-' : formatFileSize(result.size)}</td
                 ><td class="text-base-content/60 font-mono text-xs"
-                  >{result.lastModified.toLocaleDateString()}</td
+                  ><TimestampDisplay date={result.lastModified} tooltip="tooltip-left" /></td
                 ></tr
               >{/each}</tbody
           >

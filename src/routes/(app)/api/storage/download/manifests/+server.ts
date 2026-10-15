@@ -20,7 +20,7 @@ export const POST: RequestHandler = async (event) => {
   const parsedPrefix = StoragePrefixSchema.safeParse(event.url.searchParams.get('prefix') ?? '');
   if (!parsedPrefix.success) throw error(400, 'Invalid prefix');
   const prefix = parsedPrefix.data;
-  const parsed = DownloadManifestBodySchema.safeParse(await event.request.json());
+  const parsed = DownloadManifestBodySchema.safeParse(await event.request.json().catch(() => null));
   if (!parsed.success) throw error(400, 'Request body must contain one or more object keys');
   const { keys } = parsed.data;
   const userId = event.locals.user?.id ?? 'anonymous';

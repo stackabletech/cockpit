@@ -20,7 +20,7 @@ function mockEvent(method: string, body?: unknown, connectionId: string | null =
   const request = new Request('http://localhost/api/storage/search/history', {
     method,
     headers,
-    ...(body === undefined ? {} : { body: JSON.stringify(body) })
+    ...(body === undefined ? {} : { body: typeof body === 'string' ? body : JSON.stringify(body) })
   });
   return {
     request,
@@ -104,33 +104,34 @@ describe('/api/storage/search/history', () => {
     );
   });
 
-  it('coerces invalid advanced options to defaults', async () => {
-    recentSearches.recordRecentSearch.mockResolvedValue(undefined);
+  it.each([
+    ['a non-boolean regex flag', { useRegex: 'yes' }],
+    ['non-string exclude patterns', { excludePatterns: [1, 2] }],
+    ['a non-string search path', { searchPath: 42 }],
+    ['a negative maximum depth', { maxDepth: -5 }],
+    ['a zero maximum depth', { maxDepth: 0 }],
+    ['a maximum depth above 20', { maxDepth: 21 }]
+  ])('rejects %s', async (_name, options) => {
+    await expect(
+      POST(
+        mockEvent('POST', {
+          buckets: ['documents'],
+          query: 'report',
+          ...options
+        }) as Parameters<typeof POST>[0]
+      )
+    ).rejects.toMatchObject({ status: 400 });
+    expect(recentSearches.recordRecentSearch).not.toHaveBeenCalled();
+  });
 
-    const response = await POST(
-      mockEvent('POST', {
-        buckets: ['documents'],
-        query: 'report',
-        useRegex: 'yes',
-        excludePatterns: [1, 2],
-        searchPath: 42,
-        maxDepth: -5
-      }) as Parameters<typeof POST>[0]
+  it.each([
+    ['malformed JSON', '{not json'],
+    ['a null body', 'null']
+  ])('rejects %s with 400', async (_name, body) => {
+    await expect(POST(mockEvent('POST', body) as Parameters<typeof POST>[0])).rejects.toMatchObject(
+      { status: 400 }
     );
-
-    expect(response.status).toBe(204);
-    expect(recentSearches.recordRecentSearch).toHaveBeenCalledWith(
-      'user-1',
-      CONNECTION_ID,
-      ['documents'],
-      'report',
-      {
-        useRegex: false,
-        excludePatterns: [],
-        searchPath: '',
-        maxDepth: null
-      }
-    );
+    expect(recentSearches.recordRecentSearch).not.toHaveBeenCalled();
   });
 
   it('rejects invalid history records', async () => {

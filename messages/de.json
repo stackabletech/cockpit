@@ -738,6 +738,7 @@
   "storage_search_status_running": "Aktiv",
   "storage_search_status_done": "Fertig",
   "storage_search_status_partial": "Teilweise",
+  "storage_search_status_cancelled": "Abgebrochen",
   "storage_search_status_error": "Fehler",
   "storage_search_regex_placeholder": "Regulärer Ausdruck",
   "storage_search_regex_badge": ".*",

@@ -7,6 +7,7 @@ import {
   type RecentSearchOptions
 } from '$lib/server/storage/recent-searches-db.js';
 import { storageSearchHistoryTotal } from '$lib/server/metrics.js';
+import { RecordRecentSearchBodySchema } from '$lib/storage/schemas.js';
 import type { RequestHandler } from './$types';
 
 function connectionIdFromRequest(request: Request): string {
@@ -39,45 +40,16 @@ export const GET: RequestHandler = async ({ request, locals }) => {
 export const POST: RequestHandler = async ({ request, locals }) => {
   const userId = locals.user!.id;
   const connectionId = connectionIdFromRequest(request);
-  const body = (await request.json()) as {
-    buckets?: unknown;
-    query?: unknown;
-    useRegex?: unknown;
-    excludePatterns?: unknown;
-    searchPath?: unknown;
-    maxDepth?: unknown;
-  };
-  const buckets = Array.isArray(body.buckets)
-    ? [...new Set(body.buckets.map((b) => (typeof b === 'string' ? b.trim() : '')).filter(Boolean))]
-    : [];
-  const query = typeof body.query === 'string' ? body.query.trim() : '';
-  if (
-    (Array.isArray(body.buckets) && body.buckets.length > 100) ||
-    buckets.some((bucket) => bucket.length > 255) ||
-    query.length > 1024 ||
-    (Array.isArray(body.excludePatterns) &&
-      (body.excludePatterns.length > 50 ||
-        body.excludePatterns.some(
-          (pattern) => typeof pattern === 'string' && pattern.length > 1024
-        ))) ||
-    (typeof body.searchPath === 'string' && body.searchPath.length > 1024)
-  )
-    throw error(400, 'Search history limits exceeded');
-  if (buckets.length === 0 || !query) {
-    throw error(400, 'At least one bucket and a query are required');
-  }
+  const parsed = RecordRecentSearchBodySchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) throw error(400, 'Invalid search history request');
+  const body = parsed.data;
+  const buckets = [...new Set(body.buckets)];
+  const query = body.query;
   const options: RecentSearchOptions = {
-    useRegex: typeof body.useRegex === 'boolean' ? body.useRegex : false,
-    excludePatterns:
-      Array.isArray(body.excludePatterns) &&
-      body.excludePatterns.every((i) => typeof i === 'string')
-        ? body.excludePatterns
-        : [],
-    searchPath: typeof body.searchPath === 'string' ? body.searchPath.trim() : '',
-    maxDepth:
-      typeof body.maxDepth === 'number' && Number.isInteger(body.maxDepth) && body.maxDepth > 0
-        ? body.maxDepth
-        : null
+    useRegex: body.useRegex ?? false,
+    excludePatterns: body.excludePatterns ?? [],
+    searchPath: body.searchPath ?? '',
+    maxDepth: body.maxDepth ?? null
   };
 
   try {

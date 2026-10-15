@@ -72,6 +72,19 @@ describe('GET /api/storage/search', () => {
     expect(storageSearchTotal.inc).toHaveBeenCalledWith({ outcome: 'success' });
   });
 
+  it('matches exclude patterns case-insensitively', async () => {
+    mockProvider.search.mockResolvedValue({ results: [] });
+
+    const response = await GET(mockEvent('bucket=documents&q=report&exclude=ARCHIVE'));
+    await response.text();
+
+    const { matches } = mockProvider.search.mock.calls[0][1];
+    const item = (key: string) => ({ key, size: 1, lastModified: new Date(), isDirectory: false });
+    expect(matches(item('reports/Archive/final.pdf'))).toBe(false);
+    expect(matches(item('reports/archive.pdf'))).toBe(false);
+    expect(matches(item('reports/final.pdf'))).toBe(true);
+  });
+
   it('rejects a missing bucket', async () => {
     await expect(GET(mockEvent('q=report'))).rejects.toMatchObject({ status: 400 });
   });

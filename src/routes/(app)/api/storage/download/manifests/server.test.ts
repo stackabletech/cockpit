@@ -23,7 +23,7 @@ function mockEvent(body: unknown, prefix: string | null = 'reports/') {
         [STORAGE_CONNECTION_ID_HEADER]: CONNECTION_ID,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(body)
+      body: typeof body === 'string' ? body : JSON.stringify(body)
     }),
     locals: {
       logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
@@ -43,7 +43,8 @@ describe('POST /api/storage/download/manifests', () => {
     ['more than 1000 keys', { keys: Array.from({ length: 1001 }, (_, i) => `k${i}`) }],
     ['a non-string key', { keys: [42] }],
     ['a missing key list', {}],
-    ['a null body', null]
+    ['a null body', null],
+    ['malformed JSON', '{not json']
   ])('throws 400 for %s', async (_, body) => {
     await expect(POST(mockEvent(body))).rejects.toThrow(
       expect.objectContaining({

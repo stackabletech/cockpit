@@ -40,6 +40,9 @@
           {#if session.status === 'done' && session.failures.length > 0}<span
               class="badge badge-warning badge-xs">{m.storage_search_status_partial()}</span
             >{/if}
+          {#if session.status === 'cancelled'}<span class="badge badge-ghost badge-xs"
+              >{m.storage_search_status_cancelled()}</span
+            >{/if}
           {#if session.status === 'error'}<span class="badge badge-error badge-xs"
               >{m.storage_search_status_error()}</span
             >{/if}

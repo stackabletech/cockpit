@@ -95,10 +95,12 @@ test.describe('Storage Search', () => {
     const depth = page.getByLabel('Max folder depth');
     const searchButton = page.getByRole('button', { name: 'Search', exact: true });
 
-    await depth.fill('25');
-    await expect(page.getByText('Enter a whole number from 1 to 20.')).toBeVisible();
-    await expect(depth).toHaveAttribute('aria-invalid', 'true');
-    await expect(searchButton).toBeDisabled();
+    for (const value of ['25', '0']) {
+      await depth.fill(value);
+      await expect(page.getByText('Enter a whole number from 1 to 20.')).toBeVisible();
+      await expect(depth).toHaveAttribute('aria-invalid', 'true');
+      await expect(searchButton).toBeDisabled();
+    }
 
     await depth.fill('3');
     await expect(page.getByText('Enter a whole number from 1 to 20.')).toBeHidden();

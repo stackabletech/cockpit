@@ -9,7 +9,7 @@ import type { StorageApi } from '$lib/storage/api.js';
 import { StorageError } from '$lib/storage/errors.js';
 import type { RecentSearchEntry, SearchResultItem } from '$lib/storage/types.js';
 
-export type SearchStatus = 'idle' | 'running' | 'done' | 'error';
+export type SearchStatus = 'idle' | 'running' | 'done' | 'cancelled' | 'error';
 
 export interface SearchResult extends SearchResultItem {
   bucket: string;
@@ -147,7 +147,11 @@ export class StorageSearchState {
     const active = this.active;
     if (!active) return;
     const pattern = this.excludeInput.trim();
-    if (pattern && !active.excludePatterns.includes(pattern)) {
+    const normalised = pattern.toLowerCase();
+    if (
+      pattern &&
+      !active.excludePatterns.some((existing) => existing.toLowerCase() === normalised)
+    ) {
       this.updateSession(active.id, { excludePatterns: [...active.excludePatterns, pattern] });
     }
     this.excludeInput = '';
@@ -333,7 +337,7 @@ export class StorageSearchState {
     this.controllers.get(id)?.abort();
     const startedAt = this.started.get(id);
     const elapsed = startedAt === undefined ? 0 : Math.round(performance.now() - startedAt);
-    this.updateSession(id, { status: session.results.length > 0 ? 'done' : 'idle', elapsed });
+    this.updateSession(id, { status: 'cancelled', elapsed });
   }
 
   private makeSession(id: string, number: number): SearchSession {

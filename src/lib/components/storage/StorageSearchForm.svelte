@@ -21,16 +21,16 @@
     state: StorageSearchState;
   }
 
-  let { id, session, buckets, state }: Props = $props();
+  let { id, session, buckets, state: searchState }: Props = $props();
   let queryCycleTerms: string[] = [];
   let queryCycleIndex = -1;
 
   function update(patch: Partial<SearchSession>): void {
-    state.updateSession(session.id, patch);
+    searchState.updateSession(session.id, patch);
   }
 
   function updateFilter(filterId: string, patch: Partial<SearchFilter>): void {
-    state.updateFilter(filterId, patch);
+    searchState.updateFilter(filterId, patch);
   }
 
   function resetQueryCycle(): void {
@@ -42,7 +42,7 @@
     if (queryCycleTerms.length === 0) {
       queryCycleTerms = [
         ...(session.query ? [session.query] : ['']),
-        ...state.history.map((entry) => entry.query)
+        ...searchState.history.map((entry) => entry.query)
       ].filter((query, index, terms) => terms.indexOf(query) === index);
       queryCycleIndex = queryCycleTerms.indexOf(session.query);
     }
@@ -63,10 +63,14 @@
     })
   );
 
+  // Firefox accepts non-numeric text in number inputs; valueAsNumber is then NaN.
+  let depthBadInput = $state(false);
+
   // Must match the server's limit in /api/storage/search.
   const depthValid = $derived(
-    session.maxDepth === undefined ||
-      (Number.isInteger(session.maxDepth) && session.maxDepth >= 1 && session.maxDepth <= 20)
+    !depthBadInput &&
+      (session.maxDepth === undefined ||
+        (Number.isInteger(session.maxDepth) && session.maxDepth >= 1 && session.maxDepth <= 20))
   );
 
   const regexValid = $derived(
@@ -88,7 +92,7 @@
   onsubmit={(event) => {
     event.preventDefault();
     if (!depthValid) return;
-    void state.run(session.id);
+    void searchState.run(session.id);
   }}
 >
   <div class="flex flex-col gap-2 sm:flex-row">
@@ -126,7 +130,7 @@
       >{m.storage_search_regex_badge()}</button
     >
     {#if session.status === 'running'}
-      <button type="button" class="btn btn-outline" onclick={() => state.cancel(session.id)}
+      <button type="button" class="btn btn-outline" onclick={() => searchState.cancel(session.id)}
         ><IconStop class="size-4" aria-hidden="true" />{m.storage_search_cancel()}</button
       >
     {:else}
@@ -148,14 +152,14 @@
       <legend class="text-base-content/60 w-24 shrink-0 text-xs font-medium"
         >{m.storage_search_scope_label()}</legend
       >
-      <BucketSelect {session} {buckets} searchState={state} />
+      <BucketSelect {session} {buckets} {searchState} />
     </fieldset>
   </div>
 
   <details
     class="collapse-arrow border-base-300 bg-base-100/30 collapse border"
-    open={state.advancedOpen}
-    ontoggle={(event) => (state.advancedOpen = event.currentTarget.open)}
+    open={searchState.advancedOpen}
+    ontoggle={(event) => (searchState.advancedOpen = event.currentTarget.open)}
   >
     <summary class="collapse-title text-base-content/60 min-h-0 py-2 text-sm font-medium"
       >{m.storage_search_advanced_options()}</summary
@@ -170,7 +174,7 @@
             <SearchFilterRow
               {filter}
               onupdate={(patch) => updateFilter(filter.id, patch)}
-              onremove={() => state.removeFilter(filter.id)}
+              onremove={() => searchState.removeFilter(filter.id)}
             />
           {/each}
         </div>
@@ -178,7 +182,7 @@
           type="button"
           class="btn btn-ghost btn-xs mt-2 gap-1"
           aria-label={m.storage_search_filter_add()}
-          onclick={() => state.addFilter()}
+          onclick={() => searchState.addFilter()}
           ><IconAdd class="size-3.5" aria-hidden="true" />{m.storage_search_filter_add()}</button
         >
       </fieldset>
@@ -200,13 +204,13 @@
             >{/each}<input
             id="{id}-exclude"
             class="input input-xs w-36 border-dashed font-mono"
-            value={state.excludeInput}
-            oninput={(event) => (state.excludeInput = event.currentTarget.value)}
+            value={searchState.excludeInput}
+            oninput={(event) => (searchState.excludeInput = event.currentTarget.value)}
             placeholder={m.storage_search_exclude_placeholder()}
             onkeydown={(event) => {
               if (event.key === 'Enter' || event.key === ',') {
                 event.preventDefault();
-                state.addExcludePattern();
+                searchState.addExcludePattern();
               }
             }}
           />
@@ -235,8 +239,11 @@
             max="20"
             step="1"
             value={session.maxDepth ?? ''}
-            oninput={(event) =>
-              update({ maxDepth: event.currentTarget.valueAsNumber || undefined })}
+            oninput={(event) => {
+              const value = event.currentTarget.valueAsNumber;
+              depthBadInput = event.currentTarget.validity.badInput;
+              update({ maxDepth: Number.isNaN(value) ? undefined : value });
+            }}
             placeholder={m.storage_search_depth_placeholder()}
             aria-invalid={!depthValid || undefined}
             aria-describedby={depthValid ? undefined : `${id}-depth-error`}

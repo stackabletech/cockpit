@@ -34,7 +34,7 @@ describe('StorageSearchState', () => {
     });
     response.resolve({ results: [] });
     await running;
-    expect(state.active?.status).toBe('idle');
+    expect(state.active?.status).toBe('cancelled');
     expect(state.active?.results).toEqual([]);
   });
   it('bounds bucket searches to four concurrent requests', async () => {
@@ -122,7 +122,46 @@ describe('StorageSearchState', () => {
     void state.run('s1');
     state.cancel('s1');
 
-    expect(state.active?.status).toBe('done');
+    expect(state.active?.status).toBe('cancelled');
     expect(state.active?.results).toEqual([expect.objectContaining({ key: 'report.csv' })]);
+    expect(state.completedCount).toBe(0);
+  });
+
+  it('marks a search cancelled before any match as cancelled', async () => {
+    const response = deferred<{ results: [] }>();
+    const api = createMemoryStorageApi({
+      async search() {
+        return response.promise;
+      }
+    });
+    const state = new StorageSearchState({
+      api,
+      getBuckets: () => ['documents'],
+      getCurrentBucket: () => 'documents'
+    });
+    state.updateSession('s1', { query: 'report' });
+
+    const running = state.run('s1');
+    state.cancel('s1');
+    response.resolve({ results: [] });
+    await running;
+
+    expect(state.active?.status).toBe('cancelled');
+    expect(state.active?.results).toEqual([]);
+  });
+
+  it('ignores exclude patterns that differ only in case', () => {
+    const state = new StorageSearchState({
+      api: createMemoryStorageApi(),
+      getBuckets: () => ['documents'],
+      getCurrentBucket: () => 'documents'
+    });
+
+    state.excludeInput = '_temp';
+    state.addExcludePattern();
+    state.excludeInput = ' _TEMP ';
+    state.addExcludePattern();
+
+    expect(state.active?.excludePatterns).toEqual(['_temp']);
   });
 });

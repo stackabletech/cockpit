@@ -13,7 +13,7 @@ function mockEvent(body: unknown) {
     request: new Request(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: typeof body === 'string' ? body : JSON.stringify(body)
     }),
     locals: {
       logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
@@ -29,7 +29,8 @@ describe('POST /api/storage/download/manifests/[manifestId]/redownload', () => {
     ['an empty key list', { keys: [] }],
     ['an empty key', { keys: [''] }],
     ['more than 10 000 keys', { keys: Array.from({ length: 10_001 }, (_, i) => `k${i}`) }],
-    ['a null body', null]
+    ['a null body', null],
+    ['malformed JSON', '{not json']
   ])('throws 400 for %s', async (_, body) => {
     await expect(POST(mockEvent(body))).rejects.toThrow(
       expect.objectContaining({

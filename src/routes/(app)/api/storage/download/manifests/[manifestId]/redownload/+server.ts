@@ -4,7 +4,7 @@ import { recreateDownloadManifest } from '$lib/server/storage/download-manifests
 import { RedownloadManifestBodySchema } from '$lib/storage/schemas.js';
 
 export const POST: RequestHandler = async ({ locals, params, request }) => {
-  const parsed = RedownloadManifestBodySchema.safeParse(await request.json());
+  const parsed = RedownloadManifestBodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) throw error(400, 'Request body must contain one or more object keys');
   const { keys } = parsed.data;
   if (new Set(keys).size !== keys.length)

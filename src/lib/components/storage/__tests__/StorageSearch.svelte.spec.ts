@@ -149,6 +149,27 @@ describe('StorageSearch', () => {
     await expect.element(page.getByRole('button', { name: 'Search 2', exact: true })).toBeVisible();
   });
 
+  it('rejects a max folder depth of 0 instead of treating it as unlimited', async () => {
+    const { state, api } = createState();
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByText('Advanced options').click();
+    await page.getByLabelText('Max folder depth').fill('0');
+    await expect.element(page.getByText('Enter a whole number from 1 to 20.')).toBeVisible();
+    await page.getByLabelText('Search query').fill('report');
+    await userEvent.keyboard('{Enter}');
+    expect(api.search).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-numeric max folder depth input instead of treating it as unlimited', async () => {
+    const { state } = createState();
+    render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
+    await page.getByRole('button', { name: 'Open search' }).click();
+    await page.getByText('Advanced options').click();
+    await userEvent.type(page.getByLabelText('Max folder depth'), '1e');
+    await expect.element(page.getByText('Enter a whole number from 1 to 20.')).toBeVisible();
+  });
+
   it('uses the regex button and sends date and size filters', async () => {
     const { state, api } = createState();
     render(StorageSearchWrapper, { state, currentBucket: 'alpha' });

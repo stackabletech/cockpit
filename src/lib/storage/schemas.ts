@@ -243,6 +243,16 @@ export const RedownloadManifestBodySchema = z.object({
   keys: z.array(StorageObjectKeySchema).min(1).max(10_000)
 });
 
+/** Body of POST /api/storage/search/history. Limits mirror /api/storage/search. */
+export const RecordRecentSearchBodySchema = z.object({
+  buckets: z.array(z.string().trim().min(1).max(255)).min(1).max(100),
+  query: z.string().trim().min(1).max(1024),
+  useRegex: z.boolean().optional(),
+  excludePatterns: z.array(z.string().max(1024)).max(50).optional(),
+  searchPath: z.string().trim().max(1024).optional(),
+  maxDepth: z.number().int().min(1).max(20).nullable().optional()
+});
+
 export const AddConnectionBucketBodySchema = z
   .object({ bucket: z.string().trim().min(1, 'Bucket name is required') })
   .strict();
