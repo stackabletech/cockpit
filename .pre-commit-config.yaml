@@ -103,7 +103,9 @@ repos:
           helm template test deploy/helm/cockpit
           --set auth.oidc.discoveryUrl=https://stub
           --set auth.oidc.clientId=stub
-          --set auth.oidc.clientSecret.secretKeyRef.name=stub > /dev/null'
+          --set auth.oidc.clientSecret.secretKeyRef.name=stub
+          --set database.host=stub
+          --set database.password.secretKeyRef.name=stub > /dev/null'
         stages: [pre-commit, pre-merge-commit, manual]
         pass_filenames: false
         files: ^deploy/helm/

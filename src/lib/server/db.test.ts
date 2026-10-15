@@ -1,4 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { env, poolOptions, warn } = vi.hoisted(() => ({
   env: {} as Record<string, string>,
@@ -8,7 +11,7 @@ const { env, poolOptions, warn } = vi.hoisted(() => ({
 
 vi.mock('$env/dynamic/private', () => ({ env }));
 vi.mock('./logging', () => ({
-  logger: { child: () => ({ warn, info: vi.fn(), error: vi.fn() }) }
+  logger: { child: () => ({ warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() }) }
 }));
 vi.mock('pg', () => ({
   Pool: class {
@@ -61,5 +64,104 @@ describe('database environment', () => {
 
     await expect(import('./db')).rejects.toThrow('DATABASE_PASSWORD must be set in production');
     expect(poolOptions).not.toHaveBeenCalled();
+  });
+
+  describe('TLS', () => {
+    let tempDir: string;
+
+    beforeAll(() => {
+      tempDir = mkdtempSync(join(tmpdir(), 'db-tls-'));
+    });
+
+    afterAll(() => rmSync(tempDir, { recursive: true, force: true }));
+
+    beforeEach(() => {
+      vi.stubEnv('NODE_ENV', 'production');
+      env.DATABASE_PASSWORD = 'prod-password';
+    });
+
+    it('verifies the certificate in production by default', async () => {
+      await import('./db');
+
+      expect(poolOptions).toHaveBeenCalledWith(
+        expect.objectContaining({ ssl: { rejectUnauthorized: true } })
+      );
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('encrypts without verification in require mode and warns', async () => {
+      env.DATABASE_TLS_MODE = 'require';
+
+      await import('./db');
+
+      expect(poolOptions).toHaveBeenCalledWith(
+        expect.objectContaining({ ssl: { rejectUnauthorized: false } })
+      );
+      expect(warn).toHaveBeenCalledWith(
+        { tls_mode: 'require' },
+        'Database TLS certificate verification is disabled'
+      );
+    });
+
+    it('accepts a mode with surrounding whitespace', async () => {
+      env.DATABASE_TLS_MODE = ' require ';
+
+      await import('./db');
+
+      expect(poolOptions).toHaveBeenCalledWith(
+        expect.objectContaining({ ssl: { rejectUnauthorized: false } })
+      );
+    });
+
+    it('can be disabled in production', async () => {
+      env.DATABASE_TLS_MODE = 'disable';
+
+      await import('./db');
+
+      expect(poolOptions).toHaveBeenCalledWith(expect.objectContaining({ ssl: false }));
+      expect(warn).toHaveBeenCalledWith({ tls_mode: 'disable' }, 'Database TLS is disabled');
+    });
+
+    it('trusts the configured CA certificate', async () => {
+      const caCertPath = join(tempDir, 'ca.crt');
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      writeFileSync(caCertPath, 'test-ca');
+      env.DATABASE_TLS_CA_CERT = caCertPath;
+
+      await import('./db');
+
+      expect(poolOptions).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ssl: { rejectUnauthorized: true, ca: Buffer.from('test-ca') }
+        })
+      );
+    });
+
+    it('fails when the CA certificate file is missing', async () => {
+      env.DATABASE_TLS_CA_CERT = join(tempDir, 'missing.crt');
+
+      await expect(import('./db')).rejects.toThrow('ENOENT');
+      expect(poolOptions).not.toHaveBeenCalled();
+    });
+
+    it.each(['require', 'disable'])(
+      'rejects a CA certificate with mode %s, which would ignore it',
+      async (mode) => {
+        env.DATABASE_TLS_MODE = mode;
+        env.DATABASE_TLS_CA_CERT = join(tempDir, 'ca.crt');
+
+        await expect(import('./db')).rejects.toThrow(
+          'DATABASE_TLS_CA_CERT requires DATABASE_TLS_MODE=verify-full'
+        );
+        expect(poolOptions).not.toHaveBeenCalled();
+      }
+    );
+
+    it('rejects an unknown mode', async () => {
+      env.DATABASE_TLS_MODE = 'prefer';
+
+      await expect(import('./db')).rejects.toThrow('DATABASE_TLS_MODE must be one of');
+      expect(poolOptions).not.toHaveBeenCalled();
+    });
   });
 });

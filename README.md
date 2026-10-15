@@ -75,7 +75,7 @@ A Helm chart for Kubernetes is included under [`deploy/helm/cockpit`](./deploy/h
 helm install cockpit ./deploy/helm/cockpit -f your-values.yaml
 ```
 
-See the [chart README](./deploy/helm/cockpit/README.md) for the full list of values.
+The chart needs an existing PostgreSQL database (`database.*` values). See the [chart README](./deploy/helm/cockpit/README.md) for the full list of values, and [docs/DATABASE.md](./docs/DATABASE.md) for the database settings, including TLS.
 
 ### Docker
 

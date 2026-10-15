@@ -1,3 +1,4 @@
+{{- include "cockpit.validateTls" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -137,6 +138,37 @@ spec:
                   name: {{ include "cockpit.fullname" . }}
                   key: session-secret
                   {{- end }}
+            - name: DATABASE_HOST
+              value: {{ required "database.host is required" .Values.database.host | quote }}
+            - name: DATABASE_PORT
+              value: {{ include "cockpit.databasePort" . | quote }}
+            - name: DATABASE_NAME
+              value: {{ .Values.database.name | quote }}
+            - name: DATABASE_USER
+              value: {{ .Values.database.user | quote }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "database.password.secretKeyRef.name is required" .Values.database.password.secretKeyRef.name | quote }}
+                  key: {{ .Values.database.password.secretKeyRef.key | quote }}
+            {{- with .Values.database.tls.mode }}
+            - name: DATABASE_TLS_MODE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if .Values.database.tls.caCert }}
+            - name: DATABASE_TLS_CA_CERT
+              value: {{ .Values.database.tls.caCert | quote }}
+            {{- else if .Values.database.tls.secretClass }}
+            - name: DATABASE_TLS_CA_CERT
+              value: /stackable/database-tls/ca.crt
+            {{- end }}
+            {{- if eq (toString (index $features "storage" | default dict).enabled) "true" }}
+            - name: STORAGE_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "storage.encryptionKey.secretKeyRef.name is required when features.storage.enabled is true" .Values.storage.encryptionKey.secretKeyRef.name | quote }}
+                  key: {{ .Values.storage.encryptionKey.secretKeyRef.key | quote }}
+            {{- end }}
             {{- if .Values.auth.oidc.enabled }}
             - name: STACKABLE_COCKPIT_OIDC_CLIENT_SECRET
               valueFrom:
@@ -238,6 +270,14 @@ spec:
               mountPath: /stackable/trino-tls
               readOnly: true
             {{- end }}
+            {{- if .Values.database.tls.secretClass }}
+            - name: database-tls
+              mountPath: /stackable/database-tls
+              readOnly: true
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
@@ -256,6 +296,25 @@ spec:
                 resources:
                   requests:
                     storage: 1
+        {{- end }}
+        {{- if .Values.database.tls.secretClass }}
+        - name: database-tls
+          ephemeral:
+            volumeClaimTemplate:
+              metadata:
+                annotations:
+                  secrets.stackable.tech/class: {{ .Values.database.tls.secretClass | quote }}
+                  secrets.stackable.tech/scope: pod
+              spec:
+                storageClassName: secrets.stackable.tech
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

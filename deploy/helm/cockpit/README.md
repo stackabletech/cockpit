@@ -6,14 +6,21 @@ This Helm chart deploys the Stackable Data Platform (SDP) Cockpit UI on Kubernet
 
 - A Kubernetes cluster
 - [Helm](https://helm.sh/docs/intro/install/) installed
+- A PostgreSQL database. The chart does not deploy one. See [Database Parameters](#database-parameters).
 
 ## Installing the Chart
 
 ### Basic Installation
 
 ```bash
-helm install cockpit ./deploy/helm/cockpit
+kubectl create secret generic cockpit-database --from-literal=database-password='<password>'
+
+helm install cockpit ./deploy/helm/cockpit \
+  --set database.host=postgresql.example.svc \
+  --set database.password.secretKeyRef.name=cockpit-database
 ```
+
+OIDC is enabled by default, so also set the `auth.oidc.*` values or disable it (see [Authentication Parameters](#authentication-parameters)).
 
 ### Installation with Custom Values
 
@@ -28,6 +35,10 @@ helm install cockpit ./deploy/helm/cockpit \
 helm install cockpit ./deploy/helm/cockpit \
   -f my-values.yaml
 ```
+
+### Upgrading
+
+New chart versions can add values. `helm upgrade --reuse-values` doesn't merge their defaults, so templates that read them fail to render. Use `--reset-then-reuse-values` instead.
 
 ## Uninstalling the Chart
 
@@ -85,6 +96,22 @@ The following table lists the configurable parameters of the Cockpit chart and t
 | `config.nodeEnv` | Node.js environment | `production` |
 | `config.bodySizeLimit` | Sets `BODY_SIZE_LIMIT`, the maximum request body size (e.g. `12M`). Must be at least the editable file size limit (`PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`, 5 MiB by default), otherwise saving larger files in the text editor fails. | `""` (image default `6M`) |
 
+### Database Parameters
+
+Cockpit stores sessions, users and storage connections in PostgreSQL. Migrations run automatically at startup.
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `database.host` | PostgreSQL host. Required. | `""` |
+| `database.port` | PostgreSQL port. | `5432` |
+| `database.name` | Database name. | `cockpit` |
+| `database.user` | Database user. | `cockpit` |
+| `database.password.secretKeyRef.name` | Name of the Secret holding the database password. Required. | `""` |
+| `database.password.secretKeyRef.key` | Key inside the Secret. | `database-password` |
+| `database.tls.mode` | `verify-full` (verify certificate and host name), `require` (encrypt without verification) or `disable`. | `""` (application default: `verify-full` when `config.nodeEnv` is `production`, otherwise `disable`) |
+| `database.tls.caCert` | Path to a CA certificate file inside the container, e.g. mounted via `extraVolumes`. Requires mode `verify-full`. Mutually exclusive with `secretClass`. | `""` |
+| `database.tls.secretClass` | Stackable SecretClass that provides the database CA certificate. Requires mode `verify-full`. Mutually exclusive with `caCert`. | `""` |
+
 ### Feature Parameters
 
 All feature parameters are optional. Omit them to use the application defaults.
@@ -133,9 +160,9 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 | `trino.auth.username` | Username for basic auth. | `""` |
 | `trino.auth.password.secretKeyRef.name` | Name of the Secret holding the Trino password. Required when `type=basic`. | `""` |
 | `trino.auth.password.secretKeyRef.key` | Key inside the Secret. | `trino-auth-password` |
-| `trino.tls.insecure` | Skip TLS certificate verification. | `false` |
-| `trino.tls.caCert` | Path to a custom CA certificate file. | `""` |
-| `trino.tls.secretClass` | Stackable SecretClass that provides the Trino CA certificate. | `""` |
+| `trino.tls.insecure` | Skip TLS certificate verification. Cannot be combined with `caCert` or `secretClass`. | `false` |
+| `trino.tls.caCert` | Path to a CA certificate file inside the container, e.g. mounted via `extraVolumes`. Mutually exclusive with `secretClass`. | `""` |
+| `trino.tls.secretClass` | Stackable SecretClass that provides the Trino CA certificate. Mutually exclusive with `caCert`. | `""` |
 | `trino.queryTtl` | Query result TTL in seconds. | `1800` (application default) |
 
 ### Security Parameters
@@ -144,8 +171,19 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 | --- | --- | --- |
 | `sessionSecret.secretKeyRef.name` | Name of a Secret holding a stable session secret. Auto-generated if empty. | `""` |
 | `sessionSecret.secretKeyRef.key` | Key inside the Secret. | `session-secret` |
+| `storage.encryptionKey.secretKeyRef.name` | Name of the Secret holding the key that encrypts stored storage connection credentials: 64 hex characters, e.g. from `openssl rand -hex 32`. Required when `features.storage.enabled` is `true`. Keep it stable: changing or losing it makes all stored credentials unreadable. | `""` |
+| `storage.encryptionKey.secretKeyRef.key` | Key inside the Secret. | `storage-encryption-key` |
 | `podSecurityContext` | Pod security context | See values.yaml |
 | `securityContext` | Container security context | See values.yaml |
+
+A configured CA certificate (`caCert` or `secretClass`) replaces the system trust store for that connection. The chart refuses to render contradictory TLS settings, for example a CA together with `trino.tls.insecure` or a database mode that doesn't verify certificates.
+
+### Volume Parameters
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `extraVolumes` | Additional pod volumes, e.g. a Secret holding a CA certificate for `trino.tls.caCert` or `database.tls.caCert`. | `[]` |
+| `extraVolumeMounts` | Additional volume mounts for the Cockpit container. | `[]` |
 
 ### Resource Parameters
 

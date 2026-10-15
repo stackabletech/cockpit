@@ -137,6 +137,17 @@ terminationGracePeriodSeconds: 30
 logging:
   level: ""
 
+# Additional volumes and container mounts, e.g. for a CA certificate referenced by
+# trino.tls.caCert or database.tls.caCert.
+extraVolumes: []
+  # - name: database-ca
+  #   secret:
+  #     secretName: database-ca
+extraVolumeMounts: []
+  # - name: database-ca
+  #   mountPath: /stackable/database-ca
+  #   readOnly: true
+
 nodeSelector: {}
 
 tolerations: []
@@ -156,6 +167,41 @@ sessionSecret:
   secretKeyRef:
     name: ""
     key: session-secret
+
+# PostgreSQL database (required). Stores sessions, users and storage connections.
+# The chart does not deploy PostgreSQL; point it at an existing instance.
+database:
+  host: ""
+  port: 5432
+  name: cockpit
+  user: cockpit
+  # Required.
+  password:
+    secretKeyRef:
+      name: ""
+      key: database-password
+  tls:
+    # "verify-full" (verify certificate and host name), "require" (encrypt without
+    # verification) or "disable". Empty uses the application default: verify-full when
+    # config.nodeEnv is "production", otherwise disable.
+    mode: ""
+    # Path to a CA certificate file inside the container, e.g. mounted via extraVolumes.
+    # Requires mode verify-full. Mutually exclusive with secretClass.
+    caCert: ""
+    # Stackable SecretClass name for provisioning the database CA certificate.
+    # Requires mode verify-full. Mutually exclusive with caCert.
+    # The Secret Operator mounts ca.crt into /stackable/database-tls.
+    secretClass: ""
+
+# Storage browser settings that are not feature flags.
+storage:
+  # Key that encrypts stored storage connection credentials: a 64-character hex string (32 bytes),
+  # e.g. from `openssl rand -hex 32`. Required when features.storage.enabled is true.
+  # Keep it stable: changing or losing it makes all stored credentials unreadable.
+  encryptionKey:
+    secretKeyRef:
+      name: ""
+      key: storage-encryption-key
 
 # SvelteKit CSRF origin
 origin: "http://localhost:3000"
@@ -209,11 +255,13 @@ trino:
         name: ""
         key: trino-auth-password
   tls:
-    # Skip TLS certificate verification
+    # Skip TLS certificate verification. Cannot be combined with caCert or secretClass.
     insecure: false
-    # Path to a custom CA certificate file (mounted via extraVolumes)
+    # Path to a CA certificate file inside the container, e.g. mounted via extraVolumes.
+    # Mutually exclusive with secretClass.
     caCert: ""
     # Stackable SecretClass name for provisioning the Trino CA certificate.
+    # Mutually exclusive with caCert.
     # The Secret Operator mounts ca.crt into /stackable/trino-tls.
     secretClass: ""
   # Query result TTL in seconds. Default: 1800 (application default).

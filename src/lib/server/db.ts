@@ -1,6 +1,7 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { logger } from './logging';
+import { databaseSsl, databaseTlsMode } from './db-tls';
 
 const log = logger.child({ module: 'database' });
 
@@ -25,9 +26,19 @@ if (!env.DATABASE_PASSWORD) {
 }
 const dbPassword = env.DATABASE_PASSWORD || 'cockpit-dev-password';
 
-// Production certificates must chain to the operating system or Node.js trust store.
-// For a private CA, set NODE_EXTRA_CA_CERTS to the mounted CA certificate path.
-const sslMode = isProduction ? { rejectUnauthorized: true } : false;
+// DATABASE_TLS_MODE: verify-full (production default), require or disable (development default).
+// For a private CA, set DATABASE_TLS_CA_CERT to the mounted CA certificate path.
+const tlsMode = databaseTlsMode(env, isProduction);
+if (isProduction && tlsMode !== 'verify-full') {
+  log.warn(
+    { tls_mode: tlsMode },
+    tlsMode === 'disable'
+      ? 'Database TLS is disabled'
+      : 'Database TLS certificate verification is disabled'
+  );
+}
+log.debug({ tls_mode: tlsMode, tls_ca_cert: env.DATABASE_TLS_CA_CERT || null }, 'Database TLS');
+const sslMode = databaseSsl(env, tlsMode);
 
 // Create a connection pool
 const pool = new Pool({

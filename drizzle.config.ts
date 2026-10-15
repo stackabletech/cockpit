@@ -1,4 +1,5 @@
 import { defineConfig } from 'drizzle-kit';
+import { databaseSsl, databaseTlsMode } from './src/lib/server/db-tls';
 
 const envFile = process.env.DRIZZLE_ENV_FILE ?? '.env.development';
 try {
@@ -25,6 +26,6 @@ export default defineConfig({
     database: required('DATABASE_NAME'),
     user: required('DATABASE_USER'),
     password: required('DATABASE_PASSWORD'),
-    ssl: isProduction ? { rejectUnauthorized: true } : false
+    ssl: databaseSsl(process.env, databaseTlsMode(process.env, isProduction))
   }
 });

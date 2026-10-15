@@ -12,6 +12,8 @@ DATABASE_PORT=31432              # PostgreSQL port (default: 31432)
 DATABASE_NAME=cockpit            # Database name
 DATABASE_USER=cockpit            # Database user
 DATABASE_PASSWORD=cockpit-dev-password  # Database password
+DATABASE_TLS_MODE=disable        # Optional: verify-full, require or disable (see below)
+DATABASE_TLS_CA_CERT=/path/ca.crt  # Optional: CA certificate for verify-full
 ```
 
 These are automatically set in `.env.development` by `./dev/setup.sh`.
@@ -182,12 +184,16 @@ SELECT * FROM <table>; # View data
 
 ### SSL/TLS Configuration
 
-- **Development** (`NODE_ENV != production`): SSL is **disabled** by default for local Kubernetes
-- **Production** (`NODE_ENV = production`): SSL is enabled with certificate verification. The database certificate must chain to the system/Node.js trust store. For a private CA, mount it and set `NODE_EXTRA_CA_CERTS` to its path.
+`DATABASE_TLS_MODE` selects how the connection is secured:
 
-This is configured automatically in both:
+| Mode          | Behaviour                                                                            |
+| ------------- | ------------------------------------------------------------------------------------ |
+| `verify-full` | TLS with certificate and host name verification. Default in production.              |
+| `require`     | TLS without certificate verification. Encrypts, but doesn't authenticate the server. |
+| `disable`     | No TLS. Default when `NODE_ENV` isn't `production`.                                  |
 
-- `drizzle.config.ts` - for migrations and Drizzle Studio
-- `src/lib/server/db.ts` - for the application runtime
+With `verify-full`, the certificate must chain to `DATABASE_TLS_CA_CERT` if it is set, otherwise to the CA certificates bundled with Node.js (the public Mozilla CAs, not the operating system's trust store). Set `DATABASE_TLS_CA_CERT` for any private CA, such as the one that signs AWS RDS certificates. It replaces the bundled CAs and is only accepted with `verify-full`; any other mode fails at startup.
 
-**Never disable SSL in production.** Unencrypted database connections expose credentials and data to network attacks.
+The same settings apply to the application runtime (`src/lib/server/db.ts`) and to `drizzle.config.ts` (migrations and Drizzle Studio).
+
+Only use `require` or `disable` in production when the network path to the database is otherwise protected. The application logs a warning when certificate verification is off in production.
