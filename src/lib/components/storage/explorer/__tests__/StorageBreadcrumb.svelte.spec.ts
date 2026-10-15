@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
@@ -181,6 +181,28 @@ describe('StorageBreadcrumb', () => {
 
       await page.getByRole('button', { name: /upload/i }).click();
       expect(spy).toHaveBeenCalledWith('upload', { bucket: 'mybucket', prefix: 'data/' });
+    });
+  });
+
+  describe('create menu', () => {
+    it('should ignore Enter while a create is in flight', async () => {
+      const state = createState();
+      let resolveCreate: (created: boolean) => void = () => {};
+      const spy = vi
+        .spyOn(state, 'confirmCreate')
+        .mockImplementation(() => new Promise((resolve) => (resolveCreate = resolve)));
+      render(StorageBreadcrumbWrapper, { state });
+
+      await page.getByRole('button', { name: /create/i }).click();
+      await page.getByRole('menuitem', { name: /text file/i }).click();
+      const input = page.getByLabelText('Name');
+      await input.click();
+      await userEvent.keyboard('{Enter}');
+      await userEvent.keyboard('{Enter}');
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      resolveCreate(true);
+      await expect.element(input).not.toBeInTheDocument();
     });
   });
 

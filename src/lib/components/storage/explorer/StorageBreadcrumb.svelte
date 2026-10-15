@@ -103,7 +103,7 @@
   }
 
   async function handleCreate() {
-    if (createNameError) return;
+    if (creating || createNameError) return;
     creating = true;
     try {
       const created = await storage.confirmCreate(createName.trim(), createType);
