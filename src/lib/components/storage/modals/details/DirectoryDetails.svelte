@@ -208,7 +208,16 @@
             <td class="text-base-content/60 font-medium whitespace-nowrap"
               >{m.storage_details_owner()}</td
             >
-            <td class="font-mono text-sm">{meta.bucketOwner}</td>
+            <td class="font-mono text-sm">
+              {#if meta.bucketOwner === null}
+                <span class="text-base-content/60 flex items-center gap-2 font-sans">
+                  <IconWarning class="text-warning size-4 shrink-0" aria-hidden="true" />
+                  {m.storage_details_unavailable()}
+                </span>
+              {:else}
+                {meta.bucketOwner}
+              {/if}
+            </td>
           </tr>
           {#if meta.bucketGrants && meta.bucketGrants.length > 0}
             <tr>

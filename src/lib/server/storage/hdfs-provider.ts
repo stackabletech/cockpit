@@ -7,7 +7,7 @@ import type {
 } from './provider.js';
 import type { HDFSConfig } from './types.js';
 import type { StoragePage, StorageMetadata } from '$lib/storage/types.js';
-import type { LifecycleRule, BucketAcl } from '$lib/storage/details-types.js';
+import type { LifecycleRule, BucketAcl, BucketVersioning } from '$lib/storage/details-types.js';
 
 /* TODO: Remove this file and related HDFS provider code until we have a concrete plan for HDFS support.
  For now, this serves as a placeholder to prevent compile errors. */
@@ -87,19 +87,19 @@ export class HDFSStorageProvider implements StorageProvider {
     throw new Error('HDFS not implemented');
   }
 
-  getBucketVersioning(): Promise<string> {
+  getBucketVersioning(): Promise<BucketVersioning | null> {
     throw new Error('HDFS not implemented');
   }
 
-  getBucketLifecycleRules(): Promise<LifecycleRule[]> {
+  getBucketLifecycleRules(): Promise<LifecycleRule[] | null> {
     throw new Error('HDFS not implemented');
   }
 
-  getBucketTags(): Promise<Record<string, string>> {
+  getBucketTags(): Promise<Record<string, string> | null> {
     throw new Error('HDFS not implemented');
   }
 
-  getBucketAcl(): Promise<BucketAcl> {
+  getBucketAcl(): Promise<BucketAcl | null> {
     throw new Error('HDFS not implemented');
   }
 

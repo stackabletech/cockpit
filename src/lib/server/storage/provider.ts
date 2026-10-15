@@ -4,7 +4,7 @@ import type {
   DeleteObjectsResult,
   SearchResultItem
 } from '$lib/storage/types.js';
-import type { LifecycleRule, BucketAcl } from '$lib/storage/details-types.js';
+import type { LifecycleRule, BucketAcl, BucketVersioning } from '$lib/storage/details-types.js';
 
 export type { DeleteObjectsResult };
 
@@ -115,10 +115,15 @@ export interface StorageProvider {
    * files (plain keys) and directories (keys ending in `/`) match.
    */
   search(query: string, options?: SearchOptions): Promise<SearchResult>;
-  getBucketVersioning(): Promise<string>;
-  getBucketLifecycleRules(): Promise<LifecycleRule[]>;
-  getBucketTags(): Promise<Record<string, string>>;
-  getBucketAcl(): Promise<BucketAcl>;
+  /*
+   * Bucket info getters resolve to `null` when the setting could not be read
+   * (access denied, unsupported by the backend, ...), as opposed to an empty
+   * value when it is simply not configured.
+   */
+  getBucketVersioning(): Promise<BucketVersioning | null>;
+  getBucketLifecycleRules(): Promise<LifecycleRule[] | null>;
+  getBucketTags(): Promise<Record<string, string> | null>;
+  getBucketAcl(): Promise<BucketAcl | null>;
   /**
    * Copy an object from `sourceKey` to `destKey` in this provider's bucket.
    * The source is read from `options.sourceBucket` (default: this bucket) of

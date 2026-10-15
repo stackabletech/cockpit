@@ -51,8 +51,9 @@ export interface DirectorySizeResult {
 
 /** Metadata about an S3 directory/folder (bucket ACL + optional directory marker object). */
 export interface DirectoryMetadata {
-  bucketOwner: string;
-  bucketGrants: Array<{ grantee: string; permission: string }>;
+  /** `null` when the bucket ACL could not be loaded. */
+  bucketOwner: string | null;
+  bucketGrants: Array<{ grantee: string; permission: string }> | null;
   markerExists: boolean;
   markerLastModified?: string;
   markerContentType?: string;
@@ -109,11 +110,14 @@ export interface BucketAcl {
   grants: Array<{ grantee: string; permission: string }>;
 }
 
-/** Bucket configuration details. */
+/** Bucket versioning state; `Disabled` means versioning was never enabled. */
+export type BucketVersioning = 'Enabled' | 'Suspended' | 'Disabled';
+
+/** Bucket configuration details. A `null` field could not be loaded. */
 export interface BucketDetails {
   name: string;
-  versioning: 'Enabled' | 'Suspended' | 'Disabled';
-  lifecycleRules: LifecycleRule[];
-  tags: Record<string, string>;
-  acl: BucketAcl;
+  versioning: BucketVersioning | null;
+  lifecycleRules: LifecycleRule[] | null;
+  tags: Record<string, string> | null;
+  acl: BucketAcl | null;
 }

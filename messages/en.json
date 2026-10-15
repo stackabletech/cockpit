@@ -578,6 +578,7 @@
   "storage_details_lifecycle_no_rules": "No lifecycle rules configured",
   "storage_details_tags": "Tags",
   "storage_details_no_tags": "No tags",
+  "storage_details_unavailable": "Could not load",
   "storage_details_custom_metadata": "Custom Metadata",
   "storage_details_error_not_connected": "No storage connection configured",
   "storage_details_error_fetch_file": "Failed to fetch file details ({status})",

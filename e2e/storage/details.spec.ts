@@ -171,4 +171,32 @@ test.describe('Storage S3 — Details Modal', () => {
       // no cleanup needed — using the shared test bucket
     }
   });
+
+  test('marks bucket details sections that could not be loaded', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    const bucket = credentials.bucket;
+
+    await page.route(
+      (url) =>
+        url.pathname === '/api/storage/buckets' && url.searchParams.get('details') === 'true',
+      (route) =>
+        route.fulfill({
+          json: { name: bucket, versioning: null, lifecycleRules: [], tags: null, acl: null }
+        })
+    );
+
+    await connectToStorage(page, credentials);
+    await expect(page).toHaveURL('/storage');
+
+    const sidebar = page.getByRole('navigation', { name: 'Buckets' });
+    await sidebar.getByText(bucket).click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Details' }).click();
+
+    const modal = page.getByRole('dialog');
+    await expect(modal.getByRole('heading', { name: 'Bucket Details' })).toBeVisible();
+    // Versioning, owner and tags failed; lifecycle loaded and is genuinely empty.
+    await expect(modal.getByText('Could not load')).toHaveCount(3);
+    await expect(modal.getByText('Disabled')).toHaveCount(0);
+    await expect(modal.getByText('No lifecycle rules')).toBeVisible();
+  });
 });

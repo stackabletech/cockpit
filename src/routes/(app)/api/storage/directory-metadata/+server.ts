@@ -18,8 +18,8 @@ export const GET: RequestHandler = async (event) => {
 
   const acl = await provider.getBucketAcl();
   const result: DirectoryMetadata = {
-    bucketOwner: acl.owner,
-    bucketGrants: acl.grants,
+    bucketOwner: acl?.owner ?? null,
+    bucketGrants: acl?.grants ?? null,
     markerExists: false
   };
 

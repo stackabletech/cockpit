@@ -61,6 +61,15 @@ describe('GET /api/storage/directory-metadata', () => {
     expect(mockGetMetadata).toHaveBeenCalled();
   });
 
+  it('returns null owner and grants when the bucket ACL could not be loaded', async () => {
+    mockGetBucketAcl.mockResolvedValue(null);
+    mockGetMetadata.mockRejectedValue(new Error('NoSuchKey'));
+
+    const response = await GET(mockEvent({ bucket: 'b1', prefix: 'dir/' }));
+    const body = await response.json();
+    expect(body).toMatchObject({ bucketOwner: null, bucketGrants: null, markerExists: false });
+  });
+
   it('returns directory metadata with marker when object exists', async () => {
     mockGetBucketAcl.mockResolvedValue({ owner: 'admin', grants: [] });
     mockGetMetadata.mockResolvedValue({

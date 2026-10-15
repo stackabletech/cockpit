@@ -578,6 +578,7 @@
   "storage_details_lifecycle_no_rules": "Keine Lebenszyklus-Regeln konfiguriert",
   "storage_details_tags": "Tags",
   "storage_details_no_tags": "Keine Tags",
+  "storage_details_unavailable": "Konnte nicht geladen werden",
   "storage_details_custom_metadata": "Benutzerdefinierte Metadaten",
   "storage_details_error_not_connected": "Keine Speicherverbindung konfiguriert",
   "storage_details_error_fetch_file": "Dateidetails konnten nicht abgerufen werden ({status})",

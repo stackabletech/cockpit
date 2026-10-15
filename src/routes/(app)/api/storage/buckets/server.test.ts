@@ -129,6 +129,24 @@ describe('GET /api/storage/buckets', () => {
       expect(body.versioning).toBe('Disabled');
     });
 
+    it('passes through sections that could not be loaded as null', async () => {
+      mockGetBucketVersioning.mockResolvedValue(null);
+      mockGetBucketLifecycleRules.mockResolvedValue([]);
+      mockGetBucketTags.mockResolvedValue(null);
+      mockGetBucketAcl.mockResolvedValue(null);
+
+      const response = await GET(mockEvent({ details: 'true', bucket: 'b1' }));
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body).toEqual({
+        name: 'b1',
+        versioning: null,
+        lifecycleRules: [],
+        tags: null,
+        acl: null
+      });
+    });
+
     it('includes lifecycle rules and ACL grants', async () => {
       const rules = [
         {

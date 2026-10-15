@@ -60,6 +60,13 @@
   }
 </script>
 
+{#snippet unavailable()}
+  <div class="text-base-content/60 flex items-center gap-2 text-sm">
+    <IconWarning class="text-warning size-4 shrink-0" aria-hidden="true" />
+    <span>{m.storage_details_unavailable()}</span>
+  </div>
+{/snippet}
+
 <div class="flex flex-col gap-4">
   {#if loading}
     <div class="flex items-center justify-center py-8">
@@ -83,7 +90,9 @@
         {m.storage_details_versioning()}
       </h4>
       <div class="flex items-center gap-2">
-        {#if details.versioning === 'Enabled'}
+        {#if details.versioning === null}
+          {@render unavailable()}
+        {:else if details.versioning === 'Enabled'}
           <span class="badge badge-success badge-sm">{versioningLabel(details.versioning)}</span>
         {:else if details.versioning === 'Suspended'}
           <span class="badge badge-warning badge-sm">{versioningLabel(details.versioning)}</span>
@@ -97,13 +106,17 @@
       <h4 class="text-base-content/70 mb-2 text-xs font-semibold tracking-wide uppercase">
         {m.storage_details_owner()}
       </h4>
-      <div class="flex items-center gap-2">
-        <IconPerson class="text-base-content/50 size-4" aria-hidden="true" />
-        <span class="text-sm">{details.acl.owner}</span>
-      </div>
+      {#if details.acl}
+        <div class="flex items-center gap-2">
+          <IconPerson class="text-base-content/50 size-4" aria-hidden="true" />
+          <span class="text-sm">{details.acl.owner}</span>
+        </div>
+      {:else}
+        {@render unavailable()}
+      {/if}
     </div>
 
-    {#if details.acl.grants.length > 0}
+    {#if details.acl && details.acl.grants.length > 0}
       <div>
         <h4 class="text-base-content/70 mb-2 text-xs font-semibold tracking-wide uppercase">
           {m.storage_details_permissions()}
@@ -124,7 +137,14 @@
       </div>
     {/if}
 
-    {#if details.lifecycleRules.length > 0}
+    {#if details.lifecycleRules === null}
+      <div>
+        <h4 class="text-base-content/70 mb-2 text-xs font-semibold tracking-wide uppercase">
+          {m.storage_details_lifecycle_rules()}
+        </h4>
+        {@render unavailable()}
+      </div>
+    {:else if details.lifecycleRules.length > 0}
       <div>
         <h4 class="text-base-content/70 mb-2 text-xs font-semibold tracking-wide uppercase">
           {m.storage_details_lifecycle_rules()}
@@ -250,7 +270,14 @@
       </div>
     {/if}
 
-    {#if details.tags && Object.keys(details.tags).length > 0}
+    {#if details.tags === null}
+      <div>
+        <h4 class="text-base-content/70 mb-2 text-xs font-semibold tracking-wide uppercase">
+          {m.storage_details_tags()}
+        </h4>
+        {@render unavailable()}
+      </div>
+    {:else if Object.keys(details.tags).length > 0}
       <div>
         <h4 class="text-base-content/70 mb-2 text-xs font-semibold tracking-wide uppercase">
           {m.storage_details_tags()}

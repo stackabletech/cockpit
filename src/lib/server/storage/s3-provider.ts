@@ -37,7 +37,7 @@ import type {
   StorageMetadata,
   SearchResultItem
 } from '$lib/storage/types.js';
-import type { LifecycleRule, BucketAcl } from '$lib/storage/details-types.js';
+import type { LifecycleRule, BucketAcl, BucketVersioning } from '$lib/storage/details-types.js';
 import { logger } from '$lib/server/logging';
 import { createS3Client } from './s3-client.js';
 import { mapS3ErrorToHttp } from './s3-errors.js';
@@ -266,14 +266,18 @@ export class S3StorageProvider implements StorageProvider {
     // Empty files cannot use multipart upload (S3 rejects empty parts).
     // Use a simple PutObject request instead.
     if (contentLength === 0) {
-      await this.client.send(
-        new PutObjectCommand({
-          Bucket: this.bucket,
-          Key: key,
-          Body: Buffer.alloc(0),
-          ContentType: contentType,
-          ContentLength: 0
-        })
+      await withS3Errors(
+        () =>
+          this.client.send(
+            new PutObjectCommand({
+              Bucket: this.bucket,
+              Key: key,
+              Body: Buffer.alloc(0),
+              ContentType: contentType,
+              ContentLength: 0
+            })
+          ),
+        { bucket: this.bucket, key, operation: 'putObject' }
       );
       return;
     }
@@ -441,65 +445,95 @@ export class S3StorageProvider implements StorageProvider {
     return failed;
   }
 
-  async getBucketVersioning(): Promise<'Enabled' | 'Suspended' | 'Disabled'> {
+  /**
+   * Runs a bucket-info request. Errors whose code is in `emptyCodes` mean the
+   * setting is not configured and yield `empty`; any other failure is logged
+   * and yields `null`, so callers can show the section as unavailable rather
+   * than as a misleading default.
+   */
+  private async bucketInfo<T>(
+    operation: string,
+    fn: () => Promise<T>,
+    empty?: { codes: string[]; value: T }
+  ): Promise<T | null> {
     try {
+      return await fn();
+    } catch (err) {
+      const isS3 = err instanceof S3ServiceException;
+      if (isS3 && empty?.codes.includes(err.name)) return empty.value;
+      log.warn(
+        {
+          bucket: this.bucket,
+          operation,
+          error_code: isS3 ? err.name : undefined,
+          status_code: isS3 ? err.$metadata?.httpStatusCode : undefined,
+          err: isS3 ? undefined : err
+        },
+        'bucket info request failed'
+      );
+      return null;
+    }
+  }
+
+  async getBucketVersioning(): Promise<BucketVersioning | null> {
+    return this.bucketInfo('getBucketVersioning', async () => {
       const output = await this.client.send(
         new GetBucketVersioningCommand({ Bucket: this.bucket })
       );
       if (output.Status === 'Enabled') return 'Enabled';
       if (output.Status === 'Suspended') return 'Suspended';
       return 'Disabled';
-    } catch {
-      return 'Disabled';
-    }
+    });
   }
 
-  async getBucketLifecycleRules(): Promise<LifecycleRule[]> {
-    try {
-      const output = await this.client.send(
-        new GetBucketLifecycleConfigurationCommand({ Bucket: this.bucket })
-      );
-      return (output.Rules ?? []).map((rule) => {
-        const expiration = rule.Expiration;
-        const noncurrentExpiration = rule.NoncurrentVersionExpiration;
-        const abortMpu = rule.AbortIncompleteMultipartUpload;
+  async getBucketLifecycleRules(): Promise<LifecycleRule[] | null> {
+    return this.bucketInfo(
+      'getBucketLifecycleRules',
+      async () => {
+        const output = await this.client.send(
+          new GetBucketLifecycleConfigurationCommand({ Bucket: this.bucket })
+        );
+        return (output.Rules ?? []).map((rule) => {
+          const expiration = rule.Expiration;
+          const noncurrentExpiration = rule.NoncurrentVersionExpiration;
+          const abortMpu = rule.AbortIncompleteMultipartUpload;
 
-        return {
-          id: rule.ID ?? '',
-          status: rule.Status === 'Enabled' ? 'Enabled' : 'Disabled',
-          filter: (rule.Filter as Record<string, unknown>) ?? {},
-          transitions: (rule.Transitions ?? []).map((t) => ({
-            days: t.Days ?? 0,
-            storageClass: t.StorageClass ?? ''
-          })),
-          expirations: expiration
-            ? [
-                {
-                  days: expiration.Days,
-                  date: expiration.Date?.toISOString(),
-                  expiredObjectDeleteMarker: expiration.ExpiredObjectDeleteMarker
-                }
-              ]
-            : [],
-          noncurrentVersionTransitions: (rule.NoncurrentVersionTransitions ?? []).map((t) => ({
-            noncurrentDays: t.NoncurrentDays ?? 0,
-            storageClass: t.StorageClass ?? ''
-          })),
-          noncurrentVersionExpirations: noncurrentExpiration
-            ? [{ noncurrentDays: noncurrentExpiration.NoncurrentDays ?? 0 }]
-            : [],
-          abortIncompleteMultipartUploads: abortMpu
-            ? [{ daysAfterInitiation: abortMpu.DaysAfterInitiation ?? 0 }]
-            : []
-        };
-      });
-    } catch {
-      return [];
-    }
+          return {
+            id: rule.ID ?? '',
+            status: rule.Status === 'Enabled' ? 'Enabled' : 'Disabled',
+            filter: (rule.Filter as Record<string, unknown>) ?? {},
+            transitions: (rule.Transitions ?? []).map((t) => ({
+              days: t.Days ?? 0,
+              storageClass: t.StorageClass ?? ''
+            })),
+            expirations: expiration
+              ? [
+                  {
+                    days: expiration.Days,
+                    date: expiration.Date?.toISOString(),
+                    expiredObjectDeleteMarker: expiration.ExpiredObjectDeleteMarker
+                  }
+                ]
+              : [],
+            noncurrentVersionTransitions: (rule.NoncurrentVersionTransitions ?? []).map((t) => ({
+              noncurrentDays: t.NoncurrentDays ?? 0,
+              storageClass: t.StorageClass ?? ''
+            })),
+            noncurrentVersionExpirations: noncurrentExpiration
+              ? [{ noncurrentDays: noncurrentExpiration.NoncurrentDays ?? 0 }]
+              : [],
+            abortIncompleteMultipartUploads: abortMpu
+              ? [{ daysAfterInitiation: abortMpu.DaysAfterInitiation ?? 0 }]
+              : []
+          };
+        });
+      },
+      { codes: ['NoSuchLifecycleConfiguration'], value: [] }
+    );
   }
 
-  async getBucketAcl(): Promise<BucketAcl> {
-    try {
+  async getBucketAcl(): Promise<BucketAcl | null> {
+    return this.bucketInfo('getBucketAcl', async () => {
       const output = await this.client.send(new GetBucketAclCommand({ Bucket: this.bucket }));
       const owner = [output.Owner?.DisplayName, output.Owner?.ID].filter(Boolean).join(' / ');
       const grants = (output.Grants ?? []).map((g) => ({
@@ -513,22 +547,22 @@ export class S3StorageProvider implements StorageProvider {
         permission: g.Permission ?? 'Unknown'
       }));
       return { owner: owner || 'Unknown', grants };
-    } catch {
-      return { owner: 'Unknown', grants: [] };
-    }
+    });
   }
 
-  async getBucketTags(): Promise<Record<string, string>> {
-    try {
-      const output = await this.client.send(new GetBucketTaggingCommand({ Bucket: this.bucket }));
-      const tags: Record<string, string> = {};
-      for (const tag of output.TagSet ?? []) {
-        if (tag.Key) tags[tag.Key] = tag.Value ?? '';
-      }
-      return tags;
-    } catch {
-      return {};
-    }
+  async getBucketTags(): Promise<Record<string, string> | null> {
+    return this.bucketInfo(
+      'getBucketTags',
+      async () => {
+        const output = await this.client.send(new GetBucketTaggingCommand({ Bucket: this.bucket }));
+        const tags: Record<string, string> = {};
+        for (const tag of output.TagSet ?? []) {
+          if (tag.Key) tags[tag.Key] = tag.Value ?? '';
+        }
+        return tags;
+      },
+      { codes: ['NoSuchTagSet'], value: {} }
+    );
   }
 
   async listAllKeysProgressively(
