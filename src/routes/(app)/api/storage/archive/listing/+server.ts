@@ -13,9 +13,9 @@ import type { RequestHandler } from './$types';
  * Supports nested archives via the optional `nestedArchivePath` parameter:
  * when set, the server extracts the nested archive from the outer one first.
  *
- * The archive is downloaded from S3 and cached server-side for 30 minutes
- * so that subsequent navigations within the same archive do not incur
- * additional S3 transfer costs.
+ * The archive is downloaded from S3 and cached server-side until its ETag
+ * changes, for at most 30 minutes, so that subsequent navigations within the
+ * same archive only cost a HEAD request.
  *
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.
@@ -42,7 +42,7 @@ export const GET: RequestHandler = async (event) => {
   );
 
   const provider = withStorageHttpErrors(getProvider(config, bucket));
-  const downloadFn = (k: string) => provider.getObject(k).then((d) => d.stream);
+  const downloadFn = (k: string) => provider.getObject(k);
   const metadataFn = (k: string) => provider.getMetadata(k);
 
   let listing;

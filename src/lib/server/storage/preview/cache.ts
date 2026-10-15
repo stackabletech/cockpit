@@ -39,6 +39,26 @@ export class ExpiringCache<T> {
   }
 }
 
+/** The parts of an object's metadata that identify its version. */
+export interface ObjectVersionInfo {
+  size: number;
+  etag?: string;
+  lastModified?: Date;
+}
+
+/**
+ * Token that changes whenever the object is overwritten: the ETag, or size and
+ * last-modified time for backends without one. `undefined` when neither is
+ * known, in which case the object must not be cached.
+ */
+export function objectVersion(meta: ObjectVersionInfo): string | undefined {
+  if (meta.etag) return meta.etag;
+  // Some providers report a missing Last-Modified as the epoch.
+  if (meta.lastModified && meta.lastModified.getTime() > 0)
+    return `${meta.size}:${meta.lastModified.getTime()}`;
+  return undefined;
+}
+
 export function previewCacheKey(connectionId: string, bucket: string, key: string): string {
   return `${connectionId}:${bucket}:${key}`;
 }

@@ -144,6 +144,39 @@ describe('getCsvPreview', () => {
     expect(body3.totalRows).toBe(5);
   });
 
+  it('rereads a file of the same size once its last-modified time changes', async () => {
+    const file = { content: 'h\nabc\n', lastModified: new Date('2026-10-15T10:00:00Z') };
+    const provider = makeProvider(async (_key: string, start: number, end: number) => {
+      const slice = new TextEncoder().encode(file.content).slice(start, end + 1);
+      return new ReadableStream({
+        start(controller) {
+          controller.enqueue(slice);
+          controller.close();
+        }
+      });
+    });
+    vi.mocked(provider.getMetadata).mockImplementation(
+      async () =>
+        ({
+          size: file.content.length,
+          lastModified: file.lastModified
+        }) as Awaited<ReturnType<StorageProvider['getMetadata']>>
+    );
+    const size = file.content.length;
+
+    const first = await readNdjsonResponse(
+      await getCsvPreview(provider, 'rewritten', 0, 250, size, mockLog, true)
+    );
+    expect(first.rows).toEqual([['abc']]);
+
+    file.content = 'h\nxyz\n';
+    file.lastModified = new Date('2026-10-15T10:05:00Z');
+    const second = await readNdjsonResponse(
+      await getCsvPreview(provider, 'rewritten', 0, 250, size, mockLog, true)
+    );
+    expect(second.rows).toEqual([['xyz']]);
+  });
+
   it('readRows returns correct rows across a chunk boundary', async () => {
     // Same file as above
     const fileContent = 'h\nabc\ndef\nghi\njkl\nmno\n';

@@ -87,7 +87,7 @@ export const GET: RequestHandler = async (event) => {
         offset,
         limit,
         log,
-        totalSize,
+        metadata,
         includeData,
         bucket,
         locals.storageConnectionId ?? ''

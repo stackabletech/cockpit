@@ -558,28 +558,83 @@ describe('getParquetPreview', () => {
     expect(body.error).toBe('Server error');
   });
 
-  it('caches metadata in memory for subsequent calls', async () => {
-    mockParquetMetadataAsync.mockResolvedValue({ num_rows: 5n, row_groups: [] });
-    mockParquetRead.mockImplementation((...args: unknown[]) => {
-      const data = Array.from({ length: 5 }, (_, i) => BigInt(i));
-      return resolvedMockParquetRead(args, { id: data });
-    });
-    mockParquetSchema.mockReturnValue({
-      children: [{ element: { name: 'id' } }]
-    });
-
-    const provider = makeProvider({
-      getMetadata: vi.fn().mockResolvedValue({ size: 1024, contentType: 'application/x-parquet' }),
-      getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
+  describe('metadata cache', () => {
+    beforeEach(() => {
+      mockParquetMetadataAsync.mockResolvedValue({ num_rows: 5n, row_groups: [] });
+      mockParquetRead.mockImplementation((...args: unknown[]) => {
+        const data = Array.from({ length: 5 }, (_, i) => BigInt(i));
+        return resolvedMockParquetRead(args, { id: data });
+      });
+      mockParquetSchema.mockReturnValue({
+        children: [{ element: { name: 'id' } }]
+      });
     });
 
-    // First call — parses metadata
-    await getParquetPreview(provider, 'cached.parquet', 0, 5, mockLog);
-    expect(mockParquetMetadataAsync).toHaveBeenCalledTimes(1);
+    function providerWithMetadata(meta: { size: number; etag?: string; lastModified?: Date }) {
+      return makeProvider({
+        getMetadata: vi.fn(
+          async () =>
+            ({ ...meta, contentType: 'application/x-parquet' }) as Awaited<
+              ReturnType<StorageProvider['getMetadata']>
+            >
+        ),
+        getObjectRange: vi.fn(() => Promise.resolve(makeStream()))
+      });
+    }
 
-    // Second call — should hit cache, not call parquetMetadataAsync again
-    await getParquetPreview(provider, 'cached.parquet', 0, 5, mockLog);
-    expect(mockParquetMetadataAsync).toHaveBeenCalledTimes(1);
+    it('reuses the parsed metadata while the ETag is unchanged', async () => {
+      const provider = providerWithMetadata({ size: 1024, etag: '"v1"' });
+
+      await getParquetPreview(provider, 'cached.parquet', 0, 5, mockLog);
+      await getParquetPreview(provider, 'cached.parquet', 0, 5, mockLog);
+
+      expect(mockParquetMetadataAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('reparses the metadata once the ETag changes', async () => {
+      const meta = { size: 1024, etag: '"v1"' };
+      const provider = providerWithMetadata(meta);
+
+      await getParquetPreview(provider, 'changed.parquet', 0, 5, mockLog);
+      meta.etag = '"v2"';
+      await getParquetPreview(provider, 'changed.parquet', 0, 5, mockLog);
+      await getParquetPreview(provider, 'changed.parquet', 0, 5, mockLog);
+
+      expect(mockParquetMetadataAsync).toHaveBeenCalledTimes(2);
+    });
+
+    it('falls back to size and last-modified time without an ETag', async () => {
+      const meta = { size: 1024, lastModified: new Date('2026-10-15T10:00:00Z') };
+      const provider = providerWithMetadata(meta);
+
+      await getParquetPreview(provider, 'no-etag.parquet', 0, 5, mockLog);
+      await getParquetPreview(provider, 'no-etag.parquet', 0, 5, mockLog);
+      expect(mockParquetMetadataAsync).toHaveBeenCalledTimes(1);
+
+      meta.lastModified = new Date('2026-10-15T10:05:00Z');
+      await getParquetPreview(provider, 'no-etag.parquet', 0, 5, mockLog);
+      expect(mockParquetMetadataAsync).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not cache metadata of an object without a version', async () => {
+      const provider = providerWithMetadata({ size: 1024 });
+
+      await getParquetPreview(provider, 'unversioned.parquet', 0, 5, mockLog);
+      await getParquetPreview(provider, 'unversioned.parquet', 0, 5, mockLog);
+
+      expect(mockParquetMetadataAsync).toHaveBeenCalledTimes(2);
+    });
+
+    it('uses the metadata passed in instead of another HEAD', async () => {
+      const provider = providerWithMetadata({ size: 1024, etag: '"v1"' });
+
+      await getParquetPreview(provider, 'passed.parquet', 0, 5, mockLog, {
+        size: 1024,
+        etag: '"v1"'
+      });
+
+      expect(provider.getMetadata).not.toHaveBeenCalled();
+    });
   });
 
   it('blocks preview for GZIP parquet without offset index', async () => {

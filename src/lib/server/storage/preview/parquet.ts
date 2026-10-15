@@ -16,7 +16,7 @@ import {
   infiniteScrollEnabled,
   type ParquetDisallowedCompression
 } from '$lib/server/feature-flags';
-import { ExpiringCache, previewCacheKey } from './cache.js';
+import { ExpiringCache, objectVersion, previewCacheKey, type ObjectVersionInfo } from './cache.js';
 
 const fallbackLog = logger.child({ module: 'parquet-preview' });
 
@@ -30,7 +30,8 @@ const nodeCompressors = {
   GZIP: (input: Uint8Array, _outputLength: number): Uint8Array => new Uint8Array(gunzipSync(input))
 };
 
-const metadataCache = new ExpiringCache<FileMetaData>();
+/** Parsed footers, valid only while the file still has the same `version`. */
+const metadataCache = new ExpiringCache<{ meta: FileMetaData; version: string }>();
 
 /**
  * Check whether a parquet file's row groups contain any column matching a
@@ -421,13 +422,15 @@ export async function getParquetPreview(
   offset = 0,
   limit = 250,
   requestLog: pino.Logger = fallbackLog,
-  totalSize?: number,
+  object?: ObjectVersionInfo,
   includeData = false,
   bucket = '',
   connectionId = ''
 ): Promise<Response> {
   const log = requestLog.child({ module: 'parquet-preview' });
-  const byteLength = totalSize ?? (await provider.getMetadata(key)).size;
+  object ??= await provider.getMetadata(key);
+  const byteLength = object.size;
+  const version = objectVersion(object);
 
   if (byteLength === 0) {
     const meta = {
@@ -458,11 +461,12 @@ export async function getParquetPreview(
   let parquetMeta: FileMetaData;
 
   const cacheKey = previewCacheKey(connectionId, bucket, key);
-  const cached = metadataCache.get(cacheKey);
-  if (cached) {
-    parquetMeta = cached;
+  const cached = version === undefined ? undefined : metadataCache.get(cacheKey);
+  if (cached && cached.version === version) {
+    parquetMeta = cached.meta;
     log.debug({ key }, 'Used in-memory cached Parquet metadata');
   } else {
+    if (cached) log.debug({ key }, 'Parquet file changed, reparsing metadata');
     let footerQueue: Promise<void> = Promise.resolve();
     const footerBuffer = {
       byteLength,
@@ -482,7 +486,7 @@ export async function getParquetPreview(
 
     parquetMeta = await parquetMetadataAsync(footerBuffer);
 
-    metadataCache.set(cacheKey, parquetMeta);
+    if (version !== undefined) metadataCache.set(cacheKey, { meta: parquetMeta, version });
   }
 
   const totalRows = Number(parquetMeta.num_rows);

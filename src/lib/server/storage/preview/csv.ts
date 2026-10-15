@@ -2,7 +2,7 @@ import type pino from 'pino';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
 import { textPreviewBytes, infiniteScrollEnabled } from '$lib/server/feature-flags.js';
 import { logger } from '$lib/server/logging';
-import { ExpiringCache, previewCacheKey } from './cache.js';
+import { ExpiringCache, objectVersion, previewCacheKey } from './cache.js';
 
 const fallbackLog = logger.child({ module: 'csv-preview' });
 
@@ -16,7 +16,8 @@ interface CsvCacheEntry {
   bytesRead: number;
   /** Total file size */
   totalSize: number;
-  etag?: string;
+  /** `objectVersion` of the file the offsets were read from. */
+  version?: string;
   lastAccessed: number;
 }
 
@@ -201,13 +202,22 @@ export async function getCsvPreview(
   let entry = csvPreviewCache.get(cacheKey);
   const now = Date.now();
 
-  if (!entry || entry.totalSize !== totalSize || entry.etag !== metadata.etag) {
+  const version = objectVersion(metadata);
+
+  // Without a version the file cannot be told apart from an overwritten one,
+  // so the offsets are only reused for this request.
+  if (
+    !entry ||
+    version === undefined ||
+    entry.totalSize !== totalSize ||
+    entry.version !== version
+  ) {
     entry = {
       headers: [],
       lineOffsets: [],
       bytesRead: 0,
       totalSize,
-      etag: metadata.etag,
+      version,
       lastAccessed: now
     };
     csvPreviewCache.set(cacheKey, entry);

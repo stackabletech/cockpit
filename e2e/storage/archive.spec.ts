@@ -215,6 +215,49 @@ test.describe('Storage S3 — Archive preview', () => {
     }
   });
 
+  test('shows the new contents after the archive is overwritten', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'archive-overwritten');
+    const key = `${prefix}archive.zip`;
+    const putArchive = (entries: Record<string, string>) =>
+      client.send(
+        new PutObjectCommand({
+          Bucket: credentials.bucket,
+          Key: key,
+          Body: makeZip(entries),
+          ContentType: 'application/octet-stream'
+        })
+      );
+    const folderName = prefix.split('/').filter(Boolean).at(-1)!;
+
+    try {
+      await putArchive({ 'old.txt': 'old content' });
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await rowByName(page, 'archive.zip').dblclick();
+      await waitForObjectsLoaded(page);
+      await expect(rowByName(page, 'old.txt')).toBeVisible();
+
+      await page
+        .getByRole('navigation', { name: 'Breadcrumb' })
+        .getByRole('button', { name: folderName, exact: true })
+        .click();
+      await waitForObjectsLoaded(page);
+      await expect(rowByName(page, 'archive.zip')).toBeVisible();
+
+      // Overwrite the archive while its old version is still cached server-side.
+      await putArchive({ 'new.txt': 'new content' });
+
+      await rowByName(page, 'archive.zip').dblclick();
+      await waitForObjectsLoaded(page);
+      await expect(rowByName(page, 'new.txt')).toBeVisible();
+      await expect(rowByName(page, 'old.txt')).not.toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [key]);
+    }
+  });
+
   test('exits archive via breadcrumb bucket click', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);

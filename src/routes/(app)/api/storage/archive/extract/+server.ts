@@ -17,8 +17,9 @@ import type { RequestHandler } from './$types';
  * Supports nested archives: when `nestedArchivePath` is set, the file is
  * extracted from within a nested archive inside the outer one.
  *
- * The archive is downloaded from S3 once and cached server-side, so multiple
- * extractions from the same archive share a single S3 transfer.
+ * The archive is downloaded from S3 once and cached server-side until its
+ * ETag changes, so multiple extractions from the same archive share a single
+ * S3 transfer.
  *
  * Returns 404 if the internal path does not exist in the archive or if the
  * archive exceeds the configured preview size limit.
@@ -56,7 +57,7 @@ export const GET: RequestHandler = async (event) => {
   );
 
   const provider = withStorageHttpErrors(getProvider(config, bucket));
-  const downloadFn = (k: string) => provider.getObject(k).then((d) => d.stream);
+  const downloadFn = (k: string) => provider.getObject(k);
   const metadataFn = (k: string) => provider.getMetadata(k);
 
   let data;

@@ -213,7 +213,7 @@ describe('GET /api/storage/preview', () => {
       0,
       250,
       expect.anything(),
-      5000,
+      expect.objectContaining({ size: 5000 }),
       false,
       'b1',
       'connection-1'
@@ -235,7 +235,7 @@ describe('GET /api/storage/preview', () => {
       0,
       250,
       expect.anything(),
-      5000,
+      expect.objectContaining({ size: 5000 }),
       false,
       'b1',
       'connection-1'
@@ -257,7 +257,7 @@ describe('GET /api/storage/preview', () => {
       0,
       100,
       expect.anything(),
-      50000,
+      expect.objectContaining({ size: 50000 }),
       false,
       'b1',
       'connection-1'
@@ -278,7 +278,7 @@ describe('GET /api/storage/preview', () => {
       0,
       250,
       expect.anything(),
-      0,
+      expect.objectContaining({ size: 0 }),
       false,
       'b1',
       'connection-1'
@@ -347,7 +347,7 @@ describe('GET /api/storage/preview', () => {
         1000000,
         250,
         expect.anything(),
-        50000,
+        expect.objectContaining({ size: 50000 }),
         true,
         'b1',
         'connection-1'

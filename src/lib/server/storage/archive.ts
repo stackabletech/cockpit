@@ -8,6 +8,7 @@ import {
   rmSync,
   statSync
 } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, extname } from 'node:path';
@@ -23,6 +24,7 @@ import {
   storageArchiveCacheBytes,
   storageArchiveCacheEvictionsTotal
 } from '$lib/server/metrics.js';
+import { objectVersion, type ObjectVersionInfo } from './preview/cache.js';
 
 const log = logger.child({ module: 'archive-service' });
 
@@ -60,7 +62,11 @@ class ArchiveTooLargeError extends Error {
 // ── Disk cache ───────────────────────────────────────────────────────────────
 //
 // Archives are downloaded to `<tmpdir>/cockpit-archive-cache/<pid>.<thread>-*/`
-// and kept for CACHE_TTL. The total size is capped at `archiveCacheMaxBytes`:
+// and kept for CACHE_TTL. Cache keys include the object's version (ETag), so
+// an overwritten archive is downloaded again, and caching the new version
+// removes the old one. Without a version (failed HEAD, no ETag), or when the
+// GET returned a different ETag than the HEAD, the download is used for one
+// request only. The total size is capped at `archiveCacheMaxBytes`:
 // space is reserved before a download starts, and the least recently used idle
 // archive is evicted to make room. Readers hold a lease on an entry, and leased
 // entries are never deleted. Concurrent requests for the same archive share one
@@ -70,20 +76,36 @@ const CACHE_TTL = 30 * 60 * 1000;
 const CLEANUP_INTERVAL = 60_000;
 const CACHE_ROOT = join(tmpdir(), 'cockpit-archive-cache');
 
+/** Identifies one cache entry: an outer or nested archive at one version. */
+interface EntryId {
+  key: string;
+  /** `connection:bucket:key` of the outer archive, shared by all its versions. */
+  objectKey: string;
+  /** Version of the outer archive; null for a single-use download. */
+  version: string | null;
+}
+
+type EvictionReason = 'expired' | 'evicted' | 'missing' | 'stale' | 'single_use';
+
 interface CacheEntry {
+  objectKey: string;
+  version: string | null;
   dir: string;
   path: string;
   size: number;
   expiresAt: number;
   lastUsed: number;
   leases: number;
-  /** Replaced by a newer entry for the same key; removed once no longer leased. */
-  superseded: boolean;
+  /** Set once the entry must not be handed out any more; it is removed with
+   *  this reason as soon as it is no longer leased. */
+  retired: EvictionReason | null;
   removed: boolean;
 }
 
 interface ArchiveLease {
   path: string;
+  /** The entry is a single-use download that must not be cached further. */
+  singleUse: boolean;
   release(): void;
 }
 
@@ -102,7 +124,9 @@ let processCacheDir: string | null = null;
 const cleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of archiveCache) {
-    if (now > entry.expiresAt && entry.leases === 0) removeEntry(key, entry, 'expired');
+    if ((now > entry.expiresAt || entry.retired) && entry.leases === 0) {
+      removeEntry(key, entry, entry.retired ?? 'expired');
+    }
   }
 }, CLEANUP_INTERVAL);
 
@@ -159,7 +183,7 @@ function updateCacheGauge(): void {
   storageArchiveCacheBytes.set(cachedBytes);
 }
 
-function removeEntry(key: string, entry: CacheEntry, reason: 'expired' | 'evicted' | 'missing') {
+function removeEntry(key: string, entry: CacheEntry, reason: EvictionReason) {
   if (entry.removed) return;
   entry.removed = true;
   if (archiveCache.get(key) === entry) archiveCache.delete(key);
@@ -174,10 +198,14 @@ function removeEntry(key: string, entry: CacheEntry, reason: 'expired' | 'evicte
   }
 }
 
-/** Lease a cached archive so it is not deleted while it is being read. */
-function acquire(key: string): ArchiveLease | null {
+/**
+ * Lease a cached archive so it is not deleted while it is being read. A
+ * retired entry is only handed out to the requests that waited for its fill
+ * (`ownFill`), e.g. the reader of a single-use download.
+ */
+function acquire(key: string, ownFill = false): ArchiveLease | null {
   const entry = archiveCache.get(key);
-  if (!entry) return null;
+  if (!entry || (entry.retired && !ownFill)) return null;
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (Date.now() > entry.expiresAt || !existsSync(entry.path)) {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
@@ -189,13 +217,14 @@ function acquire(key: string): ArchiveLease | null {
   let released = false;
   return {
     path: entry.path,
+    singleUse: entry.retired === 'single_use',
     release() {
       if (released) return;
       released = true;
       entry.leases--;
       entry.lastUsed = Date.now();
-      if (entry.leases === 0 && (entry.superseded || Date.now() > entry.expiresAt)) {
-        removeEntry(key, entry, 'expired');
+      if (entry.leases === 0 && (entry.retired || Date.now() > entry.expiresAt)) {
+        removeEntry(key, entry, entry.retired ?? 'expired');
       }
     }
   };
@@ -236,37 +265,59 @@ function reserve(bytes: number): () => void {
   };
 }
 
+/** Remove `entry` now, or mark it so that its last reader removes it. */
+function retire(key: string, entry: CacheEntry, reason: EvictionReason): void {
+  archiveCache.delete(key);
+  if (entry.leases === 0) removeEntry(key, entry, reason);
+  else entry.retired = reason;
+}
+
 /**
  * Add a freshly written file to the cache. Two fills for the same key can
  * overlap (e.g. an aborted job that still finished while a new one started):
- * a valid existing entry wins, and an outdated one is removed, or marked so
- * that its last reader removes it.
+ * a valid existing entry wins, and an outdated one is retired. Entries for
+ * other versions of the same archive are retired as well. A `singleUse` entry
+ * is removed as soon as its readers release it.
  */
-function addEntry(key: string, dir: string, path: string): void {
+function addEntry(id: EntryId, dir: string, path: string, singleUse: boolean): void {
+  const { key, objectKey, version } = id;
   const existing = archiveCache.get(key);
   if (existing) {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    if (Date.now() <= existing.expiresAt && existsSync(existing.path)) {
+    if (
+      !existing.retired &&
+      Date.now() <= existing.expiresAt &&
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      existsSync(existing.path)
+    ) {
       log.debug({ cache_key: key }, 'archive already cached, discarding duplicate download');
       rmRecursive(dir);
       return;
     }
-    archiveCache.delete(key);
-    if (existing.leases === 0) removeEntry(key, existing, 'expired');
-    else existing.superseded = true;
+    retire(key, existing, existing.retired ?? 'expired');
+  }
+
+  if (!singleUse && version !== null) {
+    for (const [otherKey, other] of archiveCache) {
+      if (other.objectKey === objectKey && other.version !== null && other.version !== version) {
+        log.debug({ cache_key: otherKey }, 'archive changed, retiring cached old version');
+        retire(otherKey, other, 'stale');
+      }
+    }
   }
 
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const size = statSync(path).size;
   const now = Date.now();
   archiveCache.set(key, {
+    objectKey,
+    version,
     dir,
     path,
     size,
     expiresAt: now + CACHE_TTL,
     lastUsed: now,
     leases: 0,
-    superseded: false,
+    retired: singleUse ? 'single_use' : null,
     removed: false
   });
   cachedBytes += size;
@@ -290,10 +341,11 @@ function waitFor<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
  * aborts once every caller waiting for it has aborted.
  */
 async function ensureCached(
-  key: string,
+  id: EntryId,
   fill: (signal: AbortSignal) => Promise<void>,
   signal?: AbortSignal
 ): Promise<ArchiveLease> {
+  const { key } = id;
   const cached = acquire(key);
   if (cached) {
     log.debug({ cache_key: key }, 'archive cache hit');
@@ -327,7 +379,7 @@ async function ensureCached(
     }
   }
 
-  const lease = acquire(key);
+  const lease = acquire(key, true);
   // Only possible if the archive was evicted right after it was cached.
   if (!lease) throw new ArchiveCacheFullError();
   return lease;
@@ -347,26 +399,27 @@ function byteLimit(limit: number): Transform {
 
 /**
  * Write the result of `write` to a new cache entry, reserving `reserveBytes`
- * up front. On failure the partial file is removed.
+ * up front. On failure the partial file is removed. The entry is single-use
+ * when the archive has no version or `write` reports that it must not be cached.
  */
 async function fillEntry(
-  key: string,
+  id: EntryId,
   ext: string,
   reserveBytes: number,
-  write: (path: string) => Promise<void>
+  write: (path: string) => Promise<{ singleUse: boolean } | void>
 ): Promise<void> {
   const unreserve = reserve(reserveBytes);
   let dir: string | undefined;
   try {
     dir = mkdtempSync(join(cacheDir(), 'archive-'));
     const path = join(dir, `archive${ext}`);
-    await write(path);
-    addEntry(key, dir, path);
+    const result = await write(path);
+    addEntry(id, dir, path, id.version === null || (result?.singleUse ?? false));
   } catch (err) {
     try {
       if (dir) rmRecursive(dir);
     } catch (rmErr) {
-      log.warn({ err: rmErr, cache_key: key }, 'failed to clean up partial archive temp file');
+      log.warn({ err: rmErr, cache_key: id.key }, 'failed to clean up partial archive temp file');
     }
     throw err;
   } finally {
@@ -748,8 +801,8 @@ function rmRecursive(dir: string): void {
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
-export type ArchiveDownloadFn = (key: string) => Promise<ReadableStream>;
-export type ArchiveMetadataFn = (key: string) => Promise<{ size: number; contentType?: string }>;
+export type ArchiveDownloadFn = (key: string) => Promise<{ stream: ReadableStream; etag?: string }>;
+export type ArchiveMetadataFn = (key: string) => Promise<ObjectVersionInfo>;
 
 export interface ArchiveOptions {
   /** Path of an archive inside the outer archive to operate on instead. */
@@ -783,6 +836,55 @@ async function extractEntry(
   }
 }
 
+interface ArchiveHead {
+  /** Entry of the outer archive at its current version. */
+  outer: EntryId;
+  /** Size from HEAD, if it succeeded. */
+  size?: number;
+  /** ETag from HEAD, if any. */
+  etag?: string;
+}
+
+/**
+ * HEAD the archive to find its current version. When that fails or yields no
+ * version, the archive gets a unique single-use key, so a cached copy is never
+ * served without knowing it is current.
+ */
+async function headArchive(
+  bucket: string,
+  key: string,
+  metadataFn: ArchiveMetadataFn,
+  connectionId: string,
+  signal?: AbortSignal
+): Promise<ArchiveHead> {
+  let meta: ObjectVersionInfo | undefined;
+  try {
+    // HEAD cannot be aborted, but the request stops waiting for it.
+    meta = await waitFor(metadataFn(key), signal);
+  } catch (err) {
+    signal?.throwIfAborted();
+    log.debug(
+      { err, bucket, key },
+      'archive metadata unavailable, downloading without caching and checking size while downloading'
+    );
+  }
+
+  const version = (meta && objectVersion(meta)) ?? null;
+  if (meta && version === null) {
+    log.debug({ bucket, key }, 'archive has no ETag, downloading without caching');
+  }
+  const objectKey = cacheKey(connectionId, bucket, key);
+  return {
+    outer: {
+      key: `${objectKey}@${version ?? `single-use-${randomUUID()}`}`,
+      objectKey,
+      version
+    },
+    size: meta?.size,
+    etag: meta?.etag
+  };
+}
+
 /**
  * Lease the outer archive from the cache, downloading it on a cache miss.
  * The download is refused when the object is larger than the limit, checked
@@ -792,27 +894,16 @@ function leaseOuterArchive(
   bucket: string,
   key: string,
   downloadFn: ArchiveDownloadFn,
-  metadataFn: ArchiveMetadataFn,
-  options: ArchiveOptions
+  head: ArchiveHead,
+  maxBytes: number | undefined,
+  signal?: AbortSignal
 ): Promise<ArchiveLease> {
-  const { maxBytes, connectionId = '', signal } = options;
   const limit = maxBytes ?? archiveCacheMaxBytes;
-  const outerCacheKey = cacheKey(connectionId, bucket, key);
+  const { outer, size, etag } = head;
 
   return ensureCached(
-    outerCacheKey,
+    outer,
     async (jobSignal) => {
-      let size: number | undefined;
-      try {
-        size = (await metadataFn(key)).size;
-      } catch (err) {
-        log.debug(
-          { err, bucket, key },
-          'archive metadata unavailable, checking size while downloading'
-        );
-      }
-      // HEAD cannot be aborted; do not reserve space or start a GET for nobody.
-      jobSignal.throwIfAborted();
       if (size !== undefined && size > limit) {
         log.info(
           { bucket, key, compressed_size: size, max_bytes: limit },
@@ -823,18 +914,29 @@ function leaseOuterArchive(
 
       log.info({ bucket, key }, 'downloading archive');
       await fillEntry(
-        outerCacheKey,
+        outer,
         extname(key) || '.bin',
         Math.min(size ?? limit, limit),
         async (path) => {
-          const stream = await downloadFn(key);
+          const download = await downloadFn(key);
           await pipeline(
-            Readable.fromWeb(stream as import('stream/web').ReadableStream),
+            Readable.fromWeb(download.stream as import('stream/web').ReadableStream),
             byteLimit(limit),
             // eslint-disable-next-line security/detect-non-literal-fs-filename
             createWriteStream(path),
             { signal: jobSignal }
           );
+          // Overwritten between HEAD and GET: these bytes are not the version
+          // the cache key names, so serve them to this request only.
+          const changed =
+            etag !== undefined && download.etag !== undefined && download.etag !== etag;
+          if (changed) {
+            log.info(
+              { bucket, key, head_etag: etag, get_etag: download.etag },
+              'archive changed while downloading, not caching it'
+            );
+          }
+          return { singleUse: changed };
         }
       );
     },
@@ -846,7 +948,7 @@ function leaseOuterArchive(
  * Lease the archive to operate on. For nested archives, the outer archive is
  * leased first and the nested one is extracted from it into its own cache entry.
  */
-function leaseArchive(
+async function leaseArchive(
   bucket: string,
   key: string,
   downloadFn: ArchiveDownloadFn,
@@ -854,17 +956,16 @@ function leaseArchive(
   options: ArchiveOptions
 ): Promise<ArchiveLease> {
   const { nestedArchivePath, maxBytes, connectionId = '', signal } = options;
-  if (!nestedArchivePath) return leaseOuterArchive(bucket, key, downloadFn, metadataFn, options);
+  const head = await headArchive(bucket, key, metadataFn, connectionId, signal);
+  if (!nestedArchivePath) {
+    return leaseOuterArchive(bucket, key, downloadFn, head, maxBytes, signal);
+  }
 
-  const nestedCacheKey = cacheKey(connectionId, bucket, `${key}!/${nestedArchivePath}`);
+  const nested: EntryId = { ...head.outer, key: `${head.outer.key}!/${nestedArchivePath}` };
   return ensureCached(
-    nestedCacheKey,
+    nested,
     async (jobSignal) => {
-      const outer = await leaseOuterArchive(bucket, key, downloadFn, metadataFn, {
-        maxBytes,
-        connectionId,
-        signal: jobSignal
-      });
+      const outer = await leaseOuterArchive(bucket, key, downloadFn, head, maxBytes, jobSignal);
       try {
         log.info(
           { bucket, key, nested_archive_path: nestedArchivePath },
@@ -885,12 +986,15 @@ function leaseArchive(
         jobSignal.throwIfAborted();
 
         await fillEntry(
-          nestedCacheKey,
+          nested,
           extname(nestedArchivePath) || '.bin',
           nestedData.length,
-          (path) =>
+          async (path) => {
             // eslint-disable-next-line security/detect-non-literal-fs-filename
-            writeFile(path, nestedData, { signal: jobSignal })
+            await writeFile(path, nestedData, { signal: jobSignal });
+            // Extracted from an outer download that is not cached either.
+            return { singleUse: outer.singleUse };
+          }
         );
       } finally {
         outer.release();
@@ -902,7 +1006,8 @@ function leaseArchive(
 
 /**
  * List the contents of an archive at a given internal prefix.
- * Downloads the archive once and caches it on local disk for 30 minutes.
+ * Downloads the archive once and caches it on local disk until it changes
+ * (ETag), for at most 30 minutes.
  * Supports nested archives via `options.nestedArchivePath`.
  */
 export async function listArchiveContents(
