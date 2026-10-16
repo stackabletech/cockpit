@@ -660,4 +660,30 @@ describe('TabsState', () => {
       expect(navigateToLocation).toHaveBeenCalledWith('s3.example.com', 'bucket', '');
     });
   });
+
+  describe('cancelNavigation', () => {
+    it('lets the tab sync its current location again after a cancelled navigation', () => {
+      const storage = makeStorage('bucket', 'inner/');
+      const { ts } = makeTabs(storage);
+      ts.ensureInitialTab();
+      ts.prepareActiveTabForNavigation('s3.example.com', 'bucket', '');
+      expect(ts.canSyncServerLocation('s3.example.com', 'bucket', 'inner/')).toBe(false);
+
+      ts.cancelNavigation('s3.example.com', 'bucket', '');
+
+      expect(ts.canSyncServerLocation('s3.example.com', 'bucket', 'inner/')).toBe(true);
+    });
+
+    it('keeps a newer pending navigation', () => {
+      const storage = makeStorage('bucket', 'inner/');
+      const { ts } = makeTabs(storage);
+      ts.ensureInitialTab();
+      ts.prepareActiveTabForNavigation('s3.example.com', 'bucket', 'other/');
+
+      ts.cancelNavigation('s3.example.com', 'bucket', '');
+
+      expect(ts.canSyncServerLocation('s3.example.com', 'bucket', 'other/')).toBe(true);
+      expect(ts.canSyncServerLocation('s3.example.com', 'bucket', 'inner/')).toBe(false);
+    });
+  });
 });

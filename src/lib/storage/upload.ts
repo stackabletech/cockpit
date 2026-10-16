@@ -54,6 +54,7 @@ export async function checkObjectExists(
  * without buffering.
  *
  * @param onProgress - Called with a progress percentage (0–100) during upload.
+ * @param signal - Aborts the upload request.
  * @throws {UploadError} on non-2xx responses.
  */
 export function uploadFile(
@@ -61,10 +62,16 @@ export function uploadFile(
   key: string,
   file: File,
   onProgress: (pct: number) => void,
-  connectionId: string
+  connectionId: string,
+  signal?: AbortSignal
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new StorageError('unknown', 'Upload aborted'));
+      return;
+    }
     const xhr = new XMLHttpRequest();
+    signal?.addEventListener('abort', () => xhr.abort(), { once: true });
     const url = `/api/storage/upload?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
 
     xhr.upload.addEventListener('progress', (e) => {

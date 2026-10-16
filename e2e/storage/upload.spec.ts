@@ -15,9 +15,11 @@ import {
   getObjectText,
   headObject,
   modalBox,
+  putDirectoryMarker,
   putTextObject,
   rowByName,
-  uniquePrefix
+  uniquePrefix,
+  waitForObjectsLoaded
 } from './helpers.js';
 
 test.describe('Storage S3 — Upload', () => {
@@ -302,6 +304,79 @@ test.describe('Storage S3 — Upload', () => {
       await expect(uploadModal.getByRole('alert')).not.toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, [key]);
+    }
+  });
+
+  test('asks before leaving during an upload, and leaving stops it', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'upload-leave');
+    const keys = [`${prefix}inner/kept.txt`, `${prefix}inner/stopped.txt`, `${prefix}inner/`];
+    const uploads: Route[] = [];
+
+    try {
+      await putDirectoryMarker(client, credentials.bucket, `${prefix}inner/`);
+      await connectAndOpenPrefix(page, credentials, prefix);
+      const parentUrl = page.url();
+      // Open the folder in the app, so that Back is an in-app navigation.
+      await rowByName(page, 'inner').click();
+      await expect(page).not.toHaveURL(parentUrl);
+      await waitForObjectsLoaded(page);
+      const browseUrl = page.url();
+      // Hold the upload request open so that it is still running when leaving.
+      await page.route('**/api/storage/upload*', (route) => {
+        uploads.push(route);
+      });
+
+      const startUpload = async (name: string) => {
+        await page.getByRole('button', { name: 'Upload', exact: true }).click();
+        const uploadModal = modalBox(page);
+        await uploadModal.locator('input[aria-label="Select files"]').setInputFiles({
+          name,
+          mimeType: 'text/plain',
+          buffer: Buffer.from('slow upload')
+        });
+        const count = uploads.length;
+        await uploadModal.getByRole('button', { name: 'Upload' }).click();
+        await expect.poll(() => uploads.length).toBe(count + 1);
+      };
+      await startUpload('kept.txt');
+
+      // Back is held up by a warning; staying keeps the upload.
+      const warning = page.getByRole('dialog', { name: 'Upload in progress' });
+      await page.goBack();
+      await expect(warning).toBeVisible();
+      expect(page.url()).toBe(browseUrl);
+      await warning.getByRole('button', { name: 'Stay' }).click();
+      await expect(warning).toBeHidden();
+      await expect(page.getByRole('heading', { name: 'Upload', exact: true })).toBeVisible();
+
+      // Closing the tab gets the browser's own confirmation.
+      const unload = page.waitForEvent('dialog');
+      await page.close({ runBeforeUnload: true });
+      const prompt = await unload;
+      expect(prompt.type()).toBe('beforeunload');
+      await prompt.dismiss();
+
+      // After staying, the finished upload shows up in the folder.
+      await uploads[0].continue();
+      await expect(modalBox(page).getByRole('status')).toContainText('Upload complete');
+      await modalBox(page).getByRole('button', { name: 'Done' }).click();
+      await expect(rowByName(page, 'kept.txt')).toBeVisible();
+
+      // Leaving stops the upload and goes where Back pointed.
+      await startUpload('stopped.txt');
+      await page.goBack();
+      const aborted = page.waitForEvent('requestfailed', (request) =>
+        request.url().includes('/api/storage/upload')
+      );
+      await warning.getByRole('button', { name: 'Stop upload and leave' }).click();
+      await aborted;
+      await expect(page).toHaveURL(parentUrl);
+      await expect(page.getByRole('heading', { name: 'Upload', exact: true })).toBeHidden();
+    } finally {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await deleteKnownKeys(client, credentials.bucket, keys);
     }
   });
 });

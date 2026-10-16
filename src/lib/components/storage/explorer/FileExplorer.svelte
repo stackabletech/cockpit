@@ -144,6 +144,9 @@
 
     const prefix = params.prefix ? `${params.prefix}/` : '';
     tabsState.prepareActiveTabForNavigation(connection, bucket, prefix);
+    // Another beforeNavigate callback (e.g. the upload guard) may cancel the
+    // navigation; the tab must then keep syncing its current location.
+    navigation.complete.catch(() => tabsState.cancelNavigation(connection, bucket, prefix));
   });
 
   // Wire up source-tab invalidation so that after a move, source tabs refetch.

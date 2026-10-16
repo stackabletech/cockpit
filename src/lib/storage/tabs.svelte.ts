@@ -354,6 +354,18 @@ export class TabsState {
     );
   }
 
+  /** Forgets a pending navigation that was cancelled before it started. */
+  cancelNavigation(connection: string, bucket: string, prefix: string): void {
+    const pending = this.pendingNavigation;
+    if (
+      pending?.connection === connection &&
+      pending.bucket === bucket &&
+      pending.prefix === prefix
+    ) {
+      this.pendingNavigation = null;
+    }
+  }
+
   /** Marks the active tab's pending navigation as complete. */
   completeNavigation(): void {
     if (this.pendingNavigation?.tabId === this.activeTabId) {

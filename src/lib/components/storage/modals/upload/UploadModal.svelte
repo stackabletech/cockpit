@@ -1,5 +1,7 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
+  import { beforeNavigate, goto } from '$app/navigation';
+  import type { BeforeNavigate } from '@sveltejs/kit';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconDraft from 'virtual:icons/material-symbols/draft';
   import IconUpload from 'virtual:icons/material-symbols/upload';
@@ -39,7 +41,12 @@
   let cancelRequested = $state(false);
   /** The conflict check failed, so nothing was uploaded. */
   let checkFailed = $state(false);
+  const uid = $props.id();
   let uploadButton = $state<HTMLButtonElement>();
+  /** Aborts the requests of the running upload. */
+  let uploadAbort: AbortController | null = null;
+  let leaveConfirmOpen = $state(false);
+  let pendingLeave: BeforeNavigate | null = null;
 
   // Initialise on opening as well: the parent can mount this modal closed
   // before resetting its bound open state after a previous cancellation.
@@ -197,6 +204,7 @@
 
   async function doUploadAll() {
     phase = 'uploading';
+    uploadAbort = new AbortController();
 
     // Mark skipped entries immediately.
     entries = entries.map((e) =>
@@ -234,7 +242,8 @@
         (pct) => {
           entries = entries.map((e) => (e.id === entry.id ? { ...e, progress: pct } : e));
         },
-        connHeader
+        connHeader,
+        uploadAbort?.signal
       );
       entries = entries.map((e) =>
         e.id === entry.id ? { ...e, status: 'done' as const, progress: 100 } : e
@@ -344,6 +353,43 @@
     phase = 'idle';
     entries = [];
     open = false;
+  }
+
+  // ── Leaving during an upload ───────────────────────────────────────────────
+
+  // Leaving the page stops the upload, so ask first. For closing the tab or
+  // reloading, cancelling makes the browser show its own confirmation.
+  beforeNavigate((navigation) => {
+    if (phase !== 'uploading') return;
+    navigation.cancel();
+    if (navigation.type === 'leave' || !navigation.to) return;
+    pendingLeave = navigation;
+    leaveConfirmOpen = true;
+  });
+
+  function stayOnPage() {
+    pendingLeave = null;
+    leaveConfirmOpen = false;
+  }
+
+  async function stopUploadAndLeave() {
+    const navigation = pendingLeave;
+    pendingLeave = null;
+    leaveConfirmOpen = false;
+    cancelRequested = true;
+    uploadAbort?.abort();
+    open = false;
+    // Closing resets the phase, so the navigation below is no longer held up.
+    await tick();
+    if (!navigation?.to) return;
+    if (navigation.type === 'popstate' && navigation.delta) {
+      history.go(navigation.delta);
+    } else if (navigation.willUnload) {
+      location.assign(navigation.to.url);
+    } else {
+      // eslint-disable-next-line svelte/no-navigation-without-resolve -- URL of a navigation SvelteKit already resolved
+      await goto(navigation.to.url);
+    }
   }
 
   // ── Error mapping ──────────────────────────────────────────────────────────
@@ -562,5 +608,23 @@
         </button>
       </div>
     {/if}
+  </div>
+</Modal>
+
+<Modal bind:open={leaveConfirmOpen} class="modal" aria-labelledby="{uid}-leave-title">
+  <div class="modal-box max-w-sm">
+    <h3 id="{uid}-leave-title" class="mb-3 flex items-center gap-2 text-lg font-bold">
+      <IconWarning class="text-warning size-5 shrink-0" aria-hidden="true" />
+      {m.storage_upload_leave_title()}
+    </h3>
+    <p class="text-base-content/80 text-sm">{m.storage_upload_leave_desc()}</p>
+    <div class="modal-action mt-6">
+      <button class="btn btn-ghost btn-sm" onclick={stayOnPage}>
+        {m.storage_upload_leave_stay()}
+      </button>
+      <button class="btn btn-error btn-sm" onclick={stopUploadAndLeave}>
+        {m.storage_upload_leave_confirm()}
+      </button>
+    </div>
   </div>
 </Modal>

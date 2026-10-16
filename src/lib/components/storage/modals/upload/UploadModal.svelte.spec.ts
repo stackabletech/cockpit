@@ -136,7 +136,8 @@ describe('UploadModal', () => {
         'report.txt',
         file,
         expect.any(Function),
-        ''
+        '',
+        expect.any(AbortSignal)
       );
     });
 
@@ -164,7 +165,8 @@ describe('UploadModal', () => {
         'reports/folder/report.txt',
         file,
         expect.any(Function),
-        ''
+        '',
+        expect.any(AbortSignal)
       );
     });
 
@@ -254,7 +256,8 @@ describe('UploadModal', () => {
         'a.txt',
         expect.any(File),
         expect.any(Function),
-        expect.any(String)
+        expect.any(String),
+        expect.any(AbortSignal)
       );
     });
 
@@ -479,7 +482,8 @@ describe('UploadModal', () => {
         expect.any(String),
         expect.any(File),
         expect.any(Function),
-        expect.any(String)
+        expect.any(String),
+        expect.any(AbortSignal)
       );
     });
 
@@ -582,7 +586,8 @@ describe('UploadModal', () => {
         'folder/sub/data.csv',
         expect.any(File),
         expect.any(Function),
-        expect.any(String)
+        expect.any(String),
+        expect.any(AbortSignal)
       );
     });
   });
@@ -695,7 +700,8 @@ describe('UploadModal', () => {
         expect.any(String),
         expect.any(File),
         expect.any(Function),
-        expect.any(String)
+        expect.any(String),
+        expect.any(AbortSignal)
       );
     });
 
