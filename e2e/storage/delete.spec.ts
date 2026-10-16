@@ -320,7 +320,9 @@ test.describe('Storage S3 — Delete & Selection', () => {
     }
   });
 
-  test('deleting a folder closes the tabs that showed it', async ({ page }, testInfo) => {
+  test('deleting a folder confirms it and closes the tabs that showed it', async ({
+    page
+  }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'delete-open-folder');
@@ -344,6 +346,7 @@ test.describe('Storage S3 — Delete & Selection', () => {
       await page.getByRole('menuitem', { name: 'Delete' }).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Delete permanently' }).click();
 
+      await expect(page.getByRole('alert').filter({ hasText: 'Deleted "archive".' })).toBeVisible();
       await expect(rowByName(page, 'archive')).toHaveCount(0);
       await expect(tablist.getByRole('tab')).toHaveCount(1);
       await expect(tablist.getByRole('tab', { name: '2025' })).toHaveCount(0);

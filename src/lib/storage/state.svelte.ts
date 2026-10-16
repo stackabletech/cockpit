@@ -782,6 +782,13 @@ export class StorageState {
       const result = await this.performDelete(this.bucket, keys);
       if (result.failed && result.failed.length > 0) {
         addToast('warning', m.storage_delete_partial_failure({ count: result.failed.length }));
+      } else {
+        addToast(
+          'success',
+          keys.length === 1
+            ? m.storage_delete_success_one({ name: keyToName(keys[0]) })
+            : m.storage_delete_success_many({ count: keys.length })
+        );
       }
       this.selectedKeys = new SvelteSet<string>();
       this.selectionMode = false;

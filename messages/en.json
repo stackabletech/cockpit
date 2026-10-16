@@ -351,6 +351,8 @@
   "storage_delete_error_access_denied": "Access denied. You do not have permission to delete this item.",
   "storage_delete_error_server_error": "A server error occurred while deleting. Please try again.",
   "storage_delete_error_unknown": "An unexpected error occurred while deleting. Please try again.",
+  "storage_delete_success_one": "Deleted \"{name}\".",
+  "storage_delete_success_many": "Deleted {count} items.",
   "storage_delete_partial_failure": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

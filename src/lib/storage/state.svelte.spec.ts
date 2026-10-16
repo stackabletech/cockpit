@@ -682,6 +682,24 @@ describe('performDelete clipboard cleanup', () => {
 });
 
 describe('confirmDelete success', () => {
+  it('names a single deleted folder in a success toast', async () => {
+    const state = makeState({ delete: vi.fn().mockResolvedValue({ failed: [] }) });
+    state.openModal('delete', { keys: ['archive/'] });
+
+    await state.confirmDelete();
+
+    expect(addToast).toHaveBeenCalledWith('success', 'Deleted "archive".');
+  });
+
+  it('counts several deleted items in a success toast', async () => {
+    const state = makeState({ delete: vi.fn().mockResolvedValue({ failed: [] }) });
+    state.openModal('delete', { keys: ['a.txt', 'b/'] });
+
+    await state.confirmDelete();
+
+    expect(addToast).toHaveBeenCalledWith('success', 'Deleted 2 items.');
+  });
+
   it('reports deleted folders so that their tabs can be closed', async () => {
     const state = makeState({ delete: vi.fn().mockResolvedValue({ failed: [] }) });
     const onDeleted = vi.fn();
