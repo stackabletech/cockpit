@@ -36,3 +36,6 @@ coverage/
 deploy/helm/
 dev/garage/
 dev/postgresql/
+
+# Claude Code worktrees (full repo copies)
+.claude/worktrees/

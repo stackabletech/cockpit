@@ -33,6 +33,7 @@ dist/
 # Claude Code - ignore local/personal files, commit shared config
 .claude/settings.local.json
 .claude/CLAUDE.local.md
+.claude/worktrees/
 
 # Vitest coverage reports
 coverage/
