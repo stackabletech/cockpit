@@ -80,6 +80,41 @@ test.describe('Storage S3 — Create via context menu', () => {
     }
   });
 
+  test('the Create button popover takes a typed folder name without clicking the field', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'create-keyboard');
+    const newFolder = `${prefix}typed/`;
+
+    try {
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await page.getByRole('button', { name: 'Create', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'New directory' }).click();
+      const name = page.getByRole('textbox', { name: 'Name' });
+      await expect(name).toBeFocused();
+      await expect(name).toHaveValue('new-folder');
+
+      // The proposed name is selected, so typing replaces it.
+      await page.keyboard.type('typed');
+      await page.keyboard.press('Enter');
+
+      await expect.poll(() => objectExists(client, credentials.bucket, newFolder)).toBe(true);
+      await expect(name).toBeHidden();
+
+      // Escape closes the popover while its field has focus.
+      await page.getByRole('button', { name: 'Create', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'New text file' }).click();
+      await expect(name).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(name).toBeHidden();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [newFolder]);
+    }
+  });
+
   test('explains an invalid name at the input', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const prefix = uniquePrefix(testInfo, 'create-invalid');

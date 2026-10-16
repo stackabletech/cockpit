@@ -13,6 +13,7 @@
   import IconAdd from 'virtual:icons/material-symbols/add';
   import IconFileCopy from 'virtual:icons/material-symbols/file-copy-outline';
   import IconContentCopy from 'virtual:icons/material-symbols/content-copy';
+  import { untrack } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import type { StorageLocation } from '$lib/storage/types.js';
@@ -100,6 +101,17 @@
     createStep = 'name';
     createName = type === 'file' ? 'untitled.txt' : 'new-folder';
     createError = '';
+  }
+
+  /** Focus the name field when it appears and select the name without its extension. */
+  function focusCreateName(input: HTMLInputElement) {
+    // untrack: re-running on every keystroke would select the typed name again.
+    untrack(() => {
+      input.value = createName;
+      input.focus();
+      const dotIdx = createType === 'file' ? createName.lastIndexOf('.') : -1;
+      input.setSelectionRange(0, dotIdx > 0 ? dotIdx : createName.length);
+    });
   }
 
   async function handleCreate() {
@@ -612,6 +624,7 @@
             class="input input-sm w-full"
             class:input-error={!!createNameError}
             bind:value={createName}
+            {@attach focusCreateName}
             oninput={() => (createError = '')}
             placeholder={m.storage_create_placeholder()}
             aria-invalid={createNameError ? 'true' : undefined}
