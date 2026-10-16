@@ -9,6 +9,10 @@ declare global {
   namespace App {
     interface Error {
       requestId?: string;
+      /** Set when the error page should explain this specific cause. */
+      reason?: 'not-connected';
+      /** Hostname of the storage a link points to, for `reason: 'not-connected'`. */
+      connection?: string;
     }
     interface Locals {
       user: typeof auth.$Infer.Session.user | null;

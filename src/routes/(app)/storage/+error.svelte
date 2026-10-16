@@ -39,7 +39,11 @@
     return null;
   }
 
-  const errorMessage = $derived(bucketErrorMessage(page.status, bucket));
+  const errorMessage = $derived(
+    page.error?.reason === 'not-connected'
+      ? m.storage_error_not_connected({ connection: page.error.connection ?? connection })
+      : bucketErrorMessage(page.status, bucket)
+  );
 </script>
 
 <div class="bg-base-100 flex flex-1 flex-col overflow-hidden">

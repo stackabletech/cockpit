@@ -6,7 +6,7 @@ const mockPage = vi.hoisted(() => ({
   params: {} as Record<string, string | undefined>,
   url: new URL('http://localhost/storage'),
   status: 500,
-  error: null as { message: string } | null
+  error: null as App.Error | null
 }));
 
 vi.mock('$app/state', () => ({ page: mockPage }));
@@ -18,11 +18,12 @@ function setPage(opts: {
   params?: Record<string, string | undefined>;
   status: number;
   message?: string;
+  error?: Partial<App.Error>;
 }) {
   mockPage.url = new URL(`http://localhost${opts.pathname}`);
   mockPage.params = opts.params ?? {};
   mockPage.status = opts.status;
-  mockPage.error = { message: opts.message ?? 'Generic error' };
+  mockPage.error = { message: opts.message ?? 'Generic error', ...opts.error };
 }
 
 describe('/(app)/storage/+error.svelte', () => {
@@ -42,6 +43,23 @@ describe('/(app)/storage/+error.svelte', () => {
       .element(page.getByText('The bucket “my-bucket” does not exist.'))
       .toBeInTheDocument();
     await expect.element(page.getByRole('link', { name: 'my-bucket' })).toBeInTheDocument();
+  });
+
+  it('explains that a link points to a storage that is not connected', async () => {
+    setPage({
+      pathname: '/storage/browse/other.example/my-bucket',
+      params: { connection: 'other.example', bucket: 'my-bucket' },
+      status: 404,
+      error: { reason: 'not-connected', connection: 'other.example' }
+    });
+    render(ErrorPage);
+
+    await expect
+      .element(
+        page.getByText('You are not connected to the storage “other.example”.', { exact: false })
+      )
+      .toBeInTheDocument();
+    expect(page.getByText('does not exist', { exact: false }).elements()).toHaveLength(0);
   });
 
   it('falls back to the bucket in the URL when route params are missing', async () => {

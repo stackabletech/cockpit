@@ -25,15 +25,18 @@ const EMPTY_PAGE: StoragePage = {
 export const load: PageLoad = async ({ fetch, url, data, parent }) => {
   const { connection, bucket, prefix } = data;
 
-  // The storage layout load populates `connectionStore`. Without waiting for it,
-  // the store can still be empty after a full page load and the hostname check
-  // below would redirect a valid browse route to the overview.
-  if (browser) await parent();
+  // The storage layout load populates `connectionStore` in the browser and
+  // provides the saved connections for the hostname check below.
+  const { connections } = await parent();
 
   const connectionId = connectionStore.activeConnectionId ?? data.activeConnectionId;
   if (!connectionId) throw redirect(303, '/storage');
-  if (browser && connectionHostname(connectionStore.activeConnection) !== connection) {
-    throw redirect(303, '/storage');
+  // A link to a storage the user is not connected to (e.g. from another
+  // connection's recent locations) must not list the active connection's bucket.
+  const active = connections.find((c) => c.id === connectionId);
+  if (!active) throw redirect(303, '/storage');
+  if (connectionHostname(active) !== connection) {
+    throw error(404, { message: 'Not connected', reason: 'not-connected', connection });
   }
 
   const query = new URLSearchParams({ bucket, prefix: prefix ?? '' });
