@@ -106,6 +106,10 @@ Fail on TLS settings that contradict each other, so that no setting is silently 
 {{- if and (ne $dbMode "verify-full") (or $dbTls.caCert $dbTls.secretClass) }}
 {{- fail (printf "database.tls.mode %q does not verify certificates, so database.tls.caCert and database.tls.secretClass would be ignored" $dbMode) }}
 {{- end }}
+{{- $storageTls := .Values.storage.tls }}
+{{- if and $storageTls.caCert $storageTls.secretClass }}
+{{- fail "storage.tls.caCert and storage.tls.secretClass are mutually exclusive" }}
+{{- end }}
 {{- end }}
 
 {{/*

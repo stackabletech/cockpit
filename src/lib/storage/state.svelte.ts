@@ -781,7 +781,8 @@ export class StorageState {
       this.selectionMode = false;
       this.refresh();
     } catch (err: unknown) {
-      this.loading = false;
+      // A failed delete may still have removed part of the selection, so reload the listing.
+      this.refresh();
       let msg = m.storage_delete_error_unknown();
       if (err instanceof StorageError) {
         if (err.code === 'not_connected') msg = m.storage_delete_error_not_connected();

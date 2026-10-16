@@ -58,6 +58,18 @@ const LIST_ENCODING_TYPE = 'url';
 const SINGLE_DELETE_CONCURRENCY = 4;
 
 /**
+ * S3 DeleteObjects accepts at most 1000 keys per request.
+ * MinIO/Ionos return MalformedXML when exceeding this limit.
+ */
+const DELETE_OBJECTS_MAX_KEYS = 1000;
+
+/** A key DeleteObjects or DeleteObject could not delete. */
+type DeleteFailure = DeleteObjectsResult['failed'][number];
+
+/** An object from a recursive listing. */
+type ListedObject = { key: string; size: number; lastModified?: Date };
+
+/**
  * The decoder for a listing response's key fields. Only a response that echoes
  * `EncodingType: 'url'` is decoded (as botocore does): a store that ignores the parameter returns
  * raw keys, where `+` and `%` are literal.
@@ -362,56 +374,37 @@ export class S3StorageProvider implements StorageProvider {
       return { failed: [] };
     }
 
-    // Expand directory prefixes to their contained keys
-    const resolvedKeys: string[] = [];
-    for (const key of keys) {
-      if (expandDirectories && key.endsWith('/')) {
-        const children = await this.listAllKeys(key);
-        if (children.length > 0) {
-          resolvedKeys.push(...children);
-        } else {
-          resolvedKeys.push(key);
-        }
-      } else {
-        resolvedKeys.push(key);
+    const allFailed: DeleteFailure[] = [];
+    // Directory contents are deleted page by page while they are listed, so at most
+    // about two chunks of keys are held at once, however large the directory.
+    const pending: string[] = [];
+    const flush = async (all: boolean) => {
+      while (pending.length >= DELETE_OBJECTS_MAX_KEYS || (all && pending.length > 0)) {
+        allFailed.push(...(await this.deleteChunk(pending.splice(0, DELETE_OBJECTS_MAX_KEYS))));
       }
-    }
+    };
 
-    // S3 DeleteObjects has a limit of 1000 keys per request.
-    // MinIO/Ionos return MalformedXML when exceeding this limit.
-    const MAX_KEYS = 1000;
-    const allFailed: Array<{ key: string; code?: string; message?: string }> = [];
-
-    // Keys XML cannot carry are deleted one by one, so they neither fail nor block a batch.
-    const batchKeys = resolvedKeys.filter(isXmlSafeKey);
-    allFailed.push(...(await this.deleteSingly(resolvedKeys.filter((key) => !isXmlSafeKey(key)))));
-
-    for (let i = 0; i < batchKeys.length; i += MAX_KEYS) {
-      const chunk = batchKeys.slice(i, i + MAX_KEYS);
-      log.trace(
-        { bucket: this.bucket, chunk_offset: i, chunk_size: chunk.length },
-        'S3 DeleteObjects chunk'
-      );
-      const output = await withS3Errors(
-        () =>
-          this.client.send(
-            new DeleteObjectsCommand({
-              Bucket: this.bucket,
-              Delete: {
-                Objects: chunk.map((key) => ({ Key: key })),
-                Quiet: true
-              }
-            })
-          ),
-        { bucket: this.bucket, operation: 'deleteObjects' }
-      );
-      const failed = (output.Errors ?? []).map((e) => ({
-        key: e.Key ?? '',
-        code: e.Code,
-        message: e.Message
-      }));
-      allFailed.push(...failed);
-    }
+    await withS3Errors(
+      async () => {
+        for (const key of keys) {
+          if (!(expandDirectories && key.endsWith('/'))) {
+            pending.push(key);
+            await flush(false);
+            continue;
+          }
+          let found = false;
+          for await (const batch of this.listPages(key)) {
+            found ||= batch.length > 0;
+            pending.push(...batch.map((obj) => obj.key));
+            await flush(false);
+          }
+          // Nothing is listed under the prefix: delete the key itself.
+          if (!found) pending.push(key);
+        }
+        await flush(true);
+      },
+      { bucket: this.bucket, operation: 'deleteObjects' }
+    );
 
     if (allFailed.length > 0) {
       log.warn(
@@ -422,11 +415,32 @@ export class S3StorageProvider implements StorageProvider {
     return { failed: allFailed };
   }
 
+  /** Deletes up to {@link DELETE_OBJECTS_MAX_KEYS} keys and returns the ones that failed. */
+  private async deleteChunk(chunk: string[]): Promise<DeleteFailure[]> {
+    // Keys XML cannot carry are deleted one by one, so they neither fail nor block a batch.
+    const failed = await this.deleteSingly(chunk.filter((key) => !isXmlSafeKey(key)));
+    const batchKeys = chunk.filter(isXmlSafeKey);
+    if (batchKeys.length === 0) return failed;
+
+    log.trace({ bucket: this.bucket, chunk_size: batchKeys.length }, 'S3 DeleteObjects chunk');
+    const output = await this.client.send(
+      new DeleteObjectsCommand({
+        Bucket: this.bucket,
+        Delete: {
+          Objects: batchKeys.map((key) => ({ Key: key })),
+          Quiet: true
+        }
+      })
+    );
+    for (const e of output.Errors ?? []) {
+      failed.push({ key: e.Key ?? '', code: e.Code, message: e.Message });
+    }
+    return failed;
+  }
+
   /** Deletes keys with individual DeleteObject requests, a few at a time. */
-  private async deleteSingly(
-    keys: string[]
-  ): Promise<Array<{ key: string; code?: string; message?: string }>> {
-    const failed: Array<{ key: string; code?: string; message?: string }> = [];
+  private async deleteSingly(keys: string[]): Promise<DeleteFailure[]> {
+    const failed: DeleteFailure[] = [];
     const pending = [...keys];
     const worker = async () => {
       for (let key = pending.shift(); key !== undefined; key = pending.shift()) {
@@ -565,59 +579,42 @@ export class S3StorageProvider implements StorageProvider {
     );
   }
 
-  async listAllKeysProgressively(
-    prefix: string,
-    onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void | boolean,
-    options?: ProgressiveListOptions
-  ): Promise<void> {
-    log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (progressive, concurrent)');
-
-    // Pipeline: while processing each page's results, the next page is already being
-    // fetched.  Each page's continuation token is only known after its predecessor
-    // completes, so we chain through `.then()` to keep one lookahead fetch in-flight.
-    const inFlight: Array<Promise<ListObjectsV2CommandOutput>> = [];
-
-    const fetchPage = (token?: string): Promise<ListObjectsV2CommandOutput> =>
-      this.client.send(
+  /**
+   * Yields every object under `prefix` (no delimiter), one listing page at a time.
+   * Pages are fetched strictly one after another: each continuation token is only
+   * known once the previous page has arrived.
+   */
+  private async *listPages(prefix: string, signal?: AbortSignal): AsyncGenerator<ListedObject[]> {
+    let continuationToken: string | undefined;
+    do {
+      const output: ListObjectsV2CommandOutput = await this.client.send(
         new ListObjectsV2Command({
           Bucket: this.bucket,
           Prefix: prefix,
-          ContinuationToken: token,
+          ContinuationToken: continuationToken,
           EncodingType: LIST_ENCODING_TYPE
         }),
-        { abortSignal: options?.signal }
+        { abortSignal: signal }
       );
-
-    // Seed the first fetch
-    inFlight.push(fetchPage());
-
-    while (inFlight.length > 0) {
-      const output = await inFlight.shift()!;
-
       const decode = listingDecoder(output);
-      const batch: Array<{ key: string; size: number; lastModified?: Date }> = [];
-      for (const obj of output.Contents ?? []) {
-        if (obj.Key) {
-          batch.push({
-            key: decode(obj.Key),
-            size: obj.Size ?? 0,
-            lastModified: obj.LastModified
-          });
-        }
-      }
-      if (batch.length > 0) {
-        const shouldStop = onBatch(batch) === false;
-        if (shouldStop) break;
-      }
+      yield (output.Contents ?? []).flatMap((obj) =>
+        obj.Key
+          ? [{ key: decode(obj.Key), size: obj.Size ?? 0, lastModified: obj.LastModified }]
+          : []
+      );
+      continuationToken = output.IsTruncated ? output.NextContinuationToken : undefined;
+    } while (continuationToken);
+  }
 
-      // If truncated, chain the next fetch so it starts while we process the
-      // current page's results (or already completes by the time we loop back).
-      if (output.IsTruncated && output.NextContinuationToken) {
-        const token = output.NextContinuationToken;
-        inFlight.push(fetchPage(token));
-      }
+  async listAllKeysProgressively(
+    prefix: string,
+    onBatch: (keys: ListedObject[]) => void | boolean,
+    options?: ProgressiveListOptions
+  ): Promise<void> {
+    log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (progressive)');
+    for await (const batch of this.listPages(prefix, options?.signal)) {
+      if (batch.length > 0 && onBatch(batch) === false) break;
     }
-
     log.trace({ bucket: this.bucket, prefix }, 'progressive listing complete');
   }
 
@@ -682,34 +679,6 @@ export class S3StorageProvider implements StorageProvider {
 
     log.info({ bucket: this.bucket, query, result_count: results.length }, 'search complete');
     return { results };
-  }
-
-  async listAllKeys(prefix: string): Promise<string[]> {
-    log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (recursive)');
-    const keys: string[] = [];
-    let continuationToken: string | undefined;
-
-    do {
-      const output: ListObjectsV2CommandOutput = await this.client.send(
-        new ListObjectsV2Command({
-          Bucket: this.bucket,
-          Prefix: prefix,
-          ContinuationToken: continuationToken,
-          EncodingType: LIST_ENCODING_TYPE
-        })
-      );
-      const decode = listingDecoder(output);
-      for (const obj of output.Contents ?? []) {
-        if (obj.Key) keys.push(decode(obj.Key));
-      }
-      continuationToken = output.IsTruncated ? output.NextContinuationToken : undefined;
-    } while (continuationToken);
-
-    log.trace(
-      { bucket: this.bucket, prefix, key_count: keys.length },
-      'recursive listing complete'
-    );
-    return keys;
   }
 
   async prefixExists(prefix: string, signal?: AbortSignal): Promise<boolean> {

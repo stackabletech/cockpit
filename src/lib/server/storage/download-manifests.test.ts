@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   selectWhere: vi.fn(),
   getProvider: vi.fn(),
   getConnectionForUser: vi.fn(),
-  listAllKeys: vi.fn(),
+  listKeys: vi.fn(),
   getMetadata: vi.fn(),
   getObject: vi.fn(),
   orderBy: vi.fn()
@@ -47,18 +47,17 @@ const MANIFEST_ID = '00000000-0000-4000-8000-0000000000aa';
 describe('download manifests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.listAllKeys.mockResolvedValue(['folder/a.txt', 'folder/b.txt']);
+    mocks.listKeys.mockResolvedValue(['folder/a.txt', 'folder/b.txt']);
     mocks.selectWhere.mockReturnValue({ limit: () => ({ getSQL: () => ({}) }) });
     mocks.getMetadata.mockResolvedValue({ size: 5 });
     mocks.getObject.mockResolvedValue({
       stream: new ReadableStream({ start: (controller) => controller.close() })
     });
     mocks.getProvider.mockReturnValue({
-      listAllKeys: mocks.listAllKeys,
       listAllKeysProgressively: async (
         _prefix: string,
         onBatch: (batch: Array<{ key: string }>) => void
-      ) => onBatch((await mocks.listAllKeys()).map((key: string) => ({ key }))),
+      ) => onBatch((await mocks.listKeys()).map((key: string) => ({ key }))),
       getMetadata: mocks.getMetadata,
       getObject: mocks.getObject
     });

@@ -209,6 +209,13 @@ spec:
                   name: {{ required "storage.encryptionKey.secretKeyRef.name is required when features.storage.enabled is true" .Values.storage.encryptionKey.secretKeyRef.name | quote }}
                   key: {{ .Values.storage.encryptionKey.secretKeyRef.key | quote }}
             {{- end }}
+            {{- if .Values.storage.tls.caCert }}
+            - name: STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT
+              value: {{ .Values.storage.tls.caCert | quote }}
+            {{- else if .Values.storage.tls.secretClass }}
+            - name: STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT
+              value: /stackable/storage-tls/ca.crt
+            {{- end }}
             {{- if .Values.auth.oidc.enabled }}
             - name: STACKABLE_COCKPIT_OIDC_CLIENT_SECRET
               valueFrom:
@@ -315,6 +322,11 @@ spec:
               mountPath: /stackable/database-tls
               readOnly: true
             {{- end }}
+            {{- if .Values.storage.tls.secretClass }}
+            - name: storage-tls
+              mountPath: /stackable/storage-tls
+              readOnly: true
+            {{- end }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -349,6 +361,22 @@ spec:
               metadata:
                 annotations:
                   secrets.stackable.tech/class: {{ .Values.database.tls.secretClass | quote }}
+                  secrets.stackable.tech/scope: pod
+              spec:
+                storageClassName: secrets.stackable.tech
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1
+        {{- end }}
+        {{- if .Values.storage.tls.secretClass }}
+        - name: storage-tls
+          ephemeral:
+            volumeClaimTemplate:
+              metadata:
+                annotations:
+                  secrets.stackable.tech/class: {{ .Values.storage.tls.secretClass | quote }}
                   secrets.stackable.tech/scope: pod
               spec:
                 storageClassName: secrets.stackable.tech

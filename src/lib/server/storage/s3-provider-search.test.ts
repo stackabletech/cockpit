@@ -85,6 +85,81 @@ describe('S3StorageProvider.listAllKeysProgressively', () => {
     expect(seen).toEqual(['a.txt', 'b.txt']);
     expect(send).toHaveBeenCalledTimes(1);
   });
+
+  it('lists recursively, without a delimiter', async () => {
+    send.mockResolvedValue({ IsTruncated: false });
+
+    await provider.listAllKeysProgressively('p/', () => {});
+
+    expect(send.mock.calls[0][0].input.Prefix).toBe('p/');
+    expect(send.mock.calls[0][0].input.Delimiter).toBeUndefined();
+  });
+
+  it('skips Contents entries with no Key and an empty final page', async () => {
+    send
+      .mockResolvedValueOnce({
+        Contents: [{ Key: 'valid.txt' }, {}],
+        IsTruncated: true,
+        NextContinuationToken: 'token-1'
+      })
+      .mockResolvedValueOnce({ IsTruncated: false });
+
+    const batches: string[][] = [];
+    await provider.listAllKeysProgressively('', (batch) => {
+      batches.push(batch.map((k) => k.key));
+    });
+
+    expect(batches).toEqual([['valid.txt']]);
+  });
+
+  it('continues past an empty truncated page without an empty batch', async () => {
+    send
+      .mockResolvedValueOnce({ Contents: [], IsTruncated: true, NextContinuationToken: 'token-1' })
+      .mockResolvedValueOnce({ Contents: [{ Key: 'a.txt' }], IsTruncated: false });
+
+    const batches: string[][] = [];
+    await provider.listAllKeysProgressively('', (batch) => {
+      batches.push(batch.map((k) => k.key));
+    });
+
+    expect(batches).toEqual([['a.txt']]);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][0].input.ContinuationToken).toBe('token-1');
+  });
+
+  it('propagates an error thrown by the batch callback and stops paging', async () => {
+    send.mockResolvedValueOnce({
+      Contents: [{ Key: 'a.txt' }],
+      IsTruncated: true,
+      NextContinuationToken: 'token-1'
+    });
+
+    const failure = new Error('stop');
+    await expect(
+      provider.listAllKeysProgressively('', () => {
+        throw failure;
+      })
+    ).rejects.toBe(failure);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes the abort signal to every page request', async () => {
+    send
+      .mockResolvedValueOnce({
+        Contents: [{ Key: 'a.txt' }],
+        IsTruncated: true,
+        NextContinuationToken: 'token-1'
+      })
+      .mockResolvedValueOnce({ Contents: [{ Key: 'b.txt' }], IsTruncated: false });
+
+    const { signal } = new AbortController();
+    await provider.listAllKeysProgressively('', () => {}, { signal });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    for (const call of send.mock.calls) {
+      expect(call[1]).toEqual({ abortSignal: signal });
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

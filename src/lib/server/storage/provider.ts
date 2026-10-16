@@ -103,10 +103,10 @@ export interface StorageProvider {
    */
   prefixExists(prefix: string, signal?: AbortSignal): Promise<boolean>;
   /**
-   * List all object keys under a prefix, recursively (no delimiter).
-   * Used to expand directory prefixes before deletion.
+   * List all objects under a prefix, recursively (no delimiter), handing them to
+   * `onBatch` one listing page at a time; empty pages are skipped. Returning `false`
+   * stops the listing.
    */
-  listAllKeys(prefix: string): Promise<string[]>;
   listAllKeysProgressively(
     prefix: string,
     onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void | boolean,

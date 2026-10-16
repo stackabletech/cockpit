@@ -89,11 +89,4 @@ describe('HDFSStorageProvider', () => {
       expectThrows(() => provider.deleteObjects([], true));
     });
   });
-
-  describe('listAllKeys', () => {
-    it('throws "HDFS not implemented"', () => {
-      const provider = new HDFSStorageProvider(config);
-      expectThrows(() => provider.listAllKeys('prefix/'));
-    });
-  });
 });

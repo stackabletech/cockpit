@@ -71,10 +71,6 @@ export class HDFSStorageProvider implements StorageProvider {
     throw new Error('HDFS not implemented');
   }
 
-  listAllKeys(_prefix: string): Promise<string[]> {
-    throw new Error('HDFS not implemented');
-  }
-
   listAllKeysProgressively(
     _prefix: string,
     _onBatch: (keys: Array<{ key: string; size: number }>) => void,
