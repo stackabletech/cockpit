@@ -456,73 +456,6 @@ describe('S3StorageProvider.deleteObjects', () => {
 });
 
 // ---------------------------------------------------------------------------
-// listAllKeys
-// ---------------------------------------------------------------------------
-
-describe('S3StorageProvider.listAllKeys', () => {
-  let provider: S3StorageProvider;
-  let send: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    ({ provider, send } = makeProvider());
-  });
-
-  it('returns all keys in a single page', async () => {
-    send.mockResolvedValue({
-      Contents: [{ Key: 'a.txt' }, { Key: 'b.txt' }],
-      IsTruncated: false
-    });
-
-    const keys = await provider.listAllKeys('');
-    expect(keys).toEqual(['a.txt', 'b.txt']);
-    expect(send).toHaveBeenCalledTimes(1);
-  });
-
-  it('paginates across multiple pages', async () => {
-    send
-      .mockResolvedValueOnce({
-        Contents: [{ Key: 'a.txt' }, { Key: 'b.txt' }],
-        IsTruncated: true,
-        NextContinuationToken: 'token-1'
-      })
-      .mockResolvedValueOnce({
-        Contents: [{ Key: 'c.txt' }],
-        IsTruncated: false
-      });
-
-    const keys = await provider.listAllKeys('prefix/');
-    expect(keys).toEqual(['a.txt', 'b.txt', 'c.txt']);
-    expect(send).toHaveBeenCalledTimes(2);
-
-    // Second call must pass the continuation token
-    const secondCall = send.mock.calls[1][0];
-    expect(secondCall.input.ContinuationToken).toBe('token-1');
-  });
-
-  it('returns empty array when no contents', async () => {
-    send.mockResolvedValue({ IsTruncated: false });
-    const keys = await provider.listAllKeys('empty/');
-    expect(keys).toEqual([]);
-  });
-
-  it('skips Contents entries with no Key', async () => {
-    send.mockResolvedValue({
-      Contents: [{ Key: 'valid.txt' }, {}],
-      IsTruncated: false
-    });
-    const keys = await provider.listAllKeys('');
-    expect(keys).toEqual(['valid.txt']);
-  });
-
-  it('does not send delimiter (recursive listing)', async () => {
-    send.mockResolvedValue({ IsTruncated: false });
-    await provider.listAllKeys('p/');
-    const sentCommand = send.mock.calls[0][0];
-    expect(sentCommand.input.Delimiter).toBeUndefined();
-  });
-});
-
-// ---------------------------------------------------------------------------
 // copyObject
 // ---------------------------------------------------------------------------
 
@@ -881,7 +814,7 @@ describe('S3StorageProvider.deleteObjects directory expansion', () => {
   });
 
   it('uses directory key itself when no children found', async () => {
-    send.mockResolvedValueOnce({ IsTruncated: false }); // listAllKeys returns []
+    send.mockResolvedValueOnce({ IsTruncated: false }); // nothing listed under empty/
     send.mockResolvedValueOnce({ Errors: [] }); // deleteObjects
 
     await provider.deleteObjects(['empty/'], true);

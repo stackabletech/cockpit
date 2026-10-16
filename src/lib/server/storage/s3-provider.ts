@@ -681,19 +681,6 @@ export class S3StorageProvider implements StorageProvider {
     return { results };
   }
 
-  async listAllKeys(prefix: string): Promise<string[]> {
-    log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (recursive)');
-    const keys: string[] = [];
-    for await (const batch of this.listPages(prefix)) {
-      keys.push(...batch.map((obj) => obj.key));
-    }
-    log.trace(
-      { bucket: this.bucket, prefix, key_count: keys.length },
-      'recursive listing complete'
-    );
-    return keys;
-  }
-
   async prefixExists(prefix: string, signal?: AbortSignal): Promise<boolean> {
     log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (prefix exists)');
     const output = await withS3Errors(

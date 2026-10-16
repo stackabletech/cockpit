@@ -26,7 +26,6 @@ function makeProvider(
     exists: vi.fn(),
     putObject: vi.fn(),
     deleteObjects: vi.fn(),
-    listAllKeys: vi.fn(),
     listAllKeysProgressively: vi.fn(),
     getBucketVersioning: vi.fn(),
     getBucketLifecycleRules: vi.fn(),

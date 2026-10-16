@@ -86,6 +86,32 @@ describe('S3StorageProvider.listAllKeysProgressively', () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
+  it('lists recursively, without a delimiter', async () => {
+    send.mockResolvedValue({ IsTruncated: false });
+
+    await provider.listAllKeysProgressively('p/', () => {});
+
+    expect(send.mock.calls[0][0].input.Prefix).toBe('p/');
+    expect(send.mock.calls[0][0].input.Delimiter).toBeUndefined();
+  });
+
+  it('skips Contents entries with no Key and an empty final page', async () => {
+    send
+      .mockResolvedValueOnce({
+        Contents: [{ Key: 'valid.txt' }, {}],
+        IsTruncated: true,
+        NextContinuationToken: 'token-1'
+      })
+      .mockResolvedValueOnce({ IsTruncated: false });
+
+    const batches: string[][] = [];
+    await provider.listAllKeysProgressively('', (batch) => {
+      batches.push(batch.map((k) => k.key));
+    });
+
+    expect(batches).toEqual([['valid.txt']]);
+  });
+
   it('continues past an empty truncated page without an empty batch', async () => {
     send
       .mockResolvedValueOnce({ Contents: [], IsTruncated: true, NextContinuationToken: 'token-1' })

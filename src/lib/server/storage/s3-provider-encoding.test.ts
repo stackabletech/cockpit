@@ -30,6 +30,14 @@ function makeProvider() {
   return { provider, send };
 }
 
+async function listRecursively(provider: S3StorageProvider, prefix: string): Promise<string[]> {
+  const keys: string[] = [];
+  await provider.listAllKeysProgressively(prefix, (batch) => {
+    keys.push(...batch.map((item) => item.key));
+  });
+  return keys;
+}
+
 // Keys as S3 returns them with `EncodingType=url`: AWS form-encodes a space as `+` and a `+` as
 // `%2B`; other implementations send a space as `%20`.
 const encodedKeys = [
@@ -95,7 +103,7 @@ describe('S3StorageProvider listing encoding', () => {
     expect(page.objects[0].key).toBe('broken%E0%A4%A.txt');
   });
 
-  it('requests url-encoded listings and decodes keys in listAllKeys', async () => {
+  it('requests url-encoded listings and decodes keys in recursive listings', async () => {
     send
       .mockResolvedValueOnce({
         Contents: [{ Key: encodedKeys[0][0] }],
@@ -109,7 +117,7 @@ describe('S3StorageProvider listing encoding', () => {
         EncodingType: 'url'
       });
 
-    const keys = await provider.listAllKeys('dir/');
+    const keys = await listRecursively(provider, 'dir/');
 
     expect(send.mock.calls.map(([command]) => command.input.EncodingType)).toEqual(['url', 'url']);
     expect(send.mock.calls[1][0].input.ContinuationToken).toBe('next+token');
@@ -185,7 +193,7 @@ describe('S3StorageProvider listing encoding', () => {
     });
 
     const page = await provider.listObjects('', 50);
-    const keys = await provider.listAllKeys('');
+    const keys = await listRecursively(provider, '');
     const { results } = await provider.search('');
 
     expect(page.objects.map((object) => object.key)).toEqual(['a+b%20dir/', 'a+b', '100%25']);
