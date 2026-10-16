@@ -22,6 +22,11 @@ describe('objectNameError', () => {
     }
   });
 
+  it('mentions control characters', () => {
+    expect(objectNameError('a\tb', create)).toMatch(/control characters/);
+    expect(objectNameError('a\nb', rename)).toMatch(/control characters/);
+  });
+
   it.each(['/a', 'a//b', '//', 'a/', 'a/b/', '/'])(
     'explains the empty path segment in %j on create',
     (name) => {
