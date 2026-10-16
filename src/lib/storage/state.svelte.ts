@@ -831,6 +831,11 @@ export class StorageState {
   };
 
   /** Delegated to clipboardState. */
+  checkConflictRename = (entry: ConflictEntry): Promise<boolean> => {
+    return this.clipboardState.checkConflictRename(entry);
+  };
+
+  /** Delegated to clipboardState. */
   cancelConflictResolution = (): void => {
     this.clipboardState.cancelConflictResolution();
   };

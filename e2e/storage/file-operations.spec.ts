@@ -308,6 +308,89 @@ test.describe('Storage S3 — File Operations', () => {
     }
   });
 
+  test('checking a new name in the conflict dialog reports names that are taken', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'paste-rename-check');
+    // `docs/` and `taken/` exist only through their objects (no folder marker).
+    const cleanupKeys = [
+      `${prefix}src/`,
+      `${prefix}src/a.txt`,
+      `${prefix}src/docs/new.txt`,
+      `${prefix}dest/`,
+      `${prefix}dest/a.txt`,
+      `${prefix}dest/b.txt`,
+      `${prefix}dest/docs/old.txt`,
+      `${prefix}dest/taken/x.txt`,
+      `${prefix}dest/free.txt`,
+      `${prefix}dest/fresh/new.txt`
+    ];
+
+    try {
+      await putDirectoryMarker(client, credentials.bucket, `${prefix}src/`);
+      await putTextObject(client, credentials.bucket, `${prefix}src/a.txt`, 'new a');
+      await putTextObject(client, credentials.bucket, `${prefix}src/docs/new.txt`, 'new');
+      await putDirectoryMarker(client, credentials.bucket, `${prefix}dest/`);
+      await putTextObject(client, credentials.bucket, `${prefix}dest/a.txt`, 'old a');
+      await putTextObject(client, credentials.bucket, `${prefix}dest/b.txt`, 'b');
+      await putTextObject(client, credentials.bucket, `${prefix}dest/docs/old.txt`, 'old');
+      await putTextObject(client, credentials.bucket, `${prefix}dest/taken/x.txt`, 'x');
+
+      await connectAndOpenPrefix(page, credentials, `${prefix}src/`);
+      await expect(rowByName(page, 'docs')).toBeVisible();
+      await page.keyboard.press('Control+a');
+      await page.keyboard.press('Control+c');
+
+      await page.locator('tbody tr').first().click();
+      await rowByName(page, 'dest').dblclick();
+      await expect(rowByName(page, 'taken')).toBeVisible();
+      await page.locator('table').click();
+      await page.keyboard.press('Control+v');
+
+      const conflictDialog = page.getByRole('dialog');
+      await expect(conflictDialog.getByText('Files already exist', { exact: true })).toBeVisible();
+      const pasteButton = conflictDialog.getByRole('button', { name: 'Paste', exact: true });
+
+      for (const [original, taken, free] of [
+        ['a.txt', 'b.txt', 'free.txt'],
+        ['docs', 'taken', 'fresh']
+      ]) {
+        const item = conflictDialog.getByRole('listitem').filter({ hasText: original });
+        await item.getByRole('button', { name: 'Rename', exact: true }).click();
+        await item.getByLabel('New file name').fill(taken);
+        await item.getByRole('button', { name: 'Confirm name' }).click();
+        await expect(
+          item.getByText('This name already exists here. Please choose a different name.')
+        ).toBeVisible();
+        await expect(pasteButton).toBeDisabled();
+
+        await item.getByLabel('New file name').fill(free);
+        await item.getByRole('button', { name: 'Confirm name' }).click();
+        await expect(
+          item.getByText('This name already exists here. Please choose a different name.')
+        ).toBeHidden();
+      }
+      await expect(pasteButton).toBeEnabled();
+      await pasteButton.click();
+
+      await expect(page.getByText('2 items pasted')).toBeVisible();
+      expect(await getObjectText(client, credentials.bucket, `${prefix}dest/free.txt`)).toBe(
+        'new a'
+      );
+      expect(await getObjectText(client, credentials.bucket, `${prefix}dest/fresh/new.txt`)).toBe(
+        'new'
+      );
+      expect(await getObjectText(client, credentials.bucket, `${prefix}dest/b.txt`)).toBe('b');
+      expect(await objectExists(client, credentials.bucket, `${prefix}dest/taken/new.txt`)).toBe(
+        false
+      );
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   test('copying items into their own folder creates renamed copies', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);

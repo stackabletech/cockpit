@@ -312,6 +312,15 @@ describe('storage object schemas', () => {
         dest: { bucket: 'b', prefix: '' }
       }).success
     ).toBe(false);
+    const planBody = {
+      op: 'copy',
+      source: { bucket: 'b', keys: ['a'] },
+      dest: { bucket: 'b', prefix: '' }
+    };
+    expect(TransferPlanBodySchema.safeParse({ ...planBody, names: { a: 'b' } }).success).toBe(true);
+    expect(TransferPlanBodySchema.safeParse({ ...planBody, names: { x: 'b' } }).success).toBe(
+      false
+    );
     expect(DeleteObjectsBodySchema.safeParse({ keys: [''] }).success).toBe(false);
   });
 

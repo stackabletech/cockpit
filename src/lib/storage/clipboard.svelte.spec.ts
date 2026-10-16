@@ -28,7 +28,7 @@ import { StorageState } from './state.svelte.js';
 import type { StorageApi } from './api.js';
 import type { ClipboardData } from './types.js';
 import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
-import type { PlanItem, TransferBody } from './transfer-types.js';
+import type { PlanItem, TransferBody, TransferPlanBody } from './transfer-types.js';
 import { createMemoryStorageApi, fakeTransfer } from './api.test-utils.js';
 import { makePage } from './state.test-utils.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
@@ -306,6 +306,75 @@ describe('conflict dialog', () => {
     await state.confirmConflictResolution([{ ...entries[0], resolution: 'skip' }]);
 
     expect(transferApi.transfer).not.toHaveBeenCalled();
+  });
+
+  it('checks a new name with a one-item plan under that name', async () => {
+    const planTransfer = vi.fn(async (body: TransferPlanBody) =>
+      body.names?.['src/a.txt'] === 'taken.txt'
+        ? planWith({ 'src/a.txt': { conflict: 'file' } })(body)
+        : planWith({})(body)
+    );
+    const transferApi = api();
+    const state = makeState(transferApi, clipboard('copy', ['src/a.txt', 'src/docs/']));
+    await state.clipboardState.paste('dest/');
+    const { entries } = conflictPayload(state);
+    transferApi.planTransfer = planTransfer;
+
+    const check = (customName: string) =>
+      state.checkConflictRename({ ...entries[0], resolution: 'rename', customName });
+
+    await expect(check(' taken.txt ')).resolves.toBe(false);
+    await expect(check('free.txt')).resolves.toBe(true);
+    expect(planTransfer.mock.calls[0][0]).toEqual({
+      op: 'copy',
+      source: { bucket: 'test-bucket', keys: ['src/a.txt'] },
+      dest: { bucket: 'test-bucket', prefix: 'dest/' },
+      names: { 'src/a.txt': 'taken.txt' }
+    });
+  });
+
+  it('does not accept a new name the plan refuses', async () => {
+    const transferApi = api();
+    const state = makeState(transferApi, clipboard('copy', ['src/a.txt']));
+    await state.clipboardState.paste('dest/');
+    const { entries } = conflictPayload(state);
+    transferApi.planTransfer = planWith({ 'src/a.txt': { refused: 'overlaps_source' } });
+
+    await expect(
+      state.checkConflictRename({ ...entries[0], resolution: 'rename', customName: 'x' })
+    ).resolves.toBe(false);
+  });
+
+  it('reports a name taken by an item pasted without a conflict, without asking the server', async () => {
+    const transferApi = api();
+    const state = makeState(transferApi, clipboard('copy', ['src/a.txt', 'src/c.txt', 'src/d/']));
+    await state.clipboardState.paste('dest/');
+    const { entries } = conflictPayload(state);
+    const planTransfer = vi.fn(planWith({}));
+    transferApi.planTransfer = planTransfer;
+
+    const check = (customName: string) =>
+      state.checkConflictRename({ ...entries[0], resolution: 'rename', customName });
+
+    await expect(check('c.txt')).resolves.toBe(false);
+    expect(planTransfer).not.toHaveBeenCalled();
+    // A file may take the name of a folder: `d` and `d/` are different keys.
+    await expect(check('d')).resolves.toBe(true);
+  });
+
+  it('toasts and rethrows when the name check fails', async () => {
+    const transferApi = api();
+    const state = makeState(transferApi, clipboard('copy', ['src/a.txt']));
+    await state.clipboardState.paste('dest/');
+    const { entries } = conflictPayload(state);
+    transferApi.planTransfer = async () => {
+      throw new Error('offline');
+    };
+
+    await expect(
+      state.checkConflictRename({ ...entries[0], resolution: 'rename', customName: 'x' })
+    ).rejects.toThrow('offline');
+    expect(addToast).toHaveBeenCalledWith('error', expect.any(String));
   });
 
   it('only offers Close when every item is refused', async () => {

@@ -24,12 +24,10 @@
     /** Optional: label for the confirm button. Defaults to "Confirm". */
     confirmLabel?: string;
     /**
-     * Optional: custom rename-conflict checker.
-     * Called with the entry's local state (including current customName).
-     * Return true if the new name is available, false if it conflicts.
-     * When not provided, rename is always accepted as available.
+     * Rename-conflict checker, called with the entry's local state (including current customName).
+     * Return true if the new name is available, false if it conflicts; throw to let the user retry.
      */
-    onCheckRename?: (entry: ConflictEntryType) => Promise<boolean>;
+    onCheckRename: (entry: ConflictEntryType) => Promise<boolean>;
     /** Optional: items that cannot be transferred, shown with their reason. */
     refused?: RefusedEntry[];
     /** Nothing would be sent whatever is chosen: offer only Close. */
@@ -145,14 +143,23 @@
       e.id === id ? { ...e, renameState: 'checking' as const } : e
     );
 
-    try {
-      const available = onCheckRename ? await onCheckRename(entry) : true;
-      const nextState: RenameState = available ? 'ok' : 'conflict';
-      localEntries = localEntries.map((e) => (e.id === id ? { ...e, renameState: nextState } : e));
-    } catch {
+    // Apply a result only to the check it answers: the user may have skipped,
+    // renamed again or reopened the dialog while it was in flight.
+    const settle = (next: RenameState) => {
       localEntries = localEntries.map((e) =>
-        e.id === id ? { ...e, renameState: 'editing' as const } : e
+        e.id === id &&
+        e.resolution === 'rename' &&
+        e.renameState === 'checking' &&
+        e.customName.trim() === newName
+          ? { ...e, renameState: next }
+          : e
       );
+    };
+
+    try {
+      settle((await onCheckRename(entry)) ? 'ok' : 'conflict');
+    } catch {
+      settle('editing');
     }
   }
 

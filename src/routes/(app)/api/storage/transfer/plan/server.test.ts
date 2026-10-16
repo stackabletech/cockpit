@@ -94,9 +94,41 @@ describe('POST /api/storage/transfer/plan', () => {
     expect(items[0].refused).toBe('same_location');
   });
 
+  it.each([
+    ['a.txt', { 'a.txt': 'a.txt' }, 'dest/a.txt', 'file'],
+    ['a.txt', { 'a.txt': 'free.txt' }, 'dest/free.txt', 'none'],
+    ['docs/', { 'docs/': 'docs' }, 'dest/docs/', 'folder'],
+    ['docs/', { 'docs/': 'other' }, 'dest/other/', 'none']
+  ])('plans %s under the name %j', async (key, names, destKey, conflict) => {
+    const response = await POST(event({ ...plan([key]), names }));
+    const { items } = await response.json();
+    expect(items[0]).toMatchObject({ destKey, conflict });
+    expect(items[0].refused).toBeUndefined();
+  });
+
+  it('only renames keys that names has as its own', async () => {
+    state.store = memoryStore({ b: ['constructor', 'a.txt'] });
+    const response = await POST(
+      event({ ...plan(['constructor', 'a.txt']), names: { 'a.txt': 'b.txt' } })
+    );
+    const { items } = await response.json();
+    expect(items[0]).toMatchObject({ destKey: 'dest/constructor', conflict: 'none' });
+    expect(items[0].refused).toBeUndefined();
+    expect(items[1]).toMatchObject({ destKey: 'dest/b.txt' });
+  });
+
+  it('refuses an invalid new name', async () => {
+    const response = await POST(event({ ...plan(['a.txt']), names: { 'a.txt': 'x/y' } }));
+    const { items } = await response.json();
+    expect(items[0].refused).toBe('invalid_name');
+  });
+
   it('answers 400 for invalid bodies and overlapping sources', async () => {
     await expect(POST(event({ op: 'rename' }))).rejects.toMatchObject({ status: 400 });
     await expect(POST(event(plan(['docs/', 'docs/a'])))).rejects.toMatchObject({ status: 400 });
+    await expect(
+      POST(event({ ...plan(['a.txt']), names: { 'b.txt': 'c.txt' } }))
+    ).rejects.toMatchObject({ status: 400 });
   });
 
   it.each([

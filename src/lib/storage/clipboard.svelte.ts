@@ -275,6 +275,40 @@ export class ClipboardState {
     await this._whileTransferring(() => this._execute(pending, items));
   };
 
+  /**
+   * Whether the name chosen for a conflict entry is free at the destination,
+   * planned by the server under the rules the transfer itself applies.
+   * Throws when the check cannot be made, so the dialog lets the user retry.
+   */
+  checkConflictRename = async (entry: ConflictEntry): Promise<boolean> => {
+    const pending = this._pendingTransfer;
+    if (!pending || !entry.sourceKey) throw new Error('No transfer waiting for this entry');
+    // Items without a conflict go in the same request under their own names; the
+    // one-item plan below cannot see them, so a rename onto one is caught here.
+    const name = entry.customName.trim();
+    const suffix = entry.sourceKey.endsWith('/') ? '/' : '';
+    const takenByReady = pending.ready.some(
+      (item) =>
+        item.policy === undefined &&
+        keyToName(item.sourceKey) + (item.sourceKey.endsWith('/') ? '/' : '') === name + suffix
+    );
+    if (takenByReady) return false;
+    let plan: PlanItem[];
+    try {
+      plan = await this._api.planTransfer({
+        op: pending.op,
+        source: { bucket: pending.sourceBucket, keys: [entry.sourceKey] },
+        dest: { bucket: pending.destBucket, prefix: pending.destPrefix },
+        names: { [entry.sourceKey]: name }
+      });
+    } catch (err) {
+      this._toastRequestError(pending.action, err);
+      throw err;
+    }
+    const item = plan[0];
+    return !!item && !item.refused && item.conflict === 'none';
+  };
+
   cancelConflictResolution = (): void => {
     this._pendingTransfer = null;
     this._callbacks.closeModal();

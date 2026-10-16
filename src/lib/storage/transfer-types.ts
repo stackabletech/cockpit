@@ -79,6 +79,8 @@ export interface TransferPlanBody {
   op: 'copy' | 'move';
   source: { bucket: string; keys: string[] };
   dest: { bucket: string; prefix: string };
+  /** New names by source key: plan those items as renamed. */
+  names?: Record<string, string>;
 }
 
 /** Body of `POST /api/storage/transfer`. */

@@ -185,6 +185,7 @@
     closeOnly={modalPayload.closeOnly}
     title={modalPayload.entries.length === 0 ? m.storage_transfer_refused_title() : undefined}
     description={modalPayload.entries.length === 0 ? '' : undefined}
+    onCheckRename={(entry) => storage.checkConflictRename(entry)}
     onConfirm={(entries) => storage.confirmConflictResolution(entries)}
     onCancel={() => storage.cancelConflictResolution()}
   />

@@ -182,9 +182,17 @@ export const TransferPlanBodySchema = z
         keys: z.array(StorageObjectKeySchema).min(1).max(MAX_TRANSFER_ITEMS)
       })
       .strict(),
-    dest: z.object({ bucket: TransferBucketSchema, prefix: StoragePrefixSchema }).strict()
+    dest: z.object({ bucket: TransferBucketSchema, prefix: StoragePrefixSchema }).strict(),
+    /** Plan these items under a new name, as the conflict dialog's rename would send them. */
+    names: z.record(StorageObjectKeySchema, z.string()).optional()
   })
-  .strict();
+  .strict()
+  .superRefine((data, ctx) => {
+    const keys = new Set(data.source.keys);
+    if (Object.keys(data.names ?? {}).some((key) => !keys.has(key))) {
+      ctx.addIssue({ code: 'custom', path: ['names'], message: 'A name for an unknown key' });
+    }
+  });
 
 /** Body of `POST /api/storage/transfer`. */
 export const TransferBodySchema = z
