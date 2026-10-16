@@ -1,3 +1,5 @@
+import { randomUUID } from '$lib/utils/uuid.js';
+
 export type ToastType = 'info' | 'success' | 'warning' | 'error';
 
 interface Toast {
@@ -9,7 +11,7 @@ interface Toast {
 export const toasts = $state<Toast[]>([]);
 
 export function addToast(type: ToastType, message: string, durationMs = 5000): void {
-  const id = crypto.randomUUID();
+  const id = randomUUID();
   toasts.push({ id, type, message });
   if (durationMs > 0) {
     setTimeout(() => removeToast(id), durationMs);
