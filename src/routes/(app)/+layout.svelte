@@ -5,6 +5,7 @@
   import Sidebar from '$lib/components/layout/sidebar/Sidebar.svelte';
   import Header from '$lib/components/layout/header/Header.svelte';
   import ToastHost from '$lib/components/ToastHost.svelte';
+  import SessionExpiredModal from '$lib/components/layout/SessionExpiredModal.svelte';
 
   let { children, data } = $props();
 
@@ -64,3 +65,8 @@
 </div>
 
 <ToastHost />
+
+<!-- Only signed-in users can lose their session; without OIDC there is none. -->
+{#if data.user}
+  <SessionExpiredModal />
+{/if}
