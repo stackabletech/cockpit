@@ -681,6 +681,19 @@ describe('performDelete clipboard cleanup', () => {
   });
 });
 
+describe('confirmDelete failure', () => {
+  it('reloads the listing so partially deleted objects disappear', async () => {
+    const deleteSpy = vi.fn().mockRejectedValue(new StorageError('server_error', 'Boom'));
+    const state = makeState({ delete: deleteSpy });
+    state.openModal('delete', { keys: ['dir/'] });
+
+    await state.confirmDelete();
+
+    expect(invalidateAll).toHaveBeenCalled();
+    expect(state.deleting).toBe(false);
+  });
+});
+
 // ────────────────────────────────────────────────────────────────────────────
 // executeAction – download (archive size estimation)
 // ────────────────────────────────────────────────────────────────────────────
