@@ -6,7 +6,7 @@ import type {
   TransferObjectFailure,
   TransferSummary
 } from '$lib/storage/transfer-types.js';
-import { runPool } from './pool.js';
+import { createLimiter, runPool } from './pool.js';
 import {
   isTooLong,
   resolveItems,
@@ -23,7 +23,7 @@ export interface TransferContext {
   source: StorageProvider;
   /** Provider of the destination bucket; copies run here. */
   dest: StorageProvider;
-  /** Objects copied at once within one item. */
+  /** Objects copied at once across the whole request; items also run this many at a time. */
   concurrency: number;
   /** Cancels the transfer: running S3 calls are aborted and no further item starts. */
   signal: AbortSignal;
@@ -67,7 +67,8 @@ async function listSource(item: ResolvedItem, ctx: TransferContext): Promise<Sou
 async function runItem(
   item: ResolvedItem,
   request: TransferRequest,
-  ctx: TransferContext
+  ctx: TransferContext,
+  limit: ReturnType<typeof createLimiter>
 ): Promise<TransferItemResult> {
   const { signal, logger } = ctx;
   const destRoot = item.destKey;
@@ -131,14 +132,18 @@ async function runItem(
     async (object) => {
       const destKey = destKeyFor(object);
       try {
-        await ctx.dest.copyObject(object.key, destKey, {
-          sourceBucket: request.sourceBucket,
-          signal,
-          onProgress: (loaded) => {
-            partialBytes.set(object.key, loaded);
-            reportProgress();
-          }
-        });
+        // The limiter is shared by every item, so parallel items never exceed the budget.
+        await limit(() =>
+          ctx.dest.copyObject(object.key, destKey, {
+            sourceBucket: request.sourceBucket,
+            size: object.size,
+            signal,
+            onProgress: (loaded) => {
+              partialBytes.set(object.key, loaded);
+              reportProgress();
+            }
+          })
+        );
         copied.push(object);
         copiedBytes += object.size;
       } catch (err) {
@@ -226,8 +231,10 @@ async function remainingKeys(
 
 /**
  * Run a validated transfer: resolve every item, then copy (and for a move or
- * rename, delete the originals of) one item after another. Never throws: every
- * item ends in an `item-done` event and the last event is always `complete`.
+ * rename, delete the originals of) the items concurrently. At most
+ * `concurrency` objects are copied at once across all items. Never throws:
+ * every item ends in an `item-done` event and the last event is always
+ * `complete`. Results keep the request order; events arrive as items finish.
  */
 export async function executeTransfer(
   request: TransferRequest,
@@ -237,8 +244,8 @@ export async function executeTransfer(
   const { signal, logger } = ctx;
   const results: TransferItemResult[] = [];
   const summary = emptySummary();
-  const finish = (itemResult: TransferItemResult) => {
-    results.push(itemResult);
+  const finish = (itemResult: TransferItemResult, index = results.length) => {
+    results[index] = itemResult;
     summary[itemResult.status]++;
     ctx.emit({ type: 'item-done', ...itemResult });
     logger.debug(
@@ -277,18 +284,21 @@ export async function executeTransfer(
     }
   }
 
-  for (const item of resolved) {
+  const limit = createLimiter(ctx.concurrency);
+  // No signal for the pool: each item checks it itself, so a cancelled item still gets its result.
+  await runPool(resolved, ctx.concurrency, async (item, index) => {
     if (item.refused) {
-      finish(result(item, { status: 'refused', reason: item.refused }));
+      finish(result(item, { status: 'refused', reason: item.refused }), index);
     } else if (signal.aborted) {
-      finish(result(item, { status: 'cancelled' }));
+      finish(result(item, { status: 'cancelled' }), index);
     } else if (item.error) {
       finish(
-        result(item, { status: 'failed', failed: [{ key: item.sourceKey, error: item.error }] })
+        result(item, { status: 'failed', failed: [{ key: item.sourceKey, error: item.error }] }),
+        index
       );
     } else {
       try {
-        finish(await runItem(item, request, ctx));
+        finish(await runItem(item, request, ctx, limit), index);
       } catch (err) {
         // runItem handles provider errors itself; this is a bug, not a storage failure.
         logger.error({ op: request.op, source_key: item.sourceKey, err }, 'transfer item crashed');
@@ -296,11 +306,12 @@ export async function executeTransfer(
           result(item, {
             status: 'failed',
             failed: [{ key: item.sourceKey, error: transferErrorMessage(err) }]
-          })
+          }),
+          index
         );
       }
     }
-  }
+  });
 
   ctx.emit({ type: 'complete', summary });
   logger.info(

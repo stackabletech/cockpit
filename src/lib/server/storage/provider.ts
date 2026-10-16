@@ -32,6 +32,8 @@ export interface ProgressiveListOptions {
 export interface CopyObjectOptions {
   /** Bucket of the same connection to copy from. Defaults to the provider's bucket. */
   sourceBucket?: string;
+  /** Size of the source when the caller already knows it; lets the provider skip reading it first. */
+  size?: number;
   onProgress?: (loaded: number, total: number) => void;
   signal?: AbortSignal;
 }

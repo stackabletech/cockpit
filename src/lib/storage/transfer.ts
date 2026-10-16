@@ -189,8 +189,8 @@ export async function runTransfer(options: RunTransferOptions): Promise<ItemOutc
   const results: TransferItemResult[] = [];
   let totalBytes = 0;
   let finishedBytes = 0;
-  let currentBytes = 0;
-  let currentTotal = 0;
+  // Items run concurrently on the server, so their events interleave.
+  const running = new Map<string, { total: number; copied: number }>();
   let currentName = '';
 
   let complete: boolean;
@@ -199,28 +199,36 @@ export async function runTransfer(options: RunTransferOptions): Promise<ItemOutc
       switch (event.type) {
         case 'item-start':
           totalBytes += event.totalBytes;
-          currentTotal = event.totalBytes;
-          currentBytes = 0;
+          running.set(event.sourceKey, { total: event.totalBytes, copied: 0 });
           currentName = keyToName(event.sourceKey);
           break;
-        case 'progress':
-          currentBytes = event.copiedBytes;
+        case 'progress': {
+          const item = running.get(event.sourceKey);
+          if (item) item.copied = event.copiedBytes;
           break;
+        }
         case 'item-done': {
           const item = toItemResult(event);
           results.push(item);
-          finishedBytes += item.status === 'done' ? currentTotal : currentBytes;
-          currentTotal = 0;
-          currentBytes = 0;
+          const started = running.get(event.sourceKey);
+          if (started) {
+            finishedBytes += item.status === 'done' ? started.total : started.copied;
+            running.delete(event.sourceKey);
+          }
+          // Show an item that is still running rather than one that just finished.
+          const [next] = running.keys();
+          if (next !== undefined) currentName = keyToName(next);
           break;
         }
         case 'complete':
           return;
       }
+      let runningBytes = 0;
+      for (const item of running.values()) runningBytes += item.copied;
       operations.updateOpProgress(
         opId,
         results.length,
-        finishedBytes + currentBytes,
+        finishedBytes + runningBytes,
         currentName,
         totalBytes
       );

@@ -79,13 +79,12 @@ describe('POST /api/storage/transfer', () => {
 
     expect(response.headers.get('Content-Type')).toBe('application/x-ndjson');
     const events = await lines(response);
-    expect(events.map((e) => e.type).filter((type) => type !== 'progress')).toEqual([
-      'item-start',
-      'item-done',
-      'item-start',
-      'item-done',
-      'complete'
-    ]);
+    // Items run concurrently, so only each item's own events are ordered.
+    for (const key of ['a.txt', 'docs/']) {
+      const own = events.filter((e) => e.sourceKey === key && e.type !== 'progress');
+      expect(own.map((e) => e.type)).toEqual(['item-start', 'item-done']);
+    }
+    expect(events.filter((e) => e.type === 'complete')).toHaveLength(1);
     expect(events.at(-1).summary).toEqual({
       done: 2,
       partial: 0,
@@ -102,7 +101,8 @@ describe('POST /api/storage/transfer', () => {
 
     const job = await (await readJob(jobEvent(body.jobId))).json();
     expect(job).toMatchObject({ status: 'done', result: { summary: { done: 1, failed: 1 } } });
-    expect(job.items.map((item: { sourceKey: string }) => item.sourceKey)).toEqual([
+    // Recorded as items finish, which need not be request order.
+    expect(job.items.map((item: { sourceKey: string }) => item.sourceKey).sort()).toEqual([
       'a.txt',
       'missing/'
     ]);

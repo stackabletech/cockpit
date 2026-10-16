@@ -754,6 +754,25 @@ export class S3StorageProvider implements StorageProvider {
     // S3 CopyObject has a 5 GB limit. For larger objects we use server-side
     // multipart copy (UploadPartCopy) so data never streams through the server.
     const HEAD_LIMIT = 5 * 1024 * 1024 * 1024;
+    const copySingle = async () => {
+      try {
+        await this.client.send(
+          new CopyObjectCommand({ Bucket: this.bucket, CopySource: copySource, Key: destKey }),
+          { abortSignal: signal }
+        );
+      } catch (err) {
+        // A missing key here is always the source; name it, not the destination.
+        const missingSource = err instanceof Error && err.name === 'NoSuchKey';
+        mapS3ErrorToHttp(err, missingSource ? sourceContext : context);
+      }
+    };
+
+    // A known small size needs no HEAD; the multipart path still reads it for the ETag pin.
+    if (options.size !== undefined && options.size <= HEAD_LIMIT) {
+      await copySingle();
+      return;
+    }
+
     const head = await withS3Errors(
       () =>
         this.client.send(new HeadObjectCommand({ Bucket: sourceBucket, Key: sourceKey }), {
@@ -764,14 +783,7 @@ export class S3StorageProvider implements StorageProvider {
     const size = head.ContentLength ?? 0;
 
     if (size <= HEAD_LIMIT) {
-      await withS3Errors(
-        () =>
-          this.client.send(
-            new CopyObjectCommand({ Bucket: this.bucket, CopySource: copySource, Key: destKey }),
-            { abortSignal: signal }
-          ),
-        context
-      );
+      await copySingle();
       return;
     }
 

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { S3ServiceException, PutObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3ServiceException,
+  PutObjectCommand,
+  CopyObjectCommand,
+  HeadObjectCommand
+} from '@aws-sdk/client-s3';
 
 vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
@@ -548,6 +553,34 @@ describe('S3StorageProvider.copyObject', () => {
       Key: 'dst/file.txt'
     });
     expect(MockUpload).not.toHaveBeenCalled();
+  });
+
+  it('skips the HEAD when the caller knows the size is under 5 GB', async () => {
+    send.mockResolvedValueOnce({});
+
+    await provider.copyObject('src/file.txt', 'dst/file.txt', { size: 1000 });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0]).toBeInstanceOf(CopyObjectCommand);
+  });
+
+  it('names the source when it vanished before a copy without HEAD', async () => {
+    send.mockRejectedValueOnce(makeS3Error('NoSuchKey', 404));
+
+    await expect(
+      provider.copyObject('src/file.txt', 'dst/file.txt', { size: 1000 })
+    ).rejects.toMatchObject({ status: 404, body: { message: 'Object "src/file.txt" not found' } });
+  });
+
+  it('still reads the source for the ETag pin when a known size is over 5 GB', async () => {
+    const size = 5 * 1024 * 1024 * 1024 + 1;
+    send.mockResolvedValueOnce({ ContentLength: size, ETag: '"abc"' });
+    send.mockResolvedValue({ UploadId: 'id', CopyPartResult: { ETag: 'part' } });
+
+    await provider.copyObject('src/large.parquet', 'dst/large.parquet', { size });
+
+    expect(send.mock.calls[0][0]).toBeInstanceOf(HeadObjectCommand);
+    expect(send.mock.calls[2][0].input).toMatchObject({ CopySourceIfMatch: '"abc"' });
   });
 
   it('uses server-side multipart copy for files over 5 GB', async () => {

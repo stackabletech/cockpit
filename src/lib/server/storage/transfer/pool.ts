@@ -31,3 +31,26 @@ export async function runPool<T, R>(
   if (errors.length > 0) throw errors[0];
   return results;
 }
+
+/**
+ * A limiter that runs at most `concurrency` of the calls passed to it at once;
+ * further calls wait in order. Unlike `runPool` it is shared by callers that
+ * start work independently, such as the items of one transfer.
+ */
+export function createLimiter(concurrency: number) {
+  const waiting: Array<() => void> = [];
+  let running = 0;
+
+  return async function limit<T>(fn: () => Promise<T>): Promise<T> {
+    if (running >= concurrency) await new Promise<void>((resolve) => waiting.push(resolve));
+    else running++;
+    try {
+      return await fn();
+    } finally {
+      // Hand the slot straight to the next waiter, so `running` never dips in between.
+      const next = waiting.shift();
+      if (next) next();
+      else running--;
+    }
+  };
+}

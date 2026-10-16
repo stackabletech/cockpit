@@ -40,7 +40,20 @@ function setup(store: MemoryStore, sourceBucket = 'b', destBucket = sourceBucket
       },
       ctx
     );
-  return { source, dest, events, controller, logger, run };
+  return { source, dest, events, controller, logger, ctx, run };
+}
+
+/** Track how many copies run at once; each one waits a tick so they overlap. */
+function trackPeak(provider: ReturnType<typeof setup>['source']) {
+  const stats = { running: 0, peak: 0 };
+  const copy = provider.copyObject.getMockImplementation()!;
+  provider.copyObject.mockImplementation(async (...args) => {
+    stats.peak = Math.max(stats.peak, ++stats.running);
+    await new Promise((resolve) => setTimeout(resolve, 1));
+    stats.running--;
+    return copy(...args);
+  });
+  return stats;
 }
 
 describe('executeTransfer', () => {
@@ -371,5 +384,86 @@ describe('executeTransfer', () => {
     );
 
     expect(peak).toBe(3);
+  });
+
+  describe('concurrent items', () => {
+    it('runs single-file items through the concurrency pool', async () => {
+      const keys = Array.from({ length: 6 }, (_, i) => `f${i}.txt`);
+      const { source, ctx, run } = setup(memoryStore({ b: keys }));
+      ctx.concurrency = 3;
+      const stats = trackPeak(source);
+
+      const { summary } = await run('copy', keys);
+
+      expect(stats.peak).toBe(3);
+      expect(summary.done).toBe(6);
+    });
+
+    it('shares one copy budget between items', async () => {
+      const keys = ['a/', 'b/'].flatMap((folder) =>
+        Array.from({ length: 4 }, (_, i) => `${folder}${i}`)
+      );
+      const { source, ctx, run } = setup(memoryStore({ b: keys }));
+      ctx.concurrency = 3;
+      const stats = trackPeak(source);
+
+      const { summary } = await run('copy', ['a/', 'b/']);
+
+      expect(stats.peak).toBe(3);
+      expect(summary.done).toBe(2);
+    });
+
+    it('returns results in request order when a later item finishes first', async () => {
+      const { source, ctx, events, run } = setup(memoryStore({ b: ['slow.txt', 'fast.txt'] }));
+      ctx.concurrency = 2;
+      const copy = source.copyObject.getMockImplementation()!;
+      source.copyObject.mockImplementation(async (from, to, options) => {
+        if (from === 'slow.txt') await new Promise((resolve) => setTimeout(resolve, 5));
+        return copy(from, to, options);
+      });
+
+      const { items } = await run('copy', ['slow.txt', 'fast.txt']);
+
+      expect(items.map((item) => item.sourceKey)).toEqual(['slow.txt', 'fast.txt']);
+      const done = events.filter((event) => event.type === 'item-done');
+      expect(done.map((event) => event.sourceKey)).toEqual(['fast.txt', 'slow.txt']);
+    });
+
+    it('gives every item a result when cancelled while items run in parallel', async () => {
+      const keys = Array.from({ length: 5 }, (_, i) => `f${i}.txt`);
+      const store = memoryStore({ b: keys });
+      const { source, ctx, controller, events, run } = setup(store);
+      ctx.concurrency = 2;
+      const copy = source.copyObject.getMockImplementation()!;
+      source.copyObject.mockImplementationOnce(async (from, to, options) => {
+        await copy(from, to, options);
+        controller.abort();
+      });
+
+      const { items, summary } = await run('move', keys);
+
+      expect(items).toHaveLength(5);
+      expect(summary.cancelled + summary.done).toBe(5);
+      // A cancelled item of a move keeps its original.
+      const cancelled = items.filter((item) => item.status === 'cancelled');
+      expect(cancelled.length).toBeGreaterThan(0);
+      for (const item of cancelled) {
+        expect(item.deletedOriginals).toBe(0);
+        expect(keysOf(store, 'b')).toContain(item.sourceKey);
+      }
+      expect(events.filter((event) => event.type === 'item-done')).toHaveLength(5);
+      expect(events.at(-1)).toMatchObject({ type: 'complete' });
+    });
+
+    it('passes the known size to the copy, so the provider can skip reading the source', async () => {
+      const { source, run } = setup(memoryStore({ b: ['a.txt', 'docs/b.txt'] }));
+
+      await run('copy', ['a.txt', 'docs/']);
+
+      for (const [, , options] of source.copyObject.mock.calls) {
+        expect(options?.size).toEqual(expect.any(Number));
+      }
+      expect(source.copyObject).toHaveBeenCalledTimes(2);
+    });
   });
 });
