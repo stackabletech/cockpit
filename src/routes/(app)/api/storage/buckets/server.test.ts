@@ -74,6 +74,22 @@ describe('GET /api/storage/buckets', () => {
       expect(body).toEqual(['alpha', 'beta']);
     });
 
+    it('sorts buckets alphabetically regardless of provider order', async () => {
+      mockListContainers.mockResolvedValue(['gamma', 'alpha']);
+
+      const event = mockEvent({});
+      event.locals.storageConfig = {
+        type: 's3',
+        host: 'localhost',
+        accessStyle: 'Path' as const,
+        region: { name: 'us-east-1' },
+        additionalBuckets: ['beta']
+      };
+      const response = await GET(event);
+      const body = await response.json();
+      expect(body).toEqual(['alpha', 'beta', 'gamma']);
+    });
+
     it('lists buckets when prefix is set without details', async () => {
       mockListContainers.mockResolvedValue(['alpha', 'beta']);
 

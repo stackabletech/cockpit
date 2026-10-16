@@ -38,7 +38,8 @@ export const GET: RequestHandler = async (event) => {
 
   const listedBuckets = await withStorageHttpErrors(getConnectionProvider(config)).listContainers();
   const additional = config.additionalBuckets ?? [];
-  const allBuckets = [...new Set([...listedBuckets, ...additional])];
+  // Some S3 implementations (e.g. Garage) return buckets in no particular order.
+  const allBuckets = [...new Set([...listedBuckets, ...additional])].sort();
   event.locals.logger.debug({ bucket_count: allBuckets.length }, 'bucket list returned');
   return json(allBuckets);
 };
