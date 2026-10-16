@@ -84,6 +84,13 @@ async function pasteHere(page: Page) {
   await page.keyboard.press('Control+v');
 }
 
+/** The refusal dialog is named by its heading and has no empty paragraphs. */
+async function expectNamedRefusalDialog(page: Page) {
+  const dialog = page.getByRole('dialog', { name: 'Cannot be transferred' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('p').filter({ hasNotText: /\S/ })).toHaveCount(0);
+}
+
 async function contextAction(page: Page, name: string, action: string) {
   await rowByName(page, name).click({ button: 'right' });
   await page.getByRole('menuitem', { name: action, exact: true }).click();
@@ -131,6 +138,7 @@ test.describe('Storage S3 — Transfers', () => {
       await pasteHere(page);
 
       const dialog = page.getByRole('dialog');
+      await expect(page.getByRole('dialog', { name: 'Files already exist' })).toBeVisible();
       await dialog.getByRole('button', { name: 'Keep both' }).click();
       await dialog.getByRole('button', { name: 'Paste', exact: true }).click();
 
@@ -201,6 +209,7 @@ test.describe('Storage S3 — Transfers', () => {
       await pasteHere(page);
       await expect(dialog.getByText('Cannot be transferred').first()).toBeVisible();
       await expect(dialog.getByText('A folder cannot be placed inside itself.')).toBeVisible();
+      await expectNamedRefusalDialog(page);
       await dialog.getByRole('button', { name: 'Close' }).click();
 
       // A cut pasted into its own folder.
@@ -211,6 +220,7 @@ test.describe('Storage S3 — Transfers', () => {
       await contextAction(page, 'a.txt', 'Cut');
       await pasteHere(page);
       await expect(dialog.getByText('It is already in this location.')).toBeVisible();
+      await expectNamedRefusalDialog(page);
       await dialog.getByRole('button', { name: 'Close' }).click();
 
       expect(await listKeys(client, credentials.bucket, prefix)).toEqual([

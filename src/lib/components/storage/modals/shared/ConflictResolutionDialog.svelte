@@ -49,6 +49,9 @@
     onCancel
   }: Props = $props();
 
+  const uid = $props.id();
+  const descriptionText = $derived(description ?? m.storage_upload_conflicts_desc());
+
   // Local copy of entries for reactive state management
   let localEntries = $state<ConflictEntryType[]>([]);
 
@@ -169,17 +172,24 @@
   }
 </script>
 
-<Modal bind:open class="modal">
+<Modal
+  bind:open
+  class="modal"
+  aria-labelledby="{uid}-title"
+  aria-describedby={descriptionText ? `${uid}-description` : undefined}
+>
   <div class="modal-box w-full max-w-lg">
     <div class="mb-3 flex items-start gap-2">
       <IconWarning class="text-warning mt-0.5 size-5 shrink-0" aria-hidden="true" />
       <div>
-        <p class="text-base-content font-semibold">
+        <h3 id="{uid}-title" class="text-base-content font-semibold">
           {title ?? m.storage_upload_conflicts_title()}
-        </p>
-        <p class="text-base-content/60 mt-0.5 text-sm">
-          {description ?? m.storage_upload_conflicts_desc()}
-        </p>
+        </h3>
+        {#if descriptionText}
+          <p id="{uid}-description" class="text-base-content/60 mt-0.5 text-sm">
+            {descriptionText}
+          </p>
+        {/if}
       </div>
     </div>
 
@@ -222,9 +232,9 @@
 
     {#if refused.length > 0}
       {#if conflictEntries.length > 0}
-        <p class="text-base-content mb-1 text-sm font-semibold">
+        <h4 class="text-base-content mb-1 text-sm font-semibold">
           {m.storage_transfer_refused_title()}
-        </p>
+        </h4>
       {/if}
       <ul
         class="border-base-300 mb-4 max-h-40 divide-y overflow-y-auto rounded-lg border"
