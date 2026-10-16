@@ -46,7 +46,7 @@ test.describe('Storage S3 — Delete & Selection', () => {
       await expect(page.getByText('All contents will be permanently deleted')).toBeVisible();
       await page.getByRole('dialog').getByRole('button', { name: 'Delete permanently' }).click();
 
-      await expect(page.getByText('This bucket is empty')).toBeVisible();
+      await expect(page.getByText('This folder is empty')).toBeVisible();
       await expect(await objectExists(client, credentials.bucket, `${prefix}remove-me.txt`)).toBe(
         false
       );
@@ -82,7 +82,7 @@ test.describe('Storage S3 — Delete & Selection', () => {
       await page.getByRole('button', { name: 'Delete', exact: true }).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Delete permanently' }).click();
 
-      await expect(page.getByText('This bucket is empty')).toBeVisible();
+      await expect(page.getByText('This folder is empty')).toBeVisible();
       for (const key of cleanupKeys) {
         expect(await objectExists(client, credentials.bucket, key)).toBe(false);
       }
@@ -159,7 +159,7 @@ test.describe('Storage S3 — Delete & Selection', () => {
       await page.getByRole('button', { name: 'Delete', exact: true }).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Delete permanently' }).click();
 
-      await expect(page.getByText('This bucket is empty')).toBeVisible();
+      await expect(page.getByText('This folder is empty')).toBeVisible();
       for (const key of cleanupKeys) {
         expect(await objectExists(client, credentials.bucket, key)).toBe(false);
       }

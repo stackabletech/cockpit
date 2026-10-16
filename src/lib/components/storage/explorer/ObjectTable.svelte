@@ -288,7 +288,9 @@
           >
             <td colspan={5} class="text-base-content/40 py-16 text-center">
               <IconFolderOpen class="mx-auto mb-3 size-10 opacity-30" aria-hidden="true" />
-              {m.storage_bucket_empty()}
+              {storage.prefix || storage.archive.isInArchive
+                ? m.storage_folder_empty()
+                : m.storage_bucket_empty()}
             </td>
           </tr>
         {/if}

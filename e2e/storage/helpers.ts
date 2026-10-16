@@ -160,7 +160,7 @@ export async function waitForObjectsLoaded(page: Page, timeout = 15_000) {
   await page.getByTestId('storage-object-list-loading').waitFor({ state: 'hidden', timeout });
   await objectList
     .locator('tbody tr')
-    .or(objectList.getByText('This bucket is empty'))
+    .or(objectList.getByText(/^This (bucket|folder) is empty$/))
     .first()
     .waitFor({ timeout });
 }

@@ -238,6 +238,7 @@
   "storage_add_bucket_error_not_found": "Bucket nicht gefunden — überprüfen Sie den Namen und versuchen Sie es erneut.",
   "storage_add_bucket_error_unknown": "Verbindung zum Bucket fehlgeschlagen — überprüfen Sie den Namen und versuchen Sie es erneut.",
   "storage_bucket_empty": "Dieser Bucket ist leer",
+  "storage_folder_empty": "Dieser Ordner ist leer",
   "storage_folder": "Ordner",
   "storage_folders": "Ordner",
   "storage_file": "Datei",

@@ -75,7 +75,7 @@ test.describe('Storage S3 — Browsing', () => {
       await expect(rowByName(page, 'empty-folder')).toBeVisible();
 
       await rowByName(page, 'empty-folder').click();
-      await expect(page.getByText('This bucket is empty')).toBeVisible();
+      await expect(page.getByText('This folder is empty')).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

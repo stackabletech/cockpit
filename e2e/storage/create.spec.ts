@@ -35,7 +35,7 @@ test.describe('Storage S3 — Create via context menu', () => {
       await connectAndOpenPrefix(page, credentials, prefix);
 
       // Right-click on the empty-state row to trigger the empty-space context menu
-      await page.getByText('This bucket is empty').click({ button: 'right' });
+      await page.getByText('This folder is empty').click({ button: 'right' });
       await expect(page.getByRole('menu')).toBeVisible();
 
       await page.getByRole('menuitem', { name: 'New text file' }).click();
@@ -63,7 +63,7 @@ test.describe('Storage S3 — Create via context menu', () => {
     try {
       await connectAndOpenPrefix(page, credentials, prefix);
 
-      await page.getByText('This bucket is empty').click({ button: 'right' });
+      await page.getByText('This folder is empty').click({ button: 'right' });
       await expect(page.getByRole('menu')).toBeVisible();
 
       await page.getByRole('menuitem', { name: 'New directory' }).click();
@@ -86,7 +86,7 @@ test.describe('Storage S3 — Create via context menu', () => {
 
     await connectAndOpenPrefix(page, credentials, prefix);
 
-    await page.getByText('This bucket is empty').click({ button: 'right' });
+    await page.getByText('This folder is empty').click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'New text file' }).click();
 
     const dialog = page.getByRole('dialog');
@@ -125,7 +125,7 @@ test.describe('Storage S3 — Create via context menu', () => {
       await putDirectoryMarker(client, credentials.bucket, prefix);
       await connectAndOpenPrefix(page, credentials, prefix);
 
-      await page.getByText('This bucket is empty').click({ button: 'right' });
+      await page.getByText('This folder is empty').click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'New directory' }).click();
 
       const dialog = page.getByRole('dialog');

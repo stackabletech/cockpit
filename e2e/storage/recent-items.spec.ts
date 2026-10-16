@@ -93,7 +93,7 @@ test.describe('Storage S3 — Recent Items', () => {
       await page.getByLabel('Select to-delete.txt').check();
       await page.getByRole('button', { name: 'Delete', exact: true }).click();
       await page.getByRole('button', { name: 'Delete permanently' }).click();
-      await expect(page.getByText('This bucket is empty')).toBeVisible();
+      await expect(page.getByText('This folder is empty')).toBeVisible();
 
       // File should no longer appear in Recent Files
       await page.goto('/storage');
@@ -135,7 +135,7 @@ test.describe('Storage S3 — Recent Items', () => {
       await page.getByLabel('Select sub').check();
       await page.getByRole('button', { name: 'Delete', exact: true }).click();
       await page.getByRole('button', { name: 'Delete permanently' }).click();
-      await expect(page.getByText('This bucket is empty')).toBeVisible();
+      await expect(page.getByText('This folder is empty')).toBeVisible();
 
       // Neither the file nor the location should appear in the recent lists
       await page.goto('/storage');
