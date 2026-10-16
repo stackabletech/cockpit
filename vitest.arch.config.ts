@@ -14,7 +14,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/architecture/**/*.spec.ts'],
+    include: ['src/architecture-tests/**/*.spec.ts'],
     reporters: ['verbose'],
     // archunit's first run builds the entire file dependency graph from scratch.
     // Subsequent tests use the cached graph and run in <10ms each.
