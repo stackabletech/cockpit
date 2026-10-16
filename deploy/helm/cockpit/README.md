@@ -184,16 +184,18 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 | `sessionSecret.secretKeyRef.key` | Key inside the Secret. | `session-secret` |
 | `storage.encryptionKey.secretKeyRef.name` | Name of the Secret holding the key that encrypts stored storage connection credentials: 64 hex characters, e.g. from `openssl rand -hex 32`. Required when `features.storage.enabled` is `true`. Keep it stable: changing or losing it makes all stored credentials unreadable. | `""` |
 | `storage.encryptionKey.secretKeyRef.key` | Key inside the Secret. | `storage-encryption-key` |
+| `storage.tls.caCert` | Path to a CA certificate file inside the container for S3 connections with TLS verification, e.g. mounted via `extraVolumes`. Mutually exclusive with `secretClass`. | `""` |
+| `storage.tls.secretClass` | Stackable SecretClass that provides the CA certificate for S3 connections with TLS verification. Mutually exclusive with `caCert`. | `""` |
 | `podSecurityContext` | Pod security context | See values.yaml |
 | `securityContext` | Container security context | See values.yaml |
 
-A configured CA certificate (`caCert` or `secretClass`) replaces the system trust store for that connection. The chart refuses to render contradictory TLS settings, for example a CA together with `trino.tls.insecure` or a database mode that doesn't verify certificates.
+A configured CA certificate (`caCert` or `secretClass`) replaces the system trust store for that connection. For `storage.tls`, this applies to every S3 connection that verifies certificates, so connections to S3 endpoints with publicly trusted certificates (for example AWS) fail while it is set. The chart refuses to render contradictory TLS settings, for example a CA together with `trino.tls.insecure` or a database mode that doesn't verify certificates.
 
 ### Volume Parameters
 
 | Parameter | Description | Default |
 | --- | --- | --- |
-| `extraVolumes` | Additional pod volumes, e.g. a Secret holding a CA certificate for `trino.tls.caCert` or `database.tls.caCert`. | `[]` |
+| `extraVolumes` | Additional pod volumes, e.g. a Secret holding a CA certificate for `trino.tls.caCert`, `database.tls.caCert` or `storage.tls.caCert`. | `[]` |
 | `extraVolumeMounts` | Additional volume mounts for the Cockpit container. | `[]` |
 
 ### Resource Parameters

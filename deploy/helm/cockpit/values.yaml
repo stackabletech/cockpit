@@ -161,7 +161,7 @@ logging:
   level: ""
 
 # Additional volumes and container mounts, e.g. for a CA certificate referenced by
-# trino.tls.caCert or database.tls.caCert.
+# trino.tls.caCert, database.tls.caCert or storage.tls.caCert.
 extraVolumes: []
   # - name: database-ca
   #   secret:
@@ -235,6 +235,17 @@ storage:
     secretKeyRef:
       name: ""
       key: storage-encryption-key
+  tls:
+    # CA certificate for S3 connections with TLS verification. It replaces the system trust
+    # store, so S3 endpoints with publicly trusted certificates fail while it is set.
+    # Connections that disable verification ignore it.
+    # Path to a CA certificate file inside the container, e.g. mounted via extraVolumes.
+    # Mutually exclusive with secretClass.
+    caCert: ""
+    # Stackable SecretClass name for provisioning the S3 CA certificate.
+    # Mutually exclusive with caCert.
+    # The Secret Operator mounts ca.crt into /stackable/storage-tls.
+    secretClass: ""
 
 # SvelteKit CSRF origin
 origin: "http://localhost:3000"

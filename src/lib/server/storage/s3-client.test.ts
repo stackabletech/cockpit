@@ -1,5 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { S3ConnectionConfig } from './types.js';
+
+const { mockEnv } = vi.hoisted(() => ({ mockEnv: {} as Record<string, string | undefined> }));
+vi.mock('$env/dynamic/private', () => ({ env: mockEnv }));
+vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 vi.mock('@aws-sdk/client-s3', () => ({
   S3Client: vi.fn()
@@ -123,5 +130,56 @@ describe('createS3Client', () => {
     createS3Client(baseConfig({ credentials: undefined }));
     const call = mockS3Client.mock.calls.at(-1)![0] as { credentials?: unknown };
     expect(call.credentials).toBeUndefined();
+  });
+});
+
+describe('createS3Client custom CA certificate', () => {
+  let dir: string | undefined;
+
+  afterEach(() => {
+    delete mockEnv.STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT;
+    if (dir) rmSync(dir, { recursive: true, force: true });
+    dir = undefined;
+  });
+
+  /** Imports a fresh copy of the module so it reads the current environment. */
+  async function freshClient() {
+    vi.resetModules();
+    const { createS3Client: create } = await import('./s3-client.js');
+    const { NodeHttpHandler: handler } = await import('@smithy/node-http-handler');
+    return { create, handler: vi.mocked(handler) };
+  }
+
+  function lastHttpsAgent(handler: typeof mockHandler) {
+    return (handler.mock.calls.at(-1)![0] as { httpsAgent: Agent }).httpsAgent;
+  }
+
+  it('uses the bundled CAs when no CA certificate is configured', async () => {
+    const { create, handler } = await freshClient();
+    create(baseConfig({ tls: { verification: 'Full' } }));
+    expect(lastHttpsAgent(handler).options.ca).toBeUndefined();
+  });
+
+  it('trusts only the configured CA certificate for verified connections', async () => {
+    dir = mkdtempSync(join(tmpdir(), 's3-ca-'));
+    const caPath = join(dir, 'ca.crt');
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    writeFileSync(caPath, 'test-ca');
+    mockEnv.STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT = caPath;
+
+    const { create, handler } = await freshClient();
+    create(baseConfig({ tls: { verification: 'Full' } }));
+    expect(lastHttpsAgent(handler).options.ca?.toString()).toBe('test-ca');
+
+    create(baseConfig({ tls: { verification: 'None' } }));
+    expect(lastHttpsAgent(handler).options.ca).toBeUndefined();
+    expect(lastHttpsAgent(handler).options.rejectUnauthorized).toBe(false);
+  });
+
+  it('fails with the variable name when the CA certificate cannot be read', async () => {
+    mockEnv.STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT = '/nonexistent/ca.crt';
+    await expect(freshClient()).rejects.toThrow(
+      /STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT \(\/nonexistent\/ca\.crt\)/
+    );
   });
 });
