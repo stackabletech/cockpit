@@ -57,6 +57,15 @@ const LIST_ENCODING_TYPE = 'url';
 /** Deletes of keys DeleteObjects cannot name run with this many requests in flight. */
 const SINGLE_DELETE_CONCURRENCY = 4;
 
+/**
+ * S3 DeleteObjects accepts at most 1000 keys per request.
+ * MinIO/Ionos return MalformedXML when exceeding this limit.
+ */
+const DELETE_OBJECTS_MAX_KEYS = 1000;
+
+/** A key DeleteObjects or DeleteObject could not delete. */
+type DeleteFailure = DeleteObjectsResult['failed'][number];
+
 /** An object from a recursive listing. */
 type ListedObject = { key: string; size: number; lastModified?: Date };
 
@@ -365,56 +374,37 @@ export class S3StorageProvider implements StorageProvider {
       return { failed: [] };
     }
 
-    // Expand directory prefixes to their contained keys
-    const resolvedKeys: string[] = [];
-    for (const key of keys) {
-      if (expandDirectories && key.endsWith('/')) {
-        const children = await this.listAllKeys(key);
-        if (children.length > 0) {
-          resolvedKeys.push(...children);
-        } else {
-          resolvedKeys.push(key);
-        }
-      } else {
-        resolvedKeys.push(key);
+    const allFailed: DeleteFailure[] = [];
+    // Directory contents are deleted page by page while they are listed, so at most
+    // about two chunks of keys are held at once, however large the directory.
+    const pending: string[] = [];
+    const flush = async (all: boolean) => {
+      while (pending.length >= DELETE_OBJECTS_MAX_KEYS || (all && pending.length > 0)) {
+        allFailed.push(...(await this.deleteChunk(pending.splice(0, DELETE_OBJECTS_MAX_KEYS))));
       }
-    }
+    };
 
-    // S3 DeleteObjects has a limit of 1000 keys per request.
-    // MinIO/Ionos return MalformedXML when exceeding this limit.
-    const MAX_KEYS = 1000;
-    const allFailed: Array<{ key: string; code?: string; message?: string }> = [];
-
-    // Keys XML cannot carry are deleted one by one, so they neither fail nor block a batch.
-    const batchKeys = resolvedKeys.filter(isXmlSafeKey);
-    allFailed.push(...(await this.deleteSingly(resolvedKeys.filter((key) => !isXmlSafeKey(key)))));
-
-    for (let i = 0; i < batchKeys.length; i += MAX_KEYS) {
-      const chunk = batchKeys.slice(i, i + MAX_KEYS);
-      log.trace(
-        { bucket: this.bucket, chunk_offset: i, chunk_size: chunk.length },
-        'S3 DeleteObjects chunk'
-      );
-      const output = await withS3Errors(
-        () =>
-          this.client.send(
-            new DeleteObjectsCommand({
-              Bucket: this.bucket,
-              Delete: {
-                Objects: chunk.map((key) => ({ Key: key })),
-                Quiet: true
-              }
-            })
-          ),
-        { bucket: this.bucket, operation: 'deleteObjects' }
-      );
-      const failed = (output.Errors ?? []).map((e) => ({
-        key: e.Key ?? '',
-        code: e.Code,
-        message: e.Message
-      }));
-      allFailed.push(...failed);
-    }
+    await withS3Errors(
+      async () => {
+        for (const key of keys) {
+          if (!(expandDirectories && key.endsWith('/'))) {
+            pending.push(key);
+            await flush(false);
+            continue;
+          }
+          let found = false;
+          for await (const batch of this.listPages(key)) {
+            found ||= batch.length > 0;
+            pending.push(...batch.map((obj) => obj.key));
+            await flush(false);
+          }
+          // Nothing is listed under the prefix: delete the key itself.
+          if (!found) pending.push(key);
+        }
+        await flush(true);
+      },
+      { bucket: this.bucket, operation: 'deleteObjects' }
+    );
 
     if (allFailed.length > 0) {
       log.warn(
@@ -425,11 +415,32 @@ export class S3StorageProvider implements StorageProvider {
     return { failed: allFailed };
   }
 
+  /** Deletes up to {@link DELETE_OBJECTS_MAX_KEYS} keys and returns the ones that failed. */
+  private async deleteChunk(chunk: string[]): Promise<DeleteFailure[]> {
+    // Keys XML cannot carry are deleted one by one, so they neither fail nor block a batch.
+    const failed = await this.deleteSingly(chunk.filter((key) => !isXmlSafeKey(key)));
+    const batchKeys = chunk.filter(isXmlSafeKey);
+    if (batchKeys.length === 0) return failed;
+
+    log.trace({ bucket: this.bucket, chunk_size: batchKeys.length }, 'S3 DeleteObjects chunk');
+    const output = await this.client.send(
+      new DeleteObjectsCommand({
+        Bucket: this.bucket,
+        Delete: {
+          Objects: batchKeys.map((key) => ({ Key: key })),
+          Quiet: true
+        }
+      })
+    );
+    for (const e of output.Errors ?? []) {
+      failed.push({ key: e.Key ?? '', code: e.Code, message: e.Message });
+    }
+    return failed;
+  }
+
   /** Deletes keys with individual DeleteObject requests, a few at a time. */
-  private async deleteSingly(
-    keys: string[]
-  ): Promise<Array<{ key: string; code?: string; message?: string }>> {
-    const failed: Array<{ key: string; code?: string; message?: string }> = [];
+  private async deleteSingly(keys: string[]): Promise<DeleteFailure[]> {
+    const failed: DeleteFailure[] = [];
     const pending = [...keys];
     const worker = async () => {
       for (let key = pending.shift(); key !== undefined; key = pending.shift()) {
