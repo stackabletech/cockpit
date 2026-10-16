@@ -150,6 +150,9 @@
   storage.setTabsInvalidationHandler((prefix: string) => {
     tabsState.setStalePrefix(prefix);
   });
+  storage.setDirectoriesDeletedHandler((bucket, dirPrefixes) => {
+    tabsState.removeDeletedDirectories(bucket, dirPrefixes);
+  });
 
   // Initialise tabs once storage has bucket data.
   $effect(() => {

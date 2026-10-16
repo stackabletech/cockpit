@@ -149,6 +149,7 @@ export class StorageState {
   // Called after file operations to mark source tabs as stale so they refetch
   // when the user switches back to them.
   private _onInvalidateSourceTabs: ((prefix: string) => void) | null = null;
+  private _onDirectoriesDeleted: ((bucket: string, dirPrefixes: string[]) => void) | null = null;
 
   // ────────────────────────────────────────────────────────────────────────────
   // Constructor
@@ -342,6 +343,11 @@ export class StorageState {
 
   setTabsInvalidationHandler(fn: (prefix: string) => void): void {
     this._onInvalidateSourceTabs = fn;
+  }
+
+  /** Called after folders were deleted, e.g. to close tabs that show them. */
+  setDirectoriesDeletedHandler(fn: (bucket: string, dirPrefixes: string[]) => void): void {
+    this._onDirectoriesDeleted = fn;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -1009,6 +1015,7 @@ export class StorageState {
     if (dirPrefixes.length > 0) {
       this.bookmarks.unpinUnderDirectories(bucket, dirPrefixes);
       this.bookmarks.removeItemsUnderDirectories(bucket, dirPrefixes);
+      this._onDirectoriesDeleted?.(bucket, dirPrefixes);
     }
     if (fileKeys.length > 0) {
       this.bookmarks.removeFiles(bucket, fileKeys);

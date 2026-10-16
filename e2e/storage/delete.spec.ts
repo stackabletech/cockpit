@@ -319,4 +319,36 @@ test.describe('Storage S3 — Delete & Selection', () => {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
   });
+
+  test('deleting a folder closes the tabs that showed it', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'delete-open-folder');
+    const cleanupKeys = [`${prefix}archive/2025/part-1.csv`];
+
+    try {
+      await putTextObject(client, credentials.bucket, cleanupKeys[0], 'part\n1\n', 'text/csv');
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      // A second tab shows the folder that is deleted from the first one.
+      const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
+      await page.getByRole('button', { name: 'New Tab' }).click();
+      await rowByName(page, 'archive').click();
+      await rowByName(page, '2025').click();
+      await expect(rowByName(page, 'part-1.csv')).toBeVisible();
+      await expect(tablist.getByRole('tab', { name: '2025' })).toBeVisible();
+      await tablist.getByRole('tab').first().click();
+      await expect(rowByName(page, 'archive')).toBeVisible();
+
+      await page.getByRole('button', { name: 'Actions for archive', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Delete' }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Delete permanently' }).click();
+
+      await expect(rowByName(page, 'archive')).toHaveCount(0);
+      await expect(tablist.getByRole('tab')).toHaveCount(1);
+      await expect(tablist.getByRole('tab', { name: '2025' })).toHaveCount(0);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
 });

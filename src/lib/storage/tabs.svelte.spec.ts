@@ -612,4 +612,52 @@ describe('TabsState', () => {
       expect(ts2.tabs.length).toBe(2);
     });
   });
+
+  // ── removeDeletedDirectories ──────────────────────────────────────────────
+
+  describe('removeDeletedDirectories', () => {
+    it('closes inactive tabs inside a deleted folder and forgets them', () => {
+      const storage = makeStorage('bucket', 'archive/2025/');
+      const { ts } = makeTabs(storage, { persistEnabled: true, connectionId: 'conn-1' });
+      ts.ensureInitialTab();
+      ts.addTab();
+      storage.prefix = '';
+      ts.syncActiveTab();
+
+      ts.removeDeletedDirectories('bucket', ['archive/']);
+
+      expect(ts.tabs.map((t) => t.snapshot.prefix)).toEqual(['']);
+      const saved = JSON.parse(localStorage.getItem(LS_TABS)!) as PersistedTabsState;
+      expect(saved.tabs.map((t) => t.prefix)).toEqual(['']);
+    });
+
+    it('keeps tabs in other buckets and sibling folders', () => {
+      const storage = makeStorage('bucket', 'archive-2026/');
+      const { ts } = makeTabs(storage);
+      ts.ensureInitialTab();
+      ts.addTab();
+      storage.bucket = 'other';
+      storage.prefix = 'archive/';
+      ts.syncActiveTab();
+      ts.addTab();
+      storage.bucket = 'bucket';
+      storage.prefix = '';
+      ts.syncActiveTab();
+
+      ts.removeDeletedDirectories('bucket', ['archive/']);
+
+      expect(ts.tabs).toHaveLength(3);
+    });
+
+    it('moves the active tab to the parent of the deleted folder', () => {
+      const storage = makeStorage('bucket', 'archive/2025/');
+      const { ts, navigateToLocation } = makeTabs(storage);
+      ts.ensureInitialTab();
+
+      ts.removeDeletedDirectories('bucket', ['archive/']);
+
+      expect(ts.tabs).toHaveLength(1);
+      expect(navigateToLocation).toHaveBeenCalledWith('s3.example.com', 'bucket', '');
+    });
+  });
 });

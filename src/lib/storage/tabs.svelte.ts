@@ -4,7 +4,7 @@ import type { StoragePage } from '$lib/storage/types.js';
 import type { PageSize } from '$lib/types/pagination.js';
 import type { StorageState } from './state.svelte.js';
 import { LS_TABS } from './persistence.js';
-import { keyToName } from './utils.js';
+import { keyToName, parentPrefix } from './utils.js';
 
 // ── Tab data ─────────────────────────────────────────────────────────────────
 
@@ -472,6 +472,26 @@ export class TabsState {
       this.tabs = next;
       this.saveToPersistence();
     }
+  }
+
+  /** Closes tabs that show a deleted folder or a folder inside it, so that
+   *  they are neither shown nor restored later. The active tab stays open and
+   *  moves to the parent of the deleted folder instead. */
+  removeDeletedDirectories(bucket: string, dirPrefixes: string[]): void {
+    const connection = this.storage.connectionHostname;
+    const deletedDir = (tab: Tab): string | undefined =>
+      tab.snapshot.connection === connection && tab.snapshot.bucket === bucket
+        ? dirPrefixes.find((dir) => tab.snapshot.prefix.startsWith(dir))
+        : undefined;
+
+    const active = this.tabs.find((tab) => tab.id === this.activeTabId);
+    const activeDir = active && deletedDir(active);
+    const remaining = this.tabs.filter((tab) => tab === active || !deletedDir(tab));
+    if (remaining.length !== this.tabs.length) {
+      this.tabs = remaining;
+      this.saveToPersistence();
+    }
+    if (activeDir) this.navigateToLocation?.(connection, bucket, parentPrefix(activeDir));
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────

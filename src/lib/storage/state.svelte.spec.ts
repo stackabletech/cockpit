@@ -681,6 +681,19 @@ describe('performDelete clipboard cleanup', () => {
   });
 });
 
+describe('confirmDelete success', () => {
+  it('reports deleted folders so that their tabs can be closed', async () => {
+    const state = makeState({ delete: vi.fn().mockResolvedValue({ failed: [] }) });
+    const onDeleted = vi.fn();
+    state.setDirectoriesDeletedHandler(onDeleted);
+    state.openModal('delete', { keys: ['archive/', 'note.txt'] });
+
+    await state.confirmDelete();
+
+    expect(onDeleted).toHaveBeenCalledWith('test-bucket', ['archive/']);
+  });
+});
+
 describe('confirmDelete failure', () => {
   it('reloads the listing so partially deleted objects disappear', async () => {
     const deleteSpy = vi.fn().mockRejectedValue(new StorageError('server_error', 'Boom'));
