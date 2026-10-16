@@ -3,17 +3,24 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import RenameModal from './RenameModal.svelte';
 
-function renderModal(currentName = 'report.csv') {
+async function renderModal(currentName = 'report.csv') {
   const onConfirm = vi.fn();
   const onCancel = vi.fn();
   render(RenameModal, { open: true, currentName, onConfirm, onCancel });
   const message = document.querySelector<HTMLElement>('.modal-box [aria-live="polite"]')!;
-  return { onConfirm, onCancel, input: page.getByLabelText('New name'), message };
+  const input = page.getByLabelText('New name');
+  // The modal selects the base name a frame after opening; a fill() that
+  // overlaps it only replaces that selection.
+  const el = input.element() as HTMLInputElement;
+  await expect
+    .poll(() => document.activeElement === el && el.selectionStart === 0 && el.selectionEnd! > 0)
+    .toBe(true);
+  return { onConfirm, onCancel, input, message };
 }
 
 describe('RenameModal', () => {
   it('explains an invalid name at the input instead of closing', async () => {
-    const { onConfirm, onCancel, input, message } = renderModal();
+    const { onConfirm, onCancel, input, message } = await renderModal();
 
     await input.fill('a/b.csv');
 
@@ -28,7 +35,7 @@ describe('RenameModal', () => {
   });
 
   it('explains reserved characters, relative segments and empty names', async () => {
-    const { input, message } = renderModal();
+    const { input, message } = await renderModal();
 
     await input.fill('x?y');
     await expect.element(message).toHaveTextContent(/without the characters/);
@@ -41,14 +48,14 @@ describe('RenameModal', () => {
   });
 
   it('does not flag an unchanged existing name that new names may not use', async () => {
-    const { input, message } = renderModal('what?.csv');
+    const { input, message } = await renderModal('what?.csv');
 
     await expect.element(input).toHaveValue('what?.csv');
     await expect.poll(() => message.textContent?.trim()).toBe('');
   });
 
   it('does not rename an unchanged name with surrounding whitespace', async () => {
-    const { onConfirm, onCancel, input, message } = renderModal(' padded.csv ');
+    const { onConfirm, onCancel, input, message } = await renderModal(' padded.csv ');
 
     await expect.element(input).toHaveValue(' padded.csv ');
     await expect.poll(() => message.textContent?.trim()).toBe('');
@@ -61,7 +68,7 @@ describe('RenameModal', () => {
   });
 
   it('submits a valid trimmed name', async () => {
-    const { onConfirm, input } = renderModal();
+    const { onConfirm, input } = await renderModal();
 
     await input.fill(' renamed.csv ');
     await page.getByRole('button', { name: 'Rename' }).click();

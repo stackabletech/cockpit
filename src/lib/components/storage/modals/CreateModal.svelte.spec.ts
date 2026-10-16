@@ -3,16 +3,23 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import CreateModal from './CreateModal.svelte';
 
-function renderModal(props: Partial<Parameters<typeof render<typeof CreateModal>>[1]> = {}) {
+async function renderModal(props: Partial<Parameters<typeof render<typeof CreateModal>>[1]> = {}) {
   const onConfirm = vi.fn();
   render(CreateModal, { open: true, type: 'file', onConfirm, onCancel: vi.fn(), ...props });
   const message = document.querySelector<HTMLElement>('.modal-box [aria-live="polite"]')!;
-  return { onConfirm, input: page.getByLabelText('Name'), message };
+  const input = page.getByLabelText('Name');
+  // The modal selects the default name a frame after opening; a fill() that
+  // overlaps it only replaces that selection.
+  const el = input.element() as HTMLInputElement;
+  await expect
+    .poll(() => document.activeElement === el && el.selectionStart === 0 && el.selectionEnd! > 0)
+    .toBe(true);
+  return { onConfirm, input, message };
 }
 
 describe('CreateModal', () => {
   it('explains an invalid name at the input and does not submit it', async () => {
-    const { onConfirm, input, message } = renderModal();
+    const { onConfirm, input, message } = await renderModal();
 
     await input.fill('x?y.txt');
 
@@ -27,7 +34,7 @@ describe('CreateModal', () => {
   });
 
   it('explains relative path segments and empty names', async () => {
-    const { input, message } = renderModal({ type: 'folder' });
+    const { input, message } = await renderModal({ type: 'folder' });
 
     await input.fill('a/../b');
     await expect.element(message).toHaveTextContent(/"\.\." as a path part/);
@@ -37,7 +44,7 @@ describe('CreateModal', () => {
   });
 
   it('explains an empty path segment and does not submit it', async () => {
-    const { onConfirm, input, message } = renderModal({ type: 'folder' });
+    const { onConfirm, input, message } = await renderModal({ type: 'folder' });
 
     for (const name of ['/a', 'a//b', 'a/']) {
       await input.fill(name);
@@ -53,7 +60,7 @@ describe('CreateModal', () => {
   });
 
   it('explains a name that makes the key too long', async () => {
-    const { input, message } = renderModal({ prefix: 'a'.repeat(1000) + '/' });
+    const { input, message } = await renderModal({ prefix: 'a'.repeat(1000) + '/' });
 
     await input.fill('b'.repeat(30));
 
@@ -61,7 +68,7 @@ describe('CreateModal', () => {
   });
 
   it('accepts a valid name inside a folder with characters S3 allows', async () => {
-    const { onConfirm, input, message } = renderModal({ prefix: 'reports?2024/' });
+    const { onConfirm, input, message } = await renderModal({ prefix: 'reports?2024/' });
 
     await input.fill('  summary.txt ');
 
