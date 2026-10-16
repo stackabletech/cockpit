@@ -111,8 +111,6 @@ terminationGracePeriodSeconds: 30
 #   storage:
 #     # Show the S3/HDFS file browser and enable routes under /storage. Default: false (application default).
 #     enabled: false
-#     # Reconnect to the most recently used storage connection on the storage page. Default: false (application default).
-#     autoConnect: false
 #     # Comma-separated page size options for paginated list views. Default: "25,50,100" (application default).
 #     pageSizes: "25,50,100"
 #     # Page size selected when no user preference is stored. Must be included in pageSizes. Default: first page size (application default).
@@ -121,7 +119,7 @@ terminationGracePeriodSeconds: 30
 #     maxRecentFiles: 15
 #     # Maximum parallel requests for file uploads. Default: 3 (application default).
 #     uploadConcurrency: 3
-#     # Maximum bytes fetched for text, CSV, and JSON previews. Default: 262144 (application default).
+#     # Maximum bytes fetched for text, TSV, and JSON previews; editable text files are fetched completely. Default: 262144 (application default).
 #     textPreviewBytes: 262144
 #     # Maximum bytes fetched for image previews. Default: 5242880 (application default).
 #     imagePreviewBytes: 5242880
@@ -131,9 +129,47 @@ terminationGracePeriodSeconds: 30
 #     filePreviewRows: 250
 #     # Maximum columns in tabular file previews. Default: 50 (application default).
 #     filePreviewColumns: 50
+#     # Objects copied at once within one copy, move or rename request. Default: 8 (application default).
+#     transferConcurrency: 8
+#     # Restore open file browser tabs from the last session. Default: false (application default).
+#     restoreTabs: false
+#     # Load CSV and Parquet preview rows lazily while scrolling. Default: true (application default).
+#     infiniteScroll: true
+#     # Show Cut/Copy and allow dragging items. Client-only: the server work happens on paste or move. Default: false (application default).
+#     cutCopy: false
+#     # Show Paste; the transfer API accepts copies only with this, and moves with this or move. Default: false (application default).
+#     paste: false
+#     # Show Rename; the transfer API accepts renames. Default: false (application default).
+#     rename: false
+#     # Allow drag-and-drop move (dragging also needs cutCopy); the transfer API accepts moves with this or paste. Default: false (application default).
+#     move: false
+#     # Maximum size in bytes of files that can be edited and saved in the text editor.
+#     # config.bodySizeLimit must be at least this large. Default: 5242880 (application default).
+#     maxEditableFileSize: 5242880
+#     # Maximum size in MB of an archive opened for preview, checked against its compressed size,
+#     # the total size of the listed entries and the size of an extracted entry. The archive cache
+#     # (config.archiveCacheMaxMb) is raised to at least twice this value. Default: 100 (application default).
+#     archivePreviewMaxMb: 100
+#     # Comma-separated Parquet compression codecs that are not previewed. A "-no_offset" suffix
+#     # only blocks files without an offset index. Default: "gzip-no_offset" (application default).
+#     parquetPreviewDisallowedCompressionTypes: "gzip-no_offset"
+#     # Days a user's download history is kept. Integer from 1 to 3650.
+#     # Default: 30 (application default).
+#     downloadHistoryRetentionDays: 30
 
 logging:
   level: ""
+
+# Additional volumes and container mounts, e.g. for a CA certificate referenced by
+# trino.tls.caCert, database.tls.caCert or storage.tls.caCert.
+extraVolumes: []
+  # - name: database-ca
+  #   secret:
+  #     secretName: database-ca
+extraVolumeMounts: []
+  # - name: database-ca
+  #   mountPath: /stackable/database-ca
+  #   readOnly: true
 
 nodeSelector: {}
 
@@ -145,12 +181,71 @@ affinity: {}
 config:
   # Node.js environment
   nodeEnv: production
+  # Maximum request body size (BODY_SIZE_LIMIT), e.g. "12M". Empty uses the image default (6M).
+  # Must be at least the editable file size limit of the storage text editor (5 MiB by default).
+  bodySizeLimit: ""
+  # Maximum total size in MB of the archive preview cache in /tmp
+  # (STACKABLE_COCKPIT_ARCHIVE_CACHE_MAX_MB). Empty uses the application default (512).
+  # Keep it below tmp.sizeLimit.
+  archiveCacheMaxMb: ""
+
+# Scratch volume mounted at /tmp, used for the archive preview cache.
+tmp:
+  # Size limit of the emptyDir. The kubelet evicts the pod when it is exceeded,
+  # so keep it above config.archiveCacheMaxMb (512 MB by default). Empty means no limit.
+  sizeLimit: 1Gi
 
 # Session secret for signing cookies. Chart auto-generates one if secretKeyRef.name is empty.
 sessionSecret:
   secretKeyRef:
     name: ""
     key: session-secret
+
+# PostgreSQL database (required). Stores sessions, users and storage connections.
+# The chart does not deploy PostgreSQL; point it at an existing instance.
+database:
+  host: ""
+  port: 5432
+  name: cockpit
+  user: cockpit
+  # Required.
+  password:
+    secretKeyRef:
+      name: ""
+      key: database-password
+  tls:
+    # "verify-full" (verify certificate and host name), "require" (encrypt without
+    # verification) or "disable". Empty uses the application default: verify-full when
+    # config.nodeEnv is "production", otherwise disable.
+    mode: ""
+    # Path to a CA certificate file inside the container, e.g. mounted via extraVolumes.
+    # Requires mode verify-full. Mutually exclusive with secretClass.
+    caCert: ""
+    # Stackable SecretClass name for provisioning the database CA certificate.
+    # Requires mode verify-full. Mutually exclusive with caCert.
+    # The Secret Operator mounts ca.crt into /stackable/database-tls.
+    secretClass: ""
+
+# Storage browser settings that are not feature flags.
+storage:
+  # Key that encrypts stored storage connection credentials: a 64-character hex string (32 bytes),
+  # e.g. from `openssl rand -hex 32`. Required when features.storage.enabled is true.
+  # Keep it stable: changing or losing it makes all stored credentials unreadable.
+  encryptionKey:
+    secretKeyRef:
+      name: ""
+      key: storage-encryption-key
+  tls:
+    # CA certificate for S3 connections with TLS verification. It replaces the system trust
+    # store, so S3 endpoints with publicly trusted certificates fail while it is set.
+    # Connections that disable verification ignore it.
+    # Path to a CA certificate file inside the container, e.g. mounted via extraVolumes.
+    # Mutually exclusive with secretClass.
+    caCert: ""
+    # Stackable SecretClass name for provisioning the S3 CA certificate.
+    # Mutually exclusive with caCert.
+    # The Secret Operator mounts ca.crt into /stackable/storage-tls.
+    secretClass: ""
 
 # SvelteKit CSRF origin
 origin: "http://localhost:3000"
@@ -204,11 +299,13 @@ trino:
         name: ""
         key: trino-auth-password
   tls:
-    # Skip TLS certificate verification
+    # Skip TLS certificate verification. Cannot be combined with caCert or secretClass.
     insecure: false
-    # Path to a custom CA certificate file (mounted via extraVolumes)
+    # Path to a CA certificate file inside the container, e.g. mounted via extraVolumes.
+    # Mutually exclusive with secretClass.
     caCert: ""
     # Stackable SecretClass name for provisioning the Trino CA certificate.
+    # Mutually exclusive with caCert.
     # The Secret Operator mounts ca.crt into /stackable/trino-tls.
     secretClass: ""
   # Query result TTL in seconds. Default: 1800 (application default).

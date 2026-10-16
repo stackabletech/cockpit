@@ -9,17 +9,16 @@ vi.mock('$app/paths', () => ({
   resolve: (path: string) => path
 }));
 
+// Mock $app/navigation for UploadModal (the real one needs the full $app/paths)
+vi.mock('$app/navigation', () => ({
+  beforeNavigate: vi.fn(),
+  goto: vi.fn()
+}));
+
 // Mock upload module
 vi.mock('$lib/storage/upload.js', () => ({
   checkObjectExists: vi.fn().mockResolvedValue(false),
-  uploadFile: vi.fn().mockResolvedValue(undefined),
-  UploadError: class UploadError extends Error {
-    code: string;
-    constructor(code: string, message: string) {
-      super(message);
-      this.code = code;
-    }
-  }
+  uploadFile: vi.fn().mockResolvedValue(undefined)
 }));
 
 function createMockStorageState(activeModal: unknown = null): StorageState {

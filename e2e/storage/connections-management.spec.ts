@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from '../support/fixtures.js';
 import { hasGarageCredentials, requireGarageCredentials } from '../support/garage.js';
 import { connectToStorage, openConnectForm } from './helpers.js';
 import { waitForHydration } from '../support/helpers.js';
@@ -34,7 +34,7 @@ test.describe('Storage — Connections management', () => {
     await expect(page.getByRole('link', { name: 'Manage connections' })).toBeVisible();
   });
 
-  test('navigates to /storage/connections from the manage link', async ({ page }) => {
+  test('navigates to /settings/connections from the manage link', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);
     await openConnectForm(page);
@@ -42,14 +42,14 @@ test.describe('Storage — Connections management', () => {
     await page.getByRole('link', { name: 'Manage connections' }).click();
 
     await waitForHydration(page);
-    await expect(page).toHaveURL('/storage/connections');
+    await expect(page).toHaveURL('/settings/connections');
     await expect(page.getByRole('heading', { name: 'Manage connections' })).toBeVisible();
   });
 
   test('lists saved connections on the management page', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);
-    await page.goto('/storage/connections');
+    await page.goto('/settings/connections');
     await waitForHydration(page);
 
     // Connections are displayed in a table; at least one data row should be visible.
@@ -59,7 +59,7 @@ test.describe('Storage — Connections management', () => {
   test('Edit link on management page navigates to edit page', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);
-    await page.goto('/storage/connections');
+    await page.goto('/settings/connections');
     await waitForHydration(page);
 
     await openFirstConnectionEditPage(page);
@@ -70,7 +70,7 @@ test.describe('Storage — Connections management', () => {
   test('edit page pre-fills with current connection values', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);
-    await page.goto('/storage/connections');
+    await page.goto('/settings/connections');
     await waitForHydration(page);
 
     await openFirstConnectionEditPage(page);
@@ -78,10 +78,8 @@ test.describe('Storage — Connections management', () => {
     await expect(page.getByRole('textbox', { name: 'Host' })).toHaveValue(
       new URL(credentials.endpoint).hostname
     );
-    await expect(page.getByRole('textbox', { name: 'Region' })).toHaveValue(credentials.region);
-    await expect(page.getByRole('textbox', { name: 'Access key' })).toHaveValue(
-      credentials.accessKeyId
-    );
+    await expect(page.getByLabel('Region')).toHaveValue(credentials.region);
+    await expect(page.getByLabel('Access key')).toHaveValue(credentials.accessKeyId);
   });
 
   test('edit page redirects to connections list after saving valid credentials', async ({
@@ -89,7 +87,7 @@ test.describe('Storage — Connections management', () => {
   }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);
-    await page.goto('/storage/connections');
+    await page.goto('/settings/connections');
     await waitForHydration(page);
 
     await openFirstConnectionEditPage(page);
@@ -97,14 +95,50 @@ test.describe('Storage — Connections management', () => {
     await page.getByRole('button', { name: 'Save changes' }).click();
 
     await waitForHydration(page);
-    await expect(page).toHaveURL('/storage/connections');
+    await expect(page).toHaveURL('/settings/connections');
     await expect(page.getByRole('heading', { name: 'Manage connections' })).toBeVisible();
+  });
+
+  test('edit page keeps the current name when the name field is cleared', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+    await page.goto('/settings/connections');
+    await waitForHydration(page);
+
+    await openFirstConnectionEditPage(page);
+    const nameInput = page.getByLabel('Connection name');
+    const originalName = await nameInput.inputValue();
+    expect(originalName).not.toBe('');
+
+    await nameInput.fill('   ');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await waitForHydration(page);
+    await expect(page).toHaveURL('/settings/connections');
+
+    await openFirstConnectionEditPage(page);
+    await expect(page.getByLabel('Connection name')).toHaveValue(originalName);
+  });
+
+  test('edit page requires the secret key when the access key changes', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+    await page.goto('/settings/connections');
+    await waitForHydration(page);
+
+    await openFirstConnectionEditPage(page);
+    await page.getByLabel('Access key').fill('GKnewaccesskey');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(
+      page.getByText('Enter the secret key that belongs to the new access key.')
+    ).toBeVisible();
+    await expect(page).toHaveURL(/\/edit$/);
   });
 
   test('edit page shows error for invalid credentials', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);
-    await page.goto('/storage/connections');
+    await page.goto('/settings/connections');
     await waitForHydration(page);
 
     await openFirstConnectionEditPage(page);
@@ -112,24 +146,7 @@ test.describe('Storage — Connections management', () => {
     await page.getByLabel('Secret key').fill('wrong-secret');
     await page.getByRole('button', { name: 'Save changes' }).click();
 
-    await expect(
-      page.getByText('Could not connect — check the endpoint and credentials.')
-    ).toBeVisible();
-  });
-
-  test('edit page requires the secret key when the access key changes', async ({ page }) => {
-    const credentials = requireGarageCredentials();
-    await connectToStorage(page, credentials);
-    await page.goto('/storage/connections');
-    await waitForHydration(page);
-
-    await openFirstConnectionEditPage(page);
-
-    await page.getByLabel('Access key').fill('new-access-key');
-    await page.getByRole('button', { name: 'Save changes' }).click();
-
-    await expect(page.getByText('Enter the secret key for the new access key.')).toBeVisible();
-    await expect(page).toHaveURL(/\/edit$/);
+    await expect(page.getByText('Access denied — check your credentials.')).toBeVisible();
   });
 
   test('delete button on management page removes the connection after confirmation', async ({
@@ -137,7 +154,7 @@ test.describe('Storage — Connections management', () => {
   }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);
-    await page.goto('/storage/connections');
+    await page.goto('/settings/connections');
     await waitForHydration(page);
 
     // Connections are displayed in a table; count data rows (excluding header).
@@ -156,11 +173,11 @@ test.describe('Storage — Connections management', () => {
     await expect(dataRows).toHaveCount(initialItems - 1);
   });
 
-  test('redirects to /storage/connections when editing a non-existent id', async ({ page }) => {
-    await page.goto('/storage/connections/00000000-0000-0000-0000-000000000000/edit');
+  test('redirects to /settings/connections when editing a non-existent id', async ({ page }) => {
+    await page.goto('/settings/connections/00000000-0000-0000-0000-000000000000/edit');
     await waitForHydration(page);
 
-    await expect(page).toHaveURL('/storage/connections');
+    await expect(page).toHaveURL('/settings/connections');
   });
 
   test('edit page shows active connection notice when editing current connection', async ({
@@ -168,7 +185,7 @@ test.describe('Storage — Connections management', () => {
   }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);
-    await page.goto('/storage/connections');
+    await page.goto('/settings/connections');
     await waitForHydration(page);
 
     await openFirstConnectionEditPage(page);
@@ -181,7 +198,7 @@ test.describe('Storage — Connections management', () => {
   }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);
-    await page.goto('/storage/connections');
+    await page.goto('/settings/connections');
     await waitForHydration(page);
 
     await openFirstConnectionEditPage(page);
@@ -190,7 +207,7 @@ test.describe('Storage — Connections management', () => {
     await page.getByLabel('Connection name').fill('Changed name');
 
     // Try to navigate away via the back link
-    await page.getByRole('link', { name: '← Manage connections', exact: true }).click();
+    await page.getByRole('link', { name: '← Manage connections' }).click();
 
     // Modal should appear
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -200,13 +217,13 @@ test.describe('Storage — Connections management', () => {
   test('unsaved-changes modal: Stay keeps user on edit page', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);
-    await page.goto('/storage/connections');
+    await page.goto('/settings/connections');
     await waitForHydration(page);
 
     await openFirstConnectionEditPage(page);
 
     await page.getByLabel('Connection name').fill('Changed name');
-    await page.getByRole('link', { name: '← Manage connections', exact: true }).click();
+    await page.getByRole('link', { name: '← Manage connections' }).click();
 
     await page.getByRole('dialog').getByRole('button', { name: 'Stay on page' }).click();
 
@@ -217,17 +234,17 @@ test.describe('Storage — Connections management', () => {
   test('unsaved-changes modal: Leave navigates away', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);
-    await page.goto('/storage/connections');
+    await page.goto('/settings/connections');
     await waitForHydration(page);
 
     await openFirstConnectionEditPage(page);
 
     await page.getByLabel('Connection name').fill('Changed name');
-    await page.getByRole('link', { name: '← Manage connections', exact: true }).click();
+    await page.getByRole('link', { name: '← Manage connections' }).click();
 
     await page.getByRole('dialog').getByRole('button', { name: 'Leave' }).click();
 
     await waitForHydration(page);
-    await expect(page).toHaveURL('/storage/connections');
+    await expect(page).toHaveURL('/settings/connections');
   });
 });

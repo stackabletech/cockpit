@@ -71,11 +71,12 @@ COPY project.inlang/ ./project.inlang/
 COPY messages/ ./messages/
 COPY svelte.config.js tsconfig.json vite.config.ts ./
 
-# Build the application. The dummy env vars let better-auth initialise during
-# SSR prerender; they are scoped to this single RUN and discarded with the
-# builder stage.
+# Build the application. The dummy env vars let better-auth and the database
+# module initialise during SSR prerender; they are scoped to this single RUN
+# and discarded with the builder stage.
 RUN STACKABLE_COCKPIT_SESSION_SECRET="build-time-placeholder" \
     STACKABLE_COCKPIT_BASE_URL="http://localhost:3000" \
+    DATABASE_PASSWORD="build-time-placeholder" \
     npm run build
 
 #
@@ -127,6 +128,13 @@ ENV STACKABLE_USER_UID=782252253 \
     STACKABLE_USER_NAME=stackable \
     NODE_ENV=production
 
+# adapter-node rejects request bodies above BODY_SIZE_LIMIT (default 512K).
+# The text editor saves whole files of up to
+# PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE (default 5 MiB), so the limit
+# must be at least that; 6M leaves headroom. Raise both together. The E2E app
+# reads this value from here (e2e/support/start-app.ts).
+ENV BODY_SIZE_LIMIT=6M
+
 # The runtime only needs the node binary itself: the adapter-node output is
 # started with `node build/index.js` and never shells out to npm. Copying just
 # the binary keeps npm/npx/corepack and their bundled dependencies out of the
@@ -152,6 +160,7 @@ WORKDIR /stackable/app
 
 # Copy built application from builder stage
 COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/build ./build
+COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/src/lib/server/migrations ./migrations
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node_modules
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
 COPY --from=sbom      --chown=${STACKABLE_USER_UID}:0 /build/cockpit.cdx.json ./cockpit.cdx.json

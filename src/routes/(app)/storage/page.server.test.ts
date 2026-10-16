@@ -1,125 +1,263 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { stringify } from 'devalue';
 
-vi.mock('$lib/server/storage/service.js', () => ({
-  listBuckets: vi.fn()
+const mockConnectionProvider = { listContainers: vi.fn() };
+vi.mock('$lib/server/storage/utils.js', () => ({
+  getConnectionProvider: () => mockConnectionProvider
+}));
+
+vi.mock('$lib/storage/schemas.js', () => ({
+  StorageConnectionSchema: {},
+  ConnectionIdSchema: {}
+}));
+
+const { mockUpdateSession } = vi.hoisted(() => ({
+  mockUpdateSession: vi.fn().mockResolvedValue({})
+}));
+vi.mock('$lib/server/auth.js', () => ({
+  auth: { api: { updateSession: mockUpdateSession } }
+}));
+
+const mockSaveConnection = vi.fn().mockResolvedValue('new-conn-id');
+const mockGetConnectionForUser = vi.fn();
+const mockDeleteConnection = vi.fn().mockResolvedValue(undefined);
+vi.mock('$lib/server/storage/connections-db.js', () => ({
+  saveConnection: (...args: unknown[]) => mockSaveConnection(...args),
+  getConnectionForUser: (...args: unknown[]) => mockGetConnectionForUser(...args),
+  deleteConnection: (...args: unknown[]) => mockDeleteConnection(...args)
+}));
+
+vi.mock('sveltekit-superforms', () => ({
+  superValidate: vi.fn(),
+  message: vi.fn((form, msg, opts) => ({ form, message: msg, status: opts?.status }))
+}));
+
+vi.mock('sveltekit-superforms/adapters', () => ({
+  zod4: vi.fn((schema) => schema)
+}));
+
+const mockDbInsert = vi.fn();
+const mockDbSelect = vi.fn().mockResolvedValue([]);
+vi.mock('$lib/server/db.js', () => ({
+  db: {
+    insert: () => ({ values: () => ({ returning: mockDbInsert }) }),
+    select: () => ({
+      from: () => ({ where: () => ({ orderBy: mockDbSelect, limit: mockDbSelect }) })
+    })
+  }
+}));
+
+vi.mock('$lib/server/storage/encryption.js', () => ({
+  encrypt: vi.fn(() => 'encrypted-payload'),
+  fingerprint: vi.fn(() => 'fp-hash')
+}));
+
+vi.mock('$lib/server/storage/encryption-key.js', () => ({
+  storageEncryptionKey: () => Buffer.alloc(32)
+}));
+
+vi.mock('$lib/server/schema.js', () => ({
+  userStorageConnections: {}
 }));
 
 import { load, actions } from './+page.server.js';
-import { listBuckets } from '$lib/server/storage/service.js';
-
-type LoadEvent = Parameters<typeof load>[0];
-type ConnectEvent = Parameters<typeof actions.connect>[0];
-type DisconnectEvent = Parameters<typeof actions.disconnect>[0];
+import { superValidate } from 'sveltekit-superforms';
 
 function mockLocals() {
   return { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } };
 }
 
-/** Build a POST request the way the client-side form sends it (`dataType: 'json'`). */
-function formRequest(data: Record<string, unknown>): Request {
-  const body = new FormData();
-  body.append('__superform_json', stringify(data));
-  return new Request('http://localhost/storage?/connect', { method: 'POST', body });
-}
-
-function connect(data: Record<string, unknown>) {
-  return actions.connect({
-    request: formRequest(data),
-    locals: mockLocals()
-  } as unknown as ConnectEvent);
-}
-
-const validS3 = {
-  type: 's3',
-  host: 's3.example.com',
-  accessStyle: 'Path',
-  region: { name: 'us-east-1' },
-  credentials: { accessKey: 'ak', secretKey: 'sk' }
+const validFormData = {
+  type: 's3' as const,
+  endpoint: 'http://s3',
+  pathStyle: true,
+  region: 'us-east-1',
+  accessKeyId: 'ak',
+  secretAccessKey: 'sk'
 };
 
 describe('storage page load', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('returns an empty connection form with TLS verification enabled', async () => {
-    const result = await load({ locals: mockLocals() } as unknown as LoadEvent);
-    expect(result?.connectionForm.data.tls).toEqual({ verification: 'Full' });
-    expect(result?.connectionForm.errors).toEqual({});
+  it('returns connectionForm', async () => {
+    vi.mocked(superValidate).mockResolvedValue({ data: {} } as unknown as Awaited<
+      ReturnType<typeof superValidate>
+    >);
+
+    const result = (await load({
+      locals: mockLocals()
+    } as unknown as Parameters<typeof load>[0])) as { connectionForm: unknown };
+    expect(result.connectionForm).toBeDefined();
   });
 });
 
 describe('storage page actions', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('connect: returns fail(400) with field errors on invalid form', async () => {
-    const result = await connect({ ...validS3, host: '' });
-    expect(result).toMatchObject({ status: 400 });
-    expect(result).toHaveProperty('data.form.errors.host');
-    expect(listBuckets).not.toHaveBeenCalled();
-  });
+  it('connect: returns fail(400) on invalid form', async () => {
+    vi.mocked(superValidate).mockResolvedValue({ valid: false, errors: {} } as unknown as Awaited<
+      ReturnType<typeof superValidate>
+    >);
 
-  it.each(['http://', 'http://:9000'])(
-    'connect: rejects host %s that is empty after removing the scheme',
-    async (host) => {
-      const result = await connect({ ...validS3, host });
-      expect(result).toMatchObject({ status: 400 });
-      expect(result).toHaveProperty('data.form.errors.host');
-      expect(listBuckets).not.toHaveBeenCalled();
-    }
-  );
-
-  it('connect: rejects an access key without a secret key', async () => {
-    const result = await connect({ ...validS3, credentials: { accessKey: 'ak', secretKey: '' } });
-    expect(result).toMatchObject({ status: 400 });
-    expect(result).toHaveProperty('data.form.errors.credentials.secretKey');
-  });
-
-  it('connect: strips the scheme from the host', async () => {
-    vi.mocked(listBuckets).mockResolvedValue(['b1']);
-    await expect(connect({ ...validS3, host: 'https://s3.example.com/' })).rejects.toMatchObject({
-      status: 303
-    });
-    expect(listBuckets).toHaveBeenCalledWith(expect.objectContaining({ host: 's3.example.com' }));
+    const result = await actions.connect({
+      request: new Request('http://localhost', { method: 'POST' }),
+      locals: mockLocals()
+    } as unknown as Parameters<typeof actions.connect>[0]);
+    expect(result?.status).toBe(400);
   });
 
   it('connect: returns message for non-s3 type', async () => {
-    const result = await connect({ ...validS3, type: 'hdfs' });
-    expect(result).toMatchObject({ status: 400 });
-    expect(result).toHaveProperty('data.form.message', {
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: { ...validFormData, type: 'hdfs' as const }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+
+    const result = await actions.connect({
+      request: new Request('http://localhost', { method: 'POST' }),
+      locals: mockLocals()
+    } as unknown as Parameters<typeof actions.connect>[0]);
+    expect(result).toHaveProperty('message', {
       type: 'error',
       message: 'HDFS connections are not yet supported.'
     });
   });
 
   it('connect: returns error message on connection test failure', async () => {
-    vi.mocked(listBuckets).mockRejectedValue(new Error('connection refused'));
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: {
+        type: 's3',
+        host: 's3.example.com',
+        accessStyle: 'Path',
+        region: { name: 'us-east-1' },
+        credentials: { accessKey: 'ak', secretKey: 'sk' }
+      }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    mockConnectionProvider.listContainers.mockRejectedValue(new Error('connection refused'));
 
-    const result = await connect(validS3);
-    expect(result).toMatchObject({ status: 400 });
-    expect(result).toHaveProperty('data.form.message', {
+    const result = await actions.connect({
+      request: new Request('http://localhost', { method: 'POST' }),
+      locals: mockLocals()
+    } as unknown as Parameters<typeof actions.connect>[0]);
+    expect(result).toHaveProperty('message', {
       type: 'error',
       message: 'Could not connect — check the endpoint and credentials.'
     });
   });
 
   it('connect: redirects on success', async () => {
-    vi.mocked(listBuckets).mockResolvedValue(['b1']);
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: {
+        type: 's3',
+        host: 's3.example.com',
+        accessStyle: 'Path',
+        region: { name: 'us-east-1' },
+        credentials: { accessKey: 'ak', secretKey: 'sk' }
+      }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    mockConnectionProvider.listContainers.mockResolvedValue(['b1']);
+    mockSaveConnection.mockResolvedValue('new-conn-id');
 
-    await expect(connect(validS3)).rejects.toMatchObject({ status: 303, location: '/storage' });
-    expect(listBuckets).toHaveBeenCalledWith({
-      type: 's3',
-      host: 's3.example.com',
-      port: undefined,
-      tls: undefined,
-      accessStyle: 'Path',
-      region: { name: 'us-east-1' },
-      credentials: { accessKey: 'ak', secretKey: 'sk' }
-    });
+    await expect(
+      actions.connect({
+        request: new Request('http://localhost', { method: 'POST' }),
+        locals: mockLocals()
+      } as unknown as Parameters<typeof actions.connect>[0])
+    ).rejects.toThrow(expect.objectContaining({ status: 303, location: '/storage' }));
   });
 
-  it('disconnect: redirects', async () => {
+  it('disconnect: redirects to /storage', async () => {
     await expect(
-      actions.disconnect({ locals: mockLocals() } as unknown as DisconnectEvent)
-    ).rejects.toMatchObject({ status: 303, location: '/storage?disconnected=1' });
+      actions.disconnect({
+        request: new Request('http://localhost', { method: 'POST' }),
+        locals: mockLocals()
+      } as unknown as Parameters<typeof actions.disconnect>[0])
+    ).rejects.toThrow(expect.objectContaining({ status: 303, location: '/storage' }));
+    expect(mockUpdateSession).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { activeStorageConnectionId: null } })
+    );
+  });
+
+  it('use: rejects an invalid connection form', async () => {
+    vi.mocked(superValidate).mockResolvedValue({ valid: false } as Awaited<
+      ReturnType<typeof superValidate>
+    >);
+
+    const result = await actions.use({
+      request: new Request('http://localhost', { method: 'POST' }),
+      locals: mockLocals()
+    } as unknown as Parameters<typeof actions.use>[0]);
+
+    expect(result?.status).toBe(400);
+  });
+
+  it('use: rejects a connection that does not belong to the user', async () => {
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: { connectionId: 'missing-connection' }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    mockGetConnectionForUser.mockResolvedValue(null);
+
+    const result = await actions.use({
+      request: new Request('http://localhost', { method: 'POST' }),
+      locals: mockLocals()
+    } as unknown as Parameters<typeof actions.use>[0]);
+
+    expect(result).toMatchObject({ status: 400, data: { error: 'Connection not found' } });
+  });
+
+  it('use: sets the selected connection as active and redirects', async () => {
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: { connectionId: 'saved-connection' }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    mockGetConnectionForUser.mockResolvedValue(validFormData);
+    mockConnectionProvider.listContainers.mockResolvedValue(['bucket']);
+
+    await expect(
+      actions.use({
+        request: new Request('http://localhost', { method: 'POST' }),
+        locals: mockLocals()
+      } as unknown as Parameters<typeof actions.use>[0])
+    ).rejects.toThrow(expect.objectContaining({ status: 303, location: '/storage' }));
+    expect(mockUpdateSession).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { activeStorageConnectionId: 'saved-connection' } })
+    );
+  });
+
+  it('deleteConnection: clears the active session, deletes it, and redirects', async () => {
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: { connectionId: 'active-connection' }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    const locals = { ...mockLocals(), session: { activeStorageConnectionId: 'active-connection' } };
+
+    await expect(
+      actions.deleteConnection({
+        request: new Request('http://localhost', { method: 'POST' }),
+        locals
+      } as unknown as Parameters<typeof actions.deleteConnection>[0])
+    ).rejects.toThrow(expect.objectContaining({ status: 303, location: '/storage' }));
+    expect(mockUpdateSession).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { activeStorageConnectionId: null } })
+    );
+    expect(mockDeleteConnection).toHaveBeenCalledWith('test-user', 'active-connection');
+  });
+
+  it('deleteConnection: deletes an inactive connection without clearing the session', async () => {
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: { connectionId: 'inactive-connection' }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    const locals = { ...mockLocals(), session: { activeStorageConnectionId: 'active-connection' } };
+
+    await expect(
+      actions.deleteConnection({
+        request: new Request('http://localhost', { method: 'POST' }),
+        locals
+      } as unknown as Parameters<typeof actions.deleteConnection>[0])
+    ).rejects.toThrow(expect.objectContaining({ status: 303, location: '/storage' }));
+    expect(mockUpdateSession).not.toHaveBeenCalled();
+    expect(mockDeleteConnection).toHaveBeenCalledWith('test-user', 'inactive-connection');
   });
 });

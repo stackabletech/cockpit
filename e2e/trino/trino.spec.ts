@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures.js';
 import { waitForHydration, waitForQueryComplete, setTabSql } from '../support/helpers';
 
 test.describe('Trino query editor', () => {
