@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures.js';
 import {
   createS3Client,
   hasGarageCredentials,
@@ -47,10 +47,7 @@ test.describe('Storage S3 — Create via context menu', () => {
 
       await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
 
-      // Wait for the file to appear in the listing
-      await page.waitForTimeout(1500);
-
-      expect(await objectExists(client, credentials.bucket, newFile)).toBe(true);
+      await expect.poll(() => objectExists(client, credentials.bucket, newFile)).toBe(true);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -77,10 +74,7 @@ test.describe('Storage S3 — Create via context menu', () => {
 
       await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
 
-      // Wait for the folder to appear in the listing
-      await page.waitForTimeout(1500);
-
-      expect(await objectExists(client, credentials.bucket, newFolder)).toBe(true);
+      await expect.poll(() => objectExists(client, credentials.bucket, newFolder)).toBe(true);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

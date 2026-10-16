@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures.js';
 import {
   createS3Client,
   hasGarageCredentials,
@@ -37,7 +37,6 @@ test.describe('Storage S3 — Toast notifications', () => {
       // Copy the file via context menu — triggers a success toast
       await rowByName(page, 'toast-test.txt').click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'Copy', exact: true }).click();
-      await page.waitForTimeout(500);
 
       // Verify the success toast appears with the correct role
       const toast = page.getByRole('alert').filter({ hasText: /copied/i });

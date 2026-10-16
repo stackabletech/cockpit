@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures.js';
 import { Client } from 'pg';
 
 test.describe('Database connectivity', () => {

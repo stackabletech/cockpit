@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures.js';
 import {
   createS3Client,
   hasGarageCredentials,
@@ -51,7 +51,7 @@ test.describe('Storage S3 — File Operations', () => {
 
       // Navigate to parent prefix in-app (preserves clipboard)
       await page.locator('tbody tr').first().click();
-      await page.waitForTimeout(500);
+      await expect(page).toHaveURL((url) => url.pathname.endsWith(`/${prefix.slice(0, -1)}`));
 
       // Click on table to focus it, then Ctrl+V to paste
       await page.locator('table').click();
@@ -126,12 +126,10 @@ test.describe('Storage S3 — File Operations', () => {
 
       // Navigate to bucket root via ".." row (preserves clipboard)
       await page.locator('tbody tr').first().click();
-      await page.waitForTimeout(500);
+      await expect(page).toHaveURL((url) => url.pathname.endsWith(`/${credentials.bucket}`));
 
       await page.locator('tbody').click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'Paste' }).click();
-
-      await page.waitForTimeout(1000);
 
       // Should show error toast about source not found
       const errorMsg = page.getByText(/could not paste|source.*deleted/i);
@@ -174,23 +172,25 @@ test.describe('Storage S3 — File Operations', () => {
 
       // Navigate into first destination and paste
       await rowByName(page, 'd1').dblclick();
-      await page.waitForTimeout(500);
+      await expect(page).toHaveURL((url) => url.pathname.endsWith('/d1'));
       await page.locator('table').click();
       await page.keyboard.press('Control+v');
-      await page.waitForTimeout(1000);
 
-      expect(await objectExists(client, credentials.bucket, `${dest1}multi.txt`)).toBe(true);
+      await expect
+        .poll(() => objectExists(client, credentials.bucket, `${dest1}multi.txt`))
+        .toBe(true);
 
       // Navigate back to prefix then into second destination
       await page.locator('tbody tr').first().click();
-      await page.waitForTimeout(500);
+      await expect(page).toHaveURL((url) => url.pathname.endsWith(`/${prefix.slice(0, -1)}`));
       await rowByName(page, 'd2').dblclick();
-      await page.waitForTimeout(500);
+      await expect(page).toHaveURL((url) => url.pathname.endsWith('/d2'));
       await page.locator('table').click();
       await page.keyboard.press('Control+v');
-      await page.waitForTimeout(1000);
 
-      expect(await objectExists(client, credentials.bucket, `${dest2}multi.txt`)).toBe(true);
+      await expect
+        .poll(() => objectExists(client, credentials.bucket, `${dest2}multi.txt`))
+        .toBe(true);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -485,8 +485,6 @@ test.describe('Storage S3 — File Operations', () => {
       await input.fill('new-name.txt');
       await page.getByRole('button', { name: 'Rename' }).click();
 
-      await page.waitForTimeout(1000);
-
       // Old name should be gone, new name should exist
       await expect.poll(() => objectExists(client, credentials.bucket, oldKey)).toBe(false);
       expect(await objectExists(client, credentials.bucket, newKey)).toBe(true);
@@ -613,19 +611,19 @@ test.describe('Storage S3 — File Operations', () => {
 
       // Press Ctrl+C to copy
       await page.keyboard.press('Control+c');
-      await page.waitForTimeout(300);
+      await expect(page.getByText('1 item copied')).toBeVisible();
 
       // Navigate to parent prefix in-app (preserves clipboard)
       await page.locator('tbody tr').first().click();
-      await page.waitForTimeout(500);
+      await expect(page).toHaveURL((url) => url.pathname.endsWith(`/${prefix.slice(0, -1)}`));
 
       // Select somewhere to focus the page, then Ctrl+V
       await page.locator('table').click();
       await page.keyboard.press('Control+v');
 
-      await page.waitForTimeout(1000);
-
-      expect(await objectExists(client, credentials.bucket, `${prefix}kb-test.txt`)).toBe(true);
+      await expect
+        .poll(() => objectExists(client, credentials.bucket, `${prefix}kb-test.txt`))
+        .toBe(true);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -656,8 +654,6 @@ test.describe('Storage S3 — File Operations', () => {
       await input.fill('f2-new.txt');
       await page.keyboard.press('Enter');
 
-      await page.waitForTimeout(1000);
-
       await expect.poll(() => objectExists(client, credentials.bucket, oldKey)).toBe(false);
       expect(await objectExists(client, credentials.bucket, newKey)).toBe(true);
     } finally {
@@ -685,20 +681,18 @@ test.describe('Storage S3 — File Operations', () => {
 
       // Ctrl+X to cut
       await page.keyboard.press('Control+x');
-      await page.waitForTimeout(300);
+      await expect(page.getByText('1 item cut')).toBeVisible();
 
       // Navigate to parent prefix in-app (preserves clipboard)
       await page.locator('tbody tr').first().click();
-      await page.waitForTimeout(500);
+      await expect(page).toHaveURL((url) => url.pathname.endsWith(`/${prefix.slice(0, -1)}`));
 
       // Paste
       await page.locator('table').click();
       await page.keyboard.press('Control+v');
 
-      await page.waitForTimeout(1000);
-
       // File should exist at destination
-      expect(await objectExists(client, credentials.bucket, destFile)).toBe(true);
+      await expect.poll(() => objectExists(client, credentials.bucket, destFile)).toBe(true);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -731,8 +725,6 @@ test.describe('Storage S3 — File Operations', () => {
 
       // Confirm the move in the dialog
       await page.getByRole('button', { name: 'Move' }).click();
-
-      await page.waitForTimeout(2000);
 
       // File should be moved to destination folder
       await expect.poll(() => objectExists(client, credentials.bucket, srcFile)).toBe(false);
@@ -807,10 +799,10 @@ test.describe('Storage S3 — File Operations', () => {
       // Confirm the move in the dialog
       await page.getByRole('button', { name: 'Move' }).click();
 
-      await page.waitForTimeout(2000);
-
       // File should be at parent prefix
-      expect(await objectExists(client, credentials.bucket, `${prefix}up.txt`)).toBe(true);
+      await expect
+        .poll(() => objectExists(client, credentials.bucket, `${prefix}up.txt`))
+        .toBe(true);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

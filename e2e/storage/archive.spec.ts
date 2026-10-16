@@ -1,5 +1,5 @@
 import { PutObjectCommand } from '@aws-sdk/client-s3';
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures.js';
 import AdmZip from 'adm-zip';
 import {
   createS3Client,

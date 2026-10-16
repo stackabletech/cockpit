@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures.js';
 import { readFile } from 'node:fs/promises';
 import AdmZip from 'adm-zip';
 import {

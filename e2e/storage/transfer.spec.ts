@@ -1,4 +1,4 @@
-import { test, expect, type Page, type TestInfo } from '@playwright/test';
+import { test, expect, type Page, type TestInfo } from '../support/fixtures.js';
 import { ListObjectsV2Command, type S3Client } from '@aws-sdk/client-s3';
 import {
   createGarageBucketCredentials,

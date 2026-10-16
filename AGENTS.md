@@ -291,7 +291,7 @@ test('example test', async ({ page }) => {
 
 ### Authentication
 
-Tests use a saved session from `e2e/.auth/user.json`. If tests fail with auth errors, run the auth setup to re-authenticate via OIDC.
+Import `test` and `expect` from `e2e/support/fixtures.ts`, not `@playwright/test`. Its worker-scoped fixture logs each worker in via the mock OIDC server as its own user, so parallel workers never share server-side state. Opt out with `test.use({ storageState: { cookies: [], origins: [] } })`.
 
 ## Important Notes
 

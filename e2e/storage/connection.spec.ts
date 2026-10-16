@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures.js';
 import { hasGarageCredentials, requireGarageCredentials } from '../support/garage.js';
 import { connectToStorage, openConnectForm, bucketRoute } from './helpers.js';
 
