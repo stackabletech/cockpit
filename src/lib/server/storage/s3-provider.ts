@@ -57,6 +57,9 @@ const LIST_ENCODING_TYPE = 'url';
 /** Deletes of keys DeleteObjects cannot name run with this many requests in flight. */
 const SINGLE_DELETE_CONCURRENCY = 4;
 
+/** An object from a recursive listing. */
+type ListedObject = { key: string; size: number; lastModified?: Date };
+
 /**
  * The decoder for a listing response's key fields. Only a response that echoes
  * `EncodingType: 'url'` is decoded (as botocore does): a store that ignores the parameter returns
@@ -565,59 +568,42 @@ export class S3StorageProvider implements StorageProvider {
     );
   }
 
-  async listAllKeysProgressively(
-    prefix: string,
-    onBatch: (keys: Array<{ key: string; size: number; lastModified?: Date }>) => void | boolean,
-    options?: ProgressiveListOptions
-  ): Promise<void> {
-    log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (progressive, concurrent)');
-
-    // Pipeline: while processing each page's results, the next page is already being
-    // fetched.  Each page's continuation token is only known after its predecessor
-    // completes, so we chain through `.then()` to keep one lookahead fetch in-flight.
-    const inFlight: Array<Promise<ListObjectsV2CommandOutput>> = [];
-
-    const fetchPage = (token?: string): Promise<ListObjectsV2CommandOutput> =>
-      this.client.send(
+  /**
+   * Yields every object under `prefix` (no delimiter), one listing page at a time.
+   * Pages are fetched strictly one after another: each continuation token is only
+   * known once the previous page has arrived.
+   */
+  private async *listPages(prefix: string, signal?: AbortSignal): AsyncGenerator<ListedObject[]> {
+    let continuationToken: string | undefined;
+    do {
+      const output: ListObjectsV2CommandOutput = await this.client.send(
         new ListObjectsV2Command({
           Bucket: this.bucket,
           Prefix: prefix,
-          ContinuationToken: token,
+          ContinuationToken: continuationToken,
           EncodingType: LIST_ENCODING_TYPE
         }),
-        { abortSignal: options?.signal }
+        { abortSignal: signal }
       );
-
-    // Seed the first fetch
-    inFlight.push(fetchPage());
-
-    while (inFlight.length > 0) {
-      const output = await inFlight.shift()!;
-
       const decode = listingDecoder(output);
-      const batch: Array<{ key: string; size: number; lastModified?: Date }> = [];
-      for (const obj of output.Contents ?? []) {
-        if (obj.Key) {
-          batch.push({
-            key: decode(obj.Key),
-            size: obj.Size ?? 0,
-            lastModified: obj.LastModified
-          });
-        }
-      }
-      if (batch.length > 0) {
-        const shouldStop = onBatch(batch) === false;
-        if (shouldStop) break;
-      }
+      yield (output.Contents ?? []).flatMap((obj) =>
+        obj.Key
+          ? [{ key: decode(obj.Key), size: obj.Size ?? 0, lastModified: obj.LastModified }]
+          : []
+      );
+      continuationToken = output.IsTruncated ? output.NextContinuationToken : undefined;
+    } while (continuationToken);
+  }
 
-      // If truncated, chain the next fetch so it starts while we process the
-      // current page's results (or already completes by the time we loop back).
-      if (output.IsTruncated && output.NextContinuationToken) {
-        const token = output.NextContinuationToken;
-        inFlight.push(fetchPage(token));
-      }
+  async listAllKeysProgressively(
+    prefix: string,
+    onBatch: (keys: ListedObject[]) => void | boolean,
+    options?: ProgressiveListOptions
+  ): Promise<void> {
+    log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (progressive)');
+    for await (const batch of this.listPages(prefix, options?.signal)) {
+      if (batch.length > 0 && onBatch(batch) === false) break;
     }
-
     log.trace({ bucket: this.bucket, prefix }, 'progressive listing complete');
   }
 
@@ -687,24 +673,9 @@ export class S3StorageProvider implements StorageProvider {
   async listAllKeys(prefix: string): Promise<string[]> {
     log.trace({ bucket: this.bucket, prefix }, 'S3 ListObjectsV2 (recursive)');
     const keys: string[] = [];
-    let continuationToken: string | undefined;
-
-    do {
-      const output: ListObjectsV2CommandOutput = await this.client.send(
-        new ListObjectsV2Command({
-          Bucket: this.bucket,
-          Prefix: prefix,
-          ContinuationToken: continuationToken,
-          EncodingType: LIST_ENCODING_TYPE
-        })
-      );
-      const decode = listingDecoder(output);
-      for (const obj of output.Contents ?? []) {
-        if (obj.Key) keys.push(decode(obj.Key));
-      }
-      continuationToken = output.IsTruncated ? output.NextContinuationToken : undefined;
-    } while (continuationToken);
-
+    for await (const batch of this.listPages(prefix)) {
+      keys.push(...batch.map((obj) => obj.key));
+    }
     log.trace(
       { bucket: this.bucket, prefix, key_count: keys.length },
       'recursive listing complete'
