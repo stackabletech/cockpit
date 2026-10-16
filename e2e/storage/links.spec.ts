@@ -1,6 +1,18 @@
 import { test, expect } from '../support/fixtures.js';
-import { hasGarageCredentials, requireGarageCredentials } from '../support/garage.js';
-import { bucketRoute, connectAndOpenPrefix, uniquePrefix } from './helpers.js';
+import {
+  createS3Client,
+  hasGarageCredentials,
+  requireGarageCredentials
+} from '../support/garage.js';
+import {
+  bucketRoute,
+  connectAndOpenPrefix,
+  deleteKnownKeys,
+  putTextObject,
+  rowByName,
+  uniquePrefix,
+  waitForObjectsLoaded
+} from './helpers.js';
 
 test.describe('Storage S3 — Links', () => {
   test.use({ locale: 'en-US' });
@@ -10,6 +22,30 @@ test.describe('Storage S3 — Links', () => {
       !hasGarageCredentials(),
       'Skipped: no s3-config.json found (requires a running Garage instance)'
     );
+  });
+
+  test('a link with an encoded slash opens the folder it names', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'encoded-slash');
+    const key = `${prefix}sales/2026/july.csv`;
+
+    try {
+      await putTextObject(client, credentials.bucket, key, 'month\n7\n', 'text/csv');
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      const connection = new URL(credentials.endpoint).hostname;
+      const route = bucketRoute(connection, credentials.bucket, prefix);
+      await page.goto(`${route}/sales%2F2026`);
+      await waitForObjectsLoaded(page);
+
+      await expect(rowByName(page, 'july.csv')).toBeVisible();
+      const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb' });
+      await expect(breadcrumb).toContainText('sales');
+      await expect(breadcrumb).toContainText('2026');
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [key]);
+    }
   });
 
   test('a link to a folder that does not exist calls it an empty folder', async ({

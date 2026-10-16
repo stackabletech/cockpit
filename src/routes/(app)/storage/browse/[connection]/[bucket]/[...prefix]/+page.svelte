@@ -21,7 +21,19 @@
         : ''
     })
   );
-  const isCurrentRoute = $derived(page.url.pathname === routePath);
+  /**
+   * Compare paths by what they name, not how they are encoded: a link may
+   * encode a slash as `%2F` or leave characters such as `@` unencoded.
+   */
+  function samePath(a: string, b: string): boolean {
+    try {
+      return decodeURIComponent(a) === decodeURIComponent(b);
+    } catch {
+      return a === b;
+    }
+  }
+
+  const isCurrentRoute = $derived(samePath(page.url.pathname, routePath));
 
   // Set bucket/prefix immediately so breadcrumb renders correctly during SSR
   // ($effect doesn't run on the server, but data is available from the load function)
@@ -83,7 +95,7 @@
     const url = new URL(basePath, location.origin);
     if (storage.pageSize) url.searchParams.set('pageSize', String(storage.pageSize));
 
-    if (page.url.pathname === basePath) {
+    if (samePath(page.url.pathname, basePath)) {
       void invalidateAll();
     } else {
       // eslint-disable-next-line svelte/no-navigation-without-resolve
