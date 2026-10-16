@@ -2,11 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import { theme } from '$lib/theme.svelte';
-  import {
-    registerTrinoSql,
-    setCompletionDefaultsGetter,
-    TRINO_SQL_LANGUAGE_ID
-  } from '$lib/editor/trinosql';
+  import { TRINO_SQL_LANGUAGE_ID } from '$lib/editor/language-id';
 
   let {
     value = $bindable(),
@@ -134,6 +130,8 @@
   // Guarded by `browser` because SvelteKit evaluates component scripts on the server too.
   const workerImport = browser ? import('monaco-editor/esm/vs/editor/editor.worker?worker') : null;
   const monacoImport = browser ? import('monaco-editor') : null;
+  // The Trino SQL language pulls in the ANTLR parser (~1 MB); load it lazily alongside Monaco.
+  const trinoSqlImport = browser ? import('$lib/editor/trinosql') : null;
 
   function toMonacoTheme(t: string): string {
     return t === 'dark' ? 'vs-dark' : 'vs';
@@ -151,6 +149,7 @@
     };
 
     monaco = await monacoImport!;
+    const { registerTrinoSql, setCompletionDefaultsGetter } = await trinoSqlImport!;
 
     setCompletionDefaultsGetter(() => ({
       catalog: defaultCatalog || undefined,
