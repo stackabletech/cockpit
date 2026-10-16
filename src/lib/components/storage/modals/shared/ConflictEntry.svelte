@@ -36,7 +36,7 @@
     }
     return ConflictRenameNameSchema.safeParse(name).success
       ? null
-      : m.storage_conflict_rename_invalid_name();
+      : m.storage_name_invalid_single();
   });
   let badRename = $derived(sameName || nameError !== null);
   const folder = $derived(entry.kind === 'folder');

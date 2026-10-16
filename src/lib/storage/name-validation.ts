@@ -29,9 +29,7 @@ export function objectNameError(name: string, options: ObjectNameOptions): strin
 
   const nameSchema = options.singleSegment ? ConflictRenameNameSchema : StorageObjectNameSchema;
   if (!nameSchema.safeParse(trimmed).success) {
-    return options.singleSegment
-      ? m.storage_conflict_rename_invalid_name()
-      : m.storage_create_invalid_name();
+    return options.singleSegment ? m.storage_name_invalid_single() : m.storage_name_invalid_path();
   }
 
   const key = options.prefix + trimmed + (options.folder ? '/' : '');
