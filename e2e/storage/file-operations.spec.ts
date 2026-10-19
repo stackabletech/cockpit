@@ -13,9 +13,9 @@ import {
   rowByName,
   uniquePrefix,
   getObjectText,
+  goUp,
   openFolder,
-  pressStorageShortcut,
-  waitForObjectsLoaded
+  pasteHere
 } from './helpers.js';
 
 test.describe('Storage S3 — File Operations', () => {
@@ -53,12 +53,10 @@ test.describe('Storage S3 — File Operations', () => {
       await page.getByRole('menuitem', { name: 'Cut' }).click();
 
       // Navigate to parent prefix in-app (preserves clipboard)
-      await page.locator('tbody tr').first().click();
-      await expect(page).toHaveURL((url) => url.pathname.endsWith(`/${prefix.slice(0, -1)}`));
-      await waitForObjectsLoaded(page);
+      await goUp(page);
 
       // Ctrl+V to paste
-      await pressStorageShortcut(page, 'Control+v');
+      await pasteHere(page);
 
       await expect(page.getByText('1 item pasted')).toBeVisible();
 
@@ -96,7 +94,7 @@ test.describe('Storage S3 — File Operations', () => {
 
       // Paste (use keyboard shortcut — right-click in an empty folder
       // lands on the ".." row which has no context menu handler)
-      await pressStorageShortcut(page, 'Control+v');
+      await pasteHere(page);
 
       await expect
         .poll(() => objectExists(client, credentials.bucket, `${destDir}nested-src.txt`))
@@ -126,8 +124,7 @@ test.describe('Storage S3 — File Operations', () => {
       await deleteKnownKeys(client, credentials.bucket, [srcFile]);
 
       // Navigate to bucket root via ".." row (preserves clipboard)
-      await page.locator('tbody tr').first().click();
-      await expect(page).toHaveURL((url) => url.pathname.endsWith(`/${credentials.bucket}`));
+      await goUp(page);
 
       await page.locator('tbody').click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'Paste' }).click();
@@ -173,18 +170,16 @@ test.describe('Storage S3 — File Operations', () => {
 
       // Navigate into first destination and paste
       await openFolder(page, 'd1');
-      await pressStorageShortcut(page, 'Control+v');
+      await pasteHere(page);
 
       await expect
         .poll(() => objectExists(client, credentials.bucket, `${dest1}multi.txt`))
         .toBe(true);
 
       // Navigate back to prefix then into second destination
-      await page.locator('tbody tr').first().click();
-      await expect(page).toHaveURL((url) => url.pathname.endsWith(`/${prefix.slice(0, -1)}`));
-      await waitForObjectsLoaded(page);
+      await goUp(page);
       await openFolder(page, 'd2');
-      await pressStorageShortcut(page, 'Control+v');
+      await pasteHere(page);
 
       await expect
         .poll(() => objectExists(client, credentials.bucket, `${dest2}multi.txt`))
@@ -224,10 +219,10 @@ test.describe('Storage S3 — File Operations', () => {
       await rowByName(page, 'docs').click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'Copy', exact: true }).click();
 
-      await page.locator('tbody tr').first().click();
+      await goUp(page);
       await openFolder(page, 'dest');
       await expect(rowByName(page, 'docs')).toBeVisible();
-      await pressStorageShortcut(page, 'Control+v');
+      await pasteHere(page);
 
       const conflictDialog = page.getByRole('dialog');
       await expect(conflictDialog.getByText('Files already exist', { exact: true })).toBeVisible();
@@ -279,10 +274,10 @@ test.describe('Storage S3 — File Operations', () => {
       await rowByName(page, 'docs').click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'Copy', exact: true }).click();
 
-      await page.locator('tbody tr').first().click();
+      await goUp(page);
       await openFolder(page, 'dest');
       await expect(rowByName(page, 'docs')).toBeVisible();
-      await pressStorageShortcut(page, 'Control+v');
+      await pasteHere(page);
 
       const conflictDialog = page.getByRole('dialog');
       await expect(conflictDialog.getByText('Files already exist', { exact: true })).toBeVisible();
@@ -339,10 +334,10 @@ test.describe('Storage S3 — File Operations', () => {
       await page.keyboard.press('Control+a');
       await page.keyboard.press('Control+c');
 
-      await page.locator('tbody tr').first().click();
+      await goUp(page);
       await openFolder(page, 'dest');
       await expect(rowByName(page, 'taken')).toBeVisible();
-      await pressStorageShortcut(page, 'Control+v');
+      await pasteHere(page);
 
       const conflictDialog = page.getByRole('dialog');
       await expect(conflictDialog.getByText('Files already exist', { exact: true })).toBeVisible();
@@ -609,12 +604,10 @@ test.describe('Storage S3 — File Operations', () => {
       await expect(page.getByText('1 item copied')).toBeVisible();
 
       // Navigate to parent prefix in-app (preserves clipboard)
-      await page.locator('tbody tr').first().click();
-      await expect(page).toHaveURL((url) => url.pathname.endsWith(`/${prefix.slice(0, -1)}`));
-      await waitForObjectsLoaded(page);
+      await goUp(page);
 
       // Ctrl+V to paste
-      await pressStorageShortcut(page, 'Control+v');
+      await pasteHere(page);
 
       await expect
         .poll(() => objectExists(client, credentials.bucket, `${prefix}kb-test.txt`))
@@ -679,12 +672,10 @@ test.describe('Storage S3 — File Operations', () => {
       await expect(page.getByText('1 item cut')).toBeVisible();
 
       // Navigate to parent prefix in-app (preserves clipboard)
-      await page.locator('tbody tr').first().click();
-      await expect(page).toHaveURL((url) => url.pathname.endsWith(`/${prefix.slice(0, -1)}`));
-      await waitForObjectsLoaded(page);
+      await goUp(page);
 
       // Paste
-      await pressStorageShortcut(page, 'Control+v');
+      await pasteHere(page);
 
       // File should exist at destination
       await expect.poll(() => objectExists(client, credentials.bucket, destFile)).toBe(true);
