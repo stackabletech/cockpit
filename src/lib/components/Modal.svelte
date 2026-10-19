@@ -18,18 +18,32 @@
   let {
     open = $bindable(false),
     children,
+    variant = 'default',
     class: className = '',
     closeguard,
     ...restProps
   }: {
     open: boolean;
     children: import('svelte').Snippet;
+    /**
+     * - `default` — DaisyUI's centred `modal`, paired with a `modal-box` child.
+     * - `fullscreen` — edge-to-edge sheet; the child owns the whole viewport.
+     */
+    variant?: 'default' | 'fullscreen';
+    /** Extra classes, appended to the variant's own. */
     class?: string;
     closeguard?: () => boolean;
   } & Omit<
     import('svelte/elements').HTMLDialogAttributes,
     'children' | 'open' | 'class'
   > = $props();
+
+  const variantClass = {
+    default: 'modal',
+    fullscreen: 'bg-base-100 fixed inset-0 z-40 size-full max-h-full max-w-full p-0'
+  } as const;
+
+  const dialogClass = $derived(`${variantClass[variant]} ${className}`.trim());
 
   let dialogEl = $state<HTMLDialogElement | undefined>(undefined);
 
@@ -110,7 +124,7 @@
 
 <dialog
   bind:this={dialogEl}
-  class={className}
+  class={dialogClass}
   {...restProps}
   onclose={handleClose}
   oncancel={handleCancel}

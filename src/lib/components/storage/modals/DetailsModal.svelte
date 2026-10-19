@@ -71,7 +71,7 @@
   });
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open>
   <div
     class="modal-box transition-all duration-200 {maximized
       ? 'h-[90vh] w-[95vw] max-w-none'

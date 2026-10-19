@@ -68,7 +68,7 @@
   });
 </script>
 
-<Modal bind:open class="modal" closeguard={() => !loading}>
+<Modal bind:open closeguard={() => !loading}>
   <div class="modal-box max-w-sm">
     <h3 class="mb-1 flex items-center gap-2 text-lg font-bold">
       <IconDriveFileRenameOutline class="size-5 shrink-0" aria-hidden="true" />

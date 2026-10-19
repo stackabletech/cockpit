@@ -12,7 +12,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { checkObjectExists, uploadFile } from '$lib/storage/upload.js';
   import { StorageError } from '$lib/storage/errors.js';
-  import { formatFileSize } from '$lib/storage/utils.js';
+  import { formatFileSize, keyToName } from '$lib/storage/utils.js';
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { uploadConcurrency } from '$lib/client/feature-flags.js';
   import UploadDropzone from './UploadDropzone.svelte';
@@ -412,7 +412,7 @@
   }
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open>
   <div class="modal-box w-full max-w-lg">
     <!-- Header -->
     <div class="mb-4 flex items-center justify-between">
@@ -521,7 +521,7 @@
         {#each conflictEntries as entry (entry.id)}
           {@const mappedEntry: ConflictEntryType = {
             id: entry.id,
-            originalName: entry.targetKey.split('/').at(-1) ?? entry.file.name,
+            originalName: keyToName(entry.targetKey) || entry.file.name,
             conflict: entry.conflict,
             resolution: entry.resolution,
             customName: entry.customName,
@@ -594,7 +594,7 @@
             {@const errName =
               entry.resolution === 'rename' && entry.customName.trim()
                 ? entry.customName.trim()
-                : (entry.targetKey.split('/').at(-1) ?? entry.file.name)}
+                : keyToName(entry.targetKey) || entry.file.name}
             <li class="text-error py-1 text-xs">
               {errName}: {entry.errorMessage}
             </li>
@@ -611,7 +611,7 @@
   </div>
 </Modal>
 
-<Modal bind:open={leaveConfirmOpen} class="modal" aria-labelledby="{uid}-leave-title">
+<Modal bind:open={leaveConfirmOpen} aria-labelledby="{uid}-leave-title">
   <div class="modal-box max-w-sm">
     <h3 id="{uid}-leave-title" class="mb-3 flex items-center gap-2 text-lg font-bold">
       <IconWarning class="text-warning size-5 shrink-0" aria-hidden="true" />

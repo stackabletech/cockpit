@@ -9,6 +9,7 @@
   import { resolve } from '$app/paths';
   import * as m from '$lib/paraglide/messages.js';
   import type { ConnectionMetadata } from '$lib/storage/connection-types.js';
+  import { connectionLabel } from '$lib/storage/display-helpers.js';
   import DeleteConnectionModal from '$lib/components/storage/modals/DeleteConnectionModal.svelte';
   import type { SavedConnection } from '$lib/storage/connection-id-header.js';
 
@@ -52,11 +53,6 @@
           : menuRawPos.top
     };
   });
-
-  // ── Tooltip ──────────────────────────────────────────────────────────────
-  function connectionLabel(conn: ConnectionMetadata): string {
-    return conn.name || conn.endpoint || 'S3';
-  }
 
   function openContextMenu(e: MouseEvent, conn: ConnectionMetadata) {
     e.preventDefault();

@@ -96,7 +96,7 @@
   ><IconSearch class="size-3.5" aria-hidden="true" />{m.storage_search_open()}</button
 >
 
-<Modal bind:open class="modal modal-top-search" aria-labelledby="{uid}-title">
+<Modal bind:open class="modal-top-search" aria-labelledby="{uid}-title">
   <div
     class="modal-box bg-base-200 flex max-h-[90vh] w-11/12 max-w-4xl flex-col overflow-hidden p-0"
   >

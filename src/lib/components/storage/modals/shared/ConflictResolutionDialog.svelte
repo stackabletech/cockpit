@@ -174,7 +174,6 @@
 
 <Modal
   bind:open
-  class="modal"
   aria-labelledby="{uid}-title"
   aria-describedby={descriptionText ? `${uid}-description` : undefined}
 >
