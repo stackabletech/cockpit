@@ -252,6 +252,27 @@ export function rowByName(page: Page, name: string) {
     .filter({ has: page.getByText(name, { exact: true }) });
 }
 
+/**
+ * Open a folder of the current listing and wait for its contents. A single
+ * click on a folder row navigates; `dblclick()` would send a second click that
+ * can land on a row of the new listing and navigate again.
+ */
+export async function openFolder(page: Page, name: string) {
+  await rowByName(page, name).click();
+  await expect(page).toHaveURL((url) => url.pathname.endsWith(`/${name}`));
+  await waitForObjectsLoaded(page);
+}
+
+/**
+ * Press a storage keyboard shortcut (e.g. `Control+v`) with focus on the page
+ * body, where the shortcuts apply. Clicking the table to focus it is not safe:
+ * the click can hit a folder or ".." row, which navigates.
+ */
+export async function pressStorageShortcut(page: Page, key: string) {
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press(key);
+}
+
 export function modalBox(page: Page) {
   return page.getByRole('dialog').locator('.modal-box');
 }
