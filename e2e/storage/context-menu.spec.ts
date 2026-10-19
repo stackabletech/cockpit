@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures.js';
 import {
   createS3Client,
   hasGarageCredentials,
@@ -85,7 +85,7 @@ test.describe('Storage S3 — Context Menu', () => {
       await expect(page.getByRole('button', { name: 'Delete permanently' })).toBeVisible();
       await page.getByRole('button', { name: 'Delete permanently' }).click();
 
-      await expect(page.getByText('This bucket is empty')).toBeVisible();
+      await expect(page.getByText('This folder is empty')).toBeVisible();
       await expect(await objectExists(client, credentials.bucket, `${prefix}ctx-del.txt`)).toBe(
         false
       );

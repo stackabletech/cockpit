@@ -4,6 +4,7 @@
   import IconBlock from 'virtual:icons/material-symbols/block';
   import IconSchedule from 'virtual:icons/material-symbols/schedule';
   import * as m from '$lib/paraglide/messages.js';
+  import { keyToName } from '$lib/storage/utils.js';
   import type { FileEntry } from './types.js';
 
   interface Props {
@@ -15,7 +16,7 @@
   let nameOnly = $derived(
     entry.resolution === 'rename' && entry.customName.trim()
       ? entry.customName.trim()
-      : (entry.targetKey.split('/').at(-1) ?? entry.file.name)
+      : keyToName(entry.targetKey) || entry.file.name
   );
 </script>
 

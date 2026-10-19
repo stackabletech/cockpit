@@ -3,7 +3,12 @@
   import { SvelteMap } from 'svelte/reactivity';
   import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
-  import { getLocale } from '$lib/paraglide/runtime.js';
+  import IconClose from 'virtual:icons/material-symbols/close';
+  import IconMenu from 'virtual:icons/material-symbols/menu';
+  import IconPanelClose from 'virtual:icons/material-symbols/left-panel-close-outline';
+  import IconPanelOpen from 'virtual:icons/material-symbols/left-panel-open-outline';
+  import IconExpandMore from 'virtual:icons/material-symbols/expand-more';
+  import IconOpenInNew from 'virtual:icons/material-symbols/open-in-new';
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import ResizeHandle from '$lib/components/storage/sidebar/ResizeHandle.svelte';
@@ -28,6 +33,7 @@
   } from '$lib/editor/split-statements.js';
   import type { PageData } from './$types';
   import StatementResult from '$lib/components/trino/StatementResult.svelte';
+  import { getLocale } from '$lib/paraglide/runtime.js';
 
   let { data }: { data: PageData } = $props();
 
@@ -402,16 +408,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#snippet closeIcon()}
-  <svg
-    class="size-4"
-    aria-hidden="true"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
-  >
+  <IconClose class="size-4" aria-hidden="true" />
 {/snippet}
 
 <div class="flex h-full gap-4">
@@ -447,13 +444,7 @@
   </div>
 
   <!-- Mobile catalog browser overlay -->
-  <Modal
-    bind:open={mobileCatalogOpen}
-    class="
-      bg-base-100 fixed inset-0 z-40 size-full max-h-full max-w-full p-0
-      lg:hidden
-    "
-  >
+  <Modal bind:open={mobileCatalogOpen} variant="fullscreen" class="lg:hidden">
     <div class="flex h-full flex-col">
       <div
         class="
@@ -664,56 +655,31 @@
               aria-label={m.trino_catalog_browser_toggle()}
             >
               {#if catalogBrowserOpen}
-                <svg
+                <IconPanelClose
                   class="
                     hidden size-4
                     lg:block
                   "
                   aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  ><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" /><path
-                    d="m14 9-3 3 3 3"
-                  /></svg
-                >
-                <svg
+                />
+                <IconMenu
                   class="
                     size-4
                     lg:hidden
                   "
                   aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg
-                >
+                />
               {:else}
-                <svg
-                  class="size-4"
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  ><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" /><path
-                    d="m12 9 3 3-3 3"
-                  /></svg
-                >
+                <IconPanelOpen class="size-4" aria-hidden="true" />
               {/if}
             </button>
           </div>
           <span class="text-base-content/60 text-sm font-medium">{m.trino_editor_label()}</span>
           {#if charLimitReached}
             <span class="text-warning text-xs" role="status"
-              >{m.trino_editor_char_limit_reached({ limit: MAX_SQL_LENGTH.toLocaleString() })}</span
+              >{m.trino_editor_char_limit_reached({
+                limit: MAX_SQL_LENGTH.toLocaleString(getLocale())
+              })}</span
             >
           {/if}
         </div>
@@ -789,19 +755,14 @@
                   type="button"
                   class="
                     btn join-item border-l-primary-content/20 btn-primary
-                    h-full border-l px-2
+                    tooltip tooltip-bottom z-150 h-full border-l px-2 before:z-200
                   "
+                  data-tip={m.trino_run_mode_select()}
                   class:pointer-events-none={isActive}
                   aria-haspopup="true"
                   aria-label={m.trino_run_mode_select()}
                 >
-                  <svg class="size-3" aria-hidden="true" viewBox="0 0 20 20" fill="currentColor">
-                    <path
-                      fill-rule="evenodd"
-                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                      clip-rule="evenodd"
-                    />
-                  </svg>
+                  <IconExpandMore class="size-3" aria-hidden="true" />
                 </button>
                 <div
                   class="
@@ -907,20 +868,7 @@
               class="btn btn-ghost btn-xs"
             >
               {m.trino_view_in_trino()}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="size-3.5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"
-                />
-                <path
-                  d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"
-                />
-              </svg>
+              <IconOpenInNew class="size-3.5" aria-hidden="true" />
             </a>
           {/if}
         </div>

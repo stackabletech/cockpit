@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures.js';
 import { waitForHydration, ensureCatalogBrowserOpen, setTabSql } from '../support/helpers';
 
 test.describe('Catalog browser', () => {

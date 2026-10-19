@@ -37,6 +37,7 @@ function readString(value: unknown, keys: string[]): string | null {
   }
 
   for (const key of keys) {
+    // eslint-disable-next-line security/detect-object-injection
     const candidate = record[key];
     if (typeof candidate === 'string' && candidate.length > 0) {
       return candidate;
@@ -53,6 +54,7 @@ function readStringArray(value: unknown, keys: string[]): string[] {
   }
 
   for (const key of keys) {
+    // eslint-disable-next-line security/detect-object-injection
     const candidate = record[key];
     if (Array.isArray(candidate)) {
       return candidate.filter((item): item is string => typeof item === 'string');
@@ -73,6 +75,7 @@ function extractAdminList(value: unknown): JsonRecord[] {
   }
 
   for (const key of ADMIN_LIST_KEYS) {
+    // eslint-disable-next-line security/detect-object-injection
     const candidate = record[key];
     if (Array.isArray(candidate)) {
       return candidate
@@ -284,4 +287,47 @@ export async function createGarageBucketCredentials(
     secretAccessKey: key.secretAccessKey,
     bucket: options.bucketName
   };
+}
+
+/**
+ * Creates a bucket with no global alias (so it is absent from S3 ListBuckets
+ * responses) and grants the given access key read and write — but not owner —
+ * access.  Returns the Garage bucket ID, which is the only handle for the
+ * bucket when it has no alias.
+ */
+export async function createGarageHiddenBucket(
+  baseCredentials: GarageCredentials,
+  accessKeyId: string
+): Promise<string> {
+  const created = await adminPost('/v2/CreateBucket', {});
+  const bucketId = readString(created, ['id', 'bucketId', 'bucket_id']);
+
+  if (!bucketId) {
+    throw new Error('Garage hidden bucket was created without an ID');
+  }
+
+  await adminPost('/v2/AllowBucketKey', {
+    bucketId,
+    accessKeyId,
+    permissions: { owner: false, read: true, write: true }
+  });
+
+  return bucketId;
+}
+
+export function hasHiddenBucketId(): boolean {
+  return Boolean(process.env.S3_TEST_HIDDEN_BUCKET_ID);
+}
+
+export function requireHiddenBucketId(): string {
+  const id = process.env.S3_TEST_HIDDEN_BUCKET_ID;
+
+  if (!id) {
+    throw new Error(
+      'Hidden bucket ID is not available — S3_TEST_HIDDEN_BUCKET_ID is not set. ' +
+        'Run the dev setup or ensure init-garage-s3.sh has run.'
+    );
+  }
+
+  return id;
 }
