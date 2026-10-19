@@ -97,6 +97,21 @@ test.describe('Dashboard bookmarks', () => {
     await expect(page.getByLabel('URL')).toHaveAttribute('aria-invalid', 'true');
   });
 
+  test('accepts internal URLs such as IP addresses and service names', async ({ page }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    await page.getByRole('button', { name: addButton }).click();
+    await page.getByLabel('Name').fill('Trino NodePort');
+    await page.getByLabel('URL').fill('http://10.0.0.5:30443');
+    await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
+
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+    await expect(
+      page.getByLabel('Bookmarks').getByRole('link', { name: 'Trino NodePort' })
+    ).toHaveAttribute('href', 'http://10.0.0.5:30443');
+  });
+
   test('prefills the default name and shows an error when it is cleared', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);
