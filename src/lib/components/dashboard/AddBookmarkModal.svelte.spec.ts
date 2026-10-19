@@ -115,6 +115,33 @@ describe('AddBookmarkModal', () => {
     await expect.element(page.getByRole('dialog', { name: 'Delete bookmark?' })).toBeVisible();
   });
 
+  it('keeps unsaved edits when the delete confirmation is cancelled', async () => {
+    renderModal({ bookmark: savedBookmark });
+    const editDialog = page.getByRole('dialog', { name: 'Edit Bookmark' });
+
+    await editDialog.getByLabelText('Name').fill('Renamed but not saved');
+    await editDialog.getByRole('button', { name: 'Delete' }).click();
+    const confirmDialog = page.getByRole('dialog', { name: 'Delete bookmark?' });
+    await confirmDialog.getByRole('button', { name: 'Cancel' }).click();
+
+    await expect.element(confirmDialog).not.toBeInTheDocument();
+    await expect.element(editDialog.getByLabelText('Name')).toHaveValue('Renamed but not saved');
+    expect(removeBookmark).not.toHaveBeenCalled();
+  });
+
+  it('removes the bookmark and closes both dialogs when deletion is confirmed', async () => {
+    renderModal({ bookmark: savedBookmark });
+
+    await page.getByRole('button', { name: 'Delete' }).click();
+    await page
+      .getByRole('dialog', { name: 'Delete bookmark?' })
+      .getByRole('button', { name: 'Delete' })
+      .click();
+
+    expect(removeBookmark).toHaveBeenCalledWith('b1');
+    await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('preserves the pinned state when editing a bookmark', async () => {
     renderModal({ bookmark: savedBookmark });
 

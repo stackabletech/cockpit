@@ -382,23 +382,30 @@ test.describe('Dashboard bookmarks', () => {
     await page.locator('dialog[open]').getByRole('button', { name: 'Add Bookmark' }).click();
 
     await page.getByRole('button', { name: 'Edit bookmark' }).click();
-    await expect(page.locator('dialog[open]')).toBeVisible();
+    const editDialog = page.getByRole('dialog', { name: 'Edit Bookmark' });
+    const confirmDialog = page.getByRole('dialog', { name: 'Delete bookmark?' });
+    await expect(editDialog).toBeVisible();
 
-    // Delete opens a confirmation dialog
-    await page.locator('dialog[open]').getByRole('button', { name: 'Delete' }).click();
-    await expect(
-      page.locator('dialog[open]').getByRole('heading', { name: 'Delete bookmark?' })
-    ).toBeVisible();
+    // Unsaved edits survive cancelling the confirmation, by button and by Escape
+    await editDialog.getByLabel('Name').fill('Renamed but not saved');
+    await editDialog.getByRole('button', { name: 'Delete' }).click();
+    await expect(confirmDialog).toBeVisible();
+    await confirmDialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(confirmDialog).toBeHidden();
+    await expect(editDialog.getByLabel('Name')).toHaveValue('Renamed but not saved');
 
-    // Cancelling the confirmation returns to the edit dialog
-    await page.locator('dialog[open]').getByRole('button', { name: 'Cancel' }).click();
-    await expect(
-      page.locator('dialog[open]').getByRole('heading', { name: 'Edit Bookmark' })
-    ).toBeVisible();
+    await editDialog.getByRole('button', { name: 'Delete' }).click();
+    await expect(confirmDialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(confirmDialog).toBeHidden();
+    await expect(editDialog).toBeVisible();
+    await expect(editDialog.getByLabel('Name')).toHaveValue('Renamed but not saved');
 
-    // Delete again and confirm
-    await page.locator('dialog[open]').getByRole('button', { name: 'Delete' }).click();
-    await page.locator('dialog[open]').getByRole('button', { name: 'Delete' }).click();
+    // Delete again and confirm: both dialogs close and the bookmark is gone
+    await editDialog.getByRole('button', { name: 'Delete' }).click();
+    await confirmDialog.getByRole('button', { name: 'Delete' }).click();
+    await expect(confirmDialog).toBeHidden();
+    await expect(editDialog).toBeHidden();
 
     await expect(page.getByLabel('Bookmarks').getByText('Dashboards')).not.toBeVisible();
   });

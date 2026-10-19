@@ -121,15 +121,14 @@
     open = false;
   }
 
+  // The confirmation opens on top of the edit dialog, so cancelling (or Escape)
+  // returns to the form with the user's unsaved edits intact.
   function handleDeleteClick() {
-    open = false;
     confirmDeleteOpen = true;
   }
 
   function handleDeleteCancel() {
     confirmDeleteOpen = false;
-    initForm(bookmark);
-    open = true;
   }
 
   function handleDeleteConfirm() {
@@ -137,6 +136,7 @@
     removeBookmark(bookmark.id);
     confirmDeleteOpen = false;
     resetForm();
+    open = false;
   }
 </script>
 
