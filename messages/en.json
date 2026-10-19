@@ -481,7 +481,6 @@
   "bookmark_env_placeholder": "e.g. dev, prod",
   "bookmark_url_label": "URL",
   "bookmark_url_error": "Enter a valid HTTP or HTTPS URL.",
-  "bookmark_pinned_section_title": "Pinned",
   "bookmark_pin_label": "Pin bookmark",
   "bookmark_unpin_label": "Unpin bookmark",
   "bookmark_preview_label": "Preview",

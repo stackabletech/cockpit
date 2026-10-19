@@ -83,7 +83,7 @@
                 <enhanced:img
                   src={product.logo}
                   alt={product.name}
-                  class="size-[38px] rounded-md bg-white object-contain p-1"
+                  class="bg-neutral-content size-[38px] rounded-md object-contain p-1"
                   onerror={handleProductLogoError}
                 />
                 <span

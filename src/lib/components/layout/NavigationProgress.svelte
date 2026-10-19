@@ -1,12 +1,12 @@
 <script lang="ts">
   import { navigating } from '$app/state';
-  import { getNavSections } from '$lib/components/layout/sidebar/nav-items.js';
+  import { getPlatformSection, getToolsSection } from '$lib/components/layout/sidebar/nav-items.js';
   import * as m from '$lib/paraglide/messages.js';
 
   // Show navigation progress bar when navigating between different app roots.
   // Otherwise, add exceptions to this if you want navigation progress inside a specific app.
   const appRoots = $derived(
-    getNavSections({ storageBrowserEnabled: true }).flatMap((section) =>
+    [getPlatformSection(), getToolsSection({ storageBrowserEnabled: true })].flatMap((section) =>
       section.items.map((item) => item.route)
     )
   );

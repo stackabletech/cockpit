@@ -175,7 +175,7 @@
                 <enhanced:img
                   src={product.logo}
                   alt=""
-                  class="size-5 rounded-full bg-white object-contain p-0.5"
+                  class="bg-neutral-content size-5 rounded-full object-contain p-0.5"
                   onerror={handleProductLogoError}
                 />
                 <span
@@ -270,7 +270,7 @@
                 <enhanced:img
                   src={selectedProduct.logo}
                   alt=""
-                  class="size-10 rounded-xl bg-white object-contain p-1"
+                  class="bg-neutral-content size-10 rounded-xl object-contain p-1"
                   onerror={handleProductLogoError}
                 />
                 <span
