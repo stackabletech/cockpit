@@ -1,0 +1,81 @@
+import { page, userEvent } from 'vitest/browser';
+import { describe, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-svelte';
+import CreateModal from './CreateModal.svelte';
+
+async function renderModal(props: Partial<Parameters<typeof render<typeof CreateModal>>[1]> = {}) {
+  const onConfirm = vi.fn();
+  render(CreateModal, { open: true, type: 'file', onConfirm, onCancel: vi.fn(), ...props });
+  const message = document.querySelector<HTMLElement>('.modal-box [aria-live="polite"]')!;
+  const input = page.getByLabelText('Name');
+  // The modal selects the default name a frame after opening; a fill() that
+  // overlaps it only replaces that selection.
+  const el = input.element() as HTMLInputElement;
+  await expect
+    .poll(() => document.activeElement === el && el.selectionStart === 0 && el.selectionEnd! > 0)
+    .toBe(true);
+  return { onConfirm, input, message };
+}
+
+describe('CreateModal', () => {
+  it('explains an invalid name at the input and does not submit it', async () => {
+    const { onConfirm, input, message } = await renderModal();
+
+    await input.fill('x?y.txt');
+
+    await expect.element(message).toHaveTextContent(/without the characters/);
+    await expect.element(input).toHaveAttribute('aria-invalid', 'true');
+    expect(message.id).not.toBe('');
+    await expect.element(input).toHaveAttribute('aria-describedby', message.id);
+    await expect.element(page.getByRole('button', { name: 'Create' })).toBeDisabled();
+
+    await userEvent.keyboard('{Enter}');
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('explains relative path segments and empty names', async () => {
+    const { input, message } = await renderModal({ type: 'folder' });
+
+    await input.fill('a/../b');
+    await expect.element(message).toHaveTextContent(/"\.\." as a path part/);
+
+    await input.fill('   ');
+    await expect.element(message).toHaveTextContent('Enter a name.');
+  });
+
+  it('explains an empty path segment and does not submit it', async () => {
+    const { onConfirm, input, message } = await renderModal({ type: 'folder' });
+
+    for (const name of ['/a', 'a//b', 'a/']) {
+      await input.fill(name);
+      await expect.element(message).toHaveTextContent(/extra "\/"/);
+      await expect.element(input).toHaveAttribute('aria-invalid', 'true');
+    }
+    await expect.element(page.getByRole('button', { name: 'Create' })).toBeDisabled();
+    await userEvent.keyboard('{Enter}');
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    await input.fill('a/b/c');
+    await expect.poll(() => message.textContent?.trim()).toBe('');
+  });
+
+  it('explains a name that makes the key too long', async () => {
+    const { input, message } = await renderModal({ prefix: 'a'.repeat(1000) + '/' });
+
+    await input.fill('b'.repeat(30));
+
+    await expect.element(message).toHaveTextContent(/too long/);
+  });
+
+  it('accepts a valid name inside a folder with characters S3 allows', async () => {
+    const { onConfirm, input, message } = await renderModal({ prefix: 'reports?2024/' });
+
+    await input.fill('  summary.txt ');
+
+    await expect.poll(() => message.textContent?.trim()).toBe('');
+    await expect.element(input).not.toHaveAttribute('aria-invalid');
+    await expect.element(input).not.toHaveAttribute('aria-describedby');
+    await page.getByRole('button', { name: 'Create' }).click();
+    expect(onConfirm).toHaveBeenCalledWith('summary.txt');
+  });
+});

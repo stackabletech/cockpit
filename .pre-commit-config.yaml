@@ -3,6 +3,16 @@ default_language_version:
   node: system
 
 repos:
+  - repo: https://github.com/crate-ci/typos
+    rev: 00f422f3b19c57bc6338715ebfe3316d38768461 # v1.50.3
+    hooks:
+      - id: typos
+        # Drop the upstream default `--write-changes` so the hook only
+        # reports failures instead of writing changes.
+        # Keep `--force-exclude` so the excludes in typos.toml still
+        # apply to the paths the hook is given.
+        args: ['--force-exclude']
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # 6.0.0
     hooks:
@@ -43,27 +53,45 @@ repos:
 
   - repo: local
     hooks:
-      - id: npm-lint
-        name: npm lint (prettier + eslint)
+      # ── Fix variant (runs locally on commit — auto-fixes where possible) ──
+      - id: npm-lint-fix
+        name: npm lint with --fix (prettier + eslint)
         language: system
-        entry: npm run lint
+        entry: npm run lint:fix
         stages: [pre-commit, pre-merge-commit]
         pass_filenames: false
         files: \.(svelte|ts|js|css|html|json|md)$
 
+      # ── Check-only variant (runs in CI — no auto-fix) ──
+      - id: npm-lint
+        name: npm lint check only (prettier + eslint)
+        language: system
+        entry: npm run lint
+        stages: [manual]
+        pass_filenames: false
+        files: \.(svelte|ts|js|css|html|json|md)$
+
+      # ── Shared hooks (same behaviour locally and in CI) ──
       - id: npm-check
         name: npm check (svelte-check)
         language: system
         entry: npm run check
-        stages: [pre-commit, pre-merge-commit]
+        stages: [pre-commit, pre-merge-commit, manual]
         pass_filenames: false
         files: \.(svelte|ts|js)$
+
+      - id: npm-arch-test
+        name: npm arch test (fitness functions)
+        language: system
+        entry: npm run test:arch
+        stages: [pre-commit, pre-merge-commit, manual]
+        pass_filenames: false
 
       - id: helm-lint
         name: helm lint
         language: system
         entry: helm lint deploy/helm/cockpit
-        stages: [pre-commit, pre-merge-commit]
+        stages: [pre-commit, pre-merge-commit, manual]
         pass_filenames: false
         files: ^deploy/helm/
 
@@ -75,7 +103,9 @@ repos:
           helm template test deploy/helm/cockpit
           --set auth.oidc.discoveryUrl=https://stub
           --set auth.oidc.clientId=stub
-          --set auth.oidc.clientSecret.secretKeyRef.name=stub > /dev/null'
-        stages: [pre-commit, pre-merge-commit]
+          --set auth.oidc.clientSecret.secretKeyRef.name=stub
+          --set database.host=stub
+          --set database.password.secretKeyRef.name=stub > /dev/null'
+        stages: [pre-commit, pre-merge-commit, manual]
         pass_filenames: false
         files: ^deploy/helm/

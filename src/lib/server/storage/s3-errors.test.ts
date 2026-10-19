@@ -2,9 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { S3ServiceException } from '@aws-sdk/client-s3';
 import { mapS3ErrorToHttp } from './s3-errors.js';
 
-vi.mock('$lib/server/logging', () => ({
-  logger: { child: () => ({ warn: vi.fn(), info: vi.fn(), debug: vi.fn() }) }
-}));
+vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 function makeS3Error(name: string, httpStatusCode?: number): S3ServiceException {
   const err = new S3ServiceException({

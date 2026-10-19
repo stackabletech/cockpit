@@ -2,13 +2,20 @@ import { defineConfig } from '@playwright/test';
 import path from 'path';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4173';
+const appPort = new URL(baseURL).port || '80';
 const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 export default defineConfig({
+  // Each worker logs in as its own user (see e2e/support/fixtures.ts), so
+  // tests can run in parallel without racing on per-user server-side state.
+  fullyParallel: true,
+  // CI runners have few cores; keep their load low.
+  workers: process.env.CI ? 2 : 4,
   testDir: path.join(import.meta.dirname, 'e2e'),
   outputDir: path.join(import.meta.dirname, 'e2e/test-results'),
   globalSetup: path.join(import.meta.dirname, 'e2e/support/global-setup.ts'),
-  timeout: 60_000,
+  timeout: 20_000,
+  globalTimeout: 40 * 60_000,
   retries: 2,
   expect: {
     timeout: 10_000
@@ -16,93 +23,46 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'retain-on-failure',
-    video: 'retain-on-failure'
+    video: 'retain-on-failure',
+    screenshot: 'only-on-failure'
   },
   webServer: [
     {
       command: 'npx tsx e2e/support/start-mock-oidc.ts',
-      url: 'http://localhost:9090/.well-known/openid-configuration',
-      reuseExistingServer: true
+      url: 'http://localhost:19090/.well-known/openid-configuration',
+      reuseExistingServer: false
     },
     {
       command: 'npx tsx e2e/support/start-mock-trino.ts',
-      url: 'http://localhost:8080',
-      reuseExistingServer: true
+      url: 'http://localhost:18080',
+      reuseExistingServer: false
     },
     {
-      command: 'PORT=4173 node --env-file=.env.test build',
+      command: 'npx tsx e2e/support/start-app.ts',
+      env: { PORT: appPort },
       url: baseURL,
-      reuseExistingServer: true
+      timeout: 300_000,
+      // App logs drown out the test output; set E2E_SERVER_LOGS=1 to see them.
+      stdout: process.env.E2E_SERVER_LOGS ? 'pipe' : 'ignore',
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 30_000 },
+      reuseExistingServer: false
     }
   ],
   projects: [
-    // Each browser project gets its own auth setup so that parallel workers
-    // log in as different users. This prevents cross-worker races on shared
-    // server-side state (e.g. the in-memory Trino connection store).
-    {
-      name: 'setup-chromium',
-      testMatch: /auth\.setup\.ts/,
-      use: {
-        browserName: 'chromium',
-        viewport: { width: 1280, height: 720 }
-      }
-    },
-    {
-      name: 'setup-firefox',
-      testMatch: /auth\.setup\.ts/,
-      use: {
-        browserName: 'firefox',
-        viewport: { width: 1280, height: 720 }
-      }
-    },
-    ...(!process.env.CI
-      ? [
-          {
-            name: 'setup-mobile',
-            testMatch: /auth\.setup\.ts/,
-            use: {
-              browserName: 'chromium' as const,
-              viewport: { width: 393, height: 851 }
-            }
-          }
-        ]
-      : []),
     {
       name: 'firefox',
       use: {
         browserName: 'firefox',
-        viewport: { width: 1280, height: 720 },
-        storageState: 'e2e/.auth/user-setup-firefox.json'
-      },
-      dependencies: ['setup-firefox']
+        viewport: { width: 1280, height: 720 }
+      }
     },
     {
       name: 'chromium',
       use: {
         browserName: 'chromium',
         viewport: { width: 1280, height: 720 },
-        storageState: 'e2e/.auth/user-setup-chromium.json',
         ...(chromiumExecutablePath && { launchOptions: { executablePath: chromiumExecutablePath } })
-      },
-      dependencies: ['setup-chromium']
-    },
-    ...(!process.env.CI
-      ? [
-          {
-            name: 'mobile',
-            use: {
-              browserName: 'chromium' as const,
-              viewport: { width: 393, height: 851 },
-              isMobile: true,
-              hasTouch: true,
-              storageState: 'e2e/.auth/user-setup-mobile.json',
-              ...(chromiumExecutablePath && {
-                launchOptions: { executablePath: chromiumExecutablePath }
-              })
-            },
-            dependencies: ['setup-mobile']
-          }
-        ]
-      : [])
+      }
+    }
   ]
 });
