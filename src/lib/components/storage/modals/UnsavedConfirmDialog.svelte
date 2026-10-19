@@ -13,7 +13,7 @@
   let { open = $bindable(false), onSave, onDiscard, onCancel }: Props = $props();
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open>
   <div class="modal-box max-w-sm">
     <h3 class="mb-3 flex items-center gap-2 text-lg font-bold">
       <IconWarningRounded class="text-warning size-5 shrink-0" aria-hidden="true" />

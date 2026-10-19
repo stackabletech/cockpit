@@ -8,14 +8,11 @@
   import IconArrowBack from 'virtual:icons/material-symbols/arrow-back';
   import * as m from '$lib/paraglide/messages.js';
   import type { ConnectionListItem } from '$lib/storage/connection-store.svelte.js';
+  import { connectionLabel } from '$lib/storage/display-helpers.js';
   import DeleteConnectionModal from '$lib/components/storage/modals/DeleteConnectionModal.svelte';
   import type { SavedConnection } from '$lib/storage/connection-id-header.js';
 
   const connections = $derived<ConnectionListItem[]>(page.data.connections ?? []);
-
-  function connectionLabel(conn: ConnectionListItem): string {
-    return conn.name || conn.endpoint || 'S3';
-  }
 
   // Context menu state
   let menuConn: ConnectionListItem | null = $state(null);

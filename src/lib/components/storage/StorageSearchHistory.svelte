@@ -49,7 +49,7 @@
   {/if}
 </section>
 
-<Modal bind:open={confirmOpen} class="modal">
+<Modal bind:open={confirmOpen}>
   <div class="modal-box max-w-sm">
     <h3 class="mb-3 flex items-center gap-2 text-lg font-bold">
       <IconDelete class="text-error size-5 shrink-0" aria-hidden="true" />

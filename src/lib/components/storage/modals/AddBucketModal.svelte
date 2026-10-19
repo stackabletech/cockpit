@@ -98,7 +98,7 @@
   );
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open>
   <div class="modal-box w-full max-w-sm">
     <h2 class="mb-1 text-lg font-semibold">{m.storage_add_bucket_title()}</h2>
     <p class="text-base-content/60 mb-5 text-sm">{m.storage_add_bucket_subtitle()}</p>

@@ -1,14 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   storageHref,
-  pinnedLabel,
-  pinnedHref,
-  fileName,
   fileLocation,
   fileHref,
-  locationName,
+  locationLabel,
   locationPath,
-  locationHref
+  locationHref,
+  connectionLabel
 } from './display-helpers.js';
 import type { PinnedLocation, RecentFile, RecentLocation } from './types.js';
 
@@ -47,10 +45,10 @@ describe('storageHref', () => {
   });
 });
 
-describe('pinnedLabel', () => {
+describe('locationLabel (pinned location)', () => {
   it('returns bucket name when no prefix', () => {
     const pin: PinnedLocation = { connectionId: 'c1', bucket: 'my-bucket', prefix: '' };
-    expect(pinnedLabel(pin)).toBe('my-bucket');
+    expect(locationLabel(pin)).toBe('my-bucket');
   });
 
   it('returns last segment of prefix', () => {
@@ -59,30 +57,16 @@ describe('pinnedLabel', () => {
       bucket: 'my-bucket',
       prefix: 'a/b/deep-path'
     };
-    expect(pinnedLabel(pin)).toBe('deep-path');
+    expect(locationLabel(pin)).toBe('deep-path');
   });
 });
 
-describe('pinnedHref', () => {
+describe('locationHref (pinned location)', () => {
   it('generates href from pinned location', () => {
     const pin: PinnedLocation = { connectionId: 'c1', bucket: 'my-bucket', prefix: 'some/path' };
-    expect(pinnedHref('s3.example.com', pin)).toBe(
+    expect(locationHref('s3.example.com', pin)).toBe(
       '/storage/browse/s3.example.com/my-bucket/some/path'
     );
-  });
-});
-
-describe('fileName', () => {
-  it('extracts filename from key', () => {
-    expect(fileName('path/to/file.txt')).toBe('file.txt');
-  });
-
-  it('handles root-level key', () => {
-    expect(fileName('file.txt')).toBe('file.txt');
-  });
-
-  it('handles trailing slash', () => {
-    expect(fileName('path/to/dir/')).toBe('dir');
   });
 });
 
@@ -134,7 +118,7 @@ describe('fileHref', () => {
   });
 });
 
-describe('locationName', () => {
+describe('locationLabel (recent location)', () => {
   it('returns bucket name when no prefix', () => {
     const loc: RecentLocation = {
       bucket: 'my-bucket',
@@ -142,7 +126,7 @@ describe('locationName', () => {
       visitedAt: '',
       connectionId: 'c1'
     };
-    expect(locationName(loc)).toBe('my-bucket');
+    expect(locationLabel(loc)).toBe('my-bucket');
   });
 
   it('returns last prefix segment', () => {
@@ -152,7 +136,7 @@ describe('locationName', () => {
       visitedAt: '',
       connectionId: 'c1'
     };
-    expect(locationName(loc)).toBe('c');
+    expect(locationLabel(loc)).toBe('c');
   });
 });
 
@@ -189,5 +173,21 @@ describe('locationHref', () => {
     expect(locationHref('s3.example.com', loc)).toBe(
       '/storage/browse/s3.example.com/my-bucket/some/path'
     );
+  });
+});
+
+describe('connectionLabel', () => {
+  it('prefers the connection name', () => {
+    expect(connectionLabel({ name: 'Prod', endpoint: 'https://s3.example.com' })).toBe('Prod');
+  });
+
+  it('falls back to the endpoint', () => {
+    expect(connectionLabel({ name: '', endpoint: 'https://s3.example.com' })).toBe(
+      'https://s3.example.com'
+    );
+  });
+
+  it('falls back to S3 without name or endpoint', () => {
+    expect(connectionLabel({ name: '', endpoint: null })).toBe('S3');
   });
 });

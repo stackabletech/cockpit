@@ -1,11 +1,7 @@
 import type { RequestHandler } from './$types';
 import { createStorageProvider, requireObjectKey } from '$lib/server/storage/request-context.js';
 import { contentDispositionFilename } from '$lib/server/storage/content-disposition.js';
-
-/** Derive the bare filename from a (possibly path-prefixed) object key. */
-function filenameFromKey(key: string): string {
-  return key.split('/').filter(Boolean).pop() ?? key;
-}
+import { keyToName } from '$lib/storage/utils.js';
 
 /**
  * GET /api/storage/download?bucket=<bucket>&key=<object-key>
@@ -45,7 +41,7 @@ export const GET: RequestHandler = async (event) => {
   const { readable, writable } = new TransformStream();
   download.stream.pipeTo(writable, { signal: abortController.signal }).catch(() => {});
 
-  const filename = filenameFromKey(key);
+  const filename = keyToName(key);
   const contentDisposition = contentDispositionFilename(filename);
 
   const headers: Record<string, string> = {

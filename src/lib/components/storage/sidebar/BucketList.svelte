@@ -16,7 +16,7 @@
   import FloatingMenu from '../shared/FloatingMenu.svelte';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
   import { parseStorageDrop, canStorageDrop } from '$lib/storage/drag-handlers.js';
-  import { pinnedLabel, pinnedHref } from '$lib/storage/display-helpers.js';
+  import { locationLabel, locationHref } from '$lib/storage/display-helpers.js';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
 
@@ -201,9 +201,9 @@
             {@const active = isPinnedActive(pin)}
             <li role="none" class="group relative">
               <!-- eslint-disable svelte/no-navigation-without-resolve -->
-              <TooltipTrigger text={pinnedLabel(pin)} orientation="right">
+              <TooltipTrigger text={locationLabel(pin)} orientation="right">
                 <a
-                  href={pinnedHref(storage.connectionHostname, pin)}
+                  href={locationHref(storage.connectionHostname, pin)}
                   data-sveltekit-preload-data="off"
                   class="
                     hover:bg-base-200 flex w-full min-w-0 items-center gap-2 px-3 py-1.5
@@ -221,7 +221,7 @@
                   {:else}
                     <IconFolderOutline class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
                   {/if}
-                  <span class="truncate">{pinnedLabel(pin)}</span>
+                  <span class="truncate">{locationLabel(pin)}</span>
                 </a>
               </TooltipTrigger>
               <TooltipTrigger text={m.storage_more_options()} orientation="right">
@@ -339,7 +339,7 @@
     </FloatingMenu>
 
     <!-- Disconnect confirmation modal -->
-    <Modal bind:open={disconnectConfirmOpen} class="modal">
+    <Modal bind:open={disconnectConfirmOpen}>
       <div class="modal-box max-w-sm">
         <h3 class="mb-3 flex items-center gap-2 text-lg font-bold">
           <IconPowerOff class="text-error size-5 shrink-0" aria-hidden="true" />

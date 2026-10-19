@@ -35,7 +35,7 @@
   const hasSizes = $derived(items.some((i) => !i.isDirectory && i.size !== undefined));
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open>
   <div class="modal-box max-w-md">
     <h3 class="mb-1 flex items-center gap-2 text-lg font-bold">
       <IconDriveFileMove class="size-5 shrink-0" aria-hidden="true" />

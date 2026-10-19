@@ -1,10 +1,10 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import IconWarning from 'virtual:icons/material-symbols/warning';
   import IconStorage from 'virtual:icons/material-symbols/storage';
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
   import * as m from '$lib/paraglide/messages.js';
+  import StorageErrorPanel from '$lib/components/storage/shared/StorageErrorPanel.svelte';
 
   function safeDecode(value: string): string {
     try {
@@ -74,44 +74,5 @@
     {/if}
   </div>
 
-  <div
-    class="
-      flex flex-1 flex-col items-center justify-center gap-6 p-8 text-center
-    "
-  >
-    <div
-      class="
-        bg-error/10 text-error flex size-20 items-center justify-center
-        rounded-full
-      "
-      aria-hidden="true"
-    >
-      <IconWarning class="size-10" aria-hidden="true" />
-    </div>
-
-    <div>
-      <p
-        class="
-          text-base-content/50 mb-1 text-sm font-medium tracking-widest uppercase
-        "
-      >
-        {m.storage_error_title()}
-      </p>
-      <h1 class="text-base-content text-3xl font-bold">
-        {page.status}
-      </h1>
-      <p class="text-base-content/70 mt-2 max-w-sm text-sm">
-        {errorMessage ?? page.error?.message ?? ''}
-      </p>
-    </div>
-
-    <div class="flex flex-wrap items-center justify-center gap-3">
-      <a href={resolve('/(app)/storage')} class="btn btn-sm btn-primary">
-        {m.storage_error_back_to_storage()}
-      </a>
-      <button type="button" class="btn btn-ghost btn-sm" onclick={() => history.back()}>
-        {m.storage_error_go_back()}
-      </button>
-    </div>
-  </div>
+  <StorageErrorPanel status={page.status} message={errorMessage ?? page.error?.message ?? ''} />
 </div>

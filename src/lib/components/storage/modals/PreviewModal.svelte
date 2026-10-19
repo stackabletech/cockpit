@@ -776,7 +776,7 @@
   }
 </script>
 
-<Modal bind:open {closeguard} class="modal">
+<Modal bind:open {closeguard}>
   <div
     class="modal-box flex flex-col p-0 transition-none {maximized
       ? 'h-dvh max-h-dvh w-screen max-w-none rounded-none'
