@@ -126,7 +126,7 @@
 {/snippet}
 
 {#snippet bookmarkItem(bookmark: Bookmark)}
-  <li class="group relative">
+  <li>
     <TooltipTrigger text={collapsed ? bookmark.name : undefined} orientation="right">
       <a
         href={bookmark.url}
@@ -136,7 +136,7 @@
         aria-label={collapsed ? bookmark.name : undefined}
         class="text-base-content/70 hover:bg-base-content/5 hover:text-base-content flex min-h-11 items-center gap-3 rounded-lg px-3 py-2
           text-sm font-medium transition-colors
-          {collapsed ? 'justify-center' : 'pr-9'}"
+          {collapsed ? 'justify-center' : ''}"
       >
         <span class="flex shrink-0 items-center">
           {@render bookmarkIcon(bookmark)}
