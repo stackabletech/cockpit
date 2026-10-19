@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from '../support/fixtures.js';
 import { waitForHydration, waitForQueryComplete, setTabSql } from '../support/helpers';
 import { mockMarker, mockTrinoStatements, releaseMockTrino } from '../support/mock-trino';
 

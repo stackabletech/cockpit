@@ -1,4 +1,4 @@
-import { test, expect, type APIRequestContext } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '../support/fixtures.js';
 import { randomUUID } from 'node:crypto';
 import { mockMarker, mockTrinoStatements, releaseMockTrino } from '../support/mock-trino';
 
