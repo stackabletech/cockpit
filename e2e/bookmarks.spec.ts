@@ -112,6 +112,43 @@ test.describe('Dashboard bookmarks', () => {
     ).toHaveAttribute('href', 'http://10.0.0.5:30443');
   });
 
+  test('truncates long names and hostnames instead of overlapping the card buttons', async ({
+    page
+  }) => {
+    const longName = 'Very long bookmark name '.repeat(6).trim();
+    const longHost = `${'very-long-subdomain-'.repeat(5)}example.com`;
+    await page.addInitScript(
+      ({ name, host }) => {
+        localStorage.setItem(
+          'dashboard_bookmarks',
+          JSON.stringify([
+            {
+              id: 'b1',
+              productId: 'superset',
+              name,
+              environment: '',
+              url: `https://${host}/`,
+              pinned: false,
+              createdAt: new Date().toISOString()
+            }
+          ])
+        );
+      },
+      { name: longName, host: longHost }
+    );
+
+    await page.goto('/');
+    await waitForHydration(page);
+
+    const section = page.getByLabel('Bookmarks');
+    const starBox = await section.getByRole('button', { name: 'Pin bookmark' }).boundingBox();
+    const titleBox = await section.getByRole('link', { name: longName }).boundingBox();
+    const hostBox = await section.getByText(longHost).boundingBox();
+
+    expect(titleBox!.x + titleBox!.width).toBeLessThanOrEqual(starBox!.x);
+    expect(hostBox!.x + hostBox!.width).toBeLessThanOrEqual(starBox!.x);
+  });
+
   test('prefills the default name and shows an error when it is cleared', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);

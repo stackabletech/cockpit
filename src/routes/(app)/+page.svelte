@@ -92,7 +92,7 @@
                   href={bookmark.url}
                   target="_blank"
                   rel="external noopener noreferrer"
-                  class="text-base-content truncate text-[13.5px] leading-tight font-bold"
+                  class="text-base-content block truncate text-[13.5px] leading-tight font-bold"
                 >
                   {bookmark.name}
                   {#if bookmark.environment}
@@ -116,7 +116,7 @@
                 {/if}
               </div>
               <div class="min-w-0">
-                <span class="text-base-content/70 truncate font-mono text-[11.5px]">
+                <span class="text-base-content/70 block truncate font-mono text-[11.5px]">
                   {extractHostname(bookmark.url)}
                 </span>
               </div>
