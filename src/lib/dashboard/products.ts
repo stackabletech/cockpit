@@ -4,7 +4,10 @@ export interface Product {
   id: string;
   name: string;
   initials: string;
+  /** Brand colour, used as the background of the initials badge. */
   color: string;
+  /** Text colour for the initials badge; chosen for WCAG AA contrast on `color`. */
+  textColor: '#000000' | '#FFFFFF';
   logo: Picture | null;
   defaultName: string;
 }
@@ -33,6 +36,7 @@ export const PRODUCTS: Product[] = [
     name: 'Trino',
     initials: 'TR',
     color: '#DD0031',
+    textColor: '#FFFFFF',
     logo: LOGOS['trino'],
     defaultName: 'SQL Editor'
   },
@@ -41,6 +45,7 @@ export const PRODUCTS: Product[] = [
     name: 'Superset',
     initials: 'SU',
     color: '#1FA7E0',
+    textColor: '#000000',
     logo: LOGOS['superset'],
     defaultName: 'Dashboards'
   },
@@ -49,6 +54,7 @@ export const PRODUCTS: Product[] = [
     name: 'Airflow',
     initials: 'AF',
     color: '#017CEE',
+    textColor: '#000000',
     logo: LOGOS['airflow'],
     defaultName: 'Pipelines'
   },
@@ -57,6 +63,7 @@ export const PRODUCTS: Product[] = [
     name: 'NiFi',
     initials: 'NF',
     color: '#728E2B',
+    textColor: '#000000',
     logo: LOGOS['nifi'],
     defaultName: 'Data Flow'
   },
@@ -65,6 +72,7 @@ export const PRODUCTS: Product[] = [
     name: 'Druid',
     initials: 'DR',
     color: '#29F1FB',
+    textColor: '#000000',
     logo: LOGOS['druid'],
     defaultName: 'Analytics'
   },
@@ -73,6 +81,7 @@ export const PRODUCTS: Product[] = [
     name: 'OpenSearch',
     initials: 'OS',
     color: '#005EB8',
+    textColor: '#FFFFFF',
     logo: LOGOS['opensearch'],
     defaultName: 'Search'
   },
@@ -81,6 +90,7 @@ export const PRODUCTS: Product[] = [
     name: 'HDFS',
     initials: 'HF',
     color: '#FEDB5F',
+    textColor: '#000000',
     logo: LOGOS['hdfs'],
     defaultName: 'Storage'
   },
@@ -89,6 +99,7 @@ export const PRODUCTS: Product[] = [
     name: 'HBase',
     initials: 'HB',
     color: '#C02228',
+    textColor: '#FFFFFF',
     logo: LOGOS['hbase'],
     defaultName: 'Database'
   },
@@ -97,6 +108,7 @@ export const PRODUCTS: Product[] = [
     name: 'Spark',
     initials: 'SP',
     color: '#E25A1C',
+    textColor: '#000000',
     logo: LOGOS['spark'],
     defaultName: 'Processing'
   },
@@ -105,6 +117,7 @@ export const PRODUCTS: Product[] = [
     name: 'Custom Link',
     initials: 'CL',
     color: '#64748B',
+    textColor: '#FFFFFF',
     logo: null,
     defaultName: ''
   }
@@ -112,15 +125,4 @@ export const PRODUCTS: Product[] = [
 
 export function getProduct(productId: string): Product {
   return PRODUCTS.find((product) => product.id === productId) ?? PRODUCTS[PRODUCTS.length - 1];
-}
-
-export function handleProductLogoError(event: Event): void {
-  const image = event.currentTarget as HTMLImageElement;
-  image.style.display = 'none';
-
-  const fallback = image.nextElementSibling;
-  if (fallback) {
-    fallback.classList.remove('hidden');
-    fallback.classList.add('flex');
-  }
 }

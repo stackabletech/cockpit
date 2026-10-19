@@ -5,7 +5,8 @@
   import IconStarOutline from 'virtual:icons/material-symbols/star-outline';
   import AddBookmarkModal from '$lib/components/dashboard/AddBookmarkModal.svelte';
   import { getBookmarks, togglePinBookmark } from '$lib/dashboard/bookmarks.svelte.js';
-  import { getProduct, handleProductLogoError } from '$lib/dashboard/products';
+  import { getProduct } from '$lib/dashboard/products';
+  import ProductIcon from '$lib/components/dashboard/ProductIcon.svelte';
   import type { Bookmark } from '$lib/dashboard/types';
 
   let addModalOpen = $state(false);
@@ -73,35 +74,17 @@
         {#each bookmarks as bookmark (bookmark.id)}
           {@const product = getProduct(bookmark.productId)}
           <div class="border-base-300 bg-base-100 flex items-center gap-3 rounded-lg border p-3">
+            <!-- Mouse shortcut only: duplicates the title link, so it is hidden from
+                 assistive technology and the tab order. -->
             <a
               href={bookmark.url}
               target="_blank"
               rel="external noopener noreferrer"
               class="shrink-0"
+              tabindex="-1"
+              aria-hidden="true"
             >
-              {#if product.logo}
-                <enhanced:img
-                  src={product.logo}
-                  alt={product.name}
-                  class="bg-neutral-content size-[38px] rounded-md object-contain p-1"
-                  onerror={handleProductLogoError}
-                />
-                <span
-                  class="hidden size-[38px] items-center justify-center rounded-md font-mono text-xs font-bold text-white"
-                  style="background-color: {product.color}"
-                  aria-hidden="true"
-                >
-                  {product.initials}
-                </span>
-              {:else}
-                <span
-                  class="flex size-[38px] items-center justify-center rounded-md font-mono text-xs font-bold text-white"
-                  style="background-color: {product.color}"
-                  aria-hidden="true"
-                >
-                  {product.initials}
-                </span>
-              {/if}
+              <ProductIcon {product} size="md" />
             </a>
             <div class="min-w-0 flex-1">
               <div class="min-w-0">

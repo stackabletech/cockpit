@@ -12,17 +12,25 @@ function loadBookmarks(): Bookmark[] {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return [];
-    const items = JSON.parse(raw);
-    const parsed = bookmarkSchema.array().safeParse(items);
-    return parsed.success ? parsed.data : [];
+    const items: unknown = JSON.parse(raw);
+    if (!Array.isArray(items)) return [];
+    // Validate entries one by one so a single invalid entry does not discard
+    // (and, on the next save, overwrite) all other bookmarks.
+    return items.flatMap((item) => {
+      const parsed = bookmarkSchema.safeParse(item);
+      return parsed.success ? [parsed.data] : [];
+    });
   } catch {
     return [];
   }
 }
 
 function saveBookmarks(items: Bookmark[]): void {
-  if (browser) {
+  if (!browser) return;
+  try {
     localStorage.setItem(LS_KEY, JSON.stringify(items));
+  } catch {
+    // Storage blocked or full: bookmarks stay in memory for this session.
   }
 }
 

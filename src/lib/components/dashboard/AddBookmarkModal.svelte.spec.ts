@@ -1,5 +1,5 @@
 import { page } from 'vitest/browser';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import AddBookmarkModal from './AddBookmarkModal.svelte';
 import type { Bookmark } from '$lib/dashboard/types';
@@ -26,6 +26,10 @@ const renderModal = (props: Record<string, unknown> = {}) =>
 const pinCheckbox = () => page.getByRole('checkbox', { name: 'Pin bookmark' });
 
 describe('AddBookmarkModal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('stores pinned: true when the pin checkbox is checked', async () => {
     renderModal();
 
@@ -49,13 +53,40 @@ describe('AddBookmarkModal', () => {
     expect(addBookmark).toHaveBeenCalledWith(expect.objectContaining({ pinned: false }));
   });
 
-  it('disables submission for a malformed URL without throwing', async () => {
+  it('shows an error instead of saving a malformed URL', async () => {
     renderModal();
 
     await page.getByLabelText('Name').fill('Private Dashboard');
     await page.getByLabelText('URL').fill('not a URL');
+    await page.getByRole('button', { name: 'Add Bookmark' }).click();
 
-    await expect.element(page.getByRole('button', { name: 'Add Bookmark' })).toBeDisabled();
+    await expect.element(page.getByText('Enter a valid HTTP or HTTPS URL.')).toBeVisible();
+    await expect.element(page.getByLabelText('URL')).toHaveAttribute('aria-invalid', 'true');
+    expect(addBookmark).not.toHaveBeenCalled();
+  });
+
+  it('shows the URL error when leaving the field with a malformed URL', async () => {
+    renderModal();
+
+    await page.getByLabelText('URL').fill('superset.corp');
+    await page.getByLabelText('Name').click();
+
+    await expect.element(page.getByText('Enter a valid HTTP or HTTPS URL.')).toBeVisible();
+  });
+
+  it('prefills the default name of the preselected product', async () => {
+    renderModal();
+
+    await expect.element(page.getByLabelText('Name')).toHaveValue('SQL Editor');
+  });
+
+  it('refills the default name on product switch after the name was cleared', async () => {
+    renderModal();
+
+    await page.getByLabelText('Name').fill('');
+    await page.getByRole('button', { name: 'Superset' }).click();
+
+    await expect.element(page.getByLabelText('Name')).toHaveValue('Dashboards');
   });
 
   it('preserves the pinned state when editing a bookmark', async () => {

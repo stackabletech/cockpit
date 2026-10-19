@@ -10,7 +10,8 @@
   import type { NavItem } from '$lib/types/navigation.js';
   import { getPlatformSection, getToolsSection } from './nav-items.js';
   import { getBookmarks } from '$lib/dashboard/bookmarks.svelte.js';
-  import { getProduct, handleProductLogoError } from '$lib/dashboard/products';
+  import { getProduct } from '$lib/dashboard/products';
+  import ProductIcon from '$lib/components/dashboard/ProductIcon.svelte';
   import type { Bookmark } from '$lib/dashboard/types';
   import stackableLogo from '$lib/logos/stackable.svg?enhanced';
   import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
@@ -45,7 +46,11 @@
 
   $effect(() => {
     if (!browser) return;
-    localStorage.setItem('sidebar_tools_open', String(toolsOpen));
+    try {
+      localStorage.setItem('sidebar_tools_open', String(toolsOpen));
+    } catch {
+      // Storage blocked or full: the state only lasts for this session.
+    }
   });
 
   // Explicitly derive currentPath so Svelte 5 tracks page.url.pathname
@@ -117,27 +122,7 @@
 
 {#snippet bookmarkIcon(bookmark: Bookmark)}
   {@const product = getProduct(bookmark.productId)}
-  {#if product.logo}
-    <enhanced:img
-      src={product.logo}
-      alt={product.name}
-      class="bg-neutral-content size-5 shrink-0 rounded-full object-contain p-0.5"
-      onerror={handleProductLogoError}
-    />
-    <span
-      class="hidden size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
-      style="background-color: {product.color}"
-    >
-      {product.initials}
-    </span>
-  {:else}
-    <span
-      class="flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
-      style="background-color: {product.color}"
-    >
-      {product.initials}
-    </span>
-  {/if}
+  <ProductIcon {product} alt={product.name} />
 {/snippet}
 
 {#snippet bookmarkItem(bookmark: Bookmark)}

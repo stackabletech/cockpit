@@ -90,10 +90,26 @@ test.describe('Dashboard bookmarks', () => {
     await page.getByRole('button', { name: addButton }).click();
     await page.getByLabel('Name').fill('Unsafe link');
     await page.getByLabel('URL').fill('javascript:alert(1)');
+    await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
 
-    await expect(
-      page.locator('dialog[open]').getByRole('button', { name: addButton })
-    ).toBeDisabled();
+    await expect(page.locator('dialog[open]')).toBeVisible();
+    await expect(page.getByText('Enter a valid HTTP or HTTPS URL.')).toBeVisible();
+    await expect(page.getByLabel('URL')).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  test('prefills the default name and shows an error when it is cleared', async ({ page }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    await page.getByRole('button', { name: addButton }).click();
+    await expect(page.getByLabel('Name')).toHaveValue('SQL Editor');
+
+    await page.getByLabel('Name').fill('');
+    await page.getByLabel('URL').fill('https://trino.example.com');
+    await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
+
+    await expect(page.getByText('Enter a name.')).toBeVisible();
+    await expect(page.getByLabel('Name')).toBeFocused();
   });
 
   test('adds a bookmark and shows it on the dashboard', async ({ page }) => {
@@ -126,7 +142,9 @@ test.describe('Dashboard bookmarks', () => {
 
     const bookmarkSection = page.getByLabel('Bookmarks');
     const titleLink = bookmarkSection.getByRole('link', { name: 'Dashboards' });
-    const imageLink = bookmarkSection.getByRole('link', { name: 'Trino' });
+    // The image link duplicates the title link and is hidden from assistive technology.
+    await expect(bookmarkSection.getByRole('link', { name: 'Trino' })).toHaveCount(0);
+    const imageLink = bookmarkSection.locator('a[aria-hidden="true"]');
 
     await expect(titleLink).toHaveAttribute('href', 'https://superset.example.com');
     await expect(titleLink).toHaveAttribute('target', '_blank');

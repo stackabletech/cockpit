@@ -1,11 +1,7 @@
 <script lang="ts">
   import Modal from '$lib/components/Modal.svelte';
-  import {
-    getProduct,
-    handleProductLogoError,
-    PRODUCTS,
-    type Product
-  } from '$lib/dashboard/products';
+  import { getProduct, PRODUCTS, type Product } from '$lib/dashboard/products';
+  import ProductIcon from './ProductIcon.svelte';
   import { addBookmark, removeBookmark, updateBookmark } from '$lib/dashboard/bookmarks.svelte.js';
   import { bookmarkFormSchema, type Bookmark } from '$lib/dashboard/types';
   import * as m from '$lib/paraglide/messages.js';
@@ -26,6 +22,7 @@
   let pinned = $state(false);
   let confirmDeleteOpen = $state(false);
   let wasOpen = $state(false);
+  let nameError = $state(false);
   let urlError = $state(false);
 
   let uid = $props.id();
@@ -34,11 +31,12 @@
 
   function resetForm() {
     selectedProduct = PRODUCTS[0];
-    name = '';
+    name = PRODUCTS[0].defaultName;
     userEditedName = false;
     environment = '';
     url = '';
     pinned = false;
+    nameError = false;
     urlError = false;
   }
 
@@ -69,11 +67,21 @@
   }
 
   function handleNameInput() {
-    userEditedName = true;
+    // Clearing the name hands it back to the product default on the next product switch.
+    userEditedName = name.trim() !== '';
+    nameError = false;
   }
 
   function handleUrlInput() {
     urlError = false;
+  }
+
+  function isValidUrl(value: string): boolean {
+    return bookmarkFormSchema.shape.url.safeParse(value.trim()).success;
+  }
+
+  function handleUrlBlur() {
+    if (url.trim()) urlError = !isValidUrl(url);
   }
 
   function getDefaultName(): string {
@@ -98,7 +106,9 @@
     };
     const parsed = bookmarkFormSchema.safeParse(values);
     if (!parsed.success) {
-      urlError = true;
+      nameError = !values.name;
+      urlError = !isValidUrl(values.url);
+      document.getElementById(nameError ? `${uid}-name` : `${uid}-url`)?.focus();
       return;
     }
 
@@ -135,7 +145,7 @@
     <form method="dialog">
       <button
         class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
-        aria-label={m.button_close()}
+        aria-label={m.action_close()}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -171,27 +181,7 @@
               "
               aria-pressed={selectedProduct.id === product.id}
             >
-              {#if product.logo}
-                <enhanced:img
-                  src={product.logo}
-                  alt=""
-                  class="bg-neutral-content size-5 rounded-full object-contain p-0.5"
-                  onerror={handleProductLogoError}
-                />
-                <span
-                  class="hidden size-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                  style="background-color: {product.color}"
-                >
-                  {product.initials}
-                </span>
-              {:else}
-                <span
-                  class="flex size-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                  style="background-color: {product.color}"
-                >
-                  {product.initials}
-                </span>
-              {/if}
+              <ProductIcon {product} />
               {product.name}
             </button>
           {/each}
@@ -211,7 +201,12 @@
             oninput={handleNameInput}
             placeholder={getDefaultName()}
             class="input w-full"
+            aria-invalid={nameError}
+            aria-describedby={nameError ? `${uid}-name-error` : undefined}
           />
+          {#if nameError}
+            <p id="{uid}-name-error" class="text-error mt-1 text-sm">{m.bookmark_name_error()}</p>
+          {/if}
         </div>
         <div>
           <label for="{uid}-env" class="text-base-content/80 mb-1 block text-sm font-medium">
@@ -237,6 +232,7 @@
           type="url"
           bind:value={url}
           oninput={handleUrlInput}
+          onblur={handleUrlBlur}
           placeholder="https://superset.data-prod.corp"
           class="input w-full"
           aria-invalid={urlError}
@@ -266,27 +262,7 @@
           </p>
           <div class="border-base-300 bg-base-200 flex items-center gap-3 rounded-xl border p-3">
             <div class="shrink-0">
-              {#if selectedProduct.logo}
-                <enhanced:img
-                  src={selectedProduct.logo}
-                  alt=""
-                  class="bg-neutral-content size-10 rounded-xl object-contain p-1"
-                  onerror={handleProductLogoError}
-                />
-                <span
-                  class="hidden size-10 items-center justify-center rounded-xl text-sm font-bold text-white"
-                  style="background-color: {selectedProduct.color}"
-                >
-                  {selectedProduct.initials}
-                </span>
-              {:else}
-                <span
-                  class="flex size-10 items-center justify-center rounded-xl text-sm font-bold text-white"
-                  style="background-color: {selectedProduct.color}"
-                >
-                  {selectedProduct.initials}
-                </span>
-              {/if}
+              <ProductIcon product={selectedProduct} size="lg" />
             </div>
             <div class="min-w-0 flex-1">
               <p class="text-base-content text-sm leading-tight font-semibold">
@@ -329,12 +305,7 @@
       >
         {m.button_cancel()}
       </button>
-      <button
-        type="button"
-        class="btn btn-primary"
-        disabled={!name.trim() || !bookmarkFormSchema.shape.url.safeParse(url.trim()).success}
-        onclick={handleSubmit}
-      >
+      <button type="button" class="btn btn-primary" onclick={handleSubmit}>
         {isEditing ? m.bookmark_save_changes() : m.bookmark_add_title()}
       </button>
     </div>
