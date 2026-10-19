@@ -97,7 +97,7 @@ jobs:
           file-coverage-mode: changes
 
   e2e-tests:
-    name: E2E Tests with Garage S3 and PostgreSQL
+    name: E2E Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
