@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures.js';
 import {
   createS3Client,
   hasGarageCredentials,
@@ -75,7 +75,7 @@ test.describe('Storage S3 — Browsing', () => {
       await expect(rowByName(page, 'empty-folder')).toBeVisible();
 
       await rowByName(page, 'empty-folder').click();
-      await expect(page.getByText('This bucket is empty')).toBeVisible();
+      await expect(page.getByText('This folder is empty')).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -109,6 +109,59 @@ test.describe('Storage S3 — Browsing', () => {
       await page.getByRole('button', { name: 'Previous page' }).click();
       await expect(page.getByText('Page 1', { exact: true })).toBeVisible();
       await expect(rowByName(page, 'file-01.txt')).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('keeps page number and Prev/Next in sync with browser Back/Forward', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'paginate-history');
+    // Default page size is 25, so 55 objects give three pages.
+    const cleanupKeys = Array.from(
+      { length: 55 },
+      (_, index) => `${prefix}file-${String(index + 1).padStart(2, '0')}.txt`
+    );
+
+    const expectPage = async (pageNumber: number, visible: string, hidden: string[]) => {
+      await expect(page.getByText(`Page ${pageNumber}`, { exact: true })).toBeVisible();
+      await expect(rowByName(page, visible)).toBeVisible();
+      for (const name of hidden) await expect(rowByName(page, name)).not.toBeVisible();
+    };
+    const page1 = () => expectPage(1, 'file-01.txt', ['file-26.txt', 'file-51.txt']);
+    const page2 = () => expectPage(2, 'file-26.txt', ['file-01.txt', 'file-51.txt']);
+    const page3 = () => expectPage(3, 'file-51.txt', ['file-01.txt', 'file-26.txt']);
+
+    try {
+      await Promise.all(
+        cleanupKeys.map((key) => putTextObject(client, credentials.bucket, key, key))
+      );
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await page1();
+
+      await page.getByRole('button', { name: 'Next page' }).click();
+      await page2();
+      await page.getByRole('button', { name: 'Next page' }).click();
+      await page3();
+
+      await page.goBack();
+      await page2();
+      await page.goBack();
+      await page1();
+      await page.goForward();
+      await page2();
+
+      await page.getByRole('button', { name: 'Previous page' }).click();
+      await page1();
+      await page.getByRole('button', { name: 'Next page' }).click();
+      await page2();
+      await page.getByRole('button', { name: 'Next page' }).click();
+      await page3();
+      await expect(page.getByRole('button', { name: 'Next page' })).toBeDisabled();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

@@ -22,6 +22,7 @@ import {
   type HistoryCategory
 } from './completion-history.js';
 import * as m from '$lib/paraglide/messages.js';
+import { formatIdentifier } from '../identifiers.js';
 
 const RECORD_USE_COMMAND = 'stackable.completion.recordUse';
 let recordUseCommandRegistered = false;
@@ -46,6 +47,13 @@ export interface CompletionDefaults {
 
 type DefaultsGetter = () => CompletionDefaults;
 
+const IDENTIFIER_CATEGORIES = new Set<HistoryCategory>([
+  'catalogs',
+  'schemas',
+  'tables',
+  'columns'
+]);
+
 function makeItem(
   label: string,
   kind: Monaco.languages.CompletionItemKind,
@@ -55,7 +63,15 @@ function makeItem(
   sortPrefix: string
 ): Monaco.languages.CompletionItem {
   return decorateWithHistory(
-    { label, kind, insertText: label, range, detail, sortText: `${sortPrefix}${label}` },
+    {
+      label,
+      kind,
+      // Metadata names like `my-schema` must be quoted to be valid SQL.
+      insertText: IDENTIFIER_CATEGORIES.has(category) ? formatIdentifier(label) : label,
+      range,
+      detail,
+      sortText: `${sortPrefix}${label}`
+    },
     category
   );
 }

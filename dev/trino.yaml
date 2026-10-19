@@ -54,6 +54,20 @@ spec:
   connector:
     tpch: {}
 ---
+# Writable in-memory catalog for testing with your own schemas and tables.
+apiVersion: trino.stackable.tech/v1alpha1
+kind: TrinoCatalog
+metadata:
+  name: memory
+  namespace: default
+  labels:
+    trino: trino
+spec:
+  connector:
+    generic:
+      connectorName: memory
+      properties: {}
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:

@@ -1,3 +1,4 @@
+{{- include "cockpit.validateTls" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -61,6 +62,14 @@ spec:
               value: {{ .Values.config.nodeEnv | quote }}
             - name: PORT
               value: {{ .Values.service.targetPort | quote }}
+            {{- with .Values.config.bodySizeLimit }}
+            - name: BODY_SIZE_LIMIT
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.config.archiveCacheMaxMb }}
+            - name: STACKABLE_COCKPIT_ARCHIVE_CACHE_MAX_MB
+              value: {{ . | quote }}
+            {{- end }}
             {{- if hasKey $completion "enabled" }}
             - name: STACKABLE_COCKPIT_COMPLETION_ENABLED
               value: {{ index $completion "enabled" | quote }}
@@ -69,10 +78,6 @@ spec:
             {{- if hasKey . "enabled" }}
             - name: STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED
               value: {{ .enabled | quote }}
-            {{- end }}
-            {{- if hasKey . "autoConnect" }}
-            - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT
-              value: {{ .autoConnect | quote }}
             {{- end }}
             {{- with .pageSizes }}
             - name: PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES
@@ -110,6 +115,50 @@ spec:
             - name: STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS
               value: {{ . | int64 | quote }}
             {{- end }}
+            {{- with .transferConcurrency }}
+            - name: STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- if hasKey . "restoreTabs" }}
+            - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_RESTORE_TABS
+              value: {{ .restoreTabs | quote }}
+            {{- end }}
+            {{- if hasKey . "infiniteScroll" }}
+            - name: PUBLIC_STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED
+              value: {{ .infiniteScroll | quote }}
+            {{- end }}
+            {{- if hasKey . "cutCopy" }}
+            - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED
+              value: {{ .cutCopy | quote }}
+            {{- end }}
+            {{- if hasKey . "paste" }}
+            - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED
+              value: {{ .paste | quote }}
+            {{- end }}
+            {{- if hasKey . "rename" }}
+            - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED
+              value: {{ .rename | quote }}
+            {{- end }}
+            {{- if hasKey . "move" }}
+            - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED
+              value: {{ .move | quote }}
+            {{- end }}
+            {{- with .maxEditableFileSize }}
+            - name: PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- with .archivePreviewMaxMb }}
+            - name: STACKABLE_COCKPIT_ARCHIVE_PREVIEW_MAX_MB
+              value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- with .parquetPreviewDisallowedCompressionTypes }}
+            - name: STACKABLE_COCKPIT_PARQUET_PREVIEW_DISALLOWED_COMPRESSION_TYPES
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .downloadHistoryRetentionDays }}
+            - name: STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS
+              value: {{ . | int64 | quote }}
+            {{- end }}
             {{- end }}
             {{- if .Values.trino.queryTtl }}
             - name: STACKABLE_COCKPIT_QUERY_TTL
@@ -129,6 +178,44 @@ spec:
                   name: {{ include "cockpit.fullname" . }}
                   key: session-secret
                   {{- end }}
+            - name: DATABASE_HOST
+              value: {{ required "database.host is required" .Values.database.host | quote }}
+            - name: DATABASE_PORT
+              value: {{ include "cockpit.databasePort" . | quote }}
+            - name: DATABASE_NAME
+              value: {{ .Values.database.name | quote }}
+            - name: DATABASE_USER
+              value: {{ .Values.database.user | quote }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "database.password.secretKeyRef.name is required" .Values.database.password.secretKeyRef.name | quote }}
+                  key: {{ .Values.database.password.secretKeyRef.key | quote }}
+            {{- with .Values.database.tls.mode }}
+            - name: DATABASE_TLS_MODE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if .Values.database.tls.caCert }}
+            - name: DATABASE_TLS_CA_CERT
+              value: {{ .Values.database.tls.caCert | quote }}
+            {{- else if .Values.database.tls.secretClass }}
+            - name: DATABASE_TLS_CA_CERT
+              value: /stackable/database-tls/ca.crt
+            {{- end }}
+            {{- if eq (toString (index $features "storage" | default dict).enabled) "true" }}
+            - name: STORAGE_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "storage.encryptionKey.secretKeyRef.name is required when features.storage.enabled is true" .Values.storage.encryptionKey.secretKeyRef.name | quote }}
+                  key: {{ .Values.storage.encryptionKey.secretKeyRef.key | quote }}
+            {{- end }}
+            {{- if .Values.storage.tls.caCert }}
+            - name: STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT
+              value: {{ .Values.storage.tls.caCert | quote }}
+            {{- else if .Values.storage.tls.secretClass }}
+            - name: STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT
+              value: /stackable/storage-tls/ca.crt
+            {{- end }}
             {{- if .Values.auth.oidc.enabled }}
             - name: STACKABLE_COCKPIT_OIDC_CLIENT_SECRET
               valueFrom:
@@ -230,9 +317,27 @@ spec:
               mountPath: /stackable/trino-tls
               readOnly: true
             {{- end }}
+            {{- if .Values.database.tls.secretClass }}
+            - name: database-tls
+              mountPath: /stackable/database-tls
+              readOnly: true
+            {{- end }}
+            {{- if .Values.storage.tls.secretClass }}
+            - name: storage-tls
+              mountPath: /stackable/storage-tls
+              readOnly: true
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         - name: tmp
-          emptyDir: {}
+          emptyDir:
+            {{- with .Values.tmp.sizeLimit }}
+            {{- /* A plain number arrives as float64 and would render as 1e+09. */}}
+            sizeLimit: {{ if kindIs "float64" . }}{{ int64 . }}{{ else }}{{ . | quote }}{{ end }}
+            {{- else }} {}
+            {{- end }}
         {{- if .Values.trino.tls.secretClass }}
         - name: trino-tls
           ephemeral:
@@ -248,6 +353,41 @@ spec:
                 resources:
                   requests:
                     storage: 1
+        {{- end }}
+        {{- if .Values.database.tls.secretClass }}
+        - name: database-tls
+          ephemeral:
+            volumeClaimTemplate:
+              metadata:
+                annotations:
+                  secrets.stackable.tech/class: {{ .Values.database.tls.secretClass | quote }}
+                  secrets.stackable.tech/scope: pod
+              spec:
+                storageClassName: secrets.stackable.tech
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1
+        {{- end }}
+        {{- if .Values.storage.tls.secretClass }}
+        - name: storage-tls
+          ephemeral:
+            volumeClaimTemplate:
+              metadata:
+                annotations:
+                  secrets.stackable.tech/class: {{ .Values.storage.tls.secretClass | quote }}
+                  secrets.stackable.tech/scope: pod
+              spec:
+                storageClassName: secrets.stackable.tech
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

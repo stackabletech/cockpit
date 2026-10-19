@@ -70,6 +70,14 @@ describe('ObjectTable', () => {
     await expect.element(page.getByText('This bucket is empty')).toBeInTheDocument();
   });
 
+  it('should call an empty folder a folder, not a bucket', async () => {
+    const state = createState([], { prefix: 'docs/' });
+    render(ObjectTableWrapper, { state });
+
+    await expect.element(page.getByText('This folder is empty')).toBeInTheDocument();
+    expect(page.getByText('This bucket is empty').elements().length).toBe(0);
+  });
+
   it('should show parent directory row when prefix is set', async () => {
     const state = createState([], { prefix: 'docs/' });
     render(ObjectTableWrapper, { state });

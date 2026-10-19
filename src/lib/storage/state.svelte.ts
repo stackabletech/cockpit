@@ -1,4 +1,4 @@
-import { SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
+import { SvelteSet } from 'svelte/reactivity';
 import { invalidateAll } from '$app/navigation';
 import * as m from '$lib/paraglide/messages.js';
 import type { StoragePage, StorageObject } from '$lib/storage/types.js';
@@ -8,16 +8,36 @@ import type {
   ModalPayloads,
   ContextMenuState,
   NavigateFn,
-  ActionName
+  ActionName,
+  StorageOperation
 } from '$lib/storage/types.js';
 import { initPageSize, type PageSize } from '$lib/types/pagination.js';
-import { defaultPageSize } from '$lib/client/feature-flags.js';
-import { downloadObject, DownloadError } from '$lib/storage/download.js';
+import {
+  defaultPageSize,
+  storageCutCopyEnabled,
+  storagePasteEnabled,
+  storageRenameEnabled
+} from '$lib/client/feature-flags.js';
+import {
+  estimateArchiveSize,
+  startDownload,
+  triggerManifestDownloads
+} from '$lib/storage/download.js';
+import type { DownloadHistoryEntry } from '$lib/storage/api.js';
+import type { ConflictEntry } from '$lib/components/storage/modals/shared/conflict-types.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
-import { ActionError, getActionErrorMessage } from './errors.js';
+import { StorageError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
-import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
-import { keyToName } from '$lib/storage/utils.js';
+import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+import { isArchiveExtension, keyToName, parentPrefix } from '$lib/storage/utils.js';
+import { numberedName } from '$lib/storage/numbered-name.js';
+import type { StorageApi } from './api.js';
+import { createFetchStorageApi } from './api.js';
+import { OperationsState } from './operations.svelte.js';
+import { ArchiveState } from './archive.svelte.js';
+import { ClipboardState, type DragSource } from './clipboard.svelte.js';
+import { refusalMessage, runTransfer, type ItemOutcome } from './transfer.js';
+import { isStorageShortcutTarget } from './keyboard-scope.js';
 
 export class StorageState {
   // ── Core data (synced from server load) ──
@@ -31,6 +51,8 @@ export class StorageState {
   });
   buckets = $state<string[]>([]);
   connected = $state(false);
+  downloadHistory = $state.raw<DownloadHistoryEntry[]>([]);
+  downloadHistoryLoading = $state(false);
 
   // ── Derived views ──
   folders = $derived(this.objects.objects.filter((o: StorageObject) => o.isDirectory));
@@ -40,6 +62,7 @@ export class StorageState {
   // ── Selection ──
   selectedKeys = $state(new SvelteSet<string>());
   selectionMode = $state(false);
+  selectionAnchorKey = $state<string | null>(null);
 
   allSelected = $derived(this.totalItemCount > 0 && this.selectedKeys.size >= this.totalItemCount);
   someSelected = $derived(
@@ -58,23 +81,31 @@ export class StorageState {
   contextMenu = $state<ContextMenuState | null>(null);
 
   get ctxFileObj(): StorageObject | null {
-    if (!this.contextMenu) return null;
+    if (!this.contextMenu?.key) return null;
     return this.files.find((f: StorageObject) => f.key === this.contextMenu!.key) ?? null;
   }
   get ctxIsFile(): boolean {
     return this.ctxFileObj !== null;
   }
   get canPin(): boolean {
-    return this.contextMenu !== null && !this.ctxIsFile;
+    return this.contextMenu !== null && !!this.contextMenu.key && !this.ctxIsFile;
   }
   get ctxIsPinned(): boolean {
-    if (!this.contextMenu || this.ctxIsFile) return false;
+    if (!this.contextMenu?.key || this.ctxIsFile) return false;
     return this.bookmarks.isPinned(this.bucket, this.contextMenu.key);
   }
 
   // ── Loading ──
   loading = $state(false);
   deleting = $state(false);
+
+  // ── Rename inline ──
+  renameLoading = $state(false);
+  renameError = $state<string | null>(null);
+
+  // ── Connection identity ──
+  connectionId = $state<string | null>(null);
+  connectionHostname = $state('');
 
   // ── Pagination ──
   prevTokens = $state<(string | null)[]>([]);
@@ -83,44 +114,264 @@ export class StorageState {
 
   // ── Composed sub-state ──
   bookmarks: BookmarksState;
+  archive: ArchiveState;
+  clipboardState: ClipboardState;
+
+  /** Delegated clipboard data getter. */
+  get clipboard(): import('$lib/storage/types.js').ClipboardData | null {
+    return this.clipboardState.clipboard;
+  }
+
+  // ── Operations (paste / move / rename progress) ──
+  private operations_: OperationsState;
+
+  get operations(): StorageOperation[] {
+    return this.operations_.operations;
+  }
+
+  get hasRunningOps(): boolean {
+    return this.operations_.hasRunningOps;
+  }
+
+  /** Delegated to clipboardState. */
+  isCutKey(key: string): boolean {
+    return this.clipboardState.isCutKey(key, this.bucket);
+  }
 
   // ── Navigation handler (injected by page component) ──
   private _onNavigate: NavigateFn = () => {};
+  // ── Refresh handler (injected by page component) ──
+  // Navigates to the current bucket/prefix using replaceState so that a
+  // refresh does not add an extra browser history entry. Falls back to
+  // invalidateAll when no handler has been set (e.g. in tests).
+  private _onRefreshNavigate: (() => void) | null = null;
+  // ── Tabs invalidation callback (injected by FileExplorer) ──
+  // Called after file operations to mark source tabs as stale so they refetch
+  // when the user switches back to them.
+  private _onInvalidateSourceTabs: ((prefix: string) => void) | null = null;
+  private _onDirectoriesDeleted: ((bucket: string, dirPrefixes: string[]) => void) | null = null;
 
   // ────────────────────────────────────────────────────────────────────────────
   // Constructor
   // ────────────────────────────────────────────────────────────────────────────
 
-  constructor(options?: { connected?: boolean; buckets?: string[]; connectionId?: string }) {
+  private _api: StorageApi;
+
+  constructor(options?: {
+    connected?: boolean;
+    buckets?: string[];
+    connectionId?: string | null;
+    api?: StorageApi;
+  }) {
     if (options?.connected !== undefined) this.connected = options.connected;
     if (options?.buckets) this.buckets = options.buckets;
+    if (options?.connectionId !== undefined) this.connectionId = options.connectionId;
+    this._api = options?.api ?? createFetchStorageApi(() => connectionStore.activeConnectionId);
     this.bookmarks = new BookmarksState(options?.connectionId ?? '');
+    this.operations_ = new OperationsState(this._api, {
+      getBucket: () => this.bucket,
+      getPrefix: () => this.prefix,
+      onRefresh: () => this.refresh(),
+      onInvalidateTabs: (prefix) => this._onInvalidateSourceTabs?.(prefix)
+    });
+    this.archive = new ArchiveState(this._api, {
+      getBucket: () => this.bucket,
+      getPrefix: () => this.prefix,
+      getPageSize: () => this.pageSize,
+      setObjects: (objects) => {
+        this.objects = objects;
+      },
+      setLoading: (loading) => {
+        this.loading = loading;
+      },
+      setPrefix: (prefix) => {
+        this.prefix = prefix;
+      },
+      clearPrevTokens: () => {
+        this.prevTokens = [];
+      },
+      onExit: (s3Prefix) => {
+        this.navigate(s3Prefix, true);
+      }
+    });
+    this.clipboardState = new ClipboardState(this._api, this.operations_, {
+      getBucket: () => this.bucket,
+      getPrefix: () => this.prefix,
+      getConnectionId: () => connectionStore.activeConnectionId,
+      getObjects: () => this.objects,
+      getSelectedKeys: () => this.selectedKeys,
+      openModal: (type, payload) => this.openModal(type as never, payload as never),
+      closeModal: () => this.closeModal(),
+      refresh: () => this.refresh(),
+      invalidateSourceTabs: (prefix) => this._onInvalidateSourceTabs?.(prefix),
+      recordFileVisit: (bucket, key, size) => this.bookmarks.recordFileVisit(bucket, key, size),
+      removeFiles: (bucket, keys) => this.bookmarks.removeFiles(bucket, keys),
+      clearSelection: () => {
+        this.selectedKeys = new SvelteSet<string>();
+        this.selectionMode = false;
+      }
+    });
+  }
+
+  get api(): StorageApi {
+    return this._api;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
   // Server data sync
   // ────────────────────────────────────────────────────────────────────────────
 
-  syncFromServer(bucket: string, prefix: string, objects: StoragePage): void {
-    const bucketChanged = bucket !== this.bucket;
+  /**
+   * Applies a freshly loaded listing. `historyPrevTokens` is the previous-page
+   * token stack stored in the browser history entry being shown, so that
+   * Back/Forward restore the pagination context of that entry instead of
+   * reusing the stack of whichever page was shown last.
+   */
+  syncFromServer(
+    bucket: string,
+    prefix: string,
+    objects: StoragePage,
+    historyPrevTokens?: (string | null)[]
+  ): void {
+    const locationChanged = bucket !== this.bucket || prefix !== this.prefix;
     this.bucket = bucket;
     this.prefix = prefix;
     this.objects = objects;
-    if (bucketChanged) this.prevTokens = [];
+    if (!objects.continuationToken) {
+      // First page of a listing: there is nothing to go back to.
+      this.prevTokens = [];
+    } else if (historyPrevTokens) {
+      this.prevTokens = [...historyPrevTokens];
+    } else if (locationChanged) {
+      this.prevTokens = [];
+    }
+    // Otherwise (e.g. a refresh via invalidateAll, which drops page.state)
+    // the current stack still belongs to the page being reloaded.
     this.loading = false;
-    // Clear selection on navigation
     this.selectedKeys = new SvelteSet<string>();
+    this.archive.reset();
+    void this.refreshDownloadHistory();
+  }
+
+  private historyGeneration = 0;
+  async refreshDownloadHistory(): Promise<void> {
+    const generation = ++this.historyGeneration;
+    if (!this.connectionId) {
+      this.downloadHistory = [];
+      this.downloadHistoryLoading = false;
+      return;
+    }
+    this.downloadHistoryLoading = true;
+    try {
+      const history = await this._api.listDownloadHistory(this.connectionId);
+      if (generation === this.historyGeneration) this.downloadHistory = history;
+    } catch {
+      // Preserve the last successful history on transient failures.
+    } finally {
+      if (generation === this.historyGeneration) this.downloadHistoryLoading = false;
+    }
+  }
+
+  async redownloadHistory(manifestId: string, keys: string[]): Promise<void> {
+    const entry = this.downloadHistory.find((candidate) => candidate.id === manifestId);
+    const selectedEntries = entry ? entry.entries.filter((item) => keys.includes(item.key)) : [];
+    const operationId = crypto.randomUUID();
+    const controller = new AbortController();
+    this.operations_.startOp(
+      operationId,
+      m.storage_action_download(),
+      'download',
+      keys.length,
+      controller,
+      undefined,
+      keys.map(keyToName),
+      estimateArchiveSize(selectedEntries),
+      false
+    );
+    try {
+      const manifest = await this._api.recreateDownloadManifest(
+        manifestId,
+        keys,
+        controller.signal
+      );
+      const jobIds = await triggerManifestDownloads(manifest, controller.signal, (ids) =>
+        this.operations_.updateOpJobIds(operationId, ids)
+      );
+      this.operations_.updateOpTotalBytes(
+        operationId,
+        manifest.files.reduce((total, file) => total + file.size, 0)
+      );
+      this.operations_.updateOpJobIds(operationId, jobIds);
+      this.operations_.trackDownload(operationId);
+      await this.refreshDownloadHistory();
+    } catch (err) {
+      if (err instanceof StorageError && err.code === 'not_found') {
+        this.operations_.finishOp(
+          operationId,
+          'error',
+          m.storage_download_history_file_not_found({ path: err.message })
+        );
+        this.downloadHistory = this.downloadHistory.filter((entry) => entry.id !== manifestId);
+        await this.refreshDownloadHistory();
+      } else {
+        this.operations_.finishOp(operationId, 'error');
+      }
+      if (!controller.signal.aborted)
+        addToast(
+          'error',
+          err instanceof StorageError
+            ? getActionErrorMessage(err)
+            : m.storage_download_error_unknown()
+        );
+    }
+  }
+
+  /** Add a bucket to the in-memory list (no server-side persistence). */
+  addBucket(name: string): void {
+    if (!this.buckets.includes(name)) {
+      this.buckets = [...this.buckets, name].sort();
+    }
   }
 
   setNavigationHandler(fn: NavigateFn): void {
     this._onNavigate = fn;
   }
 
+  setRefreshHandler(fn: () => void): void {
+    this._onRefreshNavigate = fn;
+  }
+
+  setTabsInvalidationHandler(fn: (prefix: string) => void): void {
+    this._onInvalidateSourceTabs = fn;
+  }
+
+  /** Called after folders were deleted, e.g. to close tabs that show them. */
+  setDirectoriesDeletedHandler(fn: (bucket: string, dirPrefixes: string[]) => void): void {
+    this._onDirectoriesDeleted = fn;
+  }
+
   // ────────────────────────────────────────────────────────────────────────────
   // Selection
   // ────────────────────────────────────────────────────────────────────────────
 
-  toggleSelect = (key: string, force = false): void => {
+  toggleSelect = (key: string, force = false, range = false): void => {
+    if (range && this.selectionAnchorKey) {
+      const keys = [...this.folders, ...this.files].map((item) => item.key);
+      const anchorIndex = keys.indexOf(this.selectionAnchorKey);
+      const targetIndex = keys.indexOf(key);
+      if (anchorIndex !== -1 && targetIndex !== -1) {
+        const next = new SvelteSet(this.selectedKeys);
+        for (const rangeKey of keys.slice(
+          Math.min(anchorIndex, targetIndex),
+          Math.max(anchorIndex, targetIndex) + 1
+        )) {
+          next.add(rangeKey);
+        }
+        this.selectedKeys = next;
+        this.selectionMode = true;
+        return;
+      }
+    }
     if (force || this.selectionMode) {
       if (force && !this.selectionMode) this.selectionMode = true;
       const next = new SvelteSet<string>(this.selectedKeys);
@@ -130,6 +381,7 @@ export class StorageState {
     } else {
       this.selectedKeys = new SvelteSet<string>([key]);
     }
+    this.selectionAnchorKey = key;
   };
 
   selectAll = (checked: boolean): void => {
@@ -146,6 +398,7 @@ export class StorageState {
   clearSelection = (): void => {
     this.selectedKeys = new SvelteSet<string>();
     this.selectionMode = false;
+    this.selectionAnchorKey = null;
   };
 
   toggleSelectionMode = (): void => {
@@ -157,10 +410,12 @@ export class StorageState {
   // Navigation
   // ────────────────────────────────────────────────────────────────────────────
 
-  navigate = (prefix: string): void => {
+  navigate = (prefix: string, invalidateAll = this.archive.isInArchive): void => {
+    this.archive.reset();
+    this.clearSelection();
     this.loading = true;
     this.prevTokens = [];
-    this._onNavigate(prefix, null, this.pageSize);
+    this._onNavigate(prefix, null, this.pageSize, invalidateAll);
   };
 
   navigateNext = (): void => {
@@ -184,8 +439,16 @@ export class StorageState {
   };
 
   refresh = (): void => {
-    this.loading = true;
-    void invalidateAll();
+    if (this.archive.isInArchive) {
+      this.archive.refreshListing();
+    } else {
+      this.loading = true;
+      if (this._onRefreshNavigate) {
+        this._onRefreshNavigate();
+      } else {
+        void invalidateAll();
+      }
+    }
   };
 
   onPageSizeChange = (): void => {
@@ -220,7 +483,18 @@ export class StorageState {
     this.contextMenu = { x: e.clientX, y: e.clientY, key };
   };
 
+  /** Open the context menu for the empty space (no specific item). */
+  openEmptyContextMenu = (e: MouseEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.selectedKeys = new SvelteSet<string>();
+    this.contextMenu = { x: e.clientX, y: e.clientY };
+  };
+
   closeContextMenu = (): void => {
+    if (this.contextMenu?.key) {
+      this.selectedKeys.delete(this.contextMenu.key);
+    }
     this.contextMenu = null;
   };
 
@@ -252,35 +526,85 @@ export class StorageState {
           addToast('warning', m.storage_action_preview_no_selection());
           return;
         }
+        if (this.archive.isInArchive) {
+          this.openModal('preview', {
+            key,
+            archiveKey: this.archive.archiveKey!,
+            archivePath: key,
+            nestedArchivePath: this.archive.nestedArchivePath
+          });
+          return;
+        }
+        if (isArchiveExtension(key)) {
+          void this.archive.enterArchive(key);
+          return;
+        }
         for (const f of effectiveSelectedFiles) {
           this.bookmarks.recordFileVisit(this.bucket, f.key, f.size);
         }
         this.openModal('preview', { key });
         return;
 
-      case 'download':
-        if (!key) {
+      case 'download': {
+        const downloadItems = [...this.selectedFolders, ...this.selectedFiles];
+        if (downloadItems.length === 0) {
           addToast('warning', m.storage_action_download_no_selection());
           return;
         }
-        for (const f of effectiveSelectedFiles) {
+        if (this.archive.isInArchive) {
+          if (!key) {
+            addToast('warning', m.storage_action_download_no_selection());
+            return;
+          }
+          void this.archive.downloadFromArchive(key);
+          return;
+        }
+        for (const f of downloadItems) {
           this.bookmarks.recordFileVisit(this.bucket, f.key, f.size);
         }
+        const operationId = crypto.randomUUID();
         try {
-          const conn = loadConnectionLocally();
-          if (!conn) {
+          if (!connectionStore.activeConnectionId) {
             addToast('error', m.storage_download_error_unknown());
             return;
           }
-          await downloadObject(this.bucket, key, getConnectionHeader(conn));
+          const keys = downloadItems.map((file) => file.key);
+          const abortController = new AbortController();
+          this.operations_.startOp(
+            operationId,
+            m.storage_action_download(),
+            'download',
+            keys.length,
+            abortController,
+            undefined,
+            downloadItems.map((file) => keyToName(file.key)),
+            estimateArchiveSize(downloadItems),
+            false
+          );
+          const result = await startDownload(
+            this._api,
+            this.bucket,
+            this.prefix,
+            keys,
+            abortController.signal,
+            (ids) => this.operations_.updateOpJobIds(operationId, ids)
+          );
+          // The manifest reports the authoritative payload total, which also
+          // covers folder contents that were unknown before.
+          this.operations_.updateOpTotalBytes(operationId, result.totalBytes);
+          this.operations_.updateOpJobIds(operationId, result.jobIds);
+          this.operations_.trackDownload(operationId);
+          await this.refreshDownloadHistory();
         } catch (err: unknown) {
-          if (err instanceof DownloadError) {
-            addToast('error', getActionErrorMessage(new ActionError(err.code, err.message)));
+          this.operations_.finishOp(operationId, 'error');
+          if (err instanceof StorageError) {
+            addToast('error', getActionErrorMessage(err));
           } else {
             addToast('error', m.storage_download_error_unknown());
           }
         }
         return;
+      }
 
       case 'pin':
         this.bookmarks.pin(this.bucket, ctxKey ?? this.prefix);
@@ -293,29 +617,157 @@ export class StorageState {
       case 'copy-filename': {
         const nameKey = ctxKey ?? this.selectedFiles[0]?.key;
         if (!nameKey) return;
-        try {
-          await navigator.clipboard.writeText(keyToName(nameKey));
-          addToast('success', m.storage_action_copy_filename_success());
-        } catch {
-          addToast('error', m.storage_action_copy_filename_error());
-        }
+        await this.copyFilename(nameKey);
         return;
       }
 
       case 'copy-path': {
         const pathKey = ctxKey ?? this.selectedFiles[0]?.key;
         if (!pathKey) return;
-        // Strip trailing slash for folders so the URI is canonical.
-        const cleanKey = pathKey.endsWith('/') ? pathKey.slice(0, -1) : pathKey;
-        try {
-          await navigator.clipboard.writeText(`s3://${this.bucket}/${cleanKey}`);
-          addToast('success', m.storage_action_copy_path_success());
-        } catch {
-          addToast('error', m.storage_action_copy_path_error());
-        }
+        await this.copyPath(this.bucket, pathKey);
         return;
       }
+
+      case 'details': {
+        const targetKey = ctxKey ?? this.selectedFiles[0]?.key ?? this.selectedFolders[0]?.key;
+        if (!targetKey) {
+          addToast('warning', m.storage_action_preview_no_selection());
+          return;
+        }
+        const isDir = targetKey.endsWith('/');
+        this.openModal('details', {
+          type: isDir ? 'directory' : 'file',
+          bucket: this.bucket,
+          key: targetKey,
+          prefix: isDir ? targetKey : undefined
+        });
+        return;
+      }
+
+      case 'cut': {
+        if (!storageCutCopyEnabled) return;
+        const cutKeys = [...this.selectedKeys];
+        if (cutKeys.length === 0) return;
+        this.clipboardState.cut(cutKeys, this.objects, this.bucket, this.prefix);
+        return;
+      }
+
+      case 'copy': {
+        if (!storageCutCopyEnabled) return;
+        const copyKeys = [...this.selectedKeys];
+        if (copyKeys.length === 0) return;
+        this.clipboardState.copy(copyKeys, this.objects, this.bucket, this.prefix);
+        return;
+      }
+
+      case 'paste': {
+        if (!storagePasteEnabled) return;
+        if (!this.clipboardState.clipboard || this.clipboardState.clipboard.keys.length === 0)
+          return;
+        if (!this.clipboardState.canPaste) {
+          addToast('warning', m.storage_transfer_other_connection());
+          return;
+        }
+        if (this.archive.isInArchive) {
+          addToast('warning', m.storage_action_paste_archive_error());
+          return;
+        }
+        const ctxKey = this.contextMenu?.key ?? null;
+        const destPrefix = ctxKey && ctxKey.endsWith('/') ? ctxKey : this.prefix;
+        await this.clipboardState.paste(destPrefix);
+        return;
+      }
+
+      case 'rename': {
+        if (!storageRenameEnabled) return;
+        const renameKey = ctxKey ?? [...this.selectedKeys][0];
+        if (!renameKey) return;
+        this.renameError = null;
+        this.renameLoading = false;
+        this.openModal('rename', { key: renameKey });
+        return;
+      }
+
+      case 'create-file':
+        this.openModal('create', { type: 'file' });
+        return;
+
+      case 'create-folder':
+        this.openModal('create', { type: 'folder' });
+        return;
     }
+  };
+
+  copyFilename = async (key: string): Promise<void> => {
+    try {
+      const name = key ? keyToName(key) : this.bucket;
+      await navigator.clipboard.writeText(name);
+      const isDir = !key || key.endsWith('/');
+      addToast(
+        'success',
+        isDir
+          ? m.storage_action_copy_directory_name_success()
+          : m.storage_action_copy_filename_success()
+      );
+    } catch {
+      const isDir = !key || key.endsWith('/');
+      addToast(
+        'error',
+        isDir
+          ? m.storage_action_copy_directory_name_error()
+          : m.storage_action_copy_filename_error()
+      );
+    }
+  };
+
+  copyPath = async (bucket: string, key: string): Promise<void> => {
+    const cleanKey = key.endsWith('/') ? key.slice(0, -1) : key;
+    try {
+      await navigator.clipboard.writeText(`s3://${bucket}/${cleanKey}`);
+      addToast('success', m.storage_action_copy_path_success());
+    } catch {
+      addToast('error', m.storage_action_copy_path_error());
+    }
+  };
+
+  confirmCreate = async (name: string, type: 'file' | 'folder'): Promise<boolean> => {
+    const sanitized = name.trim();
+
+    this.closeModal();
+    this.loading = true;
+
+    try {
+      const isFolder = type === 'folder';
+      const parts = sanitized.split('/');
+
+      // Create intermediate directory markers
+      for (let i = 0; i < parts.length - 1; i++) {
+        const dirKey = this.prefix + parts.slice(0, i + 1).join('/') + '/';
+        await this.api.create({ bucket: this.bucket, key: dirKey });
+      }
+
+      // Do not let a repeated default name overwrite an edited file. Numbering starts
+      // at (1), as for copies that keep both.
+      const baseKey = this.prefix + sanitized + (isFolder ? '/' : '');
+      let finalKey = baseKey;
+      let copyNumber = 1;
+      while (await this.keyTaken(finalKey)) {
+        finalKey = numberedName(baseKey, copyNumber);
+        copyNumber++;
+      }
+      await this.api.create({ bucket: this.bucket, key: finalKey });
+
+      void invalidateAll();
+      return true;
+    } catch {
+      addToast('error', m.storage_create_error({ name: sanitized }));
+      this.loading = false;
+      return false;
+    }
+  };
+
+  cancelCreate = (): void => {
+    this.closeModal();
   };
 
   confirmDelete = async (): Promise<void> => {
@@ -330,15 +782,22 @@ export class StorageState {
       const result = await this.performDelete(this.bucket, keys);
       if (result.failed && result.failed.length > 0) {
         addToast('warning', m.storage_delete_partial_failure({ count: result.failed.length }));
+      } else {
+        addToast(
+          'success',
+          keys.length === 1
+            ? m.storage_delete_success_one({ name: keyToName(keys[0]) })
+            : m.storage_delete_success_many({ count: keys.length })
+        );
       }
       this.selectedKeys = new SvelteSet<string>();
       this.selectionMode = false;
-      this.loading = true;
-      await invalidateAll();
+      this.refresh();
     } catch (err: unknown) {
-      this.loading = false;
+      // A failed delete may still have removed part of the selection, so reload the listing.
+      this.refresh();
       let msg = m.storage_delete_error_unknown();
-      if (err instanceof ActionError) {
+      if (err instanceof StorageError) {
         if (err.code === 'not_connected') msg = m.storage_delete_error_not_connected();
         else if (err.code === 'access_denied') msg = m.storage_delete_error_access_denied();
         else if (err.code === 'server_error') msg = m.storage_delete_error_server_error();
@@ -355,16 +814,148 @@ export class StorageState {
 
   handleUploadSuccess = (): void => {
     this.closeModal();
-    this.loading = true;
-    void invalidateAll();
+    this.refresh();
   };
+
+  // ── Delegate methods ───────────────────────────────────────────────────────
+
+  /** Delegated to clipboardState. */
+  performMove = (
+    destPrefix: string,
+    keys?: string[],
+    destBucket?: string,
+    source?: DragSource
+  ): void => {
+    this.clipboardState.performMove(destPrefix, keys, destBucket, source);
+  };
+
+  /** Delegated to clipboardState. */
+  confirmMove = (): Promise<void> => {
+    return this.clipboardState.confirmMove();
+  };
+
+  /** Delegated to clipboardState. */
+  cancelMove = (): void => {
+    this.clipboardState.cancelMove();
+  };
+
+  /** Delegated to clipboardState. */
+  confirmConflictResolution = (entries: ConflictEntry[]): Promise<void> => {
+    return this.clipboardState.confirmConflictResolution(entries);
+  };
+
+  /** Delegated to clipboardState. */
+  checkConflictRename = (entry: ConflictEntry): Promise<boolean> => {
+    return this.clipboardState.checkConflictRename(entry);
+  };
+
+  /** Delegated to clipboardState. */
+  cancelConflictResolution = (): void => {
+    this.clipboardState.cancelConflictResolution();
+  };
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Rename
+  // ────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Rename an item within its folder. A rename never overwrites: a taken name
+   * is refused by the server, and the modal shows the error and stays open.
+   */
+  confirmRename = async (key: string, newName: string): Promise<void> => {
+    if (!newName.trim()) return;
+    const newKey = parentPrefix(key) + newName + (key.endsWith('/') ? '/' : '');
+    if (newKey === key) {
+      this.closeModal();
+      return;
+    }
+
+    this.renameLoading = true;
+    this.renameError = null;
+    const bucket = this.bucket;
+    const renamedFile = this.files.find((f) => f.key === key);
+
+    let result: ItemOutcome | undefined;
+    try {
+      [result] = await runTransfer({
+        api: this.api,
+        operations: this.operations_,
+        body: { op: 'rename', source: { bucket }, items: [{ sourceKey: key, name: newName }] },
+        label: `${m.storage_operation_rename()}: ${keyToName(key)} → ${newName}`,
+        type: 'rename',
+        destPath: `${bucket}/${newKey}`
+      });
+    } catch (err: unknown) {
+      this.renameLoading = false;
+      this.closeModal();
+      let msg = m.storage_rename_error({ name: newName });
+      if (err instanceof StorageError && err.code === 'access_denied')
+        msg = m.storage_rename_error_access_denied();
+      else if (err instanceof StorageError && err.code === 'not_found')
+        msg = m.storage_rename_error_not_found();
+      addToast('error', msg);
+      return;
+    }
+    this.renameLoading = false;
+
+    if (result?.status === 'refused') {
+      this.renameError =
+        result.reason === 'conflict' || !result.reason
+          ? m.storage_rename_error_conflict({ name: newName })
+          : refusalMessage(result.reason);
+      return;
+    }
+
+    this.closeModal();
+    if (result?.status === 'done') {
+      if (!key.endsWith('/')) {
+        this.bookmarks.removeFiles(bucket, [key]);
+        if (renamedFile) this.bookmarks.recordFileVisit(bucket, newKey, renamedFile.size);
+      }
+      addToast('success', m.storage_rename_success({ name: newName }));
+    } else if (result?.status === 'partial' || result?.status === 'unknown') {
+      addToast(
+        'warning',
+        m.storage_transfer_item_line({
+          name: keyToName(key),
+          reason:
+            result.status === 'partial'
+              ? m.storage_transfer_item_partial()
+              : m.storage_transfer_item_unknown()
+        })
+      );
+    } else {
+      addToast('error', m.storage_rename_error({ name: newName }));
+    }
+    this.refresh();
+  };
+
+  /**
+   * Whether `key` is taken in the current bucket. A folder is taken by its marker
+   * or by any object under it; the listing hides the marker, so both are checked.
+   */
+  private async keyTaken(key: string): Promise<boolean> {
+    if (await this.api.checkObjectExists({ bucket: this.bucket, key })) return true;
+    if (!key.endsWith('/')) return false;
+    const page = await this.api.list({ bucket: this.bucket, prefix: key, pageSize: 1 });
+    return page.objects.length > 0;
+  }
+
+  // ── (Move and conflict resolution moved to ClipboardState) ──
 
   // ────────────────────────────────────────────────────────────────────────────
   // Keyboard shortcuts
   // ────────────────────────────────────────────────────────────────────────────
 
   handleKeydown = (e: KeyboardEvent): void => {
-    if (this.activeModal?.type === 'delete') return;
+    if (e.defaultPrevented) return;
+    if (this.activeModal) return;
+    if (!isStorageShortcutTarget(e.target)) return;
+    if (e.target instanceof Element && e.target.closest('dialog[open]')) return;
+    if (this.archive.isInArchive && e.key !== 'Escape') return;
+
+    const isCtrl = e.ctrlKey || e.metaKey;
+
     if (e.key === 'Delete' && this.selectedKeys.size > 0) {
       this.openModal('delete', { keys: [...this.selectedKeys] });
     } else if (e.key === 'Escape') {
@@ -373,6 +964,45 @@ export class StorageState {
       } else {
         this.clearSelection();
       }
+      if (this.selectedKeys.size > 0) {
+        this.clearSelection();
+      }
+    } else if (isCtrl && e.key === 'x') {
+      e.preventDefault();
+      if (!this.archive.isInArchive && this.selectedKeys.size > 0) {
+        void this.executeAction('cut');
+      }
+    } else if (isCtrl && e.key === 'c') {
+      e.preventDefault();
+      if (!this.archive.isInArchive && this.selectedKeys.size > 0) {
+        void this.executeAction('copy');
+      }
+    } else if (isCtrl && e.key === 'v') {
+      e.preventDefault();
+      if (!this.archive.isInArchive && this.clipboard) {
+        void this.executeAction('paste');
+      }
+    } else if (isCtrl && e.key === 'a') {
+      e.preventDefault();
+      this.selectAll(!this.allSelected);
+    } else if (e.key === 'F2') {
+      if (!this.archive.isInArchive && this.selectedKeys.size === 1) {
+        void this.executeAction('rename');
+      }
+    }
+  };
+
+  cancelOp = (id: string): void => {
+    this.operations_.cancelOp(id);
+  };
+
+  clearOperationHistory = async (): Promise<void> => {
+    this.operations_.clearOperationHistory();
+    try {
+      await this._api.clearDownloadHistory();
+      this.downloadHistory = [];
+    } catch {
+      await this.refreshDownloadHistory();
     }
   };
 
@@ -384,25 +1014,7 @@ export class StorageState {
     bucket: string,
     keys: string[]
   ): Promise<{ failed: Array<{ key: string; code?: string; message?: string }> }> {
-    const params = new SvelteURLSearchParams({ bucket });
-    for (const key of keys) params.append('keys', key);
-
-    const conn = loadConnectionLocally();
-    const headers: HeadersInit = conn ? { 'x-storage-connection': getConnectionHeader(conn) } : {};
-
-    const res = await fetch(`/api/storage/delete?${params}`, { method: 'DELETE', headers });
-    if (!res.ok) {
-      let code: string;
-      if (res.status === 401) code = 'not_connected';
-      else if (res.status === 403) code = 'access_denied';
-      else if (res.status >= 500) code = 'server_error';
-      else code = 'unknown';
-      throw new ActionError(code, `Delete failed with status ${res.status}`);
-    }
-
-    const result = (await res.json()) as {
-      failed: Array<{ key: string; code?: string; message?: string }>;
-    };
+    const result = await this.api.delete({ bucket, keys });
 
     // Clean up pinned locations and recent items for deleted paths
     const dirPrefixes = keys.filter((k) => k.endsWith('/'));
@@ -410,10 +1022,14 @@ export class StorageState {
     if (dirPrefixes.length > 0) {
       this.bookmarks.unpinUnderDirectories(bucket, dirPrefixes);
       this.bookmarks.removeItemsUnderDirectories(bucket, dirPrefixes);
+      this._onDirectoriesDeleted?.(bucket, dirPrefixes);
     }
     if (fileKeys.length > 0) {
       this.bookmarks.removeFiles(bucket, fileKeys);
     }
+
+    // Remove deleted keys from clipboard if they match the current bucket
+    this.clipboardState.removeDeletedKeys(bucket, keys);
 
     return result;
   }
