@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from '../support/fixtures.js';
 import { waitForHydration } from '../support/helpers.js';
 
 /** Issue a same-origin fetch from the page and wait for the session check it triggers. */

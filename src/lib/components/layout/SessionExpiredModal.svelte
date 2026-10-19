@@ -30,7 +30,6 @@
 <Modal
   bind:open={sessionState.expired}
   dismissible={false}
-  class="modal"
   aria-labelledby="{uid}-title"
   aria-describedby="{uid}-message"
 >

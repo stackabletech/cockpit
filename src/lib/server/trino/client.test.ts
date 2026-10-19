@@ -5,9 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // vi.hoisted ensures the object exists before the hoisted vi.mock factory runs.
 const { mockEnv } = vi.hoisted(() => ({ mockEnv: {} as Record<string, string | undefined> }));
 vi.mock('$env/dynamic/private', () => ({ env: mockEnv }));
-vi.mock('$lib/server/logging', () => ({
-  logger: { child: () => ({ info: vi.fn(), warn: vi.fn(), debug: vi.fn() }) }
-}));
+vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 import { TrinoClient, trinoMetadataQuery } from './client.js';
 

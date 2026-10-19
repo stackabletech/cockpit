@@ -1,28 +1,37 @@
 <script lang="ts">
+  import { tick, untrack } from 'svelte';
+  import { beforeNavigate, goto } from '$app/navigation';
+  import type { BeforeNavigate } from '@sveltejs/kit';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconDraft from 'virtual:icons/material-symbols/draft';
   import IconUpload from 'virtual:icons/material-symbols/upload';
   import IconWarning from 'virtual:icons/material-symbols/warning';
+  import IconError from 'virtual:icons/material-symbols/error';
   import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
-  import { checkObjectExists, uploadFile, UploadError } from '$lib/storage/upload.js';
-  import { formatFileSize } from '$lib/storage/utils.js';
-  import { loadConnectionLocally, getConnectionHeader } from '$lib/storage/connection-storage.js';
+  import { checkObjectExists, uploadFile } from '$lib/storage/upload.js';
+  import { StorageError } from '$lib/storage/errors.js';
+  import { formatFileSize, keyToName } from '$lib/storage/utils.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { uploadConcurrency } from '$lib/client/feature-flags.js';
   import UploadDropzone from './UploadDropzone.svelte';
-  import UploadConflictEntry from './UploadConflictEntry.svelte';
   import UploadEntryStatus from './UploadEntryStatus.svelte';
-  import type { FileEntry, Phase, Resolution, RenameState } from './types.js';
+  import ConflictEntry from '../shared/ConflictEntry.svelte';
+  import type { ConflictEntry as ConflictEntryType } from '../shared/conflict-types.js';
+  import type { FileEntry, Phase } from './types.js';
+  import type { Resolution, RenameState } from '../shared/conflict-types.js';
+  import type { FilePair } from '$lib/storage/file-collection.js';
 
   interface Props {
     open: boolean;
     bucket: string;
     prefix: string;
+    initialFiles?: FilePair[];
     onSuccess: () => void;
   }
 
-  let { open = $bindable(false), bucket, prefix, onSuccess }: Props = $props();
+  let { open = $bindable(false), bucket, prefix, initialFiles = [], onSuccess }: Props = $props();
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -30,12 +39,29 @@
   let entries = $state<FileEntry[]>([]);
 
   let cancelRequested = $state(false);
+  /** The conflict check failed, so nothing was uploaded. */
+  let checkFailed = $state(false);
+  const uid = $props.id();
+  let uploadButton = $state<HTMLButtonElement>();
+  /** Aborts the requests of the running upload. */
+  let uploadAbort: AbortController | null = null;
+  let leaveConfirmOpen = $state(false);
+  let pendingLeave: BeforeNavigate | null = null;
 
-  // Reset when modal closes.
+  // Initialise on opening as well: the parent can mount this modal closed
+  // before resetting its bound open state after a previous cancellation.
   $effect(() => {
-    if (!open) {
+    if (open) {
+      untrack(() => {
+        entries = makeEntries(initialFiles);
+        phase = entries.length > 0 ? 'selected' : 'idle';
+        cancelRequested = false;
+        checkFailed = false;
+      });
+    } else {
       phase = 'idle';
       entries = [];
+      checkFailed = false;
     }
   });
 
@@ -93,6 +119,7 @@
 
   function handleFilesSelected(pairs: { file: File; relativePath: string }[]) {
     entries = makeEntries(pairs);
+    checkFailed = false;
     phase = 'selected';
   }
 
@@ -101,34 +128,48 @@
   async function startUploadFlow() {
     if (phase !== 'selected') return;
     cancelRequested = false;
+    checkFailed = false;
     phase = 'checking';
 
-    const conn = loadConnectionLocally();
-    const connHeader = conn ? getConnectionHeader(conn) : '';
+    const connHeader = connectionStore.activeConnectionId ?? '';
 
     const results: { id: string; conflict: boolean }[] = [];
-    for (let i = 0; i < entries.length; i += uploadConcurrency) {
+    try {
+      for (let i = 0; i < entries.length; i += uploadConcurrency) {
+        if (cancelRequested) {
+          phase = 'idle';
+          entries = [];
+          return;
+        }
+        const batch = entries.slice(i, i + uploadConcurrency);
+        const batchResults = await Promise.all(
+          batch.map(async (e) => ({
+            id: e.id,
+            conflict: await checkObjectExists(bucket, e.targetKey, connHeader)
+          }))
+        );
+        results.push(...batchResults);
+      }
+    } catch {
+      // An unknown result must not count as "no conflict", or the upload could
+      // silently overwrite. Upload nothing and let the user retry.
       if (cancelRequested) {
         phase = 'idle';
         entries = [];
         return;
       }
-      const batch = entries.slice(i, i + uploadConcurrency);
-      const batchResults = await Promise.all(
-        batch.map(async (e) => {
-          try {
-            return { id: e.id, conflict: await checkObjectExists(bucket, e.targetKey, connHeader) };
-          } catch {
-            return { id: e.id, conflict: false };
-          }
-        })
-      );
-      results.push(...batchResults);
+      await showCheckFailed();
+      return;
     }
 
     if (cancelRequested) {
       phase = 'idle';
       entries = [];
+      return;
+    }
+    // Every entry needs a result; a missing one must not default to "no conflict".
+    if (results.length !== entries.length) {
+      await showCheckFailed();
       return;
     }
 
@@ -147,6 +188,14 @@
     }
   }
 
+  /** Back to the selection with the error shown; focus Upload so the user can retry. */
+  async function showCheckFailed() {
+    checkFailed = true;
+    phase = 'selected';
+    await tick();
+    uploadButton?.focus();
+  }
+
   async function confirmAndUpload() {
     if (!canProceed) return;
     cancelRequested = false;
@@ -155,6 +204,7 @@
 
   async function doUploadAll() {
     phase = 'uploading';
+    uploadAbort = new AbortController();
 
     // Mark skipped entries immediately.
     entries = entries.map((e) =>
@@ -183,8 +233,7 @@
     entries = entries.map((e) =>
       e.id === entry.id ? { ...e, status: 'uploading' as const, progress: 0 } : e
     );
-    const conn = loadConnectionLocally();
-    const connHeader = conn ? getConnectionHeader(conn) : '';
+    const connHeader = connectionStore.activeConnectionId ?? '';
     try {
       await uploadFile(
         bucket,
@@ -193,14 +242,15 @@
         (pct) => {
           entries = entries.map((e) => (e.id === entry.id ? { ...e, progress: pct } : e));
         },
-        connHeader
+        connHeader,
+        uploadAbort?.signal
       );
       entries = entries.map((e) =>
         e.id === entry.id ? { ...e, status: 'done' as const, progress: 100 } : e
       );
     } catch (err) {
       const msg =
-        err instanceof UploadError ? mapUploadError(err) : m.storage_upload_error_unknown();
+        err instanceof StorageError ? mapUploadError(err) : m.storage_upload_error_unknown();
       entries = entries.map((e) =>
         e.id === entry.id ? { ...e, status: 'error' as const, errorMessage: msg } : e
       );
@@ -274,8 +324,7 @@
 
     entries = entries.map((e) => (e.id === id ? { ...e, renameState: 'checking' as const } : e));
     const newKey = resolvedKey(entry);
-    const conn = loadConnectionLocally();
-    const connHeader = conn ? getConnectionHeader(conn) : '';
+    const connHeader = connectionStore.activeConnectionId ?? '';
     try {
       const exists = await checkObjectExists(bucket, newKey, connHeader);
       const nextState: RenameState = exists ? 'conflict' : 'ok';
@@ -306,9 +355,46 @@
     open = false;
   }
 
+  // ── Leaving during an upload ───────────────────────────────────────────────
+
+  // Leaving the page stops the upload, so ask first. For closing the tab or
+  // reloading, cancelling makes the browser show its own confirmation.
+  beforeNavigate((navigation) => {
+    if (phase !== 'uploading') return;
+    navigation.cancel();
+    if (navigation.type === 'leave' || !navigation.to) return;
+    pendingLeave = navigation;
+    leaveConfirmOpen = true;
+  });
+
+  function stayOnPage() {
+    pendingLeave = null;
+    leaveConfirmOpen = false;
+  }
+
+  async function stopUploadAndLeave() {
+    const navigation = pendingLeave;
+    pendingLeave = null;
+    leaveConfirmOpen = false;
+    cancelRequested = true;
+    uploadAbort?.abort();
+    open = false;
+    // Closing resets the phase, so the navigation below is no longer held up.
+    await tick();
+    if (!navigation?.to) return;
+    if (navigation.type === 'popstate' && navigation.delta) {
+      history.go(navigation.delta);
+    } else if (navigation.willUnload) {
+      location.assign(navigation.to.url);
+    } else {
+      // eslint-disable-next-line svelte/no-navigation-without-resolve -- URL of a navigation SvelteKit already resolved
+      await goto(navigation.to.url);
+    }
+  }
+
   // ── Error mapping ──────────────────────────────────────────────────────────
 
-  function mapUploadError(err: UploadError): string {
+  function mapUploadError(err: StorageError): string {
     switch (err.code) {
       case 'not_connected':
         return m.storage_upload_error_not_connected();
@@ -326,20 +412,22 @@
   }
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open>
   <div class="modal-box w-full max-w-lg">
     <!-- Header -->
     <div class="mb-4 flex items-center justify-between">
       <h2 class="text-base-content text-lg font-semibold">
         {m.storage_upload_title()}
       </h2>
-      <button
-        class="btn btn-ghost btn-sm btn-square"
-        onclick={handleCancel}
-        aria-label={m.storage_upload_close()}
-      >
-        <IconClose class="size-5" aria-hidden="true" />
-      </button>
+      <div class="tooltip tooltip-bottom" data-tip={m.storage_upload_close()}>
+        <button
+          class="btn btn-ghost btn-sm btn-square"
+          onclick={handleCancel}
+          aria-label={m.storage_upload_close()}
+        >
+          <IconClose class="size-5" aria-hidden="true" />
+        </button>
+      </div>
     </div>
 
     <!-- Target prefix info -->
@@ -377,11 +465,21 @@
           size: formatFileSize(totalSize)
         })}
       </p>
+      {#if checkFailed}
+        <div role="alert" class="alert alert-error mb-4 text-sm">
+          <IconError class="size-5 shrink-0" aria-hidden="true" />
+          <span>{m.storage_upload_check_error()}</span>
+        </div>
+      {/if}
       <div class="flex justify-end gap-2">
         <button class="btn btn-ghost btn-sm" onclick={handleCancel}>
           {m.storage_upload_overwrite_cancel()}
         </button>
-        <button class="btn btn-primary btn-sm gap-1" onclick={startUploadFlow}>
+        <button
+          bind:this={uploadButton}
+          class="btn btn-primary btn-sm gap-1"
+          onclick={startUploadFlow}
+        >
           <IconUpload class="size-4" aria-hidden="true" />
           {m.storage_upload_start()}
         </button>
@@ -421,8 +519,16 @@
         aria-label={m.storage_upload_conflicts_title()}
       >
         {#each conflictEntries as entry (entry.id)}
-          <UploadConflictEntry
-            {entry}
+          {@const mappedEntry: ConflictEntryType = {
+            id: entry.id,
+            originalName: keyToName(entry.targetKey) || entry.file.name,
+            conflict: entry.conflict,
+            resolution: entry.resolution,
+            customName: entry.customName,
+            renameState: entry.renameState
+          }}
+          <ConflictEntry
+            entry={mappedEntry}
             onSetResolution={(res) => setResolution(entry.id, res)}
             onSetCustomName={(name) => setCustomName(entry.id, name)}
             onRenameButtonClick={() => handleRenameButtonClick(entry.id)}
@@ -488,7 +594,7 @@
             {@const errName =
               entry.resolution === 'rename' && entry.customName.trim()
                 ? entry.customName.trim()
-                : (entry.targetKey.split('/').at(-1) ?? entry.file.name)}
+                : keyToName(entry.targetKey) || entry.file.name}
             <li class="text-error py-1 text-xs">
               {errName}: {entry.errorMessage}
             </li>
@@ -502,5 +608,23 @@
         </button>
       </div>
     {/if}
+  </div>
+</Modal>
+
+<Modal bind:open={leaveConfirmOpen} aria-labelledby="{uid}-leave-title">
+  <div class="modal-box max-w-sm">
+    <h3 id="{uid}-leave-title" class="mb-3 flex items-center gap-2 text-lg font-bold">
+      <IconWarning class="text-warning size-5 shrink-0" aria-hidden="true" />
+      {m.storage_upload_leave_title()}
+    </h3>
+    <p class="text-base-content/80 text-sm">{m.storage_upload_leave_desc()}</p>
+    <div class="modal-action mt-6">
+      <button class="btn btn-ghost btn-sm" onclick={stayOnPage}>
+        {m.storage_upload_leave_stay()}
+      </button>
+      <button class="btn btn-error btn-sm" onclick={stopUploadAndLeave}>
+        {m.storage_upload_leave_confirm()}
+      </button>
+    </div>
   </div>
 </Modal>
