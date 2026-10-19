@@ -23,6 +23,16 @@ const renderModal = (props: Record<string, unknown> = {}) =>
     ...props
   });
 
+const savedBookmark: Bookmark = {
+  id: 'b1',
+  productId: 'superset',
+  name: 'Shared Dashboard',
+  environment: '',
+  url: 'https://superset.example.com',
+  pinned: true,
+  createdAt: '2026-01-01T00:00:00.000Z'
+};
+
 const pinCheckbox = () => page.getByRole('checkbox', { name: 'Pin bookmark' });
 
 describe('AddBookmarkModal', () => {
@@ -89,17 +99,24 @@ describe('AddBookmarkModal', () => {
     await expect.element(page.getByLabelText('Name')).toHaveValue('Dashboards');
   });
 
+  it('names the add dialog after its heading', async () => {
+    renderModal();
+
+    await expect.element(page.getByRole('dialog', { name: 'Add Bookmark' })).toBeVisible();
+  });
+
+  it('names the edit and delete-confirmation dialogs after their headings', async () => {
+    renderModal({ bookmark: savedBookmark });
+
+    await expect.element(page.getByRole('dialog', { name: 'Edit Bookmark' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Delete' }).click();
+
+    await expect.element(page.getByRole('dialog', { name: 'Delete bookmark?' })).toBeVisible();
+  });
+
   it('preserves the pinned state when editing a bookmark', async () => {
-    const bookmark: Bookmark = {
-      id: 'b1',
-      productId: 'superset',
-      name: 'Shared Dashboard',
-      environment: '',
-      url: 'https://superset.example.com',
-      pinned: true,
-      createdAt: '2026-01-01T00:00:00.000Z'
-    };
-    renderModal({ bookmark });
+    renderModal({ bookmark: savedBookmark });
 
     await expect.element(pinCheckbox()).toBeChecked();
     await page.getByLabelText('Name').fill('Renamed Dashboard');

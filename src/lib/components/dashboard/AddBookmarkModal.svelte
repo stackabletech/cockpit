@@ -140,7 +140,7 @@
   }
 </script>
 
-<Modal bind:open class="modal">
+<Modal bind:open class="modal" aria-labelledby="{uid}-title">
   <div class="modal-box max-w-2xl">
     <form method="dialog">
       <button
@@ -158,7 +158,7 @@
       </button>
     </form>
 
-    <h3 class="text-base-content text-lg font-bold">
+    <h3 id="{uid}-title" class="text-base-content text-lg font-bold">
       {isEditing ? m.bookmark_edit_title() : m.bookmark_add_title()}
     </h3>
 
@@ -312,9 +312,11 @@
   </div>
 </Modal>
 
-<Modal bind:open={confirmDeleteOpen} class="modal">
+<Modal bind:open={confirmDeleteOpen} class="modal" aria-labelledby="{uid}-delete-title">
   <div class="modal-box max-w-sm">
-    <h3 class="text-error text-lg font-bold">{m.bookmark_delete_confirm_title()}</h3>
+    <h3 id="{uid}-delete-title" class="text-error text-lg font-bold">
+      {m.bookmark_delete_confirm_title()}
+    </h3>
     <p class="text-base-content/80 mt-3 text-sm">
       {m.bookmark_delete_confirm_message({ name: bookmark?.name ?? name.trim() })}
     </p>
