@@ -76,4 +76,16 @@ test.describe('App navigation', () => {
     await expect(dashboardLink).toHaveAttribute('aria-current', 'page');
     await expect(storageLink).not.toHaveAttribute('aria-current', 'page');
   });
+
+  test('sidebar logo is named only when the "Stackable" text is hidden', async ({ page }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    const sidebar = page.getByRole('complementary', { name: 'Sidebar' });
+    // Expanded: the visible "Stackable" text names the brand, so the logo is decorative.
+    await expect(sidebar.getByRole('img', { name: 'Stackable' })).toHaveCount(0);
+
+    await sidebar.getByRole('button', { name: 'Collapse sidebar' }).click();
+    await expect(sidebar.getByRole('img', { name: 'Stackable' })).toBeVisible();
+  });
 });

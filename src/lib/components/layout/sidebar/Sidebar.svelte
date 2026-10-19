@@ -172,7 +172,11 @@
 >
   <!-- Brand -->
   <div class="border-base-300 flex h-16 shrink-0 items-center gap-3 border-b px-4">
-    <enhanced:img src={stackableLogo} alt={m.page_title_default()} class="h-7 w-7 shrink-0" />
+    <enhanced:img
+      src={stackableLogo}
+      alt={collapsed ? m.page_title_default() : ''}
+      class="h-7 w-7 shrink-0"
+    />
     {#if !collapsed}
       <span class="text-base-content text-lg font-bold tracking-tight">Stackable</span>
     {/if}
