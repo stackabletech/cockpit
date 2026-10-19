@@ -153,7 +153,7 @@ function createQueryRunner(tabId: string): QueryRunner {
         }
       } catch (err) {
         if (signal.aborted) return;
-        console.error('Query poll failed', err);
+        void err;
         error = m.trino_query_connection_lost();
         state = 'FAILED';
         stopPolling();
@@ -198,7 +198,6 @@ function createQueryRunner(tabId: string): QueryRunner {
 
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        console.error('Query submit failed', body?.error ?? `HTTP ${res.status}`);
         error = body?.error ?? m.trino_query_connection_lost();
         state = 'FAILED';
         return;
@@ -308,5 +307,12 @@ export function destroyQueryRunner(tabId: string): void {
   if (runner) {
     runner.cancel();
     runners.delete(tabId);
+  }
+}
+
+/** Clear client-side state of all runners, e.g. after the connection changed. */
+export function resetAllQueryRunners(): void {
+  for (const runner of runners.values()) {
+    runner.reset();
   }
 }

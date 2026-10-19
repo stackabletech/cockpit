@@ -1,22 +1,26 @@
 import { resolve } from '$app/paths';
 import type { ResolvedPathname } from '$app/types';
-import type { SavedConnection } from './connection-storage.js';
+import type { ConnectionMetadata } from './connection-types.js';
 import type { RecentFile } from './types.js';
-import { keyToName } from './utils.js';
+import { keyToName, parentPrefix } from './utils.js';
 
-const STORAGE_ROUTE = '/(app)/storage/[bucket]/[...prefix]' as const;
+const STORAGE_ROUTE = '/(app)/storage/browse/[connection]/[bucket]/[...prefix]' as const;
 
 /** Anything addressable as bucket + prefix — pinned and recent locations alike. */
 type StorageLocation = { bucket: string; prefix: string };
 
 // ── URL helpers ──────────────────────────────────────────────────────────────
 
-export function storageHref(bucket: string, prefix: string): ResolvedPathname {
+export function storageHref(connection: string, bucket: string, prefix: string): ResolvedPathname {
   const encodedBucket = encodeURIComponent(bucket);
   const encodedPrefix = prefix
     ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
     : '';
-  return resolve(STORAGE_ROUTE, { bucket: encodedBucket, prefix: encodedPrefix });
+  return resolve(STORAGE_ROUTE, {
+    connection: encodeURIComponent(connection),
+    bucket: encodedBucket,
+    prefix: encodedPrefix
+  });
 }
 
 // ── Location helpers ─────────────────────────────────────────────────────────
@@ -33,31 +37,23 @@ export function locationPath(loc: StorageLocation): string {
   return `${loc.bucket} / ${parts.join(' / ')}`;
 }
 
-export function locationHref(loc: StorageLocation): ResolvedPathname {
-  return storageHref(loc.bucket, loc.prefix);
+export function locationHref(connection: string, loc: StorageLocation): ResolvedPathname {
+  return storageHref(connection, loc.bucket, loc.prefix);
 }
 
 // ── Recent file helpers ──────────────────────────────────────────────────────
-
-/** The directory an object key lives in, without the trailing file name. */
-function parentPrefix(key: string): string {
-  const parts = key.split('/').filter(Boolean);
-  parts.pop();
-  return parts.join('/');
-}
 
 export function fileLocation(file: RecentFile): string {
   return locationPath({ bucket: file.bucket, prefix: parentPrefix(file.key) });
 }
 
-export function fileHref(file: RecentFile): ResolvedPathname {
-  return storageHref(file.bucket, parentPrefix(file.key));
+export function fileHref(connection: string, file: RecentFile): ResolvedPathname {
+  return storageHref(connection, file.bucket, parentPrefix(file.key));
 }
 
 // ── Connection helpers ───────────────────────────────────────────────────────
 
-/** Display name for a saved connection: its own name if set, else `host[:port]`. */
-export function connectionLabel(conn: SavedConnection): string {
-  if (conn.name) return conn.name;
-  return conn.port ? `${conn.host}:${conn.port}` : conn.host;
+/** Display name for a connection: its own name if set, else its endpoint. */
+export function connectionLabel(conn: Pick<ConnectionMetadata, 'name' | 'endpoint'>): string {
+  return conn.name || conn.endpoint || 'S3';
 }

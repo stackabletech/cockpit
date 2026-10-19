@@ -2,6 +2,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconAdd from 'virtual:icons/material-symbols/add';
+  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
 
   interface TabItem {
     id: string;
@@ -171,32 +172,36 @@
         </button>
 
         {#if showClose && item.closable !== false}
-          <button
-            type="button"
-            class="btn btn-ghost btn-xs mr-1 h-5 min-h-0 w-5 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100
-              {isActive ? 'opacity-60' : ''}"
-            tabindex={isActive ? 0 : -1}
-            aria-label={m.trino_tab_close({ name: item.label })}
-            onclick={() => onClose?.(item.id)}
-          >
-            <IconClose class="h-3 w-3" aria-hidden="true" />
-          </button>
+          <TooltipTrigger text={m.trino_tab_close({ name: item.label })} orientation="down">
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs mr-1 h-5 min-h-0 w-5 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100
+                {isActive ? 'opacity-60' : ''}"
+              tabindex={isActive ? 0 : -1}
+              aria-label={m.trino_tab_close({ name: item.label })}
+              onclick={() => onClose?.(item.id)}
+            >
+              <IconClose class="h-3 w-3" aria-hidden="true" />
+            </button>
+          </TooltipTrigger>
         {/if}
       </div>
     {/each}
   </div>
 
   {#if onAdd && showAdd}
-    <button
-      type="button"
-      class="btn btn-ghost btn-xs mb-0.5 h-7 min-h-0 px-2"
-      aria-label={m.trino_tab_new()}
-      onclick={() => {
-        onAdd!();
-        requestAnimationFrame(() => focusTab(activeId));
-      }}
-    >
-      <IconAdd class="h-4 w-4" aria-hidden="true" />
-    </button>
+    <TooltipTrigger text={m.trino_tab_new()} orientation="down">
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs mb-0.5 h-7 min-h-0 px-2"
+        aria-label={m.trino_tab_new()}
+        onclick={() => {
+          onAdd();
+          requestAnimationFrame(() => focusTab(activeId));
+        }}
+      >
+        <IconAdd class="h-4 w-4" aria-hidden="true" />
+      </button>
+    </TooltipTrigger>
   {/if}
 </div>

@@ -10,9 +10,20 @@
     isBinary?: boolean;
     /** When true, the image preview was skipped because the file is too large. */
     imageTooLarge?: boolean;
+    /** When true, the file is a 7zip archive, which is not yet supported. */
+    isSevenZip?: boolean;
+    /** When true, the file is a RAR archive, which is not supported. */
+    isRar?: boolean;
   }
 
-  let { contentType, onDownload, isBinary = false, imageTooLarge = false }: Props = $props();
+  let {
+    contentType,
+    onDownload,
+    isBinary = false,
+    imageTooLarge = false,
+    isSevenZip = false,
+    isRar = false
+  }: Props = $props();
 </script>
 
 <div class="flex min-h-full flex-col items-center justify-center gap-4 p-8 text-center">
@@ -28,9 +39,13 @@
     <p class="text-base-content/60 mt-1 text-sm">
       {imageTooLarge
         ? m.storage_preview_image_too_large_desc()
-        : isBinary
-          ? m.storage_preview_binary_desc()
-          : m.storage_preview_unsupported_desc()}
+        : isSevenZip
+          ? m.storage_preview_7zip_unsupported_desc()
+          : isRar
+            ? m.storage_preview_rar_unsupported_desc()
+            : isBinary
+              ? m.storage_preview_binary_desc()
+              : m.storage_preview_unsupported_desc()}
     </p>
     {#if contentType}
       <p class="text-base-content/40 mt-1 font-mono text-xs">{contentType}</p>

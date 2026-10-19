@@ -80,6 +80,7 @@ export function readQualifiedName(
 
     // Continue only when a `DOT IDENTIFIER` pair follows. Anything else
     // (end of input, trailing dot, different token) ends the name.
+
     const dotFollows = tokens[pos]?.type === DOT;
     const identAfterDot =
       tokens[pos + 1] !== undefined && IDENTIFIER_TOKENS.has(tokens[pos + 1].type);

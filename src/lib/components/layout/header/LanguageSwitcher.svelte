@@ -26,22 +26,27 @@
   }
 </script>
 
-<button
-  class={`
-    btn btn-ghost btn-sm
-    ${showLabel ? 'gap-2' : 'btn-square'}
-  `}
-  popovertarget="lang-switcher"
-  style="anchor-name:--lang-switcher"
-  aria-label={showLabel
-    ? `${m.language_label()}: ${currentLocaleMeta.label()}`
-    : m.language_label()}
+<div
+  class={showLabel ? '' : 'tooltip tooltip-bottom z-150 before:z-200'}
+  data-tip={showLabel ? undefined : m.language_label()}
 >
-  <IconLanguage class="h-5 w-5" aria-hidden="true" />
-  {#if showLabel}
-    <span class="text-sm font-medium">{currentLocaleMeta.label()}</span>
-  {/if}
-</button>
+  <button
+    class={`
+      btn btn-ghost btn-sm
+      ${showLabel ? 'gap-2' : 'btn-square'}
+    `}
+    popovertarget="lang-switcher"
+    style="anchor-name:--lang-switcher"
+    aria-label={showLabel
+      ? `${m.language_label()}: ${currentLocaleMeta.label()}`
+      : m.language_label()}
+  >
+    <IconLanguage class="h-5 w-5" aria-hidden="true" />
+    {#if showLabel}
+      <span class="text-sm font-medium">{currentLocaleMeta.label()}</span>
+    {/if}
+  </button>
+</div>
 <ul
   class="
     menu dropdown dropdown-end border-base-300 bg-base-100 w-40 rounded-lg

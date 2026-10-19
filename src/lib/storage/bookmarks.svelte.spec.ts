@@ -144,4 +144,39 @@ describe('BookmarksState — connectionId scoping', () => {
       expect(stored).toHaveLength(2);
     });
   });
+
+  describe('corrupt storage', () => {
+    it.each([['null'], ['{}'], ['"text"'], ['not json']])(
+      'starts empty when the stored value is %s',
+      (raw) => {
+        localStorage.setItem(LS_PINS, raw);
+        localStorage.setItem(LS_RECENT_FILES, raw);
+        localStorage.setItem(LS_RECENT_LOCATIONS, raw);
+
+        const bookmarks = new BookmarksState('conn-1');
+
+        expect(bookmarks.pinnedLocations).toEqual([]);
+        expect(bookmarks.recentFiles).toEqual([]);
+        expect(bookmarks.recentLocations).toEqual([]);
+      }
+    );
+
+    it('drops entries that do not match the expected shape', () => {
+      localStorage.setItem(
+        LS_PINS,
+        JSON.stringify([
+          null,
+          { bucket: 'a', connectionId: 'conn-1' },
+          { bucket: 'b', prefix: 'data/', connectionId: 'conn-1' }
+        ])
+      );
+
+      const bookmarks = new BookmarksState('conn-1');
+
+      expect(bookmarks.pinnedLocations).toEqual([
+        { bucket: 'b', prefix: 'data/', connectionId: 'conn-1' }
+      ]);
+      expect(() => bookmarks.unpinUnderDirectories('b', ['data/'])).not.toThrow();
+    });
+  });
 });

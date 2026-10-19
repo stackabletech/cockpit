@@ -34,13 +34,9 @@
   const lastPage = $derived(totalPages - 1);
   const rowStart = $derived(currentPage * pageSize + 1);
   const rowEnd = $derived(currentPage * pageSize + displayedRows.length);
-  const stmtError = $derived(
-    result.error && !result.error.startsWith('ROW_LIMIT:') ? result.error : null
-  );
+  const stmtError = $derived(result.error);
   const rowLimitWarning = $derived(
-    result.error?.startsWith('ROW_LIMIT:')
-      ? m.trino_row_limit_reached({ limit: result.error.split(':')[1] })
-      : null
+    result.rowLimit !== null ? m.trino_row_limit_reached({ limit: result.rowLimit }) : null
   );
   const showHeader = $derived(totalStatements > 1);
 
@@ -159,12 +155,14 @@
     {#if result.trinoQueryUrl || result.columns.length > 0}
       <div class="flex items-center gap-2 pb-1">
         {#if result.trinoQueryUrl}
+          <!-- eslint-disable svelte/no-navigation-without-resolve -->
           <a
             href={result.trinoQueryUrl}
             target="_blank"
             rel="noopener noreferrer external"
             class="btn btn-ghost btn-xs"
           >
+            <!-- eslint-enable svelte/no-navigation-without-resolve -->
             {m.trino_view_in_trino()}
             <IconOpenInNew class="size-3.5" aria-hidden="true" />
           </a>

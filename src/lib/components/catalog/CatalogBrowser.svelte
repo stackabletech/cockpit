@@ -107,8 +107,7 @@
     });
   }
 
-  function findNode(path: string): TreeNode | undefined {
-    const parts = path.split('.');
+  function findNode(parts: string[]): TreeNode | undefined {
     let nodes = catalogs;
     let node: TreeNode | undefined;
     for (const part of parts) {
@@ -127,10 +126,9 @@
     }
   }
 
-  async function handleLoadChildren(path: string, node: TreeNode) {
+  async function handleLoadChildren(parts: string[], node: TreeNode) {
     if (node.children) return;
 
-    const parts = path.split('.');
     node.loading = true;
     catalogs = [...catalogs]; // Trigger reactivity.
 
@@ -151,13 +149,13 @@
       }
 
       // Find the node again (reference may have changed due to reactivity).
-      const found = findNode(path);
+      const found = findNode(parts);
       if (found) {
         found.children = children;
         found.loading = false;
       }
     } catch {
-      const found = findNode(path);
+      const found = findNode(parts);
       if (found) {
         found.children = [];
         found.loading = false;
@@ -197,7 +195,7 @@
           })
           .catch((err) => {
             // Leave the dropdown empty rather than throwing an unhandled rejection.
-            console.error('Failed to load schemas for context selector', err);
+            void err;
             availableSchemas = [];
           });
       }
@@ -261,15 +259,16 @@
   <!-- Tree view -->
   <div class="border-base-300 flex items-center justify-between border-b px-3 py-1">
     <span class="text-base-content/60 text-xs font-medium">{m.trino_catalog_browser()}</span>
-    <button
-      class="btn btn-ghost btn-xs"
-      aria-label={m.trino_catalog_refresh()}
-      title={m.trino_catalog_refresh()}
-      onclick={handleRefresh}
-      disabled={catalogsLoading}
-    >
-      <IconRefresh class="h-3.5 w-3.5" aria-hidden="true" />
-    </button>
+    <div class="tooltip tooltip-bottom" data-tip={m.trino_catalog_refresh()}>
+      <button
+        class="btn btn-ghost btn-xs"
+        aria-label={m.trino_catalog_refresh()}
+        onclick={handleRefresh}
+        disabled={catalogsLoading}
+      >
+        <IconRefresh class="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+    </div>
   </div>
   <div class="min-h-0 flex-1 overflow-auto p-2">
     {#if catalogsLoading}

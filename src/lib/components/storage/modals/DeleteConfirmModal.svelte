@@ -45,10 +45,10 @@
     {/if}
 
     <div class="modal-action mt-6">
-      <button class="btn btn-ghost" onclick={onCancel}>
+      <button type="button" class="btn btn-ghost" onclick={onCancel}>
         {m.storage_delete_cancel()}
       </button>
-      <button class="btn btn-outline btn-error" onclick={onConfirm}>
+      <button type="button" class="btn btn-outline btn-error" onclick={onConfirm}>
         <IconDeleteForever class="size-4" aria-hidden="true" />
         {m.storage_delete_confirm_button()}
       </button>

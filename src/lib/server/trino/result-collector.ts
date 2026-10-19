@@ -60,8 +60,8 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
       query.progress = toQueryProgress(result.stats);
     }
 
-    if (result.error) {
-      query.error = result.error.message ?? 'Query failed';
+    if (result.error || result.stats?.state === 'FAILED') {
+      query.error = result.error?.message ?? 'Query failed';
       terminateQuery(query, 'FAILED');
       trinoQueryTotal.inc({ outcome: 'failed' });
       return;
@@ -69,7 +69,7 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
 
     // Row limit check.
     if (query.rows.length >= MAX_CLIENT_ROWS) {
-      query.error = `ROW_LIMIT:${MAX_CLIENT_ROWS}`;
+      query.rowLimit = MAX_CLIENT_ROWS;
       try {
         if (result.nextUri) {
           await query.client.cancelViaUri(result.nextUri, query.trinoUser);

@@ -8,12 +8,13 @@
   import IconMaterializedView from 'virtual:icons/material-symbols/preview-outline';
   import IconColumn from 'virtual:icons/material-symbols/circle';
   import type { TreeNode } from './types.js';
+  import { formatIdentifier } from '$lib/editor/identifiers.js';
   import CatalogTree from './CatalogTree.svelte';
 
   let {
     nodes,
     level = 0,
-    parentPath = '',
+    parentParts = [],
     expanded,
     onToggle,
     onInsert,
@@ -21,15 +22,20 @@
   }: {
     nodes: TreeNode[];
     level?: number;
-    parentPath?: string;
+    parentParts?: string[];
     expanded: Set<string>;
     onToggle: (path: string) => void;
     onInsert: (qualifiedName: string) => void;
-    onLoadChildren: (path: string, node: TreeNode) => void;
+    onLoadChildren: (parts: string[], node: TreeNode) => void;
   } = $props();
 
+  function nodeParts(name: string): string[] {
+    return [...parentParts, name];
+  }
+
+  // Key for the expanded set. JSON avoids collisions for names containing dots.
   function nodePath(name: string): string {
-    return parentPath ? `${parentPath}.${name}` : name;
+    return JSON.stringify(nodeParts(name));
   }
 
   function isLeaf(node: TreeNode): boolean {
@@ -40,12 +46,11 @@
     const path = nodePath(node.name);
     onToggle(path);
     if (!expanded.has(path) || node.children) return;
-    onLoadChildren(path, node);
+    onLoadChildren(nodeParts(node.name), node);
   }
 
   function handleInsert(node: TreeNode) {
-    const path = nodePath(node.name);
-    onInsert(path);
+    onInsert(nodeParts(node.name).map(formatIdentifier).join('.'));
   }
 
   function handleKeydown(event: KeyboardEvent, node: TreeNode) {
@@ -120,7 +125,7 @@
               handleInsert(node);
             }}
             title={m.trino_insert_table()}
-            aria-label="{m.trino_insert_table()}: {path}"
+            aria-label="{m.trino_insert_table()}: {nodeParts(node.name).join('.')}"
           >
             {node.name}
           </button>
@@ -157,7 +162,7 @@
         <CatalogTree
           nodes={node.children}
           level={level + 1}
-          parentPath={path}
+          parentParts={nodeParts(node.name)}
           {expanded}
           {onToggle}
           {onInsert}
