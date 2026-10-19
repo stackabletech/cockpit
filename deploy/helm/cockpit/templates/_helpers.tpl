@@ -82,3 +82,43 @@ Image name
 {{- printf "%s:%s" .Values.image.repository (.Values.image.tag | default .Chart.AppVersion) }}
 {{- end }}
 {{- end }}
+
+{{/*
+Fail on TLS settings that contradict each other, so that no setting is silently ignored.
+*/}}
+{{- define "cockpit.validateTls" -}}
+{{- $trinoTls := .Values.trino.tls }}
+{{- if and $trinoTls.caCert $trinoTls.secretClass }}
+{{- fail "trino.tls.caCert and trino.tls.secretClass are mutually exclusive" }}
+{{- end }}
+{{- if and $trinoTls.insecure (or $trinoTls.caCert $trinoTls.secretClass) }}
+{{- fail "trino.tls.insecure disables certificate verification, so trino.tls.caCert and trino.tls.secretClass would be ignored" }}
+{{- end }}
+{{- $dbTls := .Values.database.tls }}
+{{- $validModes := list "verify-full" "require" "disable" }}
+{{- if and $dbTls.mode (not (has $dbTls.mode $validModes)) }}
+{{- fail (printf "database.tls.mode must be one of %s (got %q)" (join ", " $validModes) $dbTls.mode) }}
+{{- end }}
+{{- if and $dbTls.caCert $dbTls.secretClass }}
+{{- fail "database.tls.caCert and database.tls.secretClass are mutually exclusive" }}
+{{- end }}
+{{- $dbMode := $dbTls.mode | default (ternary "verify-full" "disable" (eq .Values.config.nodeEnv "production")) }}
+{{- if and (ne $dbMode "verify-full") (or $dbTls.caCert $dbTls.secretClass) }}
+{{- fail (printf "database.tls.mode %q does not verify certificates, so database.tls.caCert and database.tls.secretClass would be ignored" $dbMode) }}
+{{- end }}
+{{- $storageTls := .Values.storage.tls }}
+{{- if and $storageTls.caCert $storageTls.secretClass }}
+{{- fail "storage.tls.caCert and storage.tls.secretClass are mutually exclusive" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Database port, validated: int64 turns "" or "abc" into 0, which would fail only at connect time.
+*/}}
+{{- define "cockpit.databasePort" -}}
+{{- $port := .Values.database.port | int64 }}
+{{- if or (lt $port 1) (gt $port 65535) }}
+{{- fail (printf "database.port must be a port number between 1 and 65535 (got %v)" .Values.database.port) }}
+{{- end }}
+{{- $port }}
+{{- end }}

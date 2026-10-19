@@ -138,23 +138,23 @@ function removeTabSql(id: string) {
 function createTabStore() {
   const initial = loadFromStorage() ?? createDefaultState();
 
-  // eslint-disable-next-line prefer-const -- $state arrays are mutated in place
-  let tabs = $state<TabState[]>(initial.tabs);
-  let activeTabId = $state<string>(initial.activeTabId);
-  let persistError = $state(false);
-
   // Ensure activeTabId points to a valid tab.
-  if (!tabs.some((t) => t.id === activeTabId)) {
-    activeTabId = tabs[0].id;
+  if (!initial.tabs.some((t) => t.id === initial.activeTabId)) {
+    initial.activeTabId = initial.tabs[0].id;
   }
 
   // Persist the initial state if this was a fresh default or migration.
   if (!readIndex()) {
-    persistIndex(tabs, activeTabId);
-    for (const tab of tabs) {
+    persistIndex(initial.tabs, initial.activeTabId);
+    for (const tab of initial.tabs) {
       persistTabSql(tab.id, tab.sql);
     }
   }
+
+  // eslint-disable-next-line prefer-const -- $state arrays are mutated in place
+  let tabs = $state<TabState[]>(initial.tabs);
+  let activeTabId = $state<string>(initial.activeTabId);
+  let persistError = $state(false);
 
   const activeTab = $derived(tabs.find((t) => t.id === activeTabId)!);
 
@@ -211,6 +211,7 @@ function createTabStore() {
 
     if (activeTabId === id) {
       const newIndex = Math.min(index, tabs.length - 1);
+
       activeTabId = tabs[newIndex].id;
     }
     saveIndex();

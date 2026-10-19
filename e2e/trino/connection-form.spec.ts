@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures.js';
 import { stringify } from 'devalue';
 import { waitForHydration, waitForQueryComplete, setTabSql } from '../support/helpers';
 import { MOCK_TRINO_URL } from '../support/mock-trino';

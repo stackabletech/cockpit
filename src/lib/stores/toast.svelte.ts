@@ -2,20 +2,32 @@ import { randomUUID } from '$lib/utils/uuid.js';
 
 export type ToastType = 'info' | 'success' | 'warning' | 'error';
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface Toast {
   id: string;
   type: ToastType;
   message: string;
+  actions?: ToastAction[];
 }
 
 export const toasts = $state<Toast[]>([]);
 
-export function addToast(type: ToastType, message: string, durationMs = 5000): void {
+export function addToast(
+  type: ToastType,
+  message: string,
+  durationMs = 5000,
+  actions?: ToastAction[]
+): string {
   const id = randomUUID();
-  toasts.push({ id, type, message });
+  toasts.push({ id, type, message, actions });
   if (durationMs > 0) {
     setTimeout(() => removeToast(id), durationMs);
   }
+  return id;
 }
 
 export function removeToast(id: string): void {

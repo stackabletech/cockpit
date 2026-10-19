@@ -9,6 +9,10 @@ declare global {
   namespace App {
     interface Error {
       requestId?: string;
+      /** Set when the error page should explain this specific cause. */
+      reason?: 'not-connected';
+      /** Hostname of the storage a link points to, for `reason: 'not-connected'`. */
+      connection?: string;
     }
     interface Locals {
       user: typeof auth.$Infer.Session.user | null;
@@ -16,16 +20,22 @@ declare global {
       logger: import('pino').Logger;
       requestId: string;
       /**
-       * Parsed S3 connection config extracted from the `x-storage-connection`
-       * request header by the `handleStorageConnection` middleware.
+       * Parsed S3 connection config extracted from the `x-storage-connection-id`
+       * request header by the `handleStorageConnection` middleware. The connection is
+       * looked up from the database and decrypted using the application key.
        * Always non-null for requests to `/(app)/api/storage/*` routes
        * (the middleware throws 401 before the handler runs if the header is absent).
        * Null for all other routes.
        */
       storageConfig: import('$lib/server/storage/types.js').S3ConnectionConfig | null;
+      /** Authorised storage connection ID for the current API request. */
+      storageConnectionId: string | null;
     }
     // interface PageData {}
-    // interface PageState {}
+    interface PageState {
+      /** Previous-page continuation tokens of the storage listing in this history entry. */
+      storagePrevTokens?: (string | null)[];
+    }
     // interface Platform {}
   }
 }
