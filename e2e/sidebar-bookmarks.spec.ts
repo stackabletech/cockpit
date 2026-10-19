@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from './support/fixtures.js';
 import { waitForHydration } from './support/helpers';
 
@@ -6,6 +7,9 @@ test.describe('Sidebar bookmarks', () => {
 
   const BOOKMARK_ID = 'b6d6c7b6-8f24-4c4a-9c64-4f3b7c19e6a1';
   const BOOKMARK_URL = 'https://superset.example.com';
+
+  // Bookmarks are also shown on the dashboard, so scope link lookups to the sidebar.
+  const sidebarNav = (page: Page) => page.getByRole('navigation', { name: 'Main navigation' });
 
   test.skip(
     ({ viewport }) => (viewport?.width ?? 1280) < 1024,
@@ -50,17 +54,17 @@ test.describe('Sidebar bookmarks', () => {
     await waitForHydration(page);
 
     await expect(page.getByText('Favourites')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Pipelines' })).toBeVisible();
+    await expect(sidebarNav(page).getByRole('link', { name: 'Pipelines' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Collapse tools section' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Dashboards' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Trino' })).toBeVisible();
+    await expect(sidebarNav(page).getByRole('link', { name: 'Dashboards' })).toBeVisible();
+    await expect(sidebarNav(page).getByRole('link', { name: 'Trino' })).toBeVisible();
   });
 
   test('opens each bookmark in a new tab', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);
 
-    const dashboardsLink = page.getByRole('link', { name: 'Dashboards' });
+    const dashboardsLink = sidebarNav(page).getByRole('link', { name: 'Dashboards' });
     await expect(dashboardsLink).toHaveAttribute('href', BOOKMARK_URL);
     await expect(dashboardsLink).toHaveAttribute('target', '_blank');
     await expect(dashboardsLink).toHaveAttribute('rel', /noopener/);
@@ -72,7 +76,7 @@ test.describe('Sidebar bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    const trinoLink = page.getByRole('link', { name: 'Trino' });
+    const trinoLink = sidebarNav(page).getByRole('link', { name: 'Trino' });
     await expect(trinoLink).toBeVisible();
     await expect(trinoLink.locator('..').getByRole('link')).toHaveCount(1);
   });
@@ -109,12 +113,12 @@ test.describe('Sidebar bookmarks', () => {
     await expect(collapseButton).toHaveAttribute('aria-expanded', 'true');
 
     await collapseButton.click();
-    await expect(page.getByRole('link', { name: 'Dashboards' })).not.toBeVisible();
-    await expect(page.getByRole('link', { name: 'Trino' })).not.toBeVisible();
-    await expect(page.getByRole('link', { name: 'Pipelines' })).toBeVisible();
+    await expect(sidebarNav(page).getByRole('link', { name: 'Dashboards' })).not.toBeVisible();
+    await expect(sidebarNav(page).getByRole('link', { name: 'Trino' })).not.toBeVisible();
+    await expect(sidebarNav(page).getByRole('link', { name: 'Pipelines' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Expand tools section' }).click();
-    await expect(page.getByRole('link', { name: 'Dashboards' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Trino' })).toBeVisible();
+    await expect(sidebarNav(page).getByRole('link', { name: 'Dashboards' })).toBeVisible();
+    await expect(sidebarNav(page).getByRole('link', { name: 'Trino' })).toBeVisible();
   });
 });
