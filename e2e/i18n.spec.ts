@@ -3,7 +3,7 @@ import fs from 'fs';
 import { waitForHydration } from './support/helpers';
 
 /** German dashboard heading (messages/de.json `dashboard_welcome`). */
-const DE_DASHBOARD_HEADING = 'Ihre Plattform'; // typos:ignore-line
+const DE_DASHBOARD_HEADING = 'Stackable Unified Data Platform – Übersicht';
 
 /** Load the saved auth storage state, optionally stripping the locale cookie. */
 function loadAuthState(authFile: string, { withoutLocale = false } = {}) {

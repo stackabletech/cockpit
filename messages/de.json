@@ -2,7 +2,7 @@
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "action_close": "Schließen",
   "action_dismiss": "Schließen",
-  "dashboard_welcome": "Ihre Plattform",
+  "dashboard_welcome": "Stackable Unified Data Platform – Übersicht",
   "dashboard_subtitle": "Die Werkzeuge, die Sie sich als Lesezeichen gespeichert haben. Lesezeichen werden von Hand hinzugefügt – Cockpit erkennt noch nichts automatisch.",
   "dashboard_bookmarks_empty": "Noch keine Lesezeichen. Fügen Sie Ihr erstes Lesezeichen hinzu, um zu starten.",
   "nav_platform": "Plattform",
