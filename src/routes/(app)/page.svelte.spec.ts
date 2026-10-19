@@ -32,20 +32,4 @@ describe('/(app)/+page.svelte', () => {
     renderPage();
     await expect.element(page.getByText(/no bookmarks yet/i)).toBeInTheDocument();
   });
-
-  it('should hide pin-for-everyone in the modal for non-admins', async () => {
-    render(Page, { data: { user: null, storageBrowserEnabled: true, isAdmin: false } });
-    await page.getByRole('button', { name: 'Add Bookmark' }).click();
-    await expect
-      .element(page.getByRole('checkbox', { name: /pin bookmark for everyone/i }))
-      .not.toBeInTheDocument();
-  });
-
-  it('should enable pin-for-everyone in the modal for admins', async () => {
-    render(Page, { data: { user: null, storageBrowserEnabled: true, isAdmin: true } });
-    await page.getByRole('button', { name: 'Add Bookmark' }).click();
-    await expect
-      .element(page.getByRole('checkbox', { name: /pin bookmark for everyone/i }))
-      .toBeEnabled();
-  });
 });

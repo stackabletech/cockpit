@@ -5,8 +5,7 @@ export const bookmarkFormSchema = z.object({
   name: z.string().trim().min(1),
   environment: z.string(),
   url: z.httpUrl(),
-  pinned: z.boolean(),
-  pinnedForEveryone: z.boolean()
+  pinned: z.boolean()
 });
 
 export const bookmarkSchema = bookmarkFormSchema.extend({

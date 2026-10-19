@@ -20,63 +20,33 @@ const renderModal = (props: Record<string, unknown> = {}) =>
   render(AddBookmarkModal, {
     open: true,
     bookmark: null,
-    isAdmin: false,
     ...props
   });
 
-const pinEveryoneCheckbox = () =>
-  page.getByRole('checkbox', { name: /pin bookmark for everyone/i });
+const pinCheckbox = () => page.getByRole('checkbox', { name: 'Pin bookmark' });
 
 describe('AddBookmarkModal', () => {
-  it('does not show "pin for everyone" for non-admins', async () => {
-    renderModal({ isAdmin: false });
+  it('stores pinned: true when the pin checkbox is checked', async () => {
+    renderModal();
 
-    await expect.element(pinEveryoneCheckbox()).not.toBeInTheDocument();
-  });
-
-  it('enables "pin for everyone" for admins', async () => {
-    renderModal({ isAdmin: true });
-
-    await expect.element(pinEveryoneCheckbox()).toBeEnabled();
-  });
-
-  it('does not show the admin-only hint to non-admins', async () => {
-    renderModal({ isAdmin: false });
-
-    await expect
-      .element(page.getByText('Only administrators can pin bookmarks for everyone'))
-      .not.toBeInTheDocument();
-  });
-
-  it('shows the general hint to admins', async () => {
-    renderModal({ isAdmin: true });
-
-    await expect
-      .element(page.getByText('This bookmark is shown to every user'))
-      .toBeInTheDocument();
-  });
-
-  it('stores pinnedForEveryone: true when an admin pins for everyone', async () => {
-    renderModal({ isAdmin: true });
-
-    await page.getByLabelText('Name').fill('Shared Dashboard');
+    await page.getByLabelText('Name').fill('Pinned Dashboard');
     await page.getByLabelText('URL').fill('https://superset.example.com');
-    await pinEveryoneCheckbox().click();
+    await pinCheckbox().click();
     await page.getByRole('button', { name: 'Add Bookmark' }).click();
 
     expect(addBookmark).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Shared Dashboard', pinnedForEveryone: true })
+      expect.objectContaining({ name: 'Pinned Dashboard', pinned: true })
     );
   });
 
-  it('does not set pinnedForEveryone when a non-admin adds a bookmark', async () => {
-    renderModal({ isAdmin: false });
+  it('stores pinned: false by default', async () => {
+    renderModal();
 
     await page.getByLabelText('Name').fill('Private Dashboard');
     await page.getByLabelText('URL').fill('https://superset.example.com');
     await page.getByRole('button', { name: 'Add Bookmark' }).click();
 
-    expect(addBookmark).toHaveBeenCalledWith(expect.objectContaining({ pinnedForEveryone: false }));
+    expect(addBookmark).toHaveBeenCalledWith(expect.objectContaining({ pinned: false }));
   });
 
   it('disables submission for a malformed URL without throwing', async () => {
@@ -88,24 +58,24 @@ describe('AddBookmarkModal', () => {
     await expect.element(page.getByRole('button', { name: 'Add Bookmark' })).toBeDisabled();
   });
 
-  it('preserves pinnedForEveryone when a non-admin edits an admin-pinned bookmark', async () => {
+  it('preserves the pinned state when editing a bookmark', async () => {
     const bookmark: Bookmark = {
       id: 'b1',
       productId: 'superset',
       name: 'Shared Dashboard',
       environment: '',
       url: 'https://superset.example.com',
-      pinned: false,
-      pinnedForEveryone: true,
+      pinned: true,
       createdAt: '2026-01-01T00:00:00.000Z'
     };
-    renderModal({ isAdmin: false, bookmark });
+    renderModal({ bookmark });
 
+    await expect.element(pinCheckbox()).toBeChecked();
     await page.getByLabelText('Name').fill('Renamed Dashboard');
     await page.getByRole('button', { name: 'Save changes' }).click();
 
     expect(updateBookmark).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Renamed Dashboard', pinnedForEveryone: true })
+      expect.objectContaining({ id: 'b1', name: 'Renamed Dashboard', pinned: true })
     );
   });
 });
