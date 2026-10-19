@@ -15,8 +15,6 @@
 </script>
 
 <script lang="ts">
-  import type { HTMLDialogAttributes } from 'svelte/elements';
-
   let {
     open = $bindable(false),
     children,
