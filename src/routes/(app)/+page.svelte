@@ -95,12 +95,6 @@
                   class="text-base-content block truncate text-[13.5px] leading-tight font-bold"
                 >
                   {bookmark.name}
-                  {#if bookmark.environment}
-                    <span
-                      class="text-base-content/70 shrink-0 text-[13px] leading-loose font-normal"
-                      >{bookmark.environment}</span
-                    >
-                  {/if}
                 </a>
               </div>
               <div class="mt-1 flex flex-wrap items-center gap-1.5">

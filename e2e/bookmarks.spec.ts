@@ -149,6 +149,32 @@ test.describe('Dashboard bookmarks', () => {
     expect(hostBox!.x + hostBox!.width).toBeLessThanOrEqual(starBox!.x);
   });
 
+  test('shows the environment once, as a chip, not in the title link', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'dashboard_bookmarks',
+        JSON.stringify([
+          {
+            id: 'b1',
+            productId: 'superset',
+            name: 'Dashboards',
+            environment: 'staging',
+            url: 'https://superset.example.com',
+            pinned: false,
+            createdAt: new Date().toISOString()
+          }
+        ])
+      );
+    });
+
+    await page.goto('/');
+    await waitForHydration(page);
+
+    const section = page.getByLabel('Bookmarks');
+    await expect(section.getByRole('link', { name: 'Dashboards', exact: true })).toBeVisible();
+    await expect(section.getByText('staging', { exact: true })).toHaveCount(1);
+  });
+
   test('prefills the default name and shows an error when it is cleared', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);
