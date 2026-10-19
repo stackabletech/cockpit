@@ -12,7 +12,10 @@ import {
   connectAndOpenPrefix,
   deleteKnownKeys,
   getObjectText,
+  goUp,
   objectExists,
+  openFolder,
+  pasteHere,
   putDirectoryMarker,
   putTextObject,
   rowByName,
@@ -52,14 +55,6 @@ async function deletePrefix(client: S3Client, bucket: string, prefix: string) {
   await deleteKnownKeys(client, bucket, await listKeys(client, bucket, prefix));
 }
 
-/** Open a folder in-app (keeping the in-memory clipboard) and wait for its listing. */
-async function openFolder(page: Page, name: string) {
-  const url = page.url();
-  await rowByName(page, name).dblclick();
-  await expect(page).not.toHaveURL(url);
-  await waitForObjectsLoaded(page);
-}
-
 /** Open a bucket from the sidebar in-app and wait for its listing. */
 async function openBucket(page: Page, bucket: string) {
   await page.getByRole('link', { name: bucket, exact: true }).last().click();
@@ -67,21 +62,6 @@ async function openBucket(page: Page, bucket: string) {
     url.pathname.replace(/\/$/, '').endsWith(`/${encodeURIComponent(bucket)}`)
   );
   await waitForObjectsLoaded(page);
-}
-
-/** Go one folder up via the ".." row, keeping the in-memory clipboard. */
-async function goUp(page: Page) {
-  await page.locator('tbody tr').first().click();
-}
-
-/**
- * Paste with Ctrl+V. Focus is cleared first (the shortcuts also apply when
- * nothing has focus): clicking the table could hit a row and navigate.
- */
-async function pasteHere(page: Page) {
-  await waitForObjectsLoaded(page);
-  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-  await page.keyboard.press('Control+v');
 }
 
 /** The refusal dialog is named by its heading and has no empty paragraphs. */

@@ -141,15 +141,17 @@ describe('FolderRow', () => {
     expect(spy).toHaveBeenCalledWith('photos/');
   });
 
-  it('should navigate on double-click without a modifier', async () => {
+  it('should navigate only once on double-click without a modifier', async () => {
     const folder = makeFolder('photos/');
     const state = createState([folder]);
     const spy = vi.spyOn(state, 'navigate');
     render(FolderRowWrapper, { state, folder });
 
-    spy.mockClear();
     const row = page.getByRole('row').element();
-    row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 2 }));
+    row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, detail: 2 }));
+    expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith('photos/');
   });
 
