@@ -13,6 +13,7 @@
   import { getProduct, handleProductLogoError } from '$lib/dashboard/products';
   import type { Bookmark } from '$lib/dashboard/types';
   import stackableLogo from '$lib/logos/stackable.svg?enhanced';
+  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
 
   let {
     collapsed = $bindable(false),
@@ -47,9 +48,14 @@
     localStorage.setItem('sidebar_tools_open', String(toolsOpen));
   });
 
+  // Explicitly derive currentPath so Svelte 5 tracks page.url.pathname
+  // as a reactive dependency. Without this, changes to page.url.pathname
+  // may not reliably trigger re-renders in all browsers during hydration.
+  const currentPath = $derived(page.url.pathname);
+
   function isActive(href: string): boolean {
-    if (href === '/') return page.url.pathname === '/';
-    return page.url.pathname.startsWith(href);
+    if (href === '/') return currentPath === '/';
+    return currentPath.startsWith(href);
   }
 
   function handleNavClick(event: MouseEvent, item: NavItem) {
@@ -71,6 +77,42 @@
 
 {#snippet navIcon(IconComponent: Component)}
   <IconComponent class="h-5 w-5 shrink-0" aria-hidden="true" />
+{/snippet}
+
+{#snippet navItem(item: NavItem)}
+  {@const active = isActive((resolve as (pathname: string) => string)(item.route))}
+  <li>
+    <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Nav item paths are dynamically generated. -->
+    <TooltipTrigger text={collapsed ? item.label : undefined} orientation="right">
+      <a
+        href={(resolve as (pathname: string) => string)(item.route)}
+        data-sveltekit-preload-data="hover"
+        onclick={(e) => handleNavClick(e, item)}
+        onkeydown={(e) => handleNavKeydown(e, item)}
+        aria-label={collapsed ? item.label : undefined}
+        class="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
+          {active
+          ? 'bg-primary/10 text-primary'
+          : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
+          {item.disabled ? 'opacity-40' : ''}
+          {collapsed ? 'justify-center' : ''}"
+        aria-current={active ? 'page' : undefined}
+        aria-disabled={item.disabled ? 'true' : undefined}
+      >
+        {@render navIcon(item.icon)}
+        {#if !collapsed}
+          <span class="truncate">{item.label}</span>
+          {#if item.badge}
+            <span
+              class="bg-base-300 text-base-content/60 ml-auto rounded-md px-1.5 py-0.5 text-xs font-semibold tracking-wider uppercase"
+            >
+              {item.badge}
+            </span>
+          {/if}
+        {/if}
+      </a>
+    </TooltipTrigger>
+  </li>
 {/snippet}
 
 {#snippet bookmarkIcon(bookmark: Bookmark)}
@@ -100,23 +142,25 @@
 
 {#snippet bookmarkItem(bookmark: Bookmark)}
   <li class="group relative">
-    <a
-      href={bookmark.url}
-      target="_blank"
-      rel="external noopener noreferrer"
-      onclick={() => (mobileOpen = false)}
-      title={collapsed ? bookmark.name : undefined}
-      class="text-base-content/70 hover:bg-base-content/5 hover:text-base-content flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2
-        text-sm font-medium transition-colors
-        {collapsed ? 'justify-center' : 'pr-9'}"
-    >
-      <span class="flex shrink-0 items-center">
-        {@render bookmarkIcon(bookmark)}
-      </span>
-      {#if !collapsed}
-        <span class="truncate">{bookmark.name}</span>
-      {/if}
-    </a>
+    <TooltipTrigger text={collapsed ? bookmark.name : undefined} orientation="right">
+      <a
+        href={bookmark.url}
+        target="_blank"
+        rel="external noopener noreferrer"
+        onclick={() => (mobileOpen = false)}
+        aria-label={collapsed ? bookmark.name : undefined}
+        class="text-base-content/70 hover:bg-base-content/5 hover:text-base-content flex min-h-11 items-center gap-3 rounded-lg px-3 py-2
+          text-sm font-medium transition-colors
+          {collapsed ? 'justify-center' : 'pr-9'}"
+      >
+        <span class="flex shrink-0 items-center">
+          {@render bookmarkIcon(bookmark)}
+        </span>
+        {#if !collapsed}
+          <span class="truncate">{bookmark.name}</span>
+        {/if}
+      </a>
+    </TooltipTrigger>
   </li>
 {/snippet}
 
@@ -162,35 +206,7 @@
     {/if}
     <ul class="flex flex-col gap-1">
       {#each platformSection.items as item (item.label)}
-        {@const active = isActive(resolve(item.route))}
-        <li>
-          <a
-            href={resolve(item.route)}
-            onclick={(e) => handleNavClick(e, item)}
-            onkeydown={(e) => handleNavKeydown(e, item)}
-            title={collapsed ? item.label : undefined}
-            class="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
-              {active
-              ? 'bg-primary/10 text-primary'
-              : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
-              {item.disabled ? 'opacity-40' : ''}
-              {collapsed ? 'justify-center' : ''}"
-            aria-current={active ? 'page' : undefined}
-            aria-disabled={item.disabled ? 'true' : undefined}
-          >
-            {@render navIcon(item.icon)}
-            {#if !collapsed}
-              <span class="truncate">{item.label}</span>
-              {#if item.badge}
-                <span
-                  class="bg-base-300 text-base-content/60 ml-auto rounded-md px-1.5 py-0.5 text-xs font-semibold tracking-wider uppercase"
-                >
-                  {item.badge}
-                </span>
-              {/if}
-            {/if}
-          </a>
-        </li>
+        {@render navItem(item)}
       {/each}
     </ul>
 
@@ -229,35 +245,7 @@
     {#if toolsOpen || collapsed}
       <ul class="flex flex-col gap-1">
         {#each toolsSection.items as item (item.label)}
-          {@const active = isActive(resolve(item.route))}
-          <li>
-            <a
-              href={resolve(item.route)}
-              onclick={(e) => handleNavClick(e, item)}
-              onkeydown={(e) => handleNavKeydown(e, item)}
-              title={collapsed ? item.label : undefined}
-              class="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
-                {active
-                ? 'bg-primary/10 text-primary'
-                : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
-                {item.disabled ? 'opacity-40' : ''}
-                {collapsed ? 'justify-center' : ''}"
-              aria-current={active ? 'page' : undefined}
-              aria-disabled={item.disabled ? 'true' : undefined}
-            >
-              {@render navIcon(item.icon)}
-              {#if !collapsed}
-                <span class="truncate">{item.label}</span>
-                {#if item.badge}
-                  <span
-                    class="bg-base-300 text-base-content/60 ml-auto rounded-md px-1.5 py-0.5 text-xs font-semibold tracking-wider uppercase"
-                  >
-                    {item.badge}
-                  </span>
-                {/if}
-              {/if}
-            </a>
-          </li>
+          {@render navItem(item)}
         {/each}
         {#each unpinnedBookmarks as bookmark (bookmark.id)}
           {@render bookmarkItem(bookmark)}
@@ -268,19 +256,21 @@
 
   <!-- Footer: collapse toggle (desktop only) -->
   <div class="border-base-300 hidden shrink-0 border-t p-3 lg:block">
-    <button
-      onclick={() => (collapsed = !collapsed)}
-      class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3 py-2
-        text-sm font-medium transition-colors hover:cursor-pointer
-        {collapsed ? 'justify-center' : ''}"
-      aria-label={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
-    >
-      {#if collapsed}
-        <IconChevronRight class="h-4 w-4 shrink-0" aria-hidden="true" />
-      {:else}
-        <IconChevronLeft class="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span>{m.sidebar_collapse_label()}</span>
-      {/if}
-    </button>
+    <TooltipTrigger text={collapsed ? m.sidebar_expand() : undefined} orientation="right">
+      <button
+        onclick={() => (collapsed = !collapsed)}
+        class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3 py-2
+          text-sm font-medium transition-colors hover:cursor-pointer
+          {collapsed ? 'justify-center' : ''}"
+        aria-label={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
+      >
+        {#if collapsed}
+          <IconChevronRight class="h-4 w-4 shrink-0" aria-hidden="true" />
+        {:else}
+          <IconChevronLeft class="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{m.sidebar_collapse_label()}</span>
+        {/if}
+      </button>
+    </TooltipTrigger>
   </div>
 </aside>

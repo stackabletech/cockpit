@@ -1,8 +1,8 @@
 import { fail } from '@sveltejs/kit';
-import { superValidate, message } from 'sveltekit-superforms';
+import { superValidate, message, type Infer, type InferIn } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { getUserId } from '$lib/server/auth-utils.js';
-import { getAllQuerySummaries, cancelQuery } from '$lib/server/trino/queries.js';
+import { getAllQuerySummaries, resetTabQueries } from '$lib/server/trino/queries.js';
 import {
   trinoConfigured,
   trinoMetadataQuery,
@@ -16,10 +16,16 @@ import {
 } from '$lib/server/trino/user-clients.js';
 import { ConnectionSchema, type ConnectionMessage } from './validation.js';
 import type { Actions, PageServerLoad } from './$types';
+import * as m from '$lib/paraglide/messages.js';
+
+type ConnectionData = Infer<typeof ConnectionSchema>;
+type ConnectionInput = InferIn<typeof ConnectionSchema>;
 
 export const load: PageServerLoad = async ({ locals }) => {
   locals.logger.debug('loading Trino page');
-  const connectionForm = await superValidate(zod(ConnectionSchema));
+  const connectionForm = await superValidate<ConnectionData, ConnectionMessage, ConnectionInput>(
+    zod(ConnectionSchema)
+  );
   const userId = getUserId(locals);
   const activeQueries = getAllQuerySummaries(userId);
   const userClientExists = getUserTrinoClient(userId) !== null;
@@ -30,11 +36,19 @@ export const actions: Actions = {
   save: async ({ request, locals }) => {
     const log = locals.logger;
 
-    if (trinoConfigured) {
-      return fail(400, { error: 'Connection is managed via environment variables' });
-    }
+    const form = await superValidate<ConnectionData, ConnectionMessage, ConnectionInput>(
+      request,
+      zod(ConnectionSchema)
+    );
 
-    const form = await superValidate(request, zod(ConnectionSchema));
+    if (trinoConfigured) {
+      log.debug('connection save rejected, Trino is configured via environment variables');
+      return message(
+        form,
+        { type: 'error', message: m.trino_connection_env_managed() } satisfies ConnectionMessage,
+        { status: 400 }
+      );
+    }
 
     if (!form.valid) {
       log.debug({ errors: form.errors }, 'connection form validation failed');
@@ -64,17 +78,17 @@ export const actions: Actions = {
       const name = (err as { name?: string })?.name;
       const reason =
         name === 'TimeoutError' || name === 'AbortError'
-          ? 'Connection test timed out'
-          : 'Could not connect to Trino — check the URL and credentials.';
+          ? m.trino_connection_test_timeout()
+          : m.trino_connection_test_failed();
       log.info({ err, trino_url: connectionUrl }, 'connection test failed');
       return message(form, { type: 'error', message: reason } satisfies ConnectionMessage, {
         status: 400
       });
     }
 
-    // Cancel any running query before replacing the connection.
+    // Cancel running queries and drop results from the previous connection.
     for (const tabId of Object.keys(getAllQuerySummaries(userId))) {
-      await cancelQuery(userId, tabId);
+      await resetTabQueries(userId, tabId);
     }
 
     createUserTrinoClient(userId, config);

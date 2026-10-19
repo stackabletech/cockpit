@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
@@ -81,8 +81,19 @@ describe('StorageBreadcrumb', () => {
       const state = createState({ folders: makeFolders(3), files: makeFiles(5) });
       render(StorageBreadcrumbWrapper, { state });
 
-      await expect.element(page.getByText('3')).toBeInTheDocument();
-      await expect.element(page.getByText('5')).toBeInTheDocument();
+      await expect.element(page.getByText('3', { exact: true })).toBeInTheDocument();
+      await expect.element(page.getByText('5', { exact: true })).toBeInTheDocument();
+    });
+
+    it('should give the count badges a text alternative', async () => {
+      const state = createState({ folders: makeFolders(3), files: makeFiles(1) });
+      render(StorageBreadcrumbWrapper, { state });
+
+      await expect.element(page.getByText('3 folders', { exact: true })).toBeInTheDocument();
+      await expect.element(page.getByText('1 file', { exact: true })).toBeInTheDocument();
+      await expect
+        .element(page.getByText('3', { exact: true }))
+        .toHaveAttribute('aria-hidden', 'true');
     });
   });
 
@@ -173,6 +184,28 @@ describe('StorageBreadcrumb', () => {
     });
   });
 
+  describe('create menu', () => {
+    it('should ignore Enter while a create is in flight', async () => {
+      const state = createState();
+      let resolveCreate: (created: boolean) => void = () => {};
+      const spy = vi
+        .spyOn(state, 'confirmCreate')
+        .mockImplementation(() => new Promise((resolve) => (resolveCreate = resolve)));
+      render(StorageBreadcrumbWrapper, { state });
+
+      await page.getByRole('button', { name: /create/i }).click();
+      await page.getByRole('menuitem', { name: /text file/i }).click();
+      const input = page.getByLabelText('Name');
+      await input.click();
+      await userEvent.keyboard('{Enter}');
+      await userEvent.keyboard('{Enter}');
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      resolveCreate(true);
+      await expect.element(input).not.toBeInTheDocument();
+    });
+  });
+
   describe('special characters in paths', () => {
     it('should handle paths with spaces', async () => {
       const state = createState({ prefix: 'my folder/sub dir/' });
@@ -191,16 +224,14 @@ describe('StorageBreadcrumb', () => {
   });
 
   describe('pin/unpin', () => {
-    it('should show pin option in more options menu', async () => {
+    it('should show a pin control for the current location', async () => {
       const state = createState();
       render(StorageBreadcrumbWrapper, { state });
 
-      // The more options button exists
-      const moreBtn = page.getByRole('button', { name: /more options/i });
-      await expect.element(moreBtn).toBeInTheDocument();
+      await expect.element(page.getByRole('button', { name: 'Pin' })).toBeInTheDocument();
     });
 
-    it('should show unpin when current location is pinned', async () => {
+    it('should show unpin control when current location is pinned', async () => {
       const state = createState({
         bucket: 'test-bucket',
         prefix: 'data/',
@@ -208,35 +239,20 @@ describe('StorageBreadcrumb', () => {
       });
       render(StorageBreadcrumbWrapper, { state });
 
-      // The more menu should contain unpin
-      const menuItems = page.getByRole('menuitem');
-      await expect.element(menuItems.first()).toBeInTheDocument();
+      await expect.element(page.getByRole('button', { name: 'Unpin' })).toBeInTheDocument();
     });
 
-    it('should call pin via more options menu when not pinned', async () => {
+    it('should pin the current location', async () => {
       const state = createState({ bucket: 'test-bucket', prefix: 'data/' });
       const spy = vi.spyOn(state.bookmarks, 'pin');
       render(StorageBreadcrumbWrapper, { state });
 
-      // Open the dropdown by focusing/clicking the trigger
-      const moreBtn = page.getByRole('button', { name: /more options/i });
-      await moreBtn.click();
-
-      // DaisyUI dropdown uses focus to show content; click the menuitem
-      const menuItems = page.getByRole('menuitem');
-      // Force the click by using element()
-      const el = menuItems.first();
-      await el.click();
-
-      // If DaisyUI dropdown prevents click, try direct dispatch
-      if (!spy.mock.calls.length) {
-        const domEl = (await el.element()) as HTMLElement;
-        domEl.click();
-      }
+      const pinButton = page.getByRole('button', { name: 'Pin' }).last();
+      ((await pinButton.element()) as HTMLElement).click();
       expect(spy).toHaveBeenCalledWith('test-bucket', 'data/');
     });
 
-    it('should call unpin via more options menu when pinned', async () => {
+    it('should unpin the current location', async () => {
       const state = createState({
         bucket: 'test-bucket',
         prefix: 'data/',
@@ -245,12 +261,8 @@ describe('StorageBreadcrumb', () => {
       const spy = vi.spyOn(state.bookmarks, 'unpin');
       render(StorageBreadcrumbWrapper, { state });
 
-      // Open the dropdown first
-      const moreBtn = page.getByRole('button', { name: /more options/i });
-      await moreBtn.click();
-
-      const menuItem = page.getByRole('menuitem');
-      await menuItem.first().click();
+      const unpinButton = page.getByRole('button', { name: 'Unpin' });
+      ((await unpinButton.element()) as HTMLElement).click();
       expect(spy).toHaveBeenCalledWith('test-bucket', 'data/');
     });
   });
@@ -350,7 +362,7 @@ describe('StorageBreadcrumb', () => {
       const bucketEl = nav.getByText('test-bucket');
       await bucketEl.click({ button: 'right' });
 
-      const menuItem = page.getByRole('menuitem');
+      const menuItem = page.getByRole('menuitem', { name: /pin/i });
       await menuItem.first().click();
       expect(spy).toHaveBeenCalledWith('test-bucket', '');
     });
@@ -367,7 +379,7 @@ describe('StorageBreadcrumb', () => {
       const bucketEl = nav.getByText('test-bucket');
       await bucketEl.click({ button: 'right' });
 
-      const menuItem = page.getByRole('menuitem');
+      const menuItem = page.getByRole('menuitem', { name: /unpin/i });
       await menuItem.first().click();
       expect(spy).toHaveBeenCalledWith('test-bucket', '');
     });
@@ -391,9 +403,8 @@ describe('StorageBreadcrumb', () => {
       const backdrop = menuUl.previousElementSibling as HTMLElement;
       backdrop.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
 
-      // Context menu should be closed - menuitem from ctx menu should be gone
-      // The only remaining menuitem should be from the more options dropdown
-      await expect.element(page.getByRole('menuitem')).toBeInTheDocument(); // the one in more options
+      // Context menu should be closed.
+      await expect.element(page.getByRole('menuitem').first()).not.toBeInTheDocument();
     });
 
     it('should open context menu on right-click of bucket with prefix', async () => {
@@ -453,6 +464,70 @@ describe('StorageBreadcrumb', () => {
       const nav = page.getByRole('navigation', { name: 'breadcrumb' });
       const moreBtn = nav.getByRole('button', { name: /more/i });
       await expect.element(moreBtn).not.toBeInTheDocument();
+    });
+  });
+
+  describe('archive mode', () => {
+    it('should show archive name when inside an archive', async () => {
+      const state = createState();
+      state.archive.archiveKey = 'data.zip';
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      await expect.element(nav.getByText('data.zip')).toBeInTheDocument();
+    });
+
+    it('should show internal path parts when navigating within archive', async () => {
+      const state = createState();
+      state.archive.archiveKey = 'data.zip';
+      state.archive.archivePrefix = 'music/videos/';
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      await expect
+        .element(nav.getByRole('button', { name: 'music', exact: true }))
+        .toBeInTheDocument();
+      await expect.element(nav.getByText('videos')).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('should show nested archive entry when browsing nested archive', async () => {
+      const state = createState();
+      state.archive.archiveKey = 'outer.zip';
+      state.archive._restoreFullState({
+        archiveKey: 'outer.zip',
+        archivePrefix: 'subdir/',
+        archiveNestedPath: 'inner.tar',
+        previousS3Prefix: '',
+        archiveLoading: false,
+        archiveTooLarge: false
+      });
+      state.archive.archivePrefix = 'subdir/';
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      await expect.element(nav.getByText('outer.zip')).toBeInTheDocument();
+      await expect.element(nav.getByText('inner.tar')).toBeInTheDocument();
+      await expect.element(nav.getByText('subdir')).toBeInTheDocument();
+    });
+
+    it('should call navigateInArchive when clicking breadcrumb folder inside archive', async () => {
+      const state = createState();
+      state.archive.archiveKey = 'data.zip';
+      state.archive.archivePrefix = 'music/videos/';
+      const spy = vi.spyOn(state.archive, 'navigateInArchive');
+      render(StorageBreadcrumbWrapper, { state });
+
+      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
+      await nav.getByRole('button', { name: 'music', exact: true }).click();
+      expect(spy).toHaveBeenCalledWith('music/');
+    });
+
+    it('should hide upload button when in archive mode', async () => {
+      const state = createState();
+      state.archive.archiveKey = 'data.zip';
+      render(StorageBreadcrumbWrapper, { state });
+
+      await expect.element(page.getByRole('button', { name: /upload/i })).not.toBeInTheDocument();
     });
   });
 });

@@ -189,10 +189,10 @@ The application uses **Paraglide-JS v2** for type-safe, compiler-based internati
 
 ### Node.js Version
 
-The required Node.js version is pinned in `.node-version`. Use `nvm` to install and activate it before running any `npm` commands — `npm` will hard-fail with engine errors otherwise (`.npmrc` sets `engine-strict=true`).
+The required Node.js version is pinned in `.node-version` for CI and `.nvmrc` for NVM. Keep both files synchronised. Use `nvm` to install and activate it before running any `npm` commands — `npm` will hard-fail with engine errors otherwise (`.npmrc` sets `engine-strict=true`).
 
 ```bash
-nvm install   # installs the version from .node-version
+nvm install   # installs the version from .nvmrc
 nvm use       # activates it in the current shell
 ```
 
@@ -224,6 +224,36 @@ npm run format               # Format code
 pre-commit run --all-files   # Run all checks: lint (prettier + eslint), type checking,
                              # markdownlint, yamllint, shellcheck, actionlint, hadolint, helm lint
 ```
+
+### Architecture Fitness Functions
+
+```bash
+npm run test:arch            # Run all architecture fitness function tests (~5 s)
+npm run test:arch:report     # Same, plus generate HTML dependency/metrics reports in /reports/
+```
+
+Architecture tests live in `src/architecture-tests/*.spec.ts` and use [ArchUnitTS](https://github.com/LukasNiessen/ArchUnitTS) together with plain Node.js `fs` checks. They run in CI and must remain **green at all times**.
+
+**Run `npm run test:arch` whenever you:**
+
+- Add a new file to `src/lib/server/` (verify it doesn't break client-boundary rules)
+- Add a new Svelte component (PascalCase naming and UI-pattern checks)
+- Add or remove message keys in `messages/en.json` (both locale files must stay in sync)
+- Refactor the Trino sub-layer (circular-dependency rules)
+
+**What the fitness functions enforce:**
+
+| Category                 | What is checked                                                                                               |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| Server / Client Boundary | `src/lib/client`, `stores`, `storage`, `editor`, `types` must not import `src/lib/server/**`                  |
+| No Circular Dependencies | `src/lib/**` (excluding Trino) and `src/routes/**` must be cycle-free                                         |
+| Naming Conventions       | Stores → `*.svelte.ts`; lib components → PascalCase `.svelte`; server files → no `.svelte.ts` extension       |
+| Code Size Limits         | `.ts` files < 2 400 LOC; `.svelte` files < 1 100 LOC; test files < 1 000 LOC                                  |
+| UI Pattern Enforcement   | No native date inputs; `<img>` must have `alt`; no clickable `<div>` or `<span>` (with documented exceptions) |
+| i18n Compliance          | `messages/en.json` and `messages/de.json` must have the same keys; no static `aria-label="English text"`      |
+
+**Extending the fitness functions:**
+When you add a new architectural rule (e.g., a new layer, a new naming convention), add a new `.spec.ts` file in `src/architecture-tests/` following the existing patterns. Use archunit for TypeScript dependency/cycle rules and plain Node.js `fs` for content checks on Svelte files.
 
 ### E2E Testing
 
@@ -262,7 +292,7 @@ test('example test', async ({ page }) => {
 
 ### Authentication
 
-Tests use a saved session from `e2e/.auth/user.json`. If tests fail with auth errors, run the auth setup to re-authenticate via OIDC.
+Import `test` and `expect` from `e2e/support/fixtures.ts`, not `@playwright/test`. Its worker-scoped fixture logs each worker in via the mock OIDC server as its own user, so parallel workers never share server-side state. Opt out with `test.use({ storageState: { cookies: [], origins: [] } })`.
 
 ## Important Notes
 

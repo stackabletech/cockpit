@@ -5,11 +5,17 @@ import { vi, beforeEach } from 'vitest';
 // browser environment. Values match the defaults used in production when no
 // env vars are set.
 vi.mock('$lib/client/feature-flags.js', () => ({
-  storageAutoConnectEnabled: false,
+  storageRestoreTabsEnabled: false,
+  infiniteScrollEnabled: true,
   allowedPageSizes: [25, 50, 100],
   defaultPageSize: 25,
   maxRecentFiles: 15,
-  uploadConcurrency: 3
+  maxEditableFileSize: 5 * 1024 * 1024,
+  uploadConcurrency: 3,
+  storageCutCopyEnabled: false,
+  storagePasteEnabled: false,
+  storageRenameEnabled: false,
+  storageMoveEnabled: false
 }));
 
 // Prevent components from auto-submitting forms in browser tests.
@@ -20,4 +26,9 @@ vi.mock('$lib/client/feature-flags.js', () => ({
 // with a no-op for the duration of each test.
 beforeEach(() => {
   vi.spyOn(HTMLFormElement.prototype, 'requestSubmit').mockImplementation(() => {});
+
+  // Clear localStorage before each test to prevent BookmarksState (and any
+  // other localStorage-backed state) from leaking pinned locations, recent
+  // files, or other browser-storage data between tests.
+  localStorage.clear();
 });

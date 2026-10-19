@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { unquoteIdentifier, SIMPLE_IDENTIFIER_REGEX } from './identifiers';
+import {
+  unquoteIdentifier,
+  SIMPLE_IDENTIFIER_REGEX,
+  quoteIdentifier,
+  formatIdentifier,
+  quoteStringLiteral
+} from './identifiers';
 
 describe('unquoteIdentifier', () => {
   it('leaves unquoted identifiers alone', () => {
@@ -48,5 +54,42 @@ describe('SIMPLE_IDENTIFIER_REGEX', () => {
     expect(SIMPLE_IDENTIFIER_REGEX.test('foo.bar')).toBe(false);
     expect(SIMPLE_IDENTIFIER_REGEX.test('foo bar')).toBe(false);
     expect(SIMPLE_IDENTIFIER_REGEX.test('"foo"')).toBe(false);
+  });
+
+  it('rejects identifiers starting with a digit', () => {
+    expect(SIMPLE_IDENTIFIER_REGEX.test('1foo')).toBe(false);
+  });
+});
+
+describe('quoteIdentifier', () => {
+  it('wraps in double quotes', () => {
+    expect(quoteIdentifier('foo-bar')).toBe('"foo-bar"');
+  });
+
+  it('escapes embedded double quotes', () => {
+    expect(quoteIdentifier('foo"bar')).toBe('"foo""bar"');
+  });
+
+  it('round-trips through unquoteIdentifier', () => {
+    expect(unquoteIdentifier(quoteIdentifier('a"b-c'))).toBe('a"b-c');
+  });
+});
+
+describe('formatIdentifier', () => {
+  it('leaves simple identifiers unquoted', () => {
+    expect(formatIdentifier('foo_bar')).toBe('foo_bar');
+  });
+
+  it('quotes identifiers that need it', () => {
+    expect(formatIdentifier('foo-bar')).toBe('"foo-bar"');
+    expect(formatIdentifier('foo.bar')).toBe('"foo.bar"');
+    expect(formatIdentifier('1foo')).toBe('"1foo"');
+  });
+});
+
+describe('quoteStringLiteral', () => {
+  it('wraps in single quotes and escapes embedded ones', () => {
+    expect(quoteStringLiteral('foo-bar')).toBe("'foo-bar'");
+    expect(quoteStringLiteral("it's")).toBe("'it''s'");
   });
 });
