@@ -31,28 +31,15 @@
 
   let isEditing = $derived(bookmark !== null);
 
-  function resetForm() {
-    selectedProduct = PRODUCTS[0];
-    name = PRODUCTS[0].defaultName;
-    userEditedName = false;
-    environment = '';
-    url = '';
-    pinned = false;
+  function initForm(target: Bookmark | null) {
+    selectedProduct = target ? getProduct(target.productId) : PRODUCTS[0];
+    name = target?.name ?? selectedProduct.defaultName;
+    userEditedName = target !== null;
+    environment = target?.environment ?? '';
+    url = target?.url ?? '';
+    pinned = target?.pinned ?? false;
     nameError = false;
     urlError = false;
-  }
-
-  function initForm(target: Bookmark | null) {
-    if (target) {
-      selectedProduct = getProduct(target.productId);
-      name = target.name;
-      userEditedName = true;
-      environment = target.environment;
-      url = target.url;
-      pinned = target.pinned;
-    } else {
-      resetForm();
-    }
   }
 
   // Only `open` is tracked; the bookmark is read once per open.
@@ -87,10 +74,6 @@
     if (url.trim()) urlError = !isValidUrl(url);
   }
 
-  function getDefaultName(): string {
-    return selectedProduct.defaultName;
-  }
-
   function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     const values = {
@@ -113,7 +96,6 @@
     } else {
       addBookmark({ createdAt: new Date().toISOString(), ...parsed.data });
     }
-    resetForm();
     open = false;
   }
 
@@ -131,7 +113,6 @@
     if (!bookmark) return;
     removeBookmark(bookmark.id);
     confirmDeleteOpen = false;
-    resetForm();
     open = false;
   }
 </script>
@@ -190,7 +171,7 @@
               type="text"
               bind:value={name}
               oninput={handleNameInput}
-              placeholder={getDefaultName()}
+              placeholder={selectedProduct.defaultName}
               class="input w-full"
               aria-invalid={nameError}
               aria-describedby={nameError ? `${uid}-name-error` : undefined}
@@ -246,42 +227,38 @@
         </label>
 
         <!-- Preview -->
-        {#if selectedProduct}
-          <div>
-            <p class="text-base-content/60 mb-2 text-xs font-medium tracking-wider uppercase">
-              {m.bookmark_preview_label()}
-            </p>
-            <div class="border-base-300 bg-base-200 flex items-center gap-3 rounded-xl border p-3">
-              <div class="shrink-0">
-                <ProductIcon product={selectedProduct} size="lg" />
-              </div>
-              <div class="min-w-0 flex-1">
-                <p class="text-base-content text-sm leading-tight font-semibold">
-                  {name || getDefaultName() || selectedProduct.name}
-                </p>
-                <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
+        <div>
+          <p class="text-base-content/60 mb-2 text-xs font-medium tracking-wider uppercase">
+            {m.bookmark_preview_label()}
+          </p>
+          <div class="border-base-300 bg-base-200 flex items-center gap-3 rounded-xl border p-3">
+            <div class="shrink-0">
+              <ProductIcon product={selectedProduct} size="lg" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-base-content text-sm leading-tight font-semibold">
+                {name || selectedProduct.defaultName || selectedProduct.name}
+              </p>
+              <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
+                <span class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]">
+                  {selectedProduct.name}
+                </span>
+                {#if environment}
                   <span
                     class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]"
                   >
-                    {selectedProduct.name}
+                    {environment}
                   </span>
-                  {#if environment}
-                    <span
-                      class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]"
-                    >
-                      {environment}
-                    </span>
-                  {/if}
-                </div>
-                {#if url}
-                  <p class="text-base-content/50 mt-0.5 truncate text-xs">
-                    {bookmarkHostname(url)}
-                  </p>
                 {/if}
               </div>
+              {#if url}
+                <p class="text-base-content/50 mt-0.5 truncate text-xs">
+                  {bookmarkHostname(url)}
+                </p>
+              {/if}
             </div>
           </div>
-        {/if}
+        </div>
       </div>
 
       <div class="modal-action">
@@ -290,14 +267,7 @@
             {m.bookmark_delete()}
           </button>
         {/if}
-        <button
-          type="button"
-          class="btn btn-ghost"
-          onclick={() => {
-            resetForm();
-            open = false;
-          }}
-        >
+        <button type="button" class="btn btn-ghost" onclick={() => (open = false)}>
           {m.bookmark_cancel()}
         </button>
         <button type="submit" class="btn btn-primary">
