@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import AddBookmarkModal from './AddBookmarkModal.svelte';
@@ -61,6 +61,28 @@ describe('AddBookmarkModal', () => {
     await page.getByRole('button', { name: 'Add bookmark' }).click();
 
     expect(addBookmark).toHaveBeenCalledWith(expect.objectContaining({ pinned: false }));
+  });
+
+  it('saves when Enter is pressed in a field', async () => {
+    renderModal();
+
+    await page.getByLabelText('Name').fill('Keyboard Dashboard');
+    await page.getByLabelText('URL').fill('https://superset.example.com');
+    await userEvent.keyboard('{Enter}');
+
+    expect(addBookmark).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Keyboard Dashboard', url: 'https://superset.example.com' })
+    );
+  });
+
+  it('shows the URL error instead of saving when Enter is pressed with a malformed URL', async () => {
+    renderModal();
+
+    await page.getByLabelText('URL').fill('not a URL');
+    await userEvent.keyboard('{Enter}');
+
+    await expect.element(page.getByText('Enter a valid HTTP or HTTPS URL.')).toBeVisible();
+    expect(addBookmark).not.toHaveBeenCalled();
   });
 
   it('shows an error instead of saving a malformed URL', async () => {

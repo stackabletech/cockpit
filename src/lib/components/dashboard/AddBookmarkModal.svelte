@@ -97,7 +97,8 @@
     }
   }
 
-  function handleSubmit() {
+  function handleSubmit(event: SubmitEvent) {
+    event.preventDefault();
     const values = {
       productId: selectedProduct.id,
       name: name.trim(),
@@ -156,153 +157,158 @@
       {isEditing ? m.bookmark_edit_title() : m.bookmark_add_title()}
     </h3>
 
-    <div class="mt-6 space-y-6">
-      <!-- Section 1: Product selection -->
-      <fieldset>
-        <legend class="text-base-content/80 mb-3 text-sm font-medium"
-          >{m.bookmark_product_label()}</legend
-        >
-        <div class="flex flex-wrap gap-2">
-          {#each PRODUCTS as product (product.id)}
-            <button
-              type="button"
-              onclick={() => handleProductSelect(product)}
-              class="
+    <!-- novalidate: the inline errors replace the browser's own URL validation. -->
+    <form novalidate onsubmit={handleSubmit}>
+      <div class="mt-6 space-y-6">
+        <!-- Section 1: Product selection -->
+        <fieldset>
+          <legend class="text-base-content/80 mb-3 text-sm font-medium"
+            >{m.bookmark_product_label()}</legend
+          >
+          <div class="flex flex-wrap gap-2">
+            {#each PRODUCTS as product (product.id)}
+              <button
+                type="button"
+                onclick={() => handleProductSelect(product)}
+                class="
                 flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors
                 {selectedProduct.id === product.id
-                ? 'ring-primary bg-primary/10 ring-2 ring-offset-1'
-                : 'bg-base-200 text-base-content/70 hover:bg-base-300'}
+                  ? 'ring-primary bg-primary/10 ring-2 ring-offset-1'
+                  : 'bg-base-200 text-base-content/70 hover:bg-base-300'}
               "
-              aria-pressed={selectedProduct.id === product.id}
-            >
-              <ProductIcon {product} />
-              {product.name}
-            </button>
-          {/each}
-        </div>
-      </fieldset>
+                aria-pressed={selectedProduct.id === product.id}
+              >
+                <ProductIcon {product} />
+                {product.name}
+              </button>
+            {/each}
+          </div>
+        </fieldset>
 
-      <!-- Product name and environment -->
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <!-- Product name and environment -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label for="{uid}-name" class="text-base-content/80 mb-1 block text-sm font-medium">
+              {m.bookmark_name_label()}
+            </label>
+            <input
+              id="{uid}-name"
+              type="text"
+              bind:value={name}
+              oninput={handleNameInput}
+              placeholder={getDefaultName()}
+              class="input w-full"
+              aria-invalid={nameError}
+              aria-describedby={nameError ? `${uid}-name-error` : undefined}
+            />
+            {#if nameError}
+              <p id="{uid}-name-error" class="text-error mt-1 text-sm">{m.bookmark_name_error()}</p>
+            {/if}
+          </div>
+          <div>
+            <label for="{uid}-env" class="text-base-content/80 mb-1 block text-sm font-medium">
+              {m.bookmark_env_label()}
+            </label>
+            <input
+              id="{uid}-env"
+              type="text"
+              bind:value={environment}
+              placeholder={m.bookmark_env_placeholder()}
+              class="input w-full"
+            />
+          </div>
+        </div>
+
+        <!-- URL -->
         <div>
-          <label for="{uid}-name" class="text-base-content/80 mb-1 block text-sm font-medium">
-            {m.bookmark_name_label()}
+          <label for="{uid}-url" class="text-base-content/80 mb-1 block text-sm font-medium">
+            {m.bookmark_url_label()}
           </label>
           <input
-            id="{uid}-name"
-            type="text"
-            bind:value={name}
-            oninput={handleNameInput}
-            placeholder={getDefaultName()}
+            id="{uid}-url"
+            type="url"
+            bind:value={url}
+            oninput={handleUrlInput}
+            onblur={handleUrlBlur}
+            placeholder="https://superset.data-prod.corp"
             class="input w-full"
-            aria-invalid={nameError}
-            aria-describedby={nameError ? `${uid}-name-error` : undefined}
+            aria-invalid={urlError}
+            aria-describedby={urlError ? `${uid}-url-error` : undefined}
           />
-          {#if nameError}
-            <p id="{uid}-name-error" class="text-error mt-1 text-sm">{m.bookmark_name_error()}</p>
+          {#if urlError}
+            <p id="{uid}-url-error" class="text-error mt-1 text-sm">{m.bookmark_url_error()}</p>
           {/if}
         </div>
-        <div>
-          <label for="{uid}-env" class="text-base-content/80 mb-1 block text-sm font-medium">
-            {m.bookmark_env_label()}
-          </label>
+
+        <!-- Pinned checkbox -->
+        <label for="{uid}-pin" class="flex cursor-pointer items-center gap-2">
           <input
-            id="{uid}-env"
-            type="text"
-            bind:value={environment}
-            placeholder={m.bookmark_env_placeholder()}
-            class="input w-full"
+            id="{uid}-pin"
+            type="checkbox"
+            bind:checked={pinned}
+            class="checkbox checkbox-primary checkbox-sm"
           />
-        </div>
-      </div>
-
-      <!-- URL -->
-      <div>
-        <label for="{uid}-url" class="text-base-content/80 mb-1 block text-sm font-medium">
-          {m.bookmark_url_label()}
+          <span class="text-base-content/80 text-sm">{m.bookmark_pin_label()}</span>
         </label>
-        <input
-          id="{uid}-url"
-          type="url"
-          bind:value={url}
-          oninput={handleUrlInput}
-          onblur={handleUrlBlur}
-          placeholder="https://superset.data-prod.corp"
-          class="input w-full"
-          aria-invalid={urlError}
-          aria-describedby={urlError ? `${uid}-url-error` : undefined}
-        />
-        {#if urlError}
-          <p id="{uid}-url-error" class="text-error mt-1 text-sm">{m.bookmark_url_error()}</p>
-        {/if}
-      </div>
 
-      <!-- Pinned checkbox -->
-      <label for="{uid}-pin" class="flex cursor-pointer items-center gap-2">
-        <input
-          id="{uid}-pin"
-          type="checkbox"
-          bind:checked={pinned}
-          class="checkbox checkbox-primary checkbox-sm"
-        />
-        <span class="text-base-content/80 text-sm">{m.bookmark_pin_label()}</span>
-      </label>
-
-      <!-- Preview -->
-      {#if selectedProduct}
-        <div>
-          <p class="text-base-content/60 mb-2 text-xs font-medium tracking-wider uppercase">
-            {m.bookmark_preview_label()}
-          </p>
-          <div class="border-base-300 bg-base-200 flex items-center gap-3 rounded-xl border p-3">
-            <div class="shrink-0">
-              <ProductIcon product={selectedProduct} size="lg" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="text-base-content text-sm leading-tight font-semibold">
-                {name || getDefaultName() || selectedProduct.name}
-              </p>
-              <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
-                <span class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]">
-                  {selectedProduct.name}
-                </span>
-                {#if environment}
+        <!-- Preview -->
+        {#if selectedProduct}
+          <div>
+            <p class="text-base-content/60 mb-2 text-xs font-medium tracking-wider uppercase">
+              {m.bookmark_preview_label()}
+            </p>
+            <div class="border-base-300 bg-base-200 flex items-center gap-3 rounded-xl border p-3">
+              <div class="shrink-0">
+                <ProductIcon product={selectedProduct} size="lg" />
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-base-content text-sm leading-tight font-semibold">
+                  {name || getDefaultName() || selectedProduct.name}
+                </p>
+                <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
                   <span
                     class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]"
                   >
-                    {environment}
+                    {selectedProduct.name}
                   </span>
+                  {#if environment}
+                    <span
+                      class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]"
+                    >
+                      {environment}
+                    </span>
+                  {/if}
+                </div>
+                {#if url}
+                  <p class="text-base-content/50 mt-0.5 truncate text-xs">{getHostname(url)}</p>
                 {/if}
               </div>
-              {#if url}
-                <p class="text-base-content/50 mt-0.5 truncate text-xs">{getHostname(url)}</p>
-              {/if}
             </div>
           </div>
-        </div>
-      {/if}
-    </div>
+        {/if}
+      </div>
 
-    <div class="modal-action">
-      {#if isEditing}
-        <button type="button" class="btn btn-error mr-auto" onclick={handleDeleteClick}>
-          {m.bookmark_delete()}
+      <div class="modal-action">
+        {#if isEditing}
+          <button type="button" class="btn btn-error mr-auto" onclick={handleDeleteClick}>
+            {m.bookmark_delete()}
+          </button>
+        {/if}
+        <button
+          type="button"
+          class="btn btn-ghost"
+          onclick={() => {
+            resetForm();
+            open = false;
+          }}
+        >
+          {m.bookmark_cancel()}
         </button>
-      {/if}
-      <button
-        type="button"
-        class="btn btn-ghost"
-        onclick={() => {
-          resetForm();
-          open = false;
-        }}
-      >
-        {m.bookmark_cancel()}
-      </button>
-      <button type="button" class="btn btn-primary" onclick={handleSubmit}>
-        {isEditing ? m.bookmark_save_changes() : m.bookmark_add_title()}
-      </button>
-    </div>
+        <button type="submit" class="btn btn-primary">
+          {isEditing ? m.bookmark_save_changes() : m.bookmark_add_title()}
+        </button>
+      </div>
+    </form>
   </div>
 </Modal>
 
