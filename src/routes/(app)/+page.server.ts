@@ -1,15 +1,23 @@
 import type { PageServerLoad } from './$types';
+import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
+
+export type DashboardService = 'trino' | 'storage';
 
 export const load: PageServerLoad = async (event) => {
   const log = event.locals.logger;
 
   log.debug('Loading dashboard data');
 
-  // This is just mock data to show how to log structured data/fields
-  const serviceCount = 0;
+  // The Trino SQL editor is always available: either pre-configured via env
+  // or connected per user through the connection form.
+  const services: DashboardService[] = ['trino'];
+  if (storageBrowserEnabled) {
+    services.push('storage');
+  }
+
   const healthy = true;
 
-  log.info({ service_count: serviceCount, healthy }, 'Dashboard loaded');
+  log.debug({ services, healthy }, 'Dashboard loaded');
 
-  return { serviceCount, healthy };
+  return { services, healthy };
 };
