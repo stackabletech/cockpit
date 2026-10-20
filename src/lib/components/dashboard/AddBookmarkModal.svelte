@@ -5,6 +5,7 @@
   import { addBookmark, removeBookmark, updateBookmark } from '$lib/dashboard/bookmarks.svelte.js';
   import { bookmarkFormSchema, type Bookmark } from '$lib/dashboard/types';
   import * as m from '$lib/paraglide/messages.js';
+  import IconClose from 'virtual:icons/material-symbols/close';
 
   let {
     open = $bindable(false),
@@ -147,14 +148,7 @@
         class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
         aria-label={m.action_close()}
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="size-5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg
-        >
+        <IconClose class="size-5" aria-hidden="true" />
       </button>
     </form>
 

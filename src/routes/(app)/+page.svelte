@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
+  import IconAdd from 'virtual:icons/material-symbols/add';
   import IconEdit from 'virtual:icons/material-symbols/edit';
   import IconStar from 'virtual:icons/material-symbols/star';
   import IconStarOutline from 'virtual:icons/material-symbols/star-outline';
@@ -41,15 +42,7 @@
       <p class="text-base-content/70 mt-1.5 max-w-xl text-sm">{m.dashboard_subtitle()}</p>
     </div>
     <button type="button" class="btn btn-primary btn-sm rounded-full" onclick={openAddBookmark}>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="size-4"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.4"
-        stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg
-      >
+      <IconAdd class="size-4" aria-hidden="true" />
       {m.bookmark_add_title()}
     </button>
   </div>
