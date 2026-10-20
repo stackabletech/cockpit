@@ -48,6 +48,18 @@ test.describe('Authentication', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   });
 
+  test('username cannot be changed through the update-user endpoint', async ({ page, baseURL }) => {
+    const res = await page.request.post('/api/auth/update-user', {
+      headers: { origin: baseURL! },
+      data: { username: 'someone-else' }
+    });
+    expect(res.ok()).toBe(false);
+    expect(await res.json()).toMatchObject({ message: 'username is not allowed to be set' });
+
+    const session = await (await page.request.get('/api/auth/get-session')).json();
+    expect(session.user.username).toMatch(/^testuser\d+$/);
+  });
+
   test('user menu shows sign out option', async ({ page }) => {
     await page.goto('/');
 

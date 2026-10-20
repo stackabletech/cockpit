@@ -1,4 +1,5 @@
 import { betterAuth } from 'better-auth';
+import { APIError } from 'better-auth/api';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { genericOAuth, openAPI } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
@@ -14,6 +15,18 @@ const loggingModule = await import('$lib/server/logging').catch(() => null);
 const env = envModule?.env ?? (process.env as Record<string, string | undefined>);
 const getRequestEvent = appServer?.getRequestEvent ?? (() => undefined as unknown as RequestEvent);
 const log = loggingModule?.logger.child({ module: 'auth' });
+
+// The username is the Trino user we impersonate, so only the OIDC callback may
+// write it. Marking the field `input: false` would also block that: better-auth
+// drops such fields from the provider profile on sign-up (see #371). Database
+// hooks see the endpoint's route template, not the request path.
+const usernameWritePath = '/oauth2/callback/:providerId';
+
+function guardUsernameWrite(data: Record<string, unknown>, context: { path?: string } | null) {
+  if (!('username' in data) || context?.path === usernameWritePath) return;
+  log?.warn({ path: context?.path }, 'Rejected username write outside the OIDC callback');
+  throw new APIError('FORBIDDEN', { message: 'username is not allowed to be set' });
+}
 
 const trinoUserClaim = env.STACKABLE_COCKPIT_TRINO_USER_CLAIM ?? 'preferred_username';
 
@@ -57,9 +70,14 @@ export const auth = betterAuth({
     additionalFields: {
       username: {
         type: 'string',
-        required: false,
-        input: false
+        required: false
       }
+    }
+  },
+  databaseHooks: {
+    user: {
+      create: { before: async (user, context) => guardUsernameWrite(user, context) },
+      update: { before: async (user, context) => guardUsernameWrite(user, context) }
     }
   },
   plugins: [
