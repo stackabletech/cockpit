@@ -1,15 +1,18 @@
 import type { Picture } from '@sveltejs/enhanced-img';
+import * as m from '$lib/paraglide/messages.js';
 
 export interface Product {
   id: string;
-  name: string;
+  /** Proper noun, except for the custom link, which is localised. */
+  readonly name: string;
   initials: string;
   /** Brand colour, used as the background of the initials badge. */
   color: string;
   /** Text colour for the initials badge; chosen for WCAG AA contrast on `color`. */
   textColor: '#000000' | '#FFFFFF';
   logo: Picture | null;
-  defaultName: string;
+  /** Localised; resolved on each access. */
+  readonly defaultName: string;
 }
 
 const logos = import.meta.glob<Picture>('../logos/*.png', {
@@ -38,7 +41,9 @@ export const PRODUCTS: Product[] = [
     color: '#DD0031',
     textColor: '#FFFFFF',
     logo: LOGOS['trino'],
-    defaultName: 'SQL Editor'
+    get defaultName() {
+      return m.bookmark_default_name_trino();
+    }
   },
   {
     id: 'superset',
@@ -47,7 +52,9 @@ export const PRODUCTS: Product[] = [
     color: '#1FA7E0',
     textColor: '#000000',
     logo: LOGOS['superset'],
-    defaultName: 'Dashboards'
+    get defaultName() {
+      return m.bookmark_default_name_superset();
+    }
   },
   {
     id: 'airflow',
@@ -56,7 +63,9 @@ export const PRODUCTS: Product[] = [
     color: '#017CEE',
     textColor: '#000000',
     logo: LOGOS['airflow'],
-    defaultName: 'Pipelines'
+    get defaultName() {
+      return m.bookmark_default_name_airflow();
+    }
   },
   {
     id: 'nifi',
@@ -65,7 +74,9 @@ export const PRODUCTS: Product[] = [
     color: '#728E2B',
     textColor: '#000000',
     logo: LOGOS['nifi'],
-    defaultName: 'Data Flow'
+    get defaultName() {
+      return m.bookmark_default_name_nifi();
+    }
   },
   {
     id: 'druid',
@@ -74,7 +85,9 @@ export const PRODUCTS: Product[] = [
     color: '#29F1FB',
     textColor: '#000000',
     logo: LOGOS['druid'],
-    defaultName: 'Analytics'
+    get defaultName() {
+      return m.bookmark_default_name_druid();
+    }
   },
   {
     id: 'opensearch',
@@ -83,7 +96,9 @@ export const PRODUCTS: Product[] = [
     color: '#005EB8',
     textColor: '#FFFFFF',
     logo: LOGOS['opensearch'],
-    defaultName: 'Search'
+    get defaultName() {
+      return m.bookmark_default_name_opensearch();
+    }
   },
   {
     id: 'hdfs',
@@ -92,7 +107,9 @@ export const PRODUCTS: Product[] = [
     color: '#FEDB5F',
     textColor: '#000000',
     logo: LOGOS['hdfs'],
-    defaultName: 'Storage'
+    get defaultName() {
+      return m.bookmark_default_name_hdfs();
+    }
   },
   {
     id: 'hbase',
@@ -101,7 +118,9 @@ export const PRODUCTS: Product[] = [
     color: '#C02228',
     textColor: '#FFFFFF',
     logo: LOGOS['hbase'],
-    defaultName: 'Database'
+    get defaultName() {
+      return m.bookmark_default_name_hbase();
+    }
   },
   {
     id: 'spark',
@@ -110,11 +129,15 @@ export const PRODUCTS: Product[] = [
     color: '#E25A1C',
     textColor: '#000000',
     logo: LOGOS['spark'],
-    defaultName: 'Processing'
+    get defaultName() {
+      return m.bookmark_default_name_spark();
+    }
   },
   {
     id: 'custom',
-    name: 'Custom Link',
+    get name() {
+      return m.bookmark_product_custom();
+    },
     initials: 'CL',
     color: '#64748B',
     textColor: '#FFFFFF',

@@ -1,8 +1,9 @@
 import { page, userEvent } from 'vitest/browser';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import AddBookmarkModal from './AddBookmarkModal.svelte';
 import type { Bookmark } from '$lib/dashboard/types';
+import { getLocale, setLocale } from '$lib/paraglide/runtime.js';
 
 const { addBookmark, updateBookmark, removeBookmark } = vi.hoisted(() => ({
   addBookmark: vi.fn(),
@@ -119,6 +120,19 @@ describe('AddBookmarkModal', () => {
     await page.getByRole('button', { name: 'Superset' }).click();
 
     await expect.element(page.getByLabelText('Name')).toHaveValue('Dashboards');
+  });
+
+  describe('in German', () => {
+    const initialLocale = getLocale();
+    beforeEach(() => setLocale('de', { reload: false }));
+    afterEach(() => setLocale(initialLocale, { reload: false }));
+
+    it('prefills the localised default name and labels the custom link in German', async () => {
+      renderModal();
+
+      await expect.element(page.getByLabelText('Name')).toHaveValue('SQL-Editor');
+      await expect.element(page.getByRole('button', { name: 'Eigener Link' })).toBeVisible();
+    });
   });
 
   it('names the add dialog after its heading', async () => {
