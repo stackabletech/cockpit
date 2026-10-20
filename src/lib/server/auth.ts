@@ -10,11 +10,9 @@ import * as schema from './auth-schema.js';
 const envModule = await import('$env/dynamic/private').catch(() => null);
 const appServer = await import('$app/server').catch(() => null);
 const loggingModule = await import('$lib/server/logging').catch(() => null);
-const environmentModule = await import('$app/environment').catch(() => null);
 
 const env = envModule?.env ?? (process.env as Record<string, string | undefined>);
 const getRequestEvent = appServer?.getRequestEvent ?? (() => undefined as unknown as RequestEvent);
-const dev = environmentModule?.dev ?? process.env.NODE_ENV !== 'production';
 const log = loggingModule?.logger.child({ module: 'auth' });
 
 const trinoUserClaim = env.STACKABLE_COCKPIT_TRINO_USER_CLAIM ?? 'preferred_username';
@@ -37,12 +35,7 @@ export const oidcEnabled = !!(
 
 export const auth = betterAuth({
   secret: env.STACKABLE_COCKPIT_SESSION_SECRET,
-  baseURL: dev
-    ? {
-        allowedHosts: ['localhost:*', '127.0.0.1:*', '[::1]:*'],
-        fallback: env.STACKABLE_COCKPIT_BASE_URL
-      }
-    : env.STACKABLE_COCKPIT_BASE_URL,
+  baseURL: env.STACKABLE_COCKPIT_BASE_URL,
   database: drizzleAdapter(db, { provider: 'pg', schema }),
   account: {
     accountLinking: {
