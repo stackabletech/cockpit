@@ -53,6 +53,30 @@ describe('bookmarks store', () => {
     expect(getBookmarks()).toEqual([]);
   });
 
+  it('keeps bookmarks added in another tab when saving', async () => {
+    const { addBookmark, getBookmarks } = await loadStore('[]');
+
+    // Simulate another tab saving a bookmark.
+    const otherTab = JSON.stringify([validBookmark]);
+    localStorage.setItem(LS_KEY, otherTab);
+    window.dispatchEvent(new StorageEvent('storage', { key: LS_KEY, newValue: otherTab }));
+
+    expect(getBookmarks().map((b) => b.id)).toEqual(['b1']);
+
+    addBookmark({ ...validBookmark, name: 'Pipelines' });
+
+    const saved = JSON.parse(localStorage.getItem(LS_KEY) ?? '[]');
+    expect(saved.map((b: { name: string }) => b.name)).toEqual(['Dashboards', 'Pipelines']);
+  });
+
+  it('ignores storage events for other keys', async () => {
+    const { getBookmarks } = await loadStore(JSON.stringify([validBookmark]));
+
+    window.dispatchEvent(new StorageEvent('storage', { key: 'unrelated', newValue: '[]' }));
+
+    expect(getBookmarks().map((b) => b.id)).toEqual(['b1']);
+  });
+
   it('keeps the bookmark in memory when saving to localStorage fails', async () => {
     const { addBookmark, getBookmarks } = await loadStore('[]');
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {

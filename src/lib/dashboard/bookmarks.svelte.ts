@@ -34,7 +34,18 @@ function saveBookmarks(items: Bookmark[]): void {
   }
 }
 
-const bookmarks = $state<Bookmark[]>(loadBookmarks());
+let bookmarks = $state<Bookmark[]>(loadBookmarks());
+
+if (browser) {
+  // Every write stores the whole list, so pick up changes from other tabs
+  // before the next write here would overwrite them. A null key means storage
+  // was cleared.
+  window.addEventListener('storage', (event) => {
+    if (event.key === LS_KEY || event.key === null) {
+      bookmarks = loadBookmarks();
+    }
+  });
+}
 
 export function getBookmarks(): Bookmark[] {
   return bookmarks;
