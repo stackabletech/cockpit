@@ -230,7 +230,7 @@
             bind:value={url}
             oninput={handleUrlInput}
             onblur={handleUrlBlur}
-            placeholder="https://superset.data-prod.corp"
+            placeholder={m.bookmark_url_placeholder()}
             class="input w-full"
             aria-invalid={urlError}
             aria-describedby={urlError ? `${uid}-url-error` : undefined}

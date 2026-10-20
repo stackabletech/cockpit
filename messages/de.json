@@ -480,6 +480,7 @@
   "bookmark_env_label": "Umgebung (optional)",
   "bookmark_env_placeholder": "z.B. dev, prod",
   "bookmark_url_label": "URL",
+  "bookmark_url_placeholder": "https://superset.example.com",
   "bookmark_url_error": "Geben Sie eine gültige HTTP- oder HTTPS-URL ein.",
   "bookmark_pin_label": "Lesezeichen anheften",
   "bookmark_preview_label": "Vorschau",
