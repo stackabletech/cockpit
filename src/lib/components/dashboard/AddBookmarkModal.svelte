@@ -286,7 +286,7 @@
     <div class="modal-action">
       {#if isEditing}
         <button type="button" class="btn btn-error mr-auto" onclick={handleDeleteClick}>
-          {m.button_delete()}
+          {m.bookmark_delete()}
         </button>
       {/if}
       <button
@@ -297,7 +297,7 @@
           open = false;
         }}
       >
-        {m.button_cancel()}
+        {m.bookmark_cancel()}
       </button>
       <button type="button" class="btn btn-primary" onclick={handleSubmit}>
         {isEditing ? m.bookmark_save_changes() : m.bookmark_add_title()}
@@ -316,10 +316,10 @@
     </p>
     <div class="modal-action">
       <button type="button" class="btn btn-ghost" onclick={handleDeleteCancel}>
-        {m.button_cancel()}
+        {m.bookmark_cancel()}
       </button>
       <button type="button" class="btn btn-error" onclick={handleDeleteConfirm}>
-        {m.button_delete()}
+        {m.bookmark_delete()}
       </button>
     </div>
   </div>

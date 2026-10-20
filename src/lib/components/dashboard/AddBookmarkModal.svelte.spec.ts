@@ -46,7 +46,7 @@ describe('AddBookmarkModal', () => {
     await page.getByLabelText('Name').fill('Pinned Dashboard');
     await page.getByLabelText('URL').fill('https://superset.example.com');
     await pinCheckbox().click();
-    await page.getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
 
     expect(addBookmark).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Pinned Dashboard', pinned: true })
@@ -58,7 +58,7 @@ describe('AddBookmarkModal', () => {
 
     await page.getByLabelText('Name').fill('Private Dashboard');
     await page.getByLabelText('URL').fill('https://superset.example.com');
-    await page.getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
 
     expect(addBookmark).toHaveBeenCalledWith(expect.objectContaining({ pinned: false }));
   });
@@ -68,7 +68,7 @@ describe('AddBookmarkModal', () => {
 
     await page.getByLabelText('Name').fill('Private Dashboard');
     await page.getByLabelText('URL').fill('not a URL');
-    await page.getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
 
     await expect.element(page.getByText('Enter a valid HTTP or HTTPS URL.')).toBeVisible();
     await expect.element(page.getByLabelText('URL')).toHaveAttribute('aria-invalid', 'true');
@@ -102,13 +102,13 @@ describe('AddBookmarkModal', () => {
   it('names the add dialog after its heading', async () => {
     renderModal();
 
-    await expect.element(page.getByRole('dialog', { name: 'Add Bookmark' })).toBeVisible();
+    await expect.element(page.getByRole('dialog', { name: 'Add bookmark' })).toBeVisible();
   });
 
   it('names the edit and delete-confirmation dialogs after their headings', async () => {
     renderModal({ bookmark: savedBookmark });
 
-    await expect.element(page.getByRole('dialog', { name: 'Edit Bookmark' })).toBeVisible();
+    await expect.element(page.getByRole('dialog', { name: 'Edit bookmark' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Delete' }).click();
 
@@ -117,7 +117,7 @@ describe('AddBookmarkModal', () => {
 
   it('keeps unsaved edits when the delete confirmation is cancelled', async () => {
     renderModal({ bookmark: savedBookmark });
-    const editDialog = page.getByRole('dialog', { name: 'Edit Bookmark' });
+    const editDialog = page.getByRole('dialog', { name: 'Edit bookmark' });
 
     await editDialog.getByLabelText('Name').fill('Renamed but not saved');
     await editDialog.getByRole('button', { name: 'Delete' }).click();

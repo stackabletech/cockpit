@@ -35,7 +35,7 @@ test.describe('Internationalisation', () => {
 
     // Dashboard content is in English
     await expect(page.getByText('Stackable Unified Data Platform overview')).toBeVisible();
-    await expect(page.getByText('Add Bookmark')).toBeVisible();
+    await expect(page.getByText('Add bookmark')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   });
 

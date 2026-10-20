@@ -4,7 +4,7 @@ import { waitForHydration } from './support/helpers';
 test.describe('Dashboard bookmarks', () => {
   test.use({ locale: 'en-US' });
 
-  const addButton = 'Add Bookmark';
+  const addButton = 'Add bookmark';
 
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
@@ -12,14 +12,14 @@ test.describe('Dashboard bookmarks', () => {
     });
   });
 
-  test('shows Add Bookmark button on dashboard', async ({ page }) => {
+  test('shows Add bookmark button on dashboard', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);
 
     await expect(page.getByRole('button', { name: addButton })).toBeVisible();
   });
 
-  test('opens modal when Add Bookmark is clicked', async ({ page }) => {
+  test('opens modal when Add bookmark is clicked', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);
 
@@ -62,7 +62,7 @@ test.describe('Dashboard bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await page.locator('button[aria-pressed]').filter({ hasText: 'Superset' }).click();
@@ -74,7 +74,7 @@ test.describe('Dashboard bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await page.getByLabel('Name').fill('My Dashboard');
@@ -194,14 +194,14 @@ test.describe('Dashboard bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await page.locator('button[aria-pressed]').filter({ hasText: 'Superset' }).click();
     await page.getByLabel('Name').fill('Dashboards');
     await page.getByLabel('URL').fill('https://superset.example.com');
 
-    await page.locator('dialog[open]').getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: 'Add bookmark' }).click();
 
     // Bookmark section is visible
     await expect(page.getByRole('heading', { name: 'Bookmarks' })).toBeVisible();
@@ -332,21 +332,21 @@ test.describe('Dashboard bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await page.locator('button[aria-pressed]').filter({ hasText: 'Superset' }).click();
     await page.getByLabel('Name').fill('Dashboards');
     await page.getByLabel('URL').fill('https://superset.example.com');
 
-    await page.locator('dialog[open]').getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: 'Add bookmark' }).click();
 
     await page.getByRole('button', { name: 'Edit bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     // Modal opens prefilled and shows edit title
     await expect(
-      page.locator('dialog[open]').getByRole('heading', { name: 'Edit Bookmark' })
+      page.locator('dialog[open]').getByRole('heading', { name: 'Edit bookmark' })
     ).toBeVisible();
     await expect(page.getByLabel('Name')).toHaveValue('Dashboards');
     await expect(page.getByLabel('URL')).toHaveValue('https://superset.example.com');
@@ -368,14 +368,14 @@ test.describe('Dashboard bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await page.locator('button[aria-pressed]').filter({ hasText: 'Superset' }).click();
     await page.getByLabel('Name').fill('Dashboards');
     await page.getByLabel('URL').fill('https://superset.example.com');
 
-    await page.locator('dialog[open]').getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: 'Add bookmark' }).click();
 
     await page.getByRole('button', { name: 'Edit bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
@@ -398,17 +398,17 @@ test.describe('Dashboard bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await page.getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
 
     await page.locator('button[aria-pressed]').filter({ hasText: 'Superset' }).click();
     await page.getByLabel('Name').fill('Dashboards');
     await page.getByLabel('URL').fill('https://superset.example.com');
 
-    await page.locator('dialog[open]').getByRole('button', { name: 'Add Bookmark' }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: 'Add bookmark' }).click();
 
     await page.getByRole('button', { name: 'Edit bookmark' }).click();
-    const editDialog = page.getByRole('dialog', { name: 'Edit Bookmark' });
+    const editDialog = page.getByRole('dialog', { name: 'Edit bookmark' });
     const confirmDialog = page.getByRole('dialog', { name: 'Delete bookmark?' });
     await expect(editDialog).toBeVisible();
 
