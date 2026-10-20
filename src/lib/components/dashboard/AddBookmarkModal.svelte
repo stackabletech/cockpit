@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { getProduct, PRODUCTS, type Product } from '$lib/dashboard/products';
   import ProductIcon from './ProductIcon.svelte';
@@ -22,7 +23,7 @@
   let url = $state('');
   let pinned = $state(false);
   let confirmDeleteOpen = $state(false);
-  let wasOpen = $state(false);
+  let wasOpen = false;
   let nameError = $state(false);
   let urlError = $state(false);
 
@@ -54,10 +55,11 @@
     }
   }
 
+  // Only `open` is tracked; the bookmark is read once per open.
   $effect(() => {
     const opening = open && !wasOpen;
     wasOpen = open;
-    if (opening) initForm(bookmark);
+    if (opening) untrack(() => initForm(bookmark));
   });
 
   function handleProductSelect(product: Product) {
