@@ -7,6 +7,7 @@
   import IconChevronLeft from 'virtual:icons/material-symbols/chevron-left';
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
   import IconExpandMore from 'virtual:icons/material-symbols/expand-more';
+  import { MediaQuery } from 'svelte/reactivity';
   import type { NavItem } from '$lib/types/navigation.js';
   import { getPlatformSection, getToolsSection } from './nav-items.js';
   import { getBookmarks } from '$lib/dashboard/bookmarks.svelte.js';
@@ -53,6 +54,10 @@
     }
   });
 
+  // make mobile navbar not focusable if its hidden
+  const isDesktop = new MediaQuery('min-width: 64rem', true);
+  const hiddenFromUser = $derived(!isDesktop.current && !mobileOpen);
+
   // Explicitly derive currentPath so Svelte 5 tracks page.url.pathname
   // as a reactive dependency. Without this, changes to page.url.pathname
   // may not reliably trigger re-renders in all browsers during hydration.
@@ -78,7 +83,34 @@
   }
 
   let sidebarEl: HTMLElement | undefined = $state();
+
+  $effect(() => {
+    if (isDesktop.current || !mobileOpen || !sidebarEl) return;
+    sidebarEl.focus();
+  });
+
+  function handleWindowKeydown(event: KeyboardEvent) {
+    if (isDesktop.current || !mobileOpen) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      mobileOpen = false;
+    }
+  }
+
+  // Tabbing off either end of the open panel would land on the page behind the
+  // backdrop, so send focus back to the top of the panel instead.
+  function handleFocusOut(event: FocusEvent) {
+    if (isDesktop.current || !mobileOpen) return;
+
+    const next = event.relatedTarget as Node | null;
+    if (next && sidebarEl?.contains(next)) return;
+
+    sidebarEl?.focus();
+  }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 {#snippet navIcon(IconComponent: Component)}
   <IconComponent class="h-5 w-5 shrink-0" aria-hidden="true" />
@@ -162,8 +194,11 @@
 <!-- Sidebar -->
 <aside
   bind:this={sidebarEl}
+  onfocusout={handleFocusOut}
   id="sidebar"
   aria-label={m.sidebar_label()}
+  tabindex="-1"
+  inert={hiddenFromUser}
   class="border-base-300 bg-base-200 fixed inset-y-0 left-0 z-50 flex flex-col border-r
     transition-[transform,width] duration-200 ease-out
     lg:relative lg:inset-auto lg:z-auto lg:translate-x-0

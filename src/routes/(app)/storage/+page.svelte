@@ -136,7 +136,7 @@
 
     <div class="mb-6">
       <div class="mb-1 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-        <h1 class="text-xl font-semibold">{m.storage_buckets_label()}</h1>
+        <h2 class="text-xl font-semibold">{m.storage_buckets_label()}</h2>
         <div class="flex shrink-0 items-center gap-1">
           <StorageSearch />
           <button

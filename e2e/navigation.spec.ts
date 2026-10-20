@@ -88,4 +88,27 @@ test.describe('App navigation', () => {
     await sidebar.getByRole('button', { name: 'Collapse sidebar' }).click();
     await expect(sidebar.getByRole('img', { name: 'Stackable' })).toBeVisible();
   });
+
+  test('skip link is the first tab stop and moves keyboard focus into the main content', async ({
+    page
+  }) => {
+    // The dashboard has no focusable content, so use a page that does.
+    await page.goto('/storage');
+    await waitForHydration(page);
+
+    await page.keyboard.press('Tab');
+    const skipLink = page.getByRole('link', { name: 'Skip to main content' });
+    await expect(skipLink).toBeFocused();
+    await expect(skipLink).toBeVisible();
+
+    await page.keyboard.press('Enter');
+    await expect(page.locator('main#main-content')).toBeFocused();
+
+    // The next tab stop must be inside <main>, not the sidebar.
+    await page.keyboard.press('Tab');
+    await expect(page.locator('main#main-content :focus')).toHaveCount(1);
+
+    // Once focus has moved on, clicks must not land on <main> again.
+    await expect(page.locator('main#main-content')).not.toHaveAttribute('tabindex');
+  });
 });
