@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookmarkFormSchema } from './types';
+import { bookmarkFormSchema, bookmarkHostname } from './types';
 
 const urlSchema = bookmarkFormSchema.shape.url;
 
@@ -23,5 +23,17 @@ describe('bookmark URL validation', () => {
     'http://'
   ])('rejects %s', (url) => {
     expect(urlSchema.safeParse(url).success).toBe(false);
+  });
+});
+
+describe('bookmarkHostname', () => {
+  it('returns the hostname without port or path', () => {
+    expect(bookmarkHostname('https://superset.example.com:8443/dashboards?x=1')).toBe(
+      'superset.example.com'
+    );
+  });
+
+  it('returns the input unchanged when it is not a URL', () => {
+    expect(bookmarkHostname('superset.example')).toBe('superset.example');
   });
 });

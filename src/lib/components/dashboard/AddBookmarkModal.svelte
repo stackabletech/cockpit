@@ -3,7 +3,7 @@
   import { getProduct, PRODUCTS, type Product } from '$lib/dashboard/products';
   import ProductIcon from './ProductIcon.svelte';
   import { addBookmark, removeBookmark, updateBookmark } from '$lib/dashboard/bookmarks.svelte.js';
-  import { bookmarkFormSchema, type Bookmark } from '$lib/dashboard/types';
+  import { bookmarkFormSchema, bookmarkHostname, type Bookmark } from '$lib/dashboard/types';
   import * as m from '$lib/paraglide/messages.js';
   import IconClose from 'virtual:icons/material-symbols/close';
 
@@ -87,14 +87,6 @@
 
   function getDefaultName(): string {
     return selectedProduct.defaultName;
-  }
-
-  function getHostname(urlStr: string): string {
-    try {
-      return new URL(urlStr).hostname;
-    } catch {
-      return urlStr;
-    }
   }
 
   function handleSubmit(event: SubmitEvent) {
@@ -280,7 +272,9 @@
                   {/if}
                 </div>
                 {#if url}
-                  <p class="text-base-content/50 mt-0.5 truncate text-xs">{getHostname(url)}</p>
+                  <p class="text-base-content/50 mt-0.5 truncate text-xs">
+                    {bookmarkHostname(url)}
+                  </p>
                 {/if}
               </div>
             </div>

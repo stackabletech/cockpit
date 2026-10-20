@@ -8,7 +8,7 @@
   import { getBookmarks, togglePinBookmark } from '$lib/dashboard/bookmarks.svelte.js';
   import { getProduct } from '$lib/dashboard/products';
   import ProductIcon from '$lib/components/dashboard/ProductIcon.svelte';
-  import type { Bookmark } from '$lib/dashboard/types';
+  import { bookmarkHostname, type Bookmark } from '$lib/dashboard/types';
 
   let addModalOpen = $state(false);
   let editingBookmark: Bookmark | null = $state(null);
@@ -22,14 +22,6 @@
   function openAddBookmark() {
     editingBookmark = null;
     addModalOpen = true;
-  }
-
-  function extractHostname(url: string): string {
-    try {
-      return new URL(url).hostname;
-    } catch {
-      return url;
-    }
   }
 </script>
 
@@ -104,7 +96,7 @@
               </div>
               <div class="min-w-0">
                 <span class="text-base-content/70 block truncate font-mono text-[11.5px]">
-                  {extractHostname(bookmark.url)}
+                  {bookmarkHostname(bookmark.url)}
                 </span>
               </div>
             </div>
