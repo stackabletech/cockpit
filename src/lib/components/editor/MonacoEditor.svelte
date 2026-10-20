@@ -3,11 +3,7 @@
   import { browser } from '$app/environment';
   import { theme } from '$lib/theme.svelte';
   import { getLocale } from '$lib/paraglide/runtime.js';
-  import {
-    registerTrinoSql,
-    setCompletionDefaultsGetter,
-    TRINO_SQL_LANGUAGE_ID
-  } from '$lib/editor/trinosql';
+  import { TRINO_SQL_LANGUAGE_ID } from '$lib/editor/language-id';
 
   let {
     value = $bindable(),
@@ -134,6 +130,10 @@
   // Start loading in parallel with the rest of the page — not deferred to onMount.
   // Guarded by `browser` because SvelteKit evaluates component scripts on the server too.
   const workerImport = browser ? import('monaco-editor/esm/vs/editor/editor.worker?worker') : null;
+  // The Trino SQL language pulls in the ANTLR parser (~1 MB); load it lazily alongside Monaco.
+  // It has no runtime dependency on monaco-editor, so starting it early does not
+  // load Monaco before the locale's NLS bundle below.
+  const trinoSqlImport = browser ? import('$lib/editor/trinosql') : null;
 
   function toMonacoTheme(t: string): string {
     return t === 'dark' ? 'vs-dark' : 'vs';
@@ -160,6 +160,7 @@
     };
 
     monaco = await import('monaco-editor');
+    const { registerTrinoSql, setCompletionDefaultsGetter } = await trinoSqlImport!;
 
     setCompletionDefaultsGetter(() => ({
       catalog: defaultCatalog || undefined,
