@@ -6,7 +6,7 @@ import Page from './+page.svelte';
 const renderPage = () =>
   render(Page, {
     params: {},
-    data: { user: null, storageBrowserEnabled: true, serviceCount: 0, healthy: true },
+    data: { user: null, storageBrowserEnabled: true, services: ['trino'], healthy: true },
     form: null
   });
 
@@ -29,11 +29,17 @@ describe('/(app)/+page.svelte', () => {
   it('should display the service count from props', async () => {
     render(Page, {
       params: {},
-      data: { user: null, storageBrowserEnabled: true, serviceCount: 5, healthy: true },
+      data: {
+        user: null,
+        storageBrowserEnabled: true,
+        services: ['trino', 'storage'],
+        healthy: true
+      },
       form: null
     });
 
-    await expect.element(page.getByText('5')).toBeInTheDocument();
+    const servicesCard = page.getByText('Services', { exact: true }).element().parentElement!;
+    await expect.element(servicesCard).toHaveTextContent(/^\s*Services\s*2\s*$/);
   });
 
   it('should display the health OK status', async () => {
