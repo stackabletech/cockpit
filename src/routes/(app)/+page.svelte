@@ -111,7 +111,9 @@
             <button
               type="button"
               class="btn btn-ghost btn-circle btn-sm size-7 shrink-0"
-              aria-label={bookmark.pinned ? m.bookmark_unpin_label() : m.bookmark_pin_label()}
+              aria-label={bookmark.pinned
+                ? m.bookmark_card_unpin({ name: bookmark.name })
+                : m.bookmark_card_pin({ name: bookmark.name })}
               onclick={() => togglePinBookmark(bookmark.id)}
             >
               {#if bookmark.pinned}
@@ -123,7 +125,7 @@
             <button
               type="button"
               class="btn btn-ghost btn-circle btn-sm size-7 shrink-0"
-              aria-label={m.bookmark_edit_label()}
+              aria-label={m.bookmark_card_edit({ name: bookmark.name })}
               onclick={() => openEditBookmark(bookmark)}
             >
               <IconEdit class="size-3.5" />
