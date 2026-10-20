@@ -141,6 +141,16 @@ describe('AddBookmarkModal', () => {
     await expect.element(page.getByRole('dialog', { name: 'Add bookmark' })).toBeVisible();
   });
 
+  it('closes without saving when the close button is clicked', async () => {
+    renderModal({ bookmark: savedBookmark });
+
+    await page.getByLabelText('Name').fill('Renamed but not saved');
+    await page.getByRole('button', { name: 'Close' }).click();
+
+    await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+    expect(updateBookmark).not.toHaveBeenCalled();
+  });
+
   it('names the edit and delete-confirmation dialogs after their headings', async () => {
     renderModal({ bookmark: savedBookmark });
 

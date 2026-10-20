@@ -117,16 +117,16 @@
   }
 </script>
 
-<Modal bind:open class="modal" aria-labelledby="{uid}-title">
+<Modal bind:open aria-labelledby="{uid}-title">
   <div class="modal-box max-w-2xl">
-    <form method="dialog">
-      <button
-        class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
-        aria-label={m.action_close()}
-      >
-        <IconClose class="size-5" aria-hidden="true" />
-      </button>
-    </form>
+    <button
+      type="button"
+      class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
+      aria-label={m.action_close()}
+      onclick={() => (open = false)}
+    >
+      <IconClose class="size-5" aria-hidden="true" />
+    </button>
 
     <h3 id="{uid}-title" class="text-base-content text-lg font-bold">
       {isEditing ? m.bookmark_edit_title() : m.bookmark_add_title()}
@@ -278,7 +278,7 @@
   </div>
 </Modal>
 
-<Modal bind:open={confirmDeleteOpen} class="modal" aria-labelledby="{uid}-delete-title">
+<Modal bind:open={confirmDeleteOpen} aria-labelledby="{uid}-delete-title">
   <div class="modal-box max-w-sm">
     <h3 id="{uid}-delete-title" class="text-error text-lg font-bold">
       {m.bookmark_delete_confirm_title()}
