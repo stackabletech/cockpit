@@ -1,6 +1,11 @@
 import { test, expect, type APIRequestContext } from '../support/fixtures.js';
 import { randomUUID } from 'node:crypto';
-import { mockMarker, mockTrinoStatements, releaseMockTrino } from '../support/mock-trino';
+import {
+  mockMarker,
+  mockTrinoLog,
+  mockTrinoStatements,
+  releaseMockTrino
+} from '../support/mock-trino';
 
 /**
  * Trino API endpoints end to end: authentication through the server hooks and
@@ -73,6 +78,19 @@ test.describe('Trino API', () => {
       const cleanup = await page.request.delete(`/api/trino/query?tabId=${tabId}&cleanup=true`);
       expect(cleanup.status()).toBe(204);
       expect(await snapshots(page.request, tabId)).toEqual([]);
+    });
+
+    test('runs statements as the OIDC user', async ({ page }) => {
+      const marker = mockMarker();
+      await page.request.post('/api/trino/query', {
+        data: { statements: [`SELECT 1 /* ${marker} */`], tabId: randomUUID() }
+      });
+
+      const session = await (await page.request.get('/api/auth/get-session')).json();
+      expect(session.user.username).toMatch(/^testuser\d+$/);
+      await expect
+        .poll(async () => (await mockTrinoLog(marker)).map((e) => e.user))
+        .toEqual([session.user.username]);
     });
 
     test('rejects an invalid request', async ({ page }) => {

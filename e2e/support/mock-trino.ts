@@ -9,6 +9,8 @@ export interface MockTrinoLogEntry {
   event: 'submitted' | 'cancelled';
   sql: string;
   queryId: string;
+  /** `X-Trino-User` of the submit; absent on cancellations. */
+  user?: string;
 }
 
 /**
