@@ -1,11 +1,18 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './support/fixtures.js';
 import { waitForHydration } from './support/helpers';
 
 test.describe('Smoke tests', () => {
   test.use({ locale: 'en-US' });
 
   test('home page loads with app shell', async ({ page }) => {
+    // Firefox is slower to hydrate; triple the default timeout.
+    test.slow();
+
     await page.goto('/');
+
+    // Wait for hydration so reactive state (page.url.pathname) has settled
+    // before checking aria-current, which depends on it.
+    await waitForHydration(page);
 
     // Sidebar brand is visible
     await expect(page.getByText('Stackable', { exact: true })).toBeVisible();
@@ -32,6 +39,8 @@ test.describe('Smoke tests', () => {
   });
 
   test('theme toggle switches between light and dark', async ({ page }) => {
+    // Firefox is slower to hydrate; triple the default timeout.
+    test.slow();
     await page.goto('/');
 
     const html = page.locator('html');

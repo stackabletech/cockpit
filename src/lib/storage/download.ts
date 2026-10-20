@@ -1,86 +1,78 @@
+import type { StorageApi } from './api.js';
+
 /**
- * Client-side utility for downloading a single S3 object via the server proxy.
- *
- * Strategy:
- *  1. Fetch the object with the `X-Storage-Connection` header carrying the
- *     connection config from localStorage.
- *  2. On error: throw a `DownloadError` with a typed `code` so the caller can
- *     display a localised message.
- *  3. On success: create a Blob URL and trigger a native browser download via a
- *     programmatic anchor click.
- *
- * Note: The response body is buffered as a Blob before the download link is
- * constructed. This avoids exposing credentials in the URL (query-param approach)
- * while keeping the implementation simple. For very large files this will use
- * proportional browser memory.
+ * Estimate the byte length of the stored (uncompressed) ZIP that a multi
+ * download will produce while preparing the manifest. The server's exact
+ * manifest size replaces this temporary estimate before transfer tracking.
  */
-
-import { STORAGE_CONNECTION_HEADER } from '$lib/storage/connection-storage.js';
-
-export type DownloadErrorCode =
-  'not_connected' | 'access_denied' | 'not_found' | 'server_error' | 'unknown';
-
-export class DownloadError extends Error {
-  constructor(
-    public readonly code: DownloadErrorCode,
-    message: string
-  ) {
-    super(message);
-    this.name = 'DownloadError';
+export function estimateArchiveSize(
+  entries: Array<{ key: string; size: number; isDirectory?: boolean }>
+): number {
+  let payload = 0;
+  // End-of-central-directory record.
+  let overhead = 22;
+  for (const entry of entries) {
+    const nameLength = entry.key.length + (entry.isDirectory && !entry.key.endsWith('/') ? 1 : 0);
+    // Local file header (30) + data descriptor (16) + central directory header
+    // (46), with the entry name stored twice (local header + central directory).
+    overhead += 92 + 2 * nameLength;
+    if (!entry.isDirectory) payload += entry.size;
   }
+  return payload + overhead;
 }
 
-function buildDownloadUrl(bucket: string, key: string): string {
-  return `/api/storage/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
-}
-
-function mapStatusToCode(status: number): DownloadErrorCode {
-  if (status === 401) return 'not_connected';
-  if (status === 403) return 'access_denied';
-  if (status === 404) return 'not_found';
-  if (status >= 500) return 'server_error';
-  return 'unknown';
-}
-
-/**
- * Download a single S3 object.
- *
- * Fetches the object with the connection config header, buffers it as a Blob,
- * then triggers a native browser download via a programmatic anchor click.
- *
- * @throws {DownloadError} when the server returns a non-2xx response.
- */
-export async function downloadObject(
-  bucket: string,
-  key: string,
-  connectionHeader: string
+async function triggerDownload(
+  manifestId: string,
+  part: number,
+  filename: string,
+  jobId: string
 ): Promise<void> {
-  const url = buildDownloadUrl(bucket, key);
-
-  const response = await fetch(url, {
-    headers: { [STORAGE_CONNECTION_HEADER]: connectionHeader }
-  });
-
-  if (!response.ok) {
-    const code = mapStatusToCode(response.status);
-    throw new DownloadError(code, `Download failed with status ${response.status}`);
-  }
-
-  const blob = await response.blob();
-  const blobUrl = URL.createObjectURL(blob);
-
-  // Derive filename from the key (last path segment).
-  const filename = key.split('/').filter(Boolean).pop() ?? key;
-
   const anchor = document.createElement('a');
-  anchor.href = blobUrl;
+  anchor.href = `/api/storage/download/manifests/${encodeURIComponent(manifestId)}/${part}?${new URLSearchParams({ jobId })}`;
   anchor.download = filename;
   anchor.style.display = 'none';
   document.body.appendChild(anchor);
   anchor.click();
-  document.body.removeChild(anchor);
+  // Keep concurrent native downloads initiated by this user gesture alive long enough
+  // for Firefox and Chromium to accept them.
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  setTimeout(() => anchor.remove(), 10_000);
+}
 
-  // Release the object URL after a short delay to allow the browser to initiate
-  // the download before the URL is revoked.
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+export async function triggerManifestDownloads(
+  manifest: {
+    id: string;
+    files: Array<{ filename: string; part: number }>;
+  },
+  signal?: AbortSignal,
+  onJobIds?: (jobIds: string[]) => void
+): Promise<string[]> {
+  const jobIds: string[] = [];
+  for (const file of manifest.files) {
+    signal?.throwIfAborted();
+    const jobId = crypto.randomUUID();
+    jobIds.push(jobId);
+    onJobIds?.([...jobIds]);
+    await triggerDownload(manifest.id, file.part, file.filename, jobId);
+  }
+  return jobIds;
+}
+
+/** Prepare a final manifest, then immediately hand its streams to the browser. */
+export async function startDownload(
+  api: StorageApi,
+  bucket: string,
+  prefix: string,
+  keys: string[],
+  signal?: AbortSignal,
+  onJobIds?: (jobIds: string[]) => void
+): Promise<{ id: string; fileCount: number; totalBytes: number; jobIds: string[] }> {
+  const manifest = await api.createDownloadManifest({ bucket, prefix, keys }, signal);
+  const jobIds = await triggerManifestDownloads(manifest, signal, onJobIds);
+  return {
+    id: manifest.id,
+    fileCount: manifest.files.length,
+    totalBytes: manifest.files.reduce((total, file) => total + file.size, 0),
+    jobIds
+  };
 }

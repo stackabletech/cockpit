@@ -1,18 +1,29 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
+  import IconClose from 'virtual:icons/material-symbols/close';
+  import IconMenu from 'virtual:icons/material-symbols/menu';
+  import IconPanelClose from 'virtual:icons/material-symbols/left-panel-close-outline';
+  import IconPanelOpen from 'virtual:icons/material-symbols/left-panel-open-outline';
+  import IconExpandMore from 'virtual:icons/material-symbols/expand-more';
+  import IconOpenInNew from 'virtual:icons/material-symbols/open-in-new';
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import ResizeHandle from '$lib/components/storage/sidebar/ResizeHandle.svelte';
   import { createResizablePanel } from '$lib/components/storage/sidebar/resizable-panel.svelte.js';
   import Modal from '$lib/components/Modal.svelte';
   import { superForm } from 'sveltekit-superforms';
+  import { zod4Client } from 'sveltekit-superforms/adapters';
   import { ConnectionSchema, type ConnectionMessage } from './validation.js';
   import TabBar from '$lib/components/TabBar.svelte';
   import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
-  import { getOrCreateQueryRunner, destroyQueryRunner } from './query-runner.svelte.js';
+  import {
+    getOrCreateQueryRunner,
+    destroyQueryRunner,
+    resetAllQueryRunners
+  } from './query-runner.svelte.js';
   import { isTerminal } from '$lib/types/query';
   import {
     splitStatements,
@@ -22,6 +33,7 @@
   } from '$lib/editor/split-statements.js';
   import type { PageData } from './$types';
   import StatementResult from '$lib/components/trino/StatementResult.svelte';
+  import { getLocale } from '$lib/paraglide/runtime.js';
 
   let { data }: { data: PageData } = $props();
 
@@ -35,12 +47,8 @@
     }
   }
 
-  // Connection config - local state persisted to localStorage.
-  let connectionUrl = $state('');
-  let authType = $state<'none' | 'basic'>('none');
-  let authUsername = $state('');
-  let authPassword = $state('');
-  let connectionOpen = $state(false);
+  // Start expanded until the user has a server-side connection, so the form is the first thing they see.
+  let connectionOpen = $state(untrack(() => !data.userClientExists));
 
   // Drag-to-resize state for the desktop catalog browser panel (width persisted).
   const catalogResize = createResizablePanel({
@@ -92,11 +100,46 @@
     }))
   );
 
+  // Connection form (SuperForms). Fields other than the password are persisted to localStorage.
+  const {
+    form: connectionForm,
+    enhance: connectionEnhance,
+    errors: connectionErrors,
+    message: connectionMessage,
+    submitting: connectionSubmitting,
+    submit: submitConnection
+  } = superForm(
+    untrack(() => data.connectionForm),
+    {
+      validators: zod4Client(ConnectionSchema),
+      // Keep the entered connection after a successful save instead of resetting to the defaults.
+      resetForm: false,
+      onUpdated({ form }) {
+        const msg = form.message;
+        if (msg?.type === 'success') {
+          // Results belong to the previous connection; the server has cleared them too.
+          resetAllQueryRunners();
+          catalogVersion++;
+        } else if (msg?.type === 'error') {
+          connectionOpen = true;
+        }
+      },
+      // Network failures or unexpected server errors: show them in the form instead of the error page.
+      onError() {
+        $connectionMessage = {
+          type: 'error',
+          message: m.trino_connection_save_failed()
+        } satisfies ConnectionMessage;
+        connectionOpen = true;
+      }
+    }
+  );
+
   onMount(() => {
     if (!data.trinoConfigured) {
-      connectionUrl = getStoredValue('trino_url', '');
-      authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
-      authUsername = getStoredValue('trino_username', '');
+      $connectionForm.connectionUrl = getStoredValue('trino_url', '');
+      $connectionForm.authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
+      $connectionForm.authUsername = getStoredValue('trino_username', '');
     }
     defaultCatalog = getStoredValue('trino_default_catalog', '');
     defaultSchema = getStoredValue('trino_default_schema', '');
@@ -106,30 +149,14 @@
     if (data.trinoConfigured || data.userClientExists) {
       // Server already has a connection (env-based or per-user); load catalogues.
       catalogVersion++;
-    } else if (connectionUrl && authType === 'none') {
+    } else if ($connectionForm.connectionUrl && $connectionForm.authType === 'none') {
       // Re-establish server-side connection from localStorage on page reload.
       // Only possible for unauthenticated connections since the password is not persisted.
-      const body = new FormData();
-      body.set('connectionUrl', connectionUrl);
-      body.set('authType', authType);
-      body.set('authUsername', '');
-      body.set('authPassword', '');
-      fetch('?/save', {
-        method: 'POST',
-        body,
-        headers: { 'x-sveltekit-action': 'true' }
-      })
-        .then(() => {
-          catalogVersion++;
-        })
-        .catch(() => {
-          // Server-side connection could not be re-established from localStorage.
-          // Clear stale state so the user is prompted to re-enter.
-          connectionUrl = '';
-          authType = 'none';
-          authUsername = '';
-        });
-    } else if (connectionUrl && authType === 'basic') {
+      // Submitting through the form reuses the result handling of a manual save: success loads
+      // the catalogues, failure opens the form with the error so a stale URL can be corrected.
+      // Wait a tick so the inputs reflect the restored values and use:enhance is attached.
+      void tick().then(() => submitConnection());
+    } else if ($connectionForm.connectionUrl && $connectionForm.authType === 'basic') {
       // Password is not persisted; prompt the user to re-enter credentials.
       connectionOpen = true;
     }
@@ -141,48 +168,6 @@
     getOrCreateQueryRunner(tabStore.activeTabId).fetchResults();
   });
 
-  // Connection form (SuperForms).
-  const {
-    enhance: connectionEnhance,
-    errors: connectionErrors,
-    message: connectionMessage,
-    submitting: connectionSubmitting
-  } = superForm(
-    untrack(() => data.connectionForm),
-    {
-      onSubmit({ cancel }) {
-        const result = ConnectionSchema.safeParse({
-          connectionUrl,
-          authType,
-          authUsername,
-          authPassword
-        });
-        if (!result.success) {
-          const errors: Record<string, string[]> = {};
-          for (const issue of result.error.issues) {
-            const key = String(issue.path[0]);
-            (errors[key] ??= []).push(issue.message);
-          }
-          $connectionErrors = {
-            connectionUrl: errors.connectionUrl,
-            authType: errors.authType,
-            authUsername: errors.authUsername,
-            authPassword: errors.authPassword
-          };
-          cancel();
-        }
-      },
-      onUpdated({ form }) {
-        const msg = form.message as ConnectionMessage | undefined;
-        if (msg?.type === 'success') {
-          catalogVersion++;
-        } else if (msg?.type === 'error') {
-          connectionOpen = true;
-        }
-      }
-    }
-  );
-
   const isActive = $derived(runner.state !== 'IDLE' && !isTerminal(runner.state));
   const skippedStatements = $derived.by(() => {
     if (isActive || !runner.scriptProgress) return 0;
@@ -193,9 +178,9 @@
   // Password is intentionally excluded -- credentials should not be stored client-side.
   $effect(() => {
     if (!hydrated || data.trinoConfigured) return;
-    localStorage.setItem('trino_url', connectionUrl);
-    localStorage.setItem('trino_auth_type', authType);
-    localStorage.setItem('trino_username', authUsername);
+    localStorage.setItem('trino_url', $connectionForm.connectionUrl);
+    localStorage.setItem('trino_auth_type', $connectionForm.authType);
+    localStorage.setItem('trino_username', $connectionForm.authUsername);
   });
 
   // Persist settings.
@@ -238,8 +223,9 @@
   });
 
   const connectionSummary = $derived.by(() => {
-    const host = connectionUrl ? connectionUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : '-';
-    const auth = authType === 'basic' ? m.trino_auth_basic() : m.trino_auth_none();
+    const url = $connectionForm.connectionUrl;
+    const host = url ? url.replace(/^https?:\/\//, '').replace(/\/$/, '') : '-';
+    const auth = $connectionForm.authType === 'basic' ? m.trino_auth_basic() : m.trino_auth_none();
     return `${host} \u00b7 ${auth}`;
   });
 
@@ -403,16 +389,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#snippet closeIcon()}
-  <svg
-    class="size-4"
-    aria-hidden="true"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
-  >
+  <IconClose class="size-4" aria-hidden="true" />
 {/snippet}
 
 <div class="flex h-full gap-4">
@@ -448,13 +425,7 @@
   </div>
 
   <!-- Mobile catalog browser overlay -->
-  <Modal
-    bind:open={mobileCatalogOpen}
-    class="
-      bg-base-100 fixed inset-0 z-40 size-full max-h-full max-w-full p-0
-      lg:hidden
-    "
-  >
+  <Modal bind:open={mobileCatalogOpen} variant="fullscreen" class="lg:hidden">
     <div class="flex h-full flex-col">
       <div
         class="
@@ -489,12 +460,7 @@
   <div class="flex min-w-0 flex-1 flex-col">
     <!-- Connection config form (hidden when Trino is env-configured) -->
     {#if !data.trinoConfigured}
-      <form method="POST" action="?/save" use:connectionEnhance class="px-2 pt-1">
-        <input type="hidden" name="connectionUrl" value={connectionUrl} />
-        <input type="hidden" name="authType" value={authType} />
-        <input type="hidden" name="authUsername" value={authUsername} />
-        <input type="hidden" name="authPassword" value={authPassword} />
-
+      <form method="POST" action="?/save" use:connectionEnhance class="pt-1">
         <div class="border-base-300 bg-base-100 collapse rounded-xl border">
           <input
             type="checkbox"
@@ -519,11 +485,12 @@
               </label>
               <input
                 id="{uid}-conn-url"
+                name="connectionUrl"
                 type="url"
                 class="input input-sm w-full font-mono"
                 class:input-error={$connectionErrors.connectionUrl}
                 placeholder={m.trino_connection_url_placeholder()}
-                bind:value={connectionUrl}
+                bind:value={$connectionForm.connectionUrl}
               />
               {#if $connectionErrors.connectionUrl}
                 <p class="text-error text-xs">{$connectionErrors.connectionUrl}</p>
@@ -538,25 +505,25 @@
                   id="{uid}-auth-none"
                   class="btn join-item btn-sm"
                   type="radio"
-                  name="{uid}-auth"
+                  name="authType"
                   aria-label={m.trino_auth_none()}
                   value="none"
-                  bind:group={authType}
+                  bind:group={$connectionForm.authType}
                 />
                 <input
                   id="{uid}-auth-basic"
                   class="btn join-item btn-sm"
                   type="radio"
-                  name="{uid}-auth"
+                  name="authType"
                   aria-label={m.trino_auth_basic()}
                   value="basic"
-                  bind:group={authType}
+                  bind:group={$connectionForm.authType}
                 />
               </div>
             </div>
 
             <!-- Basic auth credentials -->
-            {#if authType === 'basic'}
+            {#if $connectionForm.authType === 'basic'}
               <div
                 class="
                   grid grid-cols-1 gap-3
@@ -569,11 +536,12 @@
                   </label>
                   <input
                     id="{uid}-auth-username"
+                    name="authUsername"
                     type="text"
                     class="input input-sm font-mono"
                     class:input-error={$connectionErrors.authUsername}
                     autocomplete="username"
-                    bind:value={authUsername}
+                    bind:value={$connectionForm.authUsername}
                   />
                   {#if $connectionErrors.authUsername}
                     <p class="text-error text-xs">{$connectionErrors.authUsername}</p>
@@ -585,11 +553,12 @@
                   </label>
                   <input
                     id="{uid}-auth-password"
+                    name="authPassword"
                     type="password"
                     class="input input-sm font-mono"
                     class:input-error={$connectionErrors.authPassword}
                     autocomplete="current-password"
-                    bind:value={authPassword}
+                    bind:value={$connectionForm.authPassword}
                   />
                   {#if $connectionErrors.authPassword}
                     <p class="text-error text-xs">{$connectionErrors.authPassword}</p>
@@ -609,7 +578,7 @@
             </div>
 
             {#if $connectionMessage}
-              {@const msg = $connectionMessage as ConnectionMessage}
+              {@const msg = $connectionMessage}
               {#if msg.type === 'success'}
                 <p class="text-success text-sm">{m.trino_connection_saved()}</p>
               {:else}
@@ -667,56 +636,31 @@
               aria-label={m.trino_catalog_browser_toggle()}
             >
               {#if catalogBrowserOpen}
-                <svg
+                <IconPanelClose
                   class="
                     hidden size-4
                     lg:block
                   "
                   aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  ><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" /><path
-                    d="m14 9-3 3 3 3"
-                  /></svg
-                >
-                <svg
+                />
+                <IconMenu
                   class="
                     size-4
                     lg:hidden
                   "
                   aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg
-                >
+                />
               {:else}
-                <svg
-                  class="size-4"
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  ><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" /><path
-                    d="m12 9 3 3-3 3"
-                  /></svg
-                >
+                <IconPanelOpen class="size-4" aria-hidden="true" />
               {/if}
             </button>
           </div>
           <span class="text-base-content/60 text-sm font-medium">{m.trino_editor_label()}</span>
           {#if charLimitReached}
             <span class="text-warning text-xs" role="status"
-              >{m.trino_editor_char_limit_reached({ limit: MAX_SQL_LENGTH.toLocaleString() })}</span
+              >{m.trino_editor_char_limit_reached({
+                limit: MAX_SQL_LENGTH.toLocaleString(getLocale())
+              })}</span
             >
           {/if}
         </div>
@@ -775,19 +719,14 @@
                 type="button"
                 class="
                   btn join-item border-l-primary-content/20 btn-primary
-                  self-stretch border-l px-2
+                  tooltip tooltip-bottom z-150 self-stretch border-l px-2 before:z-200
                 "
+                data-tip={m.trino_run_mode_select()}
                 class:pointer-events-none={isActive}
                 aria-haspopup="true"
                 aria-label={m.trino_run_mode_select()}
               >
-                <svg class="size-3" aria-hidden="true" viewBox="0 0 20 20" fill="currentColor">
-                  <path
-                    fill-rule="evenodd"
-                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
+                <IconExpandMore class="size-3" aria-hidden="true" />
               </button>
             </div>
             <div
@@ -884,7 +823,7 @@
           {#if runner.progress.processedRows > 0 || runner.progress.elapsedTimeMillis > 0}
             <span class="text-base-content/60 text-xs">
               {m.trino_progress_info({
-                rows: runner.progress.processedRows.toLocaleString(),
+                rows: runner.progress.processedRows.toLocaleString(getLocale()),
                 elapsed: (runner.progress.elapsedTimeMillis / 1000).toFixed(1)
               })}
             </span>
@@ -897,20 +836,7 @@
               class="btn btn-ghost btn-xs"
             >
               {m.trino_view_in_trino()}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="size-3.5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"
-                />
-                <path
-                  d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"
-                />
-              </svg>
+              <IconOpenInNew class="size-3.5" aria-hidden="true" />
             </a>
           {/if}
         </div>

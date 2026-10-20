@@ -5,11 +5,11 @@
 // injects phantom identifiers before extraneous keywords flagged by ANTLR.
 
 import {
-  ATNSimulator,
+  type ATNSimulator,
   BaseErrorListener,
   CharStream,
   CommonTokenStream,
-  Recognizer,
+  type Recognizer,
   Token
 } from 'antlr4ng';
 import { CodeCompletionCore } from 'antlr4-c3';

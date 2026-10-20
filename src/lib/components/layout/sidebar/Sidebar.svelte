@@ -5,8 +5,10 @@
   import type { Component } from 'svelte';
   import IconChevronLeft from 'virtual:icons/material-symbols/chevron-left';
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
+  import { MediaQuery } from 'svelte/reactivity';
   import type { NavItem } from '$lib/types/navigation.js';
   import { getNavSections } from './nav-items.js';
+  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
 
   let {
     collapsed = $bindable(false),
@@ -20,9 +22,18 @@
 
   const sections = $derived(getNavSections({ storageBrowserEnabled }));
 
+  // make mobile navbar not focusable if its hidden
+  const isDesktop = new MediaQuery('min-width: 64rem', true);
+  const hiddenFromUser = $derived(!isDesktop.current && !mobileOpen);
+
+  // Explicitly derive currentPath so Svelte 5 tracks page.url.pathname
+  // as a reactive dependency. Without this, changes to page.url.pathname
+  // may not reliably trigger re-renders in all browsers during hydration.
+  const currentPath = $derived(page.url.pathname);
+
   function isActive(href: string): boolean {
-    if (href === '/') return page.url.pathname === '/';
-    return page.url.pathname.startsWith(href);
+    if (href === '/') return currentPath === '/';
+    return currentPath.startsWith(href);
   }
 
   function handleNavClick(event: MouseEvent, item: NavItem) {
@@ -40,7 +51,34 @@
   }
 
   let sidebarEl: HTMLElement | undefined = $state();
+
+  $effect(() => {
+    if (isDesktop.current || !mobileOpen || !sidebarEl) return;
+    sidebarEl.focus();
+  });
+
+  function handleWindowKeydown(event: KeyboardEvent) {
+    if (isDesktop.current || !mobileOpen) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      mobileOpen = false;
+    }
+  }
+
+  // Tabbing off either end of the open panel would land on the page behind the
+  // backdrop, so send focus back to the top of the panel instead.
+  function handleFocusOut(event: FocusEvent) {
+    if (isDesktop.current || !mobileOpen) return;
+
+    const next = event.relatedTarget as Node | null;
+    if (next && sidebarEl?.contains(next)) return;
+
+    sidebarEl?.focus();
+  }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 {#snippet navIcon(IconComponent: Component)}
   <IconComponent class="h-5 w-5 shrink-0" aria-hidden="true" />
@@ -59,8 +97,11 @@
 <!-- Sidebar -->
 <aside
   bind:this={sidebarEl}
+  onfocusout={handleFocusOut}
   id="sidebar"
   aria-label={m.sidebar_label()}
+  tabindex="-1"
+  inert={hiddenFromUser}
   class="border-base-300 bg-base-200 fixed inset-y-0 left-0 z-50 flex flex-col border-r
     transition-[transform,width] duration-200 ease-out
     lg:relative lg:inset-auto lg:z-auto lg:translate-x-0
@@ -93,34 +134,38 @@
 
       <ul class="flex flex-col gap-1">
         {#each section.items as item (item.label)}
-          {@const active = isActive(resolve(item.route))}
+          {@const active = isActive((resolve as (pathname: string) => string)(item.route))}
           <li>
-            <a
-              href={resolve(item.route)}
-              onclick={(e) => handleNavClick(e, item)}
-              onkeydown={(e) => handleNavKeydown(e, item)}
-              title={collapsed ? item.label : undefined}
-              class="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
-                {active
-                ? 'bg-primary/10 text-primary'
-                : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
-                {item.disabled ? 'opacity-40' : ''}
-                {collapsed ? 'justify-center' : ''}"
-              aria-current={active ? 'page' : undefined}
-              aria-disabled={item.disabled ? 'true' : undefined}
-            >
-              {@render navIcon(item.icon)}
-              {#if !collapsed}
-                <span class="truncate">{item.label}</span>
-                {#if item.badge}
-                  <span
-                    class="bg-base-300 text-base-content/60 ml-auto rounded-md px-1.5 py-0.5 text-xs font-semibold tracking-wider uppercase"
-                  >
-                    {item.badge}
-                  </span>
+            <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Nav item paths are dynamically generated. -->
+            <TooltipTrigger text={collapsed ? item.label : undefined} orientation="right">
+              <a
+                href={(resolve as (pathname: string) => string)(item.route)}
+                data-sveltekit-preload-data="hover"
+                onclick={(e) => handleNavClick(e, item)}
+                onkeydown={(e) => handleNavKeydown(e, item)}
+                aria-label={collapsed ? item.label : undefined}
+                class="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
+                  {active
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'}
+                  {item.disabled ? 'opacity-40' : ''}
+                  {collapsed ? 'justify-center' : ''}"
+                aria-current={active ? 'page' : undefined}
+                aria-disabled={item.disabled ? 'true' : undefined}
+              >
+                {@render navIcon(item.icon)}
+                {#if !collapsed}
+                  <span class="truncate">{item.label}</span>
+                  {#if item.badge}
+                    <span
+                      class="bg-base-300 text-base-content/60 ml-auto rounded-md px-1.5 py-0.5 text-xs font-semibold tracking-wider uppercase"
+                    >
+                      {item.badge}
+                    </span>
+                  {/if}
                 {/if}
-              {/if}
-            </a>
+              </a>
+            </TooltipTrigger>
           </li>
         {/each}
       </ul>
@@ -129,19 +174,21 @@
 
   <!-- Footer: collapse toggle (desktop only) -->
   <div class="border-base-300 hidden shrink-0 border-t p-3 lg:block">
-    <button
-      onclick={() => (collapsed = !collapsed)}
-      class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3 py-2
-        text-sm font-medium transition-colors hover:cursor-pointer
-        {collapsed ? 'justify-center' : ''}"
-      aria-label={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
-    >
-      {#if collapsed}
-        <IconChevronRight class="h-4 w-4 shrink-0" aria-hidden="true" />
-      {:else}
-        <IconChevronLeft class="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span>{m.sidebar_collapse_label()}</span>
-      {/if}
-    </button>
+    <TooltipTrigger text={collapsed ? m.sidebar_expand() : undefined} orientation="right">
+      <button
+        onclick={() => (collapsed = !collapsed)}
+        class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3 py-2
+          text-sm font-medium transition-colors hover:cursor-pointer
+          {collapsed ? 'justify-center' : ''}"
+        aria-label={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
+      >
+        {#if collapsed}
+          <IconChevronRight class="h-4 w-4 shrink-0" aria-hidden="true" />
+        {:else}
+          <IconChevronLeft class="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{m.sidebar_collapse_label()}</span>
+        {/if}
+      </button>
+    </TooltipTrigger>
   </div>
 </aside>

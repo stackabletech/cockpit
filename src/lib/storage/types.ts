@@ -1,11 +1,56 @@
+import type { Component } from 'svelte';
+import type { FilePair } from './file-collection.js';
+import type {
+  ConflictEntry,
+  RefusedEntry
+} from '$lib/components/storage/modals/shared/conflict-types.js';
+
 // ── Modal types ─────────────────────────────────────────────────────────────
 
-export type ModalType = 'delete' | 'preview' | 'upload';
+export type ModalType =
+  | 'delete'
+  | 'preview'
+  | 'upload'
+  | 'details'
+  | 'rename'
+  | 'confirm-move'
+  | 'resolve-conflicts'
+  | 'create';
 
 export interface ModalPayloads {
   delete: { keys: string[] };
-  preview: { key: string };
-  upload: { bucket: string; prefix: string };
+  preview: {
+    key: string;
+    bucket?: string;
+    archiveKey?: string;
+    archivePath?: string;
+    nestedArchivePath?: string;
+  };
+  upload: { bucket: string; prefix: string; files?: FilePair[] };
+  details: {
+    type: 'file' | 'directory' | 'bucket';
+    bucket: string;
+    key?: string;
+    prefix?: string;
+  };
+  rename: { key: string };
+  'confirm-move': {
+    keys: string[];
+    destPrefix: string;
+    /** Per-item metadata for display in the confirmation dialog. */
+    items: Array<{ key: string; name: string; isDirectory: boolean; size?: number }>;
+  };
+  'resolve-conflicts': {
+    /** Conflicting items the user decides on. */
+    entries: ConflictEntry[];
+    /** Items that cannot be transferred, shown with their reason. */
+    refused: RefusedEntry[];
+    /** Nothing would be sent whatever is chosen: offer only Close. */
+    closeOnly: boolean;
+    /** Label for the confirm button (e.g. "Paste" or "Move"). */
+    confirmLabel: string;
+  };
+  create: { type: 'file' | 'folder' };
 }
 
 export type ActiveModal = {
@@ -14,10 +59,20 @@ export type ActiveModal = {
 
 // ── Context menu ─────────────────────────────────────────────────────────────
 
+export interface ContextMenuAction {
+  key: string;
+  icon: Component;
+  label: string;
+  disabled?: boolean;
+  hidden?: boolean;
+  class?: string;
+}
+
 export interface ContextMenuState {
   x: number;
   y: number;
-  key: string;
+  /** The item key that was right-clicked, or undefined for empty-space context menu. */
+  key?: string;
 }
 
 // ── Navigation ───────────────────────────────────────────────────────────────
@@ -25,13 +80,87 @@ export interface ContextMenuState {
 export type NavigateFn = (
   prefix: string,
   continuationToken?: string | null,
-  pageSize?: number | null
+  pageSize?: number | null,
+  invalidateAll?: boolean
 ) => void;
 
 // ── Action names ─────────────────────────────────────────────────────────────
 
 export type ActionName =
-  'download' | 'upload' | 'preview' | 'delete' | 'pin' | 'unpin' | 'copy-filename' | 'copy-path';
+  | 'download'
+  | 'upload'
+  | 'preview'
+  | 'delete'
+  | 'pin'
+  | 'unpin'
+  | 'copy-filename'
+  | 'copy-path'
+  | 'details'
+  | 'cut'
+  | 'copy'
+  | 'paste'
+  | 'rename'
+  | 'create-file'
+  | 'create-folder';
+
+// ── Clipboard state (cut / copy) ────────────────────────────────────────────
+
+/** Tracks items stored in the virtual clipboard for cut/copy + paste operations. */
+export interface ClipboardData {
+  /** 'cut' items are rendered shaded; 'copy' items are not. */
+  action: 'cut' | 'copy';
+  /**
+   * S3 keys of the items in the clipboard. A key ending in `/` is a folder, the
+   * same rule the transfer API uses: listings show such a key as a folder, and
+   * transferring it includes the object `x/` itself with any content it has.
+   */
+  keys: string[];
+  /** The storage connection the items belong to; paste is refused in another one. */
+  connectionId: string | null;
+  /** Bucket the items belong to. */
+  sourceBucket: string;
+  /** Prefix where the items were cut from (used to invalidate source tabs). */
+  sourcePrefix: string;
+  /** File sizes keyed by S3 key (for recent files tracking). */
+  fileSizes: Record<string, number>;
+}
+
+// ── Operations (paste / move / rename progress tracking) ─────────────────────
+
+export type OperationStatus =
+  | 'running'
+  | 'done'
+  | 'error'
+  | 'cancelled'
+  | 'interrupted'
+  /** The server no longer knows the operation's jobs, so its outcome is unknown. */
+  | 'unknown';
+
+export type OperationType = 'paste' | 'move' | 'rename' | 'delete' | 'download';
+
+export interface StorageOperation {
+  id: string;
+  label: string;
+  status: OperationStatus;
+  type: OperationType;
+  itemCount: number;
+  completedCount: number;
+  errorMessage?: string;
+  startedAt: number;
+  completedAt?: number;
+  /** Destination bucket/path for paste, move, and rename operations. */
+  destPath?: string;
+  /** Source file names being processed (shown while running). */
+  sourceNames?: string[];
+  /** Total bytes across all items in this operation. */
+  totalBytes: number;
+  /** Bytes transferred so far (sum of completed items). */
+  completedBytes: number;
+  /** Name of the file currently being transferred (single-item copy/move/paste). */
+  currentFileName?: string;
+  /** Server-side job IDs per file for recovering copy/move results after reload. */
+  fileJobIds?: string[];
+}
 
 // ── Storage locations ────────────────────────────────────────────────────────
 
@@ -79,6 +208,9 @@ export interface StorageMetadata {
   contentType: string | undefined;
   etag: string | undefined;
   customMetadata: Record<string, string> | undefined;
+  versionId?: string | undefined;
+  storageClass?: string | undefined;
+  isDeleteMarker?: boolean;
 }
 
 /** A page of listed objects from a storage provider. */
@@ -96,4 +228,77 @@ export interface StoragePage {
 /** Result of a bulk-delete operation. `failed` lists keys that could not be deleted. */
 export interface DeleteObjectsResult {
   failed: Array<{ key: string; code?: string; message?: string }>;
+}
+
+// ── Search ───────────────────────────────────────────────────────────────────
+
+/** A single match from a bucket-scoped storage search. */
+export interface SearchResultItem {
+  key: string;
+  size: number;
+  lastModified: Date;
+  isDirectory: boolean;
+}
+
+/** Response from the storage search API. */
+export interface StorageSearchResponse {
+  results: SearchResultItem[];
+}
+
+/** An incremental update emitted while a storage search is in progress. */
+export interface StorageSearchUpdate extends StorageSearchResponse {
+  /** True when this update replaces rather than appends to the current result set. */
+  snapshot: boolean;
+}
+
+/** A single entry in the per-connection recent search history. One entry
+ *  represents one logical search grouped across all buckets it ran against.
+ *  `maxDepth` is NULL when no depth limit was set. */
+export interface RecentSearchEntry {
+  buckets: string[];
+  query: string;
+  useRegex: boolean;
+  excludePatterns: string[];
+  searchPath: string;
+  maxDepth: number | null;
+}
+
+// ── Tabular preview ──────────────────────────────────────────────────────────
+
+/** Rows the CSV and Parquet previews request per infinite-scroll chunk. The
+ *  preview endpoint always accepts at least this many rows per request. */
+export const PREVIEW_CHUNK_ROWS = 250;
+
+// ── Archive navigation ───────────────────────────────────────────────────────
+
+export const ARCHIVE_EXTENSIONS = ['.zip', '.tar.gz', '.tgz', '.tar'] as const;
+
+export type ArchiveFormat = (typeof ARCHIVE_EXTENSIONS)[number] extends `${string}${infer F}`
+  ? F
+  : string;
+
+/** A single entry inside an archive (file or directory). */
+export interface ArchiveEntry {
+  key: string;
+  size: number;
+  lastModified: Date;
+  isDirectory: boolean;
+}
+
+/** Response from the archive listing API. */
+export interface ArchiveListingResponse {
+  entries: ArchiveEntry[];
+  hasMore: boolean;
+  /** When true, the archive was too large to open for preview. */
+  tooLarge?: boolean;
+}
+
+/** State when browsing inside an archive. */
+export interface ArchiveContext {
+  /** S3 key of the archive file being browsed. */
+  archiveKey: string;
+  /** Virtual path within the archive (empty string = archive root). */
+  archivePrefix: string;
+  /** The S3 prefix the user was at before entering the archive. */
+  previousS3Prefix: string;
 }
