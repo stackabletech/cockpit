@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { z } from 'zod';
-import { getUserId } from '$lib/server/auth-utils.js';
+import { getTrinoUser, getUserId } from '$lib/server/auth-utils.js';
 import {
   startScript,
   getQuerySnapshots,
@@ -33,7 +33,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     return json({ error: z.prettifyError(parsed.error) }, { status: 400 });
   }
 
-  const user = locals.user?.username ?? 'anonymous';
+  const user = getTrinoUser(locals);
   const { statements, tabId, catalog, schema } = parsed.data;
 
   // Fire-and-forget — the script orchestrator runs in the background.

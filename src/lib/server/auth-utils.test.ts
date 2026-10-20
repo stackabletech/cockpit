@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { getUserId } from './auth-utils.js';
+import { describe, it, expect, vi } from 'vitest';
+import { getTrinoUser, getUserId } from './auth-utils.js';
 
 describe('getUserId', () => {
   it('returns the user ID when user is present', () => {
@@ -15,5 +15,25 @@ describe('getUserId', () => {
   it('returns "anonymous" when user has no id', () => {
     const locals = { user: {} } as App.Locals;
     expect(getUserId(locals)).toBe('anonymous');
+  });
+});
+
+describe('getTrinoUser', () => {
+  const logger = { error: vi.fn() };
+
+  it('returns the username of the signed-in user', () => {
+    const locals = { user: { id: 'u1', username: 'alice' }, logger } as unknown as App.Locals;
+    expect(getTrinoUser(locals)).toBe('alice');
+  });
+
+  it('returns "anonymous" without a signed-in user (OIDC disabled)', () => {
+    const locals = { user: null, logger } as unknown as App.Locals;
+    expect(getTrinoUser(locals)).toBe('anonymous');
+  });
+
+  it('fails instead of falling back to "anonymous" when the username is missing', () => {
+    const locals = { user: { id: 'u1', username: null }, logger } as unknown as App.Locals;
+    expect(() => getTrinoUser(locals)).toThrow(expect.objectContaining({ status: 500 }));
+    expect(logger.error).toHaveBeenCalledWith({ user_id: 'u1' }, expect.any(String));
   });
 });
