@@ -257,7 +257,6 @@
         onclick={() => (toolsOpen = !toolsOpen)}
         class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content mb-2 flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-semibold tracking-wider uppercase transition-colors hover:cursor-pointer"
         aria-expanded={toolsOpen}
-        aria-label={toolsOpen ? m.sidebar_tools_collapse() : m.sidebar_tools_expand()}
       >
         {toolsSection.title}
         <IconExpandMore

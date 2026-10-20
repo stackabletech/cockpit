@@ -55,7 +55,7 @@ test.describe('Sidebar bookmarks', () => {
 
     await expect(page.getByText('Favourites')).toBeVisible();
     await expect(sidebarNav(page).getByRole('link', { name: 'Pipelines' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Collapse tools section' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Tools', exact: true })).toBeVisible();
     await expect(sidebarNav(page).getByRole('link', { name: 'Dashboards' })).toBeVisible();
     await expect(sidebarNav(page).getByRole('link', { name: 'Trino' })).toBeVisible();
   });
@@ -109,15 +109,18 @@ test.describe('Sidebar bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    const collapseButton = page.getByRole('button', { name: 'Collapse tools section' });
-    await expect(collapseButton).toHaveAttribute('aria-expanded', 'true');
+    // The accessible name matches the visible label; aria-expanded carries the state.
+    const toggle = page.getByRole('button', { name: 'Tools', exact: true });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
-    await collapseButton.click();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await expect(sidebarNav(page).getByRole('link', { name: 'Dashboards' })).not.toBeVisible();
     await expect(sidebarNav(page).getByRole('link', { name: 'Trino' })).not.toBeVisible();
     await expect(sidebarNav(page).getByRole('link', { name: 'Pipelines' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Expand tools section' }).click();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(sidebarNav(page).getByRole('link', { name: 'Dashboards' })).toBeVisible();
     await expect(sidebarNav(page).getByRole('link', { name: 'Trino' })).toBeVisible();
   });
