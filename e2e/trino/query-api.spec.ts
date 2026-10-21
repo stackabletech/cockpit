@@ -93,6 +93,23 @@ test.describe('Trino API', () => {
         .toEqual([session.user.username]);
     });
 
+    // The marker goes into a name the endpoint puts in its SQL, so the mock log
+    // can find the metadata statement.
+    for (const [endpoint, query] of [
+      ['catalog', (marker: string) => `level=schemas&catalog=${marker}`],
+      ['completion/metadata', (marker: string) => `level=tables&catalog=tpch&schema=${marker}`]
+    ] as const) {
+      test(`${endpoint} runs metadata queries as the OIDC user`, async ({ page }) => {
+        const marker = mockMarker();
+        const res = await page.request.get(`/api/trino/${endpoint}?${query(marker)}`);
+        expect(res.status()).toBe(200);
+
+        const session = await (await page.request.get('/api/auth/get-session')).json();
+        expect(session.user.username).toMatch(/^testuser\d+$/);
+        expect((await mockTrinoLog(marker)).map((e) => e.user)).toEqual([session.user.username]);
+      });
+    }
+
     test('rejects an invalid request', async ({ page }) => {
       const res = await page.request.post('/api/trino/query', {
         data: { statements: ['SELECT 1'], tabId: 'not-a-uuid' }
