@@ -24,7 +24,7 @@ function mockEvent(params: Record<string, string>) {
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   return {
     url,
-    locals: { logger: { debug: vi.fn(), info: vi.fn() }, user: { id: 'u1', username: 'alice' } }
+    locals: { logger: { debug: vi.fn(), info: vi.fn() }, user: { id: 'u1', trinoUser: 'alice' } }
   } as unknown as Parameters<typeof GET>[0];
 }
 

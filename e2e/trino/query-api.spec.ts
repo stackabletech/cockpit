@@ -87,10 +87,10 @@ test.describe('Trino API', () => {
       });
 
       const session = await (await page.request.get('/api/auth/get-session')).json();
-      expect(session.user.username).toMatch(/^testuser\d+$/);
+      expect(session.user.trinoUser).toMatch(/^testuser\d+$/);
       await expect
         .poll(async () => (await mockTrinoLog(marker)).map((e) => e.user))
-        .toEqual([session.user.username]);
+        .toEqual([session.user.trinoUser]);
     });
 
     // The marker goes into a name the endpoint puts in its SQL, so the mock log
@@ -105,8 +105,8 @@ test.describe('Trino API', () => {
         expect(res.status()).toBe(200);
 
         const session = await (await page.request.get('/api/auth/get-session')).json();
-        expect(session.user.username).toMatch(/^testuser\d+$/);
-        expect((await mockTrinoLog(marker)).map((e) => e.user)).toEqual([session.user.username]);
+        expect(session.user.trinoUser).toMatch(/^testuser\d+$/);
+        expect((await mockTrinoLog(marker)).map((e) => e.user)).toEqual([session.user.trinoUser]);
       });
     }
 

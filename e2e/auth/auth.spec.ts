@@ -48,19 +48,22 @@ test.describe('Authentication', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   });
 
-  test('username cannot be changed through the update-user endpoint', async ({ page, baseURL }) => {
+  test('trinoUser cannot be changed through the update-user endpoint', async ({
+    page,
+    baseURL
+  }) => {
     const res = await page.request.post('/api/auth/update-user', {
       headers: { origin: baseURL! },
-      data: { username: 'someone-else' }
+      data: { trinoUser: 'someone-else' }
     });
     expect(res.status()).toBe(403);
-    expect(await res.json()).toMatchObject({ message: 'username is not allowed to be set' });
+    expect(await res.json()).toMatchObject({ message: 'trinoUser is not allowed to be set' });
 
     const session = await (await page.request.get('/api/auth/get-session')).json();
-    expect(session.user.username).toMatch(/^testuser\d+$/);
+    expect(session.user.trinoUser).toMatch(/^testuser\d+$/);
   });
 
-  test('a later login refreshes the username from the OIDC claim', async ({ browser }) => {
+  test('a later login refreshes the Trino user from the OIDC claim', async ({ browser }) => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await context.newPage();
     const sub = `relogin-${crypto.randomUUID()}`;
@@ -91,11 +94,11 @@ test.describe('Authentication', () => {
 
     try {
       const first = await loginAs(`${sub}-old`);
-      expect(first.username).toBe(`${sub}-old`);
+      expect(first.trinoUser).toBe(`${sub}-old`);
 
       const second = await loginAs(`${sub}-new`);
       expect(second.id).toBe(first.id);
-      expect(second.username).toBe(`${sub}-new`);
+      expect(second.trinoUser).toBe(`${sub}-new`);
     } finally {
       await context.close();
     }

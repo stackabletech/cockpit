@@ -16,16 +16,16 @@ const env = envModule?.env ?? (process.env as Record<string, string | undefined>
 const getRequestEvent = appServer?.getRequestEvent ?? (() => undefined as unknown as RequestEvent);
 const log = loggingModule?.logger.child({ module: 'auth' });
 
-// The username is the Trino user we impersonate, so only the OIDC callback may
+// trinoUser is the Trino user we impersonate, so only the OIDC callback may
 // write it. Marking the field `input: false` would also block that: better-auth
 // drops such fields from the provider profile on sign-up (see #371). Database
 // hooks see the endpoint's route template, not the request path.
-const usernameWritePath = '/oauth2/callback/:providerId';
+const trinoUserWritePath = '/oauth2/callback/:providerId';
 
-function guardUsernameWrite(data: Record<string, unknown>, context: { path?: string } | null) {
-  if (!('username' in data) || context?.path === usernameWritePath) return;
-  log?.warn({ path: context?.path }, 'Rejected username write outside the OIDC callback');
-  throw new APIError('FORBIDDEN', { message: 'username is not allowed to be set' });
+function guardTrinoUserWrite(data: Record<string, unknown>, context: { path?: string } | null) {
+  if (!('trinoUser' in data) || context?.path === trinoUserWritePath) return;
+  log?.warn({ path: context?.path }, 'Rejected trinoUser write outside the OIDC callback');
+  throw new APIError('FORBIDDEN', { message: 'trinoUser is not allowed to be set' });
 }
 
 const trinoUserClaim = env.STACKABLE_COCKPIT_TRINO_USER_CLAIM ?? 'preferred_username';
@@ -68,7 +68,7 @@ export const auth = betterAuth({
   },
   user: {
     additionalFields: {
-      username: {
+      trinoUser: {
         type: 'string',
         required: false
       }
@@ -76,8 +76,8 @@ export const auth = betterAuth({
   },
   databaseHooks: {
     user: {
-      create: { before: async (user, context) => guardUsernameWrite(user, context) },
-      update: { before: async (user, context) => guardUsernameWrite(user, context) }
+      create: { before: async (user, context) => guardTrinoUserWrite(user, context) },
+      update: { before: async (user, context) => guardTrinoUserWrite(user, context) }
     }
   },
   plugins: [
@@ -101,8 +101,8 @@ export const auth = betterAuth({
                   const fullName = [profile.given_name, profile.family_name]
                     .filter(Boolean)
                     .join(' ');
-                  const trinoUser = profile[trinoUserClaim];
-                  if (trinoUser) {
+                  const claimedTrinoUser = profile[trinoUserClaim];
+                  if (claimedTrinoUser) {
                     log?.debug(
                       { trino_user_claim: trinoUserClaim },
                       'Resolved Trino user from OIDC claim'
@@ -119,8 +119,8 @@ export const auth = betterAuth({
                     emailVerified: profile.email_verified ?? false,
                     image: profile.picture || null,
                     // No `|| ''`: without an email better-auth rejects the sign-in before
-                    // creating the user, so this never stores an empty username.
-                    username: trinoUser || profile.preferred_username || profile.email
+                    // creating the user, so this never stores an empty Trino user.
+                    trinoUser: claimedTrinoUser || profile.preferred_username || profile.email
                   };
                 }
               }

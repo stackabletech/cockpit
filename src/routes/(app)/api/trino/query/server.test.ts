@@ -25,7 +25,7 @@ const TAB_ID = '6f1c2a4e-8b3d-4c5e-9f7a-1b2c3d4e5f60';
 const fakeClient = { fake: true } as unknown as TrinoClient;
 
 function mockLocals(
-  user: { id: string; username?: string } | null = { id: 'u1', username: 'alice' }
+  user: { id: string; trinoUser?: string } | null = { id: 'u1', trinoUser: 'alice' }
 ) {
   return {
     logger: { trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
