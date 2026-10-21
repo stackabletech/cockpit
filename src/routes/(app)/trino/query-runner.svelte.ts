@@ -10,9 +10,6 @@ import type { SqlStatement } from '$lib/editor/split-statements.js';
 import { clearCompletionCache } from '$lib/editor/completion/completion-metadata.js';
 import * as m from '$lib/paraglide/messages.js';
 
-export { INITIAL_PROGRESS, type QueryState, type QueryProgress } from '$lib/types/query.js';
-export type { ScriptProgress } from '$lib/types/query.js';
-
 export interface QueryRunner {
   readonly state: QueryState;
   readonly progress: QueryProgress;

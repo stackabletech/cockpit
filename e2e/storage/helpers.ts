@@ -40,7 +40,7 @@ export function bucketRoute(connection: string, bucket: string, prefix = ''): st
   return `/storage/browse/${encodeURIComponent(connection)}/${encodeURIComponent(bucket)}/${encoded}`;
 }
 
-export async function clearSavedConnections(page: Page) {
+async function clearSavedConnections(page: Page) {
   const savedList = page.getByRole('list', { name: 'Saved connections' });
   while (await savedList.isVisible().catch(() => false)) {
     const items = savedList.getByRole('listitem');
@@ -291,9 +291,6 @@ export function modalBox(page: Page) {
 export async function headObject(client: S3Client, bucket: string, key: string) {
   return client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
 }
-
-// Re-export expect for convenience
-export { expect };
 
 /** Seeds the `storage_tabs` localStorage key before the first page load of a
  *  test, simulating a previous session's saved tab state. Because this uses

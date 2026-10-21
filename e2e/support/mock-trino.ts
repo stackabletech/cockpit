@@ -20,7 +20,7 @@ export function mockMarker(): string {
 }
 
 /** Statements containing `marker` that reached the mock, and their cancellations. */
-export async function mockTrinoLog(marker: string): Promise<MockTrinoLogEntry[]> {
+async function mockTrinoLog(marker: string): Promise<MockTrinoLogEntry[]> {
   const res = await fetch(`${MOCK_TRINO_URL}/__mock/log?marker=${encodeURIComponent(marker)}`);
   if (!res.ok) {
     throw new Error(`Mock Trino log request failed: ${res.status} ${res.statusText}`);
