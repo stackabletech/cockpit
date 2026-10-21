@@ -60,6 +60,7 @@ npm run preview      # Preview the production build
 npm run format       # Format all code
 npm run check        # Type checking
 npm run lint         # Linting
+npm run knip         # Report unused files, exports and dependencies
 npm run test:e2e     # Run the Playwright end-to-end tests
 
 npm run generate:antlr   # Regenerate the lexer/parser after editing the SQL grammar

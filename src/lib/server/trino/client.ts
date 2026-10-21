@@ -20,7 +20,7 @@ export interface TrinoQueryStats {
   elapsedTimeMillis?: number;
 }
 
-export interface TrinoQueryError {
+interface TrinoQueryError {
   message: string;
   errorCode?: number;
   errorName?: string;
@@ -235,7 +235,7 @@ export function resolveTrinoClient(userId: string): TrinoClient | null {
 }
 
 /** Returns the Trino server URL used for server-side queries. */
-export function resolveTrinoServerUrl(userId: string): string | null {
+function resolveTrinoServerUrl(userId: string): string | null {
   if (trinoUrl) return trinoUrl.replace(/\/+$/, '');
   return getUserTrinoUrl(userId);
 }

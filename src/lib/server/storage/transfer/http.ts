@@ -23,7 +23,7 @@ import { TransferRequestError, validateTransferRequest, type TransferRequest } f
 const HEARTBEAT_INTERVAL_MS = 60_000;
 
 /** Whether the feature flags allow `op`: copy needs paste, move needs move or paste, rename needs rename. */
-export function transferAllowed(op: TransferOp): boolean {
+function transferAllowed(op: TransferOp): boolean {
   if (op === 'copy') return storagePasteEnabled;
   if (op === 'move') return storageMoveEnabled || storagePasteEnabled;
   return storageRenameEnabled;

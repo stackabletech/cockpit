@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import * as m from '$lib/paraglide/messages.js';
 
-export { isPageSize, type PageSize } from '$lib/types/pagination.js';
-
 export const TabIdSchema = z.uuid();
 
 export const ConnectionSchema = z

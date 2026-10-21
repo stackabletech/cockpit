@@ -127,7 +127,7 @@ export interface ClipboardData {
 
 // ── Operations (paste / move / rename progress tracking) ─────────────────────
 
-export type OperationStatus =
+type OperationStatus =
   | 'running'
   | 'done'
   | 'error'
@@ -273,10 +273,6 @@ export const PREVIEW_CHUNK_ROWS = 250;
 
 export const ARCHIVE_EXTENSIONS = ['.zip', '.tar.gz', '.tgz', '.tar'] as const;
 
-export type ArchiveFormat = (typeof ARCHIVE_EXTENSIONS)[number] extends `${string}${infer F}`
-  ? F
-  : string;
-
 /** A single entry inside an archive (file or directory). */
 export interface ArchiveEntry {
   key: string;
@@ -291,14 +287,4 @@ export interface ArchiveListingResponse {
   hasMore: boolean;
   /** When true, the archive was too large to open for preview. */
   tooLarge?: boolean;
-}
-
-/** State when browsing inside an archive. */
-export interface ArchiveContext {
-  /** S3 key of the archive file being browsed. */
-  archiveKey: string;
-  /** Virtual path within the archive (empty string = archive root). */
-  archivePrefix: string;
-  /** The S3 prefix the user was at before entering the archive. */
-  previousS3Prefix: string;
 }

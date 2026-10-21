@@ -1,6 +1,6 @@
 import type { StorageObject, StoragePage } from './types.js';
 
-export function makeObjects(): StorageObject[] {
+function makeObjects(): StorageObject[] {
   return [
     {
       key: 'file.txt',
