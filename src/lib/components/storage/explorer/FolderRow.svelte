@@ -26,6 +26,18 @@
 
   let dragOver = $state(false);
 
+  function selectsOnClick(e: MouseEvent): boolean {
+    return storage.selectionMode || e.ctrlKey || e.metaKey;
+  }
+
+  function open() {
+    if (storage.archive.isInArchive) {
+      storage.archive.navigateInArchive(folder.key);
+    } else {
+      storage.navigate(folder.key);
+    }
+  }
+
   function handleDragStart(e: DragEvent) {
     handleRowDragStart(e, folder.key, storage);
   }
@@ -74,20 +86,15 @@
   ondragleave={handleDragLeave}
   ondrop={handleDrop}
   onclick={(e) => {
-    if (storage.selectionMode || e.ctrlKey || e.metaKey) {
+    if (selectsOnClick(e)) {
       storage.toggleSelect(folder.key, true, e.shiftKey);
-    } else if (storage.archive.isInArchive) {
-      storage.archive.navigateInArchive(folder.key);
-    } else {
-      storage.navigate(folder.key);
+    } else if (e.detail <= 1) {
+      open();
     }
   }}
-  ondblclick={() => {
-    if (storage.archive.isInArchive) {
-      storage.archive.navigateInArchive(folder.key);
-    } else {
-      storage.navigate(folder.key);
-    }
+  ondblclick={(e) => {
+    // Without selection, the first click has already opened the folder
+    if (selectsOnClick(e)) open();
   }}
   oncontextmenu={(e) => storage.openContextMenu(e, folder.key)}
 >

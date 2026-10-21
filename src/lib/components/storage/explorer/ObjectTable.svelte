@@ -28,6 +28,29 @@
     storage.navigate(lastSlash === -1 ? '' : withoutTrailing.slice(0, lastSlash + 1));
   }
 
+  /**
+   * A double-click only counts on the row its first click hit. The first click
+   * on a folder navigates, so without this the second click and the `dblclick`
+   * land on a row of the new listing and open or select it.
+   */
+  function guardMultiClick(tbody: HTMLTableSectionElement) {
+    let firstClickRow: Element | null = null;
+    const guard = (e: MouseEvent) => {
+      const row = (e.target as Element | null)?.closest('tr') ?? null;
+      if (e.type === 'click' && e.detail <= 1) {
+        firstClickRow = row;
+      } else if (row !== firstClickRow) {
+        e.stopPropagation();
+      }
+    };
+    tbody.addEventListener('click', guard, true);
+    tbody.addEventListener('dblclick', guard, true);
+    return () => {
+      tbody.removeEventListener('click', guard, true);
+      tbody.removeEventListener('dblclick', guard, true);
+    };
+  }
+
   function parentPrefix(): string {
     if (!storage.prefix) return '';
     const withoutTrailing = storage.prefix.slice(0, -1);
@@ -221,14 +244,18 @@
       </tr>
     </thead>
 
-    <tbody>
+    <tbody {@attach guardMultiClick}>
       <!-- Parent directory row -->
       {#if storage.prefix}
         <tr
           class="hover:bg-base-200/60 cursor-pointer {parentDragOver
             ? 'bg-primary/20 outline-primary/50 outline -outline-offset-2'
             : ''}"
-          onclick={navigateUp}
+          onclick={(e) => {
+            // The row stays in place after going up, so the second click of a
+            // double-click would go up again
+            if (e.detail <= 1) navigateUp();
+          }}
           ondragover={handleParentDragOver}
           ondragleave={handleParentDragLeave}
           ondrop={handleParentDrop}
