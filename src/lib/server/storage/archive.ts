@@ -24,16 +24,10 @@ import {
   storageArchiveCacheBytes,
   storageArchiveCacheEvictionsTotal
 } from '$lib/server/metrics.js';
+import type { ArchiveEntry } from '$lib/storage/types.js';
 import { objectVersion, type ObjectVersionInfo } from './preview/cache.js';
 
 const log = logger.child({ module: 'archive-service' });
-
-export interface ArchiveEntry {
-  key: string;
-  size: number;
-  lastModified: Date;
-  isDirectory: boolean;
-}
 
 export interface ArchiveListing {
   entries: ArchiveEntry[];

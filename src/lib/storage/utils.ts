@@ -31,15 +31,6 @@ export function fileIconKind(contentType: string | undefined): FileIconKind {
   return 'document';
 }
 
-export const iconColors: Record<FileIconKind, string> = {
-  image: 'text-success',
-  pdf: 'text-error',
-  code: 'text-info',
-  archive: 'text-secondary',
-  text: 'text-warning',
-  document: 'text-primary'
-};
-
 /** Derive a human-readable display name from an S3 key. */
 export function keyToName(key: string): string {
   const stripped = key.endsWith('/') ? key.slice(0, -1) : key;

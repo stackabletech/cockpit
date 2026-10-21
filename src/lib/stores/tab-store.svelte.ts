@@ -11,7 +11,7 @@ const DEBOUNCE_MS = 500;
 /** Maximum characters allowed per tab's SQL content. */
 export const MAX_SQL_LENGTH = 250_000;
 
-interface TabState {
+export interface TabState {
   id: string;
   sql: string;
   label: string | null; // null = auto-derived

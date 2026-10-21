@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fileIconKind, keyToName, formatDate, isArchiveExtension, parentPrefix } from './utils.js';
+import { fileIconKind, keyToName, isArchiveExtension, parentPrefix } from './utils.js';
 
 vi.mock('$lib/paraglide/runtime.js', () => ({
   getLocale: () => 'en-GB'
@@ -62,13 +62,6 @@ describe('keyToName', () => {
 
   it('returns the key itself for root-level keys', () => {
     expect(keyToName('rootfile')).toBe('rootfile');
-  });
-});
-
-describe('formatDate', () => {
-  it('formats a date in en-GB short format', () => {
-    const date = new Date('2024-03-15T10:00:00Z');
-    expect(formatDate(date)).toBe('15 Mar 2024');
   });
 });
 

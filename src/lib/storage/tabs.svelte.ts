@@ -40,7 +40,7 @@ export interface Tab {
 
 // ── Persistence schema ────────────────────────────────────────────────────────
 
-export interface PersistedTab {
+interface PersistedTab {
   id: string;
   label: string;
   bucket: string;
