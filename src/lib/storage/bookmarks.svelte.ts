@@ -5,10 +5,9 @@ import {
   LS_RECENT_LOCATIONS,
   PinnedLocationSchema,
   RecentFileSchema,
-  RecentLocationSchema,
-  loadFromStorage,
-  persistToStorage
+  RecentLocationSchema
 } from './persistence.js';
+import { loadFromStorage, persistToStorage } from '$lib/client/local-storage.js';
 import { maxRecentFiles } from '$lib/client/feature-flags.js';
 import { SvelteDate, SvelteSet } from 'svelte/reactivity';
 

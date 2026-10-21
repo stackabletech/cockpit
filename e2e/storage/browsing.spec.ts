@@ -10,7 +10,8 @@ import {
   putDirectoryMarker,
   putTextObject,
   rowByName,
-  uniquePrefix
+  uniquePrefix,
+  waitForObjectsLoaded
 } from './helpers.js';
 
 test.describe('Storage S3 — Browsing', () => {
@@ -76,6 +77,46 @@ test.describe('Storage S3 — Browsing', () => {
 
       await rowByName(page, 'empty-folder').click();
       await expect(page.getByText('This folder is empty')).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('double-clicking a folder or ".." moves exactly one level', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'dblclick');
+    const cleanupKeys = [`${prefix}outer/inner/deep.txt`];
+
+    try {
+      await putTextObject(client, credentials.bucket, cleanupKeys[0], 'deep');
+      await connectAndOpenPrefix(page, credentials, prefix);
+      const prefixUrl = page.url();
+      const prefixPath = new URL(prefixUrl).pathname;
+
+      // Split the double-click so its second click deterministically lands on
+      // the "inner" row that replaces "outer" under the pointer
+      const box = await rowByName(page, 'outer').boundingBox();
+      if (!box) throw new Error('"outer" row has no bounding box');
+      const x = box.x + box.width / 2;
+      const y = box.y + box.height / 2;
+      await page.mouse.click(x, y);
+      await expect(page).not.toHaveURL(prefixUrl);
+      await waitForObjectsLoaded(page);
+      const outerUrl = page.url();
+      // Only the second press: `mouse.click({ clickCount: 2 })` would press twice
+      await page.mouse.down({ clickCount: 2 });
+      await page.mouse.up({ clickCount: 2 });
+      await expect(page.getByTestId('storage-object-list-loading')).toBeHidden();
+      await expect(page).toHaveURL(outerUrl);
+      await expect(rowByName(page, 'inner')).toBeVisible();
+      await expect(rowByName(page, 'inner')).not.toHaveClass(/bg-primary/);
+
+      // The ".." row stays in place, so both clicks hit it
+      await rowByName(page, '...').dblclick();
+      await expect(page).toHaveURL((url) => url.pathname === prefixPath);
+      await waitForObjectsLoaded(page);
+      await expect(rowByName(page, 'outer')).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
