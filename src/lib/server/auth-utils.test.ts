@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getTrinoUser, getUserId } from './auth-utils.js';
+import { findTrinoUser, getTrinoUser, getUserId } from './auth-utils.js';
 
 describe('getUserId', () => {
   it('returns the user ID when user is present', () => {
@@ -34,6 +34,16 @@ describe('getTrinoUser', () => {
   it('fails instead of falling back to "anonymous" when the username is missing', () => {
     const locals = { user: { id: 'u1', username: null }, logger } as unknown as App.Locals;
     expect(() => getTrinoUser(locals)).toThrow(expect.objectContaining({ status: 500 }));
+    expect(logger.error).toHaveBeenCalledWith({ user_id: 'u1' }, expect.any(String));
+  });
+});
+
+describe('findTrinoUser', () => {
+  const logger = { error: vi.fn() };
+
+  it('returns null instead of "anonymous" when the username is missing', () => {
+    const locals = { user: { id: 'u1', username: null }, logger } as unknown as App.Locals;
+    expect(findTrinoUser(locals)).toBeNull();
     expect(logger.error).toHaveBeenCalledWith({ user_id: 'u1' }, expect.any(String));
   });
 });

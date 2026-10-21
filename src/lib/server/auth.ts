@@ -94,6 +94,9 @@ export const auth = betterAuth({
                 clientSecret: env.STACKABLE_COCKPIT_OIDC_CLIENT_SECRET!,
                 scopes: oidcScopes,
                 pkce: true,
+                // Refresh the user from the IdP on every login, so changes to the
+                // Trino user claim reach existing users instead of only new ones.
+                overrideUserInfo: true,
                 mapProfileToUser: async (profile) => {
                   const fullName = [profile.given_name, profile.family_name]
                     .filter(Boolean)
@@ -115,7 +118,9 @@ export const auth = betterAuth({
                     email: profile.email || '',
                     emailVerified: profile.email_verified ?? false,
                     image: profile.picture || null,
-                    username: trinoUser || profile.preferred_username || profile.email || ''
+                    // No `|| ''`: without an email better-auth rejects the sign-in before
+                    // creating the user, so this never stores an empty username.
+                    username: trinoUser || profile.preferred_username || profile.email
                   };
                 }
               }
