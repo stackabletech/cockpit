@@ -146,6 +146,7 @@ The app exposes a Prometheus scrape endpoint at `/metrics` via `src/routes/metri
 - Use spaces not tabs
 - Run npm run format
 - Use British English
+- **New Features**: Do not add database migrations, data migrations, or legacy-data compatibility paths for a new feature unless persisted data or an external consumer already exists and requires it. Ask before adding one if that need is unclear.
 - For the server side only: Always include logging at debug and info levels as appropriate
 - **Redirects**: Never wrap `throw redirect()` in try-catch. Put redirect AFTER try-catch to avoid it being caught.
 
@@ -220,9 +221,18 @@ npm run preview          # Preview production build
 
 ```bash
 npm run format               # Format code
-pre-commit run --all-files   # Run all checks: lint (prettier + eslint), type checking,
+pre-commit run --all-files   # Run all checks: lint (prettier + eslint + knip), type checking,
                              # markdownlint, yamllint, shellcheck, actionlint, hadolint, helm lint
 ```
+
+### Dead Code (knip)
+
+```bash
+npm run knip                 # Report unused files, exports, types and dependencies (part of npm run lint)
+npm run knip:fix             # Remove unused exports and dependencies; review the diff and run npm install afterwards
+```
+
+knip fails on unused files, exports, types and dependencies. Delete dead code rather than silencing knip. For genuine false positives, configure `knip.json`: add files that nothing imports statically (CLI scripts, config files) to `entry`, and packages loaded at runtime by name (e.g. `pino-pretty`) or used only outside the source tree (e.g. in the Dockerfile) to `ignoreDependencies`, each with a comment explaining why.
 
 ### Architecture Fitness Functions
 

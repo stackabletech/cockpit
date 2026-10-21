@@ -3,7 +3,7 @@ import type { ConnectionOptions } from 'node:tls';
 
 // Kept free of SvelteKit imports: drizzle.config.ts uses it outside Vite.
 
-export const DATABASE_TLS_MODES = ['verify-full', 'require', 'disable'] as const;
+const DATABASE_TLS_MODES = ['verify-full', 'require', 'disable'] as const;
 export type DatabaseTlsMode = (typeof DATABASE_TLS_MODES)[number];
 
 type DatabaseTlsEnv = Record<string, string | undefined>;

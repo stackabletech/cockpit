@@ -9,13 +9,13 @@ import type { StorageApi } from '$lib/storage/api.js';
 import { StorageError } from '$lib/storage/errors.js';
 import type { RecentSearchEntry, SearchResultItem } from '$lib/storage/types.js';
 
-export type SearchStatus = 'idle' | 'running' | 'done' | 'cancelled' | 'error';
+type SearchStatus = 'idle' | 'running' | 'done' | 'cancelled' | 'error';
 
 export interface SearchResult extends SearchResultItem {
   bucket: string;
 }
 
-export interface SearchFailure {
+interface SearchFailure {
   code: string;
 }
 

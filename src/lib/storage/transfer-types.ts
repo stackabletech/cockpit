@@ -10,7 +10,7 @@ export const MAX_TRANSFER_ITEMS = 1000;
 export type TransferOp = 'copy' | 'move' | 'rename';
 
 /** How a conflicting item is resolved. Skipped items are left out of the request. */
-export type TransferPolicy = 'replace' | 'merge' | 'keepBoth' | 'rename';
+type TransferPolicy = 'replace' | 'merge' | 'keepBoth' | 'rename';
 
 export type RefusalReason =
   | 'same_location'

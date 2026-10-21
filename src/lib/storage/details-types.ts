@@ -27,7 +27,7 @@ export interface TreemapNode {
 }
 
 /** Progress event from the directory-size SSE endpoint. */
-export interface DirectorySizeProgress {
+interface DirectorySizeProgress {
   type: 'progress';
   keysFound: number;
   totalSize: number;
@@ -85,7 +85,7 @@ export interface DirectoryChildList {
 }
 
 /** Error event from the directory-size SSE endpoint. */
-export interface DirectorySizeError {
+interface DirectorySizeError {
   type: 'error';
   message: string;
 }

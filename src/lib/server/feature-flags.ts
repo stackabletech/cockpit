@@ -140,7 +140,6 @@ export const parquetDisallowedCompression = parseParquetDisallowed(
 export {
   infiniteScrollEnabled,
   maxEditableFileSize,
-  storageCutCopyEnabled,
   storagePasteEnabled,
   storageRenameEnabled,
   storageMoveEnabled

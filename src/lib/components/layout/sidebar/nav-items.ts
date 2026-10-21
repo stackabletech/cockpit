@@ -4,16 +4,23 @@ import IconDashboard from 'virtual:icons/material-symbols/dashboard';
 import IconDatabase from 'virtual:icons/material-symbols/database';
 import IconFolder from 'virtual:icons/material-symbols/folder';
 
-export type { NavItem, NavSection };
+export type { NavSection };
 
 export interface NavFlags {
   storageBrowserEnabled?: boolean;
 }
 
-export function getNavSections(flags: NavFlags = {}): NavSection[] {
+export function getPlatformSection(): NavSection {
+  return {
+    title: m.nav_platform(),
+    items: [{ label: m.nav_dashboard(), route: '/', icon: IconDashboard }]
+  };
+}
+
+export function getToolsSection(flags: NavFlags = {}): NavSection {
   const { storageBrowserEnabled = false } = flags;
 
-  const dataToolsItems: NavItem[] = [
+  const toolsItems: NavItem[] = [
     {
       label: m.nav_trino(),
       route: '/trino',
@@ -22,21 +29,15 @@ export function getNavSections(flags: NavFlags = {}): NavSection[] {
   ];
 
   if (storageBrowserEnabled) {
-    dataToolsItems.push({
+    toolsItems.push({
       label: m.nav_storage(),
       route: '/storage',
       icon: IconFolder
     });
   }
 
-  return [
-    {
-      title: m.nav_platform(),
-      items: [{ label: m.nav_dashboard(), route: '/', icon: IconDashboard }]
-    },
-    {
-      title: m.nav_data_tools(),
-      items: dataToolsItems
-    }
-  ];
+  return {
+    title: m.sidebar_tools(),
+    items: toolsItems
+  };
 }

@@ -40,7 +40,7 @@ export function bucketRoute(connection: string, bucket: string, prefix = ''): st
   return `/storage/browse/${encodeURIComponent(connection)}/${encodeURIComponent(bucket)}/${encoded}`;
 }
 
-export async function clearSavedConnections(page: Page) {
+async function clearSavedConnections(page: Page) {
   const savedList = page.getByRole('list', { name: 'Saved connections' });
   while (await savedList.isVisible().catch(() => false)) {
     const items = savedList.getByRole('listitem');
@@ -252,6 +252,38 @@ export function rowByName(page: Page, name: string) {
     .filter({ has: page.getByText(name, { exact: true }) });
 }
 
+/** Navigate in-app (keeping the in-memory clipboard) and wait for the new listing. */
+async function navigateAndWait(page: Page, navigate: () => Promise<void>) {
+  const url = page.url();
+  await navigate();
+  await expect(page).not.toHaveURL(url);
+  await waitForObjectsLoaded(page);
+}
+
+/**
+ * Open a folder by double-clicking it, which also works in selection mode
+ * (where a single click selects).
+ */
+export async function openFolder(page: Page, name: string) {
+  await navigateAndWait(page, () => rowByName(page, name).dblclick());
+}
+
+/** Go one folder up via the ".." row. */
+export async function goUp(page: Page) {
+  await navigateAndWait(page, () => page.locator('tbody tr').first().click());
+}
+
+/**
+ * Paste with Ctrl+V once the listing is loaded, so the paste targets the
+ * folder on screen. Focus is cleared first (the shortcuts also apply when
+ * nothing has focus): clicking the table could hit a row and navigate.
+ */
+export async function pasteHere(page: Page) {
+  await waitForObjectsLoaded(page);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('Control+v');
+}
+
 export function modalBox(page: Page) {
   return page.getByRole('dialog').locator('.modal-box');
 }
@@ -259,9 +291,6 @@ export function modalBox(page: Page) {
 export async function headObject(client: S3Client, bucket: string, key: string) {
   return client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
 }
-
-// Re-export expect for convenience
-export { expect };
 
 /** Seeds the `storage_tabs` localStorage key before the first page load of a
  *  test, simulating a previous session's saved tab state. Because this uses
