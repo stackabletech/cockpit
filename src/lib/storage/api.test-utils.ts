@@ -23,7 +23,7 @@ import type {
 import { keyToName, parentPrefix } from './utils.js';
 
 /** Where an item of a transfer request lands when nothing is in the way. */
-export function plainDestRoot(body: TransferBody, item: TransferBody['items'][number]): string {
+function plainDestRoot(body: TransferBody, item: TransferBody['items'][number]): string {
   const suffix = item.sourceKey.endsWith('/') ? '/' : '';
   if (body.op === 'rename') return parentPrefix(item.sourceKey) + item.name + suffix;
   const name = item.policy === 'rename' ? item.name! : keyToName(item.sourceKey);

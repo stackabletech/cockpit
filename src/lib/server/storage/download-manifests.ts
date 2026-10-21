@@ -14,7 +14,7 @@ import { createZipStream, type ZipEntry, zipStreamSize } from './zip-stream.js';
 
 const log = logger.child({ module: 'storage-download-manifests' });
 
-export type DownloadEntry = ZipEntry;
+type DownloadEntry = ZipEntry;
 
 export interface DownloadFile {
   filename: string;
@@ -51,7 +51,7 @@ function archiveBaseName(bucket: string, prefix: string | undefined, keys: strin
   return fileName(prefix ?? '').replace(/\/$/, '') || bucket;
 }
 
-export function archiveFileName(base: string): string {
+function archiveFileName(base: string): string {
   return `${base}.zip`;
 }
 

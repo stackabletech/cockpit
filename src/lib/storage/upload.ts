@@ -13,10 +13,8 @@
  */
 
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
-import { StorageError, type StorageErrorCode } from '$lib/storage/errors.js';
+import { StorageError } from '$lib/storage/errors.js';
 import { createStorageFetch, mapStatusToCode } from '$lib/storage/storage-fetch.js';
-
-export type UploadErrorCode = StorageErrorCode;
 
 /**
  * Check whether an object with the given key already exists in the bucket.
