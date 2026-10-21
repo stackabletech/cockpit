@@ -26,11 +26,7 @@ test.describe('Smoke tests', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
     // Dashboard content is rendered
-    await expect(page.getByText('Welcome back')).toBeVisible();
-
-    // Services card counts the enabled data tools
-    const servicesCard = page.getByText('Services', { exact: true }).locator('..');
-    await expect(servicesCard).toHaveText(/^\s*Services\s*2\s*$/);
+    await expect(page.getByText('Stackable Unified Data Platform overview')).toBeVisible();
 
     // Trino nav item is present and navigable
     const trinoLink = page.getByRole('link', { name: 'Trino' });

@@ -146,6 +146,7 @@ The app exposes a Prometheus scrape endpoint at `/metrics` via `src/routes/metri
 - Use spaces not tabs
 - Run npm run format
 - Use British English
+- **New Features**: Do not add database migrations, data migrations, or legacy-data compatibility paths for a new feature unless persisted data or an external consumer already exists and requires it. Ask before adding one if that need is unclear.
 - For the server side only: Always include logging at debug and info levels as appropriate
 - **Redirects**: Never wrap `throw redirect()` in try-catch. Put redirect AFTER try-catch to avoid it being caught.
 
