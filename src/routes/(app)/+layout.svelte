@@ -37,6 +37,20 @@
       (page.url.pathname.startsWith('/storage') ? m.page_title_storage : m.page_title_default)
     )()
   );
+
+  let mainEl: HTMLElement | undefined = $state();
+
+  // <main> is only focusable while the skip link has sent focus there. A
+  // permanent tabindex would let every click inside the page focus <main>,
+  // which takes focus away from body and disables the file browser shortcuts.
+  function skipToMain(event: MouseEvent) {
+    // Leave modified clicks (open in new tab/window) to the browser.
+    if (!mainEl || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    event.preventDefault();
+    mainEl.setAttribute('tabindex', '-1');
+    mainEl.addEventListener('blur', () => mainEl?.removeAttribute('tabindex'), { once: true });
+    mainEl.focus();
+  }
 </script>
 
 <svelte:head>
@@ -44,6 +58,18 @@
 </svelte:head>
 
 <div class="bg-base-100 flex h-dvh overflow-hidden">
+  <!-- Bypass block (WCAG 2.4.1): first tab stop on every page. -->
+  <a
+    href="#main-content"
+    onclick={skipToMain}
+    class="
+      btn btn-primary btn-sm sr-only
+      focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-100
+    "
+  >
+    {m.skip_to_content()}
+  </a>
+
   <Sidebar
     bind:collapsed={sidebarCollapsed}
     bind:mobileOpen
@@ -58,7 +84,11 @@
       onToggleMobile={() => (mobileOpen = !mobileOpen)}
     />
 
-    <main class="bg-base-200 flex-1 overflow-auto p-6">
+    <main
+      bind:this={mainEl}
+      id="main-content"
+      class="bg-base-200 flex-1 overflow-auto p-6 focus:outline-none"
+    >
       {@render children()}
     </main>
   </div>

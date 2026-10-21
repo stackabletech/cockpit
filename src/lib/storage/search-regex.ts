@@ -1,5 +1,5 @@
-import { RegExpParser } from 'regexpp';
-import type { AST } from 'regexpp';
+import { RegExpParser } from '@eslint-community/regexpp';
+import type { AST } from '@eslint-community/regexpp';
 
 const MAX_PATTERN_LENGTH = 512;
 const MAX_AST_NODES = 200;

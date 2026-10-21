@@ -29,16 +29,18 @@
   </div>
 
   <div>
-    <p
-      class="
-        text-base-content/50 mb-1 text-sm font-medium tracking-widest uppercase
-      "
-    >
-      {m.storage_error_title()}
-    </p>
-    <h1 class="text-base-content text-3xl font-bold">
-      {status}
-    </h1>
+    <h2>
+      <span
+        class="
+          text-base-content/50 mb-1 block text-sm font-medium tracking-widest uppercase
+        "
+      >
+        {m.storage_error_title()}
+      </span>
+      <span class="text-base-content block text-3xl font-bold">
+        {status}
+      </span>
+    </h2>
     <p class="text-base-content/70 mt-2 max-w-sm text-sm">
       {message}
     </p>
