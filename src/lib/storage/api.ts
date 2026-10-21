@@ -48,7 +48,7 @@ export interface JobStatus {
   };
 }
 
-export interface DownloadManifestResponse {
+interface DownloadManifestResponse {
   id: string;
   files: Array<{ filename: string; size: number; part: number }>;
   expiresAt: string;

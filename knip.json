@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["drizzle.config.ts", "src/lib/editor/grammar/patch-generated.mjs"],
+  "ignoreDependencies": [
+    // Loaded dynamically by pino via a string transport target, not a static import.
+    "pino-pretty",
+    // Invoked as a standalone CLI in docker/Dockerfile, not referenced from source.
+    "@cyclonedx/cyclonedx-npm"
+  ],
+  // drizzle.config.ts throws without DATABASE_* env vars; the schema files it names are imported from source anyway.
+  "drizzle": false
+}

@@ -11,7 +11,6 @@ import type { OperationsState } from './operations.svelte.js';
 import type { OperationType } from './types.js';
 import { keyToName } from './utils.js';
 import {
-  MAX_TRANSFER_ITEMS,
   type RefusalReason,
   type TransferBody,
   type TransferItemResult,
@@ -23,8 +22,6 @@ import {
 const JOB_POLL_INTERVAL_MS = 2000;
 /** Names listed in a toast before "+ N more". */
 const TOAST_NAME_LIMIT = 3;
-
-export { MAX_TRANSFER_ITEMS };
 
 /**
  * An item result as the client knows it. `unknown`: the item was sent but no
