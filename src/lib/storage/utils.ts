@@ -1,6 +1,7 @@
 import prettyBytes from 'pretty-bytes';
 import type { Options } from 'pretty-bytes';
 import { getLocale } from '$lib/paraglide/runtime.js';
+import { ARCHIVE_EXTENSIONS } from './types.js';
 
 export type FileIconKind = 'image' | 'pdf' | 'code' | 'archive' | 'text' | 'document';
 
@@ -13,7 +14,12 @@ const CODE_TYPES = new Set([
   'text/markdown'
 ]);
 
-const ARCHIVE_TYPES = new Set(['application/gzip', 'application/zip', 'application/x-tar']);
+const ARCHIVE_TYPES = new Set([
+  'application/gzip',
+  'application/zip',
+  'application/x-tar',
+  'application/x-gzip'
+]);
 
 export function fileIconKind(contentType: string | undefined): FileIconKind {
   if (!contentType) return 'document';
@@ -40,6 +46,15 @@ export function keyToName(key: string): string {
   return stripped.split('/').at(-1) ?? key;
 }
 
+/**
+ * The folder an object or folder key lives in (`a/b/` → `a/`, `a/x.txt` → `a/`,
+ * `a//b.txt` → `a//`). The single parent derivation for server and client.
+ */
+export function parentPrefix(key: string): string {
+  const trimmed = key.endsWith('/') ? key.slice(0, -1) : key;
+  return trimmed.slice(0, trimmed.lastIndexOf('/') + 1);
+}
+
 /** Format a byte count using the active UI locale. */
 export function formatFileSize(
   bytes: number,
@@ -47,4 +62,10 @@ export function formatFileSize(
   options: Options = { fixedWidth: 9 }
 ): string {
   return prettyBytes(bytes, { locale, ...options });
+}
+
+/** Check if a filename/path has a navigable archive extension. */
+export function isArchiveExtension(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return ARCHIVE_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }

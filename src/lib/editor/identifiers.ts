@@ -4,9 +4,30 @@
 
 /**
  * Regex for "simple" identifiers that don't require quoting in Trino.
- * Includes alphanumeric and underscores.
+ * Letters, digits and underscores, not starting with a digit.
  */
-export const SIMPLE_IDENTIFIER_REGEX = /^[a-zA-Z0-9_]+$/;
+export const SIMPLE_IDENTIFIER_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+/**
+ * Wrap a name in double quotes, escaping embedded quotes (" -> "").
+ */
+export function quoteIdentifier(name: string): string {
+  return `"${name.replaceAll('"', '""')}"`;
+}
+
+/**
+ * Quote a name only if Trino would not accept it unquoted (e.g. `my-schema`).
+ */
+export function formatIdentifier(name: string): string {
+  return SIMPLE_IDENTIFIER_REGEX.test(name) ? name : quoteIdentifier(name);
+}
+
+/**
+ * Render a value as a SQL string literal, escaping embedded single quotes.
+ */
+export function quoteStringLiteral(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`;
+}
 
 /**
  * Strip matching double-quotes or backticks around a quoted identifier,

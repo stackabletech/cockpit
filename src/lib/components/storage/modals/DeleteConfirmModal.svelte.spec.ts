@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
@@ -111,6 +111,36 @@ describe('DeleteConfirmModal', () => {
 
       await page.getByRole('button', { name: /Delete permanently/i }).click();
       expect(onConfirm).toHaveBeenCalledOnce();
+    });
+
+    it('should cancel, not confirm, when Enter is pressed while Cancel is focused', async () => {
+      const onConfirm = vi.fn();
+      const onCancel = vi.fn();
+      render(DeleteConfirmModal, { ...defaultProps, onConfirm, onCancel });
+
+      const cancelButton = page
+        .getByRole('button', { name: /Cancel/i })
+        .element() as HTMLButtonElement;
+      cancelButton.focus();
+      await userEvent.keyboard('{Enter}');
+
+      expect(onCancel).toHaveBeenCalledOnce();
+      expect(onConfirm).not.toHaveBeenCalled();
+    });
+
+    it('should confirm when Enter is pressed while the delete button is focused', async () => {
+      const onConfirm = vi.fn();
+      const onCancel = vi.fn();
+      render(DeleteConfirmModal, { ...defaultProps, onConfirm, onCancel });
+
+      const deleteButton = page
+        .getByRole('button', { name: /Delete permanently/i })
+        .element() as HTMLButtonElement;
+      deleteButton.focus();
+      await userEvent.keyboard('{Enter}');
+
+      expect(onConfirm).toHaveBeenCalledOnce();
+      expect(onCancel).not.toHaveBeenCalled();
     });
 
     it('should call onCancel when cancel button is clicked', async () => {

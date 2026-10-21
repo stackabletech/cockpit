@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { z } from 'zod';
 import * as m from '$lib/paraglide/messages.js';
 
 const MAX_TABS = 8;
@@ -17,10 +18,20 @@ interface TabState {
   createdAt: number;
 }
 
-interface IndexData {
-  tabs: { id: string; label: string | null; createdAt: number }[];
-  activeTabId: string;
-}
+const IndexDataSchema = z.object({
+  tabs: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        label: z.string().nullable(),
+        createdAt: z.number()
+      })
+    )
+    .min(1),
+  activeTabId: z.string().min(1)
+});
+
+type IndexData = z.infer<typeof IndexDataSchema>;
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -43,10 +54,8 @@ function readIndex(): IndexData | null {
   try {
     const raw = localStorage.getItem(INDEX_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as IndexData;
-    if (Array.isArray(parsed.tabs) && parsed.tabs.length > 0 && parsed.activeTabId) {
-      return parsed;
-    }
+    const parsed = IndexDataSchema.safeParse(JSON.parse(raw));
+    if (parsed.success) return parsed.data;
   } catch {
     // Ignore corrupt data.
   }
@@ -61,7 +70,7 @@ function readTabSql(id: string): string {
   }
 }
 
-/** Load tabs from the new split format, falling back through legacy formats. */
+/** Load tabs from the persisted index and per-tab SQL entries. */
 function loadFromStorage(): { tabs: TabState[]; activeTabId: string } | null {
   if (!browser) return null;
 
@@ -128,23 +137,23 @@ function removeTabSql(id: string) {
 function createTabStore() {
   const initial = loadFromStorage() ?? createDefaultState();
 
-  // eslint-disable-next-line prefer-const -- $state arrays are mutated in place
-  let tabs = $state<TabState[]>(initial.tabs);
-  let activeTabId = $state<string>(initial.activeTabId);
-  let persistError = $state(false);
-
   // Ensure activeTabId points to a valid tab.
-  if (!tabs.some((t) => t.id === activeTabId)) {
-    activeTabId = tabs[0].id;
+  if (!initial.tabs.some((t) => t.id === initial.activeTabId)) {
+    initial.activeTabId = initial.tabs[0].id;
   }
 
   // Persist the initial state if this was a fresh default or migration.
   if (!readIndex()) {
-    persistIndex(tabs, activeTabId);
-    for (const tab of tabs) {
+    persistIndex(initial.tabs, initial.activeTabId);
+    for (const tab of initial.tabs) {
       persistTabSql(tab.id, tab.sql);
     }
   }
+
+  // eslint-disable-next-line prefer-const -- $state arrays are mutated in place
+  let tabs = $state<TabState[]>(initial.tabs);
+  let activeTabId = $state<string>(initial.activeTabId);
+  let persistError = $state(false);
 
   const activeTab = $derived(tabs.find((t) => t.id === activeTabId)!);
 
@@ -201,6 +210,7 @@ function createTabStore() {
 
     if (activeTabId === id) {
       const newIndex = Math.min(index, tabs.length - 1);
+
       activeTabId = tabs[newIndex].id;
     }
     saveIndex();

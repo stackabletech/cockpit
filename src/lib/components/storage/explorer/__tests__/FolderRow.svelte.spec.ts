@@ -70,7 +70,7 @@ describe('FolderRow', () => {
     render(FolderRowWrapper, { state, folder });
 
     await page.getByRole('row').click();
-    expect(spy).toHaveBeenCalledWith('photos/', true);
+    expect(spy).toHaveBeenCalledWith('photos/', true, false);
   });
 
   it('should call openContextMenu on right click', async () => {
@@ -127,31 +127,32 @@ describe('FolderRow', () => {
     render(FolderRowWrapper, { state, folder });
 
     await page.getByRole('row').click({ modifiers: ['ControlOrMeta'] });
-    expect(spy).toHaveBeenCalledWith('photos/', true);
+    expect(spy).toHaveBeenCalledWith('photos/', true, false);
   });
 
-  it('should navigate on double-click with ctrl/meta key', async () => {
+  it('should navigate on double-click in selection mode', async () => {
     const folder = makeFolder('photos/');
     const state = createState([folder], { selectionMode: true });
     const spy = vi.spyOn(state, 'navigate');
     render(FolderRowWrapper, { state, folder });
 
     const row = page.getByRole('row').element();
-    row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, ctrlKey: true }));
+    row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     expect(spy).toHaveBeenCalledWith('photos/');
   });
 
-  it('should not navigate on double-click without ctrl/meta key', async () => {
+  it('should navigate only once on double-click without a modifier', async () => {
     const folder = makeFolder('photos/');
     const state = createState([folder]);
     const spy = vi.spyOn(state, 'navigate');
     render(FolderRowWrapper, { state, folder });
 
-    spy.mockClear();
     const row = page.getByRole('row').element();
-    row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-    // ondblclick without modifier does nothing, so navigate should not be called from dblclick
-    expect(spy).not.toHaveBeenCalled();
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 2 }));
+    row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, detail: 2 }));
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith('photos/');
   });
 
   it('should highlight row when context menu is open for this folder', async () => {

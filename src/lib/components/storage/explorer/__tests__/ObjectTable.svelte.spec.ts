@@ -70,6 +70,14 @@ describe('ObjectTable', () => {
     await expect.element(page.getByText('This bucket is empty')).toBeInTheDocument();
   });
 
+  it('should call an empty folder a folder, not a bucket', async () => {
+    const state = createState([], { prefix: 'docs/' });
+    render(ObjectTableWrapper, { state });
+
+    await expect.element(page.getByText('This folder is empty')).toBeInTheDocument();
+    expect(page.getByText('This bucket is empty').elements().length).toBe(0);
+  });
+
   it('should show parent directory row when prefix is set', async () => {
     const state = createState([], { prefix: 'docs/' });
     render(ObjectTableWrapper, { state });
@@ -109,6 +117,36 @@ describe('ObjectTable', () => {
 
     await page.getByText('...').click();
     expect(spy).toHaveBeenCalledWith('');
+  });
+
+  it('should navigate up only once on double-click of the parent dir row', async () => {
+    const state = createState([], { prefix: 'a/b/' });
+    const spy = vi.spyOn(state, 'navigate');
+    render(ObjectTableWrapper, { state });
+
+    await page.getByText('...').dblClick();
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith('a/');
+  });
+
+  it('should ignore the rest of a double-click that lands on another row', async () => {
+    const state = createState([makeFolder('a/'), makeFolder('b/')]);
+    const spy = vi.spyOn(state, 'navigate');
+    render(ObjectTableWrapper, { state });
+
+    const rowByName = (name: string) =>
+      page
+        .getByRole('row')
+        .filter({ has: page.getByText(name, { exact: true }) })
+        .element();
+    const rowA = rowByName('a');
+    const rowB = rowByName('b');
+    // The first click opens "a/"; its listing then puts "b/" under the pointer
+    rowA.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    rowB.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 2 }));
+    rowB.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, detail: 2 }));
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith('a/');
   });
 
   it('should call selectAll when select-all checkbox is checked', async () => {

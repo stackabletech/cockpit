@@ -1,11 +1,12 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './support/fixtures.js';
 import fs from 'fs';
-import path from 'path';
 import { waitForHydration } from './support/helpers';
 
+/** German dashboard heading (messages/de.json `dashboard_welcome`). */
+const DE_DASHBOARD_HEADING = 'Stackable Unified Data Platform – Übersicht';
+
 /** Load the saved auth storage state, optionally stripping the locale cookie. */
-function loadAuthState(projectName: string, { withoutLocale = false } = {}) {
-  const authFile = path.join(import.meta.dirname, `.auth/user-setup-${projectName}.json`);
+function loadAuthState(authFile: string, { withoutLocale = false } = {}) {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const state = JSON.parse(fs.readFileSync(authFile, 'utf-8'));
   if (withoutLocale) {
@@ -17,15 +18,24 @@ function loadAuthState(projectName: string, { withoutLocale = false } = {}) {
 test.describe('Internationalisation', () => {
   test.use({ locale: 'en-US' });
 
+  // Firefox is slower to hydrate and navigate; triple the default timeout for
+  // all tests in this block so they don't time out on slow CI runners.
+  test.beforeEach(() => {
+    test.slow();
+  });
+
   test('renders in English by default with lang="en"', async ({ page }) => {
     await page.goto('/');
+
+    // Wait for hydration so reactive state has settled before checking content.
+    await waitForHydration(page);
 
     const html = page.locator('html');
     await expect(html).toHaveAttribute('lang', 'en');
 
     // Dashboard content is in English
-    await expect(page.getByText('Welcome back')).toBeVisible();
-    await expect(page.getByText('Getting started')).toBeVisible();
+    await expect(page.getByText('Stackable Unified Data Platform overview')).toBeVisible();
+    await expect(page.getByText('Add bookmark')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   });
 
@@ -59,8 +69,8 @@ test.describe('Internationalisation', () => {
 
     // Page reloads with German content
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-    await expect(page.getByText('Willkommen zurück')).toBeVisible();
-    await expect(page.getByText('Erste Schritte')).toBeVisible();
+    await expect(page.getByText(DE_DASHBOARD_HEADING)).toBeVisible();
+    await expect(page.getByText('Lesezeichen hinzufügen')).toBeVisible();
   });
 
   test('locale persists via cookie across navigation', async ({ page, context, baseURL }) => {
@@ -79,22 +89,25 @@ test.describe('Internationalisation', () => {
 
     // Should render in German
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-    await expect(page.getByText('Willkommen zurück')).toBeVisible();
+    await expect(page.getByText(DE_DASHBOARD_HEADING)).toBeVisible();
 
     // Navigate to same page (simulate navigation)
     await page.goto('/');
 
     // Should still be German
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-    await expect(page.getByText('Willkommen zurück')).toBeVisible();
+    await expect(page.getByText(DE_DASHBOARD_HEADING)).toBeVisible();
   });
 
-  test('Accept-Language header respected for first visit', async ({ browser }, testInfo) => {
+  test('Accept-Language header respected for first visit', async ({
+    browser,
+    workerStorageState
+  }) => {
     // Create a context with German Accept-Language but no locale cookie,
     // so paraglide falls back to the Accept-Language header
     const context = await browser.newContext({
       locale: 'de-DE',
-      storageState: loadAuthState(testInfo.project.name, { withoutLocale: true })
+      storageState: loadAuthState(workerStorageState, { withoutLocale: true })
     });
     const page = await context.newPage();
 
@@ -102,7 +115,7 @@ test.describe('Internationalisation', () => {
 
     // Should render in German based on Accept-Language
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-    await expect(page.getByText('Willkommen zurück')).toBeVisible();
+    await expect(page.getByText(DE_DASHBOARD_HEADING)).toBeVisible();
 
     await context.close();
   });

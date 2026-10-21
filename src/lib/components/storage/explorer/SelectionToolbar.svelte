@@ -1,10 +1,13 @@
 <script lang="ts">
   import IconVisibility from 'virtual:icons/material-symbols/visibility';
   import IconDownload from 'virtual:icons/material-symbols/download';
+  import IconInfo from 'virtual:icons/material-symbols/info';
   import IconDelete from 'virtual:icons/material-symbols/delete';
   import IconRefresh from 'virtual:icons/material-symbols/refresh';
   import * as m from '$lib/paraglide/messages.js';
+  import StorageSearch from '$lib/components/storage/StorageSearch.svelte';
   import { getStorageState } from '$lib/storage/context.js';
+  import { formatFileSize } from '$lib/storage/utils.js';
 
   const storage = getStorageState();
 
@@ -12,8 +15,9 @@
   const canPreview = $derived(
     storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0
   );
-  const canDownload = $derived(
-    storage.selectedFiles.length === 1 && storage.selectedFolders.length === 0
+  const canDownload = $derived(selectedCount > 0);
+  const selectedFileSize = $derived(
+    storage.selectedFiles.reduce((total, file) => total + file.size, 0)
   );
 </script>
 
@@ -23,6 +27,11 @@
       <span class="text-base-content/50 mr-1 text-xs">
         {m.storage_selected({ count: selectedCount })}
       </span>
+      {#if storage.selectedFiles.length > 0}
+        <span class="text-base-content/50 text-xs">
+          {m.storage_selected_files_size({ size: formatFileSize(selectedFileSize) })}
+        </span>
+      {/if}
 
       <button
         class="btn btn-ghost btn-xs gap-1"
@@ -45,21 +54,34 @@
       </button>
 
       <button
-        class="
-          btn btn-ghost btn-xs gap-1
-          {selectedCount > 0 ? 'text-error hover:bg-error/10' : ''}
-        "
-        title="{m.storage_action_delete()} (Del)"
-        onclick={() => storage.executeAction('delete')}
-        disabled={selectedCount === 0}
+        class="btn btn-ghost btn-xs gap-1"
+        title={m.storage_action_details()}
+        onclick={() => storage.executeAction('details')}
+        disabled={selectedCount !== 1}
       >
-        <IconDelete class="size-3.5" aria-hidden="true" />
-        {m.storage_action_delete()}
+        <IconInfo class="size-3.5" aria-hidden="true" />
+        {m.storage_action_details()}
       </button>
 
-      <div class="ml-auto">
+      {#if !storage.archive.isInArchive}
         <button
-          class="btn btn-ghost btn-xs gap-1 text-white"
+          class="
+            btn btn-ghost btn-xs gap-1
+            {selectedCount > 0 ? 'text-error hover:bg-error/10' : ''}
+          "
+          title="{m.storage_action_delete()} (Del)"
+          onclick={() => storage.executeAction('delete')}
+          disabled={selectedCount === 0}
+        >
+          <IconDelete class="size-3.5" aria-hidden="true" />
+          {m.storage_action_delete()}
+        </button>
+      {/if}
+
+      <div class="ml-auto flex items-center gap-1">
+        <StorageSearch currentBucket={storage.bucket} />
+        <button
+          class="btn btn-ghost btn-xs text-base-content gap-1"
           title={m.storage_action_refresh()}
           onclick={() => storage.refresh()}
           disabled={storage.loading}

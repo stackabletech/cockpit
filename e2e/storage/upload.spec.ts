@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Route } from '../support/fixtures.js';
 import {
   createS3Client,
   hasGarageCredentials,
@@ -15,9 +15,11 @@ import {
   getObjectText,
   headObject,
   modalBox,
+  putDirectoryMarker,
   putTextObject,
   rowByName,
-  uniquePrefix
+  uniquePrefix,
+  waitForObjectsLoaded
 } from './helpers.js';
 
 test.describe('Storage S3 — Upload', () => {
@@ -29,6 +31,77 @@ test.describe('Storage S3 — Upload', () => {
       'Skipped: no s3-config.json found (requires a running Garage instance)'
     );
   });
+
+  for (const target of ['empty listing', 'folder row', 'browser toolbar']) {
+    test(`uploads files dropped on the ${target} to the current prefix`, async ({
+      page
+    }, testInfo) => {
+      const credentials = requireGarageCredentials();
+      const client = createS3Client(credentials);
+      const prefix = uniquePrefix(testInfo, 'drop-upload');
+      const fixture = createTextUploadFixture(testInfo.title);
+      const key = `${prefix}${fixture.name}`;
+      const nestedKey = `${prefix}child/existing.txt`;
+
+      try {
+        if (target === 'folder row') {
+          await putTextObject(client, credentials.bucket, nestedKey, 'existing child');
+        }
+        await connectAndOpenPrefix(page, credentials, prefix);
+
+        const browser = page.getByTestId('storage-file-browser');
+        const dropTarget =
+          target === 'folder row'
+            ? rowByName(page, 'child')
+            : target === 'empty listing'
+              ? page.getByTestId('storage-object-list').locator('tbody tr').last()
+              : browser.getByRole('button', { name: 'Upload', exact: true });
+        const transfer = await page.evaluateHandle(
+          ({ name, text }) => {
+            const dt = new DataTransfer();
+            dt.items.add(new File([text], name, { type: 'text/plain' }));
+            dt.items.add(new File(['second file'], 'second.txt', { type: 'text/plain' }));
+            return dt;
+          },
+          { name: fixture.name, text: fixture.fullText }
+        );
+        try {
+          await dropTarget.dispatchEvent('dragenter', { dataTransfer: transfer });
+          await dropTarget.dispatchEvent('dragover', { dataTransfer: transfer });
+          await expect(page.getByTestId('storage-upload-drop-overlay')).toBeVisible();
+          await dropTarget.dispatchEvent('dragleave', { dataTransfer: transfer });
+          await expect(page.getByTestId('storage-upload-drop-overlay')).not.toBeVisible();
+          await dropTarget.dispatchEvent('dragenter', { dataTransfer: transfer });
+          await dropTarget.dispatchEvent('drop', { dataTransfer: transfer });
+          await expect(page.getByTestId('storage-upload-drop-overlay')).not.toBeVisible();
+
+          const uploadModal = modalBox(page);
+          await expect(uploadModal.getByText(fixture.name, { exact: true })).toBeVisible();
+          await expect(uploadModal.getByText('second.txt', { exact: true })).toBeVisible();
+          await expect(uploadModal.getByText(`Uploading to: ${prefix}`)).toBeVisible();
+          // A drop selects files for review; it must not start an upload yet.
+          await expect(
+            uploadModal.getByRole('button', { name: 'Upload', exact: true })
+          ).toBeVisible();
+          await uploadModal.getByRole('button', { name: 'Cancel', exact: true }).click();
+          await expect(page.getByRole('dialog')).not.toBeVisible();
+
+          await dropTarget.dispatchEvent('drop', { dataTransfer: transfer });
+          await expect(uploadModal.getByText(fixture.name, { exact: true })).toBeVisible();
+          await expect(uploadModal.getByText('second.txt', { exact: true })).toBeVisible();
+          await uploadModal.getByRole('button', { name: 'Upload', exact: true }).click();
+          await expect(uploadModal.getByText('2 uploaded · 0 skipped · 0 failed')).toBeVisible();
+          await uploadModal.getByRole('button', { name: 'Done' }).click();
+          await expect(rowByName(page, fixture.name)).toBeVisible();
+          await expect(await getObjectText(client, credentials.bucket, key)).toBe(fixture.fullText);
+        } finally {
+          await transfer.dispose();
+        }
+      } finally {
+        await deleteKnownKeys(client, credentials.bucket, [key, `${prefix}second.txt`, nestedKey]);
+      }
+    });
+  }
 
   test('uploads realistic faker-generated text, csv, and image files', async ({
     page
@@ -82,17 +155,19 @@ test.describe('Storage S3 — Upload', () => {
       await rowByName(page, textFixture.name).dblclick();
       await expect(page.getByRole('heading', { name: textFixture.name })).toBeVisible();
       await expect(page.getByText(textFixture.expectedSnippet)).toBeVisible();
-      await page.getByRole('button', { name: 'Close' }).last().click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+      await expect(page.getByRole('heading', { name: textFixture.name })).not.toBeVisible();
 
       await rowByName(page, csvFixture.name).dblclick();
       await expect(page.getByRole('heading', { name: csvFixture.name })).toBeVisible();
       await expect(page.getByText(csvFixture.expectedCell)).toBeVisible();
-      await page.getByRole('button', { name: 'Close' }).last().click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+      await expect(page.getByRole('heading', { name: csvFixture.name })).not.toBeVisible();
 
       await rowByName(page, imageFixture.name).dblclick();
       await expect(page.getByRole('heading', { name: imageFixture.name })).toBeVisible();
       await expect(page.getByAltText(`Preview of ${imageFixture.name}`)).toBeVisible();
-      await page.getByRole('button', { name: 'Close' }).last().click();
+      await page.keyboard.press('Escape');
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -194,6 +269,114 @@ test.describe('Storage S3 — Upload', () => {
       );
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('uploads nothing when the conflict check fails', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'upload-check-fails');
+    const key = `${prefix}existing.txt`;
+    const failHead = (route: Route) =>
+      route.request().method() === 'HEAD' ? route.fulfill({ status: 500 }) : route.fallback();
+
+    try {
+      await putTextObject(client, credentials.bucket, key, 'old content');
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await page.route('**/api/storage/download?*', failHead);
+      await page.getByRole('button', { name: 'Upload' }).click();
+      const uploadModal = modalBox(page);
+      await uploadModal.locator('input[aria-label="Select files"]').setInputFiles({
+        name: 'existing.txt',
+        mimeType: 'text/plain',
+        buffer: Buffer.from('new content')
+      });
+      await uploadModal.getByRole('button', { name: 'Upload', exact: true }).click();
+
+      await expect(uploadModal.getByRole('alert')).toContainText('Nothing was uploaded');
+      await expect(await getObjectText(client, credentials.bucket, key)).toBe('old content');
+
+      // Once the check works again, the retry finds the conflict instead of overwriting.
+      await page.unroute('**/api/storage/download?*', failHead);
+      await uploadModal.getByRole('button', { name: 'Upload', exact: true }).click();
+      await expect(uploadModal.getByText('Files already exist')).toBeVisible();
+      await expect(uploadModal.getByRole('alert')).not.toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [key]);
+    }
+  });
+
+  test('asks before leaving during an upload, and leaving stops it', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'upload-leave');
+    const keys = [`${prefix}inner/kept.txt`, `${prefix}inner/stopped.txt`, `${prefix}inner/`];
+    const uploads: Route[] = [];
+
+    try {
+      await putDirectoryMarker(client, credentials.bucket, `${prefix}inner/`);
+      await connectAndOpenPrefix(page, credentials, prefix);
+      const parentUrl = page.url();
+      // Open the folder in the app, so that Back is an in-app navigation.
+      await rowByName(page, 'inner').click();
+      await expect(page).not.toHaveURL(parentUrl);
+      await waitForObjectsLoaded(page);
+      const browseUrl = page.url();
+      // Hold the upload request open so that it is still running when leaving.
+      await page.route('**/api/storage/upload*', (route) => {
+        uploads.push(route);
+      });
+
+      const startUpload = async (name: string) => {
+        await page.getByRole('button', { name: 'Upload', exact: true }).click();
+        const uploadModal = modalBox(page);
+        await uploadModal.locator('input[aria-label="Select files"]').setInputFiles({
+          name,
+          mimeType: 'text/plain',
+          buffer: Buffer.from('slow upload')
+        });
+        const count = uploads.length;
+        await uploadModal.getByRole('button', { name: 'Upload' }).click();
+        await expect.poll(() => uploads.length).toBe(count + 1);
+      };
+      await startUpload('kept.txt');
+
+      // Back is held up by a warning; staying keeps the upload.
+      const warning = page.getByRole('dialog', { name: 'Upload in progress' });
+      await page.goBack();
+      await expect(warning).toBeVisible();
+      expect(page.url()).toBe(browseUrl);
+      await warning.getByRole('button', { name: 'Stay' }).click();
+      await expect(warning).toBeHidden();
+      await expect(page.getByRole('heading', { name: 'Upload', exact: true })).toBeVisible();
+
+      // Closing the tab gets the browser's own confirmation.
+      const unload = page.waitForEvent('dialog');
+      await page.close({ runBeforeUnload: true });
+      const prompt = await unload;
+      expect(prompt.type()).toBe('beforeunload');
+      await prompt.dismiss();
+
+      // After staying, the finished upload shows up in the folder.
+      await uploads[0].continue();
+      await expect(modalBox(page).getByRole('status')).toContainText('Upload complete');
+      await modalBox(page).getByRole('button', { name: 'Done' }).click();
+      await expect(rowByName(page, 'kept.txt')).toBeVisible();
+
+      // Leaving stops the upload and goes where Back pointed.
+      await startUpload('stopped.txt');
+      await page.goBack();
+      const aborted = page.waitForEvent('requestfailed', (request) =>
+        request.url().includes('/api/storage/upload')
+      );
+      await warning.getByRole('button', { name: 'Stop upload and leave' }).click();
+      await aborted;
+      await expect(page).toHaveURL(parentUrl);
+      await expect(page.getByRole('heading', { name: 'Upload', exact: true })).toBeHidden();
+    } finally {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await deleteKnownKeys(client, credentials.bucket, keys);
     }
   });
 });

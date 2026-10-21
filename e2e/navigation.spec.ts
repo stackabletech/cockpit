@@ -1,0 +1,114 @@
+import { test, expect } from './support/fixtures.js';
+import { waitForHydration } from './support/helpers';
+
+test.describe('App navigation', () => {
+  test.use({ locale: 'en-US' });
+
+  test('navigating between apps shows a loading indicator until the page is ready', async ({
+    page
+  }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    // Delay the Trino route's data fetch so the loading indicator stays on
+    // screen long enough to assert on it.
+    await page.route('**/trino/__data.json*', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.continue();
+    });
+
+    await page.getByRole('link', { name: 'Trino', exact: true }).click();
+
+    const progress = page.locator('[data-navigation-progress]');
+    await expect(progress).toBeVisible();
+    await expect(progress.getByText('Loading…')).toBeVisible();
+
+    await expect(page.getByRole('heading', { name: 'Trino', exact: true })).toBeVisible();
+    await expect(progress).toBeHidden();
+  });
+
+  test('navigating within an app does not show the global loading bar', async ({ page }) => {
+    await page.goto('/storage');
+    await waitForHydration(page);
+
+    // Delay the connections page's data fetch. Even while it is in flight the
+    // global progress bar must stay hidden: it only appears between apps.
+    await page.route('**/settings/connections/__data.json*', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.continue();
+    });
+
+    await page.getByRole('link', { name: 'Manage connections' }).click();
+
+    const progress = page.locator('[data-navigation-progress]');
+    await expect(progress).toBeHidden();
+    // Wait out the artificial delay while the intra-app navigation is in flight.
+    await page.waitForTimeout(2000);
+    await expect(progress).toHaveCount(0);
+
+    await expect(page.getByRole('heading', { name: 'Manage connections' })).toBeVisible();
+  });
+
+  test('sidebar highlights the active app when switching between dashboard, Trino and storage', async ({
+    page
+  }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    const dashboardLink = page.getByRole('link', { name: 'Dashboard' });
+    const trinoLink = page.getByRole('link', { name: 'Trino', exact: true });
+    const storageLink = page.getByRole('link', { name: 'Storage' });
+
+    await expect(dashboardLink).toHaveAttribute('aria-current', 'page');
+
+    await trinoLink.click();
+    await expect(page.getByRole('heading', { name: 'Trino', exact: true })).toBeVisible();
+    await expect(trinoLink).toHaveAttribute('aria-current', 'page');
+    await expect(dashboardLink).not.toHaveAttribute('aria-current', 'page');
+
+    await storageLink.click();
+    await expect(page.getByRole('heading', { name: 'Storage', exact: true })).toBeVisible();
+    await expect(storageLink).toHaveAttribute('aria-current', 'page');
+    await expect(trinoLink).not.toHaveAttribute('aria-current', 'page');
+
+    await dashboardLink.click();
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible();
+    await expect(dashboardLink).toHaveAttribute('aria-current', 'page');
+    await expect(storageLink).not.toHaveAttribute('aria-current', 'page');
+  });
+
+  test('sidebar logo is named only when the "Stackable" text is hidden', async ({ page }) => {
+    await page.goto('/');
+    await waitForHydration(page);
+
+    const sidebar = page.getByRole('complementary', { name: 'Sidebar' });
+    // Expanded: the visible "Stackable" text names the brand, so the logo is decorative.
+    await expect(sidebar.getByRole('img', { name: 'Stackable' })).toHaveCount(0);
+
+    await sidebar.getByRole('button', { name: 'Collapse sidebar' }).click();
+    await expect(sidebar.getByRole('img', { name: 'Stackable' })).toBeVisible();
+  });
+
+  test('skip link is the first tab stop and moves keyboard focus into the main content', async ({
+    page
+  }) => {
+    // The dashboard has no focusable content, so use a page that does.
+    await page.goto('/storage');
+    await waitForHydration(page);
+
+    await page.keyboard.press('Tab');
+    const skipLink = page.getByRole('link', { name: 'Skip to main content' });
+    await expect(skipLink).toBeFocused();
+    await expect(skipLink).toBeVisible();
+
+    await page.keyboard.press('Enter');
+    await expect(page.locator('main#main-content')).toBeFocused();
+
+    // The next tab stop must be inside <main>, not the sidebar.
+    await page.keyboard.press('Tab');
+    await expect(page.locator('main#main-content :focus')).toHaveCount(1);
+
+    // Once focus has moved on, clicks must not land on <main> again.
+    await expect(page.locator('main#main-content')).not.toHaveAttribute('tabindex');
+  });
+});

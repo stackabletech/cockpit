@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: postgresql
+description: PostgreSQL 18 database for local dev and E2E testing
+type: application
+version: 0.1.0
+appVersion: '18'

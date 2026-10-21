@@ -7,6 +7,7 @@ export interface S3ConnectionConfig {
   accessStyle: 'Path' | 'VirtualHosted';
   region: { name: string };
   credentials?: { accessKey: string; secretKey: string };
+  additionalBuckets?: string[];
 }
 
 /** Full S3 config for creating a bucket-scoped provider. */
@@ -23,3 +24,8 @@ export interface HDFSConfig {
 
 /** Full config for creating a storage provider (always includes bucket/path scope). */
 export type StorageConfig = S3Config | HDFSConfig;
+
+/** Per-user connection config stored in memory (no bucket). */
+export type StorageConnectionConfig = S3ConnectionConfig | HDFSConfig;
+
+export type { ConnectionMetadata } from '$lib/storage/connection-types.js';

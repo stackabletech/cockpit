@@ -3,10 +3,11 @@ import { z } from 'zod';
 import { resolveTrinoClient, trinoMetadataQuery } from '$lib/server/trino/client.js';
 import { getUserId } from '$lib/server/auth-utils.js';
 import { completionEnabled } from '$lib/server/feature-flags.js';
-import { SIMPLE_IDENTIFIER_REGEX } from '$lib/editor/identifiers.js';
+import { quoteIdentifier, quoteStringLiteral } from '$lib/editor/identifiers.js';
 import type { RequestHandler } from './$types';
 
-const safeIdentifier = z.string().regex(SIMPLE_IDENTIFIER_REGEX, 'must be a valid identifier');
+// Any name Trino returns is valid; values are quoted/escaped before use in SQL.
+const safeIdentifier = z.string().min(1).max(1024);
 
 const ParamsSchema = z.object({
   level: z.enum(['catalogs', 'schemas', 'tables', 'columns', 'functions']),
@@ -51,7 +52,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       opts.catalog = catalog;
       break;
     case 'tables': {
-      const schemaFilter = schema ? `WHERE t.table_schema = '${schema}'` : '';
+      const schemaFilter = schema ? `WHERE t.table_schema = ${quoteStringLiteral(schema)}` : '';
       sql = `
         SELECT
           t.table_name,
@@ -71,7 +72,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       break;
     }
     case 'columns':
-      sql = `DESCRIBE "${table}"`;
+      if (!table) error(400, 'table is required for columns');
+      sql = `DESCRIBE ${quoteIdentifier(table)}`;
       opts.catalog = catalog;
       opts.schema = schema;
       break;

@@ -1,68 +1,59 @@
 import { resolve } from '$app/paths';
 import type { ResolvedPathname } from '$app/types';
-import type { PinnedLocation, RecentFile, RecentLocation } from './types.js';
+import type { ConnectionMetadata } from './connection-types.js';
+import type { RecentFile } from './types.js';
+import { keyToName, parentPrefix } from './utils.js';
 
-const STORAGE_ROUTE = '/(app)/storage/[bucket]/[...prefix]' as const;
+const STORAGE_ROUTE = '/(app)/storage/browse/[connection]/[bucket]/[...prefix]' as const;
+
+/** Anything addressable as bucket + prefix — pinned and recent locations alike. */
+type StorageLocation = { bucket: string; prefix: string };
 
 // ── URL helpers ──────────────────────────────────────────────────────────────
 
-function storageHref(bucket: string, prefix: string): ResolvedPathname {
+export function storageHref(connection: string, bucket: string, prefix: string): ResolvedPathname {
   const encodedBucket = encodeURIComponent(bucket);
   const encodedPrefix = prefix
     ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
     : '';
-  return resolve(STORAGE_ROUTE, { bucket: encodedBucket, prefix: encodedPrefix });
-}
-
-// ── Pinned location helpers ──────────────────────────────────────────────────
-
-export function pinnedLabel(pin: PinnedLocation): string {
-  if (!pin.prefix) return pin.bucket;
-  const parts = pin.prefix.split('/').filter(Boolean);
-  return parts[parts.length - 1] ?? pin.bucket;
-}
-
-export function pinnedHref(pin: PinnedLocation): ResolvedPathname {
-  return storageHref(pin.bucket, pin.prefix);
-}
-
-// ── Recent file helpers ──────────────────────────────────────────────────────
-
-export function fileName(key: string): string {
-  const parts = key.split('/').filter(Boolean);
-  return parts[parts.length - 1] ?? key;
-}
-
-export function fileLocation(file: RecentFile): string {
-  const parts = file.key.split('/').filter(Boolean);
-  parts.pop();
-  return parts.length > 0 ? `${file.bucket} / ${parts.join(' / ')}` : file.bucket;
-}
-
-export function fileHref(file: RecentFile): ResolvedPathname {
-  const parts = file.key.split('/').filter(Boolean);
-  parts.pop();
-  const encodedPrefix = parts.map(encodeURIComponent).join('/');
   return resolve(STORAGE_ROUTE, {
-    bucket: encodeURIComponent(file.bucket),
+    connection: encodeURIComponent(connection),
+    bucket: encodedBucket,
     prefix: encodedPrefix
   });
 }
 
-// ── Recent location helpers ──────────────────────────────────────────────────
+// ── Location helpers ─────────────────────────────────────────────────────────
 
-export function locationName(loc: RecentLocation): string {
-  if (!loc.prefix) return loc.bucket;
-  const parts = loc.prefix.split('/').filter(Boolean);
-  return parts[parts.length - 1] ?? loc.bucket;
+/** Last segment of the prefix, falling back to the bucket name at the root. */
+export function locationLabel(loc: StorageLocation): string {
+  return keyToName(loc.prefix) || loc.bucket;
 }
 
-export function locationPath(loc: RecentLocation): string {
+/** Full breadcrumb-style path, e.g. `bucket / dir / subdir`. */
+export function locationPath(loc: StorageLocation): string {
   if (!loc.prefix) return loc.bucket;
   const parts = loc.prefix.split('/').filter(Boolean);
   return `${loc.bucket} / ${parts.join(' / ')}`;
 }
 
-export function locationHref(loc: RecentLocation): ResolvedPathname {
-  return storageHref(loc.bucket, loc.prefix);
+export function locationHref(connection: string, loc: StorageLocation): ResolvedPathname {
+  return storageHref(connection, loc.bucket, loc.prefix);
+}
+
+// ── Recent file helpers ──────────────────────────────────────────────────────
+
+export function fileLocation(file: RecentFile): string {
+  return locationPath({ bucket: file.bucket, prefix: parentPrefix(file.key) });
+}
+
+export function fileHref(connection: string, file: RecentFile): ResolvedPathname {
+  return storageHref(connection, file.bucket, parentPrefix(file.key));
+}
+
+// ── Connection helpers ───────────────────────────────────────────────────────
+
+/** Display name for a connection: its own name if set, else its endpoint. */
+export function connectionLabel(conn: Pick<ConnectionMetadata, 'name' | 'endpoint'>): string {
+  return conn.name || conn.endpoint || 'S3';
 }

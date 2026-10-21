@@ -29,9 +29,9 @@ describe('analyseCompletion — cursor context', () => {
   });
 
   it('reads a partial word at the cursor', () => {
-    const analysis = analyseCompletion(at('SELECT * FROM fo|o'));
+    const analysis = analyseCompletion(at('SELECT * FROM fo|o')); // typos:ignore-line
     expect(analysis.prefixParts).toEqual([]);
-    expect(analysis.wordAtCursor).toBe('fo');
+    expect(analysis.wordAtCursor).toBe('fo'); // typos:ignore-line
   });
 
   it('reads a dotted prefix with a partial word at the cursor', () => {
@@ -53,10 +53,10 @@ describe('analyseCompletion — cursor context', () => {
   });
 
   it('surfaces the statement the cursor is in for multi-statement input', () => {
-    const analysis = analyseCompletion(at('SELECT 1; SELECT * FROM fo|o'));
+    const analysis = analyseCompletion(at('SELECT 1; SELECT * FROM fo|o')); // typos:ignore-line
     expect(analysis.statement).not.toBeNull();
     expect(analysis.statement?.sql.startsWith('SELECT *')).toBe(true);
-    expect(analysis.wordAtCursor).toBe('fo');
+    expect(analysis.wordAtCursor).toBe('fo'); // typos:ignore-line
   });
 });
 
@@ -67,7 +67,7 @@ describe('analyseCompletion — grammar classification', () => {
   });
 
   it('classifies a mid-identifier FROM target as a relation slot', () => {
-    const analysis = analyseCompletion(at('SELECT * FROM fo|'));
+    const analysis = analyseCompletion(at('SELECT * FROM fo|')); // typos:ignore-line
     expect(analysis.identifierKind).toBe('relation');
   });
 
