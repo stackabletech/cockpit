@@ -27,9 +27,9 @@
     {
       dataType: 'json',
       validators: zod(StorageConnectionSchema),
-      onResult: () => {
-        // Server saved the connection; the redirect to /storage triggers
-        // the layout load to auto-connect via activeStorageConnectionId.
+      // Network failures or unexpected server errors: show them in the form instead of the error page.
+      onError() {
+        $message = { type: 'error', message: m.storage_connect_save_failed() };
       }
     }
   );
@@ -57,7 +57,7 @@
 
     {#if connectError}
       <div role="alert" class="alert alert-error mb-6 text-sm">
-        {m.storage_connect_error_unreachable()}
+        {connectError}
       </div>
     {/if}
 
