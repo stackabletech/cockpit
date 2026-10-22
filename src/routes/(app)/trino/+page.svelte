@@ -79,6 +79,8 @@
   }
   let catalogBrowserOpen = $state(getInitialCatalogOpen());
   let monacoEditor = $state<MonacoEditor | undefined>(undefined);
+  // Running needs the editor's cursor and selection, which exist only once Monaco has loaded
+  let editorReady = $state(false);
   let mobileCatalogOpen = $state(false);
 
   const viewStates = new SvelteMap<
@@ -347,7 +349,8 @@
     if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'Enter') {
       event.preventDefault();
       handleRunAll();
-    } else if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+    } else if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && editorReady) {
+      // Running at the cursor needs the editor, like the Run button
       event.preventDefault();
       handleRunAtCursor();
     }
@@ -691,7 +694,7 @@
               <button
                 type="button"
                 class="btn join-item btn-primary py-1.5"
-                disabled={isActive}
+                disabled={isActive || !editorReady}
                 aria-label={runButtonLabel}
                 onclick={handleRun}
               >
@@ -770,6 +773,7 @@
         <MonacoEditor
           bind:this={monacoEditor}
           bind:value={sql}
+          bind:ready={editorReady}
           {highlightOffsets}
           {defaultCatalog}
           {defaultSchema}
