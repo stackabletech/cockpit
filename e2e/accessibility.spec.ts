@@ -44,6 +44,8 @@ for (const theme of THEMES) {
       await setTabSql(page, 'SELECT id, name FROM users');
       await page.goto('/trino');
       await waitForHydration(page);
+      // Waits for Monaco to load and sets the cursor that "Run at cursor" needs
+      await page.locator('.monaco-editor').first().click();
       await page.getByRole('button', { name: 'Run', exact: true }).click();
       await waitForQueryComplete(page);
       await expect(page.getByRole('table', { name: 'Query results' })).toBeVisible();
