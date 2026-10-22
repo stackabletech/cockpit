@@ -140,6 +140,25 @@ test.describe('Storage — Explorer tab bar', () => {
     await expect(tabs.nth(0)).toBeFocused();
   });
 
+  test('clicking a tab keeps keyboard focus on it', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectAndOpenPrefix(page, credentials);
+
+    await page.getByRole('button', { name: 'New Tab' }).click();
+
+    const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
+    const tabs = tablist.getByRole('tab');
+    await expect(tabs).toHaveCount(2);
+
+    await tabs.nth(0).click();
+    await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+    await expect(tabs.nth(0)).toBeFocused();
+
+    await page.keyboard.press('ArrowRight');
+    await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+    await expect(tabs.nth(1)).toBeFocused();
+  });
+
   test('middle-click on a tab closes it', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectAndOpenPrefix(page, credentials);
