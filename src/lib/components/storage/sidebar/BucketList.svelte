@@ -199,7 +199,7 @@
         <ul class="py-1" role="list">
           {#each storage.bookmarks.pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
             {@const active = isPinnedActive(pin)}
-            <li role="none" class="group relative">
+            <li class="group relative">
               <!-- eslint-disable svelte/no-navigation-without-resolve -->
               <TooltipTrigger text={locationLabel(pin)} orientation="right">
                 <a
@@ -277,7 +277,7 @@
           </li>
         {:else}
           {#each storage.buckets as bucket (bucket)}
-            <li role="none">
+            <li>
               <TooltipTrigger text={bucket} orientation="right">
                 <a
                   href={resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {

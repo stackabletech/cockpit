@@ -244,7 +244,7 @@
             <ul class="flex flex-col gap-2">
               {#each activeOps as op (op.id)}
                 {@const TypeIcon = typeIconMap[op.type]}
-                <li role="none" class="bg-base-200 rounded-lg px-3 py-2.5">
+                <li class="bg-base-200 rounded-lg px-3 py-2.5">
                   <!-- Collapsible header row -->
                   <div class="flex items-center gap-2">
                     <div
@@ -410,7 +410,7 @@
               <ul class="mb-10 min-h-0 flex-1 space-y-1 overflow-y-auto">
                 {#each historyOps as op (op.id)}
                   {@const TypeIcon = typeIconMap[op.type]}
-                  <li role="none" class="rounded-md px-2.5 py-2 {statusBgColor(op)}">
+                  <li class="rounded-md px-2.5 py-2 {statusBgColor(op)}">
                     <div class="flex items-center gap-2">
                       <!-- Status icon -->
                       <span class="shrink-0 {statusColor(op)}" aria-hidden="true">
