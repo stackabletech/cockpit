@@ -88,7 +88,7 @@
   "trino_state_failed": "Fehlgeschlagen",
   "trino_state_cancelled": "Abgebrochen",
   "trino_state_row_limit": "Zeilenlimit erreicht",
-  "trino_progress_info": "{rows} Zeilen zurückgegeben | {elapsed}",
+  "trino_progress_info": "{rows} Zeilen abgerufen | {elapsed}",
   "trino_elapsed_ms": "{value} ms",
   "trino_elapsed_s": "{value} s",
   "trino_row_limit_reached": "Zeilenlimit von {limit} überschritten — weitere Zeilen wurden nicht abgerufen.",
