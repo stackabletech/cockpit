@@ -12,7 +12,7 @@ export function getUserId(locals: App.Locals): string {
 export function findTrinoUser(locals: App.Locals): string | null {
   if (!locals.user) return 'anonymous';
   if (locals.user.trinoUser) return locals.user.trinoUser;
-  locals.logger.error({ user_id: locals.user.id }, 'Signed-in user has no Trino user');
+  locals.logger.warn({ user_id: locals.user.id }, 'Signed-in user has no Trino user');
   return null;
 }
 

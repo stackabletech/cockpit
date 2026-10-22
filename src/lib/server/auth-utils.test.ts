@@ -19,7 +19,7 @@ describe('getUserId', () => {
 });
 
 describe('getTrinoUser', () => {
-  const logger = { error: vi.fn() };
+  const logger = { warn: vi.fn() };
 
   it('returns the Trino user of the signed-in user', () => {
     const locals = { user: { id: 'u1', trinoUser: 'alice' }, logger } as unknown as App.Locals;
@@ -34,16 +34,16 @@ describe('getTrinoUser', () => {
   it('fails instead of falling back to "anonymous" when the Trino user is missing', () => {
     const locals = { user: { id: 'u1', trinoUser: null }, logger } as unknown as App.Locals;
     expect(() => getTrinoUser(locals)).toThrow(expect.objectContaining({ status: 500 }));
-    expect(logger.error).toHaveBeenCalledWith({ user_id: 'u1' }, expect.any(String));
+    expect(logger.warn).toHaveBeenCalledWith({ user_id: 'u1' }, expect.any(String));
   });
 });
 
 describe('findTrinoUser', () => {
-  const logger = { error: vi.fn() };
+  const logger = { warn: vi.fn() };
 
   it('returns null instead of "anonymous" when the Trino user is missing', () => {
     const locals = { user: { id: 'u1', trinoUser: null }, logger } as unknown as App.Locals;
     expect(findTrinoUser(locals)).toBeNull();
-    expect(logger.error).toHaveBeenCalledWith({ user_id: 'u1' }, expect.any(String));
+    expect(logger.warn).toHaveBeenCalledWith({ user_id: 'u1' }, expect.any(String));
   });
 });

@@ -115,6 +115,16 @@ describe('POST /api/trino/query', () => {
     });
   });
 
+  it('returns a JSON error instead of running as anonymous when the Trino user is missing', async () => {
+    const res = await POST(
+      postEvent({ statements: ['SELECT 1'], tabId: TAB_ID }, mockLocals({ id: 'u1' }))
+    );
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: expect.any(String) });
+    expect(startScript).not.toHaveBeenCalled();
+  });
+
   it('logs but does not fail the request when the script orchestrator rejects', async () => {
     const err = new Error('boom');
     vi.mocked(startScript).mockRejectedValue(err);
