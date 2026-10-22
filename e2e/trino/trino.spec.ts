@@ -50,11 +50,26 @@ test.describe('Trino query editor', () => {
 
     const status = page.locator('[data-query-state="FINISHED"]');
     await expect(status.getByText('Row limit reached', { exact: true })).toBeVisible();
-    await expect(status.getByText(/^10,000 rows returned \|/)).toBeVisible();
+    await expect(status.getByText(/^10,001 rows returned \|/)).toBeVisible();
     await expect(status).not.toContainText('rows processed');
     await expect(page.getByRole('table', { name: 'Query results' })).toBeVisible();
     // A single statement's row limit is only reported in the status bar.
-    await expect(page.getByText(/query cancelled/)).toHaveCount(0);
+    await expect(page.getByText(/remaining rows not fetched/)).toHaveCount(0);
+  });
+
+  test('a result of exactly the row limit is not reported as truncated', async ({ page }) => {
+    await setTabSql(page, 'SELECT * FROM exact_limit_table');
+    await page.goto('/trino');
+    await waitForHydration(page);
+    await page.locator('.monaco-editor').first().click();
+
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    await waitForQueryComplete(page);
+
+    const status = page.locator('[data-query-state="FINISHED"]');
+    await expect(status.getByText('Finished', { exact: true })).toBeVisible();
+    await expect(status.getByText(/^10,000 rows returned \|/)).toBeVisible();
+    await expect(page.getByText('Row limit reached')).toHaveCount(0);
   });
 
   test('row limit in a multi-statement script is reported on the affected statement', async ({
@@ -72,7 +87,7 @@ test.describe('Trino query editor', () => {
       const toggle = page.getByRole('button', { name: `Toggle statement ${index} results` });
       return page.locator(`[id="${await toggle.getAttribute('aria-controls')}"]`);
     };
-    const warning = 'Row limit of 10,000 reached — query cancelled.';
+    const warning = 'Row limit of 10,000 exceeded — remaining rows not fetched.';
     await expect((await panelFor(1)).getByText(warning)).toBeVisible();
     await expect((await panelFor(2)).getByText(warning)).toHaveCount(0);
 
