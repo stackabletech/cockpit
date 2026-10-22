@@ -3,6 +3,8 @@ import { hasGarageCredentials, requireGarageCredentials } from '../support/garag
 import { connectToStorage, openConnectForm } from './helpers.js';
 import { waitForHydration } from '../support/helpers.js';
 
+const PORT_1_ERROR = 'Could not reach the storage backend — check the host and port.';
+
 /** Open the Options context menu for the first connection row and click Edit. */
 async function openFirstConnectionEditPage(page: Page) {
   await page.locator('table tbody tr').first().waitFor();
@@ -149,6 +151,22 @@ test.describe('Storage — Connections management', () => {
     await expect(page.getByText('Access denied — check your credentials.')).toBeVisible();
   });
 
+  test('edit page tests the connection when only the endpoint changes', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+    await page.goto('/settings/connections');
+    await waitForHydration(page);
+
+    await openFirstConnectionEditPage(page);
+
+    // Credentials stay blank (keep the stored ones); nothing listens on port 1.
+    await page.getByLabel('Port').fill('1');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(page.getByText(PORT_1_ERROR)).toBeVisible();
+    await expect(page).toHaveURL(/\/edit$/);
+  });
+
   test('delete button on management page removes the connection after confirmation', async ({
     page
   }) => {
@@ -229,6 +247,40 @@ test.describe('Storage — Connections management', () => {
 
     await expect(page).toHaveURL(/\/edit$/);
     await expect(page.getByRole('heading', { name: 'Edit connection' })).toBeVisible();
+  });
+
+  test('edit page without changes leaves without asking', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+    await page.goto('/settings/connections');
+    await waitForHydration(page);
+
+    await openFirstConnectionEditPage(page);
+    await page.getByRole('link', { name: '← Manage connections' }).click();
+
+    await expect(page).toHaveURL('/settings/connections');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('unsaved-changes modal: Escape stays and the guard asks again', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+    await page.goto('/settings/connections');
+    await waitForHydration(page);
+
+    await openFirstConnectionEditPage(page);
+
+    await page.getByLabel('Connection name').fill('Changed name');
+    const backLink = page.getByRole('link', { name: '← Manage connections' });
+    await backLink.click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page).toHaveURL(/\/edit$/);
+
+    await backLink.click();
+    await expect(page.getByRole('heading', { name: 'Unsaved changes' })).toBeVisible();
   });
 
   test('unsaved-changes modal: Leave navigates away', async ({ page }) => {

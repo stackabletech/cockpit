@@ -4,6 +4,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { desc, eq } from 'drizzle-orm';
 import { ConnectionIdSchema, StoredStorageConnectionSchema } from '$lib/storage/schemas.js';
+import * as m from '$lib/paraglide/messages.js';
 import { deleteConnection } from '$lib/server/storage/connections-db.js';
 import { auth } from '$lib/server/auth.js';
 import { db } from '$lib/server/db.js';
@@ -54,23 +55,32 @@ export const actions: Actions = {
     const form = await superValidate(request, zod(ConnectionIdSchema));
 
     if (!form.valid) {
-      return fail(400, { error: 'Invalid connection ID' });
+      log.debug({ errors: form.errors }, 'invalid connection id for delete');
+      return fail(400, { error: m.storage_connection_edit_not_found() });
     }
 
     const { connectionId } = form.data;
     const userId = locals.user!.id;
     const activeId = locals.session?.activeStorageConnectionId ?? null;
 
-    if (connectionId === activeId) {
-      await auth.api.updateSession({
-        headers: request.headers,
-        body: { activeStorageConnectionId: null }
-      });
-      log.info({ connectionId }, 'active storage connection deleted, session cleared');
-    }
+    try {
+      if (connectionId === activeId) {
+        await auth.api.updateSession({
+          headers: request.headers,
+          body: { activeStorageConnectionId: null }
+        });
+        log.info(
+          { connection_id: connectionId },
+          'active storage connection deleted, session cleared'
+        );
+      }
 
-    await deleteConnection(userId, connectionId);
-    log.info({ connectionId }, 'storage connection deleted from management page');
+      await deleteConnection(userId, connectionId);
+      log.info({ connection_id: connectionId }, 'storage connection deleted from management page');
+    } catch (err) {
+      log.error({ err, connection_id: connectionId }, 'failed to delete storage connection');
+      return fail(500, { error: m.storage_connections_delete_failed() });
+    }
 
     throw redirect(303, '/settings/connections');
   }

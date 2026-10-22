@@ -1,4 +1,4 @@
-import { error, fail, redirect, isHttpError } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { superValidate, message, setError } from 'sveltekit-superforms';
 import type { Infer, InferIn } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
@@ -11,19 +11,17 @@ import {
 } from '$lib/storage/schemas.js';
 import type { z } from 'zod';
 import { getConnectionProvider } from '$lib/server/storage/utils.js';
+import { connectionTestErrorMessage } from '$lib/server/storage/connection-test-error.js';
 import type { S3ConnectionConfig } from '$lib/server/storage/types.js';
 import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
 import { decrypt, encrypt, fingerprint } from '$lib/server/storage/encryption.js';
 import { isConnectionNameConflict } from '$lib/server/storage/connections-db.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
-import { logger } from '$lib/server/logging';
 import * as m from '$lib/paraglide/messages.js';
 
 type EditData = Infer<typeof EditStorageConnectionSchema>;
 type EditInput = InferIn<typeof EditStorageConnectionSchema>;
-
-const log = logger.child({ module: 'connection-edit' });
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const userId = locals.user!.id;
@@ -80,6 +78,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
   update: async ({ request, locals, params }) => {
+    const log = locals.logger;
     const form = await superValidate<EditData, StorageConnectionMessage, EditInput>(
       request,
       zod(EditStorageConnectionSchema)
@@ -102,8 +101,52 @@ export const actions: Actions = {
       );
     }
 
-    const resolvedCredentials =
-      credentials.accessKey && credentials.secretKey ? credentials : undefined;
+    let existing: z.infer<typeof StoredStorageConnectionSchema>;
+    try {
+      const rows = await db
+        .select({ encryptedPayload: userStorageConnections.encryptedPayload })
+        .from(userStorageConnections)
+        .where(
+          and(
+            eq(userStorageConnections.id, connectionId),
+            eq(userStorageConnections.userId, userId)
+          )
+        )
+        .limit(1);
+      if (rows.length === 0) {
+        log.debug({ connection_id: connectionId }, 'storage connection to update not found');
+        return message(
+          form,
+          { type: 'error', message: m.storage_connection_edit_not_found() },
+          { status: 404 }
+        );
+      }
+      existing = StoredStorageConnectionSchema.parse(
+        JSON.parse(decrypt(rows[0].encryptedPayload, storageEncryptionKey()))
+      );
+    } catch (err) {
+      log.error(
+        { err, connection_id: connectionId },
+        'failed to load storage connection to update'
+      );
+      return message(
+        form,
+        { type: 'error', message: m.storage_connect_save_failed() },
+        { status: 500 }
+      );
+    }
+
+    // Blank credentials keep the stored ones; a new access key needs its secret key.
+    const newCredentials = credentials.accessKey && credentials.secretKey ? credentials : undefined;
+    if (
+      !newCredentials &&
+      credentials.accessKey &&
+      credentials.accessKey !== existing.credentials?.accessKey
+    ) {
+      log.debug({ connection_id: connectionId }, 'access key changed without a secret key');
+      return setError(form, 'credentials.secretKey', m.storage_connection_edit_secret_required());
+    }
+    const resolvedCredentials = newCredentials ?? existing.credentials;
 
     const config: S3ConnectionConfig = {
       type: 's3',
@@ -112,86 +155,29 @@ export const actions: Actions = {
       tls,
       accessStyle,
       region,
-      credentials: resolvedCredentials
+      credentials: resolvedCredentials?.accessKey ? resolvedCredentials : undefined
     };
 
-    if (resolvedCredentials) {
-      try {
-        await getConnectionProvider(config).listContainers();
-        log.info({ storage_type: type }, 'storage connection edit verified');
-      } catch (err) {
-        log.warn({ err }, 'storage connection edit test failed');
-
-        let msg: string;
-        if (isHttpError(err)) {
-          if (err.status === 403) {
-            msg = m.storage_connect_error_access_denied();
-          } else if (err.status === 404) {
-            msg = m.storage_connect_error_not_found();
-          } else if (err.status === 502) {
-            msg = m.storage_connect_error_server_error();
-          } else {
-            msg = m.storage_connect_error();
-          }
-        } else if (err instanceof Error) {
-          const e = (err.message ?? '').toLowerCase();
-          if (/econnrefused|enotfound|eai_again|etimedout|network/.test(e)) {
-            msg = m.storage_connect_error_network();
-          } else {
-            msg = m.storage_connect_error();
-          }
-        } else {
-          msg = m.storage_connect_error();
-        }
-
-        return message(form, { type: 'error', message: msg }, { status: 400 });
-      }
+    try {
+      await getConnectionProvider(config).listContainers();
+      log.info({ connection_id: connectionId }, 'storage connection edit verified');
+    } catch (err) {
+      log.warn({ err, connection_id: connectionId }, 'storage connection edit test failed');
+      return message(
+        form,
+        { type: 'error', message: connectionTestErrorMessage(err) },
+        { status: 400 }
+      );
     }
 
-    // If no new credentials were provided, preserve the existing encrypted ones.
-    let payload: z.infer<typeof StoredStorageConnectionSchema>;
-    if (resolvedCredentials) {
-      payload = { host, port, tls, accessStyle, region, credentials: resolvedCredentials };
-    } else {
-      try {
-        const rows = await db
-          .select({ encryptedPayload: userStorageConnections.encryptedPayload })
-          .from(userStorageConnections)
-          .where(
-            and(
-              eq(userStorageConnections.id, connectionId),
-              eq(userStorageConnections.userId, userId)
-            )
-          )
-          .limit(1);
-        if (rows.length === 0) {
-          return message(
-            form,
-            { type: 'error', message: m.storage_connect_error_not_found() },
-            { status: 404 }
-          );
-        }
-        const existing = StoredStorageConnectionSchema.parse(
-          JSON.parse(decrypt(rows[0].encryptedPayload, storageEncryptionKey()))
-        );
-        if (credentials.accessKey && credentials.accessKey !== existing.credentials?.accessKey) {
-          log.debug({ connection_id: connectionId }, 'access key changed without a secret key');
-          return setError(
-            form,
-            'credentials.secretKey',
-            m.storage_connection_edit_secret_required()
-          );
-        }
-        payload = { host, port, tls, accessStyle, region, credentials: existing.credentials };
-      } catch {
-        return message(
-          form,
-          { type: 'error', message: m.storage_connect_error() },
-          { status: 500 }
-        );
-      }
-    }
-
+    const payload: z.infer<typeof StoredStorageConnectionSchema> = {
+      host,
+      port,
+      tls,
+      accessStyle,
+      region,
+      credentials: resolvedCredentials
+    };
     const encryptedPayload = encrypt(JSON.stringify(payload), storageEncryptionKey());
     const hash = fingerprint(
       {
@@ -223,7 +209,12 @@ export const actions: Actions = {
         log.debug({ connection_id: connectionId }, 'storage connection name already in use');
         return setError(form, 'name', m.storage_connection_edit_name_taken());
       }
-      throw err;
+      log.error({ err, connection_id: connectionId }, 'failed to update storage connection');
+      return message(
+        form,
+        { type: 'error', message: m.storage_connect_save_failed() },
+        { status: 500 }
+      );
     }
 
     log.info({ connection_id: connectionId }, 'storage connection updated');
