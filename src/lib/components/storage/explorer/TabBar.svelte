@@ -211,7 +211,8 @@
       focusTab(lastIndex);
     } else if (e.key === 'Delete' && tabsState.tabs.length > 1) {
       e.preventDefault();
-      const nextIndex = index === lastIndex ? index - 1 : index + 1;
+      // closeTab activates the tab that slides into the closed tab's position
+      const nextIndex = index === lastIndex ? index - 1 : index;
       tabsState.closeTab(tabsState.tabs[index].id);
       requestAnimationFrame(() => tabButtons[nextIndex]?.focus());
     }
@@ -305,79 +306,84 @@
     <div
       bind:this={containerEl}
       class="tab-strip flex min-w-0 flex-1 items-end"
-      role="tablist"
-      aria-label={m.storage_tab_list()}
       onwheel={handleWheel}
       onscroll={checkOverflow}
     >
-      {#each tabsState.tabs as tab, idx (tab.id)}
-        {@const isActive = tab.id === tabsState.activeTabId}
-        {#if renamingId === tab.id}
-          <div
-            class="bg-base-100 border-base-300 relative z-30 mr-2 flex shrink-0 items-center rounded-t-lg border border-b-0 px-3 py-1.5 shadow-sm"
-          >
-            <!-- svelte-ignore a11y_autofocus -->
-            <input
-              type="text"
-              autofocus
-              class="border-base-300 focus:border-primary h-4 w-24 rounded border bg-transparent px-1 py-0 text-xs focus:outline-none"
-              bind:value={renameValue}
-              bind:this={renameInput}
-              onblur={commitRename}
-              onkeydown={handleRenameKeydown}
-              aria-label={m.storage_tab_rename()}
-            />
-          </div>
-        {:else}
-          <button
-            role="tab"
-            aria-selected={isActive}
-            tabindex={isActive ? 0 : -1}
-            bind:this={tabButtons[idx]}
-            class="group relative flex max-w-44 shrink-0 items-center gap-1.5 rounded-t-lg border border-b-0 py-1.5 pr-4 pl-3 text-xs
+      <div class="flex shrink-0 items-end" role="tablist" aria-label={m.storage_tab_list()}>
+        {#each tabsState.tabs as tab, idx (tab.id)}
+          {@const isActive = tab.id === tabsState.activeTabId}
+          {#if renamingId === tab.id}
+            <div
+              class="bg-base-100 border-base-300 relative z-30 mr-2 flex shrink-0 items-center rounded-t-lg border border-b-0 px-3 py-1.5 shadow-sm"
+            >
+              <!-- svelte-ignore a11y_autofocus -->
+              <input
+                type="text"
+                autofocus
+                class="border-base-300 focus:border-primary h-4 w-24 rounded border bg-transparent px-1 py-0 text-xs focus:outline-none"
+                bind:value={renameValue}
+                bind:this={renameInput}
+                onblur={commitRename}
+                onkeydown={handleRenameKeydown}
+                aria-label={m.storage_tab_rename()}
+              />
+            </div>
+          {:else}
+            <button
+              role="tab"
+              aria-selected={isActive}
+              aria-keyshortcuts={tabsState.tabs.length > 1 ? 'Delete' : undefined}
+              tabindex={isActive ? 0 : -1}
+              bind:this={tabButtons[idx]}
+              class="group relative flex max-w-44 shrink-0 items-center gap-1.5 rounded-t-lg border border-b-0 py-1.5 pr-4 pl-3 text-xs
               transition-all select-none
               {tabsState.tabs.length > 1 ? 'mr-2' : ''}
               {tabsState.tabs.length > 1 ? 'pr-6' : ''}
               {isActive
-              ? 'bg-base-100 border-base-300 text-base-content z-20 font-medium shadow-sm'
-              : 'text-base-content/60 hover:text-base-content/80 hover:bg-base-100/50 z-10 border-transparent'}
+                ? 'bg-base-100 border-base-300 text-base-content z-20 font-medium shadow-sm'
+                : 'text-base-content/60 hover:text-base-content/80 hover:bg-base-100/50 z-10 border-transparent'}
               {dragIdx === idx ? 'opacity-50' : ''}
               {(dragOverIdx === idx && dragIdx !== idx) || fileDragHoverIdx === idx
-              ? '!border-primary'
-              : ''}
+                ? '!border-primary'
+                : ''}
               {fileDragHoverIdx === idx ? 'bg-primary/10' : ''}"
-            draggable="true"
-            onclick={() => tabsState.switchTo(tab.id)}
-            onkeydown={(e) => handleTabKeydown(e, idx)}
-            ondblclick={() => startRename(tab.id)}
-            onmousedown={(e) => handleMiddleClick(e, tab.id)}
-            onauxclick={(e) => handleMiddleClick(e, tab.id)}
-            oncontextmenu={(e) => openCtxMenu(e, tab.id)}
-            ondragstart={(e) => handleDragStart(e, idx)}
-            ondragover={(e) => handleDragOver(e, idx)}
-            ondragleave={(e) => handleDragLeave(e, idx)}
-            ondrop={(e) => handleDrop(e, idx)}
-            ondragend={handleDragEnd}
-            title={tab.label}
-          >
-            <span class="truncate">{tab.label}</span>
-          </button>
-          {#if tabsState.tabs.length > 1}
-            <TooltipTrigger text={m.storage_tab_close()} orientation="down">
-              <button
-                type="button"
-                class="text-base-content/40 hover:text-error relative z-30 mr-1 -ml-7 shrink-0 translate-y-0.5 self-center rounded-full p-0.5 transition-colors"
-                aria-label={m.storage_tab_close()}
-                onclick={() => tabsState.closeTab(tab.id)}
-              >
-                <IconClose class="size-3" aria-hidden="true" />
-              </button>
-            </TooltipTrigger>
+              draggable="true"
+              onclick={() => tabsState.switchTo(tab.id)}
+              onkeydown={(e) => handleTabKeydown(e, idx)}
+              ondblclick={() => startRename(tab.id)}
+              onmousedown={(e) => handleMiddleClick(e, tab.id)}
+              onauxclick={(e) => handleMiddleClick(e, tab.id)}
+              oncontextmenu={(e) => openCtxMenu(e, tab.id)}
+              ondragstart={(e) => handleDragStart(e, idx)}
+              ondragover={(e) => handleDragOver(e, idx)}
+              ondragleave={(e) => handleDragLeave(e, idx)}
+              ondrop={(e) => handleDrop(e, idx)}
+              ondragend={handleDragEnd}
+              title={tab.label}
+            >
+              <span class="truncate">{tab.label}</span>
+            </button>
+            {#if tabsState.tabs.length > 1}
+              <!-- A tablist may only contain tabs, so the close button is a mouse-only
+                 affordance; keyboard and screen-reader users close tabs with Delete. -->
+              <TooltipTrigger text={m.storage_tab_close()} orientation="down">
+                <button
+                  type="button"
+                  class="text-base-content/40 hover:text-error relative z-30 mr-1 -ml-7 shrink-0 translate-y-0.5 self-center rounded-full p-0.5 transition-colors"
+                  tabindex="-1"
+                  aria-hidden="true"
+                  aria-label={m.storage_tab_close()}
+                  onclick={() => tabsState.closeTab(tab.id)}
+                >
+                  <IconClose class="size-3" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+            {/if}
           {/if}
-        {/if}
-      {/each}
+        {/each}
+      </div>
 
-      <!-- Plus button — sits inline next to the last tab -->
+      <!-- Plus button — sits inline next to the last tab, outside the tablist -->
       <TooltipTrigger text={m.storage_tab_new()} orientation="down">
         <button
           class="btn btn-ghost btn-xs z-20 ml-0.5 shrink-0"

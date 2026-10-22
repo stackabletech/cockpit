@@ -83,7 +83,7 @@ test.describe('Storage — Explorer tab bar', () => {
     // The button cannot be nested in the tab button without producing invalid HTML.
     const firstTab = tablist.getByRole('tab').nth(0);
     await firstTab.hover();
-    await tablist.getByRole('button', { name: 'Close tab' }).first().click();
+    await tablist.getByRole('button', { name: 'Close tab', includeHidden: true }).first().click();
 
     await expect(tablist).toBeVisible();
     await expect(tablist.getByRole('tab')).toHaveCount(1);
@@ -93,7 +93,51 @@ test.describe('Storage — Explorer tab bar', () => {
     const credentials = requireGarageCredentials();
     await connectAndOpenPrefix(page, credentials);
 
-    await expect(page.getByRole('button', { name: 'Close tab' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Close tab', includeHidden: true })).toHaveCount(
+      0
+    );
+  });
+
+  test('Delete on a focused tab closes it', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectAndOpenPrefix(page, credentials);
+
+    await page.getByRole('button', { name: 'New Tab' }).click();
+
+    const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
+    const tabs = tablist.getByRole('tab');
+    await expect(tabs).toHaveCount(2);
+    await expect(tabs.nth(1)).toHaveAttribute('aria-keyshortcuts', 'Delete');
+
+    await tabs.nth(1).focus();
+    await page.keyboard.press('Delete');
+
+    await expect(tabs).toHaveCount(1);
+    await expect(tabs.nth(0)).toBeFocused();
+    await expect(tabs.nth(0)).not.toHaveAttribute('aria-keyshortcuts');
+  });
+
+  test('Delete on the first of three tabs keeps focus on the newly active tab', async ({
+    page
+  }) => {
+    const credentials = requireGarageCredentials();
+    await connectAndOpenPrefix(page, credentials);
+
+    await page.getByRole('button', { name: 'New Tab' }).click();
+    await page.getByRole('button', { name: 'New Tab' }).click();
+
+    const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
+    const tabs = tablist.getByRole('tab');
+    await expect(tabs).toHaveCount(3);
+
+    await tabs.nth(2).focus();
+    await page.keyboard.press('Home');
+    await expect(tabs.nth(0)).toBeFocused();
+    await page.keyboard.press('Delete');
+
+    await expect(tabs).toHaveCount(2);
+    await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+    await expect(tabs.nth(0)).toBeFocused();
   });
 
   test('middle-click on a tab closes it', async ({ page }) => {

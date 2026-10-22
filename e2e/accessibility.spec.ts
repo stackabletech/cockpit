@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { test, expect } from './support/fixtures.js';
 import { hasGarageCredentials, requireGarageCredentials } from './support/garage.js';
-import { setTabSql, waitForHydration, waitForQueryComplete } from './support/helpers';
+import { setTabSql, setTabState, waitForHydration, waitForQueryComplete } from './support/helpers';
 import { connectAndOpenPrefix, connectToStorage } from './storage/helpers.js';
 
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
@@ -50,6 +50,14 @@ for (const theme of THEMES) {
       await expectNoViolations(page);
     });
 
+    test('Trino editor with two tabs', async ({ page }) => {
+      await setTabState(page, [{ sql: 'SELECT 1' }, { sql: 'SELECT 2' }]);
+      await page.goto('/trino');
+      await waitForHydration(page);
+      await expect(page.getByRole('tab')).toHaveCount(2);
+      await expectNoViolations(page);
+    });
+
     test('storage connect form', async ({ page }) => {
       await page.goto('/storage');
       await waitForHydration(page);
@@ -77,6 +85,13 @@ for (const theme of THEMES) {
 
       test('bucket object list', async ({ page }) => {
         await connectAndOpenPrefix(page, requireGarageCredentials());
+        await expectNoViolations(page);
+      });
+
+      test('bucket object list with two tabs', async ({ page }) => {
+        await connectAndOpenPrefix(page, requireGarageCredentials());
+        await page.getByRole('button', { name: 'New Tab' }).click();
+        await expect(page.getByRole('tab')).toHaveCount(2);
         await expectNoViolations(page);
       });
     });

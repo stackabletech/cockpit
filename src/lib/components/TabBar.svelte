@@ -146,6 +146,7 @@
           class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-t-lg px-3 py-1.5 text-sm select-none focus-visible:outline-none"
           role="tab"
           aria-selected={isActive}
+          aria-keyshortcuts={onClose && showClose && item.closable !== false ? 'Delete' : undefined}
           tabindex={isActive ? 0 : -1}
           draggable={onReorder ? 'true' : 'false'}
           ondragstart={(e) => handleDragStart(e, index)}
@@ -172,12 +173,15 @@
         </button>
 
         {#if showClose && item.closable !== false}
+          <!-- A tablist may only contain tabs, so the close button is a mouse-only
+               affordance; keyboard and screen-reader users close tabs with Delete. -->
           <TooltipTrigger text={m.trino_tab_close({ name: item.label })} orientation="down">
             <button
               type="button"
-              class="btn btn-ghost btn-xs mr-1 h-5 min-h-0 w-5 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100
+              class="btn btn-ghost btn-xs mr-1 h-5 min-h-0 w-5 p-0 opacity-0 group-hover:opacity-100
                 {isActive ? 'opacity-60' : ''}"
-              tabindex={isActive ? 0 : -1}
+              tabindex="-1"
+              aria-hidden="true"
               aria-label={m.trino_tab_close({ name: item.label })}
               onclick={() => onClose?.(item.id)}
             >

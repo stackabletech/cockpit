@@ -53,10 +53,45 @@ test.describe('Trino editor tabs', () => {
     const closeBtn = tabs
       .nth(0)
       .locator('..')
-      .getByRole('button', { name: /Close tab/ });
+      .getByRole('button', { name: /Close tab/, includeHidden: true });
     await closeBtn.click();
 
     await expect(tabs).toHaveCount(1);
+  });
+
+  test('Delete on a focused tab closes it', async ({ page }) => {
+    await setTabState(page, [{ sql: 'SELECT 1' }, { sql: 'SELECT 2' }]);
+    await page.goto('/trino');
+    await waitForHydration(page);
+
+    const tabs = page.getByRole('tab');
+    await expect(tabs).toHaveCount(2);
+    await expect(tabs.nth(0)).toHaveAttribute('aria-keyshortcuts', 'Delete');
+
+    await tabs.nth(0).focus();
+    await page.keyboard.press('Delete');
+
+    await expect(tabs).toHaveCount(1);
+    await expect(tabs.nth(0)).toBeFocused();
+    await expect(tabs.nth(0)).not.toHaveAttribute('aria-keyshortcuts');
+  });
+
+  test('Delete on the first of three tabs keeps focus on the newly active tab', async ({
+    page
+  }) => {
+    await setTabState(page, [{ sql: 'SELECT 1' }, { sql: 'SELECT 2' }, { sql: 'SELECT 3' }]);
+    await page.goto('/trino');
+    await waitForHydration(page);
+
+    const tabs = page.getByRole('tab');
+    await expect(tabs).toHaveCount(3);
+
+    await tabs.nth(0).click();
+    await page.keyboard.press('Delete');
+
+    await expect(tabs).toHaveCount(2);
+    await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+    await expect(tabs.nth(0)).toBeFocused();
   });
 
   test('close non-active tab removes it and preserves active tab', async ({ page }) => {
@@ -75,7 +110,7 @@ test.describe('Trino editor tabs', () => {
     const closeBtn = tabs
       .nth(0)
       .locator('..')
-      .getByRole('button', { name: /Close tab/ });
+      .getByRole('button', { name: /Close tab/, includeHidden: true });
     await closeBtn.click();
 
     // Only one tab remains with default label — it should still be active
@@ -91,7 +126,7 @@ test.describe('Trino editor tabs', () => {
     const closeBtn = tabs
       .nth(0)
       .locator('..')
-      .getByRole('button', { name: /Close tab/ });
+      .getByRole('button', { name: /Close tab/, includeHidden: true });
     await expect(closeBtn).toHaveCount(0);
   });
 
