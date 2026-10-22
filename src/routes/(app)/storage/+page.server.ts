@@ -12,11 +12,8 @@ import {
 } from '$lib/storage/schemas.js';
 import { getConnectionProvider } from '$lib/server/storage/utils.js';
 import { connectionTestErrorMessage } from '$lib/server/storage/connection-test-error.js';
-import {
-  saveConnection,
-  getConnectionForUser,
-  deleteConnection
-} from '$lib/server/storage/connections-db.js';
+import { saveConnection, getConnectionForUser } from '$lib/server/storage/connections-db.js';
+import { deleteConnectionAction } from '$lib/server/storage/delete-connection-action.js';
 import { auth } from '$lib/server/auth.js';
 import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
@@ -164,7 +161,7 @@ export const actions: Actions = {
         await getConnectionProvider(config).listContainers();
       } catch (err) {
         log.warn({ err, connection_id: connectionId }, 'storage connection test failed on use');
-        return fail(400, { error: m.storage_connect_error_unreachable() });
+        return fail(400, { error: connectionTestErrorMessage(err) });
       }
 
       await auth.api.updateSession({
@@ -174,44 +171,15 @@ export const actions: Actions = {
       log.info({ connection_id: connectionId }, 'user switched storage connection');
     } catch (err) {
       log.error({ err, connection_id: connectionId }, 'failed to switch storage connection');
-      return fail(500, { error: m.storage_connect_error() });
+      return fail(500, { error: m.storage_connection_switch_failed() });
     }
 
     throw redirect(303, '/storage');
   },
 
-  deleteConnection: async ({ request, locals }) => {
-    const log = locals.logger;
-    const form = await superValidate(request, zod(ConnectionIdSchema));
-
-    if (!form.valid) {
-      log.debug({ errors: form.errors }, 'invalid connection id for delete');
-      return fail(400, { error: m.storage_connection_edit_not_found() });
-    }
-
-    const { connectionId } = form.data;
-    const userId = locals.user!.id;
-    const activeId = locals.session?.activeStorageConnectionId ?? null;
-
-    try {
-      if (connectionId === activeId) {
-        await auth.api.updateSession({
-          headers: request.headers,
-          body: { activeStorageConnectionId: null }
-        });
-        log.info(
-          { connection_id: connectionId },
-          'active storage connection deleted, session cleared'
-        );
-      }
-
-      await deleteConnection(userId, connectionId);
-      log.info({ connection_id: connectionId }, 'storage connection deleted');
-    } catch (err) {
-      log.error({ err, connection_id: connectionId }, 'failed to delete storage connection');
-      return fail(500, { error: m.storage_connections_delete_failed() });
-    }
-
+  deleteConnection: async (event) => {
+    const failure = await deleteConnectionAction(event);
+    if (failure) return failure;
     throw redirect(303, '/storage');
   }
 };

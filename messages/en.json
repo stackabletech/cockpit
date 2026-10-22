@@ -160,7 +160,7 @@
   "storage_connect_timeout": "Connection timed out. The storage backend did not respond.",
   "storage_connect_cancel": "Cancel",
   "storage_connect_error": "Could not connect — check the endpoint and credentials.",
-  "storage_connect_error_unreachable": "Could not connect to the selected storage — the endpoint may be unreachable.",
+  "storage_connection_switch_failed": "Could not switch to the selected connection. Please try again.",
   "storage_connect_error_access_denied": "Access denied — check your credentials.",
   "storage_connect_error_not_found": "Could not find the storage backend — check the endpoint.",
   "storage_connect_error_server_error": "The storage backend returned an error — check the endpoint and credentials.",

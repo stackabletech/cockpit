@@ -191,6 +191,27 @@ test.describe('Storage — Connections management', () => {
     await expect(dataRows).toHaveCount(initialItems - 1);
   });
 
+  test('sidebar on the edit page deletes a connection', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+    // Disconnecting shows the saved connections sidebar; navigate from there so it stays filled.
+    await page.getByRole('button', { name: 'Disconnect' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
+    await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
+    const savedList = page.getByRole('list', { name: 'Saved connections' });
+    await savedList.getByRole('button', { name: 'More options' }).first().click({ force: true });
+    await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
+    await waitForHydration(page);
+    await expect(page.getByRole('heading', { name: 'Edit connection' })).toBeVisible();
+
+    await savedList.getByRole('button', { name: 'More options' }).first().click({ force: true });
+    await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
+
+    await expect(page).toHaveURL('/settings/connections');
+    await expect(page.locator('table tbody tr')).toHaveCount(0);
+  });
+
   test('redirects to /settings/connections when editing a non-existent id', async ({ page }) => {
     await page.goto('/settings/connections/00000000-0000-0000-0000-000000000000/edit');
     await waitForHydration(page);

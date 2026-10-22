@@ -55,6 +55,24 @@ describe('connectionTestErrorMessage', () => {
     );
   });
 
+  it('maps timeouts, TLS protocol errors and nested causes', () => {
+    const network = 'Could not reach the storage backend — check the host and port.';
+    const timeout = Object.assign(new Error('Connection timed out after 5000 ms'), {
+      name: 'TimeoutError'
+    });
+    expect(connectionTestErrorMessage(timeout)).toBe(network);
+
+    const tls = Object.assign(new Error('write EPROTO 00000000:error:0A00010B:SSL routines'), {
+      code: 'EPROTO'
+    });
+    expect(connectionTestErrorMessage(tls)).toBe(network);
+
+    const wrapped = new Error('fetch failed', {
+      cause: Object.assign(new Error(''), { code: 'ECONNREFUSED' })
+    });
+    expect(connectionTestErrorMessage(wrapped)).toBe(network);
+  });
+
   it('falls back to the generic message', () => {
     expect(connectionTestErrorMessage(new Error('boom'))).toBe(
       'Could not connect — check the endpoint and credentials.'

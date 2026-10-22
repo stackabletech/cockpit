@@ -1,12 +1,8 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { superValidate } from 'sveltekit-superforms';
-import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { desc, eq } from 'drizzle-orm';
-import { ConnectionIdSchema, StoredStorageConnectionSchema } from '$lib/storage/schemas.js';
-import * as m from '$lib/paraglide/messages.js';
-import { deleteConnection } from '$lib/server/storage/connections-db.js';
-import { auth } from '$lib/server/auth.js';
+import { StoredStorageConnectionSchema } from '$lib/storage/schemas.js';
+import { deleteConnectionAction } from '$lib/server/storage/delete-connection-action.js';
 import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
 import { decrypt } from '$lib/server/storage/encryption.js';
@@ -50,38 +46,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  deleteConnection: async ({ request, locals }) => {
-    const log = locals.logger;
-    const form = await superValidate(request, zod(ConnectionIdSchema));
-
-    if (!form.valid) {
-      log.debug({ errors: form.errors }, 'invalid connection id for delete');
-      return fail(400, { error: m.storage_connection_edit_not_found() });
-    }
-
-    const { connectionId } = form.data;
-    const userId = locals.user!.id;
-    const activeId = locals.session?.activeStorageConnectionId ?? null;
-
-    try {
-      if (connectionId === activeId) {
-        await auth.api.updateSession({
-          headers: request.headers,
-          body: { activeStorageConnectionId: null }
-        });
-        log.info(
-          { connection_id: connectionId },
-          'active storage connection deleted, session cleared'
-        );
-      }
-
-      await deleteConnection(userId, connectionId);
-      log.info({ connection_id: connectionId }, 'storage connection deleted from management page');
-    } catch (err) {
-      log.error({ err, connection_id: connectionId }, 'failed to delete storage connection');
-      return fail(500, { error: m.storage_connections_delete_failed() });
-    }
-
+  deleteConnection: async (event) => {
+    const failure = await deleteConnectionAction(event);
+    if (failure) return failure;
     throw redirect(303, '/settings/connections');
   }
 };

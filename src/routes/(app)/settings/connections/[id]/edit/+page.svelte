@@ -29,9 +29,10 @@
   }
 
   // Escape or a backdrop click closes the dialog without an answer: that means stay.
-  $effect(() => {
-    if (!confirmLeaveOpen) closeLeaveDialog(false);
-  });
+  function setLeaveDialogOpen(open: boolean) {
+    if (open) confirmLeaveOpen = true;
+    else closeLeaveDialog(false);
+  }
 
   const { form, errors, enhance, submitting, message } = superForm(
     untrack(() => data.editForm),
@@ -40,6 +41,8 @@
       validators: zod(EditStorageConnectionSchema),
       // Keep the entered values until the redirect instead of flashing the defaults.
       resetForm: false,
+      // A successful save navigates away, so reloading this page's data would be wasted.
+      invalidateAll: false,
       taintedMessage: () =>
         new Promise<boolean>((settle) => {
           answerLeave = settle;
@@ -71,7 +74,7 @@
   }
 </script>
 
-<Modal bind:open={confirmLeaveOpen}>
+<Modal bind:open={() => confirmLeaveOpen, setLeaveDialogOpen}>
   <div class="modal-box">
     <h3 class="text-lg font-semibold">{m.storage_connection_edit_unsaved_title()}</h3>
     <p class="text-base-content/70 mt-2 text-sm">{m.storage_connection_edit_unsaved_body()}</p>
