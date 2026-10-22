@@ -41,7 +41,6 @@ describe('UI Pattern Enforcement', () => {
     const KNOWN_VIOLATION_PATHS = [
       'src/lib/components/catalog/CatalogTree.svelte',
       'src/lib/components/storage/explorer/OperationsButton.svelte',
-      'src/lib/components/TabBar.svelte',
       'src/lib/components/storage/shared/FloatingMenu.svelte',
       'src/lib/components/trino/StatementResult.svelte'
     ];

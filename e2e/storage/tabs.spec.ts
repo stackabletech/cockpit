@@ -107,14 +107,14 @@ test.describe('Storage — Explorer tab bar', () => {
     const tablist = page.getByRole('tablist', { name: 'Explorer tabs' });
     const tabs = tablist.getByRole('tab');
     await expect(tabs).toHaveCount(2);
-    await expect(tabs.nth(1)).toHaveAttribute('aria-keyshortcuts', 'Delete');
+    await expect(tabs.nth(1)).toHaveAttribute('aria-keyshortcuts', 'Delete F2');
 
     await tabs.nth(1).focus();
     await page.keyboard.press('Delete');
 
     await expect(tabs).toHaveCount(1);
     await expect(tabs.nth(0)).toBeFocused();
-    await expect(tabs.nth(0)).not.toHaveAttribute('aria-keyshortcuts');
+    await expect(tabs.nth(0)).toHaveAttribute('aria-keyshortcuts', 'F2');
   });
 
   test('Delete on the first of three tabs keeps focus on the newly active tab', async ({

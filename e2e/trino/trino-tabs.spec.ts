@@ -14,6 +14,44 @@ test.describe('Trino editor tabs', () => {
     await expect(tabs).toHaveCount(1);
   });
 
+  test('tab panel is labelled by the active tab', async ({ page }) => {
+    await setTabState(page, [{ sql: 'SELECT 1' }, { sql: 'SELECT 2' }]);
+    await page.goto('/trino');
+    await waitForHydration(page);
+
+    const tabs = page.getByRole('tab');
+    await tabs.nth(1).click();
+    const activeTabId = await tabs.nth(1).getAttribute('id');
+
+    await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', activeTabId!);
+  });
+
+  test('overflowing tabs fade at the clipped edge and update on resize', async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 844 });
+    await setTabState(
+      page,
+      Array.from({ length: 8 }, (_, i) => ({ sql: `SELECT ${i + 1}` }))
+    );
+    await page.goto('/trino');
+    await waitForHydration(page);
+
+    const strip = page.getByRole('tablist').locator('..');
+    const fade = (side: 'left' | 'right') =>
+      strip.evaluate((el, s) => (el as HTMLElement).style.getPropertyValue(`--fade-${s}`), side);
+
+    // Everything fits on a wide screen
+    await expect.poll(() => fade('right')).toBe('0px');
+    expect(await fade('left')).toBe('0px');
+
+    // Narrowing does not scroll, so only the resize can reveal the overflow
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(() => fade('right')).toBe('var(--fade-size)');
+    expect(await fade('left')).toBe('0px');
+
+    await page.getByRole('tab').last().focus();
+    await expect.poll(() => fade('left')).toBe('var(--fade-size)');
+  });
+
   test('create new tab via + button', async ({ page }) => {
     await page.getByRole('button', { name: 'New tab' }).click();
 
@@ -66,14 +104,14 @@ test.describe('Trino editor tabs', () => {
 
     const tabs = page.getByRole('tab');
     await expect(tabs).toHaveCount(2);
-    await expect(tabs.nth(0)).toHaveAttribute('aria-keyshortcuts', 'Delete');
+    await expect(tabs.nth(0)).toHaveAttribute('aria-keyshortcuts', 'Delete F2');
 
     await tabs.nth(0).focus();
     await page.keyboard.press('Delete');
 
     await expect(tabs).toHaveCount(1);
     await expect(tabs.nth(0)).toBeFocused();
-    await expect(tabs.nth(0)).not.toHaveAttribute('aria-keyshortcuts');
+    await expect(tabs.nth(0)).toHaveAttribute('aria-keyshortcuts', 'F2');
   });
 
   test('Delete on the first of three tabs keeps focus on the newly active tab', async ({
@@ -147,8 +185,8 @@ test.describe('Trino editor tabs', () => {
     const tab = page.locator('[role="tab"]').first();
     await tab.dblclick();
 
-    // Input should appear.
-    const input = tab.getByRole('textbox', { name: 'Rename tab' });
+    // Input should appear in place of the tab.
+    const input = page.getByRole('textbox', { name: 'Rename tab' });
     await expect(input).toBeVisible();
 
     await input.fill('My custom name');

@@ -17,7 +17,7 @@
   import { superForm } from 'sveltekit-superforms';
   import { zod4Client } from 'sveltekit-superforms/adapters';
   import { ConnectionSchema, type ConnectionMessage } from './validation.js';
-  import TabBar from '$lib/components/TabBar.svelte';
+  import TabBar, { tabElementId } from '$lib/components/TabBar.svelte';
   import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
   import {
     getOrCreateQueryRunner,
@@ -595,6 +595,10 @@
       <TabBar
         items={tabItems}
         activeId={tabStore.activeTabId}
+        ariaLabel={m.trino_tab_list()}
+        closeLabel={(item) => m.trino_tab_close({ name: item.label })}
+        addLabel={m.trino_tab_new()}
+        renameLabel={m.trino_tab_rename()}
         onSelect={handleTabSelect}
         onClose={handleTabClose}
         onAdd={handleTabAdd}
@@ -620,7 +624,7 @@
         rounded-b-xl border
       "
       role="tabpanel"
-      aria-labelledby="tab-{tabStore.activeTabId}"
+      aria-labelledby={tabElementId(tabStore.activeTabId)}
     >
       <div
         class="
