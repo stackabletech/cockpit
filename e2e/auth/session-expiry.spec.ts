@@ -76,6 +76,19 @@ test.describe('Session expiry', () => {
     await expect(page.getByRole('dialog', { name: 'Session expired' })).toBeVisible();
   });
 
+  test('shows the modal on a periodic check after the session is gone', async ({ page }) => {
+    await page.clock.install();
+    await page.goto('/');
+    await waitForHydration(page);
+
+    await page.context().clearCookies();
+    const sessionCheck = page.waitForResponse((res) => res.url().includes('/api/auth/get-session'));
+    await page.clock.runFor(60_000);
+    await sessionCheck;
+
+    await expect(page.getByRole('dialog', { name: 'Session expired' })).toBeVisible();
+  });
+
   test('does not show the modal for a 401 while the session is valid', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);

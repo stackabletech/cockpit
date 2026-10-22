@@ -6,23 +6,27 @@
   import Modal from '$lib/components/Modal.svelte';
   import { checkSession, sessionState } from '$lib/client/session.svelte';
 
+  const SESSION_CHECK_INTERVAL_MS = 60_000;
+
   const uid = $props.id();
 
   let redirectTo = $derived(encodeURIComponent(page.url.pathname + page.url.search));
 
-  // Enable session checks while mounted, and check when the user returns to
-  // the tab so an expired session is noticed before the next API call. There
-  // is deliberately no periodic check: in stateless mode a check can renew
-  // the session, so polling would keep an idle tab signed in.
+  // Enable session checks while mounted, so an expired session is noticed
+  // before the next API call: periodically while the tab is visible, and when
+  // the user returns to it. Checks do not extend the session, so polling does
+  // not keep an idle tab signed in.
   $effect(() => {
     sessionState.active = true;
     const checkIfVisible = () => {
       if (document.visibilityState === 'visible') void checkSession();
     };
     document.addEventListener('visibilitychange', checkIfVisible);
+    const interval = setInterval(checkIfVisible, SESSION_CHECK_INTERVAL_MS);
     return () => {
       sessionState.active = false;
       document.removeEventListener('visibilitychange', checkIfVisible);
+      clearInterval(interval);
     };
   });
 </script>

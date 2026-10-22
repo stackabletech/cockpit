@@ -16,9 +16,8 @@ let pending: Promise<void> | null = null;
  * Network and server errors are ignored: only an explicit "no session" answer
  * marks the session as expired.
  *
- * Note: `disableRefresh` only prevents extending a database-backed session.
- * In stateless mode (no database, as configured today) a check made shortly
- * before the session cookie expires still renews it, like any other request.
+ * `disableRefresh` keeps the check from extending the session, so checking
+ * does not keep an idle user signed in.
  */
 export function checkSession(): Promise<void> {
   if (!sessionState.active) return Promise.resolve();
