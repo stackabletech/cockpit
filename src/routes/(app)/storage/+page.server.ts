@@ -111,17 +111,28 @@ export const actions: Actions = {
       );
     }
 
+    let id: string;
     try {
-      const id = await saveConnection(locals.user!.id, config);
-      await auth.api.updateSession({
-        headers: request.headers,
-        body: { activeStorageConnectionId: id }
-      });
+      id = await saveConnection(locals.user!.id, config);
     } catch (err) {
       log.error({ err }, 'failed to save storage connection');
       return message(
         form,
         { type: 'error', message: m.storage_connect_save_failed() },
+        { status: 500 }
+      );
+    }
+
+    try {
+      await auth.api.updateSession({
+        headers: request.headers,
+        body: { activeStorageConnectionId: id }
+      });
+    } catch (err) {
+      log.error({ err, connection_id: id }, 'failed to activate saved storage connection');
+      return message(
+        form,
+        { type: 'error', message: m.storage_connect_activate_failed() },
         { status: 500 }
       );
     }

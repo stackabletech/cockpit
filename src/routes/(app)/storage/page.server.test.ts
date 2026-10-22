@@ -194,6 +194,36 @@ describe('storage page actions', () => {
     });
   });
 
+  it('connect: says the connection was saved when only activating it fails', async () => {
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: {
+        type: 's3',
+        host: 's3.example.com',
+        accessStyle: 'Path',
+        region: { name: 'us-east-1' },
+        credentials: { accessKey: 'ak', secretKey: 'sk' }
+      }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    mockConnectionProvider.listContainers.mockResolvedValue(['b1']);
+    mockUpdateSession.mockRejectedValueOnce(new Error('session store down'));
+
+    const result = await actions.connect({
+      request: new Request('http://localhost', { method: 'POST' }),
+      locals: mockLocals()
+    } as unknown as Parameters<typeof actions.connect>[0]);
+
+    expect(mockSaveConnection).toHaveBeenCalled();
+    expect(result).toMatchObject({
+      status: 500,
+      message: {
+        type: 'error',
+        message:
+          'The connection was saved but could not be activated. Reload the page and select it from the saved connections.'
+      }
+    });
+  });
+
   it('disconnect: redirects to /storage', async () => {
     await expect(
       actions.disconnect({

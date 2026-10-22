@@ -1,5 +1,10 @@
 import { test, expect, type Page } from '../support/fixtures.js';
-import { hasGarageCredentials, requireGarageCredentials } from '../support/garage.js';
+import {
+  createGarageBucketCredentials,
+  hasGarageAdmin,
+  hasGarageCredentials,
+  requireGarageCredentials
+} from '../support/garage.js';
 import { connectToStorage, openConnectForm } from './helpers.js';
 import { waitForHydration } from '../support/helpers.js';
 
@@ -319,5 +324,164 @@ test.describe('Storage — Connections management', () => {
 
     await waitForHydration(page);
     await expect(page).toHaveURL('/settings/connections');
+  });
+});
+
+test.describe('Storage — Connection edit sidebar', () => {
+  test.use({ locale: 'en-US' });
+
+  test.beforeEach(() => {
+    test.skip(
+      !hasGarageCredentials() || !hasGarageAdmin(),
+      'Skipped: requires a running Garage instance with admin access'
+    );
+  });
+
+  /**
+   * Saves two connections that differ in their access key, then opens the edit page of the most
+   * recent one from the saved connections sidebar, which stays filled when navigated from there.
+   * Returns the access keys in sidebar order.
+   */
+  async function openEditWithTwoConnections(page: Page): Promise<[string, string]> {
+    const base = requireGarageCredentials();
+    const second = await createGarageBucketCredentials(base, {
+      bucketName: 'e2e-connection-edit-sidebar',
+      keyName: 'e2e-connection-edit-sidebar',
+      permissions: { owner: false, read: true, write: false }
+    });
+    await connectToStorage(page, base);
+    await connectToStorage(page, second, { clearSaved: false });
+
+    await page.getByRole('button', { name: 'Disconnect' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
+    await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
+    const savedList = page.getByRole('list', { name: 'Saved connections' });
+    await expect(savedList.getByRole('listitem')).toHaveCount(2);
+    await savedList.getByRole('button', { name: 'More options' }).first().click({ force: true });
+    await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
+    await waitForHydration(page);
+    await expect(page.getByRole('heading', { name: 'Edit connection' })).toBeVisible();
+
+    // Most recently saved first.
+    return [second.accessKeyId, base.accessKeyId];
+  }
+
+  function sidebarConnection(page: Page, index: number) {
+    return page
+      .getByRole('list', { name: 'Saved connections' })
+      .getByRole('listitem')
+      .nth(index)
+      .getByRole('button')
+      .first();
+  }
+
+  async function deleteFromSidebar(page: Page, index: number) {
+    await page
+      .getByRole('list', { name: 'Saved connections' })
+      .getByRole('button', { name: 'More options' })
+      .nth(index)
+      .click({ force: true });
+    await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
+  }
+
+  test('switching connections loads the other connection without asking', async ({ page }) => {
+    const [firstKey, secondKey] = await openEditWithTwoConnections(page);
+    await expect(page.getByLabel('Access key')).toHaveValue(firstKey);
+    const firstUrl = page.url();
+
+    await sidebarConnection(page, 1).click();
+
+    await expect(page).not.toHaveURL(firstUrl);
+    await expect(page.getByLabel('Access key')).toHaveValue(secondKey);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
+    // The switch must not leave the form tainted.
+    await page.getByRole('link', { name: '← Manage connections' }).click();
+    await expect(page).toHaveURL('/settings/connections');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('switching connections with unsaved changes asks first', async ({ page }) => {
+    await openEditWithTwoConnections(page);
+    const firstUrl = page.url();
+
+    await page.getByLabel('Connection name').fill('Changed name');
+    await sidebarConnection(page, 1).click();
+
+    await expect(page.getByRole('heading', { name: 'Unsaved changes' })).toBeVisible();
+    await page.getByRole('dialog').getByRole('button', { name: 'Stay on page' }).click();
+    await expect(page).toHaveURL(firstUrl);
+    await expect(page.getByLabel('Connection name')).toHaveValue('Changed name');
+  });
+
+  test('sidebar delete with unsaved changes asks in the app before deleting', async ({ page }) => {
+    await openEditWithTwoConnections(page);
+    let deleteRequests = 0;
+    let nativeDialogs = 0;
+    page.on('request', (request) => {
+      if (request.url().endsWith('?/deleteConnection')) deleteRequests++;
+    });
+    page.on('dialog', (dialog) => {
+      nativeDialogs++;
+      void dialog.dismiss();
+    });
+
+    await page.getByLabel('Connection name').fill('Changed name');
+    await deleteFromSidebar(page, 1);
+
+    await expect(page.getByRole('heading', { name: 'Unsaved changes' })).toBeVisible();
+    await page.getByRole('button', { name: 'Stay on page' }).click();
+    await expect(page.getByRole('heading', { name: 'Unsaved changes' })).toBeHidden();
+    await expect(page).toHaveURL(/\/edit$/);
+    expect(deleteRequests).toBe(0);
+
+    await deleteFromSidebar(page, 1);
+    await page.getByRole('button', { name: 'Leave' }).click();
+
+    await expect(page).toHaveURL('/settings/connections');
+    await expect(page.locator('table tbody tr')).toHaveCount(1);
+    expect(deleteRequests).toBe(1);
+    expect(nativeDialogs).toBe(0);
+  });
+
+  test('sidebar delete without changes deletes without asking', async ({ page }) => {
+    await openEditWithTwoConnections(page);
+
+    await deleteFromSidebar(page, 1);
+
+    await expect(page).toHaveURL('/settings/connections');
+    await expect(page.getByRole('heading', { name: 'Unsaved changes' })).toHaveCount(0);
+    await expect(page.locator('table tbody tr')).toHaveCount(1);
+
+    // The sidebar on the next edit page no longer lists the deleted connection.
+    await openFirstConnectionEditPage(page);
+    await expect(
+      page.getByRole('list', { name: 'Saved connections' }).getByRole('listitem')
+    ).toHaveCount(1);
+  });
+
+  test('a failed sidebar delete shows the error and keeps the unsaved changes', async ({
+    page
+  }) => {
+    await openEditWithTwoConnections(page);
+    // An invalid ID makes the action fail.
+    await page.route(/\?\/deleteConnection$/, (route) =>
+      route.continue({ postData: 'connectionId=not-a-uuid' })
+    );
+
+    await page.getByLabel('Connection name').fill('Changed name');
+    await deleteFromSidebar(page, 1);
+    await page.getByRole('button', { name: 'Leave' }).click();
+
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'Connection not found.' })
+    ).toBeVisible();
+    await expect(page).toHaveURL(/\/edit$/);
+    await expect(page.getByLabel('Connection name')).toHaveValue('Changed name');
+
+    // The changes are still guarded.
+    await page.getByRole('link', { name: '← Manage connections' }).click();
+    await expect(page.getByRole('heading', { name: 'Unsaved changes' })).toBeVisible();
   });
 });

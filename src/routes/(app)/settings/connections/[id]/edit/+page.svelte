@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
   import { superForm } from 'sveltekit-superforms';
   import { zod4Client as zod } from 'sveltekit-superforms/adapters';
   import IconInfo from 'virtual:icons/material-symbols/info';
@@ -11,12 +12,16 @@
     EditStorageConnectionSchema,
     type StorageConnectionMessage
   } from '$lib/storage/schemas.js';
+  import { getConnectionEditGuard } from '$lib/storage/context.js';
 
   let { data } = $props();
 
   const uid = $props.id();
 
   let isActiveConnection = $derived(data.activeConnectionId === data.connectionId);
+
+  // Set when the sidebar's delete fails; a successful delete redirects.
+  const deleteError = $derived((page.form as { error?: string } | null)?.error ?? null);
 
   // Unsaved-changes guard: superforms asks before leaving a tainted form, the modal answers.
   let confirmLeaveOpen = $state(false);
@@ -34,7 +39,14 @@
     else closeLeaveDialog(false);
   }
 
-  const { form, errors, enhance, submitting, message } = superForm(
+  function askLeave(): Promise<boolean> {
+    return new Promise<boolean>((settle) => {
+      answerLeave = settle;
+      confirmLeaveOpen = true;
+    });
+  }
+
+  const { form, errors, enhance, submitting, message, tainted, isTainted } = superForm(
     untrack(() => data.editForm),
     {
       dataType: 'json',
@@ -43,11 +55,7 @@
       resetForm: false,
       // A successful save navigates away, so reloading this page's data would be wasted.
       invalidateAll: false,
-      taintedMessage: () =>
-        new Promise<boolean>((settle) => {
-          answerLeave = settle;
-          confirmLeaveOpen = true;
-        }),
+      taintedMessage: askLeave,
       onUpdated({ form }) {
         if ((form.message as StorageConnectionMessage | undefined)?.type === 'success') {
           void goto(resolve('/settings/connections'));
@@ -59,6 +67,24 @@
       }
     }
   );
+
+  // A sidebar delete navigates away: ask before it is sent, then drop the changes so the
+  // redirect does not ask again. A failed delete brings them back.
+  const editGuard = getConnectionEditGuard();
+  let discardedChanges: Parameters<typeof tainted.set>[0] = undefined;
+  editGuard.confirmDiscard = async () => {
+    if (!isTainted()) return true;
+    const leave = await askLeave();
+    if (leave) {
+      discardedChanges = $tainted;
+      tainted.set(undefined);
+    }
+    return leave;
+  };
+  editGuard.restoreChanges = () => {
+    if (discardedChanges) tainted.set(discardedChanges);
+    discardedChanges = undefined;
+  };
 
   function parseHostInput() {
     const v = $form.host?.trim();
@@ -90,6 +116,10 @@
 </Modal>
 
 <h2 class="mb-1 text-xl font-semibold">{m.storage_connection_edit_title()}</h2>
+
+{#if deleteError}
+  <div role="alert" class="alert alert-error mb-4 text-sm">{deleteError}</div>
+{/if}
 
 {#if isActiveConnection}
   <div role="note" class="alert alert-info mb-4 flex gap-2">

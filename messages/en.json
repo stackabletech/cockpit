@@ -167,6 +167,7 @@
   "storage_connect_error_network": "Could not reach the storage backend — check the host and port.",
   "storage_connect_error_hdfs": "HDFS connections are not yet supported.",
   "storage_connect_save_failed": "Could not save the connection. Please try again.",
+  "storage_connect_activate_failed": "The connection was saved but could not be activated. Reload the page and select it from the saved connections.",
   "storage_connect_host_required": "Host is required",
   "storage_connect_host_invalid": "Host must be a valid hostname or IP address",
   "storage_connect_port_invalid": "Port must be a whole number between 1 and 65535",
