@@ -7,7 +7,6 @@
   import IconMenu from 'virtual:icons/material-symbols/menu';
   import IconPanelClose from 'virtual:icons/material-symbols/left-panel-close-outline';
   import IconPanelOpen from 'virtual:icons/material-symbols/left-panel-open-outline';
-  import IconExpandMore from 'virtual:icons/material-symbols/expand-more';
   import IconOpenInNew from 'virtual:icons/material-symbols/open-in-new';
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
@@ -33,6 +32,7 @@
   } from '$lib/editor/split-statements.js';
   import type { PageData } from './$types';
   import StatementResult from '$lib/components/trino/StatementResult.svelte';
+  import RunButton, { type RunMode } from '$lib/components/trino/RunButton.svelte';
   import { getLocale } from '$lib/paraglide/runtime.js';
 
   let { data }: { data: PageData } = $props();
@@ -303,7 +303,6 @@
 
   const hasSelection = $derived(monacoEditor?.getSelection() != null);
 
-  type RunMode = 'cursor' | 'all';
   let runMode = $state<RunMode>('cursor');
 
   function handleRun() {
@@ -319,28 +318,12 @@
     }
   }
 
-  function selectRunMode(mode: RunMode) {
-    runMode = mode;
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-  }
-
-  const runButtonLabel = $derived.by(() => {
-    if (runMode === 'all') {
-      return hasSelection ? m.trino_run_selected() : m.trino_run_all();
-    }
-    return m.trino_run_at_cursor();
-  });
-
   // Clear submitted statements when the user edits, so highlighting stops.
   const highlightOffsets = $derived.by(() => {
     const progress = runner.scriptProgress;
     if (!progress || progress.totalStatements <= 1 || isTerminal(runner.state)) return null;
     return submittedStatements[progress.currentStatementIndex] ?? null;
   });
-
-  const runShortcutLabel = $derived(runMode === 'cursor' ? 'Ctrl+↵' : 'Ctrl+Shift+↵');
 
   function handleKeydown(event: KeyboardEvent) {
     // Monaco handles its own keybindings — skip if the event originated from the editor.
@@ -682,91 +665,13 @@
               {m.trino_cancel_query()}
             </button>
           {/if}
-          {#snippet runOption(label: string, shortcut: string)}
-            <span class="flex flex-col items-start text-xs font-semibold">
-              <span>{label}</span>
-              <kbd class="kbd kbd-xs text-base-content opacity-60">{shortcut}</kbd>
-            </span>
-          {/snippet}
-
-          <div class="dropdown dropdown-end">
-            <div class="join">
-              <button
-                type="button"
-                class="btn join-item btn-primary py-1.5"
-                disabled={isActive || !editorReady}
-                aria-label={runButtonLabel}
-                onclick={handleRun}
-              >
-                {#if isActive}
-                  <span class="loading loading-xs loading-spinner"></span>
-                  {m.trino_running()}
-                {:else}
-                  <span
-                    class="
-                      grid
-                      *:[grid-area:1/1]
-                    "
-                  >
-                    <!-- Invisible sizers: longest option sets width -->
-                    <span class="invisible" aria-hidden="true">
-                      {@render runOption(m.trino_run_at_cursor(), 'Ctrl+Shift+↵')}
-                    </span>
-                    <span class="invisible" aria-hidden="true">
-                      {@render runOption(
-                        hasSelection ? m.trino_run_selected() : m.trino_run_all(),
-                        'Ctrl+Shift+↵'
-                      )}
-                    </span>
-                    {@render runOption(runButtonLabel, runShortcutLabel)}
-                  </span>
-                {/if}
-              </button>
-              <button
-                type="button"
-                class="
-                  btn join-item border-l-primary-content/20 btn-primary
-                  tooltip tooltip-bottom z-150 self-stretch border-l px-2 before:z-200
-                "
-                data-tip={m.trino_run_mode_select()}
-                class:pointer-events-none={isActive}
-                aria-haspopup="true"
-                aria-label={m.trino_run_mode_select()}
-              >
-                <IconExpandMore class="size-3" aria-hidden="true" />
-              </button>
-            </div>
-            <div
-              class="
-                dropdown-content rounded-box bg-primary text-primary-content z-10 mt-1 flex
-                w-full flex-col gap-1 p-1.5 shadow-lg
-              "
-            >
-              <button
-                type="button"
-                class="
-                  rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
-                  text-left
-                  {runMode === 'cursor' ? 'bg-primary-content/15' : ''}"
-                onclick={() => selectRunMode('cursor')}
-              >
-                {@render runOption(m.trino_run_at_cursor(), 'Ctrl+↵')}
-              </button>
-              <button
-                type="button"
-                class="
-                  rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
-                  text-left
-                  {runMode === 'all' ? 'bg-primary-content/15' : ''}"
-                onclick={() => selectRunMode('all')}
-              >
-                {@render runOption(
-                  hasSelection ? m.trino_run_selected() : m.trino_run_all(),
-                  'Ctrl+Shift+↵'
-                )}
-              </button>
-            </div>
-          </div>
+          <RunButton
+            bind:runMode
+            {hasSelection}
+            {isActive}
+            disabled={!editorReady}
+            onRun={handleRun}
+          />
         </div>
       </div>
       <div class="h-64 px-4 py-2">

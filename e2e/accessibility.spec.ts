@@ -52,6 +52,14 @@ for (const theme of THEMES) {
       await expectNoViolations(page);
     });
 
+    test('Trino run mode menu open', async ({ page }) => {
+      await page.goto('/trino');
+      await waitForHydration(page);
+      await page.getByRole('button', { name: 'Select run mode' }).click();
+      await expect(page.getByRole('menu', { name: 'Select run mode' })).toBeVisible();
+      await expectNoViolations(page);
+    });
+
     test('Trino editor with two tabs', async ({ page }) => {
       await setTabState(page, [{ sql: 'SELECT 1' }, { sql: 'SELECT 2' }]);
       await page.goto('/trino');

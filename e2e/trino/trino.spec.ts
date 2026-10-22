@@ -45,6 +45,23 @@ test.describe('Trino query editor', () => {
     await expect(page.getByRole('table', { name: 'Query results' })).toBeVisible();
   });
 
+  test('run mode menu switches to Run all with the keyboard', async ({ page }) => {
+    const toggle = page.getByRole('button', { name: 'Select run mode' });
+    await toggle.focus();
+    await page.keyboard.press('ArrowDown');
+
+    const menu = page.getByRole('menu', { name: 'Select run mode' });
+    await expect(menu).toBeVisible();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+
+    await expect(menu).toBeHidden();
+    await expect(toggle).toBeFocused();
+    await page.getByRole('button', { name: 'Run all', exact: true }).click();
+    await waitForQueryComplete(page);
+    await expect(page.getByRole('table', { name: 'Query results' })).toBeVisible();
+  });
+
   test('query error is shown in an alert', async ({ page }) => {
     await setTabSql(page, 'SHOULD_ERROR');
     await page.goto('/trino');
