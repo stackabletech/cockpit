@@ -270,7 +270,7 @@
         class="group has-[:focus-visible]:ring-primary flex max-w-56 shrink-0 items-center rounded-t-lg border-x border-t transition-colors has-[:focus-visible]:ring-2
           {isActive
           ? 'border-base-300 bg-base-100 text-base-content'
-          : 'bg-base-200/50 text-base-content/60 hover:bg-base-200 hover:text-base-content/80 border-transparent'}
+          : 'bg-base-200/50 text-muted hover:bg-base-200 hover:text-base-content border-transparent'}
           {isDragOver ? 'ring-primary ring-2' : ''}
           {dragFromIndex === index ? 'opacity-50' : ''}"
       >

@@ -63,9 +63,7 @@
     <FileIconAndName {file} />
   </td>
   <td class="text-right font-mono text-sm">{formatFileSize(file.size)}</td>
-  <td class="text-base-content/60 text-sm"
-    ><TimestampDisplay date={file.lastModified} relative /></td
-  >
+  <td class="text-muted text-sm"><TimestampDisplay date={file.lastModified} relative /></td>
   <td class="w-10 py-0 pr-2 text-right">
     <div class="tooltip tooltip-left" data-tip={m.storage_context_menu_actions()}>
       <button

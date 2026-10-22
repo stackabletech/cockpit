@@ -124,7 +124,7 @@
 
 {#if !loaded}
   <div class="flex items-center justify-center py-12">
-    <span class="loading loading-spinner loading-md text-base-content/40"></span>
+    <span class="loading loading-spinner loading-md text-muted"></span>
   </div>
 {:else}
   {#if isActiveConnection}
@@ -153,7 +153,7 @@
       {#if $errors?.name}
         <p class="text-error mt-1 text-xs">{$errors.name}</p>
       {/if}
-      <p class="text-base-content/50 mt-1 text-xs">{m.storage_connection_edit_name_hint()}</p>
+      <p class="text-muted mt-1 text-xs">{m.storage_connection_edit_name_hint()}</p>
     </div>
 
     <input type="hidden" name="type" value={$form.type} />
@@ -192,7 +192,7 @@
         placeholder={m.storage_connect_port_placeholder()}
         bind:value={$form.port}
       />
-      <p class="text-base-content/50 mt-1 text-xs">{m.storage_connect_port_hint()}</p>
+      <p class="text-muted mt-1 text-xs">{m.storage_connect_port_hint()}</p>
       {#if $errors?.port}
         <p class="text-error mt-1 text-xs">{$errors.port}</p>
       {/if}
@@ -204,7 +204,7 @@
         <label for="{uid}-tls" class="label text-sm font-medium">
           {m.storage_connect_tls()}
         </label>
-        <p class="text-base-content/50 mt-0.5 text-xs">{m.storage_connect_tls_hint()}</p>
+        <p class="text-muted mt-0.5 text-xs">{m.storage_connect_tls_hint()}</p>
       </div>
       <input
         id="{uid}-tls"
@@ -223,7 +223,7 @@
           <label for="{uid}-tls-verification" class="label text-sm font-medium">
             {m.storage_connect_tls_verification()}
           </label>
-          <p class="text-base-content/50 mt-0.5 text-xs">
+          <p class="text-muted mt-0.5 text-xs">
             {m.storage_connect_tls_verification_hint()}
           </p>
         </div>
@@ -303,7 +303,7 @@
         autocomplete="current-password"
         bind:value={$form.credentials.secretKey}
       />
-      <p class="text-base-content/50 mt-1 text-xs">
+      <p class="text-muted mt-1 text-xs">
         {m.storage_connection_edit_credentials_hint()}
       </p>
       {#if $errors?.credentials?.secretKey}

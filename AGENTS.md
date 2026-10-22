@@ -52,7 +52,8 @@ When introducing shortcuts, known issues, or deferred security work, file an iss
 
 ### CSS & Styling
 
-- **All UI must work in both light and dark mode automatically.** Never use hard-coded colours (e.g., `text-gray-700`, `bg-white`, `border-slate-200`). Always use DaisyUI semantic colour classes (`text-base-content`, `bg-base-100`, `bg-base-200`, `border-base-300`, `text-primary`, `bg-error`, etc.) and Tailwind opacity modifiers on those classes (`text-base-content/60`, `bg-primary/10`) so that colours adapt to the active theme.
+- **All UI must work in both light and dark mode automatically.** Never use hard-coded colours (e.g., `text-gray-700`, `bg-white`, `border-slate-200`). Always use DaisyUI semantic colour classes (`text-base-content`, `bg-base-100`, `bg-base-200`, `border-base-300`, `text-primary`, `bg-error`, etc.) and Tailwind opacity modifiers on those classes (`text-base-content/80`, `bg-primary/10`) so that colours adapt to the active theme.
+- **Secondary text uses `text-muted`** (defined in `src/app.css`), never `text-base-content` at 60% opacity or less, and never `text-muted` with an opacity: those fail the 4.5:1 contrast ratio in the light theme. `aria-hidden` is no exemption, sighted users still read hidden text. Lower opacities are only allowed on `aria-hidden` icon components that duplicate adjacent text; icons that show a state (e.g. an expand chevron) need 3:1 and also use `text-muted` (enforced by `npm run test:arch`).
 - **All pages and components must be mobile-friendly.** Use responsive Tailwind breakpoints (`sm:`, `md:`, `lg:`) and test layouts at mobile viewport widths. Navigation must be accessible on small screens.
 - Use Tailwind v4 `@source` directive for component CSS scanning
 

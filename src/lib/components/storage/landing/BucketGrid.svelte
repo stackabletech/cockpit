@@ -100,5 +100,5 @@
     {/each}
   </div>
 {:else}
-  <p class="text-base-content/50 text-sm">{m.storage_buckets_empty()}</p>
+  <p class="text-muted text-sm">{m.storage_buckets_empty()}</p>
 {/if}

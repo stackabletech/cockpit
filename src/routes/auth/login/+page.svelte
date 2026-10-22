@@ -41,7 +41,7 @@
       </div>
 
       <h1 class="card-title text-2xl">{m.auth_login_title()}</h1>
-      <p class="text-base-content/60 text-sm">{m.auth_login_subtitle()}</p>
+      <p class="text-muted text-sm">{m.auth_login_subtitle()}</p>
 
       {#if error}
         <div role="alert" class="alert alert-error mt-2 w-full text-sm">

@@ -113,10 +113,7 @@
 
 {#if session.status !== 'idle'}
   <section class="mt-4">
-    <div
-      aria-live="polite"
-      class="text-base-content/60 mb-2 flex items-center justify-between gap-3 text-xs"
-    >
+    <div aria-live="polite" class="text-muted mb-2 flex items-center justify-between gap-3 text-xs">
       <span
         >{session.status === 'running'
           ? m.storage_search_searching()
@@ -144,7 +141,7 @@
       <p class="alert alert-warning mt-2 text-sm" role="alert">{failureMessage}</p>
     {/if}
     {#if session.status === 'done' && session.results.length === 0}<p
-        class="text-base-content/50 py-8 text-center text-sm"
+        class="text-muted py-8 text-center text-sm"
       >
         {m.storage_search_no_results()}
       </p>{/if}
@@ -208,13 +205,13 @@
                       onOpen(result);
                     }}
                     ><span class="block font-mono font-medium">{keyToName(result.key)}</span><span
-                      class="text-base-content/50 block font-mono text-xs">{result.key}</span
+                      class="text-muted block font-mono text-xs">{result.key}</span
                     ></button
                   ></td
                 ><td><span class="badge badge-ghost badge-sm font-mono">{result.bucket}</span></td
-                ><td class="text-base-content/60 font-mono text-xs"
+                ><td class="text-muted font-mono text-xs"
                   >{result.isDirectory ? '-' : formatFileSize(result.size)}</td
-                ><td class="text-base-content/60 font-mono text-xs"
+                ><td class="text-muted font-mono text-xs"
                   ><TimestampDisplay date={result.lastModified} tooltip="tooltip-left" /></td
                 ></tr
               >{/each}</tbody

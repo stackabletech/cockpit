@@ -394,7 +394,7 @@
         class="border-base-300 flex items-center justify-between border-b px-3 py-2"
         style="width: {catalogResize.width}px"
       >
-        <span class="text-base-content/60 text-sm font-medium">{m.trino_catalog_browser()}</span>
+        <span class="text-muted text-sm font-medium">{m.trino_catalog_browser()}</span>
       </div>
       <div class="min-h-0 flex-1" style="width: {catalogResize.width}px">
         <CatalogBrowser
@@ -418,7 +418,7 @@
           border-base-300 flex items-center justify-between border-b px-3 py-2
         "
       >
-        <span class="text-base-content/60 text-sm font-medium">{m.trino_catalog_browser()}</span>
+        <span class="text-muted text-sm font-medium">{m.trino_catalog_browser()}</span>
         <button
           class="btn btn-ghost btn-xs"
           onclick={() => (mobileCatalogOpen = false)}
@@ -461,7 +461,7 @@
             "
           >
             <span>{m.trino_connection_label()}</span>
-            <span class="text-base-content/50 font-mono text-xs">{connectionSummary}</span>
+            <span class="text-muted font-mono text-xs">{connectionSummary}</span>
           </div>
           <div class="collapse-content flex flex-col gap-4">
             <!-- URL -->
@@ -645,7 +645,7 @@
               {/if}
             </button>
           </div>
-          <span class="text-base-content/60 text-sm font-medium">{m.trino_editor_label()}</span>
+          <span class="text-muted text-sm font-medium">{m.trino_editor_label()}</span>
           {#if charLimitReached}
             <span class="text-warning text-xs" role="status"
               >{m.trino_editor_char_limit_reached({
@@ -698,7 +698,7 @@
           data-query-state={runner.state}
         >
           {#if runner.scriptProgress}
-            <span class="text-base-content/60 text-xs font-medium">
+            <span class="text-muted text-xs font-medium">
               {m.trino_script_progress({
                 current: runner.scriptProgress.currentStatementIndex + 1,
                 total: runner.scriptProgress.totalStatements
@@ -723,7 +723,7 @@
             <span class="text-error text-xs" role="alert">{runner.error}</span>
           {/if}
           {#if runner.state === 'RUNNING'}
-            <span class="text-base-content/60 text-xs tabular-nums"
+            <span class="text-muted text-xs tabular-nums"
               >{Math.round(runner.progress.progressPercentage)}%</span
             >
             <progress
@@ -734,7 +734,7 @@
             ></progress>
           {/if}
           {#if runner.progress.processedRows > 0 || runner.progress.elapsedTimeMillis > 0}
-            <span class="text-base-content/60 text-xs">
+            <span class="text-muted text-xs">
               {m.trino_progress_info({
                 rows: runner.progress.processedRows.toLocaleString(getLocale()),
                 elapsed: (runner.progress.elapsedTimeMillis / 1000).toFixed(1)
@@ -757,7 +757,7 @@
 
       <!-- Results section -->
       <div class="border-base-300 flex items-center border-t px-4 py-2">
-        <span class="text-base-content/60 text-sm font-medium">{m.trino_results_label()}</span>
+        <span class="text-muted text-sm font-medium">{m.trino_results_label()}</span>
       </div>
 
       <div class="min-h-0 flex-1 overflow-auto">
@@ -766,7 +766,7 @@
             <StatementResult {result} index={idx} totalStatements={runner.results.length} />
           {/each}
         {:else if !isActive}
-          <p class="text-base-content/40 py-8 text-center text-sm">{m.trino_results_empty()}</p>
+          <p class="text-muted py-8 text-center text-sm">{m.trino_results_empty()}</p>
         {/if}
       </div>
     </div>

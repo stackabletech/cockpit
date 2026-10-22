@@ -98,7 +98,7 @@
       {@render skeletonRows()}
     </div>
   {:else if isEmpty}
-    <p class="text-base-content/40 px-4 py-8 text-center text-sm">{emptyMessage}</p>
+    <p class="text-muted px-4 py-8 text-center text-sm">{emptyMessage}</p>
   {:else}
     <div class="overflow-x-auto">
       {@render tableContent()}
@@ -133,15 +133,15 @@
                 fileHref(storage.connectionHostname, file)
               )}
               data-sveltekit-preload-data="off"
-              class="text-base-content/60 hover:text-primary truncate text-xs"
+              class="text-muted hover:text-primary truncate text-xs"
             >
               {fileLocation(file)}
             </a>
           </td>
-          <td class="text-base-content/60 text-xs whitespace-nowrap">
+          <td class="text-muted text-xs whitespace-nowrap">
             {formatFileSize(file.size)}
           </td>
-          <td class="text-base-content/50 text-xs whitespace-nowrap">
+          <td class="text-muted text-xs whitespace-nowrap">
             <TimestampDisplay date={file.visitedAt} relative tooltip="tooltip-left" />
           </td>
           <td>
@@ -213,12 +213,12 @@
                 locationHref(storage.connectionHostname, loc)
               )}
               data-sveltekit-preload-data="off"
-              class="text-base-content/60 hover:text-primary truncate text-xs"
+              class="text-muted hover:text-primary truncate text-xs"
             >
               {locationPath(loc)}
             </a>
           </td>
-          <td class="text-base-content/50 text-xs whitespace-nowrap">
+          <td class="text-muted text-xs whitespace-nowrap">
             <TimestampDisplay date={loc.visitedAt} relative tooltip="tooltip-left" />
           </td>
           <td>
