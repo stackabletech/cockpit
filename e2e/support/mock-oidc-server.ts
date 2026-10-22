@@ -23,10 +23,29 @@ export async function startMockOidc(): Promise<string> {
 
   // Map sub → profile claims so the userinfo endpoint can look them up
   // from the access token instead of relying on shared mutable state.
-  const users = new Map<string, { name: string; email: string; preferred_username: string }>();
+  type Profile = { name: string; email: string; preferred_username: string };
+  const users = new Map<string, Profile>();
+
+  // A test can log in as a fixed user with chosen claims by setting the
+  // `mock_oidc_user` cookie (JSON `{ sub, ...profile }`) before signing in.
+  // The authorise request carries the cookie; the token request only the code.
+  const fixedUsers = new Map<string, { sub: string } & Profile>();
+  server.service.on('beforeAuthorizeRedirect', ({ url }, req) => {
+    const cookie = (req.headers.cookie ?? '').match(/(?:^|;\s*)mock_oidc_user=([^;]+)/)?.[1];
+    const code = url.searchParams.get('code');
+    if (cookie && code) fixedUsers.set(code, JSON.parse(decodeURIComponent(cookie)));
+  });
 
   // Add OIDC profile claims to every issued token
-  server.service.on('beforeTokenSigning', (token) => {
+  server.service.on('beforeTokenSigning', (token, req) => {
+    const fixed = fixedUsers.get((req.body as { code?: string }).code ?? '');
+    if (fixed) {
+      const { sub, ...profile } = fixed;
+      users.set(sub, profile);
+      token.payload.sub = sub;
+      Object.assign(token.payload, profile);
+      return;
+    }
     userCounter++;
     const sub = `mock-user-${String(userCounter).padStart(3, '0')}`;
     const profile = {

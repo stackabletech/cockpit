@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { resolveTrinoClient, trinoMetadataQuery } from '$lib/server/trino/client.js';
-import { getUserId } from '$lib/server/auth-utils.js';
+import { getTrinoUser, getUserId } from '$lib/server/auth-utils.js';
 import { quoteIdentifier, quoteStringLiteral } from '$lib/editor/identifiers.js';
 import type { RequestHandler } from './$types';
 
@@ -14,7 +14,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     error(400, 'No Trino connection configured');
   }
 
-  const user = locals.user?.username ?? 'anonymous';
+  const user = getTrinoUser(locals);
   const level = url.searchParams.get('level');
   const catalog = url.searchParams.get('catalog');
   const schema = url.searchParams.get('schema');
