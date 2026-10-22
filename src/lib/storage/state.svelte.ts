@@ -12,6 +12,7 @@ import type {
   StorageOperation
 } from '$lib/storage/types.js';
 import { initPageSize, type PageSize } from '$lib/types/pagination.js';
+import { randomUUID } from '$lib/utils/uuid.js';
 import {
   defaultPageSize,
   storageCutCopyEnabled,
@@ -275,7 +276,7 @@ export class StorageState {
   async redownloadHistory(manifestId: string, keys: string[]): Promise<void> {
     const entry = this.downloadHistory.find((candidate) => candidate.id === manifestId);
     const selectedEntries = entry ? entry.entries.filter((item) => keys.includes(item.key)) : [];
-    const operationId = crypto.randomUUID();
+    const operationId = randomUUID();
     const controller = new AbortController();
     this.operations_.startOp(
       operationId,
@@ -562,7 +563,7 @@ export class StorageState {
         for (const f of downloadItems) {
           this.bookmarks.recordFileVisit(this.bucket, f.key, f.size);
         }
-        const operationId = crypto.randomUUID();
+        const operationId = randomUUID();
         try {
           if (!connectionStore.activeConnectionId) {
             addToast('error', m.storage_download_error_unknown());

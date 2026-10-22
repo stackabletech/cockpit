@@ -6,6 +6,7 @@
 import { tick } from 'svelte';
 import * as m from '$lib/paraglide/messages.js';
 import { addToast } from '$lib/stores/toast.svelte.js';
+import { randomUUID } from '$lib/utils/uuid.js';
 import type { StorageApi } from './api.js';
 import type { OperationsState } from './operations.svelte.js';
 import type { OperationType } from './types.js';
@@ -168,8 +169,8 @@ async function waitForJob(api: StorageApi, jobId: string): Promise<TransferItemR
  */
 export async function runTransfer(options: RunTransferOptions): Promise<ItemOutcome[]> {
   const { api, operations, body } = options;
-  const opId = crypto.randomUUID();
-  const jobId = crypto.randomUUID();
+  const opId = randomUUID();
+  const jobId = randomUUID();
   const sourceNames = body.items.map((item) => keyToName(item.sourceKey));
 
   operations.startOp(

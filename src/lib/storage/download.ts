@@ -1,3 +1,4 @@
+import { randomUUID } from '$lib/utils/uuid.js';
 import type { StorageApi } from './api.js';
 
 /**
@@ -50,7 +51,7 @@ export async function triggerManifestDownloads(
   const jobIds: string[] = [];
   for (const file of manifest.files) {
     signal?.throwIfAborted();
-    const jobId = crypto.randomUUID();
+    const jobId = randomUUID();
     jobIds.push(jobId);
     onJobIds?.([...jobIds]);
     await triggerDownload(manifest.id, file.part, file.filename, jobId);

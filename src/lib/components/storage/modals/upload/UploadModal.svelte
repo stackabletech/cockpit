@@ -15,6 +15,7 @@
   import { formatFileSize, keyToName } from '$lib/storage/utils.js';
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { uploadConcurrency } from '$lib/client/feature-flags.js';
+  import { randomUUID } from '$lib/utils/uuid.js';
   import UploadDropzone from './UploadDropzone.svelte';
   import UploadEntryStatus from './UploadEntryStatus.svelte';
   import ConflictEntry from '../shared/ConflictEntry.svelte';
@@ -102,7 +103,7 @@
 
   function makeEntries(pairs: { file: File; relativePath: string }[]): FileEntry[] {
     return pairs.map(({ file, relativePath }) => ({
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       file,
       displayPath: relativePath,
       targetKey: buildTargetKey(relativePath),
