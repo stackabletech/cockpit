@@ -21,9 +21,9 @@ vi.mock('$lib/server/feature-flags.js', () => ({
   get storageMoveEnabled() {
     return flags.move;
   },
-  storageRenameEnabled: true,
-  storageTransferConcurrency: 2
+  storageRenameEnabled: true
 }));
+vi.mock('$lib/server/storage/config.js', () => ({ storageTransferConcurrency: 2 }));
 vi.mock('$lib/server/storage/request-context.js', () => ({
   createStorageProviderForBucket: (_event: unknown, bucket: string) =>
     state.wrap(memoryProvider(state.store, bucket))

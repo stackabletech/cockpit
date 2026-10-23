@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 import { createStorageProviderForBucket } from '$lib/server/storage/request-context.js';
-import { storageTransferConcurrency } from '$lib/server/feature-flags.js';
+import { storageTransferConcurrency } from '$lib/server/storage/config.js';
 import { requireTransferAllowed, requireValidTransfer } from '$lib/server/storage/transfer/http.js';
 import {
   resolveItems,

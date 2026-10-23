@@ -11,11 +11,11 @@ import { compressors } from 'hyparquet-compressors';
 import type pino from 'pino';
 import { logger } from '$lib/server/logging';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
+import { infiniteScrollEnabled } from '$lib/server/feature-flags';
 import {
   parquetDisallowedCompression,
-  infiniteScrollEnabled,
   type ParquetDisallowedCompression
-} from '$lib/server/feature-flags';
+} from '$lib/server/storage/config.js';
 import { ExpiringCache, objectVersion, previewCacheKey, type ObjectVersionInfo } from './cache.js';
 
 const fallbackLog = logger.child({ module: 'parquet-preview' });

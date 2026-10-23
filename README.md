@@ -92,6 +92,7 @@ docker run -p 3000:3000 cockpit:0.0.0-dev
 
 The application is configured via environment variables.
 Create a `.env` file at the project root, or set them in your deployment environment.
+Invalid values (e.g. `abc` for an integer) stop the server at startup with an error that names the invalid variables.
 
 ### Feature Flags
 
@@ -115,9 +116,9 @@ Create a `.env` file at the project root, or set them in your deployment environ
 
 ### Storage Transfers
 
-| Variable                                         | Type      | Default | Description                                                                                                                                                                                                           | Example                                            |
-| ------------------------------------------------ | --------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY` | `integer` | `8`     | Objects copied at once within one copy, move or rename request. Copies run server-side in the storage backend (S3 CopyObject); no data streams through the app. A missing or invalid value falls back to the default. | `STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY=4` |
+| Variable                                         | Type      | Default | Description                                                                                                                                                     | Example                                            |
+| ------------------------------------------------ | --------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY` | `integer` | `8`     | Objects copied at once within one copy, move or rename request. Copies run server-side in the storage backend (S3 CopyObject); no data streams through the app. | `STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY=4` |
 
 ### Request Body Size
 

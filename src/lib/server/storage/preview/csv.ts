@@ -1,6 +1,7 @@
 import type pino from 'pino';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
-import { textPreviewBytes, infiniteScrollEnabled } from '$lib/server/feature-flags.js';
+import { infiniteScrollEnabled } from '$lib/server/feature-flags.js';
+import { textPreviewBytes } from '$lib/server/storage/config.js';
 import { logger } from '$lib/server/logging';
 import { ExpiringCache, objectVersion, previewCacheKey } from './cache.js';
 

@@ -24,7 +24,8 @@
   import { StorageError } from '$lib/storage/errors.js';
   import { decodePreviewText } from '$lib/storage/text-decode.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
-  import { maxEditableFileSize, infiniteScrollEnabled } from '$lib/client/feature-flags.js';
+  import { maxEditableFileSize } from '$lib/client/config.js';
+  import { infiniteScrollEnabled } from '$lib/client/feature-flags.js';
   import { getStorageState } from '$lib/storage/context.js';
 
   interface Props {

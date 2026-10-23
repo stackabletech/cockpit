@@ -24,16 +24,17 @@ const flags = vi.hoisted(() => ({ infiniteScrollEnabled: false }));
 vi.mock('$lib/server/feature-flags', () => ({
   get infiniteScrollEnabled() {
     return flags.infiniteScrollEnabled;
-  },
+  }
+}));
+
+vi.mock('$lib/server/storage/config.js', () => ({
   filePreviewRows: 250,
   textPreviewBytes: 262144,
   imagePreviewBytes: 5242880,
   pdfPreviewBytes: 26214400,
-  archivePreviewMaxBytes: 104857600,
+  filePreviewColumns: 50,
   maxEditableFileSize: 5242880,
-  parquetDisallowedCompression: [],
-  completionEnabled: true,
-  storageBrowserEnabled: true
+  parquetDisallowedCompression: []
 }));
 
 vi.mock('$lib/server/storage/preview/csv.js', () => ({

@@ -177,8 +177,8 @@ export default defineConfig(
             {
               target: './src/lib/server',
               from: './src/lib/client',
-              // The server re-exports the PUBLIC_ flags it enforces, so each is parsed once.
-              except: ['./feature-flags.ts'],
+              // The server re-exports the PUBLIC_ flags and config it enforces, so each is parsed once.
+              except: ['./feature-flags.ts', './config.ts'],
               message: 'Server code must not import client-only utilities.'
             },
             {

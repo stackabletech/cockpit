@@ -12,8 +12,8 @@ import type {
   StorageOperation
 } from '$lib/storage/types.js';
 import { initPageSize, type PageSize } from '$lib/types/pagination.js';
+import { defaultPageSize } from '$lib/client/config.js';
 import {
-  defaultPageSize,
   storageCutCopyEnabled,
   storagePasteEnabled,
   storageRenameEnabled

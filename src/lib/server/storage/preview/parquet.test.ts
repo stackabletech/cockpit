@@ -19,14 +19,10 @@ vi.mock('hyparquet-compressors', () => ({
 vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 vi.mock('$lib/server/feature-flags', () => ({
-  parquetDisallowedCompression: [{ codec: 'GZIP', requireOffsetIndex: true }],
-  storageBrowserEnabled: true,
-  completionEnabled: true,
-  filePreviewRows: 250,
-  textPreviewBytes: 256 * 1024,
-  imagePreviewBytes: 5 * 1024 * 1024,
-  pdfPreviewBytes: 25 * 1024 * 1024,
   infiniteScrollEnabled: true
+}));
+vi.mock('$lib/server/storage/config.js', () => ({
+  parquetDisallowedCompression: [{ codec: 'GZIP', requireOffsetIndex: true }]
 }));
 
 import { getParquetPreview } from './parquet.js';

@@ -7,7 +7,8 @@ import { getCsvPreview } from '$lib/server/storage/preview/csv';
 import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
 import { createStorageProvider, requireObjectKey } from '$lib/server/storage/request-context.js';
-import { infiniteScrollEnabled, filePreviewRows } from '$lib/server/feature-flags';
+import { infiniteScrollEnabled } from '$lib/server/feature-flags';
+import { filePreviewRows } from '$lib/server/storage/config.js';
 import { PREVIEW_CHUNK_ROWS } from '$lib/storage/types.js';
 import type { RequestHandler } from './$types';
 

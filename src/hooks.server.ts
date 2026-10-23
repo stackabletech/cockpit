@@ -10,6 +10,9 @@ import { requestLogger, logger } from '$lib/server/logging';
 import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
+// Imported for its side effect: parses the storage and PUBLIC_ client config at
+// startup, so invalid values stop the server instead of failing the first request.
+import '$lib/server/storage/config.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
 import { runMigrations } from '$lib/server/migrate.js';
 
