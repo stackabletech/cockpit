@@ -4,12 +4,7 @@ import { vi, beforeEach } from 'vitest';
 // SvelteKit $env/dynamic/public virtual module, which is undefined in the
 // Vitest browser environment. Values match the production defaults.
 vi.mock('$lib/client/feature-flags.js', () => ({
-  storageRestoreTabsEnabled: false,
-  infiniteScrollEnabled: true,
-  storageCutCopyEnabled: false,
-  storagePasteEnabled: false,
-  storageRenameEnabled: false,
-  storageMoveEnabled: false
+  storageTransferEnabled: false
 }));
 vi.mock('$lib/client/config.js', () => ({
   allowedPageSizes: [25, 50, 100],

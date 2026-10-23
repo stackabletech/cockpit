@@ -26,21 +26,7 @@ export const completionEnabled = flags.STACKABLE_COCKPIT_COMPLETION_ENABLED;
  *  credentials and the file-browser UI. */
 export const storageBrowserEnabled = flags.STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED;
 
-// ── Flags shared with the client ─────────────────────────────────────────────
-//
-// These are `PUBLIC_` flags that the server enforces too. They are defined
-// once in `$lib/client/feature-flags` so both sides parse them identically.
-//
-// Context actions: server-side enforcement (cost control, not authorisation) on
-// `POST /api/storage/transfer` and its `/plan`, by the request's `op`:
-// - `copy` requires paste.
-// - `move` requires move or paste, because drag-and-drop and cut-and-paste
-//   both move.
-// - `rename` requires rename.
-// Cut/copy only fill the client clipboard and have no endpoint of their own.
-export {
-  infiniteScrollEnabled,
-  storagePasteEnabled,
-  storageRenameEnabled,
-  storageMoveEnabled
-} from '$lib/client/feature-flags.js';
+// Shared with the client and enforced by `POST /api/storage/transfer` and its
+// `/plan`. Cut and copy only fill the client clipboard and have no endpoint of
+// their own.
+export { storageTransferEnabled } from '$lib/client/feature-flags.js';

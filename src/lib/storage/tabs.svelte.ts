@@ -72,7 +72,6 @@ export class TabsState {
     bucket: string;
     prefix: string;
   } | null = null;
-  private persistEnabled: boolean;
   private connectionId: string | null;
   private navigateToLocation: ((connection: string, bucket: string, prefix: string) => void) | null;
   private replaceLocationUrl: ((connection: string, bucket: string, prefix: string) => void) | null;
@@ -84,14 +83,12 @@ export class TabsState {
   constructor(
     storage: StorageState,
     options?: {
-      persistEnabled?: boolean;
       connectionId?: string | null;
       navigateToLocation?: (connection: string, bucket: string, prefix: string) => void;
       replaceLocationUrl?: (connection: string, bucket: string, prefix: string) => void;
     }
   ) {
     this.storage = storage;
-    this.persistEnabled = options?.persistEnabled ?? false;
     this.connectionId = options?.connectionId ?? null;
     this.navigateToLocation = options?.navigateToLocation ?? null;
     this.replaceLocationUrl = options?.replaceLocationUrl ?? null;
@@ -158,7 +155,7 @@ export class TabsState {
   // ── Persistence ──────────────────────────────────────────────────────────
 
   private saveToPersistence(): void {
-    if (!this.persistEnabled || !browser) return;
+    if (!browser) return;
     const data: PersistedTabsState = {
       tabs: this.tabs.map((t) => ({
         id: t.id,
@@ -174,10 +171,10 @@ export class TabsState {
   }
 
   /** Reads persisted tab state from localStorage without modifying any state.
-   *  Returns null if nothing is saved, persistence is disabled, or the saved
+   *  Returns null if nothing is saved or the saved
    *  state belongs to a different connection. */
   peekPersistedTabs(): PersistedTabsState | null {
-    if (!this.persistEnabled || !browser) return null;
+    if (!browser) return null;
     try {
       const raw = localStorage.getItem(LS_TABS);
       if (!raw) return null;
@@ -256,9 +253,9 @@ export class TabsState {
 
   // ── Tab operations ───────────────────────────────────────────────────────
 
-  /** Initialises tabs from the current storage state. If persistence is
-   *  enabled, restores tabs from localStorage (handles both SPA navigation
-   *  via the /storage banner flag and full page reloads).
+  /** Initialises tabs from the current storage state, restoring them from
+   *  localStorage (handles both SPA navigation via the /storage banner flag
+   *  and full page reloads).
    *
    *  Tabs are only restored when the current storage bucket/prefix matches
    *  the saved active tab's location — otherwise the user navigated to a
@@ -266,22 +263,20 @@ export class TabsState {
   ensureInitialTab(): void {
     if (this.tabs.length > 0) return;
 
-    if (this.persistEnabled) {
-      const saved = this.peekPersistedTabs();
-      if (saved && saved.tabs.length > 0) {
-        const activeIdx = saved.tabs.findIndex((pt) => pt.id === saved.activeTabId);
-        const activeTab = activeIdx >= 0 ? saved.tabs[activeIdx] : saved.tabs[0];
-        if (
-          activeTab &&
-          this.storage.connectionHostname === activeTab.connection &&
-          this.storage.bucket === activeTab.bucket &&
-          this.storage.prefix === activeTab.prefix
-        ) {
-          this.restorePersistedTabs(saved);
-          return;
-        }
-        this.clearPersistedTabs();
+    const saved = this.peekPersistedTabs();
+    if (saved && saved.tabs.length > 0) {
+      const activeIdx = saved.tabs.findIndex((pt) => pt.id === saved.activeTabId);
+      const activeTab = activeIdx >= 0 ? saved.tabs[activeIdx] : saved.tabs[0];
+      if (
+        activeTab &&
+        this.storage.connectionHostname === activeTab.connection &&
+        this.storage.bucket === activeTab.bucket &&
+        this.storage.prefix === activeTab.prefix
+      ) {
+        this.restorePersistedTabs(saved);
+        return;
       }
+      this.clearPersistedTabs();
     }
 
     const id = crypto.randomUUID();

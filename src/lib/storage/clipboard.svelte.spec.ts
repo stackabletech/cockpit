@@ -1,10 +1,4 @@
-vi.mock('$lib/client/feature-flags.js', () => ({
-  storageMoveEnabled: true,
-  storageRestoreTabsEnabled: false,
-  storageCutCopyEnabled: true,
-  storagePasteEnabled: true,
-  storageRenameEnabled: true
-}));
+vi.mock('$lib/client/feature-flags.js', () => ({ storageTransferEnabled: true }));
 
 vi.mock('$lib/storage/connection-store.svelte.js', () => ({
   connectionStore: { activeConnectionId: 'test-connection-id' }

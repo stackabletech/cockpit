@@ -19,14 +19,6 @@ vi.mock('$lib/server/storage/preview/stream.js', () => ({
   streamPreview: vi.fn(async () => new Response('preview content'))
 }));
 
-const flags = vi.hoisted(() => ({ infiniteScrollEnabled: false }));
-
-vi.mock('$lib/server/feature-flags', () => ({
-  get infiniteScrollEnabled() {
-    return flags.infiniteScrollEnabled;
-  }
-}));
-
 vi.mock('$lib/server/storage/config.js', () => ({
   filePreviewRows: 250,
   textPreviewBytes: 262144,
@@ -90,7 +82,6 @@ function mockEvent(params: string) {
 describe('GET /api/storage/preview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    flags.infiniteScrollEnabled = false;
   });
 
   it('returns binary preview for known binary types', async () => {
@@ -244,27 +235,6 @@ describe('GET /api/storage/preview', () => {
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
 
-  it('resets offset and caps limit when infinite scroll is disabled', async () => {
-    mockGetMetadata.mockResolvedValue({
-      contentType: 'application/x-parquet',
-      size: 50000
-    });
-
-    await GET(mockEvent('bucket=b1&key=large.parquet&offset=500&limit=100'));
-
-    expect(getParquetPreview).toHaveBeenCalledWith(
-      expect.anything(),
-      'large.parquet',
-      0,
-      100,
-      expect.anything(),
-      expect.objectContaining({ size: 50000 }),
-      false,
-      'b1',
-      'connection-1'
-    );
-  });
-
   it('handles zero-size parquet file gracefully', async () => {
     mockGetMetadata.mockResolvedValue({
       contentType: 'application/vnd.apache.parquet',
@@ -316,8 +286,7 @@ describe('GET /api/storage/preview', () => {
       ['offset=1.5'],
       ['offset=abc'],
       ['offset=1e400']
-    ])('rejects %s with 400 when infinite scroll is enabled', async (params) => {
-      flags.infiniteScrollEnabled = true;
+    ])('rejects %s with 400', async (params) => {
       mockGetMetadata.mockResolvedValue({ contentType: 'application/x-parquet', size: 50000 });
 
       await expect(GET(mockEvent(`bucket=b1&key=large.parquet&${params}`))).rejects.toMatchObject({
@@ -327,17 +296,7 @@ describe('GET /api/storage/preview', () => {
       expect(getParquetPreview).not.toHaveBeenCalled();
     });
 
-    it('rejects an oversized limit with 400 when infinite scroll is disabled', async () => {
-      mockGetMetadata.mockResolvedValue({ contentType: 'text/csv', size: 50000 });
-
-      await expect(
-        GET(mockEvent('bucket=b1&key=large.csv&limit=1000000000'))
-      ).rejects.toMatchObject({ status: 400 });
-      expect(getCsvPreview).not.toHaveBeenCalled();
-    });
-
-    it('passes in-range chunks through when infinite scroll is enabled', async () => {
-      flags.infiniteScrollEnabled = true;
+    it('passes in-range chunks through', async () => {
       mockGetMetadata.mockResolvedValue({ contentType: 'application/x-parquet', size: 50000 });
 
       await GET(mockEvent('bucket=b1&key=large.parquet&offset=1000000&limit=250&data=true'));
@@ -353,16 +312,6 @@ describe('GET /api/storage/preview', () => {
         'b1',
         'connection-1'
       );
-    });
-
-    it('bounds CSV chunk requests when infinite scroll is enabled', async () => {
-      flags.infiniteScrollEnabled = true;
-      mockGetMetadata.mockResolvedValue({ contentType: 'text/csv', size: 100 });
-
-      await expect(
-        GET(mockEvent('bucket=b1&key=data.csv&offset=0&limit=1000000000&data=true'))
-      ).rejects.toMatchObject({ status: 400 });
-      expect(getCsvPreview).not.toHaveBeenCalled();
     });
   });
 });

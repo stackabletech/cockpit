@@ -8,20 +8,16 @@ import {
 import type { StorageProvider } from '$lib/server/storage/provider.js';
 
 const { flags, state } = vi.hoisted(() => ({
-  flags: { paste: true, move: true },
+  flags: { transfer: true },
   state: {
     store: null as unknown as MemoryStore,
     wrap: (provider: StorageProvider) => provider
   }
 }));
 vi.mock('$lib/server/feature-flags.js', () => ({
-  get storagePasteEnabled() {
-    return flags.paste;
-  },
-  get storageMoveEnabled() {
-    return flags.move;
-  },
-  storageRenameEnabled: true
+  get storageTransferEnabled() {
+    return flags.transfer;
+  }
 }));
 vi.mock('$lib/server/storage/config.js', () => ({ storageTransferConcurrency: 2 }));
 vi.mock('$lib/server/storage/request-context.js', () => ({
@@ -50,7 +46,7 @@ const plan = (keys: string[], prefix = 'dest/', op = 'copy') => ({
 
 describe('POST /api/storage/transfer/plan', () => {
   beforeEach(() => {
-    Object.assign(flags, { paste: true, move: true });
+    flags.transfer = true;
     state.store = memoryStore({ b: ['a.txt', 'docs/', 'dest/a.txt', 'dest/docs/x'] });
     state.wrap = (provider) => provider;
   });
@@ -131,15 +127,15 @@ describe('POST /api/storage/transfer/plan', () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
-  it.each([
-    ['copy', { paste: false, move: true }],
-    ['move', { paste: false, move: false }]
-  ])('answers 404 when the previewed %s is disabled', async (op, flagState) => {
-    Object.assign(flags, flagState);
-    await expect(POST(event(plan(['a.txt'], 'dest/', op)))).rejects.toMatchObject({
-      status: 404
-    });
-  });
+  it.each(['copy', 'move'])(
+    'answers 404 for a previewed %s when transfers are disabled',
+    async (op) => {
+      flags.transfer = false;
+      await expect(POST(event(plan(['a.txt'], 'dest/', op)))).rejects.toMatchObject({
+        status: 404
+      });
+    }
+  );
 
   it('passes storage errors through as HTTP errors', async () => {
     state.wrap = (provider) => ({

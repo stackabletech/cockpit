@@ -1,6 +1,5 @@
 import type pino from 'pino';
 import type { StorageProvider } from '$lib/server/storage/provider.js';
-import { infiniteScrollEnabled } from '$lib/server/feature-flags.js';
 import { textPreviewBytes } from '$lib/server/storage/config.js';
 import { logger } from '$lib/server/logging';
 import { ExpiringCache, objectVersion, previewCacheKey } from './cache.js';
@@ -189,7 +188,6 @@ export async function getCsvPreview(
           'Content-Type': 'application/x-ndjson',
           'X-Preview-Format': 'csv',
           'X-Preview-Renderable': 'true',
-          'X-Preview-Infinite-Scroll': String(infiniteScrollEnabled),
           'X-Preview-Total-Size': '0',
           'X-Preview-Total-Rows': '0',
           'X-Preview-Offset': String(offset),
@@ -242,7 +240,6 @@ export async function getCsvPreview(
           'Content-Type': 'application/x-ndjson',
           'X-Preview-Format': 'csv',
           'X-Preview-Renderable': 'true',
-          'X-Preview-Infinite-Scroll': String(infiniteScrollEnabled),
           'X-Preview-Total-Size': String(totalSize),
           'X-Preview-Total-Rows': String(entry.lineOffsets.length),
           'X-Preview-Offset': String(offset),
@@ -297,7 +294,6 @@ export async function getCsvPreview(
       'Content-Type': 'application/x-ndjson',
       'X-Preview-Format': 'csv',
       'X-Preview-Renderable': 'true',
-      'X-Preview-Infinite-Scroll': String(infiniteScrollEnabled),
       'X-Preview-Truncated': String(truncated),
       'X-Preview-Total-Size': String(totalSize),
       'X-Preview-Total-Rows': String(entry.lineOffsets.length),

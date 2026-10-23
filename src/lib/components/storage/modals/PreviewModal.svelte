@@ -25,7 +25,6 @@
   import { decodePreviewText } from '$lib/storage/text-decode.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
   import { maxEditableFileSize } from '$lib/client/config.js';
-  import { infiniteScrollEnabled } from '$lib/client/feature-flags.js';
   import { getStorageState } from '$lib/storage/context.js';
 
   interface Props {
@@ -137,8 +136,7 @@
   let parquetShowingRowsCount = $state(0),
     csvShowingRowsCount = $state(0);
   let csvTotalRows = $state(0);
-  let parquetTab: 'metadata' | 'data' = $state('metadata'),
-    parquetDataLoading = $state(false);
+  let parquetTab: 'metadata' | 'data' = $state('metadata');
   let editorText = $state('');
   let originalText = $state('');
   let saving = $state(false);
@@ -196,7 +194,6 @@
       imageNaturalWidth = 0;
       imageNaturalHeight = 0;
       parquetTab = 'metadata';
-      parquetDataLoading = false;
       parquetShowingRowsCount = 0;
       csvShowingRowsCount = 0;
       csvTotalRows = 0;
@@ -347,26 +344,14 @@
         } = await readCsvNdjsonStream(res);
         csvTotalRows = initialTotal;
 
-        if (csvRows.length > 0 || infiniteScrollEnabled || !objectKey) {
-          preview = {
-            kind: 'csv_scroll',
-            headers: csvHeaders,
-            rows: csvRows,
-            totalRows: initialTotal,
-            truncated: initialTotal > csvRows.length,
-            totalSize
-          };
-        } else {
-          const data = await fetchCsvRows(0, 250).catch(() => []);
-          preview = {
-            kind: 'csv_scroll',
-            headers: csvHeaders,
-            rows: data,
-            totalRows: csvTotalRows,
-            truncated: csvTotalRows > data.length,
-            totalSize
-          };
-        }
+        preview = {
+          kind: 'csv_scroll',
+          headers: csvHeaders,
+          rows: csvRows,
+          totalRows: initialTotal,
+          truncated: initialTotal > csvRows.length,
+          totalSize
+        };
         return;
       }
 
@@ -676,57 +661,6 @@
     }
   });
 
-  // When infinite scroll is disabled and user clicks the data tab,
-  // fetch the first page of parquet data on demand.
-  $effect(() => {
-    if (
-      preview.kind === 'parquet' &&
-      parquetTab === 'data' &&
-      preview.rows.length === 0 &&
-      !infiniteScrollEnabled &&
-      !parquetDataLoading &&
-      objectKey
-    ) {
-      parquetDataLoading = true;
-      const hdrs = preview.headers;
-      const rowCount = Math.min(250, preview.totalRows);
-      const rows: unknown[][] = Array.from({ length: rowCount }, () =>
-        new Array(hdrs.length).fill(undefined)
-      );
-      preview = { ...preview, rows: rows.map((r) => [...r]) };
-      const colPos: Record<string, number> = {};
-      fetchParquetRows(0, rowCount, (name, values) => {
-        const colIdx = hdrs.indexOf(name);
-        if (colIdx < 0) return;
-        let pos = colPos[name] ?? 0;
-        for (let i = 0; i < values.length; i++) {
-          while (rows.length <= pos) {
-            rows.push(new Array(hdrs.length).fill(undefined));
-          }
-          rows[pos][colIdx] = values[i];
-          pos++;
-        }
-        colPos[name] = pos;
-        if (preview.kind === 'parquet') {
-          preview = { ...preview, rows: rows.map((r) => [...r]) };
-        }
-      })
-        .then((finalRows) => {
-          parquetDataLoading = false;
-          if (preview.kind === 'parquet') {
-            preview = {
-              ...preview,
-              rows: finalRows,
-              truncated: finalRows.length < preview.totalRows
-            };
-          }
-        })
-        .catch(() => {
-          parquetDataLoading = false;
-        });
-    }
-  });
-
   function toggleMaximized() {
     maximized = !maximized;
   }
@@ -970,7 +904,7 @@
               headers={preview.headers}
               initialRows={preview.rows}
               totalRows={preview.totalRows}
-              fetchRows={infiniteScrollEnabled ? fetchParquetRows : undefined}
+              fetchRows={fetchParquetRows}
               bind:showingRowsCount={parquetShowingRowsCount}
               hidden={parquetTab !== 'data'}
             />
@@ -1016,7 +950,7 @@
           headers={preview.headers}
           initialRows={preview.rows}
           totalRows={csvTotalRows}
-          fetchRows={infiniteScrollEnabled ? fetchCsvRows : undefined}
+          fetchRows={fetchCsvRows}
           bind:showingRowsCount={csvShowingRowsCount}
         />
       {:else if preview.kind === 'image'}

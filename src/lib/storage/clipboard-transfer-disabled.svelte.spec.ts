@@ -1,12 +1,6 @@
-// The flags are read once per module in the browser project, so the disabled
-// move flag gets its own spec file.
-vi.mock('$lib/client/feature-flags.js', () => ({
-  storageRestoreTabsEnabled: false,
-  storageCutCopyEnabled: true,
-  storagePasteEnabled: true,
-  storageRenameEnabled: true,
-  storageMoveEnabled: false
-}));
+// The flags are read once per module in the browser project, so disabled
+// transfers get their own spec file.
+vi.mock('$lib/client/feature-flags.js', () => ({ storageTransferEnabled: false }));
 
 vi.mock('$lib/storage/connection-store.svelte.js', () => ({
   connectionStore: { activeConnectionId: 'test-connection-id' }
@@ -24,7 +18,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { StorageState } from './state.svelte.js';
 import { createMemoryStorageApi } from './api.test-utils.js';
 
-describe('drag and drop with moving disabled', () => {
+describe('drag and drop with transfers disabled', () => {
   it('ignores drops', () => {
     const transfer = vi.fn();
     const state = new StorageState({

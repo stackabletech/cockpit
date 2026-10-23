@@ -1,10 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type pino from 'pino';
-import {
-  storageMoveEnabled,
-  storagePasteEnabled,
-  storageRenameEnabled
-} from '$lib/server/feature-flags.js';
+import { storageTransferEnabled } from '$lib/server/feature-flags.js';
 import { storageTransferDuration, storageTransferItemsTotal } from '$lib/server/metrics.js';
 import type { StorageProvider } from '../provider.js';
 import {
@@ -22,16 +18,9 @@ import { TransferRequestError, validateTransferRequest, type TransferRequest } f
 /** A running transfer refreshes its job this often, so no copy expires mid-transfer. */
 const HEARTBEAT_INTERVAL_MS = 60_000;
 
-/** Whether the feature flags allow `op`: copy needs paste, move needs move or paste, rename needs rename. */
-function transferAllowed(op: TransferOp): boolean {
-  if (op === 'copy') return storagePasteEnabled;
-  if (op === 'move') return storageMoveEnabled || storagePasteEnabled;
-  return storageRenameEnabled;
-}
-
-/** Throws 404 when the feature flags do not allow `op`. */
+/** Throws 404 when transfers (copy, move, rename) are disabled. */
 export function requireTransferAllowed(op: TransferOp, logger: pino.Logger, userId?: string): void {
-  if (transferAllowed(op)) return;
+  if (storageTransferEnabled) return;
   logger.warn({ operation: op, user_id: userId }, 'storage operation rejected: feature disabled');
   throw error(404, `Storage ${op} is disabled`);
 }

@@ -8,19 +8,13 @@ import {
 } from '$lib/server/storage/transfer/memory-provider.test-utils.js';
 
 const { flags, state } = vi.hoisted(() => ({
-  flags: { paste: true, move: true, rename: true },
+  flags: { transfer: true },
   state: { store: null as unknown as MemoryStore }
 }));
 vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 vi.mock('$lib/server/feature-flags.js', () => ({
-  get storagePasteEnabled() {
-    return flags.paste;
-  },
-  get storageMoveEnabled() {
-    return flags.move;
-  },
-  get storageRenameEnabled() {
-    return flags.rename;
+  get storageTransferEnabled() {
+    return flags.transfer;
   }
 }));
 vi.mock('$lib/server/storage/config.js', () => ({ storageTransferConcurrency: 2 }));
@@ -70,7 +64,7 @@ function copy(keys: string[], extra: Record<string, unknown> = {}) {
 
 describe('POST /api/storage/transfer', () => {
   beforeEach(() => {
-    Object.assign(flags, { paste: true, move: true, rename: true });
+    flags.transfer = true;
     state.store = memoryStore({ b: ['a.txt', 'docs/x.txt'], other: [] });
   });
 
@@ -147,24 +141,17 @@ describe('POST /api/storage/transfer', () => {
     await expect(POST(event(body))).rejects.toMatchObject({ status: 409 });
   });
 
-  it.each([
-    ['copy', { paste: false, move: true, rename: true }],
-    ['move', { paste: false, move: false, rename: true }],
-    ['rename', { paste: true, move: true, rename: false }]
-  ])('answers 404 for %s when its flag is off', async (op, flagState) => {
-    Object.assign(flags, flagState);
-    const body =
-      op === 'rename'
-        ? { ...copy([]), op, dest: undefined, items: [{ sourceKey: 'a.txt', name: 'b.txt' }] }
-        : { ...copy(['a.txt']), op };
-    await expect(POST(event(body))).rejects.toMatchObject({ status: 404 });
-  });
-
-  it('allows a move with only the paste flag', async () => {
-    Object.assign(flags, { paste: true, move: false, rename: false });
-    const response = await POST(event({ ...copy(['a.txt']), op: 'move' }));
-    expect((await lines(response)).at(-1).type).toBe('complete');
-  });
+  it.each(['copy', 'move', 'rename'])(
+    'answers 404 for %s when transfers are disabled',
+    async (op) => {
+      flags.transfer = false;
+      const body =
+        op === 'rename'
+          ? { ...copy([]), op, dest: undefined, items: [{ sourceKey: 'a.txt', name: 'b.txt' }] }
+          : { ...copy(['a.txt']), op };
+      await expect(POST(event(body))).rejects.toMatchObject({ status: 404 });
+    }
+  );
 
   it('keeps every original when a running move is cancelled', async () => {
     state.store = memoryStore({ b: Array.from({ length: 20 }, (_, i) => `many/${i}.txt`) });

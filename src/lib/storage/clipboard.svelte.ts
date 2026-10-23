@@ -6,7 +6,7 @@ import type { ConflictEntry } from '$lib/components/storage/modals/shared/confli
 import { keyToName, parentPrefix } from '$lib/storage/utils.js';
 import { StorageError, getActionErrorMessage } from './errors.js';
 import { pageUnloading } from './operations.svelte.js';
-import { storageMoveEnabled } from '$lib/client/feature-flags.js';
+import { storageTransferEnabled } from '$lib/client/feature-flags.js';
 import { OperationsState } from './operations.svelte.js';
 import type { StorageApi } from './api.js';
 import { MAX_TRANSFER_ITEMS, type PlanItem, type TransferItemRequest } from './transfer-types.js';
@@ -111,14 +111,14 @@ export class ClipboardState {
     );
   }
 
-  /** Set clipboard with cut action. Caller should check storageCutCopyEnabled before calling. */
+  /** Set clipboard with cut action. Caller should check storageTransferEnabled before calling. */
   cut(selectedKeys: string[], objects: StoragePage, bucket: string, prefix: string): void {
     if (selectedKeys.length === 0) return;
     this.clipboard = this._clipboardFor('cut', selectedKeys, objects, bucket, prefix);
     addToast('info', m.storage_action_cut_success({ count: selectedKeys.length }));
   }
 
-  /** Set clipboard with copy action. Caller should check storageCutCopyEnabled before calling. */
+  /** Set clipboard with copy action. Caller should check storageTransferEnabled before calling. */
   copy(selectedKeys: string[], objects: StoragePage, bucket: string, prefix: string): void {
     if (selectedKeys.length === 0) return;
     this.clipboard = this._clipboardFor('copy', selectedKeys, objects, bucket, prefix);
@@ -129,7 +129,7 @@ export class ClipboardState {
 
   /**
    * Paste the clipboard into `destPrefix` of the current bucket. Caller should
-   * check storagePasteEnabled and that the clipboard is non-empty first.
+   * check storageTransferEnabled and that the clipboard is non-empty first.
    */
   async paste(destPrefix: string): Promise<void> {
     const clipboard = this.clipboard;
@@ -180,7 +180,7 @@ export class ClipboardState {
       bucket: this._callbacks.getBucket()
     }
   ): void => {
-    if (!storageMoveEnabled) return;
+    if (!storageTransferEnabled) return;
     if (source.connectionId !== this._callbacks.getConnectionId()) {
       addToast('warning', m.storage_transfer_other_connection());
       return;
