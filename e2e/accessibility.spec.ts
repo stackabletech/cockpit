@@ -5,7 +5,7 @@ import { hasGarageCredentials, requireGarageCredentials } from './support/garage
 import { setTabSql, setTabState, waitForHydration, waitForQueryComplete } from './support/helpers';
 import { connectAndOpenPrefix, connectToStorage } from './storage/helpers.js';
 
-const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
+const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22a', 'wcag22aa'];
 const THEMES = ['light', 'dark'] as const;
 
 async function expectNoViolations(page: Page) {
