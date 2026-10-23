@@ -3,7 +3,7 @@ import { ArchiveCacheFullError, listArchiveContents } from '$lib/server/storage/
 import { getProvider } from '$lib/server/storage/utils.js';
 import { requireObjectKey } from '$lib/server/storage/request-context.js';
 import { withStorageHttpErrors } from '$lib/server/storage/wrap-provider.js';
-import { archivePreviewMaxBytes } from '$lib/server/feature-flags.js';
+import { archivePreviewMaxBytes } from '$lib/server/storage/config.js';
 import type { RequestHandler } from './$types';
 
 /**

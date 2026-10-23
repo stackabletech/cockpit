@@ -15,14 +15,10 @@ function makeStorage(bucket = 'test-bucket', prefix = ''): StorageState {
   return state;
 }
 
-function makeTabs(
-  storage: StorageState,
-  opts?: { persistEnabled?: boolean; connectionId?: string | null }
-) {
+function makeTabs(storage: StorageState, opts?: { connectionId?: string | null }) {
   const navigateToLocation = vi.fn();
   const replaceLocationUrl = vi.fn();
   const ts = new TabsState(storage, {
-    persistEnabled: opts?.persistEnabled ?? false,
     connectionId: opts?.connectionId ?? null,
     navigateToLocation,
     replaceLocationUrl
@@ -394,23 +390,16 @@ describe('TabsState', () => {
   // ── persistence ───────────────────────────────────────────────────────────
 
   describe('peekPersistedTabs', () => {
-    it('returns null when persistence is disabled', () => {
-      const storage = makeStorage();
-      const { ts } = makeTabs(storage, { persistEnabled: false });
-
-      expect(ts.peekPersistedTabs()).toBeNull();
-    });
-
     it('returns null when nothing is saved in localStorage', () => {
       const storage = makeStorage();
-      const { ts } = makeTabs(storage, { persistEnabled: true });
+      const { ts } = makeTabs(storage);
 
       expect(ts.peekPersistedTabs()).toBeNull();
     });
 
     it('returns saved data after ensureInitialTab saves it', () => {
       const storage = makeStorage('bucket', '');
-      const { ts } = makeTabs(storage, { persistEnabled: true });
+      const { ts } = makeTabs(storage);
       ts.ensureInitialTab();
 
       const peeked = ts.peekPersistedTabs();
@@ -428,7 +417,7 @@ describe('TabsState', () => {
       localStorage.setItem(LS_TABS, JSON.stringify(saved));
 
       const storage = makeStorage();
-      const { ts } = makeTabs(storage, { persistEnabled: true, connectionId: 'conn-b' });
+      const { ts } = makeTabs(storage, { connectionId: 'conn-b' });
 
       expect(ts.peekPersistedTabs()).toBeNull();
     });
@@ -442,7 +431,7 @@ describe('TabsState', () => {
       localStorage.setItem(LS_TABS, JSON.stringify(saved));
 
       const storage = makeStorage();
-      const { ts } = makeTabs(storage, { persistEnabled: true, connectionId: 'conn-a' });
+      const { ts } = makeTabs(storage, { connectionId: 'conn-a' });
 
       expect(ts.peekPersistedTabs()).toBeNull();
     });
@@ -456,7 +445,7 @@ describe('TabsState', () => {
       localStorage.setItem(LS_TABS, JSON.stringify(saved));
 
       const storage = makeStorage();
-      const { ts } = makeTabs(storage, { persistEnabled: true, connectionId: 'conn-a' });
+      const { ts } = makeTabs(storage, { connectionId: 'conn-a' });
 
       expect(ts.peekPersistedTabs()).not.toBeNull();
     });
@@ -465,7 +454,7 @@ describe('TabsState', () => {
   describe('clearPersistedTabs', () => {
     it('removes the entry from localStorage', () => {
       const storage = makeStorage();
-      const { ts } = makeTabs(storage, { persistEnabled: true });
+      const { ts } = makeTabs(storage);
       ts.ensureInitialTab();
 
       ts.clearPersistedTabs();
@@ -475,9 +464,9 @@ describe('TabsState', () => {
   });
 
   describe('ensureInitialTab persistence write', () => {
-    it('writes tab data to localStorage when persistEnabled', () => {
+    it('writes tab data to localStorage', () => {
       const storage = makeStorage('bucket', '');
-      const { ts } = makeTabs(storage, { persistEnabled: true });
+      const { ts } = makeTabs(storage);
       ts.ensureInitialTab();
 
       const raw = localStorage.getItem(LS_TABS);
@@ -580,14 +569,14 @@ describe('TabsState', () => {
       localStorage.setItem(LS_TABS, JSON.stringify(saved));
 
       const storage = makeStorage('b1', '');
-      const { ts } = makeTabs(storage, { persistEnabled: true, connectionId: 'conn-a' });
+      const { ts } = makeTabs(storage, { connectionId: 'conn-a' });
       ts.ensureInitialTab();
 
       // Should have restored 2 tabs rather than creating 1 fresh tab
       expect(ts.tabs.length).toBe(2);
     });
 
-    it('restores from localStorage on every ensureInitialTab when persistEnabled', () => {
+    it('restores from localStorage on every ensureInitialTab', () => {
       const saved: PersistedTabsState = {
         tabs: [
           { id: 'a', label: 'A', connection: 's3.example.com', bucket: 'b1', prefix: '' },
@@ -600,14 +589,14 @@ describe('TabsState', () => {
 
       // First TabsState restores from localStorage
       const storage1 = makeStorage('b1', '');
-      const { ts: ts1 } = makeTabs(storage1, { persistEnabled: true, connectionId: 'conn-a' });
+      const { ts: ts1 } = makeTabs(storage1, { connectionId: 'conn-a' });
       ts1.ensureInitialTab();
       expect(ts1.tabs.length).toBe(2);
 
       // Second TabsState — persistence is still enabled and data exists,
       // so it restores from localStorage again (handles page reloads)
       const storage2 = makeStorage('b1', '');
-      const { ts: ts2 } = makeTabs(storage2, { persistEnabled: true, connectionId: 'conn-a' });
+      const { ts: ts2 } = makeTabs(storage2, { connectionId: 'conn-a' });
       ts2.ensureInitialTab();
       expect(ts2.tabs.length).toBe(2);
     });
@@ -618,7 +607,7 @@ describe('TabsState', () => {
   describe('removeDeletedDirectories', () => {
     it('closes inactive tabs inside a deleted folder and forgets them', () => {
       const storage = makeStorage('bucket', 'archive/2025/');
-      const { ts } = makeTabs(storage, { persistEnabled: true, connectionId: 'conn-1' });
+      const { ts } = makeTabs(storage, { connectionId: 'conn-1' });
       ts.ensureInitialTab();
       ts.addTab();
       storage.prefix = '';

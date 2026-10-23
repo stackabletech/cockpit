@@ -8,7 +8,7 @@
   import type { TabsState } from '$lib/storage/tabs.svelte.js';
   import type { ContextMenuAction } from '$lib/storage/types.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { storageMoveEnabled } from '$lib/client/feature-flags.js';
+  import { storageTransferEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDrop } from '$lib/storage/drag-handlers.js';
   import ContextMenu from './ContextMenu.svelte';
   import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
@@ -72,7 +72,8 @@
    *  not a tab-reorder drag (which uses text/plain). */
   function isFileDrag(e: DragEvent): boolean {
     return (
-      storageMoveEnabled && (e.dataTransfer?.types.includes('application/x-storage-keys') ?? false)
+      storageTransferEnabled &&
+      (e.dataTransfer?.types.includes('application/x-storage-keys') ?? false)
     );
   }
 

@@ -122,3 +122,19 @@ Database port, validated: int64 turns "" or "abc" into 0, which would fail only 
 {{- end }}
 {{- $port }}
 {{- end }}
+
+{{/*
+A value as a quoted environment variable. A whole number arrives as float64 and would render
+as 5.24288e+06. Anything else is passed through unchanged for the application to validate.
+*/}}
+{{- define "cockpit.envValue" -}}
+{{- if and (kindIs "float64" .) (eq (floor .) .) }}{{ int64 . | quote }}{{ else }}{{ . | quote }}{{ end }}
+{{- end }}
+
+{{/*
+"true" when a value is set: not omitted, null or an empty string. Unlike `with`, 0 and false
+count as set, so the application rejects them instead of the chart dropping them.
+*/}}
+{{- define "cockpit.isSet" -}}
+{{- if and (not (kindIs "invalid" .)) (ne (toString .) "") }}true{{ end }}
+{{- end }}

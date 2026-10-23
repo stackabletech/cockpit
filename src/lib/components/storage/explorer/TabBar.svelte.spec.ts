@@ -16,7 +16,7 @@ function makeStorage(bucket = 'test-bucket', prefix = ''): StorageState {
 }
 
 function makeTabsState(storage: StorageState, tabCount = 2): TabsState {
-  const ts = new TabsState(storage, { persistEnabled: false });
+  const ts = new TabsState(storage);
   ts.ensureInitialTab();
   for (let i = 1; i < tabCount; i++) {
     ts.addTab();

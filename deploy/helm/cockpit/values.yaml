@@ -102,7 +102,7 @@ startupProbe:
 
 terminationGracePeriodSeconds: 30
 
-# Optional application feature overrides. All defaults below are applied by the application when omitted.
+# Optional feature toggles. All defaults below are applied by the application when omitted.
 # features:
 #   trino:
 #     completion:
@@ -111,51 +111,9 @@ terminationGracePeriodSeconds: 30
 #   storage:
 #     # Show the S3/HDFS file browser and enable routes under /storage. Default: false (application default).
 #     enabled: false
-#     # Comma-separated page size options for paginated list views. Default: "25,50,100" (application default).
-#     pageSizes: "25,50,100"
-#     # Page size selected when no user preference is stored. Must be included in pageSizes. Default: first page size (application default).
-#     defaultPageSize: 25
-#     # Number of recently visited storage locations retained in local storage. Default: 15 (application default).
-#     maxRecentFiles: 15
-#     # Maximum parallel requests for file uploads. Default: 3 (application default).
-#     uploadConcurrency: 3
-#     # Maximum bytes fetched for text, TSV, and JSON previews; editable text files are fetched completely. Default: 262144 (application default).
-#     textPreviewBytes: 262144
-#     # Maximum bytes fetched for image previews. Default: 5242880 (application default).
-#     imagePreviewBytes: 5242880
-#     # Maximum bytes fetched for PDF previews. Default: 26214400 (application default).
-#     pdfPreviewBytes: 26214400
-#     # Maximum rows in tabular file previews. Default: 250 (application default).
-#     filePreviewRows: 250
-#     # Maximum columns in tabular file previews. Default: 50 (application default).
-#     filePreviewColumns: 50
-#     # Objects copied at once within one copy, move or rename request. Default: 8 (application default).
-#     transferConcurrency: 8
-#     # Restore open file browser tabs from the last session. Default: false (application default).
-#     restoreTabs: false
-#     # Load CSV and Parquet preview rows lazily while scrolling. Default: true (application default).
-#     infiniteScroll: true
-#     # Show Cut/Copy and allow dragging items. Client-only: the server work happens on paste or move. Default: false (application default).
-#     cutCopy: false
-#     # Show Paste; the transfer API accepts copies only with this, and moves with this or move. Default: false (application default).
-#     paste: false
-#     # Show Rename; the transfer API accepts renames. Default: false (application default).
-#     rename: false
-#     # Allow drag-and-drop move (dragging also needs cutCopy); the transfer API accepts moves with this or paste. Default: false (application default).
-#     move: false
-#     # Maximum size in bytes of files that can be edited and saved in the text editor.
-#     # config.bodySizeLimit must be at least this large. Default: 5242880 (application default).
-#     maxEditableFileSize: 5242880
-#     # Maximum size in MB of an archive opened for preview, checked against its compressed size,
-#     # the total size of the listed entries and the size of an extracted entry. The archive cache
-#     # (config.archiveCacheMaxMb) is raised to at least twice this value. Default: 100 (application default).
-#     archivePreviewMaxMb: 100
-#     # Comma-separated Parquet compression codecs that are not previewed. A "-no_offset" suffix
-#     # only blocks files without an offset index. Default: "gzip-no_offset" (application default).
-#     parquetPreviewDisallowedCompressionTypes: "gzip-no_offset"
-#     # Days a user's download history is kept. Integer from 1 to 3650.
-#     # Default: 30 (application default).
-#     downloadHistoryRetentionDays: 30
+#     # Show Cut, Copy, Paste and Rename and allow drag-and-drop move. The transfer API rejects
+#     # copies, moves and renames while disabled. Default: false (application default).
+#     transfer: false
 
 logging:
   level: ""
@@ -171,6 +129,15 @@ extraVolumeMounts: []
   #   mountPath: /stackable/database-ca
   #   readOnly: true
 
+# Additional environment variables for the Cockpit container, e.g. settings the chart does not expose.
+extraEnv: []
+  # - name: STACKABLE_COCKPIT_FILE_PREVIEW_ROWS
+  #   value: "500"
+# Additional sources of environment variables (ConfigMaps or Secrets) for the Cockpit container.
+extraEnvFrom: []
+  # - secretRef:
+  #     name: cockpit-extra-env
+
 nodeSelector: {}
 
 tolerations: []
@@ -184,15 +151,11 @@ config:
   # Maximum request body size (BODY_SIZE_LIMIT), e.g. "12M". Empty uses the image default (6M).
   # Must be at least the editable file size limit of the storage text editor (5 MiB by default).
   bodySizeLimit: ""
-  # Maximum total size in MB of the archive preview cache in /tmp
-  # (STACKABLE_COCKPIT_ARCHIVE_CACHE_MAX_MB). Empty uses the application default (512).
-  # Keep it below tmp.sizeLimit.
-  archiveCacheMaxMb: ""
 
 # Scratch volume mounted at /tmp, used for the archive preview cache.
 tmp:
   # Size limit of the emptyDir. The kubelet evicts the pod when it is exceeded,
-  # so keep it above config.archiveCacheMaxMb (512 MB by default). Empty means no limit.
+  # so keep it above storage.archiveCacheMaxMb (512 MB by default). Empty means no limit.
   sizeLimit: 1Gi
 
 # Session secret for signing cookies. Chart auto-generates one if secretKeyRef.name is empty.
@@ -226,8 +189,46 @@ database:
     # The Secret Operator mounts ca.crt into /stackable/database-tls.
     secretClass: ""
 
-# Storage browser settings that are not feature flags.
+# Storage browser settings that are not feature flags. Empty or omitted values use the application
+# defaults; invalid values stop the application at startup.
 storage:
+  # Comma-separated page size options for paginated list views. Default: "25,50,100".
+  pageSizes: ""
+  # Page size selected when no user preference is stored. Must be included in pageSizes.
+  # Default: the smallest page size.
+  defaultPageSize: ""
+  # Number of recently visited storage locations retained in local storage. Default: 15.
+  maxRecentFiles: ""
+  # Maximum parallel requests for file uploads. Default: 3.
+  uploadConcurrency: ""
+  # Objects copied at once within one copy, move or rename request. Default: 8.
+  transferConcurrency: ""
+  # Maximum bytes fetched for text, TSV, and JSON previews; editable text files are fetched
+  # completely. Default: 262144.
+  textPreviewBytes: ""
+  # Maximum bytes fetched for image previews. Default: 5242880.
+  imagePreviewBytes: ""
+  # Maximum bytes fetched for PDF previews. Default: 26214400.
+  pdfPreviewBytes: ""
+  # Maximum rows in tabular file previews. Default: 250.
+  filePreviewRows: ""
+  # Maximum columns in tabular file previews. Default: 50.
+  filePreviewColumns: ""
+  # Maximum size in bytes of files that can be edited and saved in the text editor.
+  # config.bodySizeLimit must be at least this large. Default: 5242880.
+  maxEditableFileSize: ""
+  # Maximum size in MB of an archive opened for preview, checked against its compressed size,
+  # the total size of the listed entries and the size of an extracted entry. The archive cache
+  # (archiveCacheMaxMb) is raised to at least twice this value. Default: 100.
+  archivePreviewMaxMb: ""
+  # Maximum total size in MB of the archive preview cache in /tmp. Keep it below tmp.sizeLimit.
+  # Default: 512.
+  archiveCacheMaxMb: ""
+  # Comma-separated Parquet compression codecs that are not previewed. A "-no_offset" suffix
+  # only blocks files without an offset index. Default: "gzip-no_offset".
+  parquetPreviewDisallowedCompressionTypes: ""
+  # Days a user's download history is kept. Integer from 1 to 3650. Default: 30.
+  downloadHistoryRetentionDays: ""
   # Key that encrypts stored storage connection credentials: a 64-character hex string (32 bytes),
   # e.g. from `openssl rand -hex 32`. Required when features.storage.enabled is true.
   # Keep it stable: changing or losing it makes all stored credentials unreadable.

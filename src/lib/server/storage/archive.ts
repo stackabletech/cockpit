@@ -19,7 +19,7 @@ import { createGunzip } from 'node:zlib';
 import AdmZip from 'adm-zip';
 import * as tar from 'tar-stream';
 import { logger } from '$lib/server/logging';
-import { archiveCacheMaxBytes } from '$lib/server/feature-flags.js';
+import { archiveCacheMaxBytes } from '$lib/server/storage/config.js';
 import {
   storageArchiveCacheBytes,
   storageArchiveCacheEvictionsTotal
