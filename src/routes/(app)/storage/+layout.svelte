@@ -42,7 +42,9 @@
       void goto(
         (resolve as (pathname: import('$app/types').Pathname) => string)(
           locationPath(connection, bucket, prefix) as import('$app/types').Pathname
-        )
+        ),
+        // Keep focus on the tab that triggered the switch instead of resetting it to <body>
+        { keepFocus: true }
       );
     },
     replaceLocationUrl: (connection, bucket, prefix) => {
@@ -50,7 +52,7 @@
         (resolve as (pathname: import('$app/types').Pathname) => string)(
           locationPath(connection, bucket, prefix) as import('$app/types').Pathname
         ),
-        { replaceState: true }
+        { replaceState: true, keepFocus: true }
       );
     }
   });

@@ -37,7 +37,7 @@
   </div>
 
   {#if entries.length === 0}
-    <p class="text-base-content/50 py-8 text-center text-sm">{m.storage_search_recent_empty()}</p>
+    <p class="text-muted py-8 text-center text-sm">{m.storage_search_recent_empty()}</p>
   {:else}
     <ul class="flex w-full flex-col gap-1 p-0">
       {#each entries as entry (JSON.stringify( [entry.buckets, entry.query, entry.useRegex, entry.excludePatterns, entry.searchPath, entry.maxDepth] ))}
