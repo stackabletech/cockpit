@@ -1,10 +1,11 @@
 <script lang="ts">
   import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
+  import { getLocale } from '$lib/paraglide/runtime.js';
   import IconExpandMore from 'virtual:icons/material-symbols/expand-more';
   import IconOpenInNew from 'virtual:icons/material-symbols/open-in-new';
   import IconDownload from 'virtual:icons/material-symbols/download';
-  import type { QuerySnapshot } from '$lib/types/query';
+  import { MAX_CLIENT_ROWS, type QuerySnapshot } from '$lib/types/query';
   import { initPageSize, type PageSize } from '$lib/types/pagination.js';
   import Pagination from '$lib/components/Pagination.svelte';
 
@@ -35,10 +36,12 @@
   const rowStart = $derived(currentPage * pageSize + 1);
   const rowEnd = $derived(currentPage * pageSize + displayedRows.length);
   const stmtError = $derived(result.error);
-  const rowLimitWarning = $derived(
-    result.rowLimit !== null ? m.trino_row_limit_reached({ limit: result.rowLimit }) : null
-  );
   const showHeader = $derived(totalStatements > 1);
+  const rowLimitWarning = $derived(
+    showHeader && result.rowLimitReached
+      ? m.trino_row_limit_reached({ limit: MAX_CLIENT_ROWS.toLocaleString(getLocale()) })
+      : null
+  );
 
   const CSV_HEADERS_KEY = 'trino_csv_include_headers';
   let includeHeaders = $state(browser ? localStorage.getItem(CSV_HEADERS_KEY) === 'true' : false);
@@ -203,6 +206,9 @@
           ">{stmtError}</pre>
       </div>
     {:else if result.state === 'FINISHED' && result.columns.length > 0}
+      {#if rowLimitWarning}
+        <p class="text-warning text-xs">{rowLimitWarning}</p>
+      {/if}
       <div class="overflow-x-auto">
         <table
           class="table-zebra table-sm table"
@@ -234,9 +240,6 @@
           </tbody>
         </table>
       </div>
-      {#if rowLimitWarning}
-        <span class="text-warning mt-1 block text-xs">{rowLimitWarning}</span>
-      {/if}
       <div class="pt-2">
         <Pagination
           bind:pageSize

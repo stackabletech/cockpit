@@ -134,16 +134,14 @@ describe('toQueryProgress', () => {
   it('returns zeroed progress without stats', () => {
     expect(q.toQueryProgress(undefined)).toEqual({
       progressPercentage: 0,
-      processedRows: 0,
       elapsedTimeMillis: 0
     });
   });
 
   it('defaults missing stat fields to 0', () => {
-    expect(q.toQueryProgress({ state: 'RUNNING', processedRows: 42 })).toEqual({
+    expect(q.toQueryProgress({ state: 'RUNNING', elapsedTimeMillis: 42 })).toEqual({
       progressPercentage: 0,
-      processedRows: 42,
-      elapsedTimeMillis: 0
+      elapsedTimeMillis: 42
     });
   });
 });
@@ -217,7 +215,7 @@ describe('startScript', () => {
       id: 'q1',
       columns: [{ name: 'n', type: 'bigint' }],
       data: [[7]],
-      stats: { state: 'FINISHED', processedRows: 1 }
+      stats: { state: 'FINISHED', elapsedTimeMillis: 1 }
     });
 
     await q.startScript(trinoClient(), USER, TAB, ['SELECT 7'], OPTS);
@@ -229,7 +227,7 @@ describe('startScript', () => {
       state: 'FINISHED',
       columns: [{ name: 'n', type: 'bigint' }],
       rows: [[7]],
-      progress: { processedRows: 1 }
+      progress: { elapsedTimeMillis: 1 }
     });
   });
 

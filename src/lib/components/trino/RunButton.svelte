@@ -134,25 +134,27 @@
       aria-label={current.label}
       onclick={onRun}
     >
-      {#if isActive}
-        <span class="loading loading-xs loading-spinner"></span>
-        {m.trino_running()}
-      {:else}
-        <span
-          class="
-            grid
-            *:[grid-area:1/1]
-          "
-        >
-          <!-- Invisible sizers: longest option sets width -->
-          {#each options as option (option.mode)}
-            <span class="invisible" aria-hidden="true">
-              {@render runOption(option.label, 'Ctrl+Shift+↵')}
-            </span>
-          {/each}
+      <span
+        class="
+          grid
+          *:[grid-area:1/1]
+        "
+      >
+        <!-- Invisible sizers: longest option sets width, and the size stays put while running -->
+        {#each options as option (option.mode)}
+          <span class="invisible" aria-hidden="true">
+            {@render runOption(option.label, 'Ctrl+Shift+↵')}
+          </span>
+        {/each}
+        {#if isActive}
+          <span class="flex items-center gap-1 self-center text-xs font-semibold">
+            <span class="loading loading-xs loading-spinner"></span>
+            {m.trino_running()}
+          </span>
+        {:else}
           {@render runOption(current.label, current.shortcut)}
-        </span>
-      {/if}
+        {/if}
+      </span>
     </button>
     <button
       bind:this={toggle}

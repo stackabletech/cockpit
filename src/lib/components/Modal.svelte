@@ -20,6 +20,7 @@
     children,
     variant = 'default',
     class: className = '',
+    dismissible = true,
     closeguard,
     ...restProps
   }: {
@@ -32,6 +33,8 @@
     variant?: 'default' | 'fullscreen';
     /** Extra classes, appended to the variant's own. */
     class?: string;
+    /** When false, Escape and backdrop clicks do not close the modal. */
+    dismissible?: boolean;
     closeguard?: () => boolean;
   } & Omit<
     import('svelte/elements').HTMLDialogAttributes,
@@ -64,11 +67,17 @@
     // component was destroyed in the meantime, the shared `open` binding may
     // already belong to a newly opened dialog, which must not be closed.
     if (e.currentTarget !== dialogEl) return;
+    // Browsers may close a dialog despite a cancelled `cancel` event (e.g. a
+    // repeated Escape press), so reopen it if it must stay open.
+    if (!dismissible && open) {
+      dialogEl?.showModal();
+      return;
+    }
     open = false;
   }
 
   function handleCancel(e: Event) {
-    if (closeguard && !closeguard()) {
+    if (!dismissible || (closeguard && !closeguard())) {
       e.preventDefault();
     }
   }
@@ -103,6 +112,7 @@
       // by the browser on Escape; the dialog itself must stay open.
       if (dialogEl.querySelector('[popover]:not([popover="manual"]):popover-open')) return;
       e.preventDefault();
+      if (!dismissible) return;
       if (closeguard && !closeguard()) return;
       open = false;
     }
@@ -113,7 +123,7 @@
   function handleBackdropClick(e: MouseEvent) {
     // The click target is the <dialog> element itself only when the backdrop is
     // clicked; clicks inside the content bubble up to child elements instead.
-    if (e.target !== dialogEl) return;
+    if (e.target !== dialogEl || !dismissible) return;
     if (closeguard && !closeguard()) {
       e.preventDefault();
     } else {
