@@ -2,7 +2,6 @@ export const MAX_CLIENT_ROWS = 10_000;
 
 export const INITIAL_PROGRESS: QueryProgress = {
   progressPercentage: 0,
-  processedRows: 0,
   elapsedTimeMillis: 0
 };
 
@@ -24,7 +23,6 @@ export type QueryState =
 
 export interface QueryProgress {
   progressPercentage: number;
-  processedRows: number;
   elapsedTimeMillis: number;
 }
 
@@ -40,9 +38,11 @@ export interface QuerySnapshot {
   progress: QueryProgress;
   columns: Column[];
   rows: unknown[][];
+  /** Rows fetched so far. Populated even in lightweight snapshots, where `rows` is empty. */
+  rowCount: number;
   error: string | null;
-  /** Set to the row limit when the result was truncated at MAX_CLIENT_ROWS. */
-  rowLimit: number | null;
+  /** Fetching stopped and the query was cancelled because more than MAX_CLIENT_ROWS rows arrived. */
+  rowLimitReached: boolean;
   sql: string;
   startedAt: number;
 }
