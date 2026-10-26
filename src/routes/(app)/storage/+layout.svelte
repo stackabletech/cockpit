@@ -1,7 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import BucketList from '$lib/components/storage/sidebar/BucketList.svelte';
   import { StorageState } from '$lib/storage/state.svelte.js';
@@ -9,6 +8,7 @@
   import StorageModals from '$lib/components/storage/modals/StorageModals.svelte';
   import { connectionHostname, connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { createFetchStorageApi } from '$lib/storage/api.js';
+  import { storageHref } from '$lib/storage/display-helpers.js';
   import { TabsState } from '$lib/storage/tabs.svelte.js';
   import { storageRestoreTabsEnabled } from '$lib/client/feature-flags.js';
 
@@ -27,24 +27,14 @@
   );
   setStorageState(storage);
 
-  function locationPath(connection: string, bucket: string, prefix: string): string {
-    return resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
-      connection: encodeURIComponent(connection),
-      bucket: encodeURIComponent(bucket),
-      prefix: prefix ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/') : ''
-    });
-  }
-
   const tabsState = new TabsState(storage, {
     persistEnabled: storageRestoreTabsEnabled,
     connectionId: storage.connectionId,
     navigateToLocation: (connection, bucket, prefix) => {
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- path is built with resolve() in locationPath()
-      void goto(locationPath(connection, bucket, prefix));
+      void goto(storageHref(connection, bucket, prefix));
     },
     replaceLocationUrl: (connection, bucket, prefix) => {
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- path is built with resolve() in locationPath()
-      void goto(locationPath(connection, bucket, prefix), { replaceState: true });
+      void goto(storageHref(connection, bucket, prefix), { replaceState: true });
     }
   });
   setTabsState(tabsState);

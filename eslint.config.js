@@ -29,6 +29,8 @@ export default defineConfig(
     },
     rules: {
       'no-undef': 'off',
+      // linterOptions.reportUnusedDisableDirectives does not cover comments in Svelte templates.
+      'svelte/comment-directive': ['error', { reportUnusedDisableDirectives: true }],
       'no-console': 'error',
       // It will currently also error on external links or links with query parameters.
       // https://github.com/sveltejs/eslint-plugin-svelte/issues/1353

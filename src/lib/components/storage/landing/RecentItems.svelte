@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import type { Snippet } from 'svelte';
   import IconArrowForward from 'virtual:icons/material-symbols/arrow-forward';
   import IconDescriptionOutline from 'virtual:icons/material-symbols/description-outline';
@@ -106,8 +105,6 @@
   {/if}
 {/snippet}
 
-<!-- Links are resolved; the rule does not recognise the cast needed for dynamic storage paths. -->
-<!-- eslint-disable svelte/no-navigation-without-resolve -->
 {#snippet filesTable()}
   <table class="table-sm table w-full">
     <thead>
@@ -130,9 +127,7 @@
           </td>
           <td>
             <a
-              href={(resolve as (pathname: string) => string)(
-                fileHref(storage.connectionHostname, file)
-              )}
+              href={fileHref(storage.connectionHostname, file)}
               data-sveltekit-preload-data="off"
               class="text-base-content/60 hover:text-primary truncate text-xs"
             >
@@ -158,9 +153,7 @@
               </div>
               <div class="tooltip tooltip-left" data-tip={m.storage_recent_open_folder()}>
                 <a
-                  href={(resolve as (pathname: string) => string)(
-                    fileHref(storage.connectionHostname, file)
-                  )}
+                  href={fileHref(storage.connectionHostname, file)}
                   data-sveltekit-preload-data="off"
                   class="btn btn-ghost btn-xs"
                   aria-label="{m.storage_recent_open_folder()} — {keyToName(file.key)}"
@@ -197,9 +190,7 @@
                 <IconFolderOutline class="text-warning size-4 shrink-0" aria-hidden="true" />
               {/if}
               <a
-                href={(resolve as (pathname: string) => string)(
-                  locationHref(storage.connectionHostname, loc)
-                )}
+                href={locationHref(storage.connectionHostname, loc)}
                 data-sveltekit-preload-data="off"
                 class="hover:text-primary font-medium">{locationLabel(loc)}</a
               >
@@ -207,9 +198,7 @@
           </td>
           <td>
             <a
-              href={(resolve as (pathname: string) => string)(
-                locationHref(storage.connectionHostname, loc)
-              )}
+              href={locationHref(storage.connectionHostname, loc)}
               data-sveltekit-preload-data="off"
               class="text-base-content/60 hover:text-primary truncate text-xs"
             >
@@ -222,9 +211,7 @@
           <td>
             <div class="tooltip tooltip-left" data-tip={m.storage_recent_go_to_location()}>
               <a
-                href={(resolve as (pathname: string) => string)(
-                  locationHref(storage.connectionHostname, loc)
-                )}
+                href={locationHref(storage.connectionHostname, loc)}
                 data-sveltekit-preload-data="off"
                 class="btn btn-ghost btn-xs"
                 aria-label="{m.storage_recent_go_to_location()} — {locationLabel(loc)}"
@@ -238,7 +225,6 @@
     </tbody>
   </table>
 {/snippet}
-<!-- eslint-enable svelte/no-navigation-without-resolve -->
 
 <section class="card bg-base-100 border-base-300 mt-8 flex min-h-0 flex-1 flex-col border">
   <!-- Tab header -->
