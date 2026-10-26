@@ -251,6 +251,67 @@ export function resolveTrinoPublicUrl(userId: string): string | null {
 /** Save-time connection-test timeout. */
 export const CONN_TEST_TIMEOUT_MS = 10_000;
 
+/** The connection target answered, but not with the Trino client protocol. */
+export class NotTrinoServerError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NotTrinoServerError';
+  }
+}
+
+/** Fields every Trino (and trino-lb) statement response carries. */
+function isTrinoQueryResult(value: unknown): value is TrinoQueryResult {
+  if (typeof value !== 'object' || value === null) return false;
+  const { id, infoUri, stats } = value as Record<string, unknown>;
+  return (
+    typeof id === 'string' &&
+    typeof infoUri === 'string' &&
+    typeof stats === 'object' &&
+    stats !== null &&
+    typeof (stats as Record<string, unknown>).state === 'string'
+  );
+}
+
+/** Run one step of the client protocol, rejecting responses that are not Trino-shaped. */
+async function trinoProtocolStep(step: Promise<TrinoQueryResult>): Promise<TrinoQueryResult> {
+  let result: unknown;
+  try {
+    result = await step;
+  } catch (err) {
+    // res.json() on an HTML page or other non-JSON body.
+    if (err instanceof SyntaxError) throw new NotTrinoServerError('Response is not JSON');
+    throw err;
+  }
+  if (!isTrinoQueryResult(result)) {
+    throw new NotTrinoServerError('Response is not a Trino statement response');
+  }
+  if (result.error) throw new Error(result.error.message);
+  return result;
+}
+
+/**
+ * Check that the client points at a Trino server (or trino-lb) by running
+ * `SELECT 1` and validating every response against the Trino client protocol.
+ * Throws NotTrinoServerError when the target is not Trino.
+ */
+export async function verifyTrinoServer(
+  client: TrinoClient,
+  user: string,
+  signal?: AbortSignal
+): Promise<void> {
+  let result = await trinoProtocolStep(client.submit('SELECT 1', { user, signal }));
+  const rows: unknown[][] = result.data ? [...result.data] : [];
+
+  while (result.nextUri) {
+    result = await trinoProtocolStep(client.poll(result.nextUri, { user, signal }));
+    if (result.data) rows.push(...result.data);
+  }
+
+  if (rows.length !== 1 || rows[0].length !== 1 || rows[0][0] !== 1) {
+    throw new NotTrinoServerError('Unexpected result for SELECT 1');
+  }
+}
+
 /**
  * Submit a SQL query and drain all pages, returning columns and rows.
  * An optional AbortSignal bounds the whole submit/poll run.

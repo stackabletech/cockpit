@@ -7,7 +7,12 @@ const { mockEnv } = vi.hoisted(() => ({ mockEnv: {} as Record<string, string | u
 vi.mock('$env/dynamic/private', () => ({ env: mockEnv }));
 vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
-import { TrinoClient, trinoMetadataQuery } from './client.js';
+import {
+  NotTrinoServerError,
+  TrinoClient,
+  trinoMetadataQuery,
+  verifyTrinoServer
+} from './client.js';
 
 describe('TrinoClient X-Trino-User header', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -129,7 +134,7 @@ describe('TrinoClient AbortSignal forwarding', () => {
   });
 });
 
-describe('trinoMetadataQuery (connection test path)', () => {
+describe('trinoMetadataQuery', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('resolves rows for a successful single-page query', async () => {
@@ -153,6 +158,68 @@ describe('trinoMetadataQuery (connection test path)', () => {
     await expect(trinoMetadataQuery(client, 'SELECT 1', { user: 'alice' })).rejects.toThrow(
       'Access Denied'
     );
+  });
+});
+
+describe('verifyTrinoServer', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const stats = { state: 'FINISHED' };
+  const infoUri = 'http://trino:8080/ui/query.html?q1';
+
+  function stubResponses(...bodies: (() => Promise<unknown>)[]): ReturnType<typeof vi.fn> {
+    const fetchMock = vi.fn();
+    for (const json of bodies) fetchMock.mockResolvedValueOnce({ ok: true, json });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  function verify(): Promise<void> {
+    return verifyTrinoServer(new TrinoClient({ serverUrl: 'http://trino:8080' }), 'alice');
+  }
+
+  it('accepts a Trino response that pages through to the SELECT 1 row', async () => {
+    const fetchMock = stubResponses(
+      async () => ({ id: 'q1', infoUri, nextUri: 'http://trino:8080/next', stats }),
+      async () => ({ id: 'q1', infoUri, data: [[1]], stats })
+    );
+    await expect(verify()).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects a non-JSON response', async () => {
+    stubResponses(async () => JSON.parse('<html>'));
+    await expect(verify()).rejects.toBeInstanceOf(NotTrinoServerError);
+  });
+
+  it.each([
+    ['an empty object', {}],
+    ['a response without stats', { id: 'q1', infoUri, data: [[1]] }]
+  ])('rejects %s', async (_label, body) => {
+    stubResponses(async () => body);
+    await expect(verify()).rejects.toBeInstanceOf(NotTrinoServerError);
+  });
+
+  it('rejects a Trino-shaped response with the wrong result', async () => {
+    stubResponses(async () => ({ id: 'q1', infoUri, data: [[2]], stats }));
+    await expect(verify()).rejects.toBeInstanceOf(NotTrinoServerError);
+  });
+
+  it('does not treat a timeout as a non-Trino target', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new DOMException('timed out', 'TimeoutError');
+      })
+    );
+    await expect(verify()).rejects.toHaveProperty('name', 'TimeoutError');
+  });
+
+  it('passes through Trino query errors as connection failures', async () => {
+    stubResponses(async () => ({ id: 'q1', infoUri, error: { message: 'Access Denied' }, stats }));
+    const err = await verify().catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(NotTrinoServerError);
+    expect(err).toHaveProperty('message', 'Access Denied');
   });
 });
 

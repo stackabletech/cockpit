@@ -5,8 +5,9 @@ import { getUserId } from '$lib/server/auth-utils.js';
 import { getAllQuerySummaries, resetTabQueries } from '$lib/server/trino/queries.js';
 import {
   trinoConfigured,
-  trinoMetadataQuery,
-  CONN_TEST_TIMEOUT_MS
+  verifyTrinoServer,
+  CONN_TEST_TIMEOUT_MS,
+  NotTrinoServerError
 } from '$lib/server/trino/client.js';
 import { completionEnabled } from '$lib/server/feature-flags.js';
 import {
@@ -65,21 +66,18 @@ export const actions: Actions = {
       password: authPassword
     };
 
-    // Verify connectivity before storing the client or cancelling running queries.
+    // Verify the target is Trino and reachable before storing the client or cancelling running queries.
     try {
       const testClient = buildUserTrinoClient(config);
-      await trinoMetadataQuery(
-        testClient,
-        'SELECT 1',
-        { user },
-        AbortSignal.timeout(CONN_TEST_TIMEOUT_MS)
-      );
+      await verifyTrinoServer(testClient, user, AbortSignal.timeout(CONN_TEST_TIMEOUT_MS));
     } catch (err) {
       const name = (err as { name?: string })?.name;
       const reason =
         name === 'TimeoutError' || name === 'AbortError'
           ? m.trino_connection_test_timeout()
-          : m.trino_connection_test_failed();
+          : err instanceof NotTrinoServerError
+            ? m.trino_connection_not_trino()
+            : m.trino_connection_test_failed();
       log.info({ err, trino_url: connectionUrl }, 'connection test failed');
       return message(form, { type: 'error', message: reason } satisfies ConnectionMessage, {
         status: 400
