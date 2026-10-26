@@ -92,6 +92,12 @@ All feature parameters are optional. Omit them to use the application defaults.
 | --- | --- | --- |
 | `features.trino.completion.enabled` | Enable SQL code completion. | `true` (application default) |
 | `features.storage.enabled` | Show the S3/HDFS file browser and enable routes under `/storage`. | `false` (application default) |
+| `features.storage.hdfs.enabled` | Allow HDFS connections (WebHDFS/HttpFS) with simple auth or, when `kerberos` is configured, Kerberos. | `false` (application default) |
+| `features.storage.hdfs.tls.caCert` | Path to a mounted PEM CA bundle used to verify HDFS NameNode and DataNode HTTPS certificates. | `""` |
+| `features.storage.hdfs.tls.secretClass` | Stackable TLS SecretClass that provisions the HDFS CA (alternative to `caCert`). | `""` |
+| `features.storage.hdfs.kerberos.secretClass` | Stackable `kerberosKeytab` SecretClass providing cockpit's keytab and `krb5.conf`. Enables Kerberos HDFS connections, in which cockpit impersonates the signed-in user: the HDFS cluster must allow `hadoop.proxyuser.<serviceName>.hosts` and `.groups`. | `""` |
+| `features.storage.hdfs.kerberos.serviceName` | Service name in cockpit's principal (`<serviceName>/<serviceName>.<namespace>.svc.cluster.local`). | `cockpit` |
+| `features.storage.hdfs.kerberos.principal` | Client principal override; defaults to the keytab's principal. | `""` |
 | `features.storage.autoConnect` | Reconnect to the most recently used storage connection when visiting the storage page. | `false` (application default) |
 | `features.storage.pageSizes` | Comma-separated page size options. | `25,50,100` (application default) |
 | `features.storage.defaultPageSize` | Default page size; must be included in `pageSizes`. | First configured page size (application default) |

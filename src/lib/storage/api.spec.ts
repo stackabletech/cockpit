@@ -388,6 +388,38 @@ describe('createFetchStorageApi', () => {
     });
   });
 
+  describe('trash', () => {
+    it('asks for the trash only when requested and returns the trashed count', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(jsonResponse({ failed: [], trashed: 1 }))
+        .mockResolvedValueOnce(jsonResponse({ failed: [] }));
+
+      const trashed = await api.delete({ bucket: 'b', keys: ['a.txt'], trash: true });
+      await api.delete({ bucket: 'b', keys: ['a.txt'] });
+
+      const calls = vi.mocked(globalThis.fetch).mock.calls;
+      expect(String(calls[0]![0])).toContain('trash=true');
+      expect(String(calls[1]![0])).not.toContain('trash=');
+      expect(trashed.trashed).toBe(1);
+    });
+
+    it('fetches trash info for a bucket', async () => {
+      const api = createFetchStorageApi(() => 'conn-1');
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        jsonResponse({ enabled: true, intervalMinutes: 1440 })
+      );
+
+      expect(await api.trashInfo({ bucket: '/user/alice' })).toEqual({
+        enabled: true,
+        intervalMinutes: 1440
+      });
+      expect(String(vi.mocked(globalThis.fetch).mock.calls[0]![0])).toContain(
+        '/api/storage/trash?bucket=%2Fuser%2Falice'
+      );
+    });
+  });
+
   describe('create', () => {
     it('sends POST with bucket and key', async () => {
       const api = createFetchStorageApi(() => 'conn-1');

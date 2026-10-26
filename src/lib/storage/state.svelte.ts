@@ -31,11 +31,12 @@ import { StorageError, getActionErrorMessage } from './errors.js';
 import { BookmarksState } from './bookmarks.svelte.js';
 import { connectionStore } from '$lib/storage/connection-store.svelte.js';
 import { keyToName } from '$lib/storage/utils.js';
-import type { StorageApi } from './api.js';
+import type { DeleteResult, StorageApi } from './api.js';
 import { createFetchStorageApi } from './api.js';
 import { OperationsState } from './operations.svelte.js';
 import { ArchiveState } from './archive.svelte.js';
 import { ClipboardState } from './clipboard.svelte.js';
+import { objectUri } from './display-helpers.js';
 
 export class StorageState {
   // ── Core data (synced from server load) ──
@@ -654,7 +655,7 @@ export class StorageState {
   copyPath = async (bucket: string, key: string): Promise<void> => {
     const cleanKey = key.endsWith('/') ? key.slice(0, -1) : key;
     try {
-      await navigator.clipboard.writeText(`s3://${bucket}/${cleanKey}`);
+      await navigator.clipboard.writeText(objectUri(bucket, cleanKey));
       addToast('success', m.storage_action_copy_path_success());
     } catch {
       addToast('error', m.storage_action_copy_path_error());
@@ -693,7 +694,8 @@ export class StorageState {
     this.closeModal();
   };
 
-  confirmDelete = async (): Promise<void> => {
+  /** With `trash`, HDFS moves the keys to the user's trash instead of deleting them. */
+  confirmDelete = async (options: { trash?: boolean } = {}): Promise<void> => {
     const modal = this.activeModal;
     if (!modal || modal.type !== 'delete') return;
 
@@ -702,7 +704,9 @@ export class StorageState {
     this.deleting = true;
 
     try {
-      const result = await this.performDelete(this.bucket, keys);
+      const result = await this.performDelete(this.bucket, keys, options.trash);
+      if (result.trashed)
+        addToast('success', m.storage_delete_trash_success({ count: result.trashed }));
       if (result.failed && result.failed.length > 0) {
         addToast('warning', m.storage_delete_partial_failure({ count: result.failed.length }));
       }
@@ -909,9 +913,10 @@ export class StorageState {
 
   private async performDelete(
     bucket: string,
-    keys: string[]
-  ): Promise<{ failed: Array<{ key: string; code?: string; message?: string }> }> {
-    const result = await this.api.delete({ bucket, keys });
+    keys: string[],
+    trash?: boolean
+  ): Promise<DeleteResult> {
+    const result = await this.api.delete({ bucket, keys, trash });
 
     // Clean up pinned locations and recent items for deleted paths
     const dirPrefixes = keys.filter((k) => k.endsWith('/'));

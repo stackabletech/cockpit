@@ -41,7 +41,7 @@ const CLEANUP_INTERVAL = 60_000;
 interface CacheEntry {
   path: string;
   expiresAt: number;
-  bucket: string;
+  scope: string;
   key: string;
 }
 
@@ -65,22 +65,31 @@ const cleanupTimer = setInterval(() => {
 
 if (cleanupTimer.unref) cleanupTimer.unref();
 
-function cacheKey(bucket: string, key: string): string {
-  return `${bucket}:${key}`;
+/**
+ * Cache entries are scoped by connection and bucket (`scope`), never by key
+ * alone: two connections can hold different objects under the same name.
+ */
+function cacheKey(scope: string, key: string): string {
+  return `${scope}\u0000${key}`;
 }
 
-function getCachedPath(bucket: string, key: string): string | null {
-  const entry = archiveCache.get(cacheKey(bucket, key));
+/** Cache scope for a connection's bucket. */
+export function archiveCacheScope(connectionId: string, bucket: string): string {
+  return `${connectionId}/${bucket}`;
+}
+
+function getCachedPath(scope: string, key: string): string | null {
+  const entry = archiveCache.get(cacheKey(scope, key));
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (entry && Date.now() < entry.expiresAt && existsSync(entry.path)) {
     return entry.path;
   }
-  if (entry) archiveCache.delete(cacheKey(bucket, key));
+  if (entry) archiveCache.delete(cacheKey(scope, key));
   return null;
 }
 
-function cacheArchive(bucket: string, key: string, path: string): void {
-  archiveCache.set(cacheKey(bucket, key), { path, expiresAt: Date.now() + CACHE_TTL, bucket, key });
+function cacheArchive(scope: string, key: string, path: string): void {
+  archiveCache.set(cacheKey(scope, key), { path, expiresAt: Date.now() + CACHE_TTL, scope, key });
 }
 
 function streamToTempFile(stream: ReadableStream, ext: string): Promise<string> {
@@ -695,24 +704,24 @@ export type ArchiveMetadataFn = (key: string) => Promise<{ size: number; content
  * For nested archives, first download the outer archive, then extract the nested one.
  */
 async function resolveArchivePath(
-  bucket: string,
+  scope: string,
   key: string,
   nestedArchivePath: string | undefined,
   downloadFn: ArchiveDownloadFn
 ): Promise<string> {
-  let tempPath = getCachedPath(bucket, key);
+  let tempPath = getCachedPath(scope, key);
   if (!tempPath) {
-    log.info({ bucket, key }, 'downloading archive');
+    log.info({ scope, key }, 'downloading archive');
     const ext = extname(key) || '.bin';
     const stream = await downloadFn(key);
     tempPath = await streamToTempFile(stream, ext);
-    cacheArchive(bucket, key, tempPath);
+    cacheArchive(scope, key, tempPath);
   }
 
   if (!nestedArchivePath) return tempPath;
 
   // Resolve nested archive — cache it under a composite key
-  const nestedCacheKey = cacheKey(bucket, `${key}!/${nestedArchivePath}`);
+  const nestedCacheKey = cacheKey(scope, `${key}!/${nestedArchivePath}`);
   const cachedEntry = archiveCache.get(nestedCacheKey);
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (cachedEntry && Date.now() < cachedEntry.expiresAt && existsSync(cachedEntry.path)) {
@@ -720,7 +729,7 @@ async function resolveArchivePath(
   }
   if (cachedEntry) archiveCache.delete(nestedCacheKey);
 
-  log.info({ bucket, key, nested_archive_path: nestedArchivePath }, 'extracting nested archive');
+  log.info({ scope, key, nested_archive_path: nestedArchivePath }, 'extracting nested archive');
 
   // Extract nested archive from outer archive
   const format = getArchiveFormat(key);
@@ -761,7 +770,7 @@ async function resolveArchivePath(
   archiveCache.set(nestedCacheKey, {
     path: nestedPath,
     expiresAt: Date.now() + CACHE_TTL,
-    bucket,
+    scope,
     key: `${key}!/${nestedArchivePath}`
   });
 
@@ -774,7 +783,7 @@ async function resolveArchivePath(
  * Supports nested archives via the optional `nestedArchivePath` parameter.
  */
 export async function listArchiveContents(
-  bucket: string,
+  scope: string,
   key: string,
   internalPrefix: string,
   downloadFn: ArchiveDownloadFn,
@@ -792,7 +801,7 @@ export async function listArchiveContents(
       const meta = await metadataFn(key);
       if (meta.size > maxBytes) {
         log.info(
-          { bucket, key, compressed_size: meta.size, max_bytes: maxBytes },
+          { scope, key, compressed_size: meta.size, max_bytes: maxBytes },
           'archive compressed size exceeds limit'
         );
         return { entries: [], hasMore: false, tooLarge: true };
@@ -802,11 +811,11 @@ export async function listArchiveContents(
     }
   }
 
-  const tempPath = await resolveArchivePath(bucket, key, nestedArchivePath, downloadFn);
+  const tempPath = await resolveArchivePath(scope, key, nestedArchivePath, downloadFn);
 
   log.debug(
     {
-      bucket,
+      scope,
       key,
       internal_prefix: internalPrefix,
       nested_archive_path: nestedArchivePath,
@@ -837,7 +846,7 @@ export async function listArchiveContents(
  * Supports nested archives via the optional `nestedArchivePath` parameter.
  */
 export async function extractArchiveEntry(
-  bucket: string,
+  scope: string,
   key: string,
   internalPath: string,
   downloadFn: ArchiveDownloadFn,
@@ -855,7 +864,7 @@ export async function extractArchiveEntry(
       const meta = await metadataFn(key);
       if (meta.size > maxBytes) {
         log.info(
-          { bucket, key, compressed_size: meta.size, max_bytes: maxBytes },
+          { scope, key, compressed_size: meta.size, max_bytes: maxBytes },
           'archive compressed size exceeds limit, extraction aborted'
         );
         return null;
@@ -865,10 +874,10 @@ export async function extractArchiveEntry(
     }
   }
 
-  const tempPath = await resolveArchivePath(bucket, key, nestedArchivePath, downloadFn);
+  const tempPath = await resolveArchivePath(scope, key, nestedArchivePath, downloadFn);
 
   log.debug(
-    { bucket, key, internal_path: internalPath, nested_archive_path: nestedArchivePath, format },
+    { scope, key, internal_path: internalPath, nested_archive_path: nestedArchivePath, format },
     'extracting archive entry'
   );
 
@@ -900,7 +909,7 @@ export async function extractArchiveEntry(
   if (data && maxBytes !== undefined && data.length > maxBytes) {
     log.info(
       {
-        bucket,
+        scope,
         key,
         internal_path: internalPath,
         extracted_size: data.length,

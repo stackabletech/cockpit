@@ -1,0 +1,161 @@
+---
+# MIT Kerberos KDC for local development, following the Stackable
+# documentation's test setup. Realm CLUSTER.LOCAL, development passwords only.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: krb5-kdc
+  namespace: default
+data:
+  krb5.conf: |
+    [logging]
+    default = STDERR
+    kdc = STDERR
+    admin_server = STDERR
+
+    [libdefaults]
+    dns_lookup_realm = false
+    ticket_lifetime = 24h
+    renew_lifetime = 7d
+    forwardable = true
+    rdns = false
+    default_realm = CLUSTER.LOCAL
+    spake_preauth_groups = edwards25519
+
+    [realms]
+    CLUSTER.LOCAL = {
+      acl_file = /stackable/config/kadm5.acl
+      disable_encrypted_timestamp = false
+    }
+
+    [domain_realm]
+    .cluster.local = CLUSTER.LOCAL
+    cluster.local = CLUSTER.LOCAL
+  kadm5.acl: |
+    root/admin *e
+    stackable-secret-operator *e
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: krb5-kdc
+  namespace: default
+spec:
+  serviceName: krb5-kdc
+  selector:
+    matchLabels:
+      app: krb5-kdc
+  template:
+    metadata:
+      labels:
+        app: krb5-kdc
+    spec:
+      initContainers:
+        - name: init
+          image: oci.stackable.tech/sdp/krb5:1.21.1-stackable26.7.0
+          args:
+            - sh
+            - -euo
+            - pipefail
+            - -c
+            - |
+              test -e /var/kerberos/krb5kdc/principal || kdb5_util create -s -P stackable-dev-kdc
+              kadmin.local get_principal -terse root/admin || kadmin.local add_principal -pw stackable-dev-kdc root/admin
+              kadmin.local get_principal -terse stackable-secret-operator || kadmin.local add_principal -e aes256-cts-hmac-sha384-192:normal -pw stackable-dev-kdc stackable-secret-operator
+          env:
+            - name: KRB5_CONFIG
+              value: /stackable/config/krb5.conf
+          volumeMounts:
+            - mountPath: /stackable/config
+              name: config
+            - mountPath: /var/kerberos/krb5kdc
+              name: data
+      containers:
+        - name: kdc
+          image: oci.stackable.tech/sdp/krb5:1.21.1-stackable26.7.0
+          args:
+            - krb5kdc
+            - -n
+          ports:
+            - name: kerberos
+              containerPort: 88
+              protocol: UDP
+            - name: kerberos-tcp
+              containerPort: 88
+              protocol: TCP
+          env:
+            - name: KRB5_CONFIG
+              value: /stackable/config/krb5.conf
+          volumeMounts:
+            - mountPath: /stackable/config
+              name: config
+            - mountPath: /var/kerberos/krb5kdc
+              name: data
+        - name: kadmind
+          image: oci.stackable.tech/sdp/krb5:1.21.1-stackable26.7.0
+          args:
+            - kadmind
+            - -nofork
+          ports:
+            - name: kadmin
+              containerPort: 749
+              protocol: TCP
+          env:
+            - name: KRB5_CONFIG
+              value: /stackable/config/krb5.conf
+          volumeMounts:
+            - mountPath: /stackable/config
+              name: config
+            - mountPath: /var/kerberos/krb5kdc
+              name: data
+      volumes:
+        - name: config
+          configMap:
+            name: krb5-kdc
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: krb5-kdc
+  namespace: default
+spec:
+  selector:
+    app: krb5-kdc
+  ports:
+    - name: kerberos
+      port: 88
+      protocol: UDP
+    - name: kerberos-tcp
+      port: 88
+      protocol: TCP
+    - name: kadmin
+      port: 749
+      protocol: TCP
+---
+# Keytabs for HDFS and cockpit. The admin keytab Secret is created by
+# dev/modules/hdfs.sh from the KDC once it is running.
+apiVersion: secrets.stackable.tech/v1alpha1
+kind: SecretClass
+metadata:
+  name: kerberos-default
+spec:
+  backend:
+    kerberosKeytab:
+      realmName: CLUSTER.LOCAL
+      kdc: krb5-kdc.default.svc.cluster.local
+      admin:
+        mit:
+          kadminServer: krb5-kdc.default.svc.cluster.local
+      adminKeytabSecret:
+        namespace: default
+        name: secret-operator-keytab
+      adminPrincipal: stackable-secret-operator

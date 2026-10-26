@@ -2,27 +2,22 @@ import { error } from '@sveltejs/kit';
 import { eq, and } from 'drizzle-orm';
 import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
-import { decrypt } from './encryption.js';
 import { storageEncryptionKey } from './encryption-key.js';
-import type { S3ConnectionConfig } from './types.js';
+import type { StorageConnectionConfig } from './types.js';
+import {
+  decryptPayload,
+  toConnectionConfig,
+  type StorageIdentity,
+  type StoredPayload
+} from './connection-payload.js';
 import { logger } from '$lib/server/logging';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 
 const log = logger.child({ module: 'storage-connection' });
 
-/** The shape of the JSON stored inside encrypted_payload. */
-interface StoredPayload {
-  host: string;
-  port?: number;
-  tls?: { verification: 'Full' | 'None' };
-  accessStyle: 'Path' | 'VirtualHosted';
-  region: { name: string };
-  credentials?: { accessKey: string; secretKey: string };
-}
-
 /**
  * Look up a storage connection by UUID and authenticated user ID, decrypt the
- * payload, and return the {@link S3ConnectionConfig}.
+ * payload, and return the {@link StorageConnectionConfig}.
  *
  * Also updates `updated_at` on the connection row (fire-and-forget) so that
  * auto-connect picks the most-recently-used connection on the next page load.
@@ -33,8 +28,8 @@ interface StoredPayload {
  */
 export async function getConnectionFromHeader(
   request: Request,
-  userId: string
-): Promise<S3ConnectionConfig | null> {
+  identity: StorageIdentity
+): Promise<StorageConnectionConfig | null> {
   const connectionId = request.headers.get(STORAGE_CONNECTION_ID_HEADER);
   if (!connectionId) return null;
 
@@ -42,7 +37,10 @@ export async function getConnectionFromHeader(
     .select()
     .from(userStorageConnections)
     .where(
-      and(eq(userStorageConnections.id, connectionId), eq(userStorageConnections.userId, userId))
+      and(
+        eq(userStorageConnections.id, connectionId),
+        eq(userStorageConnections.userId, identity.userId)
+      )
     )
     .limit(1);
 
@@ -55,7 +53,7 @@ export async function getConnectionFromHeader(
 
   let payload: StoredPayload;
   try {
-    payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey())) as StoredPayload;
+    payload = decryptPayload(row.encryptedPayload, storageEncryptionKey());
   } catch (err) {
     log.error({ err, connection_id: connectionId }, 'failed to decrypt storage connection payload');
     throw error(500, 'Failed to decrypt storage connection');
@@ -69,19 +67,5 @@ export async function getConnectionFromHeader(
       log.warn({ err, connection_id: connectionId }, 'failed to update connection updated_at')
     );
 
-  const resolvedCredentials =
-    payload.credentials?.accessKey && payload.credentials?.secretKey
-      ? payload.credentials
-      : undefined;
-
-  return {
-    type: 's3',
-    host: payload.host,
-    port: payload.port,
-    tls: payload.tls,
-    accessStyle: payload.accessStyle,
-    region: payload.region,
-    credentials: resolvedCredentials,
-    additionalBuckets: (row.additionalBuckets as string[]) ?? []
-  };
+  return toConnectionConfig(payload, (row.additionalBuckets as string[]) ?? [], identity);
 }

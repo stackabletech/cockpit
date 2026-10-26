@@ -1,8 +1,10 @@
 import { error } from '@sveltejs/kit';
-import { listArchiveContents } from '$lib/server/storage/archive.js';
+import { archiveCacheScope, listArchiveContents } from '$lib/server/storage/archive.js';
 import { getProvider } from '$lib/server/storage/utils.js';
+import { wrapProvider } from '$lib/server/storage/wrap-provider.js';
 import { archivePreviewMaxBytes } from '$lib/server/feature-flags.js';
 import type { RequestHandler } from './$types';
+import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 
 /**
  * GET /api/storage/archive/listing?bucket=<bucket>&key=<archive-key>&internalPrefix=<path>&nestedArchivePath=<path>
@@ -18,7 +20,7 @@ import type { RequestHandler } from './$types';
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.
  */
-export const GET: RequestHandler = async ({ locals, url }) => {
+export const GET: RequestHandler = async ({ locals, url, request }) => {
   const bucket = url.searchParams.get('bucket')?.trim();
   if (!bucket) throw error(400, 'Missing required query parameter: bucket');
 
@@ -39,13 +41,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   );
 
   const downloadFn = (k: string) =>
-    getProvider(config, bucket)
+    wrapProvider(getProvider(config, bucket))
       .getObject(k)
       .then((d) => d.stream);
-  const metadataFn = (k: string) => getProvider(config, bucket).getMetadata(k);
+  const metadataFn = (k: string) => wrapProvider(getProvider(config, bucket)).getMetadata(k);
 
   const listing = await listArchiveContents(
-    bucket,
+    archiveCacheScope(request.headers.get(STORAGE_CONNECTION_ID_HEADER) ?? '', bucket),
     key,
     internalPrefix,
     downloadFn,

@@ -13,8 +13,8 @@ import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { auth, oidcEnabled } from '$lib/server/auth';
 import { requestLogger, logger } from '$lib/server/logging';
 import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
+import { getStorageIdentity } from '$lib/server/storage/connection-payload.js';
 import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
-import { getUserId } from '$lib/server/auth-utils.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
@@ -86,7 +86,7 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
   if (event.route.id?.startsWith('/(app)/api/storage/')) {
     event.locals.storageConfig = await getConnectionFromHeader(
       event.request,
-      getUserId(event.locals)
+      getStorageIdentity(event.locals)
     );
   } else {
     event.locals.storageConfig = null;

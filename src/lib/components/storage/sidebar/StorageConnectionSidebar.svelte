@@ -55,7 +55,7 @@
 
   // ── Tooltip ──────────────────────────────────────────────────────────────
   function connectionLabel(conn: ConnectionMetadata): string {
-    return conn.name || conn.endpoint || 'S3';
+    return conn.name || conn.endpoint || conn.type.toUpperCase();
   }
 
   function openContextMenu(e: MouseEvent, conn: ConnectionMetadata) {
@@ -106,7 +106,7 @@
     const colonIdx = ep.lastIndexOf(':');
     const host = colonIdx > 0 ? ep.slice(0, colonIdx) : ep;
     const port = colonIdx > 0 ? parseInt(ep.slice(colonIdx + 1), 10) || null : null;
-    return { id: menuConn.id, name: menuConn.name, host, port, type: 's3', region: { name: '' } };
+    return { id: menuConn.id, name: menuConn.name, host, port, type: menuConn.type };
   });
 </script>
 

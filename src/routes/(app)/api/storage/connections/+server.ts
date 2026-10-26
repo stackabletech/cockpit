@@ -1,9 +1,11 @@
-import { desc, eq, and } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { getUserId } from '$lib/server/auth-utils.js';
+import { listConnectionItems } from '$lib/server/storage/connections-db.js';
+import { normaliseHdfsBasePath } from '$lib/storage/hdfs-path.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -13,47 +15,7 @@ import type { RequestHandler } from './$types';
  * most recently used first. Credentials are never included in the response.
  */
 export const GET: RequestHandler = async ({ locals }) => {
-  const userId = getUserId(locals);
-
-  const rows = await db
-    .select({
-      id: userStorageConnections.id,
-      name: userStorageConnections.name,
-      encryptedPayload: userStorageConnections.encryptedPayload,
-      additionalBuckets: userStorageConnections.additionalBuckets,
-      createdAt: userStorageConnections.createdAt,
-      updatedAt: userStorageConnections.updatedAt
-    })
-    .from(userStorageConnections)
-    .where(eq(userStorageConnections.userId, userId))
-    .orderBy(desc(userStorageConnections.updatedAt));
-
-  // Decrypt the endpoint for display purposes — we include it in the response
-  // so the UI can show a label, but never include the access keys or secret.
-  const { decrypt } = await import('$lib/server/storage/encryption.js');
-  const { storageEncryptionKey: getKey } = await import('$lib/server/storage/encryption-key.js');
-
-  const connections = rows.map((row) => {
-    let endpoint: string | null = null;
-    try {
-      const payload = JSON.parse(decrypt(row.encryptedPayload, getKey())) as {
-        host?: string;
-        port?: number;
-      };
-      endpoint =
-        payload.host && payload.port ? `${payload.host}:${payload.port}` : (payload.host ?? null);
-    } catch {
-      // If decryption fails for a row, we still return the entry without the endpoint.
-    }
-    return {
-      id: row.id,
-      name: row.name,
-      endpoint,
-      additionalBuckets: (row.additionalBuckets as string[]) ?? [],
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString()
-    };
-  });
+  const connections = await listConnectionItems(getUserId(locals));
 
   locals.logger.debug({ connection_count: connections.length }, 'connections list returned');
   return Response.json(connections);
@@ -62,7 +24,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 /**
  * PATCH /api/storage/connections
  *
- * Adds a bucket to the active connection's `additionalBuckets` list.
+ * Adds a bucket (S3) or absolute base path (HDFS) to the active connection's
+ * `additionalBuckets` list.
  * Requires the `x-storage-connection-id` header. The bucket is only added
  * if the caller has already verified access (e.g. via check-bucket).
  */
@@ -74,9 +37,16 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
   }
 
   const body = (await request.json()) as { bucket?: string };
-  const bucket = body.bucket?.trim();
+  let bucket = body.bucket?.trim();
   if (!bucket) {
     return json({ error: 'Bucket name is required' }, { status: 400 });
+  }
+  if (locals.storageConfig?.type === 'hdfs') {
+    const normalised = normaliseHdfsBasePath(bucket);
+    if (!normalised) {
+      return json({ error: 'HDFS base path must be absolute' }, { status: 400 });
+    }
+    bucket = normalised;
   }
 
   const rows = await db

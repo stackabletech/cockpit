@@ -5,6 +5,8 @@
   import Modal from '$lib/components/Modal.svelte';
   import { getStorageState } from '$lib/storage/context.js';
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+  import { encodeContainerSegment } from '$lib/storage/display-helpers.js';
+  import { normaliseHdfsBasePath } from '$lib/storage/hdfs-path.js';
 
   interface Props {
     open: boolean;
@@ -17,7 +19,9 @@
 
   let bucketName = $state('');
   let submitting = $state(false);
-  let error = $state<'access_denied' | 'not_found' | 'unknown' | null>(null);
+  let error = $state<'invalid' | 'access_denied' | 'not_found' | 'unknown' | null>(null);
+
+  const isHdfs = $derived(connectionStore.activeConnection?.type === 'hdfs');
 
   function reset() {
     bucketName = '';
@@ -36,8 +40,13 @@
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
-    const name = bucketName.trim();
-    if (!name) return;
+    const raw = bucketName.trim();
+    if (!raw) return;
+    const name = isHdfs ? normaliseHdfsBasePath(raw) : raw;
+    if (!name) {
+      error = 'invalid';
+      return;
+    }
 
     submitting = true;
     error = null;
@@ -69,7 +78,7 @@
         await goto(
           resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
             connection: encodeURIComponent(storage.connectionHostname),
-            bucket: encodeURIComponent(name),
+            bucket: encodeContainerSegment(name),
             prefix: ''
           })
         );
@@ -87,32 +96,47 @@
     }
   }
 
-  const errorMessage = $derived(
-    error === 'access_denied'
-      ? m.storage_add_bucket_error_access_denied()
-      : error === 'not_found'
-        ? m.storage_add_bucket_error_not_found()
-        : error === 'unknown'
-          ? m.storage_add_bucket_error_unknown()
-          : null
-  );
+  const errorMessage = $derived.by(() => {
+    switch (error) {
+      case 'invalid':
+        return m.storage_add_path_error_invalid();
+      case 'access_denied':
+        return isHdfs
+          ? m.storage_add_path_error_access_denied()
+          : m.storage_add_bucket_error_access_denied();
+      case 'not_found':
+        return isHdfs
+          ? m.storage_add_path_error_not_found()
+          : m.storage_add_bucket_error_not_found();
+      case 'unknown':
+        return m.storage_add_bucket_error_unknown();
+      default:
+        return null;
+    }
+  });
 </script>
 
 <Modal bind:open class="modal">
   <div class="modal-box w-full max-w-sm">
-    <h2 class="mb-1 text-lg font-semibold">{m.storage_add_bucket_title()}</h2>
-    <p class="text-base-content/60 mb-5 text-sm">{m.storage_add_bucket_subtitle()}</p>
+    <h2 class="mb-1 text-lg font-semibold">
+      {isHdfs ? m.storage_add_path_title() : m.storage_add_bucket_title()}
+    </h2>
+    <p class="text-base-content/60 mb-5 text-sm">
+      {isHdfs ? m.storage_add_path_subtitle() : m.storage_add_bucket_subtitle()}
+    </p>
 
     <form onsubmit={handleSubmit} class="flex flex-col gap-4">
       <div>
         <label for="{uid}-bucket-name" class="label mb-1 text-sm font-medium">
-          {m.storage_add_bucket_name_label()}
+          {isHdfs ? m.storage_add_path_name_label() : m.storage_add_bucket_name_label()}
         </label>
         <input
           id="{uid}-bucket-name"
           type="text"
           class="input w-full {error ? 'input-error' : ''}"
-          placeholder={m.storage_add_bucket_name_placeholder()}
+          placeholder={isHdfs
+            ? m.storage_add_path_name_placeholder()
+            : m.storage_add_bucket_name_placeholder()}
           bind:value={bucketName}
           disabled={submitting}
           autocomplete="off"

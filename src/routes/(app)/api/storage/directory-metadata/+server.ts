@@ -25,6 +25,15 @@ export const GET: RequestHandler = async (event) => {
 
   try {
     const meta = await provider.getMetadata(prefix);
+    if (meta.permission !== undefined) {
+      result.posix = {
+        owner: meta.owner ?? '',
+        group: meta.group ?? '',
+        permission: meta.permission
+      };
+      result.markerLastModified = meta.lastModified.toISOString();
+      return Response.json(result);
+    }
     result.markerExists = true;
     result.markerLastModified = meta.lastModified.toISOString();
     result.markerContentType = meta.contentType;

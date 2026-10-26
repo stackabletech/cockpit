@@ -18,7 +18,7 @@
   let copiedField: string | null = $state(null);
 
   function connectionLabel(conn: SavedConnection): string {
-    return conn.name || conn.host || 'S3';
+    return conn.name || conn.host || (conn.type === 'hdfs' ? 'HDFS' : 'S3');
   }
 
   function copyField(value: string, field: string) {
@@ -34,7 +34,7 @@
     const lines = [
       `Host:        ${host}`,
       ...(conn.credentials?.accessKey ? [`Access key:  ${conn.credentials.accessKey}`] : []),
-      `Region:      ${conn.region.name}`
+      ...(conn.region?.name ? [`Region:      ${conn.region.name}`] : [])
     ];
     navigator.clipboard.writeText(lines.join('\n'));
     copiedField = 'all';

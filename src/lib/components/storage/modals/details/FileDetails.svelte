@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
   import { formatFileSize, keyToName } from '$lib/storage/utils.js';
+  import { objectUri } from '$lib/storage/display-helpers.js';
   import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
   import type { FileDetails as FileDetailsType } from '$lib/storage/details-types.js';
   import { getLocale } from '$lib/paraglide/runtime';
@@ -11,6 +12,9 @@
   }
 
   let { details, bucket }: Props = $props();
+
+  // HDFS reports POSIX attributes instead of S3 object versioning fields.
+  const isPosix = $derived(details.permission !== undefined);
 </script>
 
 <div class="overflow-x-auto">
@@ -26,7 +30,7 @@
         <td class="text-base-content/60 font-medium whitespace-nowrap"
           >{m.storage_details_file_path()}</td
         >
-        <td class="font-mono text-sm break-all">s3://{bucket}/{details.key}</td>
+        <td class="font-mono text-sm break-all">{objectUri(bucket, details.key)}</td>
       </tr>
       <tr>
         <td class="text-base-content/60 font-medium whitespace-nowrap"
@@ -58,26 +62,63 @@
           <td class="max-w-xs truncate font-mono text-sm" title={details.etag}>{details.etag}</td>
         </tr>
       {/if}
-      <tr>
-        <td class="text-base-content/60 font-medium whitespace-nowrap"
-          >{m.storage_details_version_id()}</td
-        >
-        <td class="max-w-xs truncate font-mono text-sm" title={details.versionId ?? ''}>
-          {details.versionId ?? '—'}
-        </td>
-      </tr>
-      <tr>
-        <td class="text-base-content/60 font-medium whitespace-nowrap"
-          >{m.storage_details_storage_class()}</td
-        >
-        <td class="font-mono text-sm">{details.storageClass ?? '—'}</td>
-      </tr>
-      <tr>
-        <td class="text-base-content/60 font-medium whitespace-nowrap"
-          >{m.storage_details_is_delete_marker()}</td
-        >
-        <td>{details.isDeleteMarker ? m.storage_details_yes() : m.storage_details_no()}</td>
-      </tr>
+      {#if isPosix}
+        <tr>
+          <td class="text-base-content/60 font-medium whitespace-nowrap"
+            >{m.storage_details_owner()}</td
+          >
+          <td class="font-mono text-sm">{details.owner ?? '—'}</td>
+        </tr>
+        <tr>
+          <td class="text-base-content/60 font-medium whitespace-nowrap"
+            >{m.storage_details_group()}</td
+          >
+          <td class="font-mono text-sm">{details.group ?? '—'}</td>
+        </tr>
+        <tr>
+          <td class="text-base-content/60 font-medium whitespace-nowrap"
+            >{m.storage_details_permissions()}</td
+          >
+          <td class="font-mono text-sm">{details.permission}</td>
+        </tr>
+        {#if details.replication !== undefined}
+          <tr>
+            <td class="text-base-content/60 font-medium whitespace-nowrap"
+              >{m.storage_details_replication()}</td
+            >
+            <td class="font-mono text-sm">{details.replication}</td>
+          </tr>
+        {/if}
+        {#if details.blockSize !== undefined}
+          <tr>
+            <td class="text-base-content/60 font-medium whitespace-nowrap"
+              >{m.storage_details_block_size()}</td
+            >
+            <td class="font-mono text-sm">{formatFileSize(details.blockSize)}</td>
+          </tr>
+        {/if}
+      {:else}
+        <tr>
+          <td class="text-base-content/60 font-medium whitespace-nowrap"
+            >{m.storage_details_version_id()}</td
+          >
+          <td class="max-w-xs truncate font-mono text-sm" title={details.versionId ?? ''}>
+            {details.versionId ?? '—'}
+          </td>
+        </tr>
+        <tr>
+          <td class="text-base-content/60 font-medium whitespace-nowrap"
+            >{m.storage_details_storage_class()}</td
+          >
+          <td class="font-mono text-sm">{details.storageClass ?? '—'}</td>
+        </tr>
+        <tr>
+          <td class="text-base-content/60 font-medium whitespace-nowrap"
+            >{m.storage_details_is_delete_marker()}</td
+          >
+          <td>{details.isDeleteMarker ? m.storage_details_yes() : m.storage_details_no()}</td>
+        </tr>
+      {/if}
     </tbody>
   </table>
 

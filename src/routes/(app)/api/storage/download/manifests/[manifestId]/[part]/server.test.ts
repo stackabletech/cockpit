@@ -19,7 +19,11 @@ describe('GET /api/storage/download/manifests/:manifestId/:part', () => {
     } as Parameters<typeof GET>[0]);
     expect(response.headers.get('Content-Length')).toBe('5000');
     expect(response.headers.get('Cache-Control')).toBe('private, no-store');
-    expect(openDownloadManifestPart).toHaveBeenCalledWith('user-1', 'manifest-1', 1);
+    expect(openDownloadManifestPart).toHaveBeenCalledWith(
+      { userId: 'user-1', username: null },
+      'manifest-1',
+      1
+    );
   });
 
   it('streams an archived manifest part with its exact Content-Length', async () => {

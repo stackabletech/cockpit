@@ -7,11 +7,9 @@ prerequisites::run() {
     log::info "npm dependencies already installed, skipping."
   fi
 
-  if [[ "$SKIP_TRINO" == true ]]; then
-    log::info "Installing Stackable operators (commons, listener, secret)..."
-    stackablectl operator install commons listener secret
-  else
-    log::info "Installing Stackable operators (commons, listener, secret, trino)..."
-    stackablectl operator install commons listener secret trino
-  fi
+  local operators=(commons listener secret)
+  [[ "$SKIP_TRINO" == true ]] || operators+=(trino)
+  [[ "$SKIP_HDFS" == true ]] || operators+=(zookeeper hdfs)
+  log::info "Installing Stackable operators (${operators[*]})..."
+  stackablectl operator install "${operators[@]}"
 }

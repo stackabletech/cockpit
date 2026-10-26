@@ -78,6 +78,11 @@ COPY package.json package-lock.json .npmrc ./
 # (which would fail because antlr-ng is a devDependency and not available here)
 RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --ignore-scripts
 
+# The kerberos addon (HDFS SPNEGO) needs its install script to fetch the
+# prebuilt N-API binary; it loads libgssapi_krb5 at runtime (krb5-libs below).
+RUN --mount=type=cache,target=/root/.npm npm rebuild kerberos && \
+    test -f node_modules/kerberos/build/Release/kerberos.node
+
 #
 # SBOM stage - generate CycloneDX from the clean prod-only dependency tree
 #
@@ -97,6 +102,10 @@ ENV STACKABLE_USER_UID=782252253 \
     STACKABLE_USER_GID=574654813 \
     STACKABLE_USER_NAME=stackable \
     NODE_ENV=production
+
+# hadolint ignore=DL3041
+RUN microdnf install -y krb5-libs && \
+    microdnf clean all
 
 # hadolint ignore=DL3041
 RUN microdnf install -y shadow-utils && \

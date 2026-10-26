@@ -61,7 +61,25 @@ vi.mock('$lib/paraglide/messages.js', () => ({
   storage_connections_delete_confirm_button: () => 'Delete',
   storage_connect_copy: () => 'Copy',
   storage_connect_copied: () => 'Copied',
-  storage_connect_copy_all: () => 'Copy all'
+  storage_connect_copy_all: () => 'Copy all',
+  storage_connect_hdfs_host_placeholder: () => 'namenode.example.com',
+  storage_connect_hdfs_port_placeholder: () => '9870',
+  storage_connect_hdfs_port_hint: () => 'WebHDFS port',
+  storage_connect_hdfs_user: () => 'HDFS user',
+  storage_connect_hdfs_hosts: () => 'NameNode hosts',
+  storage_connect_hdfs_auth: () => 'Authentication',
+  storage_connect_hdfs_auth_simple: () => 'Simple',
+  storage_connect_hdfs_auth_kerberos: () => 'Kerberos',
+  storage_connect_hdfs_auth_kerberos_unavailable: () => 'Kerberos needs a keytab',
+  storage_connect_hdfs_service_principal: () => 'Service principal',
+  storage_connect_hdfs_service_principal_placeholder: () => 'HTTP/hdfs.default.svc.cluster.local',
+  storage_connect_hdfs_service_principal_hint: () => 'The NameNodes HTTP principal',
+  storage_connect_hdfs_user_sso_kerberos: ({ username }: { username: string }) =>
+    `Kerberos as ${username}`,
+  storage_connect_hdfs_user_proxy_hint: () => 'Proxy user',
+  storage_connect_hdfs_hosts_hint: () => 'List every NameNode',
+  storage_connect_hdfs_user_hint: () => 'Dev only',
+  storage_connect_hdfs_user_sso: ({ username }: { username: string }) => `Connects as ${username}`
 }));
 
 const defaultFormData = {
@@ -95,6 +113,7 @@ function makeConnection(overrides: Partial<ConnectionMetadata> = {}): Connection
   return {
     id: 'conn-1',
     name: 'My Connection',
+    type: 's3',
     endpoint: 'https://example.com',
     ...overrides
   };
@@ -103,12 +122,14 @@ function makeConnection(overrides: Partial<ConnectionMetadata> = {}): Connection
 function renderForm(
   formOverrides: Record<string, unknown> = {},
   connections: ConnectionMetadata[] = [],
-  connectError: string | null = null
+  connectError: string | null = null,
+  hdfs: { hdfsEnabled?: boolean; hdfsUser?: string | null } = {}
 ) {
   return render(StorageConnectForm, {
     connectionForm: createMockForm(formOverrides),
     connections,
-    connectError
+    connectError,
+    ...hdfs
   });
 }
 
@@ -414,5 +435,34 @@ describe('StorageConnectForm', () => {
     await expect.element(page.getByText('Access key required')).toBeInTheDocument();
     await expect.element(page.getByText('Secret key required')).toBeInTheDocument();
     await expect.element(page.getByText('Validation failed')).toBeInTheDocument();
+  });
+
+  describe('HDFS', () => {
+    it('disables the HDFS option when the server does not allow it', async () => {
+      renderForm();
+      await expect.element(page.getByRole('option', { name: 'HDFS' })).toBeDisabled();
+    });
+
+    it('enables the HDFS option when allowed', async () => {
+      renderForm({}, [], null, { hdfsEnabled: true });
+      await expect.element(page.getByRole('option', { name: 'HDFS' })).toBeEnabled();
+    });
+
+    it('shows the SSO user and hides S3-only fields for HDFS', async () => {
+      renderForm({ data: { type: 'hdfs' } }, [], null, { hdfsEnabled: true, hdfsUser: 'alice' });
+      await expect.element(page.getByText('Connects as alice')).toBeInTheDocument();
+      await expect.element(page.getByLabelText('HDFS user')).not.toBeInTheDocument();
+      await expect.element(page.getByLabelText('Region')).not.toBeInTheDocument();
+      await expect.element(page.getByLabelText('Access key')).not.toBeInTheDocument();
+      await expect
+        .element(page.getByLabelText('NameNode hosts'))
+        .toHaveAttribute('placeholder', 'namenode.example.com');
+      await expect.element(page.getByText('List every NameNode')).toBeInTheDocument();
+    });
+
+    it('shows the dev-mode user field without SSO', async () => {
+      renderForm({ data: { type: 'hdfs' } }, [], null, { hdfsEnabled: true, hdfsUser: null });
+      await expect.element(page.getByLabelText('HDFS user')).toBeInTheDocument();
+    });
   });
 });

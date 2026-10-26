@@ -138,7 +138,26 @@
     <div class="overflow-x-auto">
       <table class="table-sm table">
         <tbody>
-          {#if meta.markerExists}
+          {#if meta.posix}
+            <tr>
+              <td class="text-base-content/60 font-medium whitespace-nowrap"
+                >{m.storage_details_owner()}</td
+              >
+              <td class="font-mono text-sm">{meta.posix.owner}</td>
+            </tr>
+            <tr>
+              <td class="text-base-content/60 font-medium whitespace-nowrap"
+                >{m.storage_details_group()}</td
+              >
+              <td class="font-mono text-sm">{meta.posix.group}</td>
+            </tr>
+            <tr>
+              <td class="text-base-content/60 font-medium whitespace-nowrap"
+                >{m.storage_details_permissions()}</td
+              >
+              <td class="font-mono text-sm">{meta.posix.permission}</td>
+            </tr>
+          {:else if meta.markerExists}
             <tr>
               <td class="text-base-content/60 font-medium whitespace-nowrap"
                 >{m.storage_details_marker_exists()}</td
@@ -203,13 +222,15 @@
               <td><TimestampDisplay date={meta.markerObjectLockRetainUntilDate} /></td>
             </tr>
           {/if}
-          <tr>
-            <td class="text-base-content/60 font-medium whitespace-nowrap"
-              >{m.storage_details_owner()}</td
-            >
-            <td class="font-mono text-sm">{meta.bucketOwner}</td>
-          </tr>
-          {#if meta.bucketGrants && meta.bucketGrants.length > 0}
+          {#if !meta.posix}
+            <tr>
+              <td class="text-base-content/60 font-medium whitespace-nowrap"
+                >{m.storage_details_owner()}</td
+              >
+              <td class="font-mono text-sm">{meta.bucketOwner}</td>
+            </tr>
+          {/if}
+          {#if !meta.posix && meta.bucketGrants && meta.bucketGrants.length > 0}
             <tr>
               <td class="text-base-content/60 font-medium whitespace-nowrap"
                 >{m.storage_details_permissions()}</td

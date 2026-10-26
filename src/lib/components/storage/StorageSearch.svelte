@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { encodeContainerSegment } from '$lib/storage/display-helpers.js';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import Modal from '$lib/components/Modal.svelte';
@@ -52,7 +53,7 @@
       : '';
     return resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
       connection: storage.connectionId ?? '',
-      bucket: encodeURIComponent(bucket),
+      bucket: encodeContainerSegment(bucket),
       prefix: encodedPrefix
     });
   }

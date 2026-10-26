@@ -32,6 +32,7 @@ describe('connectionStore', () => {
     const conn: ConnectionListItem = {
       id: 'conn-1',
       name: 'My S3',
+      type: 's3',
       endpoint: 's3.example.com',
       additionalBuckets: [],
       createdAt: '2024-01-01',
@@ -46,6 +47,7 @@ describe('connectionStore', () => {
     const conn1: ConnectionListItem = {
       id: 'c1',
       name: 'First',
+      type: 's3',
       endpoint: null,
       additionalBuckets: [],
       createdAt: '',
@@ -54,6 +56,7 @@ describe('connectionStore', () => {
     const conn2: ConnectionListItem = {
       id: 'c2',
       name: 'Second',
+      type: 's3',
       endpoint: null,
       additionalBuckets: [],
       createdAt: '',

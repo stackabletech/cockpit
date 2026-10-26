@@ -4,7 +4,8 @@ const mockStorageBrowserEnabled = vi.fn(() => true);
 vi.mock('$lib/server/feature-flags.js', () => ({
   get storageBrowserEnabled() {
     return mockStorageBrowserEnabled();
-  }
+  },
+  storageHdfsEnabled: false
 }));
 
 vi.mock('$lib/server/db.js', () => ({
@@ -53,6 +54,7 @@ describe('storage layout server load', () => {
       connected: false,
       buckets: [],
       connections: [],
+      hdfsEnabled: false,
       activeConnectionId: null
     });
   });

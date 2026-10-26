@@ -114,6 +114,9 @@ function makeApi(overrides?: Partial<StorageApi>): StorageApi {
       return { failed: [] };
     },
     async create() {},
+    async trashInfo() {
+      return { enabled: false, intervalMinutes: 0 };
+    },
     async archiveExtract() {
       return new Response(null, { status: 200 });
     },

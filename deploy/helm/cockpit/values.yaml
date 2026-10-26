@@ -111,6 +111,23 @@ terminationGracePeriodSeconds: 30
 #   storage:
 #     # Show the S3/HDFS file browser and enable routes under /storage. Default: false (application default).
 #     enabled: false
+#     hdfs:
+#       # Allow HDFS connections (WebHDFS/HttpFS). Default: false (application default).
+#       enabled: false
+#       tls:
+#         # Path to a mounted PEM CA bundle for verifying HDFS HTTPS certificates, or
+#         caCert: ""
+#         # a Stackable TLS SecretClass to provision the CA (mounted at /stackable/hdfs-tls/ca.crt).
+#         secretClass: ""
+#       kerberos:
+#         # Stackable kerberosKeytab SecretClass providing cockpit's keytab and krb5.conf.
+#         # Enables Kerberos (SPNEGO) HDFS connections; cockpit impersonates the signed-in
+#         # user, so HDFS must allow it as a proxy user (hadoop.proxyuser.<serviceName>.*).
+#         secretClass: ""
+#         # Service name in cockpit's principal: <serviceName>/<serviceName>.<namespace>.svc.cluster.local.
+#         serviceName: cockpit
+#         # Override the client principal (defaults to the keytab's principal).
+#         principal: ""
 #     # Reconnect to the most recently used storage connection on the storage page. Default: false (application default).
 #     autoConnect: false
 #     # Comma-separated page size options for paginated list views. Default: "25,50,100" (application default).

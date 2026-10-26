@@ -1,8 +1,15 @@
 import { error } from '@sveltejs/kit';
-import { extractArchiveEntry, getArchiveFormat } from '$lib/server/storage/archive.js';
+import { guessContentType } from '$lib/server/storage/content-type.js';
+import {
+  archiveCacheScope,
+  extractArchiveEntry,
+  getArchiveFormat
+} from '$lib/server/storage/archive.js';
 import { getProvider } from '$lib/server/storage/utils.js';
+import { wrapProvider } from '$lib/server/storage/wrap-provider.js';
 import { archivePreviewMaxBytes } from '$lib/server/feature-flags.js';
 import type { RequestHandler } from './$types';
+import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 
 /**
  * GET /api/storage/archive/extract?bucket=<bucket>&key=<archive-key>&path=<internal-path>&nestedArchivePath=<path>
@@ -21,7 +28,7 @@ import type { RequestHandler } from './$types';
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.
  */
-export const GET: RequestHandler = async ({ locals, url }) => {
+export const GET: RequestHandler = async ({ locals, url, request }) => {
   const bucket = url.searchParams.get('bucket')?.trim();
   if (!bucket) throw error(400, 'Missing required query parameter: bucket');
 
@@ -49,13 +56,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   );
 
   const downloadFn = (k: string) =>
-    getProvider(config, bucket)
+    wrapProvider(getProvider(config, bucket))
       .getObject(k)
       .then((d) => d.stream);
-  const metadataFn = (k: string) => getProvider(config, bucket).getMetadata(k);
+  const metadataFn = (k: string) => wrapProvider(getProvider(config, bucket)).getMetadata(k);
 
   const data = await extractArchiveEntry(
-    bucket,
+    archiveCacheScope(request.headers.get(STORAGE_CONNECTION_ID_HEADER) ?? '', bucket),
     key,
     internalPath,
     downloadFn,
@@ -78,33 +85,3 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     }
   });
 };
-
-function guessContentType(path: string): string {
-  const ext = path.split('.').pop()?.toLowerCase() ?? '';
-  const mime = new Map<string, string>([
-    ['txt', 'text/plain'],
-    ['csv', 'text/csv'],
-    ['json', 'application/json'],
-    ['xml', 'application/xml'],
-    ['html', 'text/html'],
-    ['css', 'text/css'],
-    ['js', 'application/javascript'],
-    ['md', 'text/markdown'],
-    ['yaml', 'application/x-yaml'],
-    ['yml', 'application/x-yaml'],
-    ['parquet', 'application/octet-stream'],
-    ['pdf', 'application/pdf'],
-    ['png', 'image/png'],
-    ['jpg', 'image/jpeg'],
-    ['jpeg', 'image/jpeg'],
-    ['gif', 'image/gif'],
-    ['svg', 'image/svg+xml'],
-    ['webp', 'image/webp'],
-    ['log', 'text/plain'],
-    ['py', 'text/plain'],
-    ['java', 'text/plain'],
-    ['ts', 'text/plain'],
-    ['sql', 'text/plain']
-  ]);
-  return mime.get(ext) ?? 'application/octet-stream';
-}

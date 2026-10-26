@@ -14,7 +14,7 @@
   const connections = $derived<ConnectionListItem[]>(page.data.connections ?? []);
 
   function connectionLabel(conn: ConnectionListItem): string {
-    return conn.name || conn.endpoint || 'S3';
+    return conn.name || conn.endpoint || conn.type.toUpperCase();
   }
 
   // Context menu state
@@ -68,7 +68,7 @@
     const colonIdx = ep.lastIndexOf(':');
     const host = colonIdx > 0 ? ep.slice(0, colonIdx) : ep;
     const port = colonIdx > 0 ? parseInt(ep.slice(colonIdx + 1), 10) || null : null;
-    return { id: menuConn.id, name: menuConn.name, host, port, type: 's3', region: { name: '' } };
+    return { id: menuConn.id, name: menuConn.name, host, port, type: menuConn.type };
   });
 
   function confirmDelete() {
@@ -122,7 +122,7 @@
               <td class="text-base-content/60 font-mono text-xs">
                 {conn.endpoint ?? '-'}
               </td>
-              <td class="text-base-content/60 text-xs uppercase">s3</td>
+              <td class="text-base-content/60 text-xs uppercase">{conn.type}</td>
               <td>
                 <div
                   class="tooltip tooltip-left"

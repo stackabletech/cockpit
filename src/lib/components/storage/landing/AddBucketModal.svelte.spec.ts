@@ -28,8 +28,13 @@ vi.mock('$lib/storage/context.js', () => ({
 }));
 
 // Mock connection store
+const mockConnectionStore = vi.hoisted(() => ({
+  activeConnectionId: 'mock-connection-id',
+  connections: [] as unknown[],
+  activeConnection: null as { type: 's3' | 'hdfs' } | null
+}));
 vi.mock('$lib/storage/connection-store.svelte.js', () => ({
-  connectionStore: { activeConnectionId: 'mock-connection-id', connections: [] }
+  connectionStore: mockConnectionStore
 }));
 
 // Mock storage errors
@@ -56,13 +61,56 @@ vi.mock('$lib/paraglide/messages.js', () => ({
     'Access denied — you do not have permission to read this bucket.',
   storage_add_bucket_error_not_found: () => 'Bucket not found — check the name and try again.',
   storage_add_bucket_error_unknown: () =>
-    'Could not connect to this bucket — check the name and try again.'
+    'Could not connect to this bucket — check the name and try again.',
+  storage_add_path_title: () => 'Add an HDFS path',
+  storage_add_path_subtitle: () => 'Enter an absolute HDFS directory.',
+  storage_add_path_name_label: () => 'Path',
+  storage_add_path_name_placeholder: () => '/user/alice',
+  storage_add_path_error_invalid: () => 'Enter an absolute path.',
+  storage_add_path_error_access_denied: () => 'Access denied to this path.',
+  storage_add_path_error_not_found: () => 'Path not found.'
 }));
 
 describe('AddBucketModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn());
+    mockConnectionStore.activeConnection = null;
+  });
+
+  describe('HDFS connections', () => {
+    beforeEach(() => {
+      mockConnectionStore.activeConnection = { type: 'hdfs' };
+    });
+
+    it('uses path wording', async () => {
+      render(AddBucketModal, { open: true });
+      await expect
+        .element(page.getByRole('heading', { name: 'Add an HDFS path' }))
+        .toBeInTheDocument();
+      await expect
+        .element(page.getByLabelText('Path'))
+        .toHaveAttribute('placeholder', '/user/alice');
+    });
+
+    it('rejects relative paths without calling the API', async () => {
+      render(AddBucketModal, { open: true });
+      await userEvent.fill(page.getByLabelText('Path'), 'data');
+      await userEvent.click(page.getByRole('button', { name: 'Connect' }));
+      await expect.element(page.getByText('Enter an absolute path.')).toBeInTheDocument();
+      expect(mockCheckBucket).not.toHaveBeenCalled();
+    });
+
+    it('normalises the path before checking and saving it', async () => {
+      mockCheckBucket.mockResolvedValue({ ok: true, status: 200 });
+      mockUpdateConnections.mockResolvedValue(undefined);
+      render(AddBucketModal, { open: true });
+      await userEvent.fill(page.getByLabelText('Path'), ' /data//raw/ ');
+      await userEvent.click(page.getByRole('button', { name: 'Connect' }));
+      await vi.waitFor(() => expect(mockAddBucket).toHaveBeenCalledWith('/data/raw'));
+      expect(mockCheckBucket).toHaveBeenCalledWith({ bucket: '/data/raw' });
+      expect(mockUpdateConnections).toHaveBeenCalledWith({ bucket: '/data/raw' });
+    });
   });
 
   describe('rendering', () => {

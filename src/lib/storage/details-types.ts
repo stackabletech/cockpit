@@ -10,6 +10,12 @@ export interface FileDetails {
   versionId: string | undefined;
   storageClass: string | undefined;
   isDeleteMarker: boolean;
+  /** POSIX fields; present for HDFS only. */
+  owner?: string;
+  group?: string;
+  permission?: string;
+  replication?: number;
+  blockSize?: number;
 }
 
 /** A node in the tree for treemap visualization. */
@@ -45,6 +51,8 @@ export interface DirectorySizeResult {
 
 /** Metadata about an S3 directory/folder (bucket ACL + optional directory marker object). */
 export interface DirectoryMetadata {
+  /** The directory's own POSIX attributes; present for HDFS, which has real directories. */
+  posix?: { owner: string; group: string; permission: string };
   bucketOwner: string;
   bucketGrants: Array<{ grantee: string; permission: string }>;
   markerExists: boolean;

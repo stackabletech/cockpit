@@ -69,6 +69,10 @@ export function createMemoryStorageApi(overrides?: Partial<StorageApi>): Storage
       // no-op
     },
 
+    async trashInfo() {
+      return { enabled: false, intervalMinutes: 0 };
+    },
+
     async archiveExtract() {
       return new Response(null, { status: 200 });
     },

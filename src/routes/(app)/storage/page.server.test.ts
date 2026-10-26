@@ -23,7 +23,19 @@ const mockDeleteConnection = vi.fn().mockResolvedValue(undefined);
 vi.mock('$lib/server/storage/connections-db.js', () => ({
   saveConnection: (...args: unknown[]) => mockSaveConnection(...args),
   getConnectionForUser: (...args: unknown[]) => mockGetConnectionForUser(...args),
-  deleteConnection: (...args: unknown[]) => mockDeleteConnection(...args)
+  deleteConnection: (...args: unknown[]) => mockDeleteConnection(...args),
+  listConnectionItems: vi.fn().mockResolvedValue([])
+}));
+
+const mockHdfsEnabled = vi.fn(() => false);
+const mockKerberosAvailable = vi.fn(() => false);
+vi.mock('$lib/server/feature-flags.js', () => ({
+  get storageHdfsEnabled() {
+    return mockHdfsEnabled();
+  },
+  get hdfsKerberosAvailable() {
+    return mockKerberosAvailable();
+  }
 }));
 
 vi.mock('sveltekit-superforms', () => ({
@@ -113,7 +125,8 @@ describe('storage page actions', () => {
     expect(result?.status).toBe(400);
   });
 
-  it('connect: returns message for non-s3 type', async () => {
+  it('connect: rejects hdfs when the HDFS flag is off', async () => {
+    mockHdfsEnabled.mockReturnValue(false);
     vi.mocked(superValidate).mockResolvedValue({
       valid: true,
       data: { ...validFormData, type: 'hdfs' as const }
@@ -123,7 +136,158 @@ describe('storage page actions', () => {
       request: new Request('http://localhost', { method: 'POST' }),
       locals: mockLocals()
     } as unknown as Parameters<typeof actions.connect>[0]);
-    expect(result).toHaveProperty('message', 'HDFS connections are not yet supported');
+    expect(result).toHaveProperty('message', 'HDFS connections are not enabled on this server.');
+    expect(mockSaveConnection).not.toHaveBeenCalled();
+  });
+
+  it('connect: hdfs uses the SSO username and ignores the form user', async () => {
+    mockHdfsEnabled.mockReturnValue(true);
+    mockConnectionProvider.listContainers.mockResolvedValue(['/']);
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: { type: 'hdfs', host: 'namenode', port: 9870, devUser: 'hdfs' }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+
+    await expect(
+      actions.connect({
+        request: new Request('http://localhost', { method: 'POST' }),
+        locals: { ...mockLocals(), user: { id: 'test-user', username: 'alice' } },
+        cookies: mockCookies()
+      } as unknown as Parameters<typeof actions.connect>[0])
+    ).rejects.toMatchObject({ status: 303 });
+    expect(mockSaveConnection).toHaveBeenCalledWith(
+      'test-user',
+      {
+        type: 'hdfs',
+        host: 'namenode',
+        port: 9870,
+        tls: undefined,
+        nameNodes: ['namenode'],
+        user: 'alice'
+      },
+      undefined
+    );
+  });
+
+  it('connect: hdfs stores every NameNode of an HA pair', async () => {
+    mockHdfsEnabled.mockReturnValue(true);
+    mockConnectionProvider.listContainers.mockResolvedValue(['/']);
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: { type: 'hdfs', host: 'http://nn-0.svc:9870, nn-1.svc:9870 ' }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+
+    await expect(
+      actions.connect({
+        request: new Request('http://localhost', { method: 'POST' }),
+        locals: { ...mockLocals(), user: { id: 'test-user', username: 'alice' } },
+        cookies: mockCookies()
+      } as unknown as Parameters<typeof actions.connect>[0])
+    ).rejects.toMatchObject({ status: 303 });
+    expect(mockSaveConnection).toHaveBeenLastCalledWith(
+      'test-user',
+      expect.objectContaining({ host: 'nn-0.svc', nameNodes: ['nn-0.svc:9870', 'nn-1.svc:9870'] }),
+      undefined
+    );
+  });
+
+  it('connect: hdfs Kerberos needs a server keytab and a valid service principal', async () => {
+    mockHdfsEnabled.mockReturnValue(true);
+    mockConnectionProvider.listContainers.mockResolvedValue(['/']);
+    const locals = { ...mockLocals(), user: { id: 'test-user', username: 'alice' } };
+    const connect = (data: Record<string, unknown>) => {
+      vi.mocked(superValidate).mockResolvedValue({ valid: true, data } as unknown as Awaited<
+        ReturnType<typeof superValidate>
+      >);
+      return actions.connect({
+        request: new Request('http://localhost', { method: 'POST' }),
+        locals,
+        cookies: mockCookies()
+      } as unknown as Parameters<typeof actions.connect>[0]);
+    };
+
+    mockKerberosAvailable.mockReturnValue(false);
+    await expect(connect({ type: 'hdfs', host: 'nn-0', auth: 'kerberos' })).resolves.toHaveProperty(
+      'message',
+      'Kerberos is not configured on this server.'
+    );
+
+    mockKerberosAvailable.mockReturnValue(true);
+    await expect(
+      connect({ type: 'hdfs', host: 'nn-0', auth: 'kerberos', servicePrincipal: 'not a principal' })
+    ).resolves.toHaveProperty(
+      'message',
+      'Enter the service principal as service/host, for example HTTP/hdfs.default.svc.cluster.local.'
+    );
+
+    await expect(
+      connect({
+        type: 'hdfs',
+        host: 'nn-0:9871, nn-1:9871',
+        auth: 'kerberos',
+        servicePrincipal: 'HTTP/hdfs.default.svc.cluster.local@CLUSTER.LOCAL',
+        tls: { verification: 'Full' }
+      })
+    ).rejects.toMatchObject({ status: 303 });
+    expect(mockSaveConnection).toHaveBeenLastCalledWith(
+      'test-user',
+      expect.objectContaining({
+        auth: 'kerberos',
+        servicePrincipal: 'HTTP/hdfs.default.svc.cluster.local@CLUSTER.LOCAL',
+        user: 'alice'
+      }),
+      undefined
+    );
+    mockKerberosAvailable.mockReturnValue(false);
+  });
+
+  it('connect: hdfs rejects malformed NameNode lists', async () => {
+    mockHdfsEnabled.mockReturnValue(true);
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: { type: 'hdfs', host: 'nn-0, bad host' }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    const result = await actions.connect({
+      request: new Request('http://localhost', { method: 'POST' }),
+      locals: { ...mockLocals(), user: { id: 'test-user', username: 'alice' } }
+    } as unknown as Parameters<typeof actions.connect>[0]);
+    expect(result).toHaveProperty(
+      'message',
+      'Enter NameNode hosts as host or host:port, separated by commas.'
+    );
+  });
+
+  it('connect: hdfs without OIDC requires and stores the dev-mode user', async () => {
+    mockHdfsEnabled.mockReturnValue(true);
+    mockConnectionProvider.listContainers.mockResolvedValue(['/']);
+    const noOidcLocals = { ...mockLocals(), user: null, session: null };
+
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: { type: 'hdfs', host: 'namenode', devUser: '' }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    const missing = await actions.connect({
+      request: new Request('http://localhost', { method: 'POST' }),
+      locals: noOidcLocals
+    } as unknown as Parameters<typeof actions.connect>[0]);
+    expect(missing).toHaveProperty('message', 'An HDFS user is required.');
+
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: { type: 'hdfs', host: 'namenode', devUser: 'dev' }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    await expect(
+      actions.connect({
+        request: new Request('http://localhost', { method: 'POST' }),
+        locals: noOidcLocals,
+        cookies: mockCookies()
+      } as unknown as Parameters<typeof actions.connect>[0])
+    ).rejects.toMatchObject({ status: 303 });
+    expect(mockSaveConnection).toHaveBeenLastCalledWith(
+      'anonymous',
+      expect.objectContaining({ type: 'hdfs', user: 'dev' }),
+      'dev'
+    );
   });
 
   it('connect: returns error message on connection test failure', async () => {

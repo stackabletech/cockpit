@@ -1,0 +1,57 @@
+---
+apiVersion: zookeeper.stackable.tech/v1alpha1
+kind: ZookeeperCluster
+metadata:
+  name: hdfs-zk
+  namespace: default
+spec:
+  image:
+    productVersion: 3.9.5
+  servers:
+    roleGroups:
+      default:
+        replicas: 1
+---
+apiVersion: zookeeper.stackable.tech/v1alpha1
+kind: ZookeeperZnode
+metadata:
+  name: hdfs-znode
+  namespace: default
+spec:
+  clusterRef:
+    name: hdfs-zk
+---
+# Unsecured HDFS (simple auth) for local development. NameNodes and
+# DataNodes use NodePort listeners, so DataNodes advertise node addresses
+# that WebHDFS read/write redirects can reach from outside the cluster.
+apiVersion: hdfs.stackable.tech/v1alpha1
+kind: HdfsCluster
+metadata:
+  name: hdfs
+  namespace: default
+spec:
+  image:
+    productVersion: 3.4.3
+  clusterConfig:
+    zookeeperConfigMapName: hdfs-znode
+    dfsReplication: 1
+  nameNodes:
+    config:
+      listenerClass: external-stable
+    configOverrides:
+      core-site.xml:
+        # Keep deleted files in the user's .Trash for 24 hours (minutes).
+        fs.trash.interval: '1440'
+    roleGroups:
+      default:
+        replicas: 2
+  dataNodes:
+    config:
+      listenerClass: external-unstable
+    roleGroups:
+      default:
+        replicas: 1
+  journalNodes:
+    roleGroups:
+      default:
+        replicas: 1

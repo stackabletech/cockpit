@@ -11,6 +11,7 @@
   import ConflictResolutionDialog from './shared/ConflictResolutionDialog.svelte';
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { checkObjectExists } from '$lib/storage/upload.js';
+  import type { TrashInfo } from '$lib/storage/types.js';
 
   const storage = getStorageState();
 
@@ -22,6 +23,23 @@
   let moveConfirmOpen = $state(true);
   let createOpen = $state(true);
   let resolveConflictsOpen = $state(true);
+
+  // HDFS may keep deletes in a trash; ask the backend each time the delete dialog opens.
+  let trashInfo = $state<TrashInfo | null>(null);
+  $effect(() => {
+    if (storage.activeModal?.type !== 'delete') return;
+    trashInfo = null;
+    if (connectionStore.activeConnection?.type !== 'hdfs') return;
+    const bucket = storage.bucket;
+    storage.api
+      .trashInfo({ bucket })
+      .then((info) => {
+        if (storage.activeModal?.type === 'delete') trashInfo = info;
+      })
+      .catch(() => {
+        // Without trash info the dialog falls back to a permanent delete.
+      });
+  });
 
   $effect(() => {
     if (storage.activeModal) {
@@ -96,6 +114,7 @@
   <DeleteConfirmModal
     bind:open={deleteOpen}
     keys={storage.activeModal.payload.keys}
+    trash={trashInfo}
     onConfirm={storage.confirmDelete}
     onCancel={storage.cancelDelete}
   />

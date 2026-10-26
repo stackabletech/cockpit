@@ -1,20 +1,28 @@
-import { error, fail, redirect, isHttpError } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { eq, and } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 import { EditStorageConnectionSchema } from '$lib/storage/schemas.js';
-import { z } from 'zod';
 import { getConnectionProvider } from '$lib/server/storage/utils.js';
-import type { S3ConnectionConfig } from '$lib/server/storage/types.js';
+import {
+  decryptPayload,
+  payloadFingerprint,
+  toStoredPayload,
+  type StoredPayload
+} from '$lib/server/storage/connection-payload.js';
+import {
+  buildConnectionConfig,
+  connectionErrorMessage
+} from '$lib/server/storage/connection-form.js';
 import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
-import { decrypt, encrypt } from '$lib/server/storage/encryption.js';
+import { encrypt } from '$lib/server/storage/encryption.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
 import { getUserId } from '$lib/server/auth-utils.js';
 import { getActiveStorageConnectionId } from '$lib/server/storage/active-connection.js';
+import { hdfsKerberosAvailable } from '$lib/server/feature-flags.js';
 import { logger } from '$lib/server/logging';
-import * as m from '$lib/paraglide/messages.js';
 
 const log = logger.child({ module: 'connection-edit' });
 
@@ -33,30 +41,42 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   }
 
   const row = rows[0];
-  let payload: z.infer<typeof EditStorageConnectionSchema>;
+  let payload: StoredPayload;
 
   try {
-    payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey()));
+    payload = decryptPayload(row.encryptedPayload, storageEncryptionKey());
   } catch {
     locals.logger.error({ connection_id: params.id }, 'failed to decrypt connection payload');
     throw error(500, 'Failed to load connection');
   }
 
   const editForm = await superValidate(
-    {
-      id: params.id,
-      name: row.name ?? '',
-      type: 's3',
-      host: payload.host,
-      port: payload.port,
-      tls: payload.tls,
-      accessStyle: payload.accessStyle,
-      region: payload.region,
-      credentials: {
-        accessKey: payload.credentials?.accessKey ?? '',
-        secretKey: ''
-      }
-    },
+    payload.type === 'hdfs'
+      ? {
+          id: params.id,
+          name: row.name ?? '',
+          type: 'hdfs' as const,
+          host: payload.nameNodes?.join(', ') ?? payload.host,
+          port: payload.port,
+          tls: payload.tls,
+          devUser: payload.devUser ?? '',
+          auth: payload.auth ?? 'simple',
+          servicePrincipal: payload.servicePrincipal ?? ''
+        }
+      : {
+          id: params.id,
+          name: row.name ?? '',
+          type: 's3' as const,
+          host: payload.host,
+          port: payload.port,
+          tls: payload.tls,
+          accessStyle: payload.accessStyle,
+          region: payload.region,
+          credentials: {
+            accessKey: payload.credentials?.accessKey ?? '',
+            secretKey: ''
+          }
+        },
     zod(EditStorageConnectionSchema),
     { errors: false }
   );
@@ -65,6 +85,8 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   return {
     editForm,
     connectionId: params.id,
+    hdfsUser: locals.user?.username ?? null,
+    hdfsKerberosAvailable,
     activeConnectionId: getActiveStorageConnectionId(locals, cookies)
   };
 };
@@ -78,65 +100,31 @@ export const actions: Actions = {
       return fail(400, { form });
     }
 
-    const { type, host, port, tls, accessStyle, region, credentials } = form.data;
     const connectionId = params.id;
     const userId = getUserId(locals);
 
-    if (type !== 's3') {
-      return message(form, m.storage_connect_error_hdfs(), { status: 400 });
+    const built = buildConnectionConfig(form.data, locals);
+    if (!built.ok) {
+      return message(form, built.message, { status: 400 });
     }
+    const { config, devUser } = built;
 
-    const resolvedCredentials =
-      credentials.accessKey && credentials.secretKey ? credentials : undefined;
+    // S3 without new credentials keeps the stored ones and skips the check;
+    // HDFS has no secrets, so it is always re-verified.
+    const keepExistingCredentials = config.type === 's3' && !config.credentials;
 
-    const config: S3ConnectionConfig = {
-      type: 's3',
-      host,
-      port,
-      tls,
-      accessStyle,
-      region,
-      credentials: resolvedCredentials
-    };
-
-    if (resolvedCredentials) {
+    if (!keepExistingCredentials) {
       try {
         await getConnectionProvider(config).listContainers();
-        log.info({ storage_type: type }, 'storage connection edit verified');
+        log.info({ storage_type: config.type }, 'storage connection edit verified');
       } catch (err) {
-        log.warn({ err }, 'storage connection edit test failed');
-
-        let msg: string;
-        if (isHttpError(err)) {
-          if (err.status === 403) {
-            msg = m.storage_connect_error_access_denied();
-          } else if (err.status === 404) {
-            msg = m.storage_connect_error_not_found();
-          } else if (err.status === 502) {
-            msg = m.storage_connect_error_server_error();
-          } else {
-            msg = m.storage_connect_error();
-          }
-        } else if (err instanceof Error) {
-          const e = (err.message ?? '').toLowerCase();
-          if (/econnrefused|enotfound|eai_again|etimedout|network/.test(e)) {
-            msg = m.storage_connect_error_network();
-          } else {
-            msg = m.storage_connect_error();
-          }
-        } else {
-          msg = m.storage_connect_error();
-        }
-
-        return message(form, msg, { status: 400 });
+        log.warn({ err, storage_type: config.type }, 'storage connection edit test failed');
+        return message(form, connectionErrorMessage(err), { status: 400 });
       }
     }
 
-    // If no new credentials were provided, preserve the existing encrypted ones.
-    let payload: object;
-    if (resolvedCredentials) {
-      payload = { host, port, tls, accessStyle, region, credentials: resolvedCredentials };
-    } else {
+    let payload = toStoredPayload(config, devUser);
+    if (keepExistingCredentials && payload.type !== 'hdfs') {
       try {
         const rows = await db
           .select({ encryptedPayload: userStorageConnections.encryptedPayload })
@@ -151,25 +139,26 @@ export const actions: Actions = {
         if (rows.length === 0) {
           return message(form, 'Connection not found', { status: 404 });
         }
-        const existing = JSON.parse(decrypt(rows[0].encryptedPayload, storageEncryptionKey())) as {
-          host: string;
-          port?: number;
-          tls?: object;
-          accessStyle: string;
-          region: object;
-          credentials?: { accessKey: string; secretKey: string };
+        const existing = decryptPayload(rows[0].encryptedPayload, storageEncryptionKey());
+        payload = {
+          ...payload,
+          credentials: existing.type === 'hdfs' ? undefined : existing.credentials
         };
-        payload = { host, port, tls, accessStyle, region, credentials: existing.credentials };
       } catch {
         return message(form, 'Failed to read existing credentials', { status: 500 });
       }
     }
 
-    const encryptedPayload = encrypt(JSON.stringify(payload), storageEncryptionKey());
+    const key = storageEncryptionKey();
+    const encryptedPayload = encrypt(JSON.stringify(payload), key);
 
     await db
       .update(userStorageConnections)
-      .set({ encryptedPayload, name: form.data.name ?? undefined })
+      .set({
+        encryptedPayload,
+        hash: payloadFingerprint(payload, key),
+        name: form.data.name ?? undefined
+      })
       .where(
         and(eq(userStorageConnections.id, connectionId), eq(userStorageConnections.userId, userId))
       );

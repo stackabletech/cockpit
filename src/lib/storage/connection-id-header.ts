@@ -12,7 +12,7 @@ export interface SavedConnection {
   name: string;
   host: string;
   port: number | null;
-  type: 's3';
-  region: { name: string };
+  type: 's3' | 'hdfs';
+  region?: { name: string };
   credentials?: { accessKey: string; secretKey: string };
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { encodeContainerSegment } from '$lib/storage/display-helpers.js';
   import IconBucket from '../shared/BucketIcon.svelte';
   import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
   import IconInfo from 'virtual:icons/material-symbols/info';
@@ -83,7 +84,7 @@
         <a
           href={resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
             connection: encodeURIComponent(storage.connectionHostname),
-            bucket: encodeURIComponent(bucket),
+            bucket: encodeContainerSegment(bucket),
             prefix: ''
           })}
           data-sveltekit-preload-data="off"

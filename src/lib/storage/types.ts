@@ -198,6 +198,16 @@ export interface StorageMetadata {
   versionId?: string | undefined;
   storageClass?: string | undefined;
   isDeleteMarker?: boolean;
+  /** POSIX owner (HDFS only). */
+  owner?: string;
+  /** POSIX group (HDFS only). */
+  group?: string;
+  /** Octal permission string, e.g. `755` (HDFS only). */
+  permission?: string;
+  /** Block replication factor (HDFS files only). */
+  replication?: number;
+  /** Block size in bytes (HDFS files only). */
+  blockSize?: number;
 }
 
 /** A page of listed objects from a storage provider. */
@@ -215,6 +225,15 @@ export interface StoragePage {
 /** Result of a bulk-delete operation. `failed` lists keys that could not be deleted. */
 export interface DeleteObjectsResult {
   failed: Array<{ key: string; code?: string; message?: string }>;
+  /** Number of keys moved to the backend's trash instead of being deleted (HDFS). */
+  trashed?: number;
+}
+
+/** Whether a backend keeps deleted items in a trash, and for how long. */
+export interface TrashInfo {
+  enabled: boolean;
+  /** Minutes before trashed items are purged (HDFS `fs.trash.interval`). */
+  intervalMinutes: number;
 }
 
 // ── Search ───────────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
   import { EditStorageConnectionSchema } from '$lib/storage/schemas.js';
+  import HdfsAuthFields from '$lib/components/storage/landing/HdfsAuthFields.svelte';
 
   let { data } = $props();
 
@@ -55,6 +56,9 @@
     $form.accessStyle = d.accessStyle;
     $form.region = d.region;
     $form.credentials = { accessKey: d.credentials?.accessKey ?? '', secretKey: '' };
+    $form.devUser = d.devUser ?? '';
+    $form.auth = d.auth ?? 'simple';
+    $form.servicePrincipal = d.servicePrincipal ?? '';
 
     initialSnapshot = JSON.stringify($form);
     loaded = true;
@@ -90,7 +94,8 @@
 
   function parseHostInput() {
     const v = $form.host?.trim();
-    if (!v?.includes('://')) return;
+    // HDFS NameNode lists are parsed on the server.
+    if (!v?.includes('://') || v.includes(',')) return;
     try {
       const url = new URL(v);
       $form.host = url.hostname;
@@ -157,17 +162,22 @@
     <!-- Host -->
     <div>
       <label for="{uid}-host" class="label mb-1 text-sm font-medium">
-        {m.storage_connect_host()}
+        {$form.type === 'hdfs' ? m.storage_connect_hdfs_hosts() : m.storage_connect_host()}
       </label>
       <input
         id="{uid}-host"
         name="host"
         type="text"
         class={['input w-full', $errors?.host && 'input-error']}
-        placeholder={m.storage_connect_host_placeholder()}
+        placeholder={$form.type === 'hdfs'
+          ? m.storage_connect_hdfs_host_placeholder()
+          : m.storage_connect_host_placeholder()}
         bind:value={$form.host}
         onblur={parseHostInput}
       />
+      {#if $form.type === 'hdfs'}
+        <p class="text-base-content/50 mt-1 text-xs">{m.storage_connect_hdfs_hosts_hint()}</p>
+      {/if}
       {#if $errors?.host}
         <p class="text-error mt-1 text-xs">{$errors.host}</p>
       {/if}
@@ -235,77 +245,89 @@
       </div>
     {/if}
 
-    <!-- Access style -->
-    <div>
-      <label for="{uid}-access-style" class="label mb-1 text-sm font-medium">
-        {m.storage_connect_access_style()}
-      </label>
-      <select
-        id="{uid}-access-style"
-        name="accessStyle"
-        class="select w-full"
-        bind:value={$form.accessStyle}
-      >
-        <option value="Path">{m.storage_connect_access_style_path()}</option>
-        <option value="VirtualHosted">{m.storage_connect_access_style_virtual_hosted()}</option>
-      </select>
-    </div>
-
-    <!-- Region -->
-    <div>
-      <label for="{uid}-region" class="label mb-1 text-sm font-medium">
-        {m.storage_connect_region()}
-      </label>
-      <input
-        id="{uid}-region"
-        name="region.name"
-        type="text"
-        class={['input w-full', $errors?.region?.name && 'input-error']}
-        bind:value={$form.region.name}
+    {#if $form.type === 'hdfs'}
+      <HdfsAuthFields
+        bind:auth={$form.auth}
+        bind:servicePrincipal={$form.servicePrincipal}
+        bind:devUser={$form.devUser}
+        hdfsUser={data.hdfsUser}
+        kerberosAvailable={data.hdfsKerberosAvailable}
+        devUserError={$errors?.devUser}
+        onKerberosSelected={() => ($form.tls = { verification: 'Full' })}
       />
-      {#if $errors?.region?.name}
-        <p class="text-error mt-1 text-xs">{$errors.region.name}</p>
-      {/if}
-    </div>
+    {:else}
+      <!-- Access style -->
+      <div>
+        <label for="{uid}-access-style" class="label mb-1 text-sm font-medium">
+          {m.storage_connect_access_style()}
+        </label>
+        <select
+          id="{uid}-access-style"
+          name="accessStyle"
+          class="select w-full"
+          bind:value={$form.accessStyle}
+        >
+          <option value="Path">{m.storage_connect_access_style_path()}</option>
+          <option value="VirtualHosted">{m.storage_connect_access_style_virtual_hosted()}</option>
+        </select>
+      </div>
 
-    <!-- Access key -->
-    <div>
-      <label for="{uid}-access-key" class="label mb-1 text-sm font-medium">
-        {m.storage_connect_access_key()}
-      </label>
-      <input
-        id="{uid}-access-key"
-        name="credentials.accessKey"
-        type="text"
-        class={['input w-full', $errors?.credentials?.accessKey && 'input-error']}
-        autocomplete="username"
-        bind:value={$form.credentials.accessKey}
-      />
-      {#if $errors?.credentials?.accessKey}
-        <p class="text-error mt-1 text-xs">{$errors.credentials.accessKey}</p>
-      {/if}
-    </div>
+      <!-- Region -->
+      <div>
+        <label for="{uid}-region" class="label mb-1 text-sm font-medium">
+          {m.storage_connect_region()}
+        </label>
+        <input
+          id="{uid}-region"
+          name="region.name"
+          type="text"
+          class={['input w-full', $errors?.region?.name && 'input-error']}
+          bind:value={$form.region.name}
+        />
+        {#if $errors?.region?.name}
+          <p class="text-error mt-1 text-xs">{$errors.region.name}</p>
+        {/if}
+      </div>
 
-    <!-- Secret key -->
-    <div>
-      <label for="{uid}-secret-key" class="label mb-1 text-sm font-medium">
-        {m.storage_connect_secret_key()}
-      </label>
-      <input
-        id="{uid}-secret-key"
-        name="credentials.secretKey"
-        type="password"
-        class={['input w-full', $errors?.credentials?.secretKey && 'input-error']}
-        autocomplete="current-password"
-        bind:value={$form.credentials.secretKey}
-      />
-      <p class="text-base-content/50 mt-1 text-xs">
-        {m.storage_connection_edit_credentials_hint()}
-      </p>
-      {#if $errors?.credentials?.secretKey}
-        <p class="text-error mt-1 text-xs">{$errors.credentials.secretKey}</p>
-      {/if}
-    </div>
+      <!-- Access key -->
+      <div>
+        <label for="{uid}-access-key" class="label mb-1 text-sm font-medium">
+          {m.storage_connect_access_key()}
+        </label>
+        <input
+          id="{uid}-access-key"
+          name="credentials.accessKey"
+          type="text"
+          class={['input w-full', $errors?.credentials?.accessKey && 'input-error']}
+          autocomplete="username"
+          bind:value={$form.credentials.accessKey}
+        />
+        {#if $errors?.credentials?.accessKey}
+          <p class="text-error mt-1 text-xs">{$errors.credentials.accessKey}</p>
+        {/if}
+      </div>
+
+      <!-- Secret key -->
+      <div>
+        <label for="{uid}-secret-key" class="label mb-1 text-sm font-medium">
+          {m.storage_connect_secret_key()}
+        </label>
+        <input
+          id="{uid}-secret-key"
+          name="credentials.secretKey"
+          type="password"
+          class={['input w-full', $errors?.credentials?.secretKey && 'input-error']}
+          autocomplete="current-password"
+          bind:value={$form.credentials.secretKey}
+        />
+        <p class="text-base-content/50 mt-1 text-xs">
+          {m.storage_connection_edit_credentials_hint()}
+        </p>
+        {#if $errors?.credentials?.secretKey}
+          <p class="text-error mt-1 text-xs">{$errors.credentials.secretKey}</p>
+        {/if}
+      </div>
+    {/if}
 
     {#if $message && $message !== 'ok'}
       <p class="text-error text-sm">{$message}</p>

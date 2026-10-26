@@ -16,6 +16,25 @@ export const completionEnabled = env.STACKABLE_COCKPIT_COMPLETION_ENABLED !== 'f
  *  credentials and the file-browser UI. */
 export const storageBrowserEnabled = env.STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED === 'true';
 
+/** When `STACKABLE_COCKPIT_STORAGE_HDFS_ENABLED=true`, HDFS connections can be
+ *  created and used in the storage browser. Disabled by default: HDFS is
+ *  accessed with WebHDFS simple auth, which trusts the user name cockpit
+ *  sends (see TECH_DEBT.md). */
+export const storageHdfsEnabled = env.STACKABLE_COCKPIT_STORAGE_HDFS_ENABLED === 'true';
+
+/** PEM CA bundle for verifying HDFS NameNode and DataNode HTTPS certificates.
+ *  Controlled by `STACKABLE_COCKPIT_STORAGE_HDFS_TLS_CA_CERT` (a file path). */
+export const hdfsTlsCaCertPath = env.STACKABLE_COCKPIT_STORAGE_HDFS_TLS_CA_CERT || undefined;
+
+/** Kerberos (SPNEGO) for HDFS is available when cockpit has a client keytab:
+ *  MIT GSSAPI reads it from `KRB5_CLIENT_KTNAME` (with `KRB5_CONFIG`). */
+export const hdfsKerberosAvailable = !!env.KRB5_CLIENT_KTNAME;
+
+/** Client principal for HDFS Kerberos; defaults to the keytab's principal.
+ *  Controlled by `STACKABLE_COCKPIT_STORAGE_HDFS_KERBEROS_PRINCIPAL`. */
+export const hdfsKerberosPrincipal =
+  env.STACKABLE_COCKPIT_STORAGE_HDFS_KERBEROS_PRINCIPAL || undefined;
+
 // ── Infinite scroll preview ───────────────────────────────────────────────────
 
 /** When `STACKABLE_COCKPIT_INFINITE_SCROLL_ENABLED=false`, the CSV and Parquet

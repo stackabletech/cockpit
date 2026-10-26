@@ -8,7 +8,10 @@ import {
   fileHref,
   locationName,
   locationPath,
-  locationHref
+  locationHref,
+  encodeContainerSegment,
+  decodeContainerSegment,
+  objectUri
 } from './display-helpers.js';
 import type { PinnedLocation, RecentFile, RecentLocation } from './types.js';
 
@@ -189,5 +192,40 @@ describe('locationHref', () => {
     expect(locationHref('s3.example.com', loc)).toBe(
       '/storage/browse/s3.example.com/my-bucket/some/path'
     );
+  });
+});
+
+describe('container segment encoding', () => {
+  it('leaves S3 bucket names readable', () => {
+    expect(encodeContainerSegment('my-bucket')).toBe('my-bucket');
+    expect(decodeContainerSegment('my-bucket')).toBe('my-bucket');
+  });
+
+  it.each(['/', '/user/alice', '/data', '/daten/übersicht', '/a b/~x'])(
+    'round-trips HDFS base path %s without slashes or percent-encoding',
+    (path) => {
+      const segment = encodeContainerSegment(path);
+      expect(segment.startsWith('~')).toBe(true);
+      expect(segment).toMatch(/^~[A-Za-z0-9_-]*$/);
+      expect(decodeContainerSegment(segment)).toBe(path);
+    }
+  );
+
+  it('encodes the HDFS root as a bare ~', () => {
+    expect(encodeContainerSegment('/')).toBe('~');
+  });
+
+  it('builds browse hrefs for HDFS base paths', () => {
+    expect(storageHref('nn', '/user/alice', 'logs/')).toBe(
+      `/storage/browse/nn/${encodeContainerSegment('/user/alice')}/logs`
+    );
+  });
+});
+
+describe('objectUri', () => {
+  it('formats S3 and HDFS object locations', () => {
+    expect(objectUri('my-bucket', 'a/b.txt')).toBe('s3://my-bucket/a/b.txt');
+    expect(objectUri('/data', 'a/b.txt')).toBe('/data/a/b.txt');
+    expect(objectUri('/', 'b.txt')).toBe('/b.txt');
   });
 });

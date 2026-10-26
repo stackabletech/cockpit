@@ -32,9 +32,10 @@ describe('StorageProviderFactory', () => {
   it('creates HDFSStorageProvider for type hdfs', () => {
     const config: HDFSConfig = {
       type: 'hdfs',
-      nameNode: faker.internet.url(),
+      host: faker.internet.domainName(),
       port: 9870,
-      user: faker.internet.username()
+      user: faker.internet.username(),
+      bucket: '/'
     };
     const provider = StorageProviderFactory.create(config);
     expect((provider as unknown as { config: HDFSConfig }).config).toEqual(config);

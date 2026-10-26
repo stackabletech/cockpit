@@ -158,6 +158,36 @@ describe('listArchiveContents', () => {
     }
   });
 
+  it('keeps cached archives separate per connection scope', async () => {
+    const first = testPath('scope-a.zip');
+    const second = testPath('scope-b.zip');
+    makeZip(first, { 'a.txt': 'from connection A' });
+    makeZip(second, { 'b.txt': 'from connection B' });
+    // Both connections expose the archive under the same key.
+    const downloadFrom =
+      (path: string): ArchiveDownloadFn =>
+      () =>
+        dummyDownloadFn(path);
+
+    const a = await listArchiveContents(
+      'conn-a/bucket',
+      'data.zip',
+      '',
+      downloadFrom(first),
+      vi.fn()
+    );
+    const b = await listArchiveContents(
+      'conn-b/bucket',
+      'data.zip',
+      '',
+      downloadFrom(second),
+      vi.fn()
+    );
+
+    expect(a.entries.map((e) => e.key)).toEqual(['a.txt']);
+    expect(b.entries.map((e) => e.key)).toEqual(['b.txt']);
+  });
+
   describe('ZIP', () => {
     it('lists top-level files and directories', async () => {
       const path = testPath('test.zip');

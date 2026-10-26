@@ -1,12 +1,12 @@
 import { browser } from '$app/environment';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
-import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+import { connectionStore, type StorageType } from '$lib/storage/connection-store.svelte.js';
 import type { LayoutLoad } from './$types';
 
 const DISCONNECTED = {
   connected: false,
   buckets: [] as string[],
-  connectionType: null
+  connectionType: null as StorageType | null
 };
 
 /**
@@ -18,9 +18,11 @@ const DISCONNECTED = {
  * During SSR returns the disconnected default; the layout re-runs after hydration.
  */
 export const load: LayoutLoad = async ({ fetch, data }) => {
+  const hdfsEnabled = data.hdfsEnabled;
   if (!browser) {
     return {
       ...DISCONNECTED,
+      hdfsEnabled,
       connections: data.connections ?? [],
       hydrating: true as const,
       hasActiveConnection: data.activeConnectionId != null
@@ -37,6 +39,7 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
     connectionStore.activeConnectionId = null;
     return {
       ...DISCONNECTED,
+      hdfsEnabled,
       connections,
       hydrating: false as const,
       hasActiveConnection: false as const
@@ -49,6 +52,7 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
     connectionStore.activeConnectionId = null;
     return {
       ...DISCONNECTED,
+      hdfsEnabled,
       connections,
       hydrating: false as const,
       hasActiveConnection: false as const
@@ -65,6 +69,7 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
     if (!res.ok) {
       return {
         ...DISCONNECTED,
+        hdfsEnabled,
         connections,
         hydrating: false as const,
         hasActiveConnection: false as const
@@ -75,7 +80,8 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
     return {
       connected: true,
       buckets,
-      connectionType: 's3',
+      connectionType: target.type,
+      hdfsEnabled,
       connections,
       hydrating: false as const,
       hasActiveConnection: true as const
@@ -83,6 +89,7 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
   } catch {
     return {
       ...DISCONNECTED,
+      hdfsEnabled,
       connections,
       hydrating: false as const,
       hasActiveConnection: false as const

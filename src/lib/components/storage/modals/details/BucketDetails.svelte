@@ -71,20 +71,23 @@
   {/if}
 
   {#if details}
-    <div>
-      <h4 class="text-base-content/70 mb-2 text-xs font-semibold tracking-wide uppercase">
-        {m.storage_details_versioning()}
-      </h4>
-      <div class="flex items-center gap-2">
-        {#if details.versioning === 'Enabled'}
-          <span class="badge badge-success badge-sm">{versioningLabel(details.versioning)}</span>
-        {:else if details.versioning === 'Suspended'}
-          <span class="badge badge-warning badge-sm">{versioningLabel(details.versioning)}</span>
-        {:else}
-          <span class="badge badge-sm">{versioningLabel(details.versioning)}</span>
-        {/if}
+    <!-- HDFS base paths (leading /) have no object versioning. -->
+    {#if !bucket.startsWith('/')}
+      <div>
+        <h4 class="text-base-content/70 mb-2 text-xs font-semibold tracking-wide uppercase">
+          {m.storage_details_versioning()}
+        </h4>
+        <div class="flex items-center gap-2">
+          {#if details.versioning === 'Enabled'}
+            <span class="badge badge-success badge-sm">{versioningLabel(details.versioning)}</span>
+          {:else if details.versioning === 'Suspended'}
+            <span class="badge badge-warning badge-sm">{versioningLabel(details.versioning)}</span>
+          {:else}
+            <span class="badge badge-sm">{versioningLabel(details.versioning)}</span>
+          {/if}
+        </div>
       </div>
-    </div>
+    {/if}
 
     <div>
       <h4 class="text-base-content/70 mb-2 text-xs font-semibold tracking-wide uppercase">

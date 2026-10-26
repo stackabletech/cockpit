@@ -271,3 +271,78 @@ describe('getCsvPreview', () => {
     expect(body.rows).toEqual([['a'], ['b']]);
   });
 });
+
+describe('getCsvPreview cache scoping', () => {
+  function csvProvider(text: string) {
+    const bytes = new TextEncoder().encode(text);
+    return makeProvider(
+      async (_key, start, end) => new Response(bytes.slice(start, end + 1)).body!
+    );
+  }
+
+  it('does not share cached headers between connections with the same key', async () => {
+    // Headers stay within the mocked 11-byte read chunk.
+    const a = 'a,b,c\n1,2,3\n';
+    // Same size as `a`, so only the scope can keep the cache entries apart.
+    const b = 'x,y\n1,2\n3,4\n';
+    const first = await readNdjsonResponse(
+      await getCsvPreview(
+        csvProvider(a),
+        'people.csv',
+        0,
+        10,
+        'text/csv',
+        a.length,
+        mockLog,
+        true,
+        'conn-a//user/alice'
+      )
+    );
+    const second = await readNdjsonResponse(
+      await getCsvPreview(
+        csvProvider(b),
+        'people.csv',
+        0,
+        10,
+        'text/csv',
+        b.length,
+        mockLog,
+        true,
+        'conn-b//user/alice'
+      )
+    );
+    expect(first.headers).toEqual(['a', 'b', 'c']);
+    expect(second.headers).toEqual(['x', 'y']);
+    expect(second.rows[0]).toEqual(['1', '2']);
+  });
+
+  it('re-reads a file whose size changed within the same scope', async () => {
+    const before = 'a,b\n1,2\n';
+    const after = 'c,d,e\n3,4,5\n';
+    await getCsvPreview(
+      csvProvider(before),
+      'f.csv',
+      0,
+      10,
+      'text/csv',
+      before.length,
+      mockLog,
+      true,
+      'conn-a/b'
+    );
+    const res = await readNdjsonResponse(
+      await getCsvPreview(
+        csvProvider(after),
+        'f.csv',
+        0,
+        10,
+        'text/csv',
+        after.length,
+        mockLog,
+        true,
+        'conn-a/b'
+      )
+    );
+    expect(res.headers).toEqual(['c', 'd', 'e']);
+  });
+});

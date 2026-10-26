@@ -27,6 +27,7 @@
   import IconDescriptionOutline from 'virtual:icons/material-symbols/description-outline';
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
+  import { decodeContainerSegment } from '$lib/storage/display-helpers.js';
   import TabBar from './TabBar.svelte';
   import ObjectTable from './ObjectTable.svelte';
   import ContextMenu from './ContextMenu.svelte';
@@ -39,7 +40,9 @@
   beforeNavigate((navigation) => {
     const params = navigation.to?.params;
     const connection = params?.connection;
-    const bucket = params?.bucket;
+    // Route params hold the encoded container segment (`~…` for HDFS base paths);
+    // the page compares against the decoded bucket.
+    const bucket = params?.bucket ? decodeContainerSegment(params.bucket) : undefined;
     if (!connection || !bucket) return;
 
     const prefix = params.prefix ? `${params.prefix}/` : '';

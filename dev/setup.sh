@@ -23,6 +23,8 @@ source "$SCRIPT_DIR/modules/trino.sh"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/modules/garage.sh"
 # shellcheck disable=SC1091
+source "$SCRIPT_DIR/modules/hdfs.sh"
+# shellcheck disable=SC1091
 source "$SCRIPT_DIR/modules/postgresql.sh"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/modules/env.sh"
@@ -31,21 +33,23 @@ source "$SCRIPT_DIR/modules/secret.sh"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/modules/summary.sh"
 
-SKIP_TRINO=false; SKIP_GARAGE=false; SKIP_POSTGRESQL=false
+SKIP_TRINO=false; SKIP_GARAGE=false; SKIP_POSTGRESQL=false; SKIP_HDFS=false
 for arg in "$@"; do
   case "$arg" in
     --skip-trino) SKIP_TRINO=true ;;
     --skip-garage) SKIP_GARAGE=true ;;
     --skip-postgresql) SKIP_POSTGRESQL=true ;;
-    *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino] [--skip-garage] [--skip-postgresql]"; exit 1 ;;
+    --skip-hdfs) SKIP_HDFS=true ;;
+    *) echo "Unknown argument: $arg"; echo "Usage: $0 [--skip-trino] [--skip-garage] [--skip-postgresql] [--skip-hdfs]"; exit 1 ;;
   esac
 done
-export SKIP_TRINO SKIP_GARAGE SKIP_POSTGRESQL
+export SKIP_TRINO SKIP_GARAGE SKIP_POSTGRESQL SKIP_HDFS
 
 log::info "Stackable Cockpit dev environment setup"
 [[ "$SKIP_TRINO" == true ]] && echo "  (Trino deployment skipped)"
 [[ "$SKIP_GARAGE" == true ]] && echo "  (Garage deployment skipped)"
 [[ "$SKIP_POSTGRESQL" == true ]] && echo "  (PostgreSQL deployment skipped)"
+[[ "$SKIP_HDFS" == true ]] && echo "  (HDFS deployment skipped)"
 echo ""
 
 # ── Phase 1: Bootstrap ──
@@ -57,6 +61,7 @@ export NODE_IP
 keycloak::deploy
 trino::deploy
 garage::deploy
+hdfs::deploy
 postgresql::deploy
 
 # ── Phase 3: Configure services ──
@@ -69,4 +74,5 @@ trino::probe
 env::write
 secret::create
 trino::wait_for_ready
+hdfs::wait_for_ready
 summary::print

@@ -27,7 +27,12 @@ export const GET: RequestHandler = async (event) => {
     customMetadata: meta.customMetadata,
     versionId: meta.versionId,
     storageClass: meta.storageClass,
-    isDeleteMarker: meta.isDeleteMarker ?? false
+    isDeleteMarker: meta.isDeleteMarker ?? false,
+    owner: meta.owner,
+    group: meta.group,
+    permission: meta.permission,
+    replication: meta.replication,
+    blockSize: meta.blockSize
   };
 
   return Response.json(details);

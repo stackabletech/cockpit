@@ -29,7 +29,9 @@ export const POST: RequestHandler = async (event) => {
   const exists = await provider.exists(newKey);
   if (exists) throw error(409, `Destination "${newKey}" already exists`);
 
-  if (key.endsWith('/')) {
+  if (provider.move) {
+    await provider.move(key, newKey);
+  } else if (key.endsWith('/')) {
     const children = await provider.listAllKeys(key);
     try {
       await provider.copyObject(key, newKey);

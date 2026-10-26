@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { getStorageIdentity } from '$lib/server/storage/connection-payload.js';
 import { recreateDownloadManifest } from '$lib/server/storage/download-manifests.js';
 
 export const POST: RequestHandler = async ({ locals, params, request }) => {
@@ -14,7 +15,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
   if (new Set(keys).size !== keys.length)
     throw error(400, 'Download keys must not contain duplicates');
   const manifest = await recreateDownloadManifest(
-    locals.user?.id ?? 'anonymous',
+    getStorageIdentity(locals),
     params.manifestId,
     keys
   );

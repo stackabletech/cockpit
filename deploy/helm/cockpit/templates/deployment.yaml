@@ -56,6 +56,9 @@ spec:
           {{- $features := index .Values "features" | default dict }}
           {{- $trinoFeatures := index $features "trino" | default dict }}
           {{- $completion := index $trinoFeatures "completion" | default dict }}
+          {{- $hdfs := index (index $features "storage" | default dict) "hdfs" | default dict }}
+          {{- $hdfsTls := index $hdfs "tls" | default dict }}
+          {{- $hdfsKerberos := index $hdfs "kerberos" | default dict }}
           env:
             - name: STORAGE_ENCRYPTION_KEY
               value: {{ .Values.features.storage.encryption.key | quote }}
@@ -88,6 +91,32 @@ spec:
             {{- if hasKey . "enabled" }}
             - name: STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED
               value: {{ .enabled | quote }}
+            {{- end }}
+            {{- with .hdfs }}
+            {{- if hasKey . "enabled" }}
+            - name: STACKABLE_COCKPIT_STORAGE_HDFS_ENABLED
+              value: {{ .enabled | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if $hdfsTls.caCert }}
+            - name: STACKABLE_COCKPIT_STORAGE_HDFS_TLS_CA_CERT
+              value: {{ $hdfsTls.caCert | quote }}
+            {{- else if $hdfsTls.secretClass }}
+            - name: STACKABLE_COCKPIT_STORAGE_HDFS_TLS_CA_CERT
+              value: /stackable/hdfs-tls/ca.crt
+            {{- end }}
+            {{- if $hdfsKerberos.secretClass }}
+            # MIT GSSAPI reads cockpit's keytab and realm configuration from these.
+            - name: KRB5_CONFIG
+              value: /stackable/kerberos/krb5.conf
+            - name: KRB5_CLIENT_KTNAME
+              value: /stackable/kerberos/keytab
+            - name: KRB5CCNAME
+              value: MEMORY:cockpit
+            {{- if $hdfsKerberos.principal }}
+            - name: STACKABLE_COCKPIT_STORAGE_HDFS_KERBEROS_PRINCIPAL
+              value: {{ $hdfsKerberos.principal | quote }}
+            {{- end }}
             {{- end }}
             {{- if hasKey . "autoConnect" }}
             - name: PUBLIC_STACKABLE_COCKPIT_STORAGE_AUTO_CONNECT
@@ -246,6 +275,16 @@ spec:
               mountPath: /stackable/trino-tls
               readOnly: true
             {{- end }}
+            {{- if $hdfsTls.secretClass }}
+            - name: hdfs-tls
+              mountPath: /stackable/hdfs-tls
+              readOnly: true
+            {{- end }}
+            {{- if $hdfsKerberos.secretClass }}
+            - name: kerberos
+              mountPath: /stackable/kerberos
+              readOnly: true
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
@@ -257,6 +296,40 @@ spec:
                 annotations:
                   secrets.stackable.tech/class: {{ .Values.trino.tls.secretClass | quote }}
                   secrets.stackable.tech/scope: pod
+              spec:
+                storageClassName: secrets.stackable.tech
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1
+        {{- end }}
+        {{- if $hdfsTls.secretClass }}
+        - name: hdfs-tls
+          ephemeral:
+            volumeClaimTemplate:
+              metadata:
+                annotations:
+                  secrets.stackable.tech/class: {{ $hdfsTls.secretClass | quote }}
+                  secrets.stackable.tech/scope: pod
+              spec:
+                storageClassName: secrets.stackable.tech
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1
+        {{- end }}
+        {{- if $hdfsKerberos.secretClass }}
+        {{- $serviceName := $hdfsKerberos.serviceName | default "cockpit" }}
+        - name: kerberos
+          ephemeral:
+            volumeClaimTemplate:
+              metadata:
+                annotations:
+                  secrets.stackable.tech/class: {{ $hdfsKerberos.secretClass | quote }}
+                  secrets.stackable.tech/scope: {{ printf "service=%s" $serviceName | quote }}
+                  secrets.stackable.tech/kerberos.service.names: {{ $serviceName | quote }}
               spec:
                 storageClassName: secrets.stackable.tech
                 accessModes:

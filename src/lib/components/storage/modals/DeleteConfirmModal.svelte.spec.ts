@@ -12,6 +12,60 @@ const defaultProps = {
 };
 
 describe('DeleteConfirmModal', () => {
+  describe('with HDFS trash enabled', () => {
+    const trash = { enabled: true, intervalMinutes: 1440 };
+
+    it('offers moving to trash and says how long items are kept', async () => {
+      const onConfirm = vi.fn();
+      render(DeleteConfirmModal, { ...defaultProps, keys: ['logs/'], trash, onConfirm });
+
+      await expect
+        .element(page.getByRole('heading', { name: /Move "logs" to trash/ }))
+        .toBeInTheDocument();
+      await expect.element(page.getByText(/for 24 hours/)).toBeInTheDocument();
+      await expect
+        .element(page.getByText('All contents will be permanently deleted'))
+        .not.toBeInTheDocument();
+
+      await page.getByRole('button', { name: 'Move to trash' }).click();
+      expect(onConfirm).toHaveBeenCalledWith({ trash: true });
+    });
+
+    it('switches back to a permanent delete when skipping the trash', async () => {
+      const onConfirm = vi.fn();
+      render(DeleteConfirmModal, { ...defaultProps, keys: ['logs/'], trash, onConfirm });
+
+      await page.getByLabelText('Delete permanently instead (skip trash)').click();
+      await expect
+        .element(page.getByText('All contents will be permanently deleted'))
+        .toBeInTheDocument();
+      await page.getByRole('button', { name: 'Delete permanently' }).click();
+      expect(onConfirm).toHaveBeenCalledWith({ trash: false });
+    });
+
+    it('states the retention in minutes when it is not whole hours', async () => {
+      render(DeleteConfirmModal, {
+        ...defaultProps,
+        trash: { enabled: true, intervalMinutes: 90 }
+      });
+      await expect.element(page.getByText(/for 90 minutes/)).toBeInTheDocument();
+    });
+  });
+
+  it('deletes permanently when the trash is disabled', async () => {
+    const onConfirm = vi.fn();
+    render(DeleteConfirmModal, {
+      ...defaultProps,
+      trash: { enabled: false, intervalMinutes: 0 },
+      onConfirm
+    });
+    await expect
+      .element(page.getByLabelText('Delete permanently instead (skip trash)'))
+      .not.toBeInTheDocument();
+    await page.getByRole('button', { name: 'Delete permanently' }).click();
+    expect(onConfirm).toHaveBeenCalledWith({ trash: false });
+  });
+
   describe('single file deletion', () => {
     it('should show heading with file name for single key', async () => {
       render(DeleteConfirmModal, { ...defaultProps, keys: ['report.csv'] });

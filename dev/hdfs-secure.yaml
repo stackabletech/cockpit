@@ -1,0 +1,56 @@
+---
+apiVersion: zookeeper.stackable.tech/v1alpha1
+kind: ZookeeperZnode
+metadata:
+  name: hdfs-secure-znode
+  namespace: default
+spec:
+  clusterRef:
+    name: hdfs-zk
+---
+# Kerberos + TLS HDFS for local development. WebHDFS is HTTPS-only (9871);
+# cockpit authenticates with its own keytab (principal short name "cockpit")
+# and impersonates the signed-in user via HDFS proxy-user.
+apiVersion: hdfs.stackable.tech/v1alpha1
+kind: HdfsCluster
+metadata:
+  name: hdfs-secure
+  namespace: default
+spec:
+  image:
+    productVersion: 3.4.3
+  clusterConfig:
+    zookeeperConfigMapName: hdfs-secure-znode
+    dfsReplication: 1
+    authentication:
+      tlsSecretClass: tls
+      kerberos:
+        secretClass: kerberos-default
+  nameNodes:
+    config:
+      listenerClass: external-stable
+    configOverrides: &coreSite
+      core-site.xml:
+        # Keep deleted files in the user's .Trash for 24 hours (minutes).
+        fs.trash.interval: '1440'
+        hadoop.proxyuser.cockpit.hosts: '*'
+        hadoop.proxyuser.cockpit.groups: '*'
+        # Authenticate the web endpoints (including WebHDFS) with Kerberos.
+        hadoop.http.authentication.type: kerberos
+        hadoop.http.authentication.simple.anonymous.allowed: 'false'
+        hadoop.http.authentication.kerberos.principal: HTTP/hdfs-secure.default.svc.cluster.local@${env.KERBEROS_REALM}
+        hadoop.http.authentication.kerberos.keytab: /stackable/kerberos/keytab
+    roleGroups:
+      default:
+        replicas: 2
+  dataNodes:
+    config:
+      listenerClass: external-unstable
+    configOverrides: *coreSite
+    roleGroups:
+      default:
+        replicas: 1
+  journalNodes:
+    roleGroups:
+      default:
+        replicas: 1

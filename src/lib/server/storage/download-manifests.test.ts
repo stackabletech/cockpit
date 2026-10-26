@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   selectWhere: vi.fn(),
   getProvider: vi.fn(),
   getConnectionForUser: vi.fn(),
+  connectionBelongsToUser: vi.fn(),
   listAllKeys: vi.fn(),
   getMetadata: vi.fn(),
   getObject: vi.fn(),
@@ -20,7 +21,10 @@ vi.mock('$lib/server/db.js', () => ({
   }
 }));
 vi.mock('./utils.js', () => ({ getProvider: mocks.getProvider }));
-vi.mock('./connections-db.js', () => ({ getConnectionForUser: mocks.getConnectionForUser }));
+vi.mock('./connections-db.js', () => ({
+  getConnectionForUser: mocks.getConnectionForUser,
+  connectionBelongsToUser: mocks.connectionBelongsToUser
+}));
 
 import {
   createDownloadManifest,
@@ -34,6 +38,8 @@ const config = {
   accessStyle: 'Path' as const,
   region: { name: 'eu-central-1' }
 };
+
+const identity = { userId: 'user-1', username: null };
 
 function queryResult(rows: unknown[]) {
   return { limit: async () => rows };
@@ -100,7 +106,7 @@ describe('download manifests', () => {
 
   it('does not open an expired, foreign, or deleted-connection manifest', async () => {
     mocks.selectWhere.mockReturnValue(queryResult([]));
-    await expect(openDownloadManifestPart('user-1', 'manifest-1', 1)).resolves.toBeNull();
+    await expect(openDownloadManifestPart(identity, 'manifest-1', 1)).resolves.toBeNull();
 
     mocks.selectWhere.mockReturnValue(
       queryResult([
@@ -115,7 +121,7 @@ describe('download manifests', () => {
       ])
     );
     mocks.getConnectionForUser.mockResolvedValue(null);
-    await expect(openDownloadManifestPart('user-1', 'manifest-1', 1)).resolves.toBeNull();
+    await expect(openDownloadManifestPart(identity, 'manifest-1', 1)).resolves.toBeNull();
     expect(mocks.deleteWhere).toHaveBeenCalledWith(expect.anything());
   });
 
@@ -143,16 +149,16 @@ describe('download manifests', () => {
       size: key === 'a.txt' ? 40 : 9
     }));
     await expect(
-      recreateDownloadManifest('user-1', 'manifest-1', ['a.txt'])
+      recreateDownloadManifest(identity, 'manifest-1', ['a.txt'])
     ).resolves.toMatchObject({ files: [{ filename: 'a.txt', size: 40 }] });
     const persisted = mocks.insertValues.mock.calls[0]?.[0] as { entries: Array<{ size: number }> };
     expect(persisted.entries).toEqual([{ key: 'a.txt', size: 40, isDirectory: false }]);
     await expect(
-      recreateDownloadManifest('user-1', 'manifest-1', ['other.txt'])
+      recreateDownloadManifest(identity, 'manifest-1', ['other.txt'])
     ).resolves.toBeNull();
     await expect(
-      recreateDownloadManifest('user-1', 'manifest-1', ['a.txt', 'a.txt'])
+      recreateDownloadManifest(identity, 'manifest-1', ['a.txt', 'a.txt'])
     ).resolves.toBeNull();
-    await expect(recreateDownloadManifest('user-1', 'manifest-1', [])).resolves.toBeNull();
+    await expect(recreateDownloadManifest(identity, 'manifest-1', [])).resolves.toBeNull();
   });
 });

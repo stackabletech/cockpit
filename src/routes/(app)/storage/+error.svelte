@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { encodeContainerSegment, decodeContainerSegment } from '$lib/storage/display-helpers.js';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import IconWarning from 'virtual:icons/material-symbols/warning';
@@ -10,7 +11,7 @@
   const storage = getStorageState();
   storage.loading = false;
 
-  const bucket = $derived(page.params.bucket ?? '');
+  const bucket = $derived(decodeContainerSegment(page.params.bucket ?? ''));
 
   const prefixParts = $derived.by(() => {
     const segments = page.url?.pathname?.split('/').filter(Boolean) ?? [];
@@ -38,7 +39,7 @@
         <a
           href={resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
             connection: encodeURIComponent(storage.connectionHostname),
-            bucket: encodeURIComponent(bucket),
+            bucket: encodeContainerSegment(bucket),
             prefix: ''
           })}
           class="text-base-content/70 hover:bg-base-200 hover:text-base-content flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 transition-colors"

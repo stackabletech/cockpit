@@ -1,3 +1,4 @@
+import { isHttpError } from '@sveltejs/kit';
 import type { StorageProvider } from './provider.js';
 import type pino from 'pino';
 
@@ -113,6 +114,15 @@ export async function processKeysSequentially(
     deleteOriginals
   } = options;
 
+  if (deleteOriginals && provider.move) {
+    return moveNatively(provider, provider.move.bind(provider), sourceKeys, destinationPrefix, {
+      onCopySuccess,
+      onCopyFailed,
+      logger,
+      bucket
+    });
+  }
+
   const destinations = await computeDestinations(provider, sourceKeys, destinationPrefix);
   const succeeded: Array<{ sourceKey: string; destKey: string }> = [];
   const failed: Array<{ sourceKey: string; error: string }> = [];
@@ -178,6 +188,50 @@ export async function processKeysSequentially(
     );
   }
 
+  return { succeeded, failed };
+}
+
+/**
+ * Move each selected file or directory with one native rename instead of
+ * expanding directories into per-key copies (backends with real directories).
+ */
+async function moveNatively(
+  provider: StorageProvider,
+  move: (sourceKey: string, destKey: string) => Promise<void>,
+  sourceKeys: string[],
+  destinationPrefix: string,
+  options: Pick<ProcessKeysOptions, 'onCopySuccess' | 'onCopyFailed' | 'logger' | 'bucket'>
+): Promise<ProcessKeysResult> {
+  const { onCopySuccess, onCopyFailed, logger, bucket } = options;
+  const succeeded: ProcessKeysResult['succeeded'] = [];
+  const failed: ProcessKeysResult['failed'] = [];
+
+  for (const sourceKey of sourceKeys) {
+    const name = sourceKey.endsWith('/')
+      ? sourceKey.split('/').filter(Boolean).pop() + '/'
+      : sourceKey.split('/').pop();
+    const baseDestKey = destinationPrefix + name;
+    try {
+      const destKey = await uniqueDestKey(provider, baseDestKey);
+      await move(sourceKey, destKey);
+      succeeded.push({ sourceKey, destKey });
+      await onCopySuccess?.(sourceKey, destKey);
+    } catch (err) {
+      const message = isHttpError(err)
+        ? err.body.message
+        : err instanceof Error
+          ? err.message
+          : 'Unknown error';
+      failed.push({ sourceKey, error: message });
+      logger?.warn(
+        { bucket, source_key: sourceKey, dest_key: baseDestKey, error: message },
+        'move failed for key'
+      );
+      await onCopyFailed?.(sourceKey, baseDestKey, message);
+    }
+  }
+
+  logger?.info({ bucket, moved: succeeded.length, failed: failed.length }, 'move completed');
   return { succeeded, failed };
 }
 

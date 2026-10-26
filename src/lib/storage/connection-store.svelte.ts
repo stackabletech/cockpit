@@ -7,9 +7,12 @@
 
 import { SvelteURL } from 'svelte/reactivity';
 
+export type StorageType = 's3' | 'hdfs';
+
 export interface ConnectionListItem {
   id: string;
   name: string;
+  type: StorageType;
   endpoint: string | null;
   additionalBuckets: string[];
   createdAt: string;

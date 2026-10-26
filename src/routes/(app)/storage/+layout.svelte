@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { encodeContainerSegment } from '$lib/storage/display-helpers.js';
   import { untrack } from 'svelte';
   import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -30,7 +31,7 @@
   function locationPath(connection: string, bucket: string, prefix: string): string {
     return resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
       connection: encodeURIComponent(connection),
-      bucket: encodeURIComponent(bucket),
+      bucket: encodeContainerSegment(bucket),
       prefix: prefix ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/') : ''
     });
   }

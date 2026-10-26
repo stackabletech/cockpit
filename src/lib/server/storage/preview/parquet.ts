@@ -428,9 +428,12 @@ export async function getParquetPreview(
   limit = 250,
   requestLog: pino.Logger = fallbackLog,
   totalSize?: number,
-  includeData = false
+  includeData = false,
+  /** Connection and bucket the key belongs to; cache entries never cross scopes. */
+  cacheScope = ''
 ): Promise<Response> {
   const log = requestLog.child({ module: 'parquet-preview' });
+  const cacheKey = `${cacheScope}\u0000${key}`;
   const byteLength = totalSize ?? (await provider.getMetadata(key)).size;
 
   if (byteLength === 0) {
@@ -461,7 +464,7 @@ export async function getParquetPreview(
 
   let parquetMeta: FileMetaData;
 
-  const cached = metadataCache.get(key);
+  const cached = metadataCache.get(cacheKey);
   if (cached) {
     cached.lastAccessed = Date.now();
     parquetMeta = cached.meta;
@@ -486,7 +489,7 @@ export async function getParquetPreview(
 
     parquetMeta = await parquetMetadataAsync(footerBuffer);
 
-    metadataCache.set(key, {
+    metadataCache.set(cacheKey, {
       meta: parquetMeta,
       lastAccessed: Date.now()
     });

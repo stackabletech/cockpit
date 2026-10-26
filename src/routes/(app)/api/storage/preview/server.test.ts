@@ -65,7 +65,8 @@ import { getCsvPreview } from '$lib/server/storage/preview/csv.js';
 import { mapS3ErrorToHttp } from '$lib/server/storage/s3-errors.js';
 
 const CONNECTION_HEADER = {
-  'x-storage-connection': btoa(JSON.stringify({ type: 's3', region: 'us-east-1' }))
+  'x-storage-connection': btoa(JSON.stringify({ type: 's3', region: 'us-east-1' })),
+  'x-storage-connection-id': 'conn-1'
 };
 
 function mockEvent(params: string) {
@@ -105,7 +106,8 @@ describe('GET /api/storage/preview', () => {
       'text/csv',
       100,
       expect.anything(),
-      false
+      false,
+      'conn-1/b1'
     );
   });
 
@@ -205,7 +207,8 @@ describe('GET /api/storage/preview', () => {
       250,
       expect.anything(),
       5000,
-      false
+      false,
+      'conn-1/b1'
     );
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
@@ -225,7 +228,8 @@ describe('GET /api/storage/preview', () => {
       250,
       expect.anything(),
       5000,
-      false
+      false,
+      'conn-1/b1'
     );
     expect(res.headers.get('X-Preview-Format')).toBe('parquet');
   });
@@ -245,7 +249,8 @@ describe('GET /api/storage/preview', () => {
       100,
       expect.anything(),
       50000,
-      false
+      false,
+      'conn-1/b1'
     );
   });
 
@@ -264,7 +269,8 @@ describe('GET /api/storage/preview', () => {
       250,
       expect.anything(),
       0,
-      false
+      false,
+      'conn-1/b1'
     );
   });
 

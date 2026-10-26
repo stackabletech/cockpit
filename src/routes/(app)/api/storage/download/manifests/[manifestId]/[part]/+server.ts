@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { getStorageIdentity } from '$lib/server/storage/connection-payload.js';
 import { openDownloadManifestPart } from '$lib/server/storage/download-manifests.js';
 import {
   cancelJobFromStream,
@@ -14,7 +15,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
   const part = Number.parseInt(params.part, 10);
   if (!Number.isSafeInteger(part) || part < 1) throw error(400, 'Invalid download part');
   const download = await openDownloadManifestPart(
-    locals.user?.id ?? 'anonymous',
+    getStorageIdentity(locals),
     params.manifestId,
     part
   );

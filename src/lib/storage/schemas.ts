@@ -8,7 +8,8 @@ const baseStorageConnectionObject = z.object({
     .string()
     .min(1, 'Host is required')
     .transform((v) => {
-      if (!v.includes('://')) return v;
+      // HDFS accepts a comma-separated NameNode list, parsed by the connect action.
+      if (!v.includes('://') || v.includes(',')) return v;
       try {
         return new URL(v).hostname;
       } catch {
@@ -31,10 +32,17 @@ const baseStorageConnectionObject = z.object({
       accessKey: z.string(),
       secretKey: z.string()
     })
-    .default({ accessKey: '', secretKey: '' })
+    .default({ accessKey: '', secretKey: '' }),
+  /** HDFS user name; only used when running without OIDC (dev mode). */
+  devUser: z.string().trim().optional(),
+  /** HDFS authentication: simple (`user.name`) or Kerberos (SPNEGO + proxy user). */
+  auth: z.enum(['simple', 'kerberos']).default('simple'),
+  /** HDFS SPNEGO service principal, e.g. `HTTP/hdfs.default.svc.cluster.local`. */
+  servicePrincipal: z.string().trim().optional()
 });
 
 export const StorageConnectionSchema = baseStorageConnectionObject.superRefine((data, ctx) => {
+  if (data.type !== 's3') return;
   const hasKey = !!data.credentials.accessKey;
   const hasSecret = !!data.credentials.secretKey;
   if (hasKey && !hasSecret) {
@@ -59,6 +67,7 @@ export const StorageConnectionSchema = baseStorageConnectionObject.superRefine((
  * means "keep the existing secret key".
  */
 export const EditStorageConnectionSchema = baseStorageConnectionObject.superRefine((data, ctx) => {
+  if (data.type !== 's3') return;
   if (!data.credentials.accessKey && !!data.credentials.secretKey) {
     ctx.addIssue({
       code: 'custom',

@@ -212,9 +212,12 @@ export async function getCsvPreview(
   contentType: string,
   totalSize: number,
   requestLog: pino.Logger = fallbackLog,
-  includeData = false
+  includeData = false,
+  /** Connection and bucket the key belongs to; cache entries never cross scopes. */
+  cacheScope = ''
 ): Promise<Response> {
   const log = requestLog.child({ module: 'csv-preview' });
+  const cacheKey = `${cacheScope}\u0000${key}`;
 
   if (totalSize === 0) {
     return new Response(
@@ -234,10 +237,11 @@ export async function getCsvPreview(
     );
   }
 
-  let entry = csvPreviewCache.get(key);
+  let entry = csvPreviewCache.get(cacheKey);
   const now = Date.now();
 
-  if (!entry || now - entry.lastAccessed > CSV_CACHE_TTL) {
+  // A changed size means the object was replaced; its line offsets no longer apply.
+  if (!entry || now - entry.lastAccessed > CSV_CACHE_TTL || entry.totalSize !== totalSize) {
     entry = {
       headers: [],
       lineOffsets: [],
@@ -245,7 +249,7 @@ export async function getCsvPreview(
       totalSize,
       lastAccessed: now
     };
-    csvPreviewCache.set(key, entry);
+    csvPreviewCache.set(cacheKey, entry);
   }
 
   entry.lastAccessed = now;

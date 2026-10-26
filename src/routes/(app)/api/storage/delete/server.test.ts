@@ -35,6 +35,17 @@ function mockEvent(searchParams: Record<string, string | string[]>) {
 describe('DELETE /api/storage/delete', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it('passes useTrash only when trash=true is requested', async () => {
+    mockProvider.deleteObjects.mockResolvedValue({ failed: [], trashed: 1 });
+
+    const trashed = await DELETE(mockEvent({ bucket: 'b1', keys: 'a.txt', trash: 'true' }));
+    expect(mockProvider.deleteObjects).toHaveBeenLastCalledWith(['a.txt'], { useTrash: true });
+    expect(await trashed.json()).toEqual({ failed: [], trashed: 1 });
+
+    await DELETE(mockEvent({ bucket: 'b1', keys: 'a.txt' }));
+    expect(mockProvider.deleteObjects).toHaveBeenLastCalledWith(['a.txt'], { useTrash: false });
+  });
+
   it('throws 400 when bucket is missing', async () => {
     await expect(DELETE(mockEvent({ keys: 'a.txt' }))).rejects.toThrow(
       expect.objectContaining({ status: 400 })
@@ -53,7 +64,7 @@ describe('DELETE /api/storage/delete', () => {
     mockProvider.deleteObjects.mockResolvedValue(result);
 
     const response = await DELETE(mockEvent({ bucket: 'b1', keys }));
-    expect(mockProvider.deleteObjects).toHaveBeenCalledWith(keys);
+    expect(mockProvider.deleteObjects).toHaveBeenCalledWith(keys, { useTrash: false });
     expect(await response.json()).toEqual(result);
   });
 });

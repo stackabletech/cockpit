@@ -20,7 +20,8 @@ import type {
   ArchiveListingResponse,
   StorageSearchResponse,
   StorageSearchUpdate,
-  RecentSearchEntry
+  RecentSearchEntry,
+  TrashInfo
 } from './types.js';
 import type { FileDetails, DirectoryMetadata, BucketDetails } from './details-types.js';
 
@@ -33,6 +34,8 @@ export interface CopyMoveResult {
 
 export interface DeleteResult {
   failed: Array<{ key: string; code?: string; message?: string }>;
+  /** Number of keys moved to the trash instead of being deleted (HDFS). */
+  trashed?: number;
 }
 
 export interface JobStatus {
@@ -113,7 +116,10 @@ export interface StorageApi {
 
   rename(params: { bucket: string; key: string; newKey: string }): Promise<void>;
 
-  delete(params: { bucket: string; keys: string[] }): Promise<DeleteResult>;
+  /** With `trash`, backends with an enabled trash (HDFS) move keys there instead. */
+  delete(params: { bucket: string; keys: string[]; trash?: boolean }): Promise<DeleteResult>;
+
+  trashInfo(params: { bucket: string }): Promise<TrashInfo>;
 
   create(params: { bucket: string; key: string }): Promise<void>;
 
@@ -277,15 +283,21 @@ export function createFetchStorageApi(getConnectionId: () => string | null): Sto
       });
     },
 
-    async delete({ bucket, keys }) {
+    async delete({ bucket, keys, trash }) {
       const params = new URLSearchParams({ bucket });
       for (const key of keys) {
         params.append('keys', key);
       }
+      if (trash) params.set('trash', 'true');
       const res = await fetch_(`/api/storage/delete?${params}`, {
         method: 'DELETE'
       });
       return (await res.json()) as DeleteResult;
+    },
+
+    async trashInfo({ bucket }) {
+      const res = await fetch_(`/api/storage/trash?${new URLSearchParams({ bucket })}`);
+      return (await res.json()) as TrashInfo;
     },
 
     async create({ bucket, key }) {

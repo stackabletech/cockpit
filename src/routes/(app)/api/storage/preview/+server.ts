@@ -5,7 +5,10 @@ import { getParquetPreview } from '$lib/server/storage/preview/parquet';
 import { getCsvPreview } from '$lib/server/storage/preview/csv';
 import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
-import { createStorageProvider } from '$lib/server/storage/request-context.js';
+import {
+  createStorageProvider,
+  requireStorageConnectionId
+} from '$lib/server/storage/request-context.js';
 import { infiniteScrollEnabled, filePreviewRows } from '$lib/server/feature-flags';
 import type { RequestHandler } from './$types';
 
@@ -17,6 +20,8 @@ import type { RequestHandler } from './$types';
  */
 export const GET: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
+  // Preview caches are per connection and bucket: keys alone are not unique.
+  const cacheScope = `${requireStorageConnectionId(event)}/${bucket}`;
   const key = event.url.searchParams.get('key')?.trim();
   if (!key) throw error(400, 'Missing required query parameter: key');
   const { url, locals } = event;
@@ -45,7 +50,16 @@ export const GET: RequestHandler = async (event) => {
     }
 
     if (isParquet) {
-      return await getParquetPreview(provider, key, offset, limit, log, totalSize, includeData);
+      return await getParquetPreview(
+        provider,
+        key,
+        offset,
+        limit,
+        log,
+        totalSize,
+        includeData,
+        cacheScope
+      );
     }
 
     // Skip body fetch for known-binary formats — client will show fallback immediately.
@@ -79,7 +93,8 @@ export const GET: RequestHandler = async (event) => {
         contentType,
         totalSize,
         log,
-        includeData
+        includeData,
+        cacheScope
       );
     }
 

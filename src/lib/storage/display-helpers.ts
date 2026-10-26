@@ -1,13 +1,56 @@
 import { resolve } from '$app/paths';
 import type { ResolvedPathname } from '$app/types';
 import type { PinnedLocation, RecentFile, RecentLocation } from './types.js';
+import { joinHdfsPath } from './hdfs-path.js';
 
 const STORAGE_ROUTE = '/(app)/storage/browse/[connection]/[bucket]/[...prefix]' as const;
 
 // ── URL helpers ──────────────────────────────────────────────────────────────
 
+function toBase64Url(value: string): string {
+  let binary = '';
+  for (const byte of new TextEncoder().encode(value)) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(value: string): string {
+  const binary = atob(value.replace(/-/g, '+').replace(/_/g, '/'));
+  return new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
+}
+
+/**
+ * Encode a container for the `[bucket]` route segment. S3 bucket names pass
+ * through unchanged. HDFS base paths always start with `/`, which is fragile
+ * as `%2F` behind proxies, so they become `~` + base64url (`/` alone is `~`).
+ * S3 bucket names cannot contain `~`, so the two never collide.
+ */
+export function encodeContainerSegment(container: string): string {
+  if (!container.startsWith('/')) return encodeURIComponent(container);
+  return container === '/' ? '~' : `~${toBase64Url(container)}`;
+}
+
+/**
+ * Display URI for an object: `s3://bucket/key` for S3, the absolute path for
+ * HDFS (whose containers are base paths starting with `/`).
+ */
+export function objectUri(container: string, key: string): string {
+  if (container.startsWith('/')) return joinHdfsPath(container, key);
+  return `s3://${container}/${key}`;
+}
+
+/** Inverse of {@link encodeContainerSegment}, applied to the decoded route param. */
+export function decodeContainerSegment(segment: string): string {
+  if (!segment.startsWith('~')) return segment;
+  if (segment === '~') return '/';
+  try {
+    return fromBase64Url(segment.slice(1));
+  } catch {
+    return segment;
+  }
+}
+
 export function storageHref(connection: string, bucket: string, prefix: string): ResolvedPathname {
-  const encodedBucket = encodeURIComponent(bucket);
+  const encodedBucket = encodeContainerSegment(bucket);
   const encodedPrefix = prefix
     ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
     : '';
@@ -49,7 +92,7 @@ export function fileHref(connection: string, file: RecentFile): ResolvedPathname
   const encodedPrefix = parts.map(encodeURIComponent).join('/');
   return resolve(STORAGE_ROUTE, {
     connection: encodeURIComponent(connection),
-    bucket: encodeURIComponent(file.bucket),
+    bucket: encodeContainerSegment(file.bucket),
     prefix: encodedPrefix
   });
 }

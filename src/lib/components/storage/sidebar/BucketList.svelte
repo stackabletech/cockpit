@@ -14,14 +14,21 @@
   import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
+  import { connectionStore } from '$lib/storage/connection-store.svelte.js';
   import FloatingMenu from '../shared/FloatingMenu.svelte';
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
   import { parseStorageDropKeys, canStorageDrop } from '$lib/storage/drag-handlers.js';
-  import { pinnedLabel, pinnedHref } from '$lib/storage/display-helpers.js';
+  import {
+    pinnedLabel,
+    pinnedHref,
+    encodeContainerSegment,
+    decodeContainerSegment
+  } from '$lib/storage/display-helpers.js';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
 
   const storage = getStorageState();
+  const isHdfs = $derived(connectionStore.activeConnection?.type === 'hdfs');
 
   const resize = createResizablePanel({
     storageKey: 'storage_sidebar_width',
@@ -44,12 +51,12 @@
   // with optional chaining to avoid crashing the layout and escalating the
   // error to the root fallback handler.
   const activeBucket = $derived.by(() => {
-    return page.params.bucket ?? null;
+    return page.params.bucket ? decodeContainerSegment(page.params.bucket) : null;
   });
   const activePrefix = $derived(page.params.prefix ? page.params.prefix + '/' : '');
 
   function isPinnedActive(pin: PinnedLocation): boolean {
-    return page.params.bucket === pin.bucket && activePrefix === pin.prefix;
+    return activeBucket === pin.bucket && activePrefix === pin.prefix;
   }
 
   // ── Unpin context menu ────────────────────────────────────────────────────
@@ -186,7 +193,7 @@
     rounded-lg border
   "
   style="width: var(--storage-sidebar-width, {resize.width}px)"
-  aria-label={m.storage_buckets_label()}
+  aria-label={isHdfs ? m.storage_paths_label() : m.storage_buckets_label()}
 >
   {#if !storage.connected || !storage.connectionHostname}
     <div class="flex flex-1 items-center justify-center">
@@ -258,14 +265,14 @@
         text-base-content/50 text-xs font-semibold tracking-wide uppercase
       "
       >
-        {m.storage_buckets_label()}
+        {isHdfs ? m.storage_paths_label() : m.storage_buckets_label()}
       </span>
       <a
         href={resolve('/storage')}
         data-sveltekit-preload-data="off"
         class="btn btn-ghost btn-xs group tooltip tooltip-right z-150 before:z-200"
-        title={m.storage_view_all_buckets()}
-        data-tip={m.storage_view_all_buckets()}
+        title={isHdfs ? m.storage_view_all_paths() : m.storage_view_all_buckets()}
+        data-tip={isHdfs ? m.storage_view_all_paths() : m.storage_view_all_buckets()}
       >
         <IconGridView
           class="group-hover:text-primary size-3.5 transition-colors"
@@ -278,7 +285,7 @@
       <ul class="py-1" role="list">
         {#if storage.buckets.length === 0}
           <li class="text-base-content/40 px-3 py-4 text-center text-xs">
-            {m.storage_buckets_empty()}
+            {isHdfs ? m.storage_paths_empty() : m.storage_buckets_empty()}
           </li>
         {:else}
           {#each storage.buckets as bucket (bucket)}
@@ -287,7 +294,7 @@
                 <a
                   href={resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
                     connection: encodeURIComponent(storage.connectionHostname),
-                    bucket: encodeURIComponent(bucket),
+                    bucket: encodeContainerSegment(bucket),
                     prefix: ''
                   })}
                   data-sveltekit-preload-data="off"

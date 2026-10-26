@@ -4,9 +4,10 @@ import { db } from '$lib/server/db.js';
 import { downloadHistoryRetentionMs } from '$lib/server/feature-flags.js';
 import { logger } from '$lib/server/logging';
 import { storageDownloadManifests } from '$lib/server/schema.js';
-import { getConnectionForUser } from './connections-db.js';
+import { connectionBelongsToUser, getConnectionForUser } from './connections-db.js';
+import type { StorageIdentity } from './connection-payload.js';
 import type { StorageProvider } from './provider.js';
-import type { S3ConnectionConfig } from './types.js';
+import type { StorageConnectionConfig } from './types.js';
 import { getProvider } from './utils.js';
 import { wrapProvider } from './wrap-provider.js';
 import { createZipStream, type ZipEntry, zipStreamSize } from './zip-stream.js';
@@ -43,11 +44,16 @@ function fileName(key: string): string {
   return key.split('/').filter(Boolean).pop() ?? key;
 }
 
+/** Containers are bucket names (S3) or absolute base paths (HDFS); use a slash-free name. */
+function containerName(bucket: string): string {
+  return bucket.split('/').filter(Boolean).pop() ?? 'hdfs';
+}
+
 function archiveBaseName(bucket: string, prefix: string | undefined, keys: string[]): string {
   if (keys.length === 1 && keys[0].endsWith('/')) {
-    return fileName(keys[0]).replace(/\/$/, '') || bucket;
+    return fileName(keys[0]).replace(/\/$/, '') || containerName(bucket);
   }
-  return fileName(prefix ?? '').replace(/\/$/, '') || bucket;
+  return fileName(prefix ?? '').replace(/\/$/, '') || containerName(bucket);
 }
 
 export function archiveFileName(base: string): string {
@@ -136,7 +142,7 @@ export async function createDownloadManifest(input: {
   bucket: string;
   prefix: string;
   keys: string[];
-  config: S3ConnectionConfig;
+  config: StorageConnectionConfig;
 }): Promise<DownloadManifest> {
   await removeExpiredManifests();
   const archive = shouldArchive(input.keys);
@@ -187,14 +193,15 @@ async function loadOwnedManifest(userId: string, id: string): Promise<DownloadHi
 
 /** Create a fresh history entry from a checked subset of an existing entry. */
 export async function recreateDownloadManifest(
-  userId: string,
+  identity: StorageIdentity,
   id: string,
   selectedKeys: string[]
 ): Promise<DownloadManifest | null> {
   if (selectedKeys.length === 0 || new Set(selectedKeys).size !== selectedKeys.length) return null;
+  const userId = identity.userId;
   const original = await loadOwnedManifest(userId, id);
   if (!original) return null;
-  const config = await getConnectionForUser(userId, original.connectionId);
+  const config = await getConnectionForUser(identity, original.connectionId);
   if (!config) {
     await db.delete(storageDownloadManifests).where(eq(storageDownloadManifests.id, id));
     return null;
@@ -260,7 +267,7 @@ export async function listDownloadHistory(
     .orderBy(desc(storageDownloadManifests.createdAt));
   const history: DownloadHistoryEntry[] = [];
   for (const row of rows) {
-    if (!(await getConnectionForUser(userId, row.connectionId))) {
+    if (!(await connectionBelongsToUser(userId, row.connectionId))) {
       await db.delete(storageDownloadManifests).where(eq(storageDownloadManifests.id, row.id));
       continue;
     }
@@ -286,13 +293,13 @@ export async function clearDownloadHistory(userId: string): Promise<void> {
 
 /** Load an owned, unexpired manifest and resolve its current encrypted connection. */
 export async function openDownloadManifestPart(
-  userId: string,
+  identity: StorageIdentity,
   id: string,
   part: number
 ): Promise<{ stream: ReadableStream; file: DownloadFile } | null> {
-  const manifest = await loadOwnedManifest(userId, id);
+  const manifest = await loadOwnedManifest(identity.userId, id);
   if (!manifest) return null;
-  const config = await getConnectionForUser(userId, manifest.connectionId);
+  const config = await getConnectionForUser(identity, manifest.connectionId);
   if (!config) {
     log.warn(
       { manifest_id: id, connection_id: manifest.connectionId },

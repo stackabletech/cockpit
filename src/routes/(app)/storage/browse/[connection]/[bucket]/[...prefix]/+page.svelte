@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { encodeContainerSegment } from '$lib/storage/display-helpers.js';
   import { browser } from '$app/environment';
   import { goto, invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -14,7 +15,7 @@
   const routePath = $derived(
     resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
       connection: encodeURIComponent(data.connection),
-      bucket: encodeURIComponent(data.bucket),
+      bucket: encodeContainerSegment(data.bucket),
       prefix: data.prefix
         ? data.prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/')
         : ''
@@ -48,7 +49,7 @@
 
     const basePath = resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
       connection: encodeURIComponent(storage.connectionHostname),
-      bucket: encodeURIComponent(storage.bucket),
+      bucket: encodeContainerSegment(storage.bucket),
       prefix: encodedPrefix
     });
 
@@ -69,7 +70,7 @@
 
     const basePath = resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
       connection: encodeURIComponent(storage.connectionHostname),
-      bucket: encodeURIComponent(storage.bucket),
+      bucket: encodeContainerSegment(storage.bucket),
       prefix: encodedPrefix
     });
 

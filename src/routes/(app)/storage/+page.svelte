@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { encodeContainerSegment } from '$lib/storage/display-helpers.js';
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -23,6 +24,7 @@
   const storage = getStorageState();
 
   let addBucketOpen = $state(false);
+  const isHdfs = $derived(data.connectionType === 'hdfs');
 
   const connectError = $derived<string | null>(
     (page.form as { error?: string } | null)?.error ?? null
@@ -83,7 +85,7 @@
     goto(
       resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
         connection: encodeURIComponent(storage.connectionHostname),
-        bucket: encodeURIComponent(active.bucket),
+        bucket: encodeContainerSegment(active.bucket),
         prefix: encodedPrefix
       })
     );
@@ -136,21 +138,25 @@
 
     <div class="mb-6">
       <div class="mb-1 flex items-center justify-between gap-4">
-        <h1 class="text-xl font-semibold">{m.storage_buckets_label()}</h1>
+        <h1 class="text-xl font-semibold">
+          {isHdfs ? m.storage_paths_label() : m.storage_buckets_label()}
+        </h1>
         <div class="flex shrink-0 items-center gap-1">
           <StorageSearch />
           <button
             type="button"
             class="btn btn-primary btn-sm"
             onclick={() => (addBucketOpen = true)}
-            aria-label={m.storage_add_bucket()}
+            aria-label={isHdfs ? m.storage_add_path() : m.storage_add_bucket()}
           >
             <IconAdd class="size-4" aria-hidden="true" />
-            {m.storage_add_bucket()}
+            {isHdfs ? m.storage_add_path() : m.storage_add_bucket()}
           </button>
         </div>
       </div>
-      <p class="text-base-content/60 text-sm">{m.storage_buckets_subtitle()}</p>
+      <p class="text-base-content/60 text-sm">
+        {isHdfs ? m.storage_paths_subtitle() : m.storage_buckets_subtitle()}
+      </p>
     </div>
     <BucketGrid buckets={storage.buckets} loading={data.hydrating || !storage.connectionHostname} />
   </div>
@@ -166,6 +172,9 @@
   <StorageConnectForm
     connectionForm={data.connectionForm}
     connections={data.connections ?? []}
+    hdfsEnabled={data.hdfsEnabled}
+    hdfsUser={data.hdfsUser}
+    kerberosAvailable={data.hdfsKerberosAvailable}
     {connectError}
   />
 {/if}

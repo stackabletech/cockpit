@@ -70,6 +70,38 @@ The same `getUserId(locals)` → `'anonymous'` fallback used for Trino also appl
 
 ---
 
+### HDFS simple auth remains available next to Kerberos
+
+**File:** `src/lib/server/storage/hdfs-auth.ts`, `src/lib/server/storage/connection-form.ts`
+
+HDFS connections can use Kerberos (SPNEGO with cockpit's service keytab, impersonating the signed-in user via `doas`) or simple auth, where the NameNode trusts the `user.name` parameter. With simple auth cockpit always sends the SSO username, but anything that can reach the NameNode directly can claim any identity. Simple auth exists for unsecured clusters and local development and stays behind `STACKABLE_COCKPIT_STORAGE_HDFS_ENABLED`. Long-term: let administrators restrict HDFS connections to Kerberos.
+
+---
+
+### `kerberos` native addon is fetched as a prebuilt binary
+
+**File:** `docker/Dockerfile`, `package.json`
+
+HDFS Kerberos uses the `kerberos` npm package (Apache-2.0), a native N-API addon that loads `libgssapi_krb5` at runtime. The image build runs `npm rebuild kerberos`, whose install step (`prebuild-install`, deprecated upstream) downloads a prebuilt binary from the package's GitHub releases without checksum pinning. Acceptable for now because the package is widely used (MongoDB driver). Long-term: build the addon from source in the image (needs `gcc-c++`, `make`, `python3`, `krb5-devel` in the prod-deps stage) or pin and verify the binary's checksum.
+
+---
+
+### Cockpit is an unrestricted HDFS proxy user
+
+**File:** `deploy/helm/cockpit/README.md`, `dev/hdfs-secure.yaml`
+
+Kerberos HDFS connections impersonate the signed-in user, so the HDFS cluster must list cockpit's principal in `hadoop.proxyuser.<service>.hosts/groups`. The dev cluster and documentation use `*` for both, which lets cockpit act as any user, including HDFS superusers. Long-term: document restricting `groups` (or `users`) to the groups cockpit users belong to, and `hosts` to cockpit's pod network.
+
+---
+
+### Storage connection fingerprint changed
+
+**File:** `src/lib/server/storage/connection-payload.ts`
+
+The dedup fingerprint now includes connection type and port (previously host, region and credentials only, which let an anonymous S3 endpoint and an HDFS NameNode on the same host collide). Rows saved before the change carry the old hash, so re-entering an existing connection once creates a duplicate instead of reusing it. Acceptable: users can delete the duplicate. A backfill is not possible without decrypting and re-hashing every row at startup.
+
+---
+
 ### In-memory query store lost on server restart and prevents horizontal scaling
 
 **File:** `src/lib/server/trino/queries.ts`

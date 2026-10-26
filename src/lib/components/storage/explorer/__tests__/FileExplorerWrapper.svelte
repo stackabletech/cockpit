@@ -7,12 +7,13 @@
 
   interface Props {
     state: StorageState;
+    tabs?: TabsState;
   }
 
-  let { state }: Props = $props();
+  let { state, tabs }: Props = $props();
   untrack(() => {
     setStorageState(state);
-    setTabsState(new TabsState(state));
+    setTabsState(tabs ?? new TabsState(state));
   });
 </script>
 

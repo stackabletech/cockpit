@@ -22,6 +22,18 @@ summary::print() {
     echo "  Credentials written to s3-config.json for E2E tests."
     echo ""
   fi
+  if [[ "$SKIP_HDFS" == false ]]; then
+    echo "HDFS WebHDFS:   http://${NODE_IP}:${HDFS_NAMENODE_0_PORT}  (namenode-0)"
+    echo "                http://${NODE_IP}:${HDFS_NAMENODE_1_PORT}  (namenode-1)"
+    echo "  Enter both NameNodes, comma-separated, as the HDFS host (simple auth, user = SSO username)."
+    echo ""
+    echo "HDFS (Kerberos + TLS), reachable from inside the cluster only:"
+    echo "  NameNodes:          hdfs-secure-namenode-default-{0,1}.hdfs-secure-namenode-default.default.svc.cluster.local:9871"
+    echo "  Service principal:  HTTP/hdfs-secure.default.svc.cluster.local"
+    echo "  Deploy cockpit with features.storage.hdfs.tls.secretClass=tls and"
+    echo "  features.storage.hdfs.kerberos.secretClass=kerberos-default to use it."
+    echo ""
+  fi
   if [[ "$SKIP_POSTGRESQL" == false ]]; then
     echo "PostgreSQL:     localhost:31432"
     echo "  Database:     cockpit"

@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockProvider = {
+const mockProvider: {
+  exists: ReturnType<typeof vi.fn>;
+  copyObject: ReturnType<typeof vi.fn>;
+  deleteObjects: ReturnType<typeof vi.fn>;
+  listAllKeys: ReturnType<typeof vi.fn>;
+  move?: ReturnType<typeof vi.fn>;
+} = {
   exists: vi.fn(),
   copyObject: vi.fn(),
   deleteObjects: vi.fn(),
@@ -33,7 +39,23 @@ function mockEvent(body: Record<string, string>) {
 }
 
 describe('POST /api/storage/rename', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete mockProvider.move;
+  });
+
+  it('uses a native move when the provider supports it', async () => {
+    mockProvider.exists.mockResolvedValue(false);
+    mockProvider.move = vi.fn().mockResolvedValue(undefined);
+
+    const res = await POST(mockEvent({ key: 'dir/', newKey: 'renamed/' }));
+
+    expect(res.status).toBe(200);
+    expect(mockProvider.move).toHaveBeenCalledWith('dir/', 'renamed/');
+    expect(mockProvider.listAllKeys).not.toHaveBeenCalled();
+    expect(mockProvider.copyObject).not.toHaveBeenCalled();
+    expect(mockProvider.deleteObjects).not.toHaveBeenCalled();
+  });
 
   it('renames a single file via copy and delete', async () => {
     mockProvider.exists.mockResolvedValue(false);

@@ -6,6 +6,17 @@ import { SvelteSet } from 'svelte/reactivity';
 import FileExplorerWrapper from './FileExplorerWrapper.svelte';
 import type { StorageObject } from '$lib/storage/types.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
+import { TabsState } from '$lib/storage/tabs.svelte.js';
+import { encodeContainerSegment } from '$lib/storage/display-helpers.js';
+
+type BeforeNavigateCallback = (navigation: {
+  to: { params: Record<string, string> } | null;
+}) => void;
+const navigation = vi.hoisted(() => ({ beforeNavigate: [] as BeforeNavigateCallback[] }));
+vi.mock('$app/navigation', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  beforeNavigate: (callback: BeforeNavigateCallback) => navigation.beforeNavigate.push(callback)
+}));
 
 function makeFile(key: string): StorageObject {
   return {
@@ -44,6 +55,29 @@ function createState(
 }
 
 describe('FileExplorer', () => {
+  it('records pending navigation with the decoded HDFS base path', async () => {
+    navigation.beforeNavigate.length = 0;
+    const state = createState([makeFile('a.txt')]);
+    state.bucket = '/user/alice';
+    const tabs = new TabsState(state);
+    render(FileExplorerWrapper, { state, tabs });
+    await expect.element(page.getByText('a.txt')).toBeInTheDocument();
+
+    for (const callback of navigation.beforeNavigate) {
+      callback({
+        to: {
+          params: {
+            connection: 'namenode',
+            bucket: encodeContainerSegment('/user/alice'),
+            prefix: 'reports'
+          }
+        }
+      });
+    }
+
+    expect(tabs.canSyncServerLocation('namenode', '/user/alice', 'reports/')).toBe(true);
+  });
+
   it('should render the object table', async () => {
     const state = createState([makeFile('hello.txt')]);
     render(FileExplorerWrapper, { state });
