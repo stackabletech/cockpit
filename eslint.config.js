@@ -23,6 +23,7 @@ export default defineConfig(
   prettier,
   ...svelte.configs.prettier,
   {
+    linterOptions: { reportUnusedDisableDirectives: 'error' },
     languageOptions: {
       globals: { ...globals.browser, ...globals.node }
     },
@@ -36,7 +37,7 @@ export default defineConfig(
         'error',
         { elements: ['dialog'], message: 'Use the shared Modal component instead of <dialog>.' }
       ],
-      // Too common occurrence in this project, disabling for now.
+      // Flags every computed member access; nearly all hits are array indices or typed Record lookups.
       'security/detect-object-injection': 'off'
     }
   },
@@ -73,7 +74,8 @@ export default defineConfig(
             'tab-active',
             'tab-strip',
             'preview-scroll',
-            'modal-top-search'
+            'modal-top-search',
+            'table-pin-rows'
           ]
         }
       ],

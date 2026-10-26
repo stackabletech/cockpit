@@ -50,6 +50,7 @@ const MB = 1024 ** 2;
  * (KB, GB, …) is rejected. Returns null when the input cannot be parsed.
  */
 export function parseSizeInput(input: string): number | null {
+  // eslint-disable-next-line security/detect-unsafe-regex -- linear: the optional fraction must start with [.,]
   const match = /^(\d+(?:[.,]\d+)?)\s*([a-zA-Z]*)$/.exec(input.trim());
   if (!match) return null;
   const [, numberPart, unitRaw] = match;
@@ -70,6 +71,7 @@ export interface ParseDateOptions {
   preferDayFirst?: boolean;
 }
 
+// eslint-disable-next-line security/detect-unsafe-regex -- bounded repetition only
 const DATE_PART_RE = /^(?:(\d{1,4})([./-]))?(\d{1,2})\2?(\d{1,4})$/;
 
 /**
@@ -153,6 +155,7 @@ function parseDateParts(input: string, options: ParseDateOptions): DateParts | n
   let minutes = 0;
   let seconds = 0;
   if (timePart !== undefined) {
+    // eslint-disable-next-line security/detect-unsafe-regex -- bounded repetition only
     const timeMatch = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(timePart);
     if (timeMatch === null) return null;
     hours = Number(timeMatch[1]);
