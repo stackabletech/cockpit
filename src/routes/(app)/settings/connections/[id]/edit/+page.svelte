@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { goto, beforeNavigate } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import type { Pathname } from '$app/types';
   import { superForm } from 'sveltekit-superforms';
   import { zod4Client as zod } from 'sveltekit-superforms/adapters';
   import { untrack } from 'svelte';
@@ -74,8 +73,8 @@
     confirmLeaveOpen = false;
     pendingNavigation = null;
     bypassDirtyCheck = true;
-    // The URL comes from SvelteKit's beforeNavigate callback.
-    void goto((resolve as (pathname: Pathname) => string)(dest as Pathname));
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- URL of a navigation SvelteKit already resolved
+    void goto(dest);
   }
 
   function cancelLeave() {

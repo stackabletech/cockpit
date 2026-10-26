@@ -31,7 +31,7 @@ export default defineConfig(
       'no-console': 'error',
       // It will currently also error on external links or links with query parameters.
       // https://github.com/sveltejs/eslint-plugin-svelte/issues/1353
-      'svelte/no-navigation-without-resolve': 'warn',
+      'svelte/no-navigation-without-resolve': 'error',
       'svelte/no-restricted-html-elements': [
         'error',
         { elements: ['dialog'], message: 'Use the shared Modal component instead of <dialog>.' }
@@ -136,15 +136,6 @@ export default defineConfig(
   {
     files: ['src/lib/components/Modal.svelte'],
     rules: { 'svelte/no-restricted-html-elements': 'off' }
-  },
-  {
-    files: [
-      'src/lib/components/layout/sidebar/Sidebar.svelte',
-      'src/lib/components/storage/landing/RecentItems.svelte',
-      'src/routes/**/edit/+page.svelte',
-      'src/routes/(app)/storage/+layout.svelte'
-    ],
-    rules: { 'svelte/no-navigation-without-resolve': 'off' }
   },
   {
     files: [

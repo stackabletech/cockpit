@@ -106,6 +106,8 @@
   {/if}
 {/snippet}
 
+<!-- Links are resolved; the rule does not recognise the cast needed for dynamic storage paths. -->
+<!-- eslint-disable svelte/no-navigation-without-resolve -->
 {#snippet filesTable()}
   <table class="table-sm table w-full">
     <thead>
@@ -127,7 +129,6 @@
             </div>
           </td>
           <td>
-            <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
             <a
               href={(resolve as (pathname: string) => string)(
                 fileHref(storage.connectionHostname, file)
@@ -156,7 +157,6 @@
                 </button>
               </div>
               <div class="tooltip tooltip-left" data-tip={m.storage_recent_open_folder()}>
-                <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
                 <a
                   href={(resolve as (pathname: string) => string)(
                     fileHref(storage.connectionHostname, file)
@@ -196,7 +196,6 @@
               {:else}
                 <IconFolderOutline class="text-warning size-4 shrink-0" aria-hidden="true" />
               {/if}
-              <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
               <a
                 href={(resolve as (pathname: string) => string)(
                   locationHref(storage.connectionHostname, loc)
@@ -207,7 +206,6 @@
             </div>
           </td>
           <td>
-            <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
             <a
               href={(resolve as (pathname: string) => string)(
                 locationHref(storage.connectionHostname, loc)
@@ -223,7 +221,6 @@
           </td>
           <td>
             <div class="tooltip tooltip-left" data-tip={m.storage_recent_go_to_location()}>
-              <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
               <a
                 href={(resolve as (pathname: string) => string)(
                   locationHref(storage.connectionHostname, loc)
@@ -241,6 +238,7 @@
     </tbody>
   </table>
 {/snippet}
+<!-- eslint-enable svelte/no-navigation-without-resolve -->
 
 <section class="card bg-base-100 border-base-300 mt-8 flex min-h-0 flex-1 flex-col border">
   <!-- Tab header -->

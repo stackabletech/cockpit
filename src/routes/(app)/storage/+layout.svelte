@@ -39,19 +39,12 @@
     persistEnabled: storageRestoreTabsEnabled,
     connectionId: storage.connectionId,
     navigateToLocation: (connection, bucket, prefix) => {
-      void goto(
-        (resolve as (pathname: import('$app/types').Pathname) => string)(
-          locationPath(connection, bucket, prefix) as import('$app/types').Pathname
-        )
-      );
+      // eslint-disable-next-line svelte/no-navigation-without-resolve -- path is built with resolve() in locationPath()
+      void goto(locationPath(connection, bucket, prefix));
     },
     replaceLocationUrl: (connection, bucket, prefix) => {
-      void goto(
-        (resolve as (pathname: import('$app/types').Pathname) => string)(
-          locationPath(connection, bucket, prefix) as import('$app/types').Pathname
-        ),
-        { replaceState: true }
-      );
+      // eslint-disable-next-line svelte/no-navigation-without-resolve -- path is built with resolve() in locationPath()
+      void goto(locationPath(connection, bucket, prefix), { replaceState: true });
     }
   });
   setTabsState(tabsState);
