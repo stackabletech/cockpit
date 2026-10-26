@@ -109,6 +109,8 @@ const DEFAULT_RESPONSE = {
 //
 //   FROM paged_table            QUEUED, then 3 pages of 10 rows via GET
 //   FROM finished_paged_table   first response already FINISHED, 1 more page via GET
+//   FROM huge_table             one page of MAX_CLIENT_ROWS + 1 rows (row limit exceeded)
+//   FROM exact_limit_table      exactly MAX_CLIENT_ROWS rows, then an empty trailing page
 //   FAILS_SILENTLY              first response FAILED without an error object
 //   FAILS_LATER                 one page of rows, then FAILED without an error object
 //   HOLD:<id>                   RUNNING until released via POST /__mock/release/<id>
@@ -187,6 +189,52 @@ function startPagedQuery(id: string, sql: string): Page | null {
       ]
     });
     return { id, nextUri: nextUri(id, 1), stats: { state: 'QUEUED' } };
+  }
+  if (sql.includes('FROM huge_table')) {
+    // First page is empty; the follow-up page exceeds MAX_CLIENT_ROWS.
+    queries.set(id, {
+      sql,
+      pages: [
+        {
+          id,
+          columns: [{ name: 'id', type: 'integer' }],
+          data: Array.from({ length: 10_001 }, (_, i) => [i + 1]),
+          nextUri: nextUri(id, 2),
+          stats: { state: 'RUNNING' }
+        }
+      ]
+    });
+    return {
+      id,
+      columns: [{ name: 'id', type: 'integer' }],
+      data: [],
+      nextUri: nextUri(id, 1),
+      stats: { state: 'RUNNING' }
+    };
+  }
+  if (sql.includes('FROM exact_limit_table')) {
+    // Like Trino for `LIMIT 10000`: the page completing the result still carries a nextUri,
+    // which only leads to an empty FINISHED page.
+    queries.set(id, {
+      sql,
+      pages: [
+        {
+          id,
+          columns: [{ name: 'id', type: 'integer' }],
+          data: Array.from({ length: 10_000 }, (_, i) => [i + 1]),
+          nextUri: nextUri(id, 2),
+          stats: { state: 'FINISHED' }
+        },
+        { id, stats: { state: 'FINISHED' } }
+      ]
+    });
+    return {
+      id,
+      columns: [{ name: 'id', type: 'integer' }],
+      data: [],
+      nextUri: nextUri(id, 1),
+      stats: { state: 'RUNNING' }
+    };
   }
   if (sql.includes('FROM finished_paged_table')) {
     queries.set(id, { sql, pages: [{ id, data: rows(11, 10), stats: { state: 'FINISHED' } }] });

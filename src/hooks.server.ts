@@ -1,16 +1,11 @@
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { httpRequestDuration } from '$lib/server/metrics';
 import { building, dev } from '$app/environment';
-import {
-  error,
-  redirect,
-  type Handle,
-  type HandleServerError,
-  type ServerInit
-} from '@sveltejs/kit';
+import { error, type Handle, type HandleServerError, type ServerInit } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { auth, oidcEnabled } from '$lib/server/auth';
+import { unauthenticatedResponse } from '$lib/server/auth-guard';
 import { requestLogger, logger } from '$lib/server/logging';
 import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
@@ -62,8 +57,8 @@ const handleAuthGuard: Handle = async ({ event, resolve }) => {
 
   const isPublic = PUBLIC_PATHS.some((p) => event.url.pathname.startsWith(p));
   if (!isPublic && !event.locals.user) {
-    const redirectTo = encodeURIComponent(event.url.pathname + event.url.search);
-    throw redirect(302, `/auth/login?redirectTo=${redirectTo}`);
+    event.locals.logger.debug({ path: event.url.pathname }, 'Rejecting unauthenticated request');
+    return unauthenticatedResponse(event.url);
   }
 
   return resolve(event);

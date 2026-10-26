@@ -21,11 +21,11 @@ test.describe('Trino API', () => {
       '/api/trino/catalog?level=catalogs',
       '/api/trino/completion/metadata?level=catalogs'
     ]) {
-      test(`redirects ${path.split('?')[0]} to the login page`, async ({ page }) => {
+      test(`rejects ${path.split('?')[0]} with a JSON 401`, async ({ page }) => {
         const res = await page.request.get(path, { maxRedirects: 0 });
 
-        expect(res.status()).toBe(302);
-        expect(res.headers()['location']).toMatch(/^\/auth\/login\?redirectTo=/);
+        expect(res.status()).toBe(401);
+        expect(await res.json()).toEqual({ message: 'Authentication required' });
       });
     }
   });
