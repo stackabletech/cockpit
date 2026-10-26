@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import * as m from '$lib/paraglide/messages.js';
+  import { readErrorMessage } from '$lib/client/api-error.js';
   import IconRefresh from 'virtual:icons/material-symbols/refresh';
   import CatalogTree from './CatalogTree.svelte';
   import type { TreeNode } from './types.js';
@@ -30,12 +31,16 @@
 
   async function fetchLevel(params: Record<string, string>): Promise<unknown[][]> {
     const qs = new URLSearchParams(params).toString();
-    const res = await fetch(`/api/trino/catalog?${qs}`);
+    // Every failure throws an Error whose message can be shown to the user.
+    const res = await fetch(`/api/trino/catalog?${qs}`).catch(() => {
+      throw new Error(m.error_server_unreachable());
+    });
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text);
+      throw new Error((await readErrorMessage(res)) ?? m.error_generic_desc());
     }
-    return res.json();
+    return res.json().catch(() => {
+      throw new Error(m.error_generic_desc());
+    });
   }
 
   async function loadCatalogs() {

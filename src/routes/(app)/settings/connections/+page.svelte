@@ -13,6 +13,7 @@
   import type { SavedConnection } from '$lib/storage/connection-id-header.js';
 
   const connections = $derived<ConnectionListItem[]>(page.data.connections ?? []);
+  const actionError = $derived((page.form as { error?: string } | null)?.error ?? null);
 
   // Context menu state
   let menuConn: ConnectionListItem | null = $state(null);
@@ -89,6 +90,10 @@
 
   <h2 class="mb-1 text-xl font-semibold">{m.storage_connections_title()}</h2>
   <p class="text-base-content/60 mb-6 text-sm">{m.storage_connections_subtitle()}</p>
+
+  {#if actionError}
+    <div role="alert" class="alert alert-error mb-6 text-sm">{actionError}</div>
+  {/if}
 
   {#if connections.length === 0}
     <p class="text-base-content/50 text-sm">{m.storage_connections_empty()}</p>

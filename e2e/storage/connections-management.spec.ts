@@ -247,4 +247,24 @@ test.describe('Storage — Connections management', () => {
     await waitForHydration(page);
     await expect(page).toHaveURL('/settings/connections');
   });
+
+  test('shows a translated error when deleting a connection fails', async ({ page }) => {
+    await page.goto('/settings/connections');
+    await waitForHydration(page);
+
+    // The UI only submits valid IDs; post a malformed one directly.
+    await page.evaluate(() => {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '?/deleteConnection';
+      const input = document.createElement('input');
+      input.name = 'connectionId';
+      input.value = 'not-a-uuid';
+      form.append(input);
+      document.body.append(form);
+      form.submit();
+    });
+
+    await expect(page.getByRole('alert')).toHaveText('The selected connection is invalid.');
+  });
 });

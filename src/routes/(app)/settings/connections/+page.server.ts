@@ -11,6 +11,7 @@ import { userStorageConnections } from '$lib/server/schema.js';
 import { decrypt } from '$lib/server/storage/encryption.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
 import type { ConnectionListItem } from '$lib/storage/connection-store.svelte.js';
+import * as m from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   locals.logger.debug('loading storage connections management page');
@@ -54,7 +55,7 @@ export const actions: Actions = {
     const form = await superValidate(request, zod(ConnectionIdSchema));
 
     if (!form.valid) {
-      return fail(400, { error: 'Invalid connection ID' });
+      return fail(400, { error: m.storage_connect_error_invalid_connection() });
     }
 
     const { connectionId } = form.data;

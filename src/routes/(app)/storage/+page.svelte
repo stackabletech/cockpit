@@ -25,7 +25,12 @@
   let addBucketOpen = $state(false);
 
   const connectError = $derived<string | null>(
-    (page.form as { error?: string } | null)?.error ?? null
+    (page.form as { error?: string } | null)?.error ??
+      (data.bucketsError === 'access_denied'
+        ? m.storage_connect_error_access_denied()
+        : data.bucketsError === 'unreachable'
+          ? m.storage_connect_error_unreachable()
+          : null)
   );
 
   let savedTabs = $state<PersistedTabsState | null>(null);

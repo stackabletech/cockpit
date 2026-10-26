@@ -6,7 +6,9 @@ import type { LayoutLoad } from './$types';
 const DISCONNECTED = {
   connected: false,
   buckets: [] as string[],
-  connectionType: null
+  connectionType: null,
+  /** Why the active connection could not be opened; the connect form shows it. */
+  bucketsError: null as 'access_denied' | 'unreachable' | null
 };
 
 /**
@@ -65,6 +67,9 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
     if (!res.ok) {
       return {
         ...DISCONNECTED,
+        // 401: the session holds no usable connection, which is not an error.
+        bucketsError:
+          res.status === 401 ? null : res.status === 403 ? 'access_denied' : 'unreachable',
         connections,
         hydrating: false as const,
         hasActiveConnection: false as const
@@ -76,6 +81,7 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
       connected: true,
       buckets,
       connectionType: 's3',
+      bucketsError: null,
       connections,
       hydrating: false as const,
       hasActiveConnection: true as const
@@ -83,6 +89,7 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
   } catch {
     return {
       ...DISCONNECTED,
+      bucketsError: 'unreachable',
       connections,
       hydrating: false as const,
       hasActiveConnection: false as const

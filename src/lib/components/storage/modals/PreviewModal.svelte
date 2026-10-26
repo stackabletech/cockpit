@@ -222,18 +222,6 @@
         res = await storage.api.preview({ bucket: activeBucket, key });
       }
 
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        const msg =
-          res.status === 403
-            ? m.storage_preview_access_denied()
-            : res.status === 404
-              ? m.storage_preview_not_found()
-              : (errBody?.error ?? m.storage_preview_error_desc());
-        preview = { kind: 'error', message: msg };
-        return;
-      }
-
       const contentType = (res.headers.get('Content-Type') ?? 'application/octet-stream')
         .split(';')[0]
         .trim();
@@ -412,8 +400,15 @@
       };
       editorText = text;
       originalText = text;
-    } catch {
-      preview = { kind: 'error', message: m.storage_preview_error_desc() };
+    } catch (err) {
+      const code = err instanceof StorageError ? err.code : null;
+      const message =
+        code === 'access_denied'
+          ? m.storage_preview_access_denied()
+          : code === 'not_found'
+            ? m.storage_preview_not_found()
+            : m.storage_preview_error_desc();
+      preview = { kind: 'error', message };
     }
   }
 
@@ -746,10 +741,6 @@
       data: true
     });
 
-    if (!res.ok) {
-      throw new Error('Failed to fetch parquet chunk');
-    }
-
     const { rows } = await readNdjsonStream(res, onColumn);
     return rows;
   }
@@ -765,10 +756,6 @@
       limit,
       data: true
     });
-
-    if (!res.ok) {
-      throw new Error('Failed to fetch CSV chunk');
-    }
 
     const { rows, totalRows } = await readCsvNdjsonStream(res);
     csvTotalRows = totalRows;

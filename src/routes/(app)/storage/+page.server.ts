@@ -28,6 +28,23 @@ import * as m from '$lib/paraglide/messages.js';
 type ConnectionData = Infer<typeof StorageConnectionSchema>;
 type ConnectionInput = InferIn<typeof StorageConnectionSchema>;
 
+/** Translated reason why a storage connection test failed. */
+function connectErrorMessage(err: unknown): string {
+  if (isHttpError(err)) {
+    if (err.status === 403) return m.storage_connect_error_access_denied();
+    if (err.status === 404) return m.storage_connect_error_not_found();
+    if (err.status === 502) return m.storage_connect_error_server_error();
+    return m.storage_connect_error();
+  }
+  if (err instanceof Error) {
+    const e = (err.message ?? '').toLowerCase();
+    if (/econnrefused|enotfound|eai_again|etimedout|network/.test(e)) {
+      return m.storage_connect_error_network();
+    }
+  }
+  return m.storage_connect_error();
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
   const log = locals.logger;
   const connectionForm = await superValidate<
@@ -106,30 +123,7 @@ export const actions: Actions = {
       log.info({ storage_type: type }, 'user storage connection verified');
     } catch (err) {
       log.warn({ err }, 'storage connection test failed');
-
-      let msg: string;
-      if (isHttpError(err)) {
-        if (err.status === 403) {
-          msg = m.storage_connect_error_access_denied();
-        } else if (err.status === 404) {
-          msg = m.storage_connect_error_not_found();
-        } else if (err.status === 502) {
-          msg = m.storage_connect_error_server_error();
-        } else {
-          msg = m.storage_connect_error();
-        }
-      } else if (err instanceof Error) {
-        const e = (err.message ?? '').toLowerCase();
-        if (/econnrefused|enotfound|eai_again|etimedout|network/.test(e)) {
-          msg = m.storage_connect_error_network();
-        } else {
-          msg = m.storage_connect_error();
-        }
-      } else {
-        msg = m.storage_connect_error();
-      }
-
-      return message(form, { type: 'error', message: msg }, { status: 400 });
+      return message(form, { type: 'error', message: connectErrorMessage(err) }, { status: 400 });
     }
 
     const id = await saveConnection(locals.user!.id, config);
@@ -155,7 +149,7 @@ export const actions: Actions = {
     const form = await superValidate(request, zod(ConnectionIdSchema));
 
     if (!form.valid) {
-      return fail(400, { error: 'Invalid connection ID' });
+      return fail(400, { error: m.storage_connect_error_invalid_connection() });
     }
 
     const { connectionId } = form.data;
@@ -163,7 +157,7 @@ export const actions: Actions = {
 
     const config = await getConnectionForUser(userId, connectionId);
     if (!config) {
-      return fail(400, { error: 'Connection not found' });
+      return fail(400, { error: m.storage_connect_error_connection_not_found() });
     }
 
     try {
@@ -171,7 +165,7 @@ export const actions: Actions = {
       log.info({ connectionId }, 'user switched storage connection');
     } catch (err) {
       log.warn({ err, connectionId }, 'storage connection test failed on use');
-      return fail(400, { error: 'Could not connect — check the endpoint and credentials.' });
+      return fail(400, { error: connectErrorMessage(err) });
     }
 
     await auth.api.updateSession({
@@ -187,7 +181,7 @@ export const actions: Actions = {
     const form = await superValidate(request, zod(ConnectionIdSchema));
 
     if (!form.valid) {
-      return fail(400, { error: 'Invalid connection ID' });
+      return fail(400, { error: m.storage_connect_error_invalid_connection() });
     }
 
     const { connectionId } = form.data;

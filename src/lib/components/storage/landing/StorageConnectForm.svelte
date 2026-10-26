@@ -57,7 +57,7 @@
 
     {#if connectError}
       <div role="alert" class="alert alert-error mb-6 text-sm">
-        {m.storage_connect_error_unreachable()}
+        {connectError}
       </div>
     {/if}
 

@@ -203,7 +203,30 @@ describe('storage page actions', () => {
       locals: mockLocals()
     } as unknown as Parameters<typeof actions.use>[0]);
 
-    expect(result).toMatchObject({ status: 400, data: { error: 'Connection not found' } });
+    expect(result).toMatchObject({
+      status: 400,
+      data: { error: 'The selected connection no longer exists.' }
+    });
+  });
+
+  it('use: explains why the selected connection cannot be opened', async () => {
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: { connectionId: 'saved-connection' }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    mockGetConnectionForUser.mockResolvedValue(validFormData);
+    mockConnectionProvider.listContainers.mockRejectedValue(new Error('getaddrinfo ENOTFOUND'));
+
+    const result = await actions.use({
+      request: new Request('http://localhost', { method: 'POST' }),
+      locals: mockLocals()
+    } as unknown as Parameters<typeof actions.use>[0]);
+
+    expect(result).toMatchObject({
+      status: 400,
+      data: { error: 'Could not reach the storage backend — check the host and port.' }
+    });
+    expect(mockUpdateSession).not.toHaveBeenCalled();
   });
 
   it('use: sets the selected connection as active and redirects', async () => {

@@ -14,21 +14,20 @@ vi.mock('$app/paths', () => ({
 }));
 
 // Mock storage context — provide an API that delegates to the global fetch
-vi.mock('$lib/storage/context.js', () => ({
-  getStorageState: () => ({
-    get api() {
-      return {
-        preview: (...args: unknown[]) =>
-          (globalThis.fetch as typeof fetch)(...(args as Parameters<typeof fetch>)),
-        archiveExtract: (...args: unknown[]) =>
-          (globalThis.fetch as typeof fetch)(...(args as Parameters<typeof fetch>)),
-        saveText: (...args: unknown[]) =>
-          (globalThis.fetch as typeof fetch)(...(args as Parameters<typeof fetch>))
-      };
-    },
-    bucket: 'test-bucket'
-  })
-}));
+// Like the real API, non-OK responses throw a StorageError.
+vi.mock('$lib/storage/context.js', async () => {
+  const { createStorageFetch } = await import('$lib/storage/storage-fetch.js');
+  const storageFetch = createStorageFetch(() => 'conn-1');
+  const call = (...args: unknown[]) => storageFetch(...(args as Parameters<typeof storageFetch>));
+  return {
+    getStorageState: () => ({
+      get api() {
+        return { preview: call, archiveExtract: call, saveText: call };
+      },
+      bucket: 'test-bucket'
+    })
+  };
+});
 
 const defaultProps = {
   open: true,
@@ -716,42 +715,15 @@ describe('PreviewModal basics', () => {
       await expect.element(page.getByRole('alert')).toBeInTheDocument();
     });
 
-    it('should show access denied for 403', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 403 })));
+    it.each([
+      [403, '{}', 'You do not have permission to preview this file.'],
+      [404, '{}', 'The file could not be found.'],
+      [500, JSON.stringify({ message: 'Storage error: SlowDown' }), 'An error occurred']
+    ])('should show a readable message for a %i response', async (status, body, text) => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status })));
       render(PreviewModal, defaultProps);
 
-      await expect.element(page.getByRole('alert')).toBeInTheDocument();
-    });
-
-    it('should show not found for 404', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 404 })));
-      render(PreviewModal, defaultProps);
-
-      await expect.element(page.getByRole('alert')).toBeInTheDocument();
-    });
-
-    it('should show generic error for other status codes', async () => {
-      vi.stubGlobal(
-        'fetch',
-        vi
-          .fn()
-          .mockResolvedValue(
-            new Response(JSON.stringify({ error: 'Server is down' }), { status: 500 })
-          )
-      );
-      render(PreviewModal, defaultProps);
-
-      await expect.element(page.getByRole('alert')).toBeInTheDocument();
-    });
-
-    it('should handle non-JSON error response body', async () => {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue(new Response('Not JSON at all', { status: 500 }))
-      );
-      render(PreviewModal, defaultProps);
-
-      await expect.element(page.getByRole('alert')).toBeInTheDocument();
+      await expect.element(page.getByRole('alert')).toHaveTextContent(text);
     });
   });
 
