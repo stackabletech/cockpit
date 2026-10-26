@@ -3,6 +3,7 @@ import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
+import { getUserId } from '$lib/server/auth-utils.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -12,7 +13,7 @@ import type { RequestHandler } from './$types';
  * most recently used first. Credentials are never included in the response.
  */
 export const GET: RequestHandler = async ({ locals }) => {
-  const userId = locals.user!.id;
+  const userId = getUserId(locals);
 
   const rows = await db
     .select({
@@ -66,7 +67,7 @@ export const GET: RequestHandler = async ({ locals }) => {
  * if the caller has already verified access (e.g. via check-bucket).
  */
 export const PATCH: RequestHandler = async ({ request, locals }) => {
-  const userId = locals.user!.id;
+  const userId = getUserId(locals);
   const connectionId = request.headers.get(STORAGE_CONNECTION_ID_HEADER);
   if (!connectionId) {
     return json({ error: 'Missing storage connection ID' }, { status: 400 });

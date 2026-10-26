@@ -62,6 +62,14 @@ When OIDC is disabled, every unauthenticated request resolves to `userId = 'anon
 
 ---
 
+### Anonymous users share saved S3 storage connections
+
+**File:** `src/routes/(app)/storage/+page.server.ts`, `src/routes/(app)/settings/connections/`, `src/routes/(app)/api/storage/`, `src/hooks.server.ts`
+
+The same `getUserId(locals)` → `'anonymous'` fallback used for Trino also applies to the S3 storage connection feature. When OIDC is disabled, every user shares the same saved connections, and `handleStorageConnection` in `src/hooks.server.ts` resolves the storage config header lookup against the same fixed `'anonymous'` ID. Acceptable for single-user dev; a non-issue once OIDC is required in production.
+
+---
+
 ### In-memory query store lost on server restart and prevents horizontal scaling
 
 **File:** `src/lib/server/trino/queries.ts`

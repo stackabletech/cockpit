@@ -131,6 +131,13 @@ terminationGracePeriodSeconds: 30
 #     filePreviewRows: 250
 #     # Maximum columns in tabular file previews. Default: 50 (application default).
 #     filePreviewColumns: 50
+#     # Comma-separated compression codecs to disallow from parquet data preview,
+#     # each optionally suffixed with "-no_offset" to only block that codec when
+#     # the file lacks a column offset index (blocking it would otherwise require
+#     # decompressing the whole column to preview a few rows). Default:
+#     # "gzip-no_offset" (application default). Set to a single space (" ") to
+#     # disable all restrictions — an empty string falls back to the default.
+#     parquetPreviewDisallowedCompressionTypes: "gzip-no_offset"
 
 logging:
   level: ""
@@ -145,6 +152,24 @@ affinity: {}
 config:
   # Node.js environment
   nodeEnv: production
+
+# Database configuration (PostgreSQL). Used for session/auth storage and
+# encrypted S3 storage connection credentials.
+database:
+  # Hostname or Service DNS name of the PostgreSQL instance. Required.
+  host: ""
+  port: 5432
+  name: cockpit
+  user: cockpit
+  # Required. References a Secret containing the database password.
+  password:
+    secretKeyRef:
+      name: ""
+      key: database-password
+  # Whether to connect over TLS. Defaults to true when config.nodeEnv is
+  # "production" and false otherwise (application default). Set explicitly when
+  # the PostgreSQL instance's TLS configuration doesn't match that assumption.
+  # ssl: false
 
 # Session secret for signing cookies. Chart auto-generates one if secretKeyRef.name is empty.
 sessionSecret:

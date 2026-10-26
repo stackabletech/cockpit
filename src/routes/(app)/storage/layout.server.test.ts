@@ -29,7 +29,12 @@ import { load } from './+layout.server.js';
 
 function mockEvent() {
   return {
-    locals: { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } }
+    locals: {
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
+      user: { id: 'test-user' },
+      session: null
+    },
+    cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() }
   } as unknown as Parameters<typeof load>[0];
 }
 

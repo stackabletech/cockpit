@@ -14,9 +14,12 @@ if (!process.env.DATABASE_PASSWORD) {
 }
 const dbPassword = process.env.DATABASE_PASSWORD || 'cockpit-dev-password';
 
-// SSL is disabled in development (local k8s), enabled in production
+// SSL defaults to disabled in development and enabled in production, but can be
+// overridden explicitly (e.g. a production deployment whose PostgreSQL instance
+// does not have TLS configured).
 const isDev = process.env.NODE_ENV !== 'production';
-const sslMode = isDev ? false : true;
+const sslMode =
+  process.env.DATABASE_SSL !== undefined ? process.env.DATABASE_SSL === 'true' : !isDev;
 
 // Create a connection pool
 const pool = new Pool({

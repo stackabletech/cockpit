@@ -11,13 +11,15 @@ import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
 import { decrypt, encrypt } from '$lib/server/storage/encryption.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
+import { getUserId } from '$lib/server/auth-utils.js';
+import { getActiveStorageConnectionId } from '$lib/server/storage/active-connection.js';
 import { logger } from '$lib/server/logging';
 import * as m from '$lib/paraglide/messages.js';
 
 const log = logger.child({ module: 'connection-edit' });
 
-export const load: PageServerLoad = async ({ locals, params }) => {
-  const userId = locals.user!.id;
+export const load: PageServerLoad = async ({ locals, params, cookies }) => {
+  const userId = getUserId(locals);
 
   const rows = await db
     .select()
@@ -63,7 +65,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   return {
     editForm,
     connectionId: params.id,
-    activeConnectionId: locals.session?.activeStorageConnectionId ?? null
+    activeConnectionId: getActiveStorageConnectionId(locals, cookies)
   };
 };
 
@@ -78,7 +80,7 @@ export const actions: Actions = {
 
     const { type, host, port, tls, accessStyle, region, credentials } = form.data;
     const connectionId = params.id;
-    const userId = locals.user!.id;
+    const userId = getUserId(locals);
 
     if (type !== 's3') {
       return message(form, m.storage_connect_error_hdfs(), { status: 400 });

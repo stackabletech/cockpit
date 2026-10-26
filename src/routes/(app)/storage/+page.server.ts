@@ -5,12 +5,16 @@ import { desc, eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 import { StorageConnectionSchema, ConnectionIdSchema } from '$lib/storage/schemas.js';
 import { getConnectionProvider } from '$lib/server/storage/utils.js';
+import { getUserId } from '$lib/server/auth-utils.js';
 import {
   saveConnection,
   getConnectionForUser,
   deleteConnection
 } from '$lib/server/storage/connections-db.js';
-import { auth } from '$lib/server/auth.js';
+import {
+  getActiveStorageConnectionId,
+  setActiveStorageConnectionId
+} from '$lib/server/storage/active-connection.js';
 import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
 import { decrypt } from '$lib/server/storage/encryption.js';
@@ -27,37 +31,34 @@ export const load: PageServerLoad = async ({ locals }) => {
   );
   log.debug('loading storage page');
 
-  const userId = locals.user?.id;
-  let connections: ConnectionMetadata[] = [];
+  const userId = getUserId(locals);
 
-  if (userId) {
-    const rows = await db
-      .select()
-      .from(userStorageConnections)
-      .where(eq(userStorageConnections.userId, userId))
-      .orderBy(desc(userStorageConnections.updatedAt));
+  const rows = await db
+    .select()
+    .from(userStorageConnections)
+    .where(eq(userStorageConnections.userId, userId))
+    .orderBy(desc(userStorageConnections.updatedAt));
 
-    connections = rows.map((row) => {
-      let endpoint: string | null = null;
-      try {
-        const payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey())) as {
-          host?: string;
-          port?: number;
-        };
-        endpoint =
-          payload.host && payload.port ? `${payload.host}:${payload.port}` : (payload.host ?? null);
-      } catch {
-        // Return entry without endpoint if decryption fails.
-      }
-      return { id: row.id, name: row.name, endpoint };
-    });
-  }
+  const connections: ConnectionMetadata[] = rows.map((row) => {
+    let endpoint: string | null = null;
+    try {
+      const payload = JSON.parse(decrypt(row.encryptedPayload, storageEncryptionKey())) as {
+        host?: string;
+        port?: number;
+      };
+      endpoint =
+        payload.host && payload.port ? `${payload.host}:${payload.port}` : (payload.host ?? null);
+    } catch {
+      // Return entry without endpoint if decryption fails.
+    }
+    return { id: row.id, name: row.name, endpoint };
+  });
 
   return { connectionForm, connections };
 };
 
 export const actions: Actions = {
-  connect: async ({ request, locals }) => {
+  connect: async ({ request, locals, cookies }) => {
     const log = locals.logger;
     const form = await superValidate(request, zod(StorageConnectionSchema));
 
@@ -116,25 +117,19 @@ export const actions: Actions = {
       return message(form, msg, { status: 400 });
     }
 
-    const id = await saveConnection(locals.user!.id, config);
-    await auth.api.updateSession({
-      headers: request.headers,
-      body: { activeStorageConnectionId: id }
-    });
+    const id = await saveConnection(getUserId(locals), config);
+    await setActiveStorageConnectionId({ request, locals, cookies }, id);
 
     throw redirect(303, '/storage');
   },
 
-  disconnect: async ({ request, locals }) => {
+  disconnect: async ({ request, locals, cookies }) => {
     locals.logger.info('user storage connection cleared');
-    await auth.api.updateSession({
-      headers: request.headers,
-      body: { activeStorageConnectionId: null }
-    });
+    await setActiveStorageConnectionId({ request, locals, cookies }, null);
     throw redirect(303, '/storage');
   },
 
-  use: async ({ request, locals }) => {
+  use: async ({ request, locals, cookies }) => {
     const log = locals.logger;
     const form = await superValidate(request, zod(ConnectionIdSchema));
 
@@ -143,7 +138,7 @@ export const actions: Actions = {
     }
 
     const { connectionId } = form.data;
-    const userId = locals.user!.id;
+    const userId = getUserId(locals);
 
     const config = await getConnectionForUser(userId, connectionId);
     if (!config) {
@@ -158,15 +153,12 @@ export const actions: Actions = {
       return fail(400, { error: 'Could not connect — check the endpoint and credentials.' });
     }
 
-    await auth.api.updateSession({
-      headers: request.headers,
-      body: { activeStorageConnectionId: connectionId }
-    });
+    await setActiveStorageConnectionId({ request, locals, cookies }, connectionId);
 
     throw redirect(303, '/storage');
   },
 
-  deleteConnection: async ({ request, locals }) => {
+  deleteConnection: async ({ request, locals, cookies }) => {
     const log = locals.logger;
     const form = await superValidate(request, zod(ConnectionIdSchema));
 
@@ -175,14 +167,11 @@ export const actions: Actions = {
     }
 
     const { connectionId } = form.data;
-    const userId = locals.user!.id;
-    const activeId = locals.session?.activeStorageConnectionId ?? null;
+    const userId = getUserId(locals);
+    const activeId = getActiveStorageConnectionId(locals, cookies);
 
     if (connectionId === activeId) {
-      await auth.api.updateSession({
-        headers: request.headers,
-        body: { activeStorageConnectionId: null }
-      });
+      await setActiveStorageConnectionId({ request, locals, cookies }, null);
       log.info({ connectionId }, 'active storage connection deleted, session cleared');
     }
 

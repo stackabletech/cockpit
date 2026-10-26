@@ -24,6 +24,7 @@ function mockEvent(
       user: { id: 'test-user' },
       session
     },
+    cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
     params: {
       connection: opts.connection ?? 's3.example.com',
       bucket: opts.bucket ?? 'my-bucket',

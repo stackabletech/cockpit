@@ -7,6 +7,7 @@ import {
   type RecentSearchOptions
 } from '$lib/server/storage/recent-searches-db.js';
 import { storageSearchHistoryTotal } from '$lib/server/metrics.js';
+import { getUserId } from '$lib/server/auth-utils.js';
 import type { RequestHandler } from './$types';
 
 function connectionIdFromRequest(request: Request): string {
@@ -19,7 +20,7 @@ function connectionIdFromRequest(request: Request): string {
 
 /** Lists the current user's recent searches for the active storage connection. */
 export const GET: RequestHandler = async ({ request, locals }) => {
-  const userId = locals.user!.id;
+  const userId = getUserId(locals);
   const connectionId = connectionIdFromRequest(request);
   try {
     const searches = await listRecentSearches(userId, connectionId);
@@ -37,7 +38,7 @@ export const GET: RequestHandler = async ({ request, locals }) => {
 
 /** Records a submitted search, moving an identical search to the top. */
 export const POST: RequestHandler = async ({ request, locals }) => {
-  const userId = locals.user!.id;
+  const userId = getUserId(locals);
   const connectionId = connectionIdFromRequest(request);
   const body = (await request.json()) as {
     buckets?: unknown;
@@ -91,7 +92,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 /** Clears the current user's recent searches for the active storage connection. */
 export const DELETE: RequestHandler = async ({ request, locals }) => {
-  const userId = locals.user!.id;
+  const userId = getUserId(locals);
   const connectionId = connectionIdFromRequest(request);
   try {
     await clearRecentSearches(userId, connectionId);

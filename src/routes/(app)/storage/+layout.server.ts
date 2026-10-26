@@ -6,19 +6,18 @@ import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
 import { decrypt } from '$lib/server/storage/encryption.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
+import { getActiveStorageConnectionId } from '$lib/server/storage/active-connection.js';
+import { getUserId } from '$lib/server/auth-utils.js';
 import type { ConnectionListItem } from '$lib/storage/connection-store.svelte.js';
 
-export const load: LayoutServerLoad = async ({ locals }) => {
+export const load: LayoutServerLoad = async ({ locals, cookies }) => {
   if (!storageBrowserEnabled) {
     throw error(404, 'Not found');
   }
 
   locals.logger.debug('loading storage layout');
 
-  const userId = locals.user?.id;
-  if (!userId) {
-    return { connected: false, buckets: [] as string[], connectionType: null, connections: [] };
-  }
+  const userId = getUserId(locals);
 
   const rows = await db
     .select()
@@ -53,6 +52,6 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     buckets: [] as string[],
     connectionType: null,
     connections,
-    activeConnectionId: locals.session?.activeStorageConnectionId ?? null
+    activeConnectionId: getActiveStorageConnectionId(locals, cookies)
   };
 };

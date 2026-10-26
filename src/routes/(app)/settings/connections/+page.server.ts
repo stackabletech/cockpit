@@ -5,7 +5,11 @@ import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { desc, eq } from 'drizzle-orm';
 import { ConnectionIdSchema } from '$lib/storage/schemas.js';
 import { deleteConnection } from '$lib/server/storage/connections-db.js';
-import { auth } from '$lib/server/auth.js';
+import { getUserId } from '$lib/server/auth-utils.js';
+import {
+  getActiveStorageConnectionId,
+  setActiveStorageConnectionId
+} from '$lib/server/storage/active-connection.js';
 import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
 import { decrypt } from '$lib/server/storage/encryption.js';
@@ -15,8 +19,7 @@ import type { ConnectionListItem } from '$lib/storage/connection-store.svelte.js
 export const load: PageServerLoad = async ({ locals }) => {
   locals.logger.debug('loading storage connections management page');
 
-  const userId = locals.user?.id;
-  if (!userId) return { connections: [] as ConnectionListItem[] };
+  const userId = getUserId(locals);
 
   const rows = await db
     .select()
@@ -50,7 +53,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  deleteConnection: async ({ request, locals }) => {
+  deleteConnection: async ({ request, locals, cookies }) => {
     const log = locals.logger;
     const form = await superValidate(request, zod(ConnectionIdSchema));
 
@@ -59,14 +62,11 @@ export const actions: Actions = {
     }
 
     const { connectionId } = form.data;
-    const userId = locals.user!.id;
-    const activeId = locals.session?.activeStorageConnectionId ?? null;
+    const userId = getUserId(locals);
+    const activeId = getActiveStorageConnectionId(locals, cookies);
 
     if (connectionId === activeId) {
-      await auth.api.updateSession({
-        headers: request.headers,
-        body: { activeStorageConnectionId: null }
-      });
+      await setActiveStorageConnectionId({ request, locals, cookies }, null);
       log.info({ connectionId }, 'active storage connection deleted, session cleared');
     }
 

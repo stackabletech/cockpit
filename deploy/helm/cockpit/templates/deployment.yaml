@@ -57,10 +57,29 @@ spec:
           {{- $trinoFeatures := index $features "trino" | default dict }}
           {{- $completion := index $trinoFeatures "completion" | default dict }}
           env:
+            - name: STORAGE_ENCRYPTION_KEY
+              value: {{ .Values.features.storage.encryption.key | quote }}
             - name: NODE_ENV
               value: {{ .Values.config.nodeEnv | quote }}
             - name: PORT
               value: {{ .Values.service.targetPort | quote }}
+            - name: DATABASE_HOST
+              value: {{ required "database.host is required" .Values.database.host | quote }}
+            - name: DATABASE_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: DATABASE_NAME
+              value: {{ .Values.database.name | quote }}
+            - name: DATABASE_USER
+              value: {{ .Values.database.user | quote }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "database.password.secretKeyRef.name is required" .Values.database.password.secretKeyRef.name | quote }}
+                  key: {{ .Values.database.password.secretKeyRef.key | quote }}
+            {{- if hasKey .Values.database "ssl" }}
+            - name: DATABASE_SSL
+              value: {{ .Values.database.ssl | quote }}
+            {{- end }}
             {{- if hasKey $completion "enabled" }}
             - name: STACKABLE_COCKPIT_COMPLETION_ENABLED
               value: {{ index $completion "enabled" | quote }}
@@ -109,6 +128,10 @@ spec:
             {{- with .filePreviewColumns }}
             - name: STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS
               value: {{ . | int64 | quote }}
+            {{- end }}
+            {{- with .parquetPreviewDisallowedCompressionTypes }}
+            - name: STACKABLE_COCKPIT_PARQUET_PREVIEW_DISALLOWED_COMPRESSION_TYPES
+              value: {{ . | quote }}
             {{- end }}
             {{- end }}
             {{- if .Values.trino.queryTtl }}

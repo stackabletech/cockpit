@@ -63,7 +63,15 @@ import { load, actions } from './+page.server.js';
 import { superValidate } from 'sveltekit-superforms';
 
 function mockLocals() {
-  return { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } };
+  return {
+    logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
+    user: { id: 'test-user' },
+    session: { activeStorageConnectionId: null }
+  };
+}
+
+function mockCookies() {
+  return { get: vi.fn(), set: vi.fn(), delete: vi.fn() };
 }
 
 const validFormData = {
@@ -158,7 +166,8 @@ describe('storage page actions', () => {
     await expect(
       actions.connect({
         request: new Request('http://localhost', { method: 'POST' }),
-        locals: mockLocals()
+        locals: mockLocals(),
+        cookies: mockCookies()
       } as unknown as Parameters<typeof actions.connect>[0])
     ).rejects.toThrow(expect.objectContaining({ status: 303, location: '/storage' }));
   });
@@ -167,11 +176,59 @@ describe('storage page actions', () => {
     await expect(
       actions.disconnect({
         request: new Request('http://localhost', { method: 'POST' }),
-        locals: mockLocals()
+        locals: mockLocals(),
+        cookies: mockCookies()
       } as unknown as Parameters<typeof actions.disconnect>[0])
     ).rejects.toThrow(expect.objectContaining({ status: 303, location: '/storage' }));
     expect(mockUpdateSession).toHaveBeenCalledWith(
       expect.objectContaining({ body: { activeStorageConnectionId: null } })
+    );
+  });
+
+  it('connect: sets a cookie instead of the session when there is no session (no-OIDC mode)', async () => {
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: {
+        type: 's3',
+        host: 's3.example.com',
+        accessStyle: 'Path',
+        region: { name: 'us-east-1' },
+        credentials: { accessKey: 'ak', secretKey: 'sk' }
+      }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    mockConnectionProvider.listContainers.mockResolvedValue(['b1']);
+    mockSaveConnection.mockResolvedValue('new-conn-id');
+    const cookies = mockCookies();
+
+    await expect(
+      actions.connect({
+        request: new Request('http://localhost', { method: 'POST' }),
+        locals: { ...mockLocals(), session: null },
+        cookies
+      } as unknown as Parameters<typeof actions.connect>[0])
+    ).rejects.toThrow(expect.objectContaining({ status: 303, location: '/storage' }));
+    expect(mockUpdateSession).not.toHaveBeenCalled();
+    expect(cookies.set).toHaveBeenCalledWith(
+      'storage-active-connection-id',
+      'new-conn-id',
+      expect.objectContaining({ path: '/' })
+    );
+  });
+
+  it('disconnect: clears the cookie instead of the session when there is no session (no-OIDC mode)', async () => {
+    const cookies = mockCookies();
+
+    await expect(
+      actions.disconnect({
+        request: new Request('http://localhost', { method: 'POST' }),
+        locals: { ...mockLocals(), session: null },
+        cookies
+      } as unknown as Parameters<typeof actions.disconnect>[0])
+    ).rejects.toThrow(expect.objectContaining({ status: 303, location: '/storage' }));
+    expect(mockUpdateSession).not.toHaveBeenCalled();
+    expect(cookies.delete).toHaveBeenCalledWith(
+      'storage-active-connection-id',
+      expect.objectContaining({ path: '/' })
     );
   });
 });
