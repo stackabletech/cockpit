@@ -55,7 +55,11 @@ const handleAuthGuard: Handle = async ({ event, resolve }) => {
   event.locals.user = session?.user ?? null;
   event.locals.session = session?.session ?? null;
 
-  const isPublic = PUBLIC_PATHS.some((p) => event.url.pathname.startsWith(p));
+  // Routes in the (app) group are never public, even when their path starts
+  // with a public prefix (e.g. `/auth/login/x` reaching the catch-all page).
+  const isPublic =
+    !event.route.id?.startsWith('/(app)') &&
+    PUBLIC_PATHS.some((p) => event.url.pathname.startsWith(p));
   if (!isPublic && !event.locals.user) {
     event.locals.logger.debug({ path: event.url.pathname }, 'Rejecting unauthenticated request');
     return unauthenticatedResponse(event.url);
