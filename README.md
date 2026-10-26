@@ -32,6 +32,8 @@ Read more about the platform in the [documentation](https://docs.stackable.tech/
 
 - Single sign-on via any OIDC provider
 - Trino SQL query editor and schema browser, with queries submitted under the logged-in user's name
+- S3 file browser with preview, upload/download and search (opt-in, see [Feature Flags](#feature-flags))
+- User-managed storage connections, stored in PostgreSQL
 
 More modules will be added over time.
 
@@ -47,8 +49,8 @@ npm install
 npm run dev
 ```
 
-Copy [`.env.example`](./.env.example) to `.env` and adjust the values for your OIDC provider and Trino endpoint.
-For a fully pre-configured local environment (Keycloak and Trino on a local kind cluster), see [`dev/setup.sh`](./dev/setup.sh).
+Copy [`.env.example`](./.env.example) to `.env` and adjust the values for your OIDC provider, PostgreSQL database and Trino endpoint.
+For a fully pre-configured local environment (Keycloak, Trino, Garage S3 and PostgreSQL on a local kind cluster), see [`dev/setup.sh`](./dev/setup.sh).
 
 ## Development
 
@@ -61,7 +63,9 @@ npm run format       # Format all code
 npm run check        # Type checking
 npm run lint         # Linting
 npm run knip         # Report unused files, exports and dependencies
-npm run test:e2e     # Run the Playwright end-to-end tests
+npm run test:unit    # Run the Vitest unit tests
+npm run test:arch    # Run the architecture tests
+npm run test:e2e     # Run the Playwright end-to-end tests (requires Docker)
 
 npm run generate:antlr   # Regenerate the lexer/parser after editing the SQL grammar
 ```
@@ -98,7 +102,7 @@ Create a `.env` file at the project root, or set them in your deployment environ
 | Variable                                            | Type                             | Default | Description                                                                                                                                                                                             | Example                                                  |
 | --------------------------------------------------- | -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | `STACKABLE_COCKPIT_COMPLETION_ENABLED`              | `boolean` (`"false"` to disable) | `true`  | Enables the SQL editor code-completion provider and the metadata endpoint. Set to `"false"` to fall back to plain syntax highlighting.                                                                  | `STACKABLE_COCKPIT_COMPLETION_ENABLED=false`             |
-| `STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED`         | `boolean` (`"true"` to enable)   | `false` | Shows the S3/HDFS file browser in the sidebar and activates routes under `/storage`. Must be explicitly opted in to expose storage credentials and the file-browser UI.                                 | `STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true`         |
+| `STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED`         | `boolean` (`"true"` to enable)   | `false` | Shows the S3 file browser in the sidebar and activates routes under `/storage`. Must be explicitly opted in to expose storage credentials and the file-browser UI.                                      | `STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true`         |
 | `PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED` | `boolean` (`"true"` to enable)   | `false` | Shows Cut/Copy in the file browser and lets items be dragged. Client-only: it fills the clipboard, the S3 work happens on paste or move.                                                                | `PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED=true` |
 | `PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED`    | `boolean` (`"true"` to enable)   | `false` | Shows Paste in the file browser. When disabled, the server rejects copies via `/api/storage/transfer` with 404, and moves too unless the Move flag is enabled.                                          | `PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED=true`    |
 | `PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED`   | `boolean` (`"true"` to enable)   | `false` | Shows Rename in the file browser. The server accepts renames via `/api/storage/transfer` only when this is enabled.                                                                                     | `PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED=true`   |
@@ -127,6 +131,7 @@ Create a `.env` file at the project root, or set them in your deployment environ
 
 ## Documentation
 
+- Database setup and migrations: [`docs/DATABASE.md`](./docs/DATABASE.md)
 - Platform documentation: <https://docs.stackable.tech/>
 - Stackable website: <https://stackable.tech/>
 - Stackable Hub: <https://hub.stackable.tech/>
