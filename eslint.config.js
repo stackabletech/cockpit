@@ -28,7 +28,7 @@ export default defineConfig(
     },
     rules: {
       'no-undef': 'off',
-      'no-console': 'off',
+      'no-console': 'error',
       // It will currently also error on external links or links with query parameters.
       // https://github.com/sveltejs/eslint-plugin-svelte/issues/1353
       'svelte/no-navigation-without-resolve': 'warn',
@@ -88,8 +88,9 @@ export default defineConfig(
     }
   },
   {
-    files: ['src/lib/server/**/*.ts', 'src/routes/**/*.server.ts'],
-    rules: { 'no-console': 'error' }
+    // CLI scripts and E2E helper processes that run without the app's logger.
+    files: ['e2e/support/**/*.ts', 'src/lib/editor/grammar/patch-generated.mjs'],
+    rules: { 'no-console': 'off' }
   },
   {
     files: ['src/**/*.ts'],
