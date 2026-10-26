@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
 import PreviewModal from './PreviewModal.svelte';
+import { toasts } from '$lib/stores/toast.svelte.js';
 
 // Prevent Monaco Editor from loading in tests by making $app/environment's
 // `browser` return false. TextEditor renders a plain <pre> as fallback.
@@ -22,7 +23,7 @@ vi.mock('$lib/storage/context.js', async () => {
   return {
     getStorageState: () => ({
       get api() {
-        return { preview: call, archiveExtract: call, saveText: call };
+        return { preview: call, archiveExtract: call, saveText: call, download: call };
       },
       bucket: 'test-bucket'
     })
@@ -724,6 +725,23 @@ describe('PreviewModal basics', () => {
       render(PreviewModal, defaultProps);
 
       await expect.element(page.getByRole('alert')).toHaveTextContent(text);
+    });
+
+    it('should report a failed full download with a translated message', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValueOnce(mockFetchResponse('Hello', { truncated: true, totalSize: 99 }))
+          .mockResolvedValueOnce(new Response('{"message":"Access Denied"}', { status: 403 }))
+      );
+      render(PreviewModal, defaultProps);
+
+      await page.getByRole('button', { name: 'Download full file' }).click();
+
+      await expect
+        .poll(() => toasts.map((t) => t.message))
+        .toContain('Access denied. You do not have permission to download this file.');
     });
   });
 

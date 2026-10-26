@@ -112,13 +112,9 @@
           }
         }
       }
-    } catch (err) {
+    } catch {
       if (request.signal.aborted) return;
-      if (err instanceof StorageError) {
-        error = err.message;
-      } else {
-        error = err instanceof Error ? err.message : m.storage_details_error_unknown();
-      }
+      error = m.storage_details_error_calc_size();
     } finally {
       if (sizeRequest === request) {
         sizeRequest = null;

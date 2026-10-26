@@ -642,6 +642,7 @@
   "storage_details_error_fetch_file": "Dateidetails konnten nicht abgerufen werden ({status})",
   "storage_details_error_fetch_bucket": "Bucket-Details konnten nicht abgerufen werden ({status})",
   "storage_details_error_fetch_dir_meta": "Verzeichnismetadaten konnten nicht abgerufen werden ({status})",
+  "storage_details_error_calc_size": "Die Verzeichnisgröße konnte nicht berechnet werden. Bitte versuchen Sie es erneut.",
   "storage_details_error_unknown": "Unbekannter Fehler",
   "storage_details_error_no_body": "Kein Antworttext",
   "storage_details_unnamed_rule": "(unbenannt)",

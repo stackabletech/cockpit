@@ -9,10 +9,12 @@ describe('readErrorMessage', () => {
   });
 
   it.each([
-    ['an HTML page', '<!doctype html><html></html>'],
-    ['an empty body', ''],
-    ['JSON without a message', '{"error":"nope"}']
-  ])('returns null for %s', async (_label, body) => {
-    expect(await readErrorMessage(new Response(body, { status: 502 }))).toBeNull();
+    ['an HTML page', 502, '<!doctype html><html></html>'],
+    ['an empty body', 502, ''],
+    ['JSON without a message', 502, '{"error":"nope"}'],
+    ['an expired session', 401, '{"message":"Authentication required"}'],
+    ['an unexpected error', 500, '{"message":"An unexpected error occurred","requestId":"r1"}']
+  ])('returns null for %s', async (_label, status, body) => {
+    expect(await readErrorMessage(new Response(body, { status }))).toBeNull();
   });
 });

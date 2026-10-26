@@ -9,6 +9,8 @@ test.describe('Error pages', () => {
     expect(response?.status()).toBe(404);
     await waitForHydration(page);
 
+    await expect(page).toHaveTitle('Page not found | Stackable');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page not found');
     const main = page.locator('main');
     await expect(main.getByRole('heading', { name: /Page not found/ })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
@@ -32,6 +34,15 @@ test.describe('Error pages', () => {
         await page.goto(path);
         await expect(page).toHaveURL(/\/auth\/login\?redirectTo=/);
       }
+    });
+
+    test('only the exact public routes skip sign-in', async ({ page }) => {
+      for (const path of ['/metrics', '/healthz']) {
+        expect((await page.request.get(path)).status(), path).toBe(200);
+      }
+      const lookalike = await page.request.get('/metricsfoo', { maxRedirects: 0 });
+      expect(lookalike.status()).toBe(302);
+      expect(lookalike.headers().location).toMatch(/^\/auth\/login\?redirectTo=/);
     });
 
     test('unknown API paths still answer with a JSON 401', async ({ page }) => {

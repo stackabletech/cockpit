@@ -642,6 +642,7 @@
   "storage_details_error_fetch_file": "Failed to fetch file details ({status})",
   "storage_details_error_fetch_bucket": "Failed to fetch bucket details ({status})",
   "storage_details_error_fetch_dir_meta": "Failed to fetch directory metadata ({status})",
+  "storage_details_error_calc_size": "Failed to calculate the directory size. Please try again.",
   "storage_details_error_unknown": "Unknown error",
   "storage_details_error_no_body": "No response body",
   "storage_details_unnamed_rule": "(unnamed)",

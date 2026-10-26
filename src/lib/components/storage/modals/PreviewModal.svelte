@@ -21,7 +21,7 @@
   import PdfPreview from './preview/PdfPreview.svelte';
   import FallbackPreview from './preview/FallbackPreview.svelte';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
-  import { StorageError } from '$lib/storage/errors.js';
+  import { StorageError, getActionErrorMessage } from '$lib/storage/errors.js';
   import { decodePreviewText } from '$lib/storage/text-decode.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
   import { maxEditableFileSize, infiniteScrollEnabled } from '$lib/client/feature-flags.js';
@@ -557,10 +557,6 @@
 
     try {
       const res = await storage.api.download({ bucket, key: objectKey });
-      if (!res.ok) {
-        addToast('error', m.storage_download_error_unknown());
-        return;
-      }
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const filename = objectKey.split('/').filter(Boolean).pop() ?? objectKey;
@@ -573,11 +569,12 @@
       document.body.removeChild(anchor);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
     } catch (err) {
-      if (err instanceof StorageError) {
-        addToast('error', err.message);
-      } else {
-        addToast('error', m.storage_download_error_unknown());
-      }
+      addToast(
+        'error',
+        err instanceof StorageError
+          ? getActionErrorMessage(err)
+          : m.storage_download_error_unknown()
+      );
     }
   }
 
