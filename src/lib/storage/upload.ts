@@ -14,7 +14,7 @@
 
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { StorageError } from '$lib/storage/errors.js';
-import { createStorageFetch, mapStatusToCode } from '$lib/storage/storage-fetch.js';
+import { createStorageFetch, errorCodeFor } from '$lib/storage/storage-fetch.js';
 
 /**
  * Check whether an object with the given key already exists in the bucket.
@@ -84,7 +84,13 @@ export function uploadFile(
         resolve();
         return;
       }
-      const code = mapStatusToCode(xhr.status);
+      let body: unknown = null;
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        // Not a JSON error body, e.g. a proxy's error page.
+      }
+      const code = errorCodeFor(xhr.status, body);
       reject(new StorageError(code, `Upload failed with status ${xhr.status}`));
     });
 

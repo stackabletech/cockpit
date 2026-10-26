@@ -1,15 +1,18 @@
 import { browser } from '$app/environment';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { connectionStore } from '$lib/storage/connection-store.svelte.js';
+import { isNotConnectedBody } from '$lib/storage/storage-fetch.js';
 import type { LayoutLoad } from './$types';
 
 /** Why the active connection could not be opened; the connect form shows it. */
 type BucketsError = 'access_denied' | 'unreachable' | null;
 
-// 401: the session holds no usable connection, which is not an error.
-function bucketsErrorFor(status: number): BucketsError {
-  if (status === 401) return null;
-  return status === 403 ? 'access_denied' : 'unreachable';
+// No usable connection is not an error: the connect form is all that is needed.
+// A 401 means the session expired, which the session-expired modal reports.
+async function bucketsErrorFor(res: Response): Promise<BucketsError> {
+  const body: unknown = await res.json().catch(() => null);
+  if (res.status === 401 || isNotConnectedBody(body)) return null;
+  return res.status === 403 ? 'access_denied' : 'unreachable';
 }
 
 const DISCONNECTED = {
@@ -75,7 +78,7 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
     if (!res.ok) {
       return {
         ...DISCONNECTED,
-        bucketsError: bucketsErrorFor(res.status),
+        bucketsError: await bucketsErrorFor(res),
         connections,
         hydrating: false as const,
         hasActiveConnection: false as const

@@ -23,13 +23,28 @@ import { StorageError } from '$lib/storage/errors.js';
  * `state.svelte.ts`, `download.ts`, and `upload.ts`.
  */
 export function mapStatusToCode(status: number): string {
-  if (status === 401) return 'not_connected';
   if (status === 403) return 'access_denied';
   if (status === 404) return 'not_found';
   if (status === 409) return 'conflict';
   if (status === 413) return 'file_too_large';
   if (status >= 500) return 'server_error';
   return 'unknown';
+}
+
+/**
+ * Whether an error body says the request has no usable storage connection.
+ * The server answers that with 409 and `reason: 'not-connected'`, keeping 401
+ * for an expired session.
+ */
+export function isNotConnectedBody(body: unknown): boolean {
+  return (
+    typeof body === 'object' && body !== null && 'reason' in body && body.reason === 'not-connected'
+  );
+}
+
+/** StorageError code for a failed response, given its parsed body. */
+export function errorCodeFor(status: number, body: unknown): string {
+  return isNotConnectedBody(body) ? 'not_connected' : mapStatusToCode(status);
 }
 
 /**
@@ -55,7 +70,11 @@ export function createStorageFetch(
     const response = await fetch(path, { ...init, headers });
 
     if (!response.ok) {
-      const code = mapStatusToCode(response.status);
+      const body: unknown = await response
+        .clone()
+        .json()
+        .catch(() => null);
+      const code = errorCodeFor(response.status, body);
       const message =
         (await readErrorMessage(response)) ?? `Request failed with status ${response.status}`;
       throw new StorageError(code, message);

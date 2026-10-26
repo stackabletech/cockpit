@@ -18,10 +18,6 @@ beforeEach(() => {
 });
 
 describe('mapStatusToCode', () => {
-  it('maps 401 → not_connected', () => {
-    expect(mapStatusToCode(401)).toBe('not_connected');
-  });
-
   it('maps 403 → access_denied', () => {
     expect(mapStatusToCode(403)).toBe('access_denied');
   });
@@ -150,14 +146,22 @@ describe('createStorageFetch', () => {
     });
   });
 
-  it('throws StorageError on 401 with not_connected code', async () => {
+  it.each([
+    [
+      'a 409 with reason not-connected',
+      409,
+      { message: 'x', reason: 'not-connected' },
+      'not_connected'
+    ],
+    ['an edit conflict', 409, { message: 'Changed on the server' }, 'conflict'],
+    ['an expired session', 401, { message: 'Authentication required' }, 'unknown']
+  ])('maps %s', async (_label, status, body, code) => {
     const storageFetch = createStorageFetch(() => 'conn-1');
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeResponse({ status: 401 }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      makeResponse({ status, body: JSON.stringify(body) })
+    );
 
-    await expect(storageFetch('/api/test')).rejects.toThrow(StorageError);
-    await expect(storageFetch('/api/test')).rejects.toMatchObject({
-      code: 'not_connected'
-    });
+    await expect(storageFetch('/api/test')).rejects.toMatchObject({ code });
   });
 
   it('throws StorageError on 400 with unknown code', async () => {

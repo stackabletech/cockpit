@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { notConnected } from '$lib/server/storage/not-connected.js';
 import {
   ArchiveCacheFullError,
   extractArchiveEntry,
@@ -48,7 +49,7 @@ export const GET: RequestHandler = async (event) => {
   const config = locals.storageConfig;
   const connectionId = locals.storageConnectionId;
   if (!config || !connectionId) {
-    throw error(401, 'No storage connection configured');
+    notConnected();
   }
 
   locals.logger.debug(

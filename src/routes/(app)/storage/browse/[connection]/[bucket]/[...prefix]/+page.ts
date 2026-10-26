@@ -5,6 +5,7 @@ import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.
 import * as m from '$lib/paraglide/messages.js';
 import type { PageLoad } from './$types';
 import type { StoragePage } from '$lib/storage/types.js';
+import { isNotConnectedBody } from '$lib/storage/storage-fetch.js';
 
 const EMPTY_PAGE: StoragePage = {
   objects: [],
@@ -12,6 +13,15 @@ const EMPTY_PAGE: StoragePage = {
   currentPage: 1,
   pageSize: 25
 };
+
+/** A session or connection problem sends the user back to the connect form. */
+async function throwListError(res: Response, bucket: string): Promise<never> {
+  const body: unknown = await res.json().catch(() => null);
+  if (res.status === 401 || isNotConnectedBody(body)) throw redirect(303, '/storage');
+  if (res.status === 403) throw error(403, m.storage_error_access_denied({ bucket }));
+  const message = (body as { message?: string } | null)?.message;
+  throw error(res.status, message ?? 'Failed to load objects');
+}
 
 /**
  * Universal load: fetches the object list from the API.
@@ -54,12 +64,7 @@ export const load: PageLoad = async ({ fetch, url, data, parent }) => {
       throw err;
     }
 
-    if (!res.ok) {
-      if (res.status === 401) throw redirect(303, '/storage');
-      if (res.status === 403) throw error(403, m.storage_error_access_denied({ bucket }));
-      const body = (await res.json().catch(() => ({}))) as { message?: string };
-      throw error(res.status, body.message ?? 'Failed to load objects');
-    }
+    if (!res.ok) await throwListError(res, bucket);
 
     return { connection, bucket, prefix, objects: EMPTY_PAGE, hydrating: true };
   }
@@ -74,12 +79,7 @@ export const load: PageLoad = async ({ fetch, url, data, parent }) => {
     headers: { [STORAGE_CONNECTION_ID_HEADER]: connectionId }
   });
 
-  if (!res.ok) {
-    if (res.status === 401) throw redirect(303, '/storage');
-    if (res.status === 403) throw error(403, m.storage_error_access_denied({ bucket }));
-    const body = (await res.json().catch(() => ({}))) as { message?: string };
-    throw error(res.status, body.message ?? 'Failed to load objects');
-  }
+  if (!res.ok) await throwListError(res, bucket);
 
   const objects = (await res.json()) as StoragePage;
   return { connection, bucket, prefix, objects, hydrating: false };
