@@ -9,6 +9,7 @@ import {
 import type { SqlStatement } from '$lib/editor/split-statements.js';
 import { clearCompletionCache } from '$lib/editor/completion/completion-metadata.js';
 import * as m from '$lib/paraglide/messages.js';
+import { readErrorMessage } from '$lib/client/api-error.js';
 
 export interface QueryRunner {
   readonly state: QueryState;
@@ -202,8 +203,7 @@ function createQueryRunner(tabId: string): QueryRunner {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        error = body?.error ?? m.trino_query_connection_lost();
+        error = (await readErrorMessage(res)) ?? m.trino_query_connection_lost();
         state = 'FAILED';
         return;
       }
