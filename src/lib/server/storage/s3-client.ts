@@ -18,7 +18,7 @@ function loadCaCert(): Buffer | undefined {
   if (!path) return undefined;
   let ca: Buffer;
   try {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- CA certificate path from the deployment configuration
     ca = readFileSync(path);
   } catch (err) {
     throw new Error(

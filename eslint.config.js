@@ -93,6 +93,11 @@ export default defineConfig(
     rules: { 'no-console': 'off' }
   },
   {
+    // Tests read and write fixtures and temp files they create themselves.
+    files: ['**/*.{test,spec}.ts', 'e2e/**/*.ts', 'src/architecture-tests/**/*.ts'],
+    rules: { 'security/detect-non-literal-fs-filename': 'off' }
+  },
+  {
     files: ['src/**/*.ts'],
     ignores: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
     rules: { 'max-lines': ['error', { max: 2400, skipBlankLines: false, skipComments: false }] }
