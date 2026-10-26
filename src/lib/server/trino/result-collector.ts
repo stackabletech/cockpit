@@ -67,9 +67,15 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
       return;
     }
 
-    // Row limit check.
-    if (query.rows.length >= MAX_CLIENT_ROWS) {
-      query.rowLimit = MAX_CLIENT_ROWS;
+    // Row limit check. Only flag once Trino actually delivers a row beyond the limit: a trailing
+    // nextUri after exactly MAX_CLIENT_ROWS does not mean more rows follow (e.g. `LIMIT 10000`).
+    // Rows already received on the crossing page are kept rather than truncated.
+    if (query.rows.length > MAX_CLIENT_ROWS) {
+      query.rowLimitReached = true;
+      log.debug(
+        { trino_query_id: query.trinoQueryId, row_count: query.rows.length },
+        'row limit reached, cancelling query'
+      );
       try {
         if (result.nextUri) {
           await query.client.cancelViaUri(result.nextUri, query.trinoUser);

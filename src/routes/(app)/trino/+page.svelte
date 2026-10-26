@@ -230,6 +230,7 @@
   });
 
   const stateLabel = $derived.by(() => {
+    if (runner.state === 'FINISHED' && runner.rowLimitReached) return m.trino_state_row_limit();
     const stateMap: Record<string, () => string> = {
       SUBMITTING: m.trino_state_submitting,
       QUEUED: m.trino_state_queued,
@@ -244,6 +245,7 @@
   });
 
   const stateBadgeClass = $derived.by(() => {
+    if (runner.state === 'FINISHED' && runner.rowLimitReached) return 'badge-warning';
     switch (runner.state) {
       case 'QUEUED':
       case 'PLANNING':
@@ -261,6 +263,23 @@
       default:
         return '';
     }
+  });
+
+  const progressInfo = $derived.by(() => {
+    const { elapsedTimeMillis } = runner.progress;
+    if (runner.rowCount === 0 && elapsedTimeMillis === 0) return null;
+    const locale = getLocale();
+    const rows = runner.rowCount.toLocaleString(locale);
+    const elapsed =
+      elapsedTimeMillis < 1000
+        ? m.trino_elapsed_ms({ value: elapsedTimeMillis.toLocaleString(locale) })
+        : m.trino_elapsed_s({
+            value: (elapsedTimeMillis / 1000).toLocaleString(locale, {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1
+            })
+          });
+    return m.trino_progress_info({ rows, elapsed });
   });
 
   const charLimitReached = $derived(sql.length >= MAX_SQL_LENGTH);
@@ -682,7 +701,10 @@
             </span>
           {/snippet}
 
-          <div class="dropdown dropdown-end">
+          <!-- Only the chevron sits inside the focus-driven dropdown, so focusing the run
+               button doesn't open the menu. The wrapper is the positioning box so the menu
+               spans both buttons. -->
+          <div class="relative">
             <div class="join">
               <button
                 type="button"
@@ -692,8 +714,21 @@
                 onclick={handleRun}
               >
                 {#if isActive}
-                  <span class="loading loading-xs loading-spinner"></span>
-                  {m.trino_running()}
+                  <span
+                    class="
+                      grid
+                      *:[grid-area:1/1]
+                    "
+                  >
+                    <!-- Invisible sizer keeps the idle state's two-line height -->
+                    <span class="invisible" aria-hidden="true">
+                      {@render runOption(m.trino_running(), runShortcutLabel)}
+                    </span>
+                    <span class="flex items-center gap-1 self-center text-xs font-semibold">
+                      <span class="loading loading-xs loading-spinner"></span>
+                      {m.trino_running()}
+                    </span>
+                  </span>
                 {:else}
                   <span
                     class="
@@ -715,49 +750,51 @@
                   </span>
                 {/if}
               </button>
-              <button
-                type="button"
-                class="
-                  btn join-item border-l-primary-content/20 btn-primary
-                  tooltip tooltip-bottom z-150 self-stretch border-l px-2 before:z-200
-                "
-                data-tip={m.trino_run_mode_select()}
-                class:pointer-events-none={isActive}
-                aria-haspopup="true"
-                aria-label={m.trino_run_mode_select()}
-              >
-                <IconExpandMore class="size-3" aria-hidden="true" />
-              </button>
-            </div>
-            <div
-              class="
-                dropdown-content rounded-box bg-primary text-primary-content z-10 mt-1 flex
-                w-full flex-col gap-1 p-1.5 shadow-lg
-              "
-            >
-              <button
-                type="button"
-                class="
-                  rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
-                  text-left
-                  {runMode === 'cursor' ? 'bg-primary-content/15' : ''}"
-                onclick={() => selectRunMode('cursor')}
-              >
-                {@render runOption(m.trino_run_at_cursor(), 'Ctrl+↵')}
-              </button>
-              <button
-                type="button"
-                class="
-                  rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
-                  text-left
-                  {runMode === 'all' ? 'bg-primary-content/15' : ''}"
-                onclick={() => selectRunMode('all')}
-              >
-                {@render runOption(
-                  hasSelection ? m.trino_run_selected() : m.trino_run_all(),
-                  'Ctrl+Shift+↵'
-                )}
-              </button>
+              <div class="dropdown dropdown-end static -ms-px flex">
+                <button
+                  type="button"
+                  class="
+                    btn join-item border-l-primary-content/20 btn-primary
+                    tooltip tooltip-bottom z-150 h-full border-l px-2 before:z-200
+                  "
+                  data-tip={m.trino_run_mode_select()}
+                  class:pointer-events-none={isActive}
+                  aria-haspopup="true"
+                  aria-label={m.trino_run_mode_select()}
+                >
+                  <IconExpandMore class="size-3" aria-hidden="true" />
+                </button>
+                <div
+                  class="
+                    dropdown-content rounded-box bg-primary text-primary-content top-full z-10 mt-1
+                    flex w-full flex-col gap-1 p-1.5 shadow-lg
+                  "
+                >
+                  <button
+                    type="button"
+                    class="
+                      rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
+                      text-left
+                      {runMode === 'cursor' ? 'bg-primary-content/15' : ''}"
+                    onclick={() => selectRunMode('cursor')}
+                  >
+                    {@render runOption(m.trino_run_at_cursor(), 'Ctrl+↵')}
+                  </button>
+                  <button
+                    type="button"
+                    class="
+                      rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
+                      text-left
+                      {runMode === 'all' ? 'bg-primary-content/15' : ''}"
+                    onclick={() => selectRunMode('all')}
+                  >
+                    {@render runOption(
+                      hasSelection ? m.trino_run_selected() : m.trino_run_all(),
+                      'Ctrl+Shift+↵'
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -820,13 +857,8 @@
               max="100"
             ></progress>
           {/if}
-          {#if runner.progress.processedRows > 0 || runner.progress.elapsedTimeMillis > 0}
-            <span class="text-base-content/60 text-xs">
-              {m.trino_progress_info({
-                rows: runner.progress.processedRows.toLocaleString(getLocale()),
-                elapsed: (runner.progress.elapsedTimeMillis / 1000).toFixed(1)
-              })}
-            </span>
+          {#if progressInfo}
+            <span class="text-base-content/60 text-xs">{progressInfo}</span>
           {/if}
           {#if runner.currentTrinoQueryUrl}
             <a
