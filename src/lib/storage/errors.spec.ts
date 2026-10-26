@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { StorageError, getActionErrorMessage, getActionErrorMessageForCode } from './errors.js';
+import {
+  StorageError,
+  getActionErrorMessage,
+  getActionErrorMessageForCode,
+  getDetailsErrorMessage
+} from './errors.js';
 
 const mockMessages = vi.hoisted(() => ({
   storage_download_error_not_connected: () => 'No storage connection configured',
@@ -8,7 +13,10 @@ const mockMessages = vi.hoisted(() => ({
   storage_download_error_server_error: () => 'Server error',
   storage_upload_error_no_such_bucket: () => 'Bucket not found',
   storage_upload_error_invalid_part: () => 'Invalid part',
-  storage_download_error_unknown: () => 'Unknown error'
+  storage_download_error_unknown: () => 'Unknown error',
+  storage_details_error_not_connected: () => 'Details: not connected',
+  storage_details_error_access_denied: () => 'Details: access denied',
+  storage_details_error_not_found: () => 'Details: not found'
 }));
 
 vi.mock('$lib/paraglide/messages.js', () => mockMessages);
@@ -63,5 +71,22 @@ describe('getActionErrorMessageForCode', () => {
   it('forwards to getActionErrorMessage with a StorageError', () => {
     expect(getActionErrorMessageForCode('not_found')).toBe('File not found');
     expect(getActionErrorMessageForCode('unknown')).toBe('Unknown error');
+  });
+});
+
+describe('getDetailsErrorMessage', () => {
+  it.each([
+    ['not_connected', 'Details: not connected'],
+    ['access_denied', 'Details: access denied'],
+    ['not_found', 'Details: not found'],
+    ['server_error', 'fallback']
+  ])('maps %s', (code, expected) => {
+    expect(getDetailsErrorMessage(new StorageError(code, 'raw server text'), 'fallback')).toBe(
+      expected
+    );
+  });
+
+  it('uses the fallback for errors that are not StorageErrors', () => {
+    expect(getDetailsErrorMessage(new TypeError('Failed to fetch'), 'fallback')).toBe('fallback');
   });
 });

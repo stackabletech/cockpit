@@ -616,7 +616,7 @@
             m.storage_editor_too_large({ limit: formatFileSize(maxEditableFileSize) })
           );
         } else {
-          addToast('error', err.message || m.storage_editor_error());
+          addToast('error', m.storage_editor_error());
         }
       } else {
         addToast('error', m.storage_editor_error());
