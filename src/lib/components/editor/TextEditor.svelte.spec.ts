@@ -7,7 +7,7 @@ import { getLocale, setLocale } from '$lib/paraglide/runtime.js';
 // TextEditor registers its save action, not Monaco itself.
 const addAction = vi.hoisted(() => vi.fn());
 
-vi.mock('monaco-editor/esm/vs/editor/editor.worker?worker', () => ({
+vi.mock('monaco-editor/editor/editor.worker?worker', () => ({
   default: class {}
 }));
 

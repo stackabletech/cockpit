@@ -98,7 +98,7 @@
     "drizzle-orm": "^0.45.4",
     "hyparquet": "^1.31.5",
     "hyparquet-compressors": "^1.1.2",
-    "monaco-editor": "^0.55.1",
+    "monaco-editor": "^0.57.0",
     "papaparse": "^5.7.0",
     "pg": "^8.23.1",
     "pino": "^10.4.0",
@@ -109,14 +109,14 @@
   },
   "//overrides": {
     "@sveltejs/kit > cookie": "SvelteKit requests ^0.6.0, which excludes the cookie validation security fix in 0.7.x. Remove when SvelteKit requires a patched version.",
-    "monaco-editor > dompurify": "Monaco pins DOMPurify to 3.2.7. Use ^3.4.16 for subsequent sanitisation security fixes; remove when Monaco requires an equally patched or newer version."
+    "monaco-editor > dompurify": "Monaco pins DOMPurify to 3.4.15. Use ^3.4.17 for subsequent sanitisation security fixes; remove when Monaco requires an equally patched or newer version."
   },
   "overrides": {
     "@sveltejs/kit": {
       "cookie": "^0.7.2"
     },
     "monaco-editor": {
-      "dompurify": "^3.4.16"
+      "dompurify": "^3.4.17"
     }
   }
 }
