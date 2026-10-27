@@ -20,7 +20,9 @@ test.describe('Global bookmarks', () => {
     await resetBookmarks(page);
   });
 
-  test('shows global bookmarks before the user’s own, read-only', async ({ page }) => {
+  // Card rendering and the read-only cards are covered by the DashboardBookmarks
+  // component tests; this checks the wiring from the env var to the page.
+  test('shows the configured bookmarks before the user’s own', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);
 
@@ -30,15 +32,6 @@ test.describe('Global bookmarks', () => {
       'Team Wiki',
       'Dashboards'
     ]);
-    await expect(section(page).getByText('3 links')).toBeVisible();
-    await expect(section(page).getByText('prod', { exact: true })).toBeVisible();
-
-    for (const name of ['Cluster Logs', 'Team Wiki']) {
-      await expect(section(page).getByRole('button', { name })).toHaveCount(0);
-    }
-    await expect(
-      section(page).getByRole('button', { name: 'Edit bookmark Dashboards' })
-    ).toBeVisible();
   });
 
   test('lists global bookmarks in the sidebar by their configured pin', async ({
