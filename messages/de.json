@@ -504,6 +504,8 @@
   "bookmark_load_error": "Die Lesezeichen konnten nicht geladen werden. Bitte laden Sie die Seite später neu.",
   "bookmark_refresh_error": "Die Änderung wurde gespeichert, aber die Lesezeichenliste konnte nicht aktualisiert werden.",
   "bookmark_reload": "Neu laden",
+  "bookmark_limit_error": "Sie können bis zu {limit} Lesezeichen anlegen. Löschen Sie eines, um ein weiteres hinzuzufügen.",
+  "bookmark_saving": "Wird gespeichert…",
   "bookmark_product_custom": "Eigener Link",
   "bookmark_default_name_trino": "SQL-Editor",
   "bookmark_default_name_superset": "Dashboards",

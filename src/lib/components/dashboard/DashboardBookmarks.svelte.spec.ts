@@ -12,7 +12,8 @@ const { updateBookmark, addToast } = vi.hoisted(() => ({
 vi.mock('$lib/dashboard/bookmarks-api.js', () => ({
   addBookmark: vi.fn(),
   updateBookmark,
-  removeBookmark: vi.fn()
+  removeBookmark: vi.fn(),
+  BookmarkRequestError: class extends Error {}
 }));
 vi.mock('$lib/stores/toast.svelte.js', () => ({ addToast }));
 

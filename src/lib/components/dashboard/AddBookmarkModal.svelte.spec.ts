@@ -14,7 +14,12 @@ const { addBookmark, updateBookmark, removeBookmark } = vi.hoisted(() => ({
 vi.mock('$lib/dashboard/bookmarks-api.js', () => ({
   addBookmark,
   updateBookmark,
-  removeBookmark
+  removeBookmark,
+  BookmarkRequestError: class extends Error {
+    constructor(readonly status: number) {
+      super(`status ${status}`);
+    }
+  }
 }));
 
 const renderModal = (props: Record<string, unknown> = {}) =>
@@ -292,6 +297,19 @@ describe('AddBookmarkModal', () => {
     await expect.element(page.getByLabelText('Name')).toHaveValue('Unsaved Dashboard');
   });
 
+  it('names the limit when the server rejects another bookmark', async () => {
+    const { BookmarkRequestError } = await import('$lib/dashboard/bookmarks-api.js');
+    addBookmark.mockRejectedValue(new BookmarkRequestError(409));
+    renderModal();
+
+    await page.getByLabelText('URL').fill('https://superset.example.com');
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
+
+    await expect
+      .element(page.getByRole('alert'))
+      .toHaveTextContent('You can have up to 25 bookmarks. Delete one to add another.');
+  });
+
   it('returns to the edit dialog with an error when deleting fails', async () => {
     removeBookmark.mockRejectedValue(new Error('500'));
     renderModal({ bookmark: savedBookmark });
@@ -322,5 +340,6 @@ describe('AddBookmarkModal', () => {
 
     expect(addBookmark).toHaveBeenCalledTimes(1);
     await expect.element(page.getByRole('dialog', { name: 'Add bookmark' })).toBeVisible();
+    await expect.element(page.getByRole('status')).toHaveTextContent('Saving…');
   });
 });

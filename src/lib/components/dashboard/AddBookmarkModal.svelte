@@ -3,8 +3,14 @@
   import Modal from '$lib/components/Modal.svelte';
   import { getProduct, PRODUCTS, type Product } from '$lib/dashboard/products';
   import ProductIcon from './ProductIcon.svelte';
-  import { addBookmark, removeBookmark, updateBookmark } from '$lib/dashboard/bookmarks-api.js';
   import {
+    addBookmark,
+    BookmarkRequestError,
+    removeBookmark,
+    updateBookmark
+  } from '$lib/dashboard/bookmarks-api.js';
+  import {
+    BOOKMARK_LIMIT,
     BOOKMARK_MAX_LENGTH,
     bookmarkCreateSchema,
     bookmarkHostname,
@@ -82,15 +88,21 @@
     if (url.trim()) urlError = !isValidUrl(url);
   }
 
-  /** Runs a bookmark request; closes the dialog on success, otherwise shows `errorMessage`. */
+  /**
+   * Runs a bookmark request; closes the dialog on success, otherwise shows
+   * `errorMessage`, or the limit when the server rejects another bookmark.
+   */
   async function save(request: () => Promise<void>, errorMessage: string) {
     saving = true;
     requestError = null;
     try {
       await request();
       open = false;
-    } catch {
-      requestError = errorMessage;
+    } catch (err) {
+      requestError =
+        err instanceof BookmarkRequestError && err.status === 409
+          ? m.bookmark_limit_error({ limit: BOOKMARK_LIMIT })
+          : errorMessage;
     } finally {
       saving = false;
     }
@@ -298,6 +310,8 @@
       {#if requestError}
         <div role="alert" class="alert alert-error mt-6 text-sm">{requestError}</div>
       {/if}
+      <!-- The spinner is decorative; this announces the save to screen readers. -->
+      <p role="status" class="sr-only">{saving ? m.bookmark_saving() : ''}</p>
 
       <div class="modal-action">
         {#if isEditing}
