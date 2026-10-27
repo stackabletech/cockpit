@@ -74,6 +74,7 @@
     bind:collapsed={sidebarCollapsed}
     bind:mobileOpen
     storageBrowserEnabled={data.storageBrowserEnabled}
+    bookmarks={data.bookmarks ?? []}
   />
 
   <div class="flex min-w-0 flex-1 flex-col">

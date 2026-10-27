@@ -1,5 +1,6 @@
 import { test, expect } from './support/fixtures.js';
 import { waitForHydration } from './support/helpers';
+import { resetBookmarks } from './support/bookmarks.js';
 
 test.describe('Dashboard bookmarks', () => {
   test.use({ locale: 'en-US' });
@@ -7,9 +8,11 @@ test.describe('Dashboard bookmarks', () => {
   const addButton = 'Add bookmark';
 
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.removeItem('dashboard_bookmarks');
-    });
+    await resetBookmarks(page);
+  });
+
+  test.afterEach(async ({ page }) => {
+    await resetBookmarks(page);
   });
 
   test('shows Add bookmark button on dashboard', async ({ page }) => {
@@ -118,25 +121,9 @@ test.describe('Dashboard bookmarks', () => {
     // Names are capped at 40 characters; wide glyphs still overflow the card.
     const longName = 'W'.repeat(40);
     const longHost = `${'very-long-subdomain-'.repeat(5)}example.com`;
-    await page.addInitScript(
-      ({ name, host }) => {
-        localStorage.setItem(
-          'dashboard_bookmarks',
-          JSON.stringify([
-            {
-              id: 'b1',
-              productId: 'superset',
-              name,
-              environment: '',
-              url: `https://${host}/`,
-              pinned: false,
-              createdAt: new Date().toISOString()
-            }
-          ])
-        );
-      },
-      { name: longName, host: longHost }
-    );
+    await resetBookmarks(page, [
+      { productId: 'superset', name: longName, url: `https://${longHost}/` }
+    ]);
 
     await page.goto('/');
     await waitForHydration(page);
@@ -151,22 +138,14 @@ test.describe('Dashboard bookmarks', () => {
   });
 
   test('shows the environment once, as a chip, not in the title link', async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem(
-        'dashboard_bookmarks',
-        JSON.stringify([
-          {
-            id: 'b1',
-            productId: 'superset',
-            name: 'Dashboards',
-            environment: 'staging',
-            url: 'https://superset.example.com',
-            pinned: false,
-            createdAt: new Date().toISOString()
-          }
-        ])
-      );
-    });
+    await resetBookmarks(page, [
+      {
+        productId: 'superset',
+        name: 'Dashboards',
+        environment: 'staging',
+        url: 'https://superset.example.com'
+      }
+    ]);
 
     await page.goto('/');
     await waitForHydration(page);
@@ -235,7 +214,12 @@ test.describe('Dashboard bookmarks', () => {
     await expect(imageLink).toHaveAttribute('rel', /external/);
   });
 
-  test('bookmark persists in localStorage', async ({ page }) => {
+  test('stores bookmarks on the server, not in the browser', async ({
+    page,
+    browser,
+    baseURL,
+    workerStorageState
+  }) => {
     await page.goto('/');
     await waitForHydration(page);
 
@@ -247,13 +231,17 @@ test.describe('Dashboard bookmarks', () => {
     await page.getByLabel('URL').fill('https://superset.example.com');
 
     await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
+    await expect(page.getByLabel('Bookmarks').getByText('Dashboards')).toBeVisible();
 
-    const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
-    expect(stored).toBeTruthy();
-
-    const bookmarks = JSON.parse(stored!);
-    expect(bookmarks).toHaveLength(1);
-    expect(bookmarks[0].name).toBe('Dashboards');
+    // A fresh browser context shares only the session cookie, no browser storage.
+    const context = await browser.newContext({ baseURL, storageState: workerStorageState });
+    try {
+      const other = await context.newPage();
+      await other.goto('/');
+      await expect(other.getByLabel('Bookmarks').getByText('Dashboards')).toBeVisible();
+    } finally {
+      await context.close();
+    }
   });
 
   test('pins a bookmark from the dashboard with the star button', async ({ page }) => {
@@ -275,39 +263,21 @@ test.describe('Dashboard bookmarks', () => {
 
     await expect(page.getByRole('button', { name: 'Unpin bookmark Dashboards' })).toBeVisible();
 
-    const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
-    const bookmarks = JSON.parse(stored!);
-    expect(bookmarks[0].pinned).toBe(true);
-
     // Unpinning moves the bookmark back to the regular section
     await page.getByRole('button', { name: 'Unpin bookmark Dashboards' }).click();
-    await expect(page.getByRole('button', { name: /pin bookmark/i })).toBeVisible();
-
-    const storedAfter = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
-    const bookmarksAfter = JSON.parse(storedAfter!);
-    expect(bookmarksAfter[0].pinned).toBe(false);
+    await expect(page.getByRole('button', { name: 'Pin bookmark Dashboards' })).toBeVisible();
   });
 
   test('names each card button after its bookmark', async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem(
-        'dashboard_bookmarks',
-        JSON.stringify(
-          [
-            ['b0f5a7f2-3d1e-4c6b-9a8e-1f2d3c4b5a60', 'superset', 'Dashboards', true],
-            ['b0f5a7f2-3d1e-4c6b-9a8e-1f2d3c4b5a61', 'airflow', 'Pipelines', false]
-          ].map(([id, productId, name, pinned]) => ({
-            id,
-            productId,
-            name,
-            environment: '',
-            url: `https://${productId}.example.com`,
-            pinned,
-            createdAt: new Date().toISOString()
-          }))
-        )
-      );
-    });
+    await resetBookmarks(page, [
+      {
+        productId: 'superset',
+        name: 'Dashboards',
+        url: 'https://superset.example.com',
+        pinned: true
+      },
+      { productId: 'airflow', name: 'Pipelines', url: 'https://airflow.example.com' }
+    ]);
 
     await page.goto('/');
     await waitForHydration(page);
@@ -337,10 +307,6 @@ test.describe('Dashboard bookmarks', () => {
     await page.locator('dialog[open]').getByRole('button', { name: addButton }).click();
 
     await expect(page.getByRole('button', { name: 'Unpin bookmark Dashboards' })).toBeVisible();
-
-    const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
-    const bookmarks = JSON.parse(stored!);
-    expect(bookmarks[0].pinned).toBe(true);
   });
 
   test('pinned state is preserved when editing a bookmark', async ({ page }) => {
@@ -393,11 +359,6 @@ test.describe('Dashboard bookmarks', () => {
 
     await expect(page.getByLabel('Bookmarks').getByText('Renamed Dashboard')).toBeVisible();
     await expect(page.getByLabel('Bookmarks').getByText('Dashboards')).not.toBeVisible();
-
-    const stored = await page.evaluate(() => localStorage.getItem('dashboard_bookmarks'));
-    const bookmarks = JSON.parse(stored!);
-    expect(bookmarks).toHaveLength(1);
-    expect(bookmarks[0].name).toBe('Renamed Dashboard');
   });
 
   test('cancel in edit dialog closes without changes', async ({ page }) => {

@@ -11,7 +11,7 @@ const { addBookmark, updateBookmark, removeBookmark } = vi.hoisted(() => ({
   removeBookmark: vi.fn()
 }));
 
-vi.mock('$lib/dashboard/bookmarks.svelte.js', () => ({
+vi.mock('$lib/dashboard/bookmarks-api.js', () => ({
   addBookmark,
   updateBookmark,
   removeBookmark
@@ -39,6 +39,9 @@ const pinCheckbox = () => page.getByRole('checkbox', { name: 'Pin bookmark' });
 describe('AddBookmarkModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    addBookmark.mockResolvedValue(undefined);
+    updateBookmark.mockResolvedValue(undefined);
+    removeBookmark.mockResolvedValue(undefined);
   });
 
   it('stores pinned: true when the pin checkbox is checked', async () => {
@@ -196,7 +199,54 @@ describe('AddBookmarkModal', () => {
     await page.getByRole('button', { name: 'Save changes' }).click();
 
     expect(updateBookmark).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'b1', name: 'Renamed Dashboard', pinned: true })
+      'b1',
+      expect.objectContaining({ name: 'Renamed Dashboard', pinned: true })
     );
+  });
+
+  it('stays open with the entered values and an error when saving fails', async () => {
+    addBookmark.mockRejectedValue(new Error('500'));
+    renderModal();
+
+    await page.getByLabelText('Name').fill('Unsaved Dashboard');
+    await page.getByLabelText('URL').fill('https://superset.example.com');
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
+
+    await expect
+      .element(page.getByRole('alert'))
+      .toHaveTextContent('The bookmark could not be saved. Please try again.');
+    await expect.element(page.getByLabelText('Name')).toHaveValue('Unsaved Dashboard');
+  });
+
+  it('returns to the edit dialog with an error when deleting fails', async () => {
+    removeBookmark.mockRejectedValue(new Error('500'));
+    renderModal({ bookmark: savedBookmark });
+
+    await page.getByRole('button', { name: 'Delete' }).click();
+    await page
+      .getByRole('dialog', { name: 'Delete bookmark?' })
+      .getByRole('button', { name: 'Delete' })
+      .click();
+
+    await expect.element(page.getByRole('dialog', { name: 'Edit bookmark' })).toBeVisible();
+    await expect
+      .element(page.getByRole('alert'))
+      .toHaveTextContent('The bookmark could not be deleted. Please try again.');
+  });
+
+  it('ignores further submits and stays open while a save is in progress', async () => {
+    addBookmark.mockReturnValue(new Promise(() => {}));
+    renderModal();
+
+    await page.getByLabelText('URL').fill('https://superset.example.com');
+    await userEvent.keyboard('{Enter}');
+    await expect
+      .element(page.getByRole('button', { name: 'Add bookmark' }))
+      .toHaveAttribute('aria-disabled', 'true');
+    await userEvent.keyboard('{Enter}');
+    await userEvent.keyboard('{Escape}');
+
+    expect(addBookmark).toHaveBeenCalledTimes(1);
+    await expect.element(page.getByRole('dialog', { name: 'Add bookmark' })).toBeVisible();
   });
 });
