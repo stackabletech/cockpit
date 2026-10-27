@@ -18,8 +18,11 @@ export const bookmarkFormSchema = z.object({
   pinned: z.boolean()
 });
 
-/** A stored bookmark as returned by the API; `createdAt` is an ISO timestamp. */
-export type Bookmark = z.infer<typeof bookmarkFormSchema> & { id: string; createdAt: string };
+/** The fields every bookmark is displayed with; the id keys it in lists. */
+export type BookmarkLink = z.infer<typeof bookmarkFormSchema> & { id: string };
+
+/** A user's stored bookmark as returned by the API; `createdAt` is an ISO timestamp. */
+export type Bookmark = BookmarkLink & { createdAt: string };
 
 /**
  * Body of a bookmark create request. Stored bookmarks keep any product id, so a
