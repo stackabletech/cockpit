@@ -142,6 +142,9 @@ spec:
             {{- end }}
             {{- with (index $features "bookmarks") }}
             {{- with .global }}
+            {{- if not (kindIs "slice" .) }}
+            {{- fail "features.bookmarks.global must be a YAML list of bookmarks; a JSON string is not accepted" }}
+            {{- end }}
             - name: STACKABLE_COCKPIT_GLOBAL_BOOKMARKS
               value: {{ toJson . | quote }}
             {{- end }}
