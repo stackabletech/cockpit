@@ -8,9 +8,9 @@
 <div class="mx-auto max-w-6xl space-y-5">
   <h2 class="text-base-content text-2xl font-bold tracking-tight">{m.dashboard_welcome()}</h2>
 
-  <!-- Null when bookmarks are unavailable (no signed-in user, or loading them
-     failed): the whole bookmark section is hidden. -->
-  {#if data.bookmarks}
+  <!-- Without a signed-in user there are no bookmarks and the section is hidden;
+     when loading them failed, it says so. -->
+  {#if data.bookmarks || data.bookmarksFailed}
     <DashboardBookmarks bookmarks={data.bookmarks} />
   {/if}
 </div>

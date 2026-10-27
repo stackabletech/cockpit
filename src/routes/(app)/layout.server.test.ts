@@ -33,7 +33,7 @@ describe('(app) layout load', () => {
 
     const data = await load(event);
 
-    expect(data).toMatchObject({ bookmarks: [BOOKMARK] });
+    expect(data).toMatchObject({ bookmarks: [BOOKMARK], bookmarksFailed: false });
     expect(listBookmarks).toHaveBeenCalledWith('user-1');
     expect(event.depends).toHaveBeenCalledWith('app:bookmarks');
   });
@@ -41,17 +41,17 @@ describe('(app) layout load', () => {
   it('has no bookmarks without a signed-in user', async () => {
     const data = await load(mockEvent(undefined));
 
-    expect(data).toMatchObject({ bookmarks: null });
+    expect(data).toMatchObject({ bookmarks: null, bookmarksFailed: false });
     expect(listBookmarks).not.toHaveBeenCalled();
   });
 
-  it('logs and hides bookmarks instead of failing the page when the database fails', async () => {
+  it('logs and reports the failure instead of failing the page when the database fails', async () => {
     listBookmarks.mockRejectedValue(new Error('connection refused'));
     const event = mockEvent({ id: 'user-1' });
 
     const data = await load(event);
 
-    expect(data).toMatchObject({ bookmarks: null });
+    expect(data).toMatchObject({ bookmarks: null, bookmarksFailed: true });
     expect(event.locals.logger.error).toHaveBeenCalled();
   });
 });

@@ -4,9 +4,9 @@ import { render } from 'vitest-browser-svelte';
 import type { Bookmark } from '$lib/dashboard/types';
 import Page from './+page.svelte';
 
-const renderPage = (bookmarks: Bookmark[] | null = []) =>
+const renderPage = (bookmarks: Bookmark[] | null = [], bookmarksFailed = false) =>
   render(Page, {
-    data: { user: undefined, storageBrowserEnabled: false, bookmarks }
+    data: { user: undefined, storageBrowserEnabled: false, bookmarks, bookmarksFailed }
   } as unknown as Parameters<typeof render<typeof Page>>[1]);
 
 describe('/(app)/+page.svelte', () => {
@@ -22,7 +22,18 @@ describe('/(app)/+page.svelte', () => {
       .toBeInTheDocument();
   });
 
-  it('hides everything bookmark-related when bookmarks are unavailable', async () => {
+  it('says so when loading the bookmarks failed', async () => {
+    renderPage(null, true);
+
+    await expect
+      .element(page.getByText('Bookmarks could not be loaded. Please reload the page later.'))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole('button', { name: /add bookmark/i }))
+      .not.toBeInTheDocument();
+  });
+
+  it('hides everything bookmark-related without a signed-in user', async () => {
     renderPage(null);
 
     await expect.element(page.getByRole('heading', { level: 2 })).toBeInTheDocument();

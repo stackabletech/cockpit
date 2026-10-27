@@ -39,6 +39,21 @@ describe('DashboardBookmarks', () => {
     await expect.element(page.getByRole('button', { name: /add bookmark/i })).toBeInTheDocument();
   });
 
+  it('shows a message instead of the list, without adding, when loading failed', async () => {
+    render(DashboardBookmarks, { bookmarks: null });
+
+    await expect
+      .element(page.getByRole('heading', { level: 3, name: 'Bookmarks' }))
+      .toBeInTheDocument();
+    await expect
+      .element(page.getByText('Bookmarks could not be loaded. Please reload the page later.'))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole('button', { name: /add bookmark/i }))
+      .not.toBeInTheDocument();
+    await expect.element(page.getByText(/no bookmarks yet/i)).not.toBeInTheDocument();
+  });
+
   it('shows an empty state when there are no bookmarks', async () => {
     render(DashboardBookmarks, { bookmarks: [] });
 

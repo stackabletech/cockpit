@@ -501,6 +501,7 @@
   "bookmark_save_error": "Das Lesezeichen konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
   "bookmark_delete_error": "Das Lesezeichen konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
   "bookmark_pin_error": "Die Anheftung von „{name}“ konnte nicht geändert werden. Bitte versuchen Sie es erneut.",
+  "bookmark_load_error": "Die Lesezeichen konnten nicht geladen werden. Bitte laden Sie die Seite später neu.",
   "bookmark_product_custom": "Eigener Link",
   "bookmark_default_name_trino": "SQL-Editor",
   "bookmark_default_name_superset": "Dashboards",
