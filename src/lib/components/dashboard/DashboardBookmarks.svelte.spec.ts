@@ -45,14 +45,51 @@ describe('DashboardBookmarks', () => {
     await expect.element(page.getByText(/no bookmarks yet/i)).toBeInTheDocument();
   });
 
-  it('renders a card per bookmark', async () => {
+  it('renders a card per bookmark with the environment once, as a chip', async () => {
     render(DashboardBookmarks, { bookmarks: [bookmark] });
 
     await expect
-      .element(page.getByRole('link', { name: 'Shared Dashboard' }))
-      .toHaveAttribute('href', 'https://superset.example.com');
-    await expect.element(page.getByText('prod')).toBeInTheDocument();
+      .element(page.getByRole('link', { name: 'Shared Dashboard', exact: true }))
+      .toBeVisible();
+    expect(page.getByText('prod', { exact: true }).elements()).toHaveLength(1);
+    await expect.element(page.getByText('superset.example.com', { exact: true })).toBeVisible();
     await expect.element(page.getByText(/no bookmarks yet/i)).not.toBeInTheDocument();
+  });
+
+  it('opens the bookmark image and title in a new tab', async () => {
+    const { container } = render(DashboardBookmarks, { bookmarks: [bookmark] });
+
+    // The image link duplicates the title link and is hidden from assistive technology.
+    const imageLink = container.querySelector('a[aria-hidden="true"]')!;
+    expect(imageLink.getAttribute('tabindex')).toBe('-1');
+    for (const link of [
+      page.getByRole('link', { name: 'Shared Dashboard' }).element(),
+      imageLink
+    ]) {
+      expect(link.getAttribute('href')).toBe('https://superset.example.com');
+      expect(link.getAttribute('target')).toBe('_blank');
+      expect(link.getAttribute('rel')).toContain('noopener');
+      expect(link.getAttribute('rel')).toContain('external');
+    }
+    expect(page.getByRole('link').elements()).toHaveLength(1);
+  });
+
+  it('names each card button after its bookmark', async () => {
+    render(DashboardBookmarks, {
+      bookmarks: [
+        { ...bookmark, name: 'Dashboards', pinned: true },
+        { ...bookmark, id: 'b2', productId: 'airflow', name: 'Pipelines' }
+      ]
+    });
+
+    for (const label of [
+      'Edit bookmark Dashboards',
+      'Unpin bookmark Dashboards',
+      'Edit bookmark Pipelines',
+      'Pin bookmark Pipelines'
+    ]) {
+      await expect.element(page.getByRole('button', { name: label, exact: true })).toBeVisible();
+    }
   });
 
   it('opens the add dialog', async () => {
@@ -70,6 +107,21 @@ describe('DashboardBookmarks', () => {
 
     await expect.element(page.getByRole('dialog', { name: 'Edit bookmark' })).toBeVisible();
     await expect.element(page.getByLabelText('Name')).toHaveValue('Shared Dashboard');
+  });
+
+  it('discards cancelled edits and prefills the saved values again on reopen', async () => {
+    render(DashboardBookmarks, { bookmarks: [bookmark] });
+    const editButton = page.getByRole('button', { name: 'Edit bookmark Shared Dashboard' });
+
+    await editButton.click();
+    await page.getByLabelText('Name').fill('Not Saved');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+    await editButton.click();
+
+    await expect.element(page.getByLabelText('Name')).toHaveValue('Shared Dashboard');
+    await expect.element(page.getByLabelText('URL')).toHaveValue('https://superset.example.com');
+    expect(updateBookmark).not.toHaveBeenCalled();
   });
 
   it('toggles the pin through the API', async () => {

@@ -101,6 +101,54 @@ describe('AddBookmarkModal', () => {
     expect(addBookmark).not.toHaveBeenCalled();
   });
 
+  it('rejects non-HTTP URLs', async () => {
+    renderModal();
+
+    await page.getByLabelText('Name').fill('Unsafe link');
+    await page.getByLabelText('URL').fill('javascript:alert(1)');
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
+
+    await expect.element(page.getByText('Enter a valid HTTP or HTTPS URL.')).toBeVisible();
+    await expect.element(page.getByLabelText('URL')).toHaveAttribute('aria-invalid', 'true');
+    expect(addBookmark).not.toHaveBeenCalled();
+  });
+
+  it('shows an error and focuses the name field when the name is cleared', async () => {
+    renderModal();
+
+    await page.getByLabelText('Name').fill('');
+    await page.getByLabelText('URL').fill('https://trino.example.com');
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
+
+    await expect.element(page.getByText('Enter a name.')).toBeVisible();
+    await expect.element(page.getByLabelText('Name')).toHaveFocus();
+    expect(addBookmark).not.toHaveBeenCalled();
+  });
+
+  it('shows the product choices, the form fields and the preview', async () => {
+    renderModal();
+
+    await expect.element(page.getByRole('button', { name: 'Trino' })).toBeVisible();
+    await expect.element(page.getByRole('button', { name: 'Superset' })).toBeVisible();
+    await expect.element(page.getByLabelText('Name')).toBeVisible();
+    await expect.element(page.getByLabelText(/Environment/)).toBeVisible();
+    await expect.element(page.getByLabelText('URL')).toBeVisible();
+    await expect.element(pinCheckbox()).toBeVisible();
+    await expect.element(page.getByText('Preview')).toBeVisible();
+  });
+
+  it('shows the entered name, environment and hostname in the preview', async () => {
+    renderModal();
+
+    await page.getByLabelText('Name').fill('My Dashboard');
+    await page.getByLabelText(/Environment/).fill('staging');
+    await page.getByLabelText('URL').fill('https://superset.example.com/dashboards');
+
+    await expect.element(page.getByText('My Dashboard')).toBeVisible();
+    await expect.element(page.getByText('staging', { exact: true })).toBeVisible();
+    await expect.element(page.getByText('superset.example.com', { exact: true })).toBeVisible();
+  });
+
   it('shows the URL error when leaving the field with a malformed URL', async () => {
     renderModal();
 
@@ -114,6 +162,17 @@ describe('AddBookmarkModal', () => {
     renderModal();
 
     await expect.element(page.getByLabelText('Name')).toHaveValue('SQL Editor');
+  });
+
+  it('replaces the default name when another product is selected', async () => {
+    renderModal();
+
+    await page.getByRole('button', { name: 'Superset' }).click();
+
+    await expect.element(page.getByLabelText('Name')).toHaveValue('Dashboards');
+    await expect
+      .element(page.getByRole('button', { name: 'Superset' }))
+      .toHaveAttribute('aria-pressed', 'true');
   });
 
   it('refills the default name on product switch after the name was cleared', async () => {
@@ -172,6 +231,21 @@ describe('AddBookmarkModal', () => {
     await editDialog.getByRole('button', { name: 'Delete' }).click();
     const confirmDialog = page.getByRole('dialog', { name: 'Delete bookmark?' });
     await confirmDialog.getByRole('button', { name: 'Cancel' }).click();
+
+    await expect.element(confirmDialog).not.toBeInTheDocument();
+    await expect.element(editDialog.getByLabelText('Name')).toHaveValue('Renamed but not saved');
+    expect(removeBookmark).not.toHaveBeenCalled();
+  });
+
+  it('keeps unsaved edits when the delete confirmation is dismissed with Escape', async () => {
+    renderModal({ bookmark: savedBookmark });
+    const editDialog = page.getByRole('dialog', { name: 'Edit bookmark' });
+
+    await editDialog.getByLabelText('Name').fill('Renamed but not saved');
+    await editDialog.getByRole('button', { name: 'Delete' }).click();
+    const confirmDialog = page.getByRole('dialog', { name: 'Delete bookmark?' });
+    await expect.element(confirmDialog).toBeVisible();
+    await userEvent.keyboard('{Escape}');
 
     await expect.element(confirmDialog).not.toBeInTheDocument();
     await expect.element(editDialog.getByLabelText('Name')).toHaveValue('Renamed but not saved');
