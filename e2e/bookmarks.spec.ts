@@ -115,7 +115,8 @@ test.describe('Dashboard bookmarks', () => {
   test('truncates long names and hostnames instead of overlapping the card buttons', async ({
     page
   }) => {
-    const longName = 'Very long bookmark name '.repeat(6).trim();
+    // Names are capped at 40 characters; wide glyphs still overflow the card.
+    const longName = 'W'.repeat(40);
     const longHost = `${'very-long-subdomain-'.repeat(5)}example.com`;
     await page.addInitScript(
       ({ name, host }) => {
