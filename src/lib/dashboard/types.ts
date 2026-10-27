@@ -18,6 +18,13 @@ export const bookmarkSchema = bookmarkFormSchema.extend({
 
 export type Bookmark = z.infer<typeof bookmarkSchema>;
 
+/** Body of a bookmark update: any subset of the form fields, but at least one. */
+export const bookmarkUpdateSchema = bookmarkFormSchema
+  .partial()
+  .refine((update) => Object.keys(update).length > 0, { message: 'No fields to update' });
+
+export type BookmarkUpdate = z.infer<typeof bookmarkUpdateSchema>;
+
 /** Hostname of a bookmark URL, or the input unchanged if it does not parse. */
 export function bookmarkHostname(url: string): string {
   try {

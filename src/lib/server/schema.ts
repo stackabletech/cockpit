@@ -91,3 +91,22 @@ export const storageDownloadManifests = pgTable(
     index('storage_download_manifests_expiry_idx').on(table.expiresAt)
   ]
 );
+
+/**
+ * Dashboard bookmarks per user: links to Stackable product UIs, optionally
+ * pinned to the sidebar favourites.
+ */
+export const userBookmarks = pgTable(
+  'user_bookmarks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').notNull(),
+    productId: text('product_id').notNull(),
+    name: text('name').notNull(),
+    environment: text('environment').notNull(),
+    url: text('url').notNull(),
+    pinned: boolean('pinned').notNull().default(false),
+    createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull()
+  },
+  (table) => [index('user_bookmarks_user_id_idx').on(table.userId)]
+);

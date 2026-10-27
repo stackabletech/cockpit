@@ -1,0 +1,43 @@
+import { error } from '@sveltejs/kit';
+import { createBookmark, listBookmarks } from '$lib/server/dashboard/bookmarks-db.js';
+import { dashboardBookmarksTotal } from '$lib/server/metrics.js';
+import { requireUserId } from '$lib/server/auth-utils.js';
+import { bookmarkFormSchema } from '$lib/dashboard/types.js';
+import type { RequestHandler } from './$types';
+
+/** Lists the current user's bookmarks. */
+export const GET: RequestHandler = async ({ locals }) => {
+  const userId = requireUserId(locals);
+  try {
+    const bookmarks = await listBookmarks(userId);
+    dashboardBookmarksTotal.inc({ operation: 'list', outcome: 'success' });
+    locals.logger.debug(
+      { user_id: userId, bookmark_count: bookmarks.length },
+      'bookmarks returned'
+    );
+    return Response.json(bookmarks);
+  } catch (err) {
+    dashboardBookmarksTotal.inc({ operation: 'list', outcome: 'error' });
+    throw err;
+  }
+};
+
+/** Creates a bookmark for the current user. */
+export const POST: RequestHandler = async ({ request, locals }) => {
+  const userId = requireUserId(locals);
+  const parsed = bookmarkFormSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) throw error(400, 'Invalid bookmark');
+
+  try {
+    const bookmark = await createBookmark(userId, parsed.data);
+    dashboardBookmarksTotal.inc({ operation: 'create', outcome: 'success' });
+    locals.logger.info(
+      { user_id: userId, bookmark_id: bookmark.id, product_id: bookmark.productId },
+      'bookmark created'
+    );
+    return Response.json(bookmark, { status: 201 });
+  } catch (err) {
+    dashboardBookmarksTotal.inc({ operation: 'create', outcome: 'error' });
+    throw err;
+  }
+};
