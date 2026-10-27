@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { env } from '$env/dynamic/private';
 import { logger } from '$lib/server/logging';
-import { bookmarkFormSchema, type GlobalBookmark } from '$lib/dashboard/types';
+import { bookmarkFormSchema, type BookmarkLink } from '$lib/dashboard/types';
 
 const log = logger.child({ module: 'global-bookmarks' });
 
@@ -20,7 +20,7 @@ const globalBookmarksSchema = z.array(
  * to every user. Throws on invalid JSON or entries; the error names the failing
  * entries and fields but not their values, as URLs can contain credentials.
  */
-export function parseGlobalBookmarks(value: string | undefined): GlobalBookmark[] {
+export function parseGlobalBookmarks(value: string | undefined): BookmarkLink[] {
   if (!value?.trim()) return [];
   let json: unknown;
   try {
@@ -37,14 +37,14 @@ export function parseGlobalBookmarks(value: string | undefined): GlobalBookmark[
   return parsed.data.map((bookmark, index) => ({ id: `global-${index}`, ...bookmark }));
 }
 
-let cached: GlobalBookmark[] | undefined;
+let cached: BookmarkLink[] | undefined;
 
 /**
  * The configured global bookmarks. Parsed on first call and cached; called at
  * server start so an invalid configuration stops the server. A function rather
  * than a module-level constant so tests can import this file without the env var.
  */
-export function globalBookmarks(): GlobalBookmark[] {
+export function globalBookmarks(): BookmarkLink[] {
   if (cached) return cached;
   try {
     cached = parseGlobalBookmarks(env.STACKABLE_COCKPIT_GLOBAL_BOOKMARKS);

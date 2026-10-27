@@ -1,7 +1,7 @@
 import { page } from 'vitest/browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { Bookmark, GlobalBookmark } from '$lib/dashboard/types';
+import type { Bookmark, BookmarkLink } from '$lib/dashboard/types';
 import DashboardBookmarks from './DashboardBookmarks.svelte';
 
 const { updateBookmark, addToast } = vi.hoisted(() => ({
@@ -27,7 +27,7 @@ const bookmark: Bookmark = {
   createdAt: '2026-01-01T00:00:00.000Z'
 };
 
-const globalBookmark: GlobalBookmark = {
+const globalBookmark: BookmarkLink = {
   id: 'global-0',
   productId: 'custom',
   name: 'Team Wiki',

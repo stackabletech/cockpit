@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookmarkFormSchema, bookmarkHostname } from './types';
+import { bookmarkFormSchema, bookmarkHostname, bookmarksInDisplayOrder } from './types';
 
 const urlSchema = bookmarkFormSchema.shape.url;
 
@@ -35,5 +35,29 @@ describe('bookmarkHostname', () => {
 
   it('returns the input unchanged when it is not a URL', () => {
     expect(bookmarkHostname('superset.example')).toBe('superset.example');
+  });
+});
+
+describe('bookmarksInDisplayOrder', () => {
+  const link = (id: string) => ({
+    id,
+    productId: 'custom',
+    name: id,
+    environment: '',
+    url: 'https://example.com',
+    pinned: false
+  });
+
+  it('lists global bookmarks before the user’s own', () => {
+    const own = { ...link('own'), createdAt: '2026-10-27T10:00:00.000Z' };
+
+    expect(bookmarksInDisplayOrder([link('global')], [own]).map((b) => b.id)).toEqual([
+      'global',
+      'own'
+    ]);
+  });
+
+  it('lists only the global bookmarks when the user’s are unavailable', () => {
+    expect(bookmarksInDisplayOrder([link('global')], null).map((b) => b.id)).toEqual(['global']);
   });
 });

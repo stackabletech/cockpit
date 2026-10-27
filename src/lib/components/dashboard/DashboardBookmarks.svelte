@@ -6,7 +6,7 @@
   import BookmarkCard from '$lib/components/dashboard/BookmarkCard.svelte';
   import { updateBookmark } from '$lib/dashboard/bookmarks-api.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
-  import type { Bookmark, GlobalBookmark } from '$lib/dashboard/types';
+  import { bookmarksInDisplayOrder, type Bookmark, type BookmarkLink } from '$lib/dashboard/types';
 
   let {
     bookmarks,
@@ -16,7 +16,7 @@
     /** The user's bookmarks; null when unavailable, which leaves only the global ones. */
     bookmarks: Bookmark[] | null;
     /** Read-only bookmarks for everyone, shown before the user's. */
-    globalBookmarks?: GlobalBookmark[];
+    globalBookmarks?: BookmarkLink[];
     /** Loading the user's bookmarks failed: the section says so. */
     loadFailed?: boolean;
   } = $props();
@@ -25,7 +25,8 @@
   let editingBookmark: Bookmark | null = $state(null);
   const pinning = new SvelteSet<string>();
 
-  const count = $derived(globalBookmarks.length + (bookmarks?.length ?? 0));
+  const allBookmarks = $derived(bookmarksInDisplayOrder(globalBookmarks, bookmarks));
+  const count = $derived(allBookmarks.length);
 
   function openEditBookmark(bookmark: Bookmark) {
     editingBookmark = bookmark;
@@ -87,16 +88,19 @@
   {/if}
   {#if count > 0}
     <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-      {#each globalBookmarks as bookmark (bookmark.id)}
-        <BookmarkCard {bookmark} />
-      {/each}
-      {#each bookmarks ?? [] as bookmark (bookmark.id)}
-        <BookmarkCard
-          {bookmark}
-          pinPending={pinning.has(bookmark.id)}
-          onTogglePin={() => togglePin(bookmark)}
-          onEdit={() => openEditBookmark(bookmark)}
-        />
+      {#each allBookmarks as bookmark (bookmark.id)}
+        <!-- Only the user's own bookmarks can be pinned and edited; global ones are read-only. -->
+        {@const own = bookmarks?.find((b) => b.id === bookmark.id)}
+        {#if own}
+          <BookmarkCard
+            bookmark={own}
+            pinPending={pinning.has(own.id)}
+            onTogglePin={() => togglePin(own)}
+            onEdit={() => openEditBookmark(own)}
+          />
+        {:else}
+          <BookmarkCard {bookmark} />
+        {/if}
       {/each}
     </div>
   {:else if !loadFailed}

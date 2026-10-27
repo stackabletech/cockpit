@@ -21,9 +21,6 @@ export const bookmarkFormSchema = z.object({
 /** The fields every bookmark is displayed with; the id keys it in lists. */
 export type BookmarkLink = z.infer<typeof bookmarkFormSchema> & { id: string };
 
-/** A bookmark configured for everyone by the administrator; read-only. */
-export type GlobalBookmark = BookmarkLink;
-
 /** A user's stored bookmark as returned by the API; `createdAt` is an ISO timestamp. */
 export type Bookmark = BookmarkLink & { createdAt: string };
 
@@ -41,6 +38,17 @@ export const bookmarkUpdateSchema = bookmarkCreateSchema
   .refine((update) => Object.keys(update).length > 0, { message: 'No fields to update' });
 
 export type BookmarkUpdate = z.infer<typeof bookmarkUpdateSchema>;
+
+/**
+ * All bookmarks in the order the dashboard and the sidebar list them: the
+ * global ones first, then the user's own.
+ */
+export function bookmarksInDisplayOrder(
+  globalBookmarks: BookmarkLink[],
+  bookmarks: Bookmark[] | null
+): BookmarkLink[] {
+  return [...globalBookmarks, ...(bookmarks ?? [])];
+}
 
 /** Hostname of a bookmark URL, or the input unchanged if it does not parse. */
 export function bookmarkHostname(url: string): string {

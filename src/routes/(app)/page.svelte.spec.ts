@@ -1,10 +1,10 @@
 import { page } from 'vitest/browser';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { Bookmark, GlobalBookmark } from '$lib/dashboard/types';
+import type { Bookmark, BookmarkLink } from '$lib/dashboard/types';
 import Page from './+page.svelte';
 
-const globalBookmark: GlobalBookmark = {
+const globalBookmark: BookmarkLink = {
   id: 'global-0',
   productId: 'custom',
   name: 'Team Wiki',
@@ -15,7 +15,7 @@ const globalBookmark: GlobalBookmark = {
 
 const renderPage = (
   bookmarks: Bookmark[] | null = [],
-  { globalBookmarks = [] as GlobalBookmark[], bookmarksFailed = false } = {}
+  { globalBookmarks = [] as BookmarkLink[], bookmarksFailed = false } = {}
 ) =>
   render(Page, {
     data: {

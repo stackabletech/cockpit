@@ -6,6 +6,7 @@
   import Header from '$lib/components/layout/header/Header.svelte';
   import ToastHost from '$lib/components/ToastHost.svelte';
   import SessionExpiredModal from '$lib/components/layout/SessionExpiredModal.svelte';
+  import { bookmarksInDisplayOrder } from '$lib/dashboard/types';
 
   let { children, data } = $props();
 
@@ -78,7 +79,7 @@
     bind:collapsed={sidebarCollapsed}
     bind:mobileOpen
     storageBrowserEnabled={data.storageBrowserEnabled}
-    bookmarks={[...data.globalBookmarks, ...(data.bookmarks ?? [])]}
+    bookmarks={bookmarksInDisplayOrder(data.globalBookmarks, data.bookmarks)}
   />
 
   <div class="flex min-w-0 flex-1 flex-col">
