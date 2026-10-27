@@ -17,7 +17,7 @@ const FIELDS = {
 };
 const BOOKMARK = {
   ...FIELDS,
-  id: '00000000-0000-0000-0000-000000000001',
+  id: '3f1c2a9e-7b4d-4c8a-9e2f-5d6b7a8c9d01',
   createdAt: '2026-10-27T10:00:00.000Z'
 };
 
@@ -48,7 +48,9 @@ describe('/api/bookmarks', () => {
   it('creates a bookmark from the trimmed form fields', async () => {
     bookmarksDb.createBookmark.mockResolvedValue(BOOKMARK);
 
-    const response = await POST(mockEvent('POST', { ...FIELDS, name: ' Production Trino ' }));
+    const response = await POST(
+      mockEvent('POST', { ...FIELDS, name: ' Production Trino ', environment: ' prod ' })
+    );
 
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual(BOOKMARK);
@@ -60,7 +62,9 @@ describe('/api/bookmarks', () => {
     ['an empty name', { ...FIELDS, name: ' ' }],
     ['an overlong name', { ...FIELDS, name: 'x'.repeat(41) }],
     ['a non-http URL', { ...FIELDS, url: 'javascript:alert(1)' }],
-    ['a missing field', { name: 'Trino', url: 'https://trino.example.com' }]
+    ['a missing field', { name: 'Trino', url: 'https://trino.example.com' }],
+    ['an unknown product', { ...FIELDS, productId: 'unknown' }],
+    ['an empty product', { ...FIELDS, productId: '' }]
   ])('rejects %s with 400', async (_name, body) => {
     await expect(POST(mockEvent('POST', body))).rejects.toMatchObject({ status: 400 });
     expect(bookmarksDb.createBookmark).not.toHaveBeenCalled();

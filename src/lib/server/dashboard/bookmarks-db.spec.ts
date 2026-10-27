@@ -41,7 +41,7 @@ function buildChain(result: unknown): MockChain {
 }
 
 const USER_ID = 'user-1';
-const BOOKMARK_ID = '00000000-0000-0000-0000-000000000001';
+const BOOKMARK_ID = '3f1c2a9e-7b4d-4c8a-9e2f-5d6b7a8c9d01';
 const FIELDS = {
   productId: 'trino',
   name: 'Production Trino',

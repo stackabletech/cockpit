@@ -8,7 +8,7 @@ vi.mock('$lib/server/dashboard/bookmarks-db.js', () => bookmarksDb);
 
 import { PATCH, DELETE } from './+server.js';
 
-const BOOKMARK_ID = '00000000-0000-0000-0000-000000000001';
+const BOOKMARK_ID = '3f1c2a9e-7b4d-4c8a-9e2f-5d6b7a8c9d01';
 const BOOKMARK = {
   id: BOOKMARK_ID,
   productId: 'trino',
@@ -53,7 +53,8 @@ describe('/api/bookmarks/[id]', () => {
   it.each([
     ['malformed JSON', '{not json'],
     ['no known fields', { unknown: true }],
-    ['an invalid URL', { url: 'ftp://example.com' }]
+    ['an invalid URL', { url: 'ftp://example.com' }],
+    ['an unknown product', { productId: 'unknown' }]
   ])('rejects an update with %s with 400', async (_name, body) => {
     await expect(PATCH(mockEvent('PATCH', body))).rejects.toMatchObject({ status: 400 });
     expect(bookmarksDb.updateBookmark).not.toHaveBeenCalled();
@@ -78,9 +79,9 @@ describe('/api/bookmarks/[id]', () => {
     await expect(DELETE(mockEvent('DELETE'))).rejects.toMatchObject({ status: 404 });
   });
 
-  it('answers 404 for ids that are not UUIDs without querying', async () => {
+  it('answers 400 for ids that are not UUIDs without querying', async () => {
     await expect(DELETE(mockEvent('DELETE', undefined, { id: 'nope' }))).rejects.toMatchObject({
-      status: 404
+      status: 400
     });
     expect(bookmarksDb.deleteBookmark).not.toHaveBeenCalled();
   });

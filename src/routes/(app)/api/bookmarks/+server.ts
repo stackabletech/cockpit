@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { createBookmark, listBookmarks } from '$lib/server/dashboard/bookmarks-db.js';
 import { dashboardBookmarksTotal } from '$lib/server/metrics.js';
 import { requireUserId } from '$lib/server/auth-utils.js';
-import { bookmarkFormSchema } from '$lib/dashboard/types.js';
+import { bookmarkCreateSchema } from '$lib/dashboard/types.js';
 import type { RequestHandler } from './$types';
 
 /** Lists the current user's bookmarks. */
@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 /** Creates a bookmark for the current user. */
 export const POST: RequestHandler = async ({ request, locals }) => {
   const userId = requireUserId(locals);
-  const parsed = bookmarkFormSchema.safeParse(await request.json().catch(() => null));
+  const parsed = bookmarkCreateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) throw error(400, 'Invalid bookmark');
 
   try {

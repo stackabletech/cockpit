@@ -6,10 +6,10 @@ import { requireUserId } from '$lib/server/auth-utils.js';
 import { bookmarkUpdateSchema } from '$lib/dashboard/types.js';
 import type { RequestHandler } from './$types';
 
-/** Bookmark ids are UUIDs; anything else cannot exist and would fail the query. */
+/** Bookmark ids are UUIDs; anything else would fail the query. */
 function bookmarkIdFromParams(params: { id: string }): string {
-  const parsed = z.guid().safeParse(params.id);
-  if (!parsed.success) throw error(404, 'Bookmark not found');
+  const parsed = z.uuid().safeParse(params.id);
+  if (!parsed.success) throw error(400, 'Invalid bookmark ID');
   return parsed.data;
 }
 
