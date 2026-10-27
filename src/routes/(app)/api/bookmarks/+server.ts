@@ -11,10 +11,6 @@ export const GET: RequestHandler = async ({ locals }) => {
   try {
     const bookmarks = await listBookmarks(userId);
     dashboardBookmarksTotal.inc({ operation: 'list', outcome: 'success' });
-    locals.logger.debug(
-      { user_id: userId, bookmark_count: bookmarks.length },
-      'bookmarks returned'
-    );
     return Response.json(bookmarks);
   } catch (err) {
     dashboardBookmarksTotal.inc({ operation: 'list', outcome: 'error' });
