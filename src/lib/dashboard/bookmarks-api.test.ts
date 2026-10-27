@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { invalidate } = vi.hoisted(() => ({ invalidate: vi.fn() }));
+const { invalidate, addToast } = vi.hoisted(() => ({ invalidate: vi.fn(), addToast: vi.fn() }));
 
 vi.mock('$app/navigation', () => ({ invalidate }));
+vi.mock('$lib/stores/toast.svelte.js', () => ({ addToast }));
 
-import { addBookmark, updateBookmark, removeBookmark } from './bookmarks-api.js';
+import {
+  addBookmark,
+  BookmarkRequestError,
+  updateBookmark,
+  removeBookmark
+} from './bookmarks-api.js';
 
 const fetchMock = vi.fn();
 vi.stubGlobal('fetch', fetchMock);
@@ -50,18 +56,36 @@ describe('bookmarks-api', () => {
     ]);
     expect(invalidate).toHaveBeenCalledTimes(3);
     expect(invalidate).toHaveBeenCalledWith('app:bookmarks');
+    expect(addToast).not.toHaveBeenCalled();
   });
 
-  it('rejects without reloading when the server refuses the change', async () => {
-    fetchMock.mockResolvedValue(new Response(null, { status: 500 }));
+  it('reloads the list and rejects with the status when the server refuses the change', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 404 }));
 
-    await expect(removeBookmark('b1')).rejects.toThrow('500');
-    expect(invalidate).not.toHaveBeenCalled();
+    const result = removeBookmark('b1');
+
+    await expect(result).rejects.toBeInstanceOf(BookmarkRequestError);
+    await expect(result).rejects.toMatchObject({ status: 404 });
+    expect(invalidate).toHaveBeenCalledWith('app:bookmarks');
   });
 
-  it('resolves when the change is saved but reloading the list fails', async () => {
-    invalidate.mockRejectedValue(new Error('session expired'));
+  it('retries a failed reload once', async () => {
+    invalidate.mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce(undefined);
+
+    await addBookmark(FIELDS);
+
+    expect(invalidate).toHaveBeenCalledTimes(2);
+    expect(addToast).not.toHaveBeenCalled();
+  });
+
+  it('resolves and offers a page reload when the change is saved but the list cannot be reloaded', async () => {
+    invalidate.mockRejectedValue(new Error('network'));
 
     await expect(addBookmark(FIELDS)).resolves.toBeUndefined();
+
+    expect(invalidate).toHaveBeenCalledTimes(2);
+    expect(addToast).toHaveBeenCalledWith('warning', expect.any(String), 0, [
+      { label: 'Reload', onClick: expect.any(Function) }
+    ]);
   });
 });
