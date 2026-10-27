@@ -1,12 +1,18 @@
 import type { LayoutServerLoad } from './$types';
 import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
 import { listBookmarks } from '$lib/server/dashboard/bookmarks-db.js';
+import { globalBookmarks } from '$lib/server/dashboard/global-bookmarks.js';
 import { dashboardBookmarksTotal } from '$lib/server/metrics.js';
 import { BOOKMARKS_DEPENDENCY, type Bookmark } from '$lib/dashboard/types';
 
 export const load: LayoutServerLoad = async ({ locals, depends }) => {
   depends(BOOKMARKS_DEPENDENCY);
-  return { user: locals.user, storageBrowserEnabled, ...(await loadBookmarks(locals)) };
+  return {
+    user: locals.user,
+    storageBrowserEnabled,
+    globalBookmarks: globalBookmarks(),
+    ...(await loadBookmarks(locals))
+  };
 };
 
 /**

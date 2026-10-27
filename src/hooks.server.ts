@@ -16,6 +16,7 @@ import '$lib/server/storage/config.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
 import { notConnected } from '$lib/server/storage/not-connected.js';
 import { runMigrations } from '$lib/server/migrate.js';
+import { globalBookmarks } from '$lib/server/dashboard/global-bookmarks.js';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
 if (dev) {
@@ -125,6 +126,7 @@ export const handle = sequence(
  * detected immediately rather than on the first request that uses the key.
  */
 export const init: ServerInit = async () => {
+  globalBookmarks(); // throws immediately if the env var is invalid
   if (!(await runMigrations())) {
     throw new Error('Database migrations failed');
   }

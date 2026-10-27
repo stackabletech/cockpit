@@ -114,6 +114,16 @@ terminationGracePeriodSeconds: 30
 #     # Show Cut, Copy, Paste and Rename and allow drag-and-drop move. The transfer API rejects
 #     # copies, moves and renames while disabled. Default: false (application default).
 #     transfer: false
+#   bookmarks:
+#     # Bookmarks shown to every user, before their own. Users cannot change them.
+#     # productId (e.g. trino, superset or custom; unknown ids show as a custom link),
+#     # name (up to 40 characters) and an http(s) url are required; environment and
+#     # pinned are optional. Invalid entries stop the application at startup. Default: none.
+#     global:
+#       - productId: superset
+#         name: Dashboards
+#         url: https://superset.example.com
+#         environment: prod
 
 logging:
   level: ""

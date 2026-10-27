@@ -6,18 +6,26 @@
   import BookmarkCard from '$lib/components/dashboard/BookmarkCard.svelte';
   import { updateBookmark } from '$lib/dashboard/bookmarks-api.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
-  import type { Bookmark } from '$lib/dashboard/types';
+  import type { Bookmark, GlobalBookmark } from '$lib/dashboard/types';
 
   let {
-    bookmarks
+    bookmarks,
+    globalBookmarks = [],
+    loadFailed = false
   }: {
-    /** Null when loading them failed: the section says so instead of listing them. */
+    /** The user's bookmarks; null when unavailable, which leaves only the global ones. */
     bookmarks: Bookmark[] | null;
+    /** Read-only bookmarks for everyone, shown before the user's. */
+    globalBookmarks?: GlobalBookmark[];
+    /** Loading the user's bookmarks failed: the section says so. */
+    loadFailed?: boolean;
   } = $props();
 
   let addModalOpen = $state(false);
   let editingBookmark: Bookmark | null = $state(null);
   const pinning = new SvelteSet<string>();
+
+  const count = $derived(globalBookmarks.length + (bookmarks?.length ?? 0));
 
   function openEditBookmark(bookmark: Bookmark) {
     editingBookmark = bookmark;
@@ -56,9 +64,9 @@
         >
           {m.bookmark_section_title()}
         </h3>
-        {#if bookmarks?.length}
+        {#if count > 0}
           <span class="text-base-content/70 text-xs">
-            {m.bookmark_count_links({ count: bookmarks.length })}
+            {m.bookmark_count_links({ count })}
           </span>
         {/if}
       </div>
@@ -74,11 +82,15 @@
     {/if}
   </div>
 
-  {#if !bookmarks}
-    <div class="alert alert-warning text-sm">{m.bookmark_load_error()}</div>
-  {:else if bookmarks.length > 0}
+  {#if loadFailed}
+    <div class="alert alert-warning mb-2.5 text-sm">{m.bookmark_load_error()}</div>
+  {/if}
+  {#if count > 0}
     <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-      {#each bookmarks as bookmark (bookmark.id)}
+      {#each globalBookmarks as bookmark (bookmark.id)}
+        <BookmarkCard {bookmark} />
+      {/each}
+      {#each bookmarks ?? [] as bookmark (bookmark.id)}
         <BookmarkCard
           {bookmark}
           pinPending={pinning.has(bookmark.id)}
@@ -87,7 +99,7 @@
         />
       {/each}
     </div>
-  {:else}
+  {:else if !loadFailed}
     <div class="border-base-300 bg-base-100 rounded-lg border p-6 text-center">
       <p class="text-base-content/70 text-sm">{m.dashboard_bookmarks_empty()}</p>
     </div>

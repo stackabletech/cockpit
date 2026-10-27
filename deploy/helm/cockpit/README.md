@@ -122,6 +122,7 @@ All feature parameters are optional. Omit them to use the application defaults.
 | `features.trino.completion.enabled` | Enable SQL code completion. | `true` (application default) |
 | `features.storage.enabled` | Show the S3/HDFS file browser and enable routes under `/storage`. | `false` (application default) |
 | `features.storage.transfer` | Show Cut, Copy, Paste and Rename and allow drag-and-drop move. The transfer API rejects copies, moves and renames while this is disabled. | `false` (application default) |
+| `features.bookmarks.global` | Bookmarks shown to every user, before their own; users cannot change them. A list of entries with `productId` (e.g. `trino`, `superset` or `custom`; unknown ids show as a custom link), `name` (up to 40 characters) and an HTTP(S) `url`, plus optional `environment` and `pinned`. Invalid entries stop the application at startup. | none |
 
 ### Storage Browser Parameters
 

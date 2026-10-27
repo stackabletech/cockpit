@@ -15,8 +15,9 @@
   }: {
     bookmark: BookmarkLink;
     pinPending?: boolean;
-    onTogglePin: () => void;
-    onEdit: () => void;
+    /** Without handlers the card is read-only (global bookmarks). */
+    onTogglePin?: () => void;
+    onEdit?: () => void;
   } = $props();
 
   const product = $derived(getProduct(bookmark.productId));
@@ -62,28 +63,32 @@
       </span>
     </div>
   </div>
-  <button
-    type="button"
-    class="btn btn-ghost btn-circle btn-sm size-7 shrink-0"
-    aria-label={bookmark.pinned
-      ? m.bookmark_card_unpin({ name: bookmark.name })
-      : m.bookmark_card_pin({ name: bookmark.name })}
-    class:btn-disabled={pinPending}
-    aria-disabled={pinPending}
-    onclick={onTogglePin}
-  >
-    {#if bookmark.pinned}
-      <IconStar class="text-warning size-3.5" />
-    {:else}
-      <IconStarOutline class="size-3.5" />
-    {/if}
-  </button>
-  <button
-    type="button"
-    class="btn btn-ghost btn-circle btn-sm size-7 shrink-0"
-    aria-label={m.bookmark_card_edit({ name: bookmark.name })}
-    onclick={onEdit}
-  >
-    <IconEdit class="size-3.5" />
-  </button>
+  {#if onTogglePin}
+    <button
+      type="button"
+      class="btn btn-ghost btn-circle btn-sm size-7 shrink-0"
+      aria-label={bookmark.pinned
+        ? m.bookmark_card_unpin({ name: bookmark.name })
+        : m.bookmark_card_pin({ name: bookmark.name })}
+      class:btn-disabled={pinPending}
+      aria-disabled={pinPending}
+      onclick={onTogglePin}
+    >
+      {#if bookmark.pinned}
+        <IconStar class="text-warning size-3.5" />
+      {:else}
+        <IconStarOutline class="size-3.5" />
+      {/if}
+    </button>
+  {/if}
+  {#if onEdit}
+    <button
+      type="button"
+      class="btn btn-ghost btn-circle btn-sm size-7 shrink-0"
+      aria-label={m.bookmark_card_edit({ name: bookmark.name })}
+      onclick={onEdit}
+    >
+      <IconEdit class="size-3.5" />
+    </button>
+  {/if}
 </div>
