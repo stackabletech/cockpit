@@ -70,6 +70,12 @@ describe('/api/bookmarks', () => {
     expect(bookmarksDb.createBookmark).not.toHaveBeenCalled();
   });
 
+  it('answers 409 once the user has reached the bookmark limit', async () => {
+    bookmarksDb.createBookmark.mockResolvedValue(null);
+
+    await expect(POST(mockEvent('POST', FIELDS))).rejects.toMatchObject({ status: 409 });
+  });
+
   it('answers 401 without a signed-in user', async () => {
     await expect(GET(mockEvent('GET', undefined, null))).rejects.toMatchObject({ status: 401 });
     await expect(POST(mockEvent('POST', FIELDS, null))).rejects.toMatchObject({ status: 401 });

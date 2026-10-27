@@ -2,7 +2,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db.js';
 import { userBookmarks } from '$lib/server/schema.js';
 import { logger } from '$lib/server/logging';
-import type { Bookmark, BookmarkUpdate } from '$lib/dashboard/types.js';
+import { BOOKMARK_LIMIT, type Bookmark, type BookmarkUpdate } from '$lib/dashboard/types.js';
 
 const log = logger.child({ module: 'bookmarks-db' });
 
@@ -34,11 +34,22 @@ export async function listBookmarks(userId: string): Promise<Bookmark[]> {
   return rows.map(toBookmark);
 }
 
-/** Create a bookmark for a user and return it with its generated id and timestamp. */
+/**
+ * Create a bookmark for a user and return it with its generated id and
+ * timestamp, or null if the user already has `BOOKMARK_LIMIT` bookmarks.
+ * Concurrent requests can exceed the limit slightly; it guards against
+ * unbounded growth, not exact counts.
+ */
 export async function createBookmark(
   userId: string,
   bookmark: Omit<Bookmark, 'id' | 'createdAt'>
-): Promise<Bookmark> {
+): Promise<Bookmark | null> {
+  const count = await db.$count(userBookmarks, eq(userBookmarks.userId, userId));
+  if (count >= BOOKMARK_LIMIT) {
+    log.debug({ user_id: userId, bookmark_count: count }, 'bookmark limit reached');
+    return null;
+  }
+
   const [row] = await db
     .insert(userBookmarks)
     .values({ userId, ...bookmark })

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { and, asc, eq } from 'drizzle-orm';
 import { userBookmarks } from '$lib/server/schema.js';
+import { BOOKMARK_LIMIT } from '$lib/dashboard/types.js';
 import { listBookmarks, createBookmark, updateBookmark, deleteBookmark } from './bookmarks-db.js';
 
 vi.mock('$lib/server/logging', () => ({
@@ -8,7 +9,7 @@ vi.mock('$lib/server/logging', () => ({
 }));
 
 const { mockDb } = vi.hoisted(() => ({
-  mockDb: { select: vi.fn(), insert: vi.fn(), update: vi.fn(), delete: vi.fn() }
+  mockDb: { select: vi.fn(), insert: vi.fn(), update: vi.fn(), delete: vi.fn(), $count: vi.fn() }
 }));
 
 vi.mock('$lib/server/db.js', () => ({ db: mockDb }));
@@ -68,10 +69,19 @@ describe('bookmarks-db', () => {
 
   it('creates a bookmark owned by the user', async () => {
     const chain = buildChain([ROW]);
+    mockDb.$count.mockResolvedValue(BOOKMARK_LIMIT - 1);
     mockDb.insert.mockReturnValue(chain);
     await expect(createBookmark(USER_ID, FIELDS)).resolves.toEqual(BOOKMARK);
+    expect(mockDb.$count).toHaveBeenCalledWith(userBookmarks, eq(userBookmarks.userId, USER_ID));
     expect(mockDb.insert).toHaveBeenCalledWith(userBookmarks);
     expect(chain.values).toHaveBeenCalledWith({ userId: USER_ID, ...FIELDS });
+  });
+
+  it('creates nothing once the user has reached the bookmark limit', async () => {
+    mockDb.$count.mockResolvedValue(BOOKMARK_LIMIT);
+
+    await expect(createBookmark(USER_ID, FIELDS)).resolves.toBeNull();
+    expect(mockDb.insert).not.toHaveBeenCalled();
   });
 
   it('updates only the user’s own bookmark and returns null when there is none', async () => {

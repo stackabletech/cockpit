@@ -8,6 +8,8 @@ import { waitForHydration } from './support/helpers.js';
  * the 401 without a session by the generic API guard tests.
  */
 test.describe('Bookmarks API', () => {
+  // BOOKMARK_LIMIT in src/lib/dashboard/types.ts.
+  const BOOKMARK_LIMIT = 25;
   const FIELDS = {
     productId: 'trino',
     name: 'API Trino',
@@ -45,6 +47,25 @@ test.describe('Bookmarks API', () => {
     expect((await listed.json()).map((b: { id: string }) => b.id)).not.toContain(bookmark.id);
     const deletedAgain = await page.request.delete(`/api/bookmarks/${bookmark.id}`);
     expect(deletedAgain.status()).toBe(404);
+  });
+
+  test('rejects bookmarks beyond the per-user limit with 409', async ({ page }) => {
+    const existing = (await (await page.request.get('/api/bookmarks')).json()).length;
+    const created: string[] = [];
+    try {
+      for (let i = existing; i < BOOKMARK_LIMIT; i++) {
+        const response = await page.request.post('/api/bookmarks', {
+          data: { ...FIELDS, name: `Limit ${i}` }
+        });
+        expect(response.status()).toBe(201);
+        created.push((await response.json()).id);
+      }
+
+      const rejected = await page.request.post('/api/bookmarks', { data: FIELDS });
+      expect(rejected.status()).toBe(409);
+    } finally {
+      for (const id of created) await page.request.delete(`/api/bookmarks/${id}`);
+    }
   });
 
   test('keeps bookmarks private to their owner', async ({ page, browser, baseURL }) => {

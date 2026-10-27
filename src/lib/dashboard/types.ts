@@ -4,6 +4,9 @@ import { PRODUCT_IDS } from './product-ids';
 /** Maximum field lengths, enforced by the API and as `maxlength` in the form. */
 export const BOOKMARK_MAX_LENGTH = { name: 40, environment: 100, url: 2048 } as const;
 
+/** Maximum number of bookmarks per user, enforced by the API. */
+export const BOOKMARK_LIMIT = 25;
+
 export const bookmarkFormSchema = z.object({
   productId: z.string().min(1).max(64),
   name: z.string().trim().min(1).max(BOOKMARK_MAX_LENGTH.name),
