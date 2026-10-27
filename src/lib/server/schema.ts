@@ -106,7 +106,7 @@ export const userBookmarks = pgTable(
     environment: text('environment').notNull(),
     url: text('url').notNull(),
     pinned: boolean('pinned').notNull().default(false),
-    createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull()
+    createdAt: timestamp('created_at', { mode: 'date', withTimezone: true }).defaultNow().notNull()
   },
   (table) => [index('user_bookmarks_user_id_idx').on(table.userId)]
 );
