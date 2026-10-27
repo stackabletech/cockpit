@@ -4,7 +4,12 @@
   import { getProduct, PRODUCTS, type Product } from '$lib/dashboard/products';
   import ProductIcon from './ProductIcon.svelte';
   import { addBookmark, removeBookmark, updateBookmark } from '$lib/dashboard/bookmarks.svelte.js';
-  import { bookmarkFormSchema, bookmarkHostname, type Bookmark } from '$lib/dashboard/types';
+  import {
+    BOOKMARK_MAX_LENGTH,
+    bookmarkFormSchema,
+    bookmarkHostname,
+    type Bookmark
+  } from '$lib/dashboard/types';
   import * as m from '$lib/paraglide/messages.js';
   import IconClose from 'virtual:icons/material-symbols/close';
 
@@ -171,6 +176,7 @@
               type="text"
               bind:value={name}
               oninput={handleNameInput}
+              maxlength={BOOKMARK_MAX_LENGTH.name}
               placeholder={selectedProduct.defaultName}
               class="input w-full"
               aria-invalid={nameError}
@@ -188,6 +194,7 @@
               id="{uid}-env"
               type="text"
               bind:value={environment}
+              maxlength={BOOKMARK_MAX_LENGTH.environment}
               placeholder={m.bookmark_env_placeholder()}
               class="input w-full"
             />
@@ -205,6 +212,7 @@
             bind:value={url}
             oninput={handleUrlInput}
             onblur={handleUrlBlur}
+            maxlength={BOOKMARK_MAX_LENGTH.url}
             placeholder={m.bookmark_url_placeholder()}
             class="input w-full"
             aria-invalid={urlError}
