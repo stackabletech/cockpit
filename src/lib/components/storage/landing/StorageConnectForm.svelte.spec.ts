@@ -47,7 +47,13 @@ vi.mock('$lib/paraglide/messages.js', () => ({
     `Forget connection to ${endpoint}`,
   storage_connect_forget_confirm: ({ endpoint }: { endpoint: string }) =>
     `Remove ${endpoint} from saved connections?`,
-  storage_connect_error_unreachable: () => 'Could not connect',
+  storage_connect_save_failed: () => 'Could not save the connection',
+  storage_connect_host_required: () => 'Host is required',
+  storage_connect_host_invalid: () => 'Host is invalid',
+  storage_connect_port_invalid: () => 'Port is invalid',
+  storage_connect_region_required: () => 'Region is required',
+  storage_connect_access_key_required: () => 'Access key is required',
+  storage_connect_secret_key_required: () => 'Secret key is required',
   storage_connect_manage: () => 'Manage connections',
   storage_connect_edit: () => 'Edit',
   storage_more_options: () => 'More options',
@@ -411,5 +417,11 @@ describe('StorageConnectForm', () => {
     await expect.element(page.getByText('Access key required')).toBeInTheDocument();
     await expect.element(page.getByText('Secret key required')).toBeInTheDocument();
     await expect.element(page.getByText('Validation failed')).toBeInTheDocument();
+  });
+
+  it('should show the error returned by the use action', async () => {
+    renderForm({}, [], 'Connection not found.');
+
+    await expect.element(page.getByRole('alert')).toHaveTextContent('Connection not found.');
   });
 });
