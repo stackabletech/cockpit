@@ -205,7 +205,7 @@
       {/if}
     </div>
     <footer
-      class="border-base-300 bg-base-300/30 text-base-content/50 flex flex-wrap gap-x-4 gap-y-1 border-t px-5 py-2 text-xs"
+      class="border-base-300 bg-base-300/30 text-muted flex flex-wrap gap-x-4 gap-y-1 border-t px-5 py-2 text-xs"
       aria-label={m.storage_search_keyboard_hint()}
     >
       <span class="flex items-center gap-1">

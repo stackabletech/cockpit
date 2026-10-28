@@ -88,7 +88,7 @@
     onkeydown={handleTriggerKeydown}
   >
     {#if selectedCount === 0}
-      <span class="text-base-content/50 min-w-0 flex-1 truncate italic">
+      <span class="text-muted min-w-0 flex-1 truncate italic">
         {m.storage_search_all_buckets()}
       </span>
     {:else}
@@ -154,7 +154,7 @@
       </li>
       {#if filteredBuckets.length === 0}
         <li>
-          <span class="text-base-content/40 pointer-events-none block px-3 py-2 text-sm italic"
+          <span class="text-muted pointer-events-none block px-3 py-2 text-sm italic"
             >{m.storage_search_scope_no_results()}</span
           >
         </li>

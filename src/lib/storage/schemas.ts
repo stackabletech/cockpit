@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import * as m from '$lib/paraglide/messages.js';
 import { MAX_TRANSFER_ITEMS } from './transfer-types.js';
 
 function isValidHostname(host: string): boolean {
@@ -45,33 +46,46 @@ export function hasEmptyPathSegment(value: string): boolean {
 /** S3 limits object keys to 1024 bytes of UTF-8. */
 const MAX_OBJECT_KEY_BYTES = 1024;
 
+const portError = { error: () => m.storage_connect_port_invalid() };
+
 const baseStorageConnectionObject = z.object({
   id: z.string().uuid().optional(),
   name: z.string().optional(),
   type: z.enum(['s3', 'hdfs']).default('s3'),
+  // An untouched host field is undefined, so the type check needs the "required" message too.
   host: z
-    .string()
+    .string({ error: () => m.storage_connect_host_required() })
     .trim()
-    .min(1, 'Host is required')
-    .refine((value) => {
-      if (!value.includes('://')) return true;
-      return z.url().safeParse(value).success;
-    }, 'Host must be a valid hostname or IP address')
+    .min(1, { error: () => m.storage_connect_host_required() })
+    .refine(
+      (value) => {
+        if (!value.includes('://')) return true;
+        return z.url().safeParse(value).success;
+      },
+      { error: () => m.storage_connect_host_invalid() }
+    )
     .transform((v) => {
       if (v.includes('://')) return new URL(v).hostname;
       return isIpv6(v) ? `[${v}]` : v;
     })
-    .refine(isValidHost, 'Host must be a valid hostname or IP address'),
-  port: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(65535)
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
+    .refine(isValidHost, { error: () => m.storage_connect_host_invalid() }),
+  // A cleared number input is bound as `null` and an empty form field arrives as `''`; both mean
+  // "default port". Without the explicit branches, coercion would turn them into 0.
+  port: z
+    .union(
+      [
+        z.coerce.number(portError).int(portError).min(1, portError).max(65535, portError),
+        z.literal('').transform(() => undefined),
+        z.null().transform(() => undefined)
+      ],
+      portError
+    )
+    .optional(),
   tls: z.object({ verification: z.enum(['Full', 'None']) }).optional(),
   accessStyle: z.enum(['Path', 'VirtualHosted']).default('VirtualHosted'),
-  region: z.object({ name: z.string().min(1) }).default({ name: 'us-east-1' }),
+  region: z
+    .object({ name: z.string().min(1, { error: () => m.storage_connect_region_required() }) })
+    .default({ name: 'us-east-1' }),
   credentials: z
     .object({
       accessKey: z.string(),
@@ -87,14 +101,14 @@ export const StorageConnectionSchema = baseStorageConnectionObject.superRefine((
     ctx.addIssue({
       code: 'custom',
       path: ['credentials', 'secretKey'],
-      message: 'Secret key is required when access key is provided'
+      message: m.storage_connect_secret_key_required()
     });
   }
   if (!hasKey && hasSecret) {
     ctx.addIssue({
       code: 'custom',
       path: ['credentials', 'accessKey'],
-      message: 'Access key is required when secret key is provided'
+      message: m.storage_connect_access_key_required()
     });
   }
 });
@@ -109,7 +123,7 @@ export const EditStorageConnectionSchema = baseStorageConnectionObject.superRefi
     ctx.addIssue({
       code: 'custom',
       path: ['credentials', 'accessKey'],
-      message: 'Access key is required when secret key is provided'
+      message: m.storage_connect_access_key_required()
     });
   }
 });

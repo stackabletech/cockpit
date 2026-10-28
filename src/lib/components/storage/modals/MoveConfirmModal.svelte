@@ -59,16 +59,14 @@
           {/if}
           <span class="min-w-0 flex-1 truncate">{item.name}</span>
           {#if !item.isDirectory && item.size !== undefined}
-            <span class="text-base-content/40 shrink-0 font-mono text-xs"
-              >{formatFileSize(item.size)}</span
-            >
+            <span class="text-muted shrink-0 font-mono text-xs">{formatFileSize(item.size)}</span>
           {/if}
         </li>
       {/each}
     </ul>
 
     {#if hasSizes && totalSize > 0}
-      <p class="text-base-content/50 mt-2 text-xs">
+      <p class="text-muted mt-2 text-xs">
         {m.storage_move_confirm_total_size({ size: formatFileSize(totalSize) })}
       </p>
     {/if}

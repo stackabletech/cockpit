@@ -6,7 +6,9 @@
   import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
+  import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
+  import type { SubmitFunction } from '@sveltejs/kit';
   import * as m from '$lib/paraglide/messages.js';
   import type { ConnectionMetadata } from '$lib/storage/connection-types.js';
   import { connectionLabel } from '$lib/storage/display-helpers.js';
@@ -25,9 +27,16 @@
      * connection edits rather than activating them.
      */
     onselect?: (conn: ConnectionMetadata) => void;
+    /**
+     * Called before a delete is sent. Resolving `false` cancels it. Edit pages use this to ask
+     * about unsaved changes before the connection is deleted, not after.
+     */
+    onbeforedelete?: () => Promise<boolean>;
+    /** Called once the server has answered a delete; `deleted` is false when it failed. */
+    ondeletesettled?: (connectionId: string, deleted: boolean) => void;
   }
 
-  let { connections, activeId, onselect }: Props = $props();
+  let { connections, activeId, onselect, onbeforedelete, ondeletesettled }: Props = $props();
 
   const resize = createResizablePanel({
     storageKey: 'storage_connect_sidebar_width',
@@ -96,6 +105,22 @@
     closeContextMenu();
   }
 
+  const enhanceDelete: SubmitFunction = async ({ cancel }) => {
+    if (onbeforedelete && !(await onbeforedelete())) {
+      cancel();
+      cancelDelete();
+      return;
+    }
+    return async ({ formData, result, update }) => {
+      cancelDelete();
+      ondeletesettled?.(
+        String(formData.get('connectionId')),
+        result.type === 'redirect' || result.type === 'success'
+      );
+      await update();
+    };
+  };
+
   const deleteConn = $derived.by<SavedConnection | null>(() => {
     if (!menuConn) return null;
     const ep = menuConn.endpoint ?? '';
@@ -111,7 +136,13 @@
 
 <!-- Context menu (fixed, rendered outside the layout flow) -->
 {#if menuConn}
-  <form method="POST" action="?/deleteConnection" bind:this={deleteFormEl} class="contents">
+  <form
+    method="POST"
+    action="?/deleteConnection"
+    bind:this={deleteFormEl}
+    use:enhance={enhanceDelete}
+    class="contents"
+  >
     <input type="hidden" name="connectionId" value={menuConn.id} />
   </form>
   <ul
@@ -159,7 +190,7 @@
 <!-- Mobile: horizontal scrollable connections row -->
 <div class="md:hidden">
   {#if connections.length > 0}
-    <p class="text-base-content/50 mb-2 text-xs font-semibold tracking-wide uppercase">
+    <p class="text-muted mb-2 text-xs font-semibold tracking-wide uppercase">
       {m.storage_connect_saved()}
     </p>
     <div
@@ -207,9 +238,7 @@
           <form
             method="POST"
             action="?/deleteConnection"
-            onsubmit={() => {
-              // Redirect handles the page update
-            }}
+            use:enhance={enhanceDelete}
             class="absolute -top-2 -right-2"
           >
             <input type="hidden" name="connectionId" value={conn.id} />
@@ -246,14 +275,14 @@
   aria-label={m.storage_connect_saved()}
 >
   <div class="border-base-300 border-b px-3 py-2">
-    <span class="text-base-content/50 text-xs font-semibold tracking-wide uppercase">
+    <span class="text-muted text-xs font-semibold tracking-wide uppercase">
       {m.storage_connect_saved()}
     </span>
   </div>
 
   <ul class="flex-1 overflow-y-auto py-1" role="list" aria-label={m.storage_connect_saved()}>
     {#if connections.length === 0}
-      <li class="text-base-content/40 px-3 py-4 text-center text-xs">
+      <li class="text-muted px-3 py-4 text-center text-xs">
         {m.storage_connect_no_saved()}
       </li>
     {:else}
