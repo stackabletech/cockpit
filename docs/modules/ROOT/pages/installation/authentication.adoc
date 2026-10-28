@@ -1,0 +1,30 @@
+= Authentication
+:description: Configure login to Stackable Cockpit with any OpenID Connect provider, such as Keycloak, including callback URL, scopes and session secret.
+
+Users log in to Cockpit through an OpenID Connect (OIDC) provider, for example Keycloak.
+Register a confidential client for Cockpit with the redirect URI `<base URL>/api/auth/oauth2/callback/oidc`.
+
+[source,yaml]
+----
+auth:
+  baseUrl: https://cockpit.example.com # <1>
+  oidc:
+    discoveryUrl: https://keycloak.example.com/realms/sdp/.well-known/openid-configuration
+    clientId: cockpit
+    clientSecret:
+      secretKeyRef:
+        name: cockpit
+        key: oidc-client-secret
+    extraScopes: [] # <2>
+sessionSecret:
+  secretKeyRef:
+    name: "" # <3>
+----
+<1> The URL users open in the browser.
+<2> Scopes requested in addition to `openid`, `profile` and `email`.
+<3> The secret that signs session cookies. The chart generates one if empty.
+
+The OIDC claim that becomes the Trino user is configured in the xref:modules/trino.adoc#_user_identity[Trino module].
+
+WARNING: With `auth.oidc.enabled: false`, Cockpit has no login and all visitors share one anonymous user.
+Use this only for local testing.

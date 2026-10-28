@@ -1,0 +1,243 @@
+= Environment variables
+:description: Reference of all environment variables that configure Stackable Cockpit, with their defaults, grouped by server, authentication, Trino and storage.
+
+The Helm chart sets these variables from its values.
+Set them directly only when you run Cockpit without the chart.
+Cockpit does not start if a value is invalid, and the error names every invalid variable.
+
+// TODO: Generate this page from the code so it cannot drift.
+
+== Server
+
+[cols="2,1,3"]
+|===
+|Variable |Default |Description
+
+|`ORIGIN`
+|
+|The URL users open in the browser. Requests from other origins are rejected.
+
+|`PROTOCOL_HEADER`, `HOST_HEADER`
+|
+|Forwarded headers trusted behind a reverse proxy, for example `x-forwarded-proto` and `x-forwarded-host`.
+
+|`BODY_SIZE_LIMIT`
+|`6M`
+|Maximum request body size.
+
+|`LOG_LEVEL`
+|`info`
+|`trace`, `debug`, `info`, `warn` or `error`.
+|===
+
+== Database
+
+[cols="2,1,3"]
+|===
+|Variable |Default |Description
+
+|`DATABASE_HOST`
+|`localhost`
+|PostgreSQL host.
+
+|`DATABASE_PORT`
+|`31432`
+|PostgreSQL port.
+
+|`DATABASE_NAME`
+|`cockpit`
+|Database name.
+
+|`DATABASE_USER`
+|`cockpit`
+|Database user.
+
+|`DATABASE_PASSWORD`
+|
+|Database password. Required.
+
+|`DATABASE_TLS_MODE`
+|`verify-full` in production, otherwise `disable`
+|`verify-full`, `require` or `disable`.
+
+|`DATABASE_TLS_CA_CERT`
+|
+|Path to the CA certificate of PostgreSQL. Requires `verify-full`.
+|===
+
+== Authentication
+
+[cols="2,1,3"]
+|===
+|Variable |Default |Description
+
+|`STACKABLE_COCKPIT_BASE_URL`
+|
+|The URL users open in the browser, used for the OIDC callback.
+
+|`STACKABLE_COCKPIT_SESSION_SECRET`
+|
+|Secret that signs session cookies.
+
+|`STACKABLE_COCKPIT_OIDC_DISCOVERY_URL`
+|
+|The `.well-known/openid-configuration` URL of the OIDC provider. Login is disabled unless this, the client ID and the client secret are set.
+
+|`STACKABLE_COCKPIT_OIDC_CLIENT_ID`
+|
+|OIDC client ID.
+
+|`STACKABLE_COCKPIT_OIDC_CLIENT_SECRET`
+|
+|OIDC client secret.
+
+|`STACKABLE_COCKPIT_OIDC_EXTRA_SCOPES`
+|
+|Scopes requested in addition to `openid`, `profile` and `email`, separated by commas or spaces.
+|===
+
+== Trino
+
+[cols="2,1,3"]
+|===
+|Variable |Default |Description
+
+|`STACKABLE_COCKPIT_TRINO_URL`
+|
+|Trino coordinator URL for all users. Without it, users enter a connection in the UI.
+
+|`STACKABLE_COCKPIT_TRINO_PUBLIC_URL`
+|`STACKABLE_COCKPIT_TRINO_URL`
+|URL for links to the Trino web UI.
+
+|`STACKABLE_COCKPIT_TRINO_AUTH_TYPE`
+|`none`
+|`none` or `basic`.
+
+|`STACKABLE_COCKPIT_TRINO_AUTH_USERNAME`
+|
+|User for basic authentication.
+
+|`STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD`
+|
+|Password for basic authentication.
+
+|`STACKABLE_COCKPIT_TRINO_TLS_CA_CERT`
+|
+|Path to the CA certificate of Trino.
+
+|`STACKABLE_COCKPIT_TRINO_TLS_INSECURE`
+|`false`
+|Skip TLS certificate verification.
+
+|`STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION`
+|`true`
+|Send queries as the logged-in user.
+
+|`STACKABLE_COCKPIT_TRINO_USER_CLAIM`
+|`preferred_username`
+|OIDC claim used as the Trino user.
+
+|`STACKABLE_COCKPIT_COMPLETION_ENABLED`
+|`true`
+|SQL code completion.
+
+|`STACKABLE_COCKPIT_QUERY_TTL`
+|`1800`
+|Seconds that finished queries of an unused editor tab are kept.
+|===
+
+== Storage
+
+[cols="2,1,3"]
+|===
+|Variable |Default |Description
+
+|`STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED`
+|`false`
+|Enables the storage module.
+
+|`STORAGE_ENCRYPTION_KEY`
+|
+|64-character hex key that encrypts stored S3 credentials. Required when the storage module is enabled.
+
+|`STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT`
+|
+|Path to the CA certificate of the S3 endpoints. Replaces the system trust store.
+
+|`PUBLIC_STACKABLE_COCKPIT_STORAGE_TRANSFER_ENABLED`
+|`false`
+|Cut, copy, paste, rename and drag-and-drop move.
+
+|`PUBLIC_STACKABLE_COCKPIT_PAGE_SIZES`
+|`25,50,100`
+|Page sizes of paginated lists.
+
+|`PUBLIC_STACKABLE_COCKPIT_DEFAULT_PAGE_SIZE`
+|Smallest page size
+|Default page size. Must be one of the page sizes.
+
+|`PUBLIC_STACKABLE_COCKPIT_MAX_RECENT_FILES`
+|`15`
+|Recently visited locations kept in the browser.
+
+|`PUBLIC_STACKABLE_COCKPIT_UPLOAD_CONCURRENCY`
+|`3`
+|Parallel requests during uploads.
+
+|`PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`
+|`5242880`
+|Largest file in bytes that can be edited. `BODY_SIZE_LIMIT` must be at least this large.
+
+|`STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES`
+|`262144`
+|Bytes fetched for text, TSV and JSON previews.
+
+|`STACKABLE_COCKPIT_IMAGE_PREVIEW_BYTES`
+|`5242880`
+|Bytes fetched for image previews.
+
+|`STACKABLE_COCKPIT_PDF_PREVIEW_BYTES`
+|`26214400`
+|Bytes fetched for PDF previews.
+
+|`STACKABLE_COCKPIT_FILE_PREVIEW_ROWS`
+|`250`
+|Rows in tabular previews.
+
+|`STACKABLE_COCKPIT_FILE_PREVIEW_COLUMNS`
+|`50`
+|Columns in tabular previews.
+
+|`STACKABLE_COCKPIT_PARQUET_PREVIEW_DISALLOWED_COMPRESSION_TYPES`
+|`gzip-no_offset`
+|Parquet codecs that are not previewed. The suffix `-no_offset` blocks only files without an offset index.
+
+|`STACKABLE_COCKPIT_ARCHIVE_PREVIEW_MAX_MB`
+|`100`
+|Largest archive in MB that is previewed.
+
+|`STACKABLE_COCKPIT_ARCHIVE_CACHE_MAX_MB`
+|`512`
+|Size in MB of the archive cache in `/tmp`. At least twice the archive preview limit.
+
+|`STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY`
+|`8`
+|Objects copied in parallel within one copy, move or rename.
+
+|`STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS`
+|`30`
+|Days the download history is kept, from 1 to 3650.
+|===
+
+== Bookmarks
+
+[cols="2,1,3"]
+|===
+|Variable |Default |Description
+
+|`STACKABLE_COCKPIT_GLOBAL_BOOKMARKS`
+|
+|JSON array of bookmarks shown to every user, see xref:modules/bookmarks.adoc#_global_bookmarks[Global bookmarks].
+Example: `[{"productId":"superset","name":"Dashboards","url":"https://superset.example.com"}]`.
+|===

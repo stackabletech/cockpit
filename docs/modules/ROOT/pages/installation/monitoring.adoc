@@ -1,0 +1,10 @@
+= Monitoring
+:description: Stackable Cockpit exposes Prometheus metrics at /metrics and a health endpoint at /healthz, and writes structured JSON logs.
+
+Cockpit exposes Prometheus metrics at `/metrics` on port 3000, without authentication.
+They include HTTP request durations, Trino query counts and storage operation metrics.
+
+The chart's liveness, readiness and startup probes use `/healthz`.
+
+Cockpit writes JSON logs to stdout.
+Set the log level with `logging.level`; the default is `info`.

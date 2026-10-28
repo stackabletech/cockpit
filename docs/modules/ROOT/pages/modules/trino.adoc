@@ -1,0 +1,45 @@
+= Trino
+:description: The Trino module of Stackable Cockpit is a SQL editor with code completion and a schema browser that runs queries as the logged-in user.
+
+The Trino module is a SQL editor for xref:home:trino:index.adoc[Trino] with syntax highlighting, code completion and a schema browser.
+
+== Connection
+
+Set `trino.url` to connect all users to one Trino cluster:
+
+[source,yaml]
+----
+trino:
+  url: https://trino-coordinator:8443 # <1>
+  publicUrl: https://trino.example.com # <2>
+  auth:
+    type: basic # <3>
+    username: cockpit
+    password:
+      secretKeyRef:
+        name: cockpit
+        key: trino-auth-password
+  tls:
+    secretClass: tls # <4>
+----
+<1> The coordinator as Cockpit reaches it.
+<2> Optional. The URL for links to the Trino web UI, defaults to `url`.
+<3> `none` (default) or `basic`.
+<4> Provides the CA certificate of Trino. Alternatively set `caCert` to a mounted file, or `insecure: true` to skip verification.
+
+Without `trino.url`, each user enters a connection in the UI.
+These connections are kept in memory and are lost when Cockpit restarts.
+
+== User identity
+
+Cockpit sends queries with the logged-in user as `X-Trino-User`, so Trino applies its access control to that user.
+The user is taken from the OIDC claim `trino.userImpersonation.userClaim` (default `preferred_username`), and updated on every login.
+If the claim is missing, Cockpit uses `preferred_username`, then the email address.
+With basic authentication, Trino must allow the Cockpit user to impersonate other users.
+
+Set `trino.userImpersonation.enabled: false` to run all queries as `trino.auth.username` instead.
+
+== Settings
+
+* `features.trino.completion.enabled` turns code completion on or off (default `true`).
+* `trino.queryTtl` sets how long, in seconds, finished queries of an unused editor tab are kept (default `1800`).

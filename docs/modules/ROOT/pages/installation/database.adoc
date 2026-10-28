@@ -1,0 +1,23 @@
+= Database
+:description: Connect Stackable Cockpit to PostgreSQL, which stores users, sessions, bookmarks and storage connections, and configure TLS for the connection.
+
+Cockpit requires a PostgreSQL database for users, sessions, bookmarks and storage connections.
+It creates and migrates its tables on startup.
+
+[source,yaml]
+----
+database:
+  host: postgresql
+  port: 5432
+  name: cockpit
+  user: cockpit
+  password:
+    secretKeyRef:
+      name: cockpit
+      key: database-password
+  tls:
+    mode: verify-full # <1>
+    secretClass: tls # <2>
+----
+<1> `verify-full` (default), `require` (encrypt without verification) or `disable`.
+<2> Provides the CA certificate of PostgreSQL. Alternatively set `caCert` to a mounted file. Both require `verify-full`.
