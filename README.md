@@ -34,6 +34,7 @@ Read more about the platform in the [documentation](https://docs.stackable.tech/
 - Trino SQL query editor and schema browser, with queries submitted under the logged-in user's name
 - S3 file browser with preview, upload/download and search (opt-in, see [Feature Flags](#feature-flags))
 - User-managed storage connections, stored in PostgreSQL
+- Dashboard with bookmarks to frequently used tools
 
 More modules will be added over time.
 
@@ -79,6 +80,10 @@ npm run generate:antlr   # Regenerate the lexer/parser after editing the SQL gra
 
 ## Deployment
 
+> [!IMPORTANT]
+> Serve Cockpit over HTTPS, because session cookies and credentials such as S3 keys pass through the browser connection.
+> Cockpit itself serves plain HTTP, so terminate TLS at an Ingress or reverse proxy (see [Ingress and reverse proxy](#ingress-and-reverse-proxy)).
+
 ### Helm
 
 A Helm chart for Kubernetes is included under [`deploy/helm/cockpit`](./deploy/helm/cockpit):
@@ -88,6 +93,24 @@ helm install cockpit ./deploy/helm/cockpit -f your-values.yaml
 ```
 
 The chart needs an existing PostgreSQL database (`database.*` values). See the [chart README](./deploy/helm/cockpit/README.md) for the full list of values, and [docs/DATABASE.md](./docs/DATABASE.md) for the database settings, including TLS.
+
+#### Ingress and reverse proxy
+
+The chart creates a ClusterIP Service on port 3000.
+Expose it with the chart's `ingress` values, or put your own Ingress, Gateway or load balancer in front of the Service.
+Set `origin` and `auth.baseUrl` to the `https://` URL users open in the browser.
+Behind a reverse proxy, also set the forwarded headers Cockpit trusts:
+
+```yaml
+origin: https://cockpit.example.com
+auth:
+  baseUrl: https://cockpit.example.com
+proxy:
+  protocolHeader: x-forwarded-proto
+  hostHeader: x-forwarded-host
+```
+
+Only set the `proxy` headers if the proxy overwrites them, otherwise clients can spoof them.
 
 ### Docker
 
