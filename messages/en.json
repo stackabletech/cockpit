@@ -512,8 +512,6 @@
   "bookmark_delete_error": "The bookmark could not be deleted. Please try again.",
   "bookmark_pin_error": "Could not update the pin for \"{name}\". Please try again.",
   "bookmark_load_error": "Bookmarks could not be loaded. Please reload the page later.",
-  "bookmark_refresh_error": "The change was saved, but the bookmark list could not be updated.",
-  "bookmark_reload": "Reload",
   "bookmark_limit_error": "You can have up to {limit} bookmarks. Delete one to add another.",
   "bookmark_saving": "Saving…",
   "bookmark_product_custom": "Custom Link",
