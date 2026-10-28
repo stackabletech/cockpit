@@ -31,10 +31,11 @@
     persistEnabled: storageRestoreTabsEnabled,
     connectionId: storage.connectionId,
     navigateToLocation: (connection, bucket, prefix) => {
-      void goto(storageHref(connection, bucket, prefix));
+      // Keep focus on the tab that triggered the switch instead of resetting it to <body>
+      void goto(storageHref(connection, bucket, prefix), { keepFocus: true });
     },
     replaceLocationUrl: (connection, bucket, prefix) => {
-      void goto(storageHref(connection, bucket, prefix), { replaceState: true });
+      void goto(storageHref(connection, bucket, prefix), { replaceState: true, keepFocus: true });
     }
   });
   setTabsState(tabsState);

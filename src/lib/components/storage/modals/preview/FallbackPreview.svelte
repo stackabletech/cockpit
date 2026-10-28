@@ -36,7 +36,7 @@
           ? m.storage_preview_binary_title()
           : m.storage_preview_unsupported_title()}
     </p>
-    <p class="text-base-content/60 mt-1 text-sm">
+    <p class="text-muted mt-1 text-sm">
       {imageTooLarge
         ? m.storage_preview_image_too_large_desc()
         : isSevenZip
@@ -48,7 +48,7 @@
               : m.storage_preview_unsupported_desc()}
     </p>
     {#if contentType}
-      <p class="text-base-content/40 mt-1 font-mono text-xs">{contentType}</p>
+      <p class="text-muted mt-1 font-mono text-xs">{contentType}</p>
     {/if}
   </div>
   <button type="button" onclick={onDownload} class="btn btn-primary btn-sm gap-2">

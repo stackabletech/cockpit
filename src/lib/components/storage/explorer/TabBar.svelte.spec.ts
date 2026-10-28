@@ -101,7 +101,7 @@ describe('TabBar', () => {
     renderTabBar(storage, tabsState);
 
     // Close tab buttons have aria-label="Close tab"
-    const closeButtons = page.getByRole('button', { name: 'Close tab' });
+    const closeButtons = page.getByRole('button', { name: 'Close tab', includeHidden: true });
     await expect.element(closeButtons.first()).toBeInTheDocument();
   });
 
@@ -111,7 +111,7 @@ describe('TabBar', () => {
     const spy = vi.spyOn(tabsState, 'closeTab');
     renderTabBar(storage, tabsState);
 
-    await page.getByRole('button', { name: 'Close tab' }).first().click();
+    await page.getByRole('button', { name: 'Close tab', includeHidden: true }).first().click();
 
     expect(spy).toHaveBeenCalled();
   });

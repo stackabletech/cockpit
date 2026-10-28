@@ -115,8 +115,8 @@
       <span class="font-medium">{keyToName(folder.key)}</span>
     </div>
   </td>
-  <td class="text-base-content/30 text-right">—</td>
-  <td class="text-base-content/30">—</td>
+  <td class="text-muted text-right">—</td>
+  <td class="text-muted">—</td>
   <td class="w-10 py-0 pr-2 text-right">
     <div class="tooltip tooltip-left" data-tip={m.storage_context_menu_actions()}>
       <button
