@@ -151,7 +151,7 @@
       {/if}
     {:else}
       <!-- Static display: not in rename mode, or confirmed/checking -->
-      <div class="text-base-content/50 mt-1 flex items-center gap-1 px-1 text-sm">
+      <div class="text-muted mt-1 flex items-center gap-1 px-1 text-sm">
         <span class="min-w-0 flex-1 truncate">{entry.customName}</span>
         {#if entry.resolution === 'rename' && entry.renameState === 'ok'}
           <IconCheckCircle class="text-success size-3.5 shrink-0" aria-hidden="true" />
