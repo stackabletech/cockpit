@@ -343,7 +343,7 @@ test.describe('Storage — Connections management', () => {
       form.submit();
     });
 
-    await expect(page.getByRole('alert')).toHaveText('The selected connection is invalid.');
+    await expect(page.getByRole('alert')).toHaveText('Connection not found.');
   });
 });
 
