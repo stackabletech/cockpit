@@ -826,7 +826,7 @@
           class="relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {parquetTab ===
           'metadata'
             ? 'bg-base-100 text-primary'
-            : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
+            : 'text-muted hover:bg-base-100/50 hover:text-base-content'}"
           role="tab"
           aria-selected={parquetTab === 'metadata'}
           onclick={() => (parquetTab = 'metadata')}
@@ -840,7 +840,7 @@
           class="relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {parquetTab ===
           'data'
             ? 'bg-base-100 text-primary'
-            : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
+            : 'text-muted hover:bg-base-100/50 hover:text-base-content'}"
           role="tab"
           aria-selected={parquetTab === 'data'}
           onclick={() => (parquetTab = 'data')}
@@ -868,7 +868,7 @@
         <div class="flex flex-col items-center gap-3 p-8 text-center" role="alert">
           <IconErrorOutline class="text-error size-12" aria-hidden="true" />
           <p class="text-base-content font-semibold">{m.storage_preview_error_title()}</p>
-          <p class="text-base-content/60 text-sm">{preview.message}</p>
+          <p class="text-muted text-sm">{preview.message}</p>
         </div>
       {:else if preview.kind === 'parquet'}
         <!-- Metadata tab: always mounted, hidden when Data tab is active -->
@@ -890,7 +890,7 @@
                 <p class="text-base-content font-semibold">
                   {m.storage_preview_parquet_blocked_title()}
                 </p>
-                <p class="text-base-content/60 mt-1 text-sm">
+                <p class="text-muted mt-1 text-sm">
                   {m.storage_preview_parquet_blocked_desc()}
                 </p>
               </div>
@@ -929,7 +929,7 @@
               data-testid="editor-readonly-notice"
             >
               <IconBlock class="text-base-content/50 size-4" aria-hidden="true" />
-              <span class="text-base-content/60 text-xs">{readOnlyMessage}</span>
+              <span class="text-muted text-xs">{readOnlyMessage}</span>
             </div>
           {/if}
           <div class="min-h-0 flex-1">

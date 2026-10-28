@@ -244,12 +244,12 @@
 {#if isLegacyMode}
   <div>
     {#if textHeaders.length === 0}
-      <p class="text-base-content/50 p-4 text-sm italic">{m.storage_bucket_empty()}</p>
+      <p class="text-muted p-4 text-sm italic">{m.storage_bucket_empty()}</p>
     {:else}
       <table class="table-xs table min-w-max" aria-label={m.storage_preview_csv_label()}>
         <thead>
-          <tr class="bg-base-200 text-base-content/60 sticky top-0 z-10 text-xs">
-            <th class="text-base-content/30 w-10 text-right font-normal" id="{uid}-line-hdr"></th>
+          <tr class="bg-base-200 text-muted sticky top-0 z-10 text-xs">
+            <th class="text-muted w-10 text-right font-normal" id="{uid}-line-hdr"></th>
             {#each textHeaders as header, i (i)}
               <th class="font-semibold whitespace-nowrap">{header}</th>
             {/each}
@@ -258,7 +258,7 @@
         <tbody>
           {#each textRows as row, i (i)}
             <tr class="hover:bg-base-200 transition-colors">
-              <td class="text-base-content/30 w-10 pr-1 text-right text-xs select-none"
+              <td class="text-muted w-10 pr-1 text-right text-xs select-none"
                 >{(i + 1).toLocaleString()}</td
               >
               <!--eslint-disable-next-line @typescript-eslint/no-unused-vars-->
@@ -270,7 +270,7 @@
         </tbody>
       </table>
       {#if textTruncated}
-        <p class="text-base-content/50 px-4 py-2 text-xs italic">
+        <p class="text-muted px-4 py-2 text-xs italic">
           {m.storage_preview_csv_rows({ count: textRows.length.toLocaleString(getLocale()) })}
         </p>
       {/if}
@@ -279,7 +279,7 @@
 {:else}
   <div class="relative flex h-full flex-col">
     {#if headers.length === 0}
-      <p class="text-base-content/50 p-4 text-sm italic">{m.storage_bucket_empty()}</p>
+      <p class="text-muted p-4 text-sm italic">{m.storage_bucket_empty()}</p>
     {:else}
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div
@@ -299,9 +299,9 @@
           style={totalTableWidth > 0 ? `width: ${totalTableWidth}px` : ''}
           aria-label={m.storage_preview_csv_label()}
         >
-          <thead class="bg-base-200 text-base-content/60 sticky top-0 z-10 text-xs shadow-sm">
+          <thead class="bg-base-200 text-muted sticky top-0 z-10 text-xs shadow-sm">
             <tr>
-              <th class="text-base-content/30 w-10 text-right font-normal"></th>
+              <th class="text-muted w-10 text-right font-normal"></th>
               {#if leftPadWidth > 0}
                 <th style="width: {leftPadWidth}px" class="border-0 p-0"></th>
               {/if}
@@ -326,7 +326,7 @@
             {/if}
             {#each visibleRows as row (row.index)}
               <tr class="hover:bg-base-200 h-8 transition-colors">
-                <td class="text-base-content/30 w-10 pr-1 text-right text-xs select-none"
+                <td class="text-muted w-10 pr-1 text-right text-xs select-none"
                   >{(row.index + 1).toLocaleString(getLocale())}</td
                 >
                 {#if leftPadWidth > 0}
@@ -375,7 +375,7 @@
         </table>
       </div>
       {#if isTruncated}
-        <p class="text-base-content/50 px-4 py-2 text-xs italic">
+        <p class="text-muted px-4 py-2 text-xs italic">
           {m.storage_preview_csv_rows({ count: formattedLoadedRowsCount })}
         </p>
       {/if}

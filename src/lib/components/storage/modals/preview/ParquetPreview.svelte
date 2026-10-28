@@ -177,7 +177,7 @@
 
 <div class="relative flex h-full flex-col">
   {#if headers.length === 0}
-    <p class="text-base-content/50 p-4 text-sm italic">{m.storage_bucket_empty()}</p>
+    <p class="text-muted p-4 text-sm italic">{m.storage_bucket_empty()}</p>
   {:else}
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <div
@@ -189,9 +189,9 @@
       onscroll={(e) => (scrollTop = e.currentTarget.scrollTop)}
     >
       <table class="table-xs table table-fixed" aria-label={m.storage_preview_parquet_label()}>
-        <thead class="bg-base-200 text-base-content/60 sticky top-0 z-10 text-xs shadow-sm">
+        <thead class="bg-base-200 text-muted sticky top-0 z-10 text-xs shadow-sm">
           <tr>
-            <th class="text-base-content/30 w-10 text-right font-normal"></th>
+            <th class="text-muted w-10 text-right font-normal"></th>
             {#each headers as header, j (header)}
               <th
                 class="truncate font-semibold"
@@ -208,7 +208,7 @@
           {/if}
           {#each visibleRows as row (row.index)}
             <tr class="hover:bg-base-200 h-8 transition-colors">
-              <td class="text-base-content/30 w-10 pr-1 text-right text-xs select-none"
+              <td class="text-muted w-10 pr-1 text-right text-xs select-none"
                 >{(row.index + 1).toLocaleString(getLocale())}</td
               >
               {#if row.data !== null && row.data !== undefined}
@@ -243,7 +243,7 @@
       </table>
     </div>
     {#if isTruncated}
-      <p class="text-base-content/50 px-4 py-2 text-xs italic">
+      <p class="text-muted px-4 py-2 text-xs italic">
         {m.storage_preview_parquet_rows({
           count: formattedLoadedRowsCount,
           total: formattedTotalRows

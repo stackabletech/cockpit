@@ -67,26 +67,26 @@
     </h3>
     <dl class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
       <div>
-        <dt class="text-base-content/50">{m.storage_preview_parquet_file_size()}</dt>
+        <dt class="text-muted">{m.storage_preview_parquet_file_size()}</dt>
         <dd class="text-base-content font-mono font-medium">{formatFileSize(totalSize)}</dd>
       </div>
       <div>
-        <dt class="text-base-content/50">{m.storage_preview_parquet_total_rows()}</dt>
+        <dt class="text-muted">{m.storage_preview_parquet_total_rows()}</dt>
         <dd class="text-base-content font-mono font-medium">
           {totalRows.toLocaleString(getLocale())}
         </dd>
       </div>
       <div>
-        <dt class="text-base-content/50">{m.storage_preview_parquet_total_columns()}</dt>
+        <dt class="text-muted">{m.storage_preview_parquet_total_columns()}</dt>
         <dd class="text-base-content font-mono font-medium">{headers.length}</dd>
       </div>
       <div>
-        <dt class="text-base-content/50">{m.storage_preview_parquet_version()}</dt>
+        <dt class="text-muted">{m.storage_preview_parquet_version()}</dt>
         <dd class="text-base-content font-mono font-medium">v{metadata.version}</dd>
       </div>
       {#if metadata.createdBy}
         <div class="col-span-2 sm:col-span-2">
-          <dt class="text-base-content/50">{m.storage_preview_parquet_created_by()}</dt>
+          <dt class="text-muted">{m.storage_preview_parquet_created_by()}</dt>
           <dd class="text-base-content truncate font-mono text-xs">{metadata.createdBy}</dd>
         </div>
       {/if}
@@ -110,7 +110,7 @@
           <col class="w-[30%]" />
         </colgroup>
         <thead>
-          <tr class="text-base-content/50 text-left">
+          <tr class="text-muted text-left">
             <th>#</th>
             <th>{m.storage_preview_parquet_column()}</th>
             <th>{m.storage_preview_parquet_type()}</th>
@@ -122,7 +122,7 @@
         <tbody>
           {#each columnTypes as col, i (col.name)}
             <tr class="hover:bg-base-200 transition-colors">
-              <td class="text-base-content/30 font-mono text-xs">{i + 1}</td>
+              <td class="text-muted font-mono text-xs">{i + 1}</td>
               <td class="max-w-40 truncate font-mono text-xs font-medium" title={col.name}>
                 {col.name}
               </td>
@@ -149,7 +149,7 @@
                       </span>
                       {#if totalUncompressed > 0}
                         <span
-                          class="tooltip tooltip-bottom text-base-content/40 text-[10px]"
+                          class="tooltip tooltip-bottom text-muted text-[10px]"
                           data-tip="{Math.round(
                             (col.uncompressedSize / totalUncompressed) * 100
                           )}% of file uncompressed size"
@@ -187,14 +187,14 @@
                     </div>
                   </div>
                 {:else}
-                  <span class="text-base-content/30 text-xs">&mdash;</span>
+                  <span class="text-muted text-xs">&mdash;</span>
                 {/if}
               </td>
               <td class="min-w-36 overflow-hidden text-xs">
                 {#if col.stats.min !== null || col.stats.max !== null || col.stats.nullCount !== null || col.stats.distinctCount !== null}
                   <dl class="grid grid-cols-[auto_1fr] gap-x-1.5 gap-y-0.5">
                     {#if col.stats.min !== null}
-                      <dt class="text-base-content/50 shrink-0 text-[10px]">
+                      <dt class="text-muted shrink-0 text-[10px]">
                         {m.storage_preview_parquet_min()}
                       </dt>
                       <dd class="m-0 truncate font-mono text-[10px]" title={col.stats.min}>
@@ -202,7 +202,7 @@
                       </dd>
                     {/if}
                     {#if col.stats.max !== null}
-                      <dt class="text-base-content/50 shrink-0 text-[10px]">
+                      <dt class="text-muted shrink-0 text-[10px]">
                         {m.storage_preview_parquet_max()}
                       </dt>
                       <dd class="m-0 truncate font-mono text-[10px]" title={col.stats.max}>
@@ -210,7 +210,7 @@
                       </dd>
                     {/if}
                     {#if col.stats.nullCount !== null}
-                      <dt class="text-base-content/50 shrink-0 text-[10px]">
+                      <dt class="text-muted shrink-0 text-[10px]">
                         {m.storage_preview_parquet_null_count()}
                       </dt>
                       <dd class="m-0 font-mono text-[10px]">
@@ -218,7 +218,7 @@
                       </dd>
                     {/if}
                     {#if col.stats.distinctCount !== null}
-                      <dt class="text-base-content/50 shrink-0 text-[10px]">
+                      <dt class="text-muted shrink-0 text-[10px]">
                         {m.storage_preview_parquet_distinct_count()}
                       </dt>
                       <dd class="m-0 font-mono text-[10px]">
@@ -227,9 +227,7 @@
                     {/if}
                   </dl>
                 {:else}
-                  <span class="text-base-content/30 italic"
-                    >{m.storage_preview_parquet_not_stored()}</span
-                  >
+                  <span class="text-muted italic">{m.storage_preview_parquet_not_stored()}</span>
                 {/if}
               </td>
             </tr>
@@ -247,30 +245,26 @@
     </h3>
     <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
       <div>
-        <dt class="text-base-content/50">{m.storage_preview_parquet_row_groups()}</dt>
+        <dt class="text-muted">{m.storage_preview_parquet_row_groups()}</dt>
         <dd class="text-base-content font-mono font-medium">{metadata.rowGroups}</dd>
       </div>
       <div>
-        <dt class="text-base-content/50">{m.storage_preview_parquet_compression()}</dt>
+        <dt class="text-muted">{m.storage_preview_parquet_compression()}</dt>
         <dd class="flex flex-wrap items-center gap-1">
           {#if metadata.compressionCodecs.length === 0}
-            <span class="text-base-content/50 text-xs italic"
-              >{m.storage_preview_parquet_none()}</span
-            >
+            <span class="text-muted text-xs italic">{m.storage_preview_parquet_none()}</span>
           {:else}
             {#each metadata.compressionCodecs as codec (codec)}
               <span class="badge badge-soft badge-sm font-mono">{codec}</span>
             {/each}
             {#if metadata.compressionUniform && metadata.compressionCodecs.length === 1}
-              <span class="text-base-content/40 text-[10px]"
-                >({m.storage_preview_parquet_uniform()})</span
-              >
+              <span class="text-muted text-[10px]">({m.storage_preview_parquet_uniform()})</span>
             {/if}
           {/if}
         </dd>
       </div>
       <div>
-        <dt class="text-base-content/50">{m.storage_preview_parquet_offset_index()}</dt>
+        <dt class="text-muted">{m.storage_preview_parquet_offset_index()}</dt>
         <dd>
           <span class="badge {hasOffsetBadge} badge-sm">
             {metadata.hasOffsetIndex
@@ -280,7 +274,7 @@
         </dd>
       </div>
       <div>
-        <dt class="text-base-content/50">{m.storage_preview_parquet_column_index()}</dt>
+        <dt class="text-muted">{m.storage_preview_parquet_column_index()}</dt>
         <dd>
           <span class="badge {hasColumnBadge} badge-sm">
             {metadata.hasColumnIndex
@@ -328,7 +322,7 @@
       </h3>
       <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
         <div>
-          <dt class="text-base-content/50">{m.storage_preview_parquet_row_groups()}</dt>
+          <dt class="text-muted">{m.storage_preview_parquet_row_groups()}</dt>
           <dd class="text-base-content font-mono font-medium">{metadata.rowGroups}</dd>
         </div>
       </dl>
