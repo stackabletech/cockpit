@@ -13,7 +13,7 @@
   import type { SavedConnection } from '$lib/storage/connection-id-header.js';
 
   const connections = $derived<ConnectionListItem[]>(page.data.connections ?? []);
-  const actionError = $derived((page.form as { error?: string } | null)?.error ?? null);
+  const deleteError = $derived((page.form as { error?: string } | null)?.error ?? null);
 
   // Context menu state
   let menuConn: ConnectionListItem | null = $state(null);
@@ -89,14 +89,14 @@
   </a>
 
   <h2 class="mb-1 text-xl font-semibold">{m.storage_connections_title()}</h2>
-  <p class="text-base-content/60 mb-6 text-sm">{m.storage_connections_subtitle()}</p>
+  <p class="text-muted mb-6 text-sm">{m.storage_connections_subtitle()}</p>
 
-  {#if actionError}
-    <div role="alert" class="alert alert-error mb-6 text-sm">{actionError}</div>
+  {#if deleteError}
+    <div role="alert" class="alert alert-error mb-6 text-sm">{deleteError}</div>
   {/if}
 
   {#if connections.length === 0}
-    <p class="text-base-content/50 text-sm">{m.storage_connections_empty()}</p>
+    <p class="text-muted text-sm">{m.storage_connections_empty()}</p>
   {:else}
     <div class="overflow-x-auto">
       <table class="table-sm table">
@@ -121,10 +121,10 @@
                   <span class="font-medium">{connectionLabel(conn)}</span>
                 </div>
               </td>
-              <td class="text-base-content/60 font-mono text-xs">
+              <td class="text-muted font-mono text-xs">
                 {conn.endpoint ?? '-'}
               </td>
-              <td class="text-base-content/60 text-xs uppercase">s3</td>
+              <td class="text-muted text-xs uppercase">s3</td>
               <td>
                 <div
                   class="tooltip tooltip-left"

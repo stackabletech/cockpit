@@ -228,7 +228,7 @@
 
         <!-- Preview -->
         <div>
-          <p class="text-base-content/60 mb-2 text-xs font-medium tracking-wider uppercase">
+          <p class="text-muted mb-2 text-xs font-medium tracking-wider uppercase">
             {m.bookmark_preview_label()}
           </p>
           <div class="border-base-300 bg-base-200 flex items-center gap-3 rounded-xl border p-3">
@@ -240,19 +240,17 @@
                 {name || selectedProduct.defaultName || selectedProduct.name}
               </p>
               <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
-                <span class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]">
+                <span class="bg-base-300 text-muted rounded-full px-2 py-0.5 text-[11px]">
                   {selectedProduct.name}
                 </span>
                 {#if environment}
-                  <span
-                    class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]"
-                  >
+                  <span class="bg-base-300 text-muted rounded-full px-2 py-0.5 text-[11px]">
                     {environment}
                   </span>
                 {/if}
               </div>
               {#if url}
-                <p class="text-base-content/50 mt-0.5 truncate text-xs">
+                <p class="text-muted mt-0.5 truncate text-xs">
                   {bookmarkHostname(url)}
                 </p>
               {/if}

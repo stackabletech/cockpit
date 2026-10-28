@@ -68,7 +68,7 @@
         </span>
         {#if prefixParts}
           <IconChevronRight class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
-          <span class="text-base-content/50 min-w-0 truncate">{prefixParts}</span>
+          <span class="text-muted min-w-0 truncate">{prefixParts}</span>
         {/if}
       </nav>
     {/if}

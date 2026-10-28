@@ -47,14 +47,14 @@
 
   <div>
     <svelte:element this={headingLevel}>
-      <span class="text-base-content/50 mb-1 block text-sm font-medium tracking-widest uppercase">
+      <span class="text-muted mb-1 block text-sm font-medium tracking-widest uppercase">
         {m.error_status({ status })}
       </span>
       <span class="text-base-content block text-3xl font-bold">{title ?? defaultTitle}</span>
     </svelte:element>
     <p class="text-base-content/70 mt-2 max-w-sm text-sm">{description ?? defaultDescription}</p>
     {#if requestId}
-      <p class="text-base-content/60 mt-4 text-xs">
+      <p class="text-muted mt-4 text-xs">
         {m.error_request_id()} <code class="select-all">{requestId}</code>
       </p>
     {/if}

@@ -38,7 +38,7 @@
   >
     <li class="px-3 py-2">
       <p class="text-base-content truncate text-sm font-semibold">{user.name}</p>
-      <p class="text-base-content/60 truncate text-xs">{user.email}</p>
+      <p class="text-muted truncate text-xs">{user.email}</p>
     </li>
     <li><hr class="border-base-300 my-1" /></li>
     <li class="mt-4">

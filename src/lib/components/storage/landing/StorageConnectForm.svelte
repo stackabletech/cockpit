@@ -27,9 +27,9 @@
     {
       dataType: 'json',
       validators: zod(StorageConnectionSchema),
-      onResult: () => {
-        // Server saved the connection; the redirect to /storage triggers
-        // the layout load to auto-connect via activeStorageConnectionId.
+      // Network failures or unexpected server errors: show them in the form instead of the error page.
+      onError() {
+        $message = { type: 'error', message: m.storage_connect_save_failed() };
       }
     }
   );
@@ -53,7 +53,7 @@
 
   <div class="min-w-0 flex-1">
     <h2 class="mb-1 text-xl font-semibold">{m.storage_connect_title()}</h2>
-    <p class="text-base-content/60 mb-6 text-sm">{m.storage_connect_subtitle()}</p>
+    <p class="text-muted mb-6 text-sm">{m.storage_connect_subtitle()}</p>
 
     {#if connectError}
       <div role="alert" class="alert alert-error mb-6 text-sm">
@@ -104,7 +104,7 @@
           placeholder={m.storage_connect_port_placeholder()}
           bind:value={$form.port}
         />
-        <p class="text-base-content/50 mt-1 text-xs">{m.storage_connect_port_hint()}</p>
+        <p class="text-muted mt-1 text-xs">{m.storage_connect_port_hint()}</p>
         {#if $errors?.port}
           <p class="text-error mt-1 text-xs">{$errors.port}</p>
         {/if}
@@ -113,7 +113,7 @@
       <div class="flex items-start justify-between gap-4">
         <div>
           <label for="{uid}-tls" class="label text-sm font-medium">{m.storage_connect_tls()}</label>
-          <p class="text-base-content/50 mt-0.5 text-xs">{m.storage_connect_tls_hint()}</p>
+          <p class="text-muted mt-0.5 text-xs">{m.storage_connect_tls_hint()}</p>
         </div>
         <input
           id="{uid}-tls"
@@ -132,7 +132,7 @@
             <label for="{uid}-tls-verification" class="label text-sm font-medium">
               {m.storage_connect_tls_verification()}
             </label>
-            <p class="text-base-content/50 mt-0.5 text-xs">
+            <p class="text-muted mt-0.5 text-xs">
               {m.storage_connect_tls_verification_hint()}
             </p>
           </div>

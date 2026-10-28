@@ -86,7 +86,7 @@
         </div>
         <div class="min-w-0">
           <h3 class="text-lg font-bold">{title}</h3>
-          <p class="text-base-content/50 truncate text-sm">
+          <p class="text-muted truncate text-sm">
             {type === 'bucket' ? bucket : (key ?? prefix ?? '')}
           </p>
         </div>

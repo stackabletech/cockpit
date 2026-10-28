@@ -35,7 +35,7 @@
       <IconSchedule class="text-base-content/30 size-4 shrink-0" aria-hidden="true" />
     {/if}
     <span class="min-w-0 flex-1 truncate">{nameOnly}</span>
-    <span class="text-base-content/50 shrink-0 text-xs">
+    <span class="text-muted shrink-0 text-xs">
       {#if entry.status === 'uploading'}
         {entry.progress}%
       {:else if entry.status === 'done'}
