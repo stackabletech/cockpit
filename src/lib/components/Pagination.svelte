@@ -84,7 +84,7 @@
 
 {#snippet pageSizeSelector()}
   <div class="flex items-center gap-2">
-    <label for="{uid}-page-size" class="text-base-content/60 text-xs whitespace-nowrap">
+    <label for="{uid}-page-size" class="text-muted text-xs whitespace-nowrap">
       {pageSizeLabel}
     </label>
     <select
@@ -151,7 +151,7 @@
         </nav>
       {/if}
       {#if infoLabel}
-        <span class="text-base-content/60 text-xs">{infoLabel}</span>
+        <span class="text-muted text-xs">{infoLabel}</span>
       {/if}
     </div>
     {@render pageSizeSelector()}
@@ -163,7 +163,7 @@
       {@render pageSizeSelector()}
     </div>
     {#if infoLabel}
-      <span class="text-base-content/60 mr-1 text-xs">{infoLabel}</span>
+      <span class="text-muted mr-1 text-xs">{infoLabel}</span>
     {/if}
     <nav class="flex items-center gap-1" aria-label={m.pagination_nav()}>
       <div class="tooltip tooltip-top" data-tip={m.pagination_first_page()}>

@@ -29,6 +29,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@cyclonedx/cyclonedx-npm": "^6.0.1",
     "@eslint/compat": "^2.1.1",
     "@eslint/js": "^9.39.2",

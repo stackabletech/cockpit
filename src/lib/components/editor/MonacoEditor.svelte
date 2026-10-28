@@ -13,7 +13,8 @@
     defaultSchema,
     completionEnabled = true,
     onExecute,
-    onExecuteAll
+    onExecuteAll,
+    ready = $bindable(false)
   }: {
     value?: string;
     language?: string;
@@ -23,12 +24,13 @@
     completionEnabled?: boolean;
     onExecute?: () => void;
     onExecuteAll?: () => void;
+    /** True once the dynamically imported editor is created and usable. */
+    ready?: boolean;
   } = $props();
 
   let container: HTMLDivElement;
   let editor: import('monaco-editor').editor.IStandaloneCodeEditor | undefined;
   let monaco = $state<typeof import('monaco-editor') | undefined>(undefined);
-  let ready = $state(false);
 
   // Cache the last multi-line selection so it survives focus loss (e.g. clicking Run button).
   let lastSelection: { startOffset: number; endOffset: number } | null = null;

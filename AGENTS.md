@@ -52,18 +52,20 @@ When introducing shortcuts, known issues, or deferred security work, file an iss
 
 ### CSS & Styling
 
-- **All UI must work in both light and dark mode automatically.** Never use hard-coded colours (e.g., `text-gray-700`, `bg-white`, `border-slate-200`). Always use DaisyUI semantic colour classes (`text-base-content`, `bg-base-100`, `bg-base-200`, `border-base-300`, `text-primary`, `bg-error`, etc.) and Tailwind opacity modifiers on those classes (`text-base-content/60`, `bg-primary/10`) so that colours adapt to the active theme.
+- **All UI must work in both light and dark mode automatically.** Never use hard-coded colours (e.g., `text-gray-700`, `bg-white`, `border-slate-200`). Always use DaisyUI semantic colour classes (`text-base-content`, `bg-base-100`, `bg-base-200`, `border-base-300`, `text-primary`, `bg-error`, etc.) and Tailwind opacity modifiers on those classes (`text-base-content/80`, `bg-primary/10`) so that colours adapt to the active theme.
+- **Secondary text uses `text-muted`** (defined in `src/app.css`), never `text-base-content` at 60% opacity or less, and never `text-muted` with an opacity: those fail the 4.5:1 contrast ratio in the light theme. `aria-hidden` is no exemption, sighted users still read hidden text. Lower opacities are only allowed on `aria-hidden` icon components that duplicate adjacent text; icons that show a state (e.g. an expand chevron) need 3:1 and also use `text-muted` (enforced by `npm run test:arch`).
 - **All pages and components must be mobile-friendly.** Use responsive Tailwind breakpoints (`sm:`, `md:`, `lg:`) and test layouts at mobile viewport widths. Navigation must be accessible on small screens.
 - Use Tailwind v4 `@source` directive for component CSS scanning
 
-### Accessibility (BITV 2.0)
+### Accessibility (WCAG 2.2 AA)
 
-The application must comply with **BITV 2.0** (German accessibility regulation, based on WCAG 2.1 AA). Key requirements:
+The application must comply with **WCAG 2.2 AA**. This covers **BITV 2.0** (German accessibility regulation, based on WCAG 2.1 AA). The axe tests in `e2e/accessibility.spec.ts` check the WCAG 2.0, 2.1 and 2.2 A/AA rules. Key requirements:
 
 - **Semantic HTML**: Use correct elements (`<nav>`, `<main>`, `<header>`, `<button>`, `<a>`, headings in order). Never use `<div>` or `<span>` for interactive elements.
 - **Keyboard navigation**: All interactive elements must be reachable and operable via keyboard. Visible focus indicators are required.
 - **ARIA attributes**: Use `aria-label`, `aria-current`, `aria-disabled`, `aria-expanded`, `role` where semantic HTML is insufficient. Do not use ARIA to fix what semantic HTML can handle.
 - **Colour contrast**: Text must meet WCAG AA contrast ratios (4.5:1 normal text, 3:1 large text). Never convey information through colour alone.
+- **Target size**: Interactive targets must be at least 24×24 CSS px, or have enough spacing to undersized neighbours (WCAG 2.5.8).
 - **Form labels**: Every form control must have a visible, associated `<label>` (see label-element association rule below).
 - **Alt text**: Every `<img>` must have a meaningful `alt` attribute (or `alt=""` for decorative images).
 - **Language**: The `<html>` element must have a `lang` attribute. Use `lang` attributes on content in other languages.

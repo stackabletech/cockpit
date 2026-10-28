@@ -7,7 +7,6 @@
   import IconMenu from 'virtual:icons/material-symbols/menu';
   import IconPanelClose from 'virtual:icons/material-symbols/left-panel-close-outline';
   import IconPanelOpen from 'virtual:icons/material-symbols/left-panel-open-outline';
-  import IconExpandMore from 'virtual:icons/material-symbols/expand-more';
   import IconOpenInNew from 'virtual:icons/material-symbols/open-in-new';
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
@@ -17,7 +16,7 @@
   import { superForm } from 'sveltekit-superforms';
   import { zod4Client } from 'sveltekit-superforms/adapters';
   import { ConnectionSchema, type ConnectionMessage } from './validation.js';
-  import TabBar from '$lib/components/TabBar.svelte';
+  import TabBar, { tabElementId } from '$lib/components/TabBar.svelte';
   import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
   import {
     getOrCreateQueryRunner,
@@ -33,6 +32,7 @@
   } from '$lib/editor/split-statements.js';
   import type { PageData } from './$types';
   import StatementResult from '$lib/components/trino/StatementResult.svelte';
+  import RunButton, { type RunMode } from '$lib/components/trino/RunButton.svelte';
   import { getLocale } from '$lib/paraglide/runtime.js';
 
   let { data }: { data: PageData } = $props();
@@ -79,6 +79,8 @@
   }
   let catalogBrowserOpen = $state(getInitialCatalogOpen());
   let monacoEditor = $state<MonacoEditor | undefined>(undefined);
+  // Running needs the editor's cursor and selection, which exist only once Monaco has loaded
+  let editorReady = $state(false);
   let mobileCatalogOpen = $state(false);
 
   const viewStates = new SvelteMap<
@@ -320,7 +322,6 @@
 
   const hasSelection = $derived(monacoEditor?.getSelection() != null);
 
-  type RunMode = 'cursor' | 'all';
   let runMode = $state<RunMode>('cursor');
 
   function handleRun() {
@@ -336,28 +337,12 @@
     }
   }
 
-  function selectRunMode(mode: RunMode) {
-    runMode = mode;
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-  }
-
-  const runButtonLabel = $derived.by(() => {
-    if (runMode === 'all') {
-      return hasSelection ? m.trino_run_selected() : m.trino_run_all();
-    }
-    return m.trino_run_at_cursor();
-  });
-
   // Clear submitted statements when the user edits, so highlighting stops.
   const highlightOffsets = $derived.by(() => {
     const progress = runner.scriptProgress;
     if (!progress || progress.totalStatements <= 1 || isTerminal(runner.state)) return null;
     return submittedStatements[progress.currentStatementIndex] ?? null;
   });
-
-  const runShortcutLabel = $derived(runMode === 'cursor' ? 'Ctrl+↵' : 'Ctrl+Shift+↵');
 
   function handleKeydown(event: KeyboardEvent) {
     // Monaco handles its own keybindings — skip if the event originated from the editor.
@@ -366,7 +351,8 @@
     if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'Enter') {
       event.preventDefault();
       handleRunAll();
-    } else if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+    } else if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && editorReady) {
+      // Running at the cursor needs the editor, like the Run button
       event.preventDefault();
       handleRunAtCursor();
     }
@@ -427,7 +413,7 @@
         class="border-base-300 flex items-center justify-between border-b px-3 py-2"
         style="width: {catalogResize.width}px"
       >
-        <span class="text-base-content/60 text-sm font-medium">{m.trino_catalog_browser()}</span>
+        <span class="text-muted text-sm font-medium">{m.trino_catalog_browser()}</span>
       </div>
       <div class="min-h-0 flex-1" style="width: {catalogResize.width}px">
         <CatalogBrowser
@@ -451,7 +437,7 @@
           border-base-300 flex items-center justify-between border-b px-3 py-2
         "
       >
-        <span class="text-base-content/60 text-sm font-medium">{m.trino_catalog_browser()}</span>
+        <span class="text-muted text-sm font-medium">{m.trino_catalog_browser()}</span>
         <button
           class="btn btn-ghost btn-xs"
           onclick={() => (mobileCatalogOpen = false)}
@@ -494,7 +480,7 @@
             "
           >
             <span>{m.trino_connection_label()}</span>
-            <span class="text-base-content/50 font-mono text-xs">{connectionSummary}</span>
+            <span class="text-muted font-mono text-xs">{connectionSummary}</span>
           </div>
           <div class="collapse-content flex flex-col gap-4">
             <!-- URL -->
@@ -614,6 +600,10 @@
       <TabBar
         items={tabItems}
         activeId={tabStore.activeTabId}
+        ariaLabel={m.trino_tab_list()}
+        closeLabel={(item) => m.trino_tab_close({ name: item.label })}
+        addLabel={m.trino_tab_new()}
+        renameLabel={m.trino_tab_rename()}
         onSelect={handleTabSelect}
         onClose={handleTabClose}
         onAdd={handleTabAdd}
@@ -639,7 +629,7 @@
         rounded-b-xl border
       "
       role="tabpanel"
-      aria-labelledby="tab-{tabStore.activeTabId}"
+      aria-labelledby={tabElementId(tabStore.activeTabId)}
     >
       <div
         class="
@@ -674,7 +664,7 @@
               {/if}
             </button>
           </div>
-          <span class="text-base-content/60 text-sm font-medium">{m.trino_editor_label()}</span>
+          <span class="text-muted text-sm font-medium">{m.trino_editor_label()}</span>
           {#if charLimitReached}
             <span class="text-warning text-xs" role="status"
               >{m.trino_editor_char_limit_reached({
@@ -694,115 +684,20 @@
               {m.trino_cancel_query()}
             </button>
           {/if}
-          {#snippet runOption(label: string, shortcut: string)}
-            <span class="flex flex-col items-start text-xs font-semibold">
-              <span>{label}</span>
-              <kbd class="kbd kbd-xs text-base-content opacity-60">{shortcut}</kbd>
-            </span>
-          {/snippet}
-
-          <!-- Only the chevron sits inside the focus-driven dropdown, so focusing the run
-               button doesn't open the menu. The wrapper is the positioning box so the menu
-               spans both buttons. -->
-          <div class="relative">
-            <div class="join">
-              <button
-                type="button"
-                class="btn join-item btn-primary py-1.5"
-                disabled={isActive}
-                aria-label={runButtonLabel}
-                onclick={handleRun}
-              >
-                {#if isActive}
-                  <span
-                    class="
-                      grid
-                      *:[grid-area:1/1]
-                    "
-                  >
-                    <!-- Invisible sizer keeps the idle state's two-line height -->
-                    <span class="invisible" aria-hidden="true">
-                      {@render runOption(m.trino_running(), runShortcutLabel)}
-                    </span>
-                    <span class="flex items-center gap-1 self-center text-xs font-semibold">
-                      <span class="loading loading-xs loading-spinner"></span>
-                      {m.trino_running()}
-                    </span>
-                  </span>
-                {:else}
-                  <span
-                    class="
-                      grid
-                      *:[grid-area:1/1]
-                    "
-                  >
-                    <!-- Invisible sizers: longest option sets width -->
-                    <span class="invisible" aria-hidden="true">
-                      {@render runOption(m.trino_run_at_cursor(), 'Ctrl+Shift+↵')}
-                    </span>
-                    <span class="invisible" aria-hidden="true">
-                      {@render runOption(
-                        hasSelection ? m.trino_run_selected() : m.trino_run_all(),
-                        'Ctrl+Shift+↵'
-                      )}
-                    </span>
-                    {@render runOption(runButtonLabel, runShortcutLabel)}
-                  </span>
-                {/if}
-              </button>
-              <div class="dropdown dropdown-end static -ms-px flex">
-                <button
-                  type="button"
-                  class="
-                    btn join-item border-l-primary-content/20 btn-primary
-                    tooltip tooltip-bottom z-150 h-full border-l px-2 before:z-200
-                  "
-                  data-tip={m.trino_run_mode_select()}
-                  class:pointer-events-none={isActive}
-                  aria-haspopup="true"
-                  aria-label={m.trino_run_mode_select()}
-                >
-                  <IconExpandMore class="size-3" aria-hidden="true" />
-                </button>
-                <div
-                  class="
-                    dropdown-content rounded-box bg-primary text-primary-content top-full z-10 mt-1
-                    flex w-full flex-col gap-1 p-1.5 shadow-lg
-                  "
-                >
-                  <button
-                    type="button"
-                    class="
-                      rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
-                      text-left
-                      {runMode === 'cursor' ? 'bg-primary-content/15' : ''}"
-                    onclick={() => selectRunMode('cursor')}
-                  >
-                    {@render runOption(m.trino_run_at_cursor(), 'Ctrl+↵')}
-                  </button>
-                  <button
-                    type="button"
-                    class="
-                      rounded-field hover:bg-primary-content/20 cursor-pointer px-3 py-1.5
-                      text-left
-                      {runMode === 'all' ? 'bg-primary-content/15' : ''}"
-                    onclick={() => selectRunMode('all')}
-                  >
-                    {@render runOption(
-                      hasSelection ? m.trino_run_selected() : m.trino_run_all(),
-                      'Ctrl+Shift+↵'
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <RunButton
+            bind:runMode
+            {hasSelection}
+            {isActive}
+            disabled={!editorReady}
+            onRun={handleRun}
+          />
         </div>
       </div>
       <div class="h-64 px-4 py-2">
         <MonacoEditor
           bind:this={monacoEditor}
           bind:value={sql}
+          bind:ready={editorReady}
           {highlightOffsets}
           {defaultCatalog}
           {defaultSchema}
@@ -822,7 +717,7 @@
           data-query-state={runner.state}
         >
           {#if runner.scriptProgress}
-            <span class="text-base-content/60 text-xs font-medium">
+            <span class="text-muted text-xs font-medium">
               {m.trino_script_progress({
                 current: runner.scriptProgress.currentStatementIndex + 1,
                 total: runner.scriptProgress.totalStatements
@@ -847,7 +742,7 @@
             <span class="text-error text-xs" role="alert">{runner.error}</span>
           {/if}
           {#if runner.state === 'RUNNING'}
-            <span class="text-base-content/60 text-xs tabular-nums"
+            <span class="text-muted text-xs tabular-nums"
               >{Math.round(runner.progress.progressPercentage)}%</span
             >
             <progress
@@ -858,7 +753,7 @@
             ></progress>
           {/if}
           {#if progressInfo}
-            <span class="text-base-content/60 text-xs">{progressInfo}</span>
+            <span class="text-muted text-xs">{progressInfo}</span>
           {/if}
           {#if runner.currentTrinoQueryUrl}
             <a
@@ -876,7 +771,7 @@
 
       <!-- Results section -->
       <div class="border-base-300 flex items-center border-t px-4 py-2">
-        <span class="text-base-content/60 text-sm font-medium">{m.trino_results_label()}</span>
+        <span class="text-muted text-sm font-medium">{m.trino_results_label()}</span>
       </div>
 
       <div class="min-h-0 flex-1 overflow-auto">
@@ -885,7 +780,7 @@
             <StatementResult {result} index={idx} totalStatements={runner.results.length} />
           {/each}
         {:else if !isActive}
-          <p class="text-base-content/40 py-8 text-center text-sm">{m.trino_results_empty()}</p>
+          <p class="text-muted py-8 text-center text-sm">{m.trino_results_empty()}</p>
         {/if}
       </div>
     </div>

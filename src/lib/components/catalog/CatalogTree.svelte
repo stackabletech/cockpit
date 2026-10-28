@@ -108,7 +108,7 @@
         aria-label={leaf ? `${node.name} (${node.dataType ?? ''})` : node.name}
       >
         {#if !leaf}
-          <span class="text-base-content/40 flex w-4 items-center justify-center">
+          <span class="text-muted flex w-4 items-center justify-center">
             {@render chevronIcon(isExpanded)}
           </span>
         {:else}
@@ -129,7 +129,7 @@
           >
             {node.name}
           </button>
-          <span class="badge badge-ghost badge-xs text-base-content/40 whitespace-nowrap">
+          <span class="badge badge-ghost badge-xs text-muted whitespace-nowrap">
             {#if node.type === 'materialized_view'}
               {m.trino_table_type_materialized_view()}
             {:else if node.type === 'view'}
@@ -143,14 +143,14 @@
         {/if}
 
         {#if leaf && node.dataType}
-          <span class="text-base-content/40 ml-auto font-mono text-xs">{node.dataType}</span>
+          <span class="text-muted ml-auto font-mono text-xs">{node.dataType}</span>
         {/if}
       </div>
 
       {#if node.loading}
         <div class="ml-8 py-1">
           <span class="loading loading-spinner loading-xs"></span>
-          <span class="text-base-content/40 text-xs">{m.trino_loading()}</span>
+          <span class="text-muted text-xs">{m.trino_loading()}</span>
         </div>
       {/if}
 

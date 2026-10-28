@@ -24,11 +24,11 @@
 <tr class="border-primary/20 bg-primary/5 z-30 border-t">
   <th colspan={5} class="px-4 py-1.5 font-normal">
     <div class="flex items-center gap-1">
-      <span class="text-base-content/50 mr-1 text-xs">
+      <span class="text-muted mr-1 text-xs">
         {m.storage_selected({ count: selectedCount })}
       </span>
       {#if storage.selectedFiles.length > 0}
-        <span class="text-base-content/50 text-xs">
+        <span class="text-muted text-xs">
           {m.storage_selected_files_size({ size: formatFileSize(selectedFileSize) })}
         </span>
       {/if}

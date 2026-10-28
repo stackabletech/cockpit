@@ -77,7 +77,7 @@
         <IconSearch class="size-4 shrink-0" aria-hidden="true" />
         <span class="min-w-0 flex-1">
           <span class="block truncate font-mono text-sm">{entry.query}</span>
-          <span class="text-base-content/50 block truncate font-mono text-xs">{summary}</span>
+          <span class="text-muted block truncate font-mono text-xs">{summary}</span>
         </span>
         {#if multipleBuckets}
           <span class="badge badge-outline badge-sm shrink-0 font-mono"

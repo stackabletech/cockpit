@@ -1,4 +1,4 @@
-import { fail, redirect, isHttpError } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { desc, eq } from 'drizzle-orm';
@@ -11,11 +11,9 @@ import {
   type StorageConnectionMessage
 } from '$lib/storage/schemas.js';
 import { getConnectionProvider } from '$lib/server/storage/utils.js';
-import {
-  saveConnection,
-  getConnectionForUser,
-  deleteConnection
-} from '$lib/server/storage/connections-db.js';
+import { connectionTestErrorMessage } from '$lib/server/storage/connection-test-error.js';
+import { saveConnection, getConnectionForUser } from '$lib/server/storage/connections-db.js';
+import { deleteConnectionAction } from '$lib/server/storage/delete-connection-action.js';
 import { auth } from '$lib/server/auth.js';
 import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
@@ -106,37 +104,38 @@ export const actions: Actions = {
       log.info({ storage_type: type }, 'user storage connection verified');
     } catch (err) {
       log.warn({ err }, 'storage connection test failed');
-
-      let msg: string;
-      if (isHttpError(err)) {
-        if (err.status === 403) {
-          msg = m.storage_connect_error_access_denied();
-        } else if (err.status === 404) {
-          msg = m.storage_connect_error_not_found();
-        } else if (err.status === 502) {
-          msg = m.storage_connect_error_server_error();
-        } else {
-          msg = m.storage_connect_error();
-        }
-      } else if (err instanceof Error) {
-        const e = (err.message ?? '').toLowerCase();
-        if (/econnrefused|enotfound|eai_again|etimedout|network/.test(e)) {
-          msg = m.storage_connect_error_network();
-        } else {
-          msg = m.storage_connect_error();
-        }
-      } else {
-        msg = m.storage_connect_error();
-      }
-
-      return message(form, { type: 'error', message: msg }, { status: 400 });
+      return message(
+        form,
+        { type: 'error', message: connectionTestErrorMessage(err) },
+        { status: 400 }
+      );
     }
 
-    const id = await saveConnection(locals.user!.id, config);
-    await auth.api.updateSession({
-      headers: request.headers,
-      body: { activeStorageConnectionId: id }
-    });
+    let id: string;
+    try {
+      id = await saveConnection(locals.user!.id, config);
+    } catch (err) {
+      log.error({ err }, 'failed to save storage connection');
+      return message(
+        form,
+        { type: 'error', message: m.storage_connect_save_failed() },
+        { status: 500 }
+      );
+    }
+
+    try {
+      await auth.api.updateSession({
+        headers: request.headers,
+        body: { activeStorageConnectionId: id }
+      });
+    } catch (err) {
+      log.error({ err, connection_id: id }, 'failed to activate saved storage connection');
+      return message(
+        form,
+        { type: 'error', message: m.storage_connect_activate_failed() },
+        { status: 500 }
+      );
+    }
 
     throw redirect(303, '/storage');
   },
@@ -155,55 +154,43 @@ export const actions: Actions = {
     const form = await superValidate(request, zod(ConnectionIdSchema));
 
     if (!form.valid) {
-      return fail(400, { error: 'Invalid connection ID' });
+      log.debug({ errors: form.errors }, 'invalid connection id for use');
+      return fail(400, { error: m.storage_connection_edit_not_found() });
     }
 
     const { connectionId } = form.data;
     const userId = locals.user!.id;
 
-    const config = await getConnectionForUser(userId, connectionId);
-    if (!config) {
-      return fail(400, { error: 'Connection not found' });
-    }
-
     try {
-      await getConnectionProvider(config).listContainers();
-      log.info({ connectionId }, 'user switched storage connection');
-    } catch (err) {
-      log.warn({ err, connectionId }, 'storage connection test failed on use');
-      return fail(400, { error: 'Could not connect — check the endpoint and credentials.' });
-    }
+      const config = await getConnectionForUser(userId, connectionId);
+      if (!config) {
+        log.debug({ connection_id: connectionId }, 'storage connection to use not found');
+        return fail(400, { error: m.storage_connection_edit_not_found() });
+      }
 
-    await auth.api.updateSession({
-      headers: request.headers,
-      body: { activeStorageConnectionId: connectionId }
-    });
+      try {
+        await getConnectionProvider(config).listContainers();
+      } catch (err) {
+        log.warn({ err, connection_id: connectionId }, 'storage connection test failed on use');
+        return fail(400, { error: connectionTestErrorMessage(err) });
+      }
+
+      await auth.api.updateSession({
+        headers: request.headers,
+        body: { activeStorageConnectionId: connectionId }
+      });
+      log.info({ connection_id: connectionId }, 'user switched storage connection');
+    } catch (err) {
+      log.error({ err, connection_id: connectionId }, 'failed to switch storage connection');
+      return fail(500, { error: m.storage_connection_switch_failed() });
+    }
 
     throw redirect(303, '/storage');
   },
 
-  deleteConnection: async ({ request, locals }) => {
-    const log = locals.logger;
-    const form = await superValidate(request, zod(ConnectionIdSchema));
-
-    if (!form.valid) {
-      return fail(400, { error: 'Invalid connection ID' });
-    }
-
-    const { connectionId } = form.data;
-    const userId = locals.user!.id;
-    const activeId = locals.session?.activeStorageConnectionId ?? null;
-
-    if (connectionId === activeId) {
-      await auth.api.updateSession({
-        headers: request.headers,
-        body: { activeStorageConnectionId: null }
-      });
-      log.info({ connectionId }, 'active storage connection deleted, session cleared');
-    }
-
-    await deleteConnection(userId, connectionId);
-
+  deleteConnection: async (event) => {
+    const failure = await deleteConnectionAction(event);
+    if (failure) return failure;
     throw redirect(303, '/storage');
   }
 };
