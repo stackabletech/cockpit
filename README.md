@@ -8,26 +8,6 @@ It provides a single place to work with the data services running on your platfo
 > [!WARNING]
 > Stackable Cockpit is experimental.
 
-## About The Stackable Data Platform
-
-This application is part of the Stackable Data Platform, a curated selection of best-of-breed data applications and tools that you can deploy and operate on Kubernetes.
-The platform builds on open-source projects and provides Kubernetes operators to manage them, including:
-
-- [Apache Airflow](https://github.com/stackabletech/airflow-operator)
-- [Apache Druid](https://github.com/stackabletech/druid-operator)
-- [Apache HBase](https://github.com/stackabletech/hbase-operator)
-- [Apache Hadoop HDFS](https://github.com/stackabletech/hdfs-operator)
-- [Apache Hive](https://github.com/stackabletech/hive-operator)
-- [Apache Kafka](https://github.com/stackabletech/kafka-operator)
-- [Apache NiFi](https://github.com/stackabletech/nifi-operator)
-- [OpenSearch](https://github.com/stackabletech/opensearch-operator)
-- [Apache Spark](https://github.com/stackabletech/spark-k8s-operator)
-- [Apache Superset](https://github.com/stackabletech/superset-operator)
-- [Trino](https://github.com/stackabletech/trino-operator)
-- [Apache ZooKeeper](https://github.com/stackabletech/zookeeper-operator)
-
-Read more about the platform in the [documentation](https://docs.stackable.tech/) and on the [Stackable Hub](https://hub.stackable.tech/).
-
 ## Features
 
 - Single sign-on via any OIDC provider
@@ -38,47 +18,7 @@ Read more about the platform in the [documentation](https://docs.stackable.tech/
 
 More modules will be added over time.
 
-## Accessibility
-
-Stackable Cockpit targets [WCAG 2.2](https://www.w3.org/TR/WCAG22/) level AA.
-This is a superset of [BITV 2.0](https://www.gesetze-im-internet.de/bitv_2_0/), which is based on [WCAG 2.1](https://www.w3.org/TR/WCAG21/) level AA.
-As the project is still experimental, it may not fully meet these requirements yet.
-We treat every accessibility violation as a bug, so please [open an issue](https://github.com/stackabletech/cockpit/issues) if you find one.
-
-## Quick Start
-
-The required Node.js version is pinned in [`.node-version`](./.node-version).
-
-```bash
-# Install dependencies
-npm install
-
-# Start the development server (http://localhost:5173)
-npm run dev
-```
-
-Copy [`.env.example`](./.env.example) to `.env` and adjust the values for your OIDC provider, PostgreSQL database and Trino endpoint.
-For a fully pre-configured local environment (Keycloak, Trino, Garage S3 and PostgreSQL on a local kind cluster), see [`dev/setup.sh`](./dev/setup.sh).
-
-## Development
-
-```bash
-npm run dev          # Start the dev server
-npm run build        # Build for production
-npm run preview      # Preview the production build
-
-npm run format       # Format all code
-npm run check        # Type checking
-npm run lint         # Linting
-npm run knip         # Report unused files, exports and dependencies
-npm run test:unit    # Run the Vitest unit tests
-npm run test:arch    # Run the architecture tests
-npm run test:e2e     # Run the Playwright end-to-end tests (requires Docker)
-
-npm run generate:antlr   # Regenerate the lexer/parser after editing the SQL grammar
-```
-
-## Deployment
+## Installation
 
 > [!IMPORTANT]
 > Serve Cockpit over HTTPS, because session cookies and credentials such as S3 keys pass through the browser connection.
@@ -166,18 +106,61 @@ Create a `.env` file at the project root, or set them in your deployment environ
 - Stackable website: <https://stackable.tech/>
 - Stackable Hub: <https://hub.stackable.tech/>
 
+## Development
+
+The required Node.js version is pinned in [`.node-version`](./.node-version).
+Copy [`.env.example`](./.env.example) to `.env` and adjust the values for your OIDC provider, PostgreSQL database and Trino endpoint.
+For a fully pre-configured local environment (Keycloak, Trino, Garage S3 and PostgreSQL on a local kind cluster), see [`dev/setup.sh`](./dev/setup.sh).
+
+```bash
+npm install          # Install dependencies
+npm run dev          # Start the dev server (http://localhost:5173)
+npm run build        # Build for production
+npm run preview      # Preview the production build
+
+npm run format       # Format all code
+npm run check        # Type checking
+npm run lint         # Linting
+npm run knip         # Report unused files, exports and dependencies
+npm run test:unit    # Run the Vitest unit tests
+npm run test:arch    # Run the architecture tests
+npm run test:e2e     # Run the Playwright end-to-end tests (requires Docker)
+
+npm run generate:antlr   # Regenerate the lexer/parser after editing the SQL grammar
+```
+
+## Accessibility
+
+Stackable Cockpit targets [WCAG 2.2](https://www.w3.org/TR/WCAG22/) level AA.
+This is a superset of [BITV 2.0](https://www.gesetze-im-internet.de/bitv_2_0/), which is based on [WCAG 2.1](https://www.w3.org/TR/WCAG21/) level AA.
+As the project is still experimental, it may not fully meet these requirements yet.
+We treat every accessibility violation as a bug, so please [open an issue](https://github.com/stackabletech/cockpit/issues) if you find one.
+
+## About The Stackable Data Platform
+
+This application is part of the Stackable Data Platform, a curated selection of best-of-breed data applications and tools that you can deploy and operate on Kubernetes.
+The platform builds on open-source projects and provides Kubernetes operators to manage them, including:
+
+- [Apache Airflow](https://github.com/stackabletech/airflow-operator)
+- [Apache Druid](https://github.com/stackabletech/druid-operator)
+- [Apache HBase](https://github.com/stackabletech/hbase-operator)
+- [Apache Hadoop HDFS](https://github.com/stackabletech/hdfs-operator)
+- [Apache Hive](https://github.com/stackabletech/hive-operator)
+- [Apache Kafka](https://github.com/stackabletech/kafka-operator)
+- [Apache NiFi](https://github.com/stackabletech/nifi-operator)
+- [OpenSearch](https://github.com/stackabletech/opensearch-operator)
+- [Apache Spark](https://github.com/stackabletech/spark-k8s-operator)
+- [Apache Superset](https://github.com/stackabletech/superset-operator)
+- [Trino](https://github.com/stackabletech/trino-operator)
+- [Apache ZooKeeper](https://github.com/stackabletech/zookeeper-operator)
+
+Read more about the platform in the [documentation](https://docs.stackable.tech/) and on the [Stackable Hub](https://hub.stackable.tech/).
+
 ## Contributing
 
 Contributions are welcome!
 Please open an issue or pull request.
-Before submitting changes, run the quality checks:
-
-```bash
-npm run format
-npm run check
-npm run lint
-npm run test:e2e
-```
+Before submitting changes, run the formatting, type checks, linting and end-to-end tests listed under [Development](#development).
 
 Contributions require agreeing to a Contributor License Agreement (CLA).
 When you open your first pull request, the CLA assistant will guide you through signing it.
