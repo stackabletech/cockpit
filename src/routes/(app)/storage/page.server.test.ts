@@ -63,7 +63,10 @@ import { load, actions } from './+page.server.js';
 import { superValidate } from 'sveltekit-superforms';
 
 function mockLocals() {
-  return { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }, user: { id: 'test-user' } };
+  return {
+    logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    user: { id: 'test-user' }
+  };
 }
 
 const validFormData = {
@@ -166,6 +169,61 @@ describe('storage page actions', () => {
     ).rejects.toThrow(expect.objectContaining({ status: 303, location: '/storage' }));
   });
 
+  it('connect: returns an error message instead of throwing when saving fails', async () => {
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: {
+        type: 's3',
+        host: 's3.example.com',
+        accessStyle: 'Path',
+        region: { name: 'us-east-1' },
+        credentials: { accessKey: 'ak', secretKey: 'sk' }
+      }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    mockConnectionProvider.listContainers.mockResolvedValue(['b1']);
+    mockSaveConnection.mockRejectedValueOnce(new Error('database is locked'));
+
+    const result = await actions.connect({
+      request: new Request('http://localhost', { method: 'POST' }),
+      locals: mockLocals()
+    } as unknown as Parameters<typeof actions.connect>[0]);
+
+    expect(result).toMatchObject({
+      status: 500,
+      message: { type: 'error', message: 'Could not save the connection. Please try again.' }
+    });
+  });
+
+  it('connect: says the connection was saved when only activating it fails', async () => {
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: {
+        type: 's3',
+        host: 's3.example.com',
+        accessStyle: 'Path',
+        region: { name: 'us-east-1' },
+        credentials: { accessKey: 'ak', secretKey: 'sk' }
+      }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    mockConnectionProvider.listContainers.mockResolvedValue(['b1']);
+    mockUpdateSession.mockRejectedValueOnce(new Error('session store down'));
+
+    const result = await actions.connect({
+      request: new Request('http://localhost', { method: 'POST' }),
+      locals: mockLocals()
+    } as unknown as Parameters<typeof actions.connect>[0]);
+
+    expect(mockSaveConnection).toHaveBeenCalled();
+    expect(result).toMatchObject({
+      status: 500,
+      message: {
+        type: 'error',
+        message:
+          'The connection was saved but could not be activated. Reload the page and select it from the saved connections.'
+      }
+    });
+  });
+
   it('disconnect: redirects to /storage', async () => {
     await expect(
       actions.disconnect({
@@ -203,19 +261,18 @@ describe('storage page actions', () => {
       locals: mockLocals()
     } as unknown as Parameters<typeof actions.use>[0]);
 
-    expect(result).toMatchObject({
-      status: 400,
-      data: { error: 'The selected connection no longer exists.' }
-    });
+    expect(result).toMatchObject({ status: 400, data: { error: 'Connection not found.' } });
   });
 
-  it('use: explains why the selected connection cannot be opened', async () => {
+  it('use: explains why the connection test failed', async () => {
     vi.mocked(superValidate).mockResolvedValue({
       valid: true,
       data: { connectionId: 'saved-connection' }
     } as unknown as Awaited<ReturnType<typeof superValidate>>);
     mockGetConnectionForUser.mockResolvedValue(validFormData);
-    mockConnectionProvider.listContainers.mockRejectedValue(new Error('getaddrinfo ENOTFOUND'));
+    mockConnectionProvider.listContainers.mockRejectedValue(
+      Object.assign(new Error(''), { code: 'ENOTFOUND' })
+    );
 
     const result = await actions.use({
       request: new Request('http://localhost', { method: 'POST' }),
@@ -282,5 +339,23 @@ describe('storage page actions', () => {
     ).rejects.toThrow(expect.objectContaining({ status: 303, location: '/storage' }));
     expect(mockUpdateSession).not.toHaveBeenCalled();
     expect(mockDeleteConnection).toHaveBeenCalledWith('test-user', 'inactive-connection');
+  });
+
+  it('deleteConnection: returns an error instead of throwing when deleting fails', async () => {
+    vi.mocked(superValidate).mockResolvedValue({
+      valid: true,
+      data: { connectionId: 'inactive-connection' }
+    } as unknown as Awaited<ReturnType<typeof superValidate>>);
+    mockDeleteConnection.mockRejectedValueOnce(new Error('database is locked'));
+
+    const result = await actions.deleteConnection({
+      request: new Request('http://localhost', { method: 'POST' }),
+      locals: mockLocals()
+    } as unknown as Parameters<typeof actions.deleteConnection>[0]);
+
+    expect(result).toMatchObject({
+      status: 500,
+      data: { error: 'Could not delete the connection. Please try again.' }
+    });
   });
 });

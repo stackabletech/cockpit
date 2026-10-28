@@ -63,6 +63,18 @@ test.describe('Storage S3 — Connection', () => {
     ).toBeVisible();
   });
 
+  test('a cleared port field means the default port, not a validation error', async ({ page }) => {
+    await openConnectForm(page);
+    const port = page.getByLabel('Port');
+    await port.fill('9000');
+    await port.fill('');
+    await page.getByRole('button', { name: 'Connect', exact: true }).click();
+
+    // The empty host still fails, so validation has run.
+    await expect(page.getByText('Host is required')).toBeVisible();
+    await expect(page.getByText(/Port must be|Too small/)).toHaveCount(0);
+  });
+
   test('disconnects from Garage S3', async ({ page }) => {
     const credentials = requireGarageCredentials();
 
