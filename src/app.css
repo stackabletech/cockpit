@@ -11,6 +11,38 @@
   --color-primary-content: oklch(24% 0.12 277.117);
 }
 
+/*
+ * Secondary text (`text-muted`). Low opacities of base-content fail WCAG AA (4.5:1): in the
+ * light theme /60 already drops to 4.4:1 on base-300, so it mixes 70% (6.1:1 or more on
+ * base-100..300). The dark theme reaches 6.2:1 at 60% and stays subtler. Use this instead of
+ * text-base-content/[≤60] for any text, and don't add an opacity to it; lower opacities are
+ * only for aria-hidden icons that duplicate adjacent text.
+ */
+@theme {
+  --color-muted: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+}
+
+[data-theme='dark'] {
+  --color-muted: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+}
+
+/*
+ * DaisyUI renders inactive tabs at 50% base-content, which fails 4.5:1 in the light theme.
+ * Unlayered on purpose: DaisyUI's layers come after Tailwind's utilities layer, so neither a
+ * layered rule nor a colour utility on the tab can override its colour.
+ */
+.tab:not(
+  .tab-active,
+  [aria-selected='true'],
+  [aria-current='true'],
+  [aria-current='page'],
+  .tab-disabled,
+  [disabled],
+  :hover
+) {
+  color: var(--color-muted);
+}
+
 /* Subtle highlight for the currently executing statement in the Monaco editor */
 .highlighted-statement {
   background-color: oklch(from var(--color-primary) l c h / 0.08);

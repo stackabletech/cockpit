@@ -141,7 +141,7 @@
           <span class="truncate">{item.label}</span>
           {#if item.badge}
             <span
-              class="bg-base-300 text-base-content/60 ml-auto rounded-md px-1.5 py-0.5 text-xs font-semibold tracking-wider uppercase"
+              class="bg-base-300 text-muted ml-auto rounded-md px-1.5 py-0.5 text-xs font-semibold tracking-wider uppercase"
             >
               {item.badge}
             </span>
@@ -224,7 +224,7 @@
   >
     <!-- Platform -->
     {#if !collapsed}
-      <div class="text-base-content/60 mb-2 px-3 text-xs font-semibold tracking-wider uppercase">
+      <div class="text-muted mb-2 px-3 text-xs font-semibold tracking-wider uppercase">
         {platformSection.title}
       </div>
     {/if}
@@ -238,7 +238,7 @@
     {#if pinnedBookmarks.length > 0}
       <div class="my-3"></div>
       {#if !collapsed}
-        <div class="text-base-content/60 mb-2 px-3 text-xs font-semibold tracking-wider uppercase">
+        <div class="text-muted mb-2 px-3 text-xs font-semibold tracking-wider uppercase">
           {m.sidebar_favourites()}
         </div>
       {/if}
@@ -255,7 +255,7 @@
       <button
         type="button"
         onclick={() => (toolsOpen = !toolsOpen)}
-        class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content mb-2 flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-semibold tracking-wider uppercase transition-colors hover:cursor-pointer"
+        class="text-muted hover:bg-base-content/5 hover:text-base-content mb-2 flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-semibold tracking-wider uppercase transition-colors hover:cursor-pointer"
         aria-expanded={toolsOpen}
       >
         {toolsSection.title}
@@ -282,7 +282,7 @@
     <TooltipTrigger text={collapsed ? m.sidebar_expand() : undefined} orientation="right">
       <button
         onclick={() => (collapsed = !collapsed)}
-        class="text-base-content/60 hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3 py-2
+        class="text-muted hover:bg-base-content/5 hover:text-base-content flex w-full items-center gap-3 rounded-lg px-3 py-2
           text-sm font-medium transition-colors hover:cursor-pointer
           {collapsed ? 'justify-center' : ''}"
         aria-label={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}

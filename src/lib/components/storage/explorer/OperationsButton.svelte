@@ -66,7 +66,7 @@
       case 'done':
         return 'text-success';
       case 'cancelled':
-        return 'text-base-content/40';
+        return 'text-muted';
       case 'interrupted':
       case 'unknown':
         return 'text-warning';
@@ -236,15 +236,13 @@
         <!-- Active operations section -->
         {#if activeOps.length > 0}
           <div class="border-base-300 border-b px-3 pt-3 pb-2">
-            <p
-              class="text-base-content/50 mb-2 text-[10px] font-semibold tracking-widest uppercase"
-            >
+            <p class="text-muted mb-2 text-[10px] font-semibold tracking-widest uppercase">
               {m.storage_operations_active()}
             </p>
             <ul class="flex flex-col gap-2">
               {#each activeOps as op (op.id)}
                 {@const TypeIcon = typeIconMap[op.type]}
-                <li role="none" class="bg-base-200 rounded-lg px-3 py-2.5">
+                <li class="bg-base-200 rounded-lg px-3 py-2.5">
                   <!-- Collapsible header row -->
                   <div class="flex items-center gap-2">
                     <div
@@ -262,7 +260,7 @@
                     >
                       <!-- Chevron -->
                       <span
-                        class="text-base-content/30 shrink-0 transition-transform duration-200"
+                        class="text-muted shrink-0 transition-transform duration-200"
                         class:rotate-90={expandedOps[op.id]}
                         aria-hidden="true"
                       >
@@ -283,7 +281,7 @@
 
                       <!-- Speed + ETA (collapsed, right-aligned) -->
                       {#if op.totalBytes > 0}
-                        <span class="text-base-content/40 shrink-0 text-[9px] tabular-nums">
+                        <span class="text-muted shrink-0 text-[9px] tabular-nums">
                           {speedEtaLabel(op)}
                         </span>
                       {/if}
@@ -306,7 +304,7 @@
                     <div class="mt-2 space-y-1.5">
                       <!-- Active files -->
                       {#if op.currentFileName}
-                        <div class="text-base-content/50 truncate pl-5 text-[11px]">
+                        <div class="text-muted truncate pl-5 text-[11px]">
                           {op.currentFileName}
                         </div>
                       {/if}
@@ -324,7 +322,7 @@
                           aria-label={op.label}
                         >
                           <div class="mb-1 flex items-center justify-between">
-                            <span class="text-base-content/50 text-[10px] tabular-nums">
+                            <span class="text-muted text-[10px] tabular-nums">
                               {progressLabel(op)}
                             </span>
                             <span class="text-primary text-[10px] font-semibold tabular-nums">
@@ -361,7 +359,7 @@
                                 ></span>
                               {:else}
                                 <span
-                                  class="text-base-content/20 inline-block size-2 rounded-full border border-current"
+                                  class="text-muted inline-block size-2 rounded-full border border-current"
                                   aria-hidden="true"
                                 ></span>
                               {/if}
@@ -372,14 +370,14 @@
                       {/if}
 
                       <!-- Elapsed time -->
-                      <div class="text-base-content/35 mt-1.5 pl-5 text-[10px] tabular-nums">
+                      <div class="text-muted mt-1.5 pl-5 text-[10px] tabular-nums">
                         {formatElapsed(op.startedAt, op.completedAt)}
                       </div>
                     </div>
                   {:else}
                     <!-- Collapsed: active files on single line -->
                     {#if op.currentFileName}
-                      <div class="text-base-content/40 mt-1 truncate pl-5 text-[10px]">
+                      <div class="text-muted mt-1 truncate pl-5 text-[10px]">
                         {op.currentFileName}
                       </div>
                     {/if}
@@ -394,11 +392,11 @@
         {#if hasAnyHistory}
           <div class="flex min-h-0 flex-1 flex-col px-3 pt-2.5 pb-2">
             <div class="mb-2 flex items-center justify-between">
-              <p class="text-base-content/50 text-[10px] font-semibold tracking-widest uppercase">
+              <p class="text-muted text-[10px] font-semibold tracking-widest uppercase">
                 {m.storage_operations_history()}
               </p>
               <button
-                class="btn btn-ghost btn-xs text-base-content/40 hover:text-base-content flex h-5 items-center gap-1 px-1 py-0 text-[10px]"
+                class="btn btn-ghost btn-xs text-muted hover:text-base-content flex h-5 items-center gap-1 px-1 py-0 text-[10px]"
                 onclick={() => storage.clearOperationHistory()}
                 aria-label={m.storage_operations_clear_history()}
               >
@@ -410,7 +408,7 @@
               <ul class="mb-10 min-h-0 flex-1 space-y-1 overflow-y-auto">
                 {#each historyOps as op (op.id)}
                   {@const TypeIcon = typeIconMap[op.type]}
-                  <li role="none" class="rounded-md px-2.5 py-2 {statusBgColor(op)}">
+                  <li class="rounded-md px-2.5 py-2 {statusBgColor(op)}">
                     <div class="flex items-center gap-2">
                       <!-- Status icon -->
                       <span class="shrink-0 {statusColor(op)}" aria-hidden="true">
@@ -427,8 +425,8 @@
                         {/if}
                       </span>
                       <!-- Operation type icon -->
-                      <span class="text-base-content/50 shrink-0" aria-hidden="true">
-                        <TypeIcon class="size-3" />
+                      <span class="shrink-0" aria-hidden="true">
+                        <TypeIcon class="text-base-content/50 size-3" aria-hidden="true" />
                       </span>
                       <span class="text-base-content/80 min-w-0 flex-1 truncate text-[11px]">
                         {op.label}
@@ -437,7 +435,7 @@
                         <span class="text-[10px] font-medium {statusColor(op)}">
                           {statusLabel(op)}
                         </span>
-                        <span class="text-base-content/35 text-[9px] tabular-nums">
+                        <span class="text-muted text-[9px] tabular-nums">
                           {formatElapsed(op.startedAt, op.completedAt)}
                         </span>
                       </div>
@@ -473,7 +471,7 @@
                             style="width: {percent(op)}%"
                           ></div>
                         </div>
-                        <span class="text-base-content/35 text-[9px] tabular-nums">
+                        <span class="text-muted text-[9px] tabular-nums">
                           {formatBytes(op.completedBytes)} / {formatBytes(op.totalBytes)}
                         </span>
                       </div>
@@ -484,7 +482,7 @@
             {/if}
           </div>
         {:else if activeOps.length === 0}
-          <div class="text-base-content/40 flex items-center gap-2 px-4 py-3">
+          <div class="text-muted flex items-center gap-2 px-4 py-3">
             <IconHistory class="size-4" aria-hidden="true" />
             <span class="text-xs">{m.storage_operations_history()}</span>
           </div>
