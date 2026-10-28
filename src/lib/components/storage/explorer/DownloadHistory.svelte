@@ -46,11 +46,11 @@
   class="border-base-300 min-h-0 flex-1 overflow-y-auto border-t px-3 py-3"
   aria-label={m.storage_download_history_title()}
 >
-  <h2 class="text-base-content/50 mb-2 text-[10px] font-semibold tracking-widest uppercase">
+  <h2 class="text-muted mb-2 text-[10px] font-semibold tracking-widest uppercase">
     {m.storage_download_history_title()}
   </h2>
   {#if entries.length === 0}
-    <p class="text-base-content/50 text-xs">{m.storage_download_history_empty()}</p>
+    <p class="text-muted text-xs">{m.storage_download_history_empty()}</p>
   {:else}
     <ul class="space-y-2">
       {#each entries as entry (entry.id)}
@@ -71,7 +71,7 @@
               <span class="text-base-content block truncate text-xs font-medium"
                 >{entry.bucket}</span
               >
-              <span class="text-base-content/60 block text-[10px]">
+              <span class="text-muted block text-[10px]">
                 {new Date(entry.createdAt).toLocaleString(getLocale())} · {m.storage_download_history_file_count(
                   { count: entry.entries.length }
                 )} · {formatFileSize(totalSize)} · {entry.archive
@@ -107,7 +107,7 @@
                     for={`${uid}-${entry.id}-${index}`}
                     class="text-base-content min-w-0 flex-1 truncate text-xs"
                     >{item.key}
-                    <span class="text-base-content/50">({formatFileSize(item.size)})</span></label
+                    <span class="text-muted">({formatFileSize(item.size)})</span></label
                   >
                 </div>
               {/each}

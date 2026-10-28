@@ -227,7 +227,7 @@
   <!-- Schema context selector -->
   <div class="border-base-300 flex flex-col gap-2 border-b p-3">
     <div class="flex flex-col gap-1">
-      <label for="{uid}-catalog" class="text-base-content/60 text-xs font-medium">
+      <label for="{uid}-catalog" class="text-muted text-xs font-medium">
         {m.trino_default_catalog()}
       </label>
       <select
@@ -243,7 +243,7 @@
       </select>
     </div>
     <div class="flex flex-col gap-1">
-      <label for="{uid}-schema" class="text-base-content/60 text-xs font-medium">
+      <label for="{uid}-schema" class="text-muted text-xs font-medium">
         {m.trino_default_schema()}
       </label>
       <select
@@ -263,7 +263,7 @@
 
   <!-- Tree view -->
   <div class="border-base-300 flex items-center justify-between border-b px-3 py-1">
-    <span class="text-base-content/60 text-xs font-medium">{m.trino_catalog_browser()}</span>
+    <span class="text-muted text-xs font-medium">{m.trino_catalog_browser()}</span>
     <div class="tooltip tooltip-bottom" data-tip={m.trino_catalog_refresh()}>
       <button
         class="btn btn-ghost btn-xs"
@@ -279,7 +279,7 @@
     {#if catalogsLoading}
       <div class="flex items-center gap-2 p-2">
         <span class="loading loading-spinner loading-xs"></span>
-        <span class="text-base-content/40 text-sm">{m.trino_loading()}</span>
+        <span class="text-muted text-sm">{m.trino_loading()}</span>
       </div>
     {:else if loadError}
       <div class="text-error p-2 text-sm">
@@ -287,7 +287,7 @@
         <p class="text-xs opacity-70">{loadError}</p>
       </div>
     {:else if catalogs.length === 0}
-      <p class="text-base-content/40 p-2 text-sm">{m.trino_no_catalogs()}</p>
+      <p class="text-muted p-2 text-sm">{m.trino_no_catalogs()}</p>
     {:else}
       <CatalogTree
         nodes={catalogs}

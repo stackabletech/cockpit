@@ -149,7 +149,7 @@
 
   <div class="flex flex-col gap-3">
     <fieldset class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-      <legend class="text-base-content/60 w-24 shrink-0 text-xs font-medium"
+      <legend class="text-muted w-24 shrink-0 text-xs font-medium"
         >{m.storage_search_scope_label()}</legend
       >
       <BucketSelect {session} {buckets} {searchState} />
@@ -161,14 +161,12 @@
     open={searchState.advancedOpen}
     ontoggle={(event) => (searchState.advancedOpen = event.currentTarget.open)}
   >
-    <summary class="collapse-title text-base-content/60 min-h-0 py-2 text-sm font-medium"
+    <summary class="collapse-title text-muted min-h-0 py-2 text-sm font-medium"
       >{m.storage_search_advanced_options()}</summary
     >
     <div class="collapse-content flex flex-col gap-3 pt-1">
       <fieldset>
-        <legend class="text-base-content/60 mb-1 block text-xs"
-          >{m.storage_search_filters_label()}</legend
-        >
+        <legend class="text-muted mb-1 block text-xs">{m.storage_search_filters_label()}</legend>
         <div class="flex flex-col gap-2">
           {#each session.filters as filter (filter.id)}
             <SearchFilterRow
@@ -187,7 +185,7 @@
         >
       </fieldset>
       <div>
-        <label for="{id}-exclude" class="text-base-content/60 mb-1 block text-xs"
+        <label for="{id}-exclude" class="text-muted mb-1 block text-xs"
           >{m.storage_search_exclude_patterns()}</label
         >
         <div class="flex flex-wrap gap-1.5">
@@ -218,7 +216,7 @@
       </div>
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
-          <label for="{id}-prefix" class="text-base-content/60 mb-1 block text-xs"
+          <label for="{id}-prefix" class="text-muted mb-1 block text-xs"
             >{m.storage_search_path_prefix()}</label
           ><input
             id="{id}-prefix"
@@ -229,7 +227,7 @@
           />
         </div>
         <div>
-          <label for="{id}-depth" class="text-base-content/60 mb-1 block text-xs"
+          <label for="{id}-depth" class="text-muted mb-1 block text-xs"
             >{m.storage_search_max_depth()}</label
           ><input
             id="{id}-depth"

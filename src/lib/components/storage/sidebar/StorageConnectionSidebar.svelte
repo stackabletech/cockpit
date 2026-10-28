@@ -190,7 +190,7 @@
 <!-- Mobile: horizontal scrollable connections row -->
 <div class="md:hidden">
   {#if connections.length > 0}
-    <p class="text-base-content/50 mb-2 text-xs font-semibold tracking-wide uppercase">
+    <p class="text-muted mb-2 text-xs font-semibold tracking-wide uppercase">
       {m.storage_connect_saved()}
     </p>
     <div
@@ -275,14 +275,14 @@
   aria-label={m.storage_connect_saved()}
 >
   <div class="border-base-300 border-b px-3 py-2">
-    <span class="text-base-content/50 text-xs font-semibold tracking-wide uppercase">
+    <span class="text-muted text-xs font-semibold tracking-wide uppercase">
       {m.storage_connect_saved()}
     </span>
   </div>
 
   <ul class="flex-1 overflow-y-auto py-1" role="list" aria-label={m.storage_connect_saved()}>
     {#if connections.length === 0}
-      <li class="text-base-content/40 px-3 py-4 text-center text-xs">
+      <li class="text-muted px-3 py-4 text-center text-xs">
         {m.storage_connect_no_saved()}
       </li>
     {:else}

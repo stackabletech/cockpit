@@ -432,7 +432,7 @@
 
     <!-- Target prefix info -->
     {#if prefix}
-      <p class="text-base-content/50 mb-3 truncate text-xs">
+      <p class="text-muted mb-3 truncate text-xs">
         {m.storage_upload_to_prefix({ prefix })}
       </p>
     {/if}
@@ -453,13 +453,11 @@
           <li class="flex items-center gap-3 px-4 py-2.5">
             <IconDraft class="text-primary size-5 shrink-0" aria-hidden="true" />
             <span class="min-w-0 flex-1 truncate text-sm">{entry.displayPath}</span>
-            <span class="text-base-content/50 shrink-0 text-xs"
-              >{formatFileSize(entry.file.size)}</span
-            >
+            <span class="text-muted shrink-0 text-xs">{formatFileSize(entry.file.size)}</span>
           </li>
         {/each}
       </ul>
-      <p class="text-base-content/50 mb-4 text-xs">
+      <p class="text-muted mb-4 text-xs">
         {entries.length === 1 ? `1 ${m.storage_file()}` : `${entries.length} ${m.storage_files()}`}
         &nbsp;&middot;&nbsp;{m.storage_upload_total_size({
           size: formatFileSize(totalSize)
@@ -489,7 +487,7 @@
     {:else if phase === 'checking'}
       <div class="flex flex-col items-center justify-center gap-3 py-8" aria-live="polite">
         <span class="loading loading-spinner loading-sm text-primary" aria-hidden="true"></span>
-        <span class="text-base-content/60 text-sm">{m.storage_upload_checking()}</span>
+        <span class="text-muted text-sm">{m.storage_upload_checking()}</span>
         <button class="btn btn-ghost btn-sm mt-2" onclick={handleCancel}>
           {m.storage_upload_overwrite_cancel()}
         </button>
@@ -501,7 +499,7 @@
         <IconWarning class="text-warning mt-0.5 size-5 shrink-0" aria-hidden="true" />
         <div>
           <p class="text-base-content font-semibold">{m.storage_upload_conflicts_title()}</p>
-          <p class="text-base-content/60 mt-0.5 text-sm">{m.storage_upload_conflicts_desc()}</p>
+          <p class="text-muted mt-0.5 text-sm">{m.storage_upload_conflicts_desc()}</p>
         </div>
       </div>
 
@@ -575,7 +573,7 @@
         <IconCheckCircle class="text-success size-10 shrink-0" aria-hidden="true" />
         <div>
           <p class="text-base-content font-semibold">{m.storage_upload_complete_title()}</p>
-          <p class="text-base-content/60 mt-0.5 text-sm">
+          <p class="text-muted mt-0.5 text-sm">
             {m.storage_upload_complete_summary({
               uploaded: uploadedCount,
               skipped: skippedCount,

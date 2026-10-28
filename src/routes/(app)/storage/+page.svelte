@@ -155,7 +155,7 @@
           </button>
         </div>
       </div>
-      <p class="text-base-content/60 text-sm">{m.storage_buckets_subtitle()}</p>
+      <p class="text-muted text-sm">{m.storage_buckets_subtitle()}</p>
     </div>
     <BucketGrid buckets={storage.buckets} loading={data.hydrating || !storage.connectionHostname} />
   </div>

@@ -35,6 +35,13 @@ Read more about the platform in the [documentation](https://docs.stackable.tech/
 
 More modules will be added over time.
 
+## Accessibility
+
+Stackable Cockpit targets [WCAG 2.2](https://www.w3.org/TR/WCAG22/) level AA.
+This is a superset of [BITV 2.0](https://www.gesetze-im-internet.de/bitv_2_0/), which is based on [WCAG 2.1](https://www.w3.org/TR/WCAG21/) level AA.
+As the project is still experimental, it may not fully meet these requirements yet.
+We treat every accessibility violation as a bug, so please [open an issue](https://github.com/stackabletech/cockpit/issues) if you find one.
+
 ## Quick Start
 
 The required Node.js version is pinned in [`.node-version`](./.node-version).

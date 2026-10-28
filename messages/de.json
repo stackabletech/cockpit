@@ -127,6 +127,7 @@
   "trino_tab_close": "Tab {name} schließen",
   "trino_tab_default_name": "Unbenannt",
   "trino_tab_rename": "Tab umbenennen",
+  "trino_tab_list": "Abfrage-Tabs",
   "trino_tabs_persist_error": "Tab-Inhalt zu groß zum Speichern. Einige Änderungen gehen beim Neuladen möglicherweise verloren.",
   "trino_editor_char_limit_reached": "Abfrage überschreitet {limit} Zeichen und wird nicht zwischen Sitzungen gespeichert",
   "trino_run_at_cursor": "Ausführen",

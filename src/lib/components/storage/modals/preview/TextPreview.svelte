@@ -41,7 +41,7 @@
 
 <div class="bg-base-200/50 flex min-h-full">
   <div
-    class="text-base-content/30 p-4 pr-2 pb-4 text-right font-mono text-xs leading-relaxed select-none"
+    class="text-muted p-4 pr-2 pb-4 text-right font-mono text-xs leading-relaxed select-none"
     aria-hidden="true"
   >
     <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->

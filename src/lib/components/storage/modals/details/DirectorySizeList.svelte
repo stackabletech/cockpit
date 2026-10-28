@@ -120,11 +120,11 @@
     <tbody>
       {#each sortedItems as item (item.name)}
         <tr class="hover:bg-base-200/50">
-          <td class="text-base-content/50 p-1" aria-hidden="true">
+          <td class="p-1" aria-hidden="true">
             {#if item.isDirectory}
               <IconFolder class="text-warning size-4" />
             {:else}
-              <IconDescription class="text-base-content/50 size-4" />
+              <IconDescription class="text-muted size-4" />
             {/if}
           </td>
           <td class="font-mono text-sm">
@@ -137,7 +137,7 @@
             {#if item.lastModified}
               <TimestampDisplay date={item.lastModified} tooltip="tooltip-left" />
             {:else}
-              <span class="text-base-content/40">—</span>
+              <span class="text-muted">—</span>
             {/if}
           </td>
         </tr>
@@ -147,10 +147,10 @@
       <tfoot>
         <tr>
           <td aria-hidden="true"></td>
-          <td class="text-base-content/60 text-sm font-normal italic">
+          <td class="text-muted text-sm font-normal italic">
             {m.storage_details_list_omitted({ count: list.omittedCount })}
           </td>
-          <td class="text-base-content/60 text-right font-mono text-sm font-normal tabular-nums">
+          <td class="text-muted text-right font-mono text-sm font-normal tabular-nums">
             {formatFileSize(list.omittedSize)}
           </td>
           <td></td>
