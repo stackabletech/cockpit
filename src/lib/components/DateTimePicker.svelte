@@ -227,9 +227,8 @@
   </div>
   <div class="grid grid-cols-7 gap-1">
     {#each weekdayNames as weekday (weekday)}
-      <span
-        class="text-base-content/50 px-0.5 py-1 text-center text-xs font-medium"
-        aria-hidden="true">{weekday}</span
+      <span class="text-muted px-0.5 py-1 text-center text-xs font-medium" aria-hidden="true"
+        >{weekday}</span
       >
     {/each}
     {#each weeks as cell (cell.key)}

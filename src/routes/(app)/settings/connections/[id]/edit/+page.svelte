@@ -1,93 +1,90 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { goto, beforeNavigate } from '$app/navigation';
+  import { untrack } from 'svelte';
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import type { Pathname } from '$app/types';
+  import { page } from '$app/state';
   import { superForm } from 'sveltekit-superforms';
   import { zod4Client as zod } from 'sveltekit-superforms/adapters';
-  import { untrack } from 'svelte';
   import IconInfo from 'virtual:icons/material-symbols/info';
   import * as m from '$lib/paraglide/messages.js';
   import Modal from '$lib/components/Modal.svelte';
-  import { EditStorageConnectionSchema } from '$lib/storage/schemas.js';
+  import {
+    EditStorageConnectionSchema,
+    type StorageConnectionMessage
+  } from '$lib/storage/schemas.js';
+  import { getConnectionEditGuard } from '$lib/storage/context.js';
 
   let { data } = $props();
 
   const uid = $props.id();
 
-  let loaded = $state(false);
   let isActiveConnection = $derived(data.activeConnectionId === data.connectionId);
 
-  // Unsaved-changes guard
-  let initialSnapshot = $state.raw('');
-  let confirmLeaveOpen = $state(false);
-  let pendingNavigation = $state<string | null>(null);
-  let bypassDirtyCheck = false;
+  // Set when the sidebar's delete fails; a successful delete redirects.
+  const deleteError = $derived((page.form as { error?: string } | null)?.error ?? null);
 
-  const { form, errors, enhance, submitting, message } = superForm(
+  // Unsaved-changes guard: superforms asks before leaving a tainted form, the modal answers.
+  let confirmLeaveOpen = $state(false);
+  let answerLeave: ((leave: boolean) => void) | null = null;
+
+  function closeLeaveDialog(leave: boolean) {
+    confirmLeaveOpen = false;
+    answerLeave?.(leave);
+    answerLeave = null;
+  }
+
+  // Escape or a backdrop click closes the dialog without an answer: that means stay.
+  function setLeaveDialogOpen(open: boolean) {
+    if (open) confirmLeaveOpen = true;
+    else closeLeaveDialog(false);
+  }
+
+  function askLeave(): Promise<boolean> {
+    return new Promise<boolean>((settle) => {
+      answerLeave = settle;
+      confirmLeaveOpen = true;
+    });
+  }
+
+  const { form, errors, enhance, submitting, message, tainted, isTainted } = superForm(
     untrack(() => data.editForm),
     {
       dataType: 'json',
       validators: zod(EditStorageConnectionSchema),
-      onResult: ({ result, cancel }) => {
-        if (result.type === 'success' && result.data?.form?.message?.type === 'success') {
-          cancel();
-          bypassDirtyCheck = true;
-          goto(resolve('/settings/connections'));
+      // Keep the entered values until the redirect instead of flashing the defaults.
+      resetForm: false,
+      // A successful save navigates away, so reloading this page's data would be wasted.
+      invalidateAll: false,
+      taintedMessage: askLeave,
+      onUpdated({ form }) {
+        if ((form.message as StorageConnectionMessage | undefined)?.type === 'success') {
+          void goto(resolve('/settings/connections'));
         }
+      },
+      // Network failures or unexpected server errors: show them in the form instead of the error page.
+      onError() {
+        $message = { type: 'error', message: m.storage_connect_save_failed() };
       }
     }
   );
 
-  function isFormDirty(): boolean {
-    return loaded && !!initialSnapshot && JSON.stringify($form) !== initialSnapshot;
-  }
-
-  onMount(() => {
-    // Pre-fill form explicitly (mirroring the server data) to ensure the $state
-    // proxy is fully settled before snapshotting for dirty detection.
-    const d = data.editForm.data;
-    $form.id = d.id;
-    $form.name = d.name ?? '';
-    $form.type = d.type;
-    $form.host = d.host;
-    $form.port = d.port;
-    $form.tls = d.tls;
-    $form.accessStyle = d.accessStyle;
-    $form.region = d.region;
-    $form.credentials = { accessKey: d.credentials?.accessKey ?? '', secretKey: '' };
-
-    initialSnapshot = JSON.stringify($form);
-    loaded = true;
-  });
-
-  beforeNavigate(({ cancel: cancelNav, to }) => {
-    if (!bypassDirtyCheck && isFormDirty() && to?.url) {
-      cancelNav();
-      pendingNavigation = to.url.pathname + to.url.search + to.url.hash;
-      confirmLeaveOpen = true;
+  // A sidebar delete navigates away: ask before it is sent, then drop the changes so the
+  // redirect does not ask again. A failed delete brings them back.
+  const editGuard = getConnectionEditGuard();
+  let discardedChanges: Parameters<typeof tainted.set>[0] = undefined;
+  editGuard.confirmDiscard = async () => {
+    if (!isTainted()) return true;
+    const leave = await askLeave();
+    if (leave) {
+      discardedChanges = $tainted;
+      tainted.set(undefined);
     }
-  });
-
-  function confirmLeave() {
-    const dest = pendingNavigation!;
-    confirmLeaveOpen = false;
-    pendingNavigation = null;
-    bypassDirtyCheck = true;
-    // The URL comes from SvelteKit's beforeNavigate callback.
-    void goto((resolve as (pathname: Pathname) => string)(dest as Pathname));
-  }
-
-  function cancelLeave() {
-    confirmLeaveOpen = false;
-    pendingNavigation = null;
-  }
-
-  function handleBeforeUnload(e: BeforeUnloadEvent) {
-    if (isFormDirty()) {
-      e.preventDefault();
-    }
-  }
+    return leave;
+  };
+  editGuard.restoreChanges = () => {
+    if (discardedChanges) tainted.set(discardedChanges);
+    discardedChanges = undefined;
+  };
 
   function parseHostInput() {
     const v = $form.host?.trim();
@@ -103,17 +100,15 @@
   }
 </script>
 
-<svelte:window onbeforeunload={handleBeforeUnload} />
-
-<Modal bind:open={confirmLeaveOpen}>
+<Modal bind:open={() => confirmLeaveOpen, setLeaveDialogOpen}>
   <div class="modal-box">
     <h3 class="text-lg font-semibold">{m.storage_connection_edit_unsaved_title()}</h3>
     <p class="text-base-content/70 mt-2 text-sm">{m.storage_connection_edit_unsaved_body()}</p>
     <div class="modal-action">
-      <button type="button" class="btn btn-ghost" onclick={cancelLeave}>
+      <button type="button" class="btn btn-ghost" onclick={() => closeLeaveDialog(false)}>
         {m.storage_connection_edit_unsaved_stay()}
       </button>
-      <button type="button" class="btn btn-error" onclick={confirmLeave}>
+      <button type="button" class="btn btn-error" onclick={() => closeLeaveDialog(true)}>
         {m.storage_connection_edit_unsaved_leave()}
       </button>
     </div>
@@ -122,210 +117,208 @@
 
 <h2 class="mb-1 text-xl font-semibold">{m.storage_connection_edit_title()}</h2>
 
-{#if !loaded}
-  <div class="flex items-center justify-center py-12">
-    <span class="loading loading-spinner loading-md text-base-content/40"></span>
+{#if deleteError}
+  <div role="alert" class="alert alert-error mb-4 text-sm">{deleteError}</div>
+{/if}
+
+{#if isActiveConnection}
+  <div role="note" class="alert alert-info mb-4 flex gap-2">
+    <IconInfo class="size-5 shrink-0" aria-hidden="true" />
+    <span class="text-sm">{m.storage_connection_edit_active_notice()}</span>
   </div>
-{:else}
-  {#if isActiveConnection}
-    <div role="note" class="alert alert-info mb-4 flex gap-2">
-      <IconInfo class="size-5 shrink-0" aria-hidden="true" />
-      <span class="text-sm">{m.storage_connection_edit_active_notice()}</span>
-    </div>
-  {/if}
+{/if}
 
-  <form method="POST" action="?/update" use:enhance class="flex flex-col gap-4">
-    <input type="hidden" name="id" value={$form.id} />
+<form method="POST" action="?/update" use:enhance class="flex flex-col gap-4">
+  <input type="hidden" name="id" value={$form.id} />
 
-    <!-- Connection name -->
+  <!-- Connection name -->
+  <div>
+    <label for="{uid}-name" class="label mb-1 text-sm font-medium">
+      {m.storage_connection_edit_name()}
+    </label>
+    <input
+      id="{uid}-name"
+      name="name"
+      type="text"
+      class={['input w-full', $errors?.name && 'input-error']}
+      placeholder={m.storage_connection_edit_name_placeholder()}
+      bind:value={$form.name}
+    />
+    {#if $errors?.name}
+      <p class="text-error mt-1 text-xs">{$errors.name}</p>
+    {/if}
+    <p class="text-muted mt-1 text-xs">{m.storage_connection_edit_name_hint()}</p>
+  </div>
+
+  <input type="hidden" name="type" value={$form.type} />
+
+  <!-- Host -->
+  <div>
+    <label for="{uid}-host" class="label mb-1 text-sm font-medium">
+      {m.storage_connect_host()}
+    </label>
+    <input
+      id="{uid}-host"
+      name="host"
+      type="text"
+      class={['input w-full', $errors?.host && 'input-error']}
+      placeholder={m.storage_connect_host_placeholder()}
+      bind:value={$form.host}
+      onblur={parseHostInput}
+    />
+    {#if $errors?.host}
+      <p class="text-error mt-1 text-xs">{$errors.host}</p>
+    {/if}
+  </div>
+
+  <!-- Port -->
+  <div>
+    <label for="{uid}-port" class="label mb-1 text-sm font-medium">
+      {m.storage_connect_port()}
+    </label>
+    <input
+      id="{uid}-port"
+      name="port"
+      type="number"
+      min="1"
+      max="65535"
+      class={['input w-full', $errors?.port && 'input-error']}
+      placeholder={m.storage_connect_port_placeholder()}
+      bind:value={$form.port}
+    />
+    <p class="text-muted mt-1 text-xs">{m.storage_connect_port_hint()}</p>
+    {#if $errors?.port}
+      <p class="text-error mt-1 text-xs">{$errors.port}</p>
+    {/if}
+  </div>
+
+  <!-- TLS -->
+  <div class="flex items-start justify-between gap-4">
     <div>
-      <label for="{uid}-name" class="label mb-1 text-sm font-medium">
-        {m.storage_connection_edit_name()}
+      <label for="{uid}-tls" class="label text-sm font-medium">
+        {m.storage_connect_tls()}
       </label>
-      <input
-        id="{uid}-name"
-        name="name"
-        type="text"
-        class={['input w-full', $errors?.name && 'input-error']}
-        placeholder={m.storage_connection_edit_name_placeholder()}
-        bind:value={$form.name}
-      />
-      {#if $errors?.name}
-        <p class="text-error mt-1 text-xs">{$errors.name}</p>
-      {/if}
-      <p class="text-base-content/50 mt-1 text-xs">{m.storage_connection_edit_name_hint()}</p>
+      <p class="text-muted mt-0.5 text-xs">{m.storage_connect_tls_hint()}</p>
     </div>
+    <input
+      id="{uid}-tls"
+      type="checkbox"
+      class="toggle toggle-primary mt-1 shrink-0"
+      checked={!!$form.tls}
+      onchange={(e) => {
+        $form.tls = e.currentTarget.checked ? { verification: 'Full' } : undefined;
+      }}
+    />
+  </div>
 
-    <input type="hidden" name="type" value={$form.type} />
-
-    <!-- Host -->
-    <div>
-      <label for="{uid}-host" class="label mb-1 text-sm font-medium">
-        {m.storage_connect_host()}
-      </label>
-      <input
-        id="{uid}-host"
-        name="host"
-        type="text"
-        class={['input w-full', $errors?.host && 'input-error']}
-        placeholder={m.storage_connect_host_placeholder()}
-        bind:value={$form.host}
-        onblur={parseHostInput}
-      />
-      {#if $errors?.host}
-        <p class="text-error mt-1 text-xs">{$errors.host}</p>
-      {/if}
-    </div>
-
-    <!-- Port -->
-    <div>
-      <label for="{uid}-port" class="label mb-1 text-sm font-medium">
-        {m.storage_connect_port()}
-      </label>
-      <input
-        id="{uid}-port"
-        name="port"
-        type="number"
-        min="1"
-        max="65535"
-        class={['input w-full', $errors?.port && 'input-error']}
-        placeholder={m.storage_connect_port_placeholder()}
-        bind:value={$form.port}
-      />
-      <p class="text-base-content/50 mt-1 text-xs">{m.storage_connect_port_hint()}</p>
-      {#if $errors?.port}
-        <p class="text-error mt-1 text-xs">{$errors.port}</p>
-      {/if}
-    </div>
-
-    <!-- TLS -->
-    <div class="flex items-start justify-between gap-4">
+  {#if $form.tls}
+    <div class="flex items-start justify-between gap-4 pl-4">
       <div>
-        <label for="{uid}-tls" class="label text-sm font-medium">
-          {m.storage_connect_tls()}
+        <label for="{uid}-tls-verification" class="label text-sm font-medium">
+          {m.storage_connect_tls_verification()}
         </label>
-        <p class="text-base-content/50 mt-0.5 text-xs">{m.storage_connect_tls_hint()}</p>
+        <p class="text-muted mt-0.5 text-xs">
+          {m.storage_connect_tls_verification_hint()}
+        </p>
       </div>
       <input
-        id="{uid}-tls"
+        id="{uid}-tls-verification"
         type="checkbox"
         class="toggle toggle-primary mt-1 shrink-0"
-        checked={!!$form.tls}
+        checked={$form.tls.verification === 'Full'}
         onchange={(e) => {
-          $form.tls = e.currentTarget.checked ? { verification: 'Full' } : undefined;
+          $form.tls = { verification: e.currentTarget.checked ? 'Full' : 'None' };
         }}
       />
     </div>
+  {/if}
 
-    {#if $form.tls}
-      <div class="flex items-start justify-between gap-4 pl-4">
-        <div>
-          <label for="{uid}-tls-verification" class="label text-sm font-medium">
-            {m.storage_connect_tls_verification()}
-          </label>
-          <p class="text-base-content/50 mt-0.5 text-xs">
-            {m.storage_connect_tls_verification_hint()}
-          </p>
-        </div>
-        <input
-          id="{uid}-tls-verification"
-          type="checkbox"
-          class="toggle toggle-primary mt-1 shrink-0"
-          checked={$form.tls.verification === 'Full'}
-          onchange={(e) => {
-            $form.tls = { verification: e.currentTarget.checked ? 'Full' : 'None' };
-          }}
-        />
-      </div>
-    {/if}
-
-    <!-- Access style -->
-    <div>
-      <label for="{uid}-access-style" class="label mb-1 text-sm font-medium">
-        {m.storage_connect_access_style()}
-      </label>
-      <select
-        id="{uid}-access-style"
-        name="accessStyle"
-        class="select w-full"
-        bind:value={$form.accessStyle}
-      >
-        <option value="Path">{m.storage_connect_access_style_path()}</option>
-        <option value="VirtualHosted">{m.storage_connect_access_style_virtual_hosted()}</option>
-      </select>
-    </div>
-
-    <!-- Region -->
-    <div>
-      <label for="{uid}-region" class="label mb-1 text-sm font-medium">
-        {m.storage_connect_region()}
-      </label>
-      <input
-        id="{uid}-region"
-        name="region.name"
-        type="text"
-        class={['input w-full', $errors?.region?.name && 'input-error']}
-        bind:value={$form.region.name}
-      />
-      {#if $errors?.region?.name}
-        <p class="text-error mt-1 text-xs">{$errors.region.name}</p>
-      {/if}
-    </div>
-
-    <!-- Access key -->
-    <div>
-      <label for="{uid}-access-key" class="label mb-1 text-sm font-medium">
-        {m.storage_connect_access_key()}
-      </label>
-      <input
-        id="{uid}-access-key"
-        name="credentials.accessKey"
-        type="text"
-        class={['input w-full', $errors?.credentials?.accessKey && 'input-error']}
-        autocomplete="username"
-        bind:value={$form.credentials.accessKey}
-      />
-      {#if $errors?.credentials?.accessKey}
-        <p class="text-error mt-1 text-xs">{$errors.credentials.accessKey}</p>
-      {/if}
-    </div>
-
-    <!-- Secret key -->
-    <div>
-      <label for="{uid}-secret-key" class="label mb-1 text-sm font-medium">
-        {m.storage_connect_secret_key()}
-      </label>
-      <input
-        id="{uid}-secret-key"
-        name="credentials.secretKey"
-        type="password"
-        class={['input w-full', $errors?.credentials?.secretKey && 'input-error']}
-        autocomplete="current-password"
-        bind:value={$form.credentials.secretKey}
-      />
-      <p class="text-base-content/50 mt-1 text-xs">
-        {m.storage_connection_edit_credentials_hint()}
-      </p>
-      {#if $errors?.credentials?.secretKey}
-        <p class="text-error mt-1 text-xs">{$errors.credentials.secretKey}</p>
-      {/if}
-    </div>
-
-    {#if $message?.type === 'error'}
-      <p class="text-error text-sm">{$message.message}</p>
-    {/if}
-
-    <button type="submit" class="btn btn-primary self-start" disabled={$submitting}>
-      {#if $submitting}
-        <span class="loading loading-sm loading-spinner"></span>
-      {/if}
-      {m.storage_connection_edit_save()}
-    </button>
-  </form>
-
-  <div class="mt-3 flex items-center gap-3">
-    <a href={resolve('/settings/connections')} class="btn btn-ghost">
-      ← {m.storage_connections_title()}
-    </a>
+  <!-- Access style -->
+  <div>
+    <label for="{uid}-access-style" class="label mb-1 text-sm font-medium">
+      {m.storage_connect_access_style()}
+    </label>
+    <select
+      id="{uid}-access-style"
+      name="accessStyle"
+      class="select w-full"
+      bind:value={$form.accessStyle}
+    >
+      <option value="Path">{m.storage_connect_access_style_path()}</option>
+      <option value="VirtualHosted">{m.storage_connect_access_style_virtual_hosted()}</option>
+    </select>
   </div>
-{/if}
+
+  <!-- Region -->
+  <div>
+    <label for="{uid}-region" class="label mb-1 text-sm font-medium">
+      {m.storage_connect_region()}
+    </label>
+    <input
+      id="{uid}-region"
+      name="region.name"
+      type="text"
+      class={['input w-full', $errors?.region?.name && 'input-error']}
+      bind:value={$form.region.name}
+    />
+    {#if $errors?.region?.name}
+      <p class="text-error mt-1 text-xs">{$errors.region.name}</p>
+    {/if}
+  </div>
+
+  <!-- Access key -->
+  <div>
+    <label for="{uid}-access-key" class="label mb-1 text-sm font-medium">
+      {m.storage_connect_access_key()}
+    </label>
+    <input
+      id="{uid}-access-key"
+      name="credentials.accessKey"
+      type="text"
+      class={['input w-full', $errors?.credentials?.accessKey && 'input-error']}
+      autocomplete="username"
+      bind:value={$form.credentials.accessKey}
+    />
+    {#if $errors?.credentials?.accessKey}
+      <p class="text-error mt-1 text-xs">{$errors.credentials.accessKey}</p>
+    {/if}
+  </div>
+
+  <!-- Secret key -->
+  <div>
+    <label for="{uid}-secret-key" class="label mb-1 text-sm font-medium">
+      {m.storage_connect_secret_key()}
+    </label>
+    <input
+      id="{uid}-secret-key"
+      name="credentials.secretKey"
+      type="password"
+      class={['input w-full', $errors?.credentials?.secretKey && 'input-error']}
+      autocomplete="current-password"
+      bind:value={$form.credentials.secretKey}
+    />
+    <p class="text-muted mt-1 text-xs">
+      {m.storage_connection_edit_credentials_hint()}
+    </p>
+    {#if $errors?.credentials?.secretKey}
+      <p class="text-error mt-1 text-xs">{$errors.credentials.secretKey}</p>
+    {/if}
+  </div>
+
+  {#if $message?.type === 'error'}
+    <p class="text-error text-sm">{$message.message}</p>
+  {/if}
+
+  <button type="submit" class="btn btn-primary self-start" disabled={$submitting}>
+    {#if $submitting}
+      <span class="loading loading-sm loading-spinner"></span>
+    {/if}
+    {m.storage_connection_edit_save()}
+  </button>
+</form>
+
+<div class="mt-3 flex items-center gap-3">
+  <a href={resolve('/settings/connections')} class="btn btn-ghost">
+    ← {m.storage_connections_title()}
+  </a>
+</div>

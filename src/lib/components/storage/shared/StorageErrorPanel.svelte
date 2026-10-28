@@ -32,7 +32,7 @@
     <h2>
       <span
         class="
-          text-base-content/50 mb-1 block text-sm font-medium tracking-widest uppercase
+          text-muted mb-1 block text-sm font-medium tracking-widest uppercase
         "
       >
         {m.storage_error_title()}

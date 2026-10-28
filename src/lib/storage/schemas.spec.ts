@@ -87,10 +87,41 @@ describe('StorageConnectionSchema', () => {
   it('rejects port out of range', () => {
     const result = StorageConnectionSchema.safeParse({ host: 's3.example.com', port: 99999 });
     expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe(
+        'Port must be a whole number between 1 and 65535'
+      );
+    }
   });
 
   it('accepts empty string port as undefined', () => {
     const result = StorageConnectionSchema.safeParse({ host: 's3.example.com', port: '' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.port).toBeUndefined();
+    }
+  });
+
+  it('rejects a non-numeric port with the port message', () => {
+    const result = StorageConnectionSchema.safeParse({ host: 's3.example.com', port: 'abc' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe(
+        'Port must be a whole number between 1 and 65535'
+      );
+    }
+  });
+
+  it('reports a missing host as required', () => {
+    const result = StorageConnectionSchema.safeParse({});
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe('Host is required');
+    }
+  });
+
+  it('accepts a cleared number input (null) as undefined', () => {
+    const result = StorageConnectionSchema.safeParse({ host: 's3.example.com', port: null });
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.port).toBeUndefined();

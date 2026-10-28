@@ -91,7 +91,7 @@
   aria-label={m.storage_upload_drop_prompt()}
 >
   <IconUploadFile class="text-base-content/30 size-12" aria-hidden="true" />
-  <p class="text-base-content/60 text-center text-sm">{m.storage_upload_drop_prompt()}</p>
+  <p class="text-muted text-center text-sm">{m.storage_upload_drop_prompt()}</p>
 </div>
 
 <div class="flex justify-center gap-3">

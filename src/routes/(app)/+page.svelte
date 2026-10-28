@@ -83,13 +83,11 @@
                 </a>
               </div>
               <div class="mt-1 flex flex-wrap items-center gap-1.5">
-                <span class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]">
+                <span class="bg-base-300 text-muted rounded-full px-2 py-0.5 text-[11px]">
                   {product.name}
                 </span>
                 {#if bookmark.environment}
-                  <span
-                    class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]"
-                  >
+                  <span class="bg-base-300 text-muted rounded-full px-2 py-0.5 text-[11px]">
                     {bookmark.environment}
                   </span>
                 {/if}

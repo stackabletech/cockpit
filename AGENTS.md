@@ -73,7 +73,7 @@ The application must work in **Firefox** and **Chromium-based browsers**. Do not
 ### CSS & Styling
 
 - **Light and dark mode must work automatically.** Never use hard-coded colours (`text-gray-700`, `bg-white`, ...). Use DaisyUI semantic classes (`text-base-content`, `bg-base-200`, `border-base-300`, `text-primary`, `bg-error`, ...) with opacity modifiers (`text-base-content/80`) where needed.
-- **Secondary text uses `text-muted`** (defined in `src/app.css`), never `text-base-content` at 60 % opacity or less, and never `text-muted` with an opacity: both fail 4.5:1 contrast in the light theme. `aria-hidden` is no exemption. Lower opacities are only allowed on `aria-hidden` icon components that duplicate adjacent text; state icons (e.g. an expand chevron) need 3:1 and use `text-muted` too.
+- **Secondary text uses `text-muted`** (defined in `src/app.css`), never `text-base-content` at 60 % opacity or less, and never `text-muted` with an opacity: both fail 4.5:1 contrast in the light theme. `aria-hidden` is no exemption. Lower opacities are only allowed on `aria-hidden` icon components that duplicate adjacent text; state icons (e.g. an expand chevron) need 3:1 and use `text-muted` too (enforced by `npm run test:arch`).
 - **Mobile-friendly**: use responsive breakpoints (`sm:`, `md:`, `lg:`) and check layouts at mobile widths. Navigation must work on small screens.
 
 ### Accessibility (WCAG 2.2 AA)
