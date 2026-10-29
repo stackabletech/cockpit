@@ -152,7 +152,17 @@ async function ensureBucket(bucketName: string): Promise<string> {
     return existingId;
   }
 
-  const created = await adminPost('/v2/CreateBucket', { globalAlias: bucketName });
+  let created: unknown;
+  try {
+    created = await adminPost('/v2/CreateBucket', { globalAlias: bucketName });
+  } catch (err) {
+    // Another worker may have created the bucket since the lookup above.
+    const racedId = await findBucketId(bucketName);
+    if (racedId) {
+      return racedId;
+    }
+    throw err;
+  }
   const createdId = readString(created, ['id', 'bucketId', 'bucket_id']);
 
   if (createdId) {
