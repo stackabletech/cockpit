@@ -8,6 +8,7 @@ vi.mock('$env/dynamic/private', () => ({ env: mockEnv }));
 vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 import { TrinoClient, trinoMetadataQuery } from './client.js';
+import { TrinoHttpError, TrinoQueryFailure } from './errors.js';
 
 describe('TrinoClient X-Trino-User header', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -151,8 +152,23 @@ describe('trinoMetadataQuery (connection test path)', () => {
     vi.stubGlobal('fetch', fetchMock);
     const client = new TrinoClient({ serverUrl: 'http://trino:8080' });
     await expect(trinoMetadataQuery(client, 'SELECT 1', { user: 'alice' })).rejects.toThrow(
-      'Access Denied'
+      expect.objectContaining({
+        constructor: TrinoQueryFailure,
+        trinoError: { message: 'Access Denied' }
+      })
     );
+  });
+
+  it('throws an HTTP error without the response body when polling fails', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'q1', nextUri: 'http://n/1' }) })
+      .mockResolvedValueOnce({ ok: false, status: 502, text: async () => '<html>proxy</html>' });
+    vi.stubGlobal('fetch', fetchMock);
+    const client = new TrinoClient({ serverUrl: 'http://trino:8080' });
+    const result = trinoMetadataQuery(client, 'SELECT 1', { user: 'alice' });
+    await expect(result).rejects.toBeInstanceOf(TrinoHttpError);
+    await expect(result).rejects.toThrow('Trino poll failed (502)');
   });
 });
 

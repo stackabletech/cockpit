@@ -60,7 +60,12 @@ const routes: [string, object][] = [
     'SHOULD_ERROR',
     {
       id: 'q-err',
-      error: { message: 'syntax error at position 7', errorCode: 1 },
+      error: {
+        message: 'syntax error at position 7',
+        errorCode: 1,
+        errorName: 'SYNTAX_ERROR',
+        errorType: 'USER_ERROR'
+      },
       stats: { state: 'FAILED' }
     }
   ],

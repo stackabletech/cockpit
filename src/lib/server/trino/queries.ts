@@ -5,11 +5,13 @@ import {
   INITIAL_PROGRESS,
   isTerminal,
   type Column,
+  type QueryError,
   type QueryProgress,
   type QuerySnapshot,
   type QueryState
 } from '$lib/types/query.js';
 import { type TrinoClient, type TrinoQueryStats, resolveTrinoPublicUrl } from './client.js';
+import { toQueryError } from './errors.js';
 import { collectResults } from './result-collector.js';
 
 const log = logger.child({ module: 'trino-queries' });
@@ -28,7 +30,7 @@ export interface TrinoQuery {
   progress: QueryProgress;
   columns: Column[];
   rows: unknown[][];
-  error: string | null;
+  error: QueryError | null;
   rowLimitReached: boolean;
   sql: string;
   startedAt: number;
@@ -218,7 +220,7 @@ async function submitStatement(
   };
 
   if (submitResult.error || initialState === 'FAILED') {
-    query.error = submitResult.error?.message ?? 'Query failed';
+    query.error = toQueryError(submitResult.error, trinoQueryId);
     terminateQuery(query, 'FAILED', { decrementGauge: false });
     trinoQueryTotal.inc({ outcome: 'failed' });
   }
@@ -324,7 +326,7 @@ async function runStatements(
       } catch (err) {
         log.error({ err, trino_query_id: query.trinoQueryId }, 'poll loop crashed');
         if (!isTerminal(query.state)) {
-          query.error = 'Internal poll error';
+          query.error = { kind: 'unknown' };
           terminateQuery(query, 'FAILED');
           trinoQueryTotal.inc({ outcome: 'failed' });
         }

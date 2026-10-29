@@ -2,6 +2,7 @@ import { env } from '$env/dynamic/private';
 import { readFileSync } from 'node:fs';
 import { Agent } from 'undici';
 import { logger } from '$lib/server/logging';
+import { TrinoHttpError, TrinoQueryFailure, type TrinoQueryError } from './errors.js';
 import { getUserTrinoClient, getUserTrinoUrl } from './user-clients.js';
 
 const log = logger.child({ module: 'trino-client' });
@@ -18,13 +19,6 @@ export interface TrinoQueryStats {
   progressPercentage?: number;
   processedRows?: number;
   elapsedTimeMillis?: number;
-}
-
-interface TrinoQueryError {
-  message: string;
-  errorCode?: number;
-  errorName?: string;
-  errorType?: string;
 }
 
 export interface TrinoQueryResult {
@@ -91,7 +85,7 @@ export class TrinoClient {
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      throw new Error(`Trino POST /v1/statement failed (${res.status}): ${text}`);
+      throw new TrinoHttpError('POST /v1/statement', res.status, text);
     }
 
     return res.json() as Promise<TrinoQueryResult>;
@@ -112,7 +106,7 @@ export class TrinoClient {
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      throw new Error(`Trino poll failed (${res.status}): ${text}`);
+      throw new TrinoHttpError('poll', res.status, text);
     }
 
     return res.json() as Promise<TrinoQueryResult>;
@@ -139,7 +133,7 @@ export class TrinoClient {
     // 404 is expected — the query may have already finished and been cleaned up.
     if (!res.ok && res.status !== 404) {
       const text = await res.text().catch(() => '');
-      throw new Error(`Trino DELETE /v1/query failed (${res.status}): ${text}`);
+      throw new TrinoHttpError('DELETE /v1/query', res.status, text);
     }
   }
 
@@ -154,7 +148,7 @@ export class TrinoClient {
 
     if (!res.ok && res.status !== 404 && res.status !== 410) {
       const text = await res.text().catch(() => '');
-      throw new Error(`Trino DELETE nextUri failed (${res.status}): ${text}`);
+      throw new TrinoHttpError('DELETE nextUri', res.status, text);
     }
   }
 }
@@ -267,14 +261,14 @@ export async function trinoMetadataQuery(
   const rows: unknown[][] = result.data ? [...result.data] : [];
 
   if (result.error) {
-    throw new Error(result.error.message);
+    throw new TrinoQueryFailure(result.error);
   }
 
   while (result.nextUri) {
     result = await client.poll(result.nextUri, { user: options.user, signal });
 
     if (result.error) {
-      throw new Error(result.error.message);
+      throw new TrinoQueryFailure(result.error);
     }
     if (result.columns && columns.length === 0) {
       columns = result.columns;
