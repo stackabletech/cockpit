@@ -26,6 +26,9 @@ const extraScopes = (env.STACKABLE_COCKPIT_OIDC_EXTRA_SCOPES ?? '')
 
 const oidcScopes = [...new Set([...defaultScopes, ...extraScopes])];
 
+// OIDC profile claims are untyped; only non-empty strings are usable.
+const claim = (value: unknown) => (typeof value === 'string' && value ? value : undefined);
+
 // OIDC is enabled only when all required OIDC env vars are present.
 export const oidcEnabled = !!(
   env.STACKABLE_COCKPIT_OIDC_DISCOVERY_URL &&
@@ -77,10 +80,12 @@ export const auth = betterAuth({
                 scopes: oidcScopes,
                 pkce: true,
                 mapProfileToUser: async (profile) => {
-                  const fullName = [profile.given_name, profile.family_name]
+                  const fullName = [claim(profile.given_name), claim(profile.family_name)]
                     .filter(Boolean)
                     .join(' ');
-                  const trinoUser = profile[trinoUserClaim];
+                  const preferredUsername = claim(profile.preferred_username);
+                  const email = claim(profile.email);
+                  const trinoUser = claim(profile[trinoUserClaim]);
                   if (trinoUser) {
                     log?.debug(
                       { trino_user_claim: trinoUserClaim },
@@ -93,11 +98,11 @@ export const auth = betterAuth({
                     );
                   }
                   return {
-                    name: profile.name || fullName || profile.preferred_username || profile.email,
-                    email: profile.email || '',
-                    emailVerified: profile.email_verified ?? false,
-                    image: profile.picture || null,
-                    username: trinoUser || profile.preferred_username || profile.email || ''
+                    name: claim(profile.name) || fullName || preferredUsername || email,
+                    email: email ?? '',
+                    emailVerified: profile.email_verified === true,
+                    image: claim(profile.picture),
+                    username: trinoUser || preferredUsername || email || ''
                   };
                 }
               }
