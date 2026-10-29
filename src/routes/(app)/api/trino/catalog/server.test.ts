@@ -13,7 +13,7 @@ const fakeClient = { fake: true } as unknown as TrinoClient;
 
 function mockEvent(
   params: Record<string, string>,
-  user: object | null = { id: 'u1', username: 'alice' }
+  user: object | null = { id: 'u1', trinoUser: 'alice' }
 ) {
   const url = new URL('http://localhost/api/trino/catalog');
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
