@@ -5,9 +5,8 @@ import { createMockLogger } from '$lib/test-utils/mock-logger.js';
 vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 // Use a small textPreviewBytes to force predictable chunk boundaries
-vi.mock('$lib/server/feature-flags', () => ({
-  textPreviewBytes: 11,
-  infiniteScrollEnabled: true
+vi.mock('$lib/server/storage/config.js', () => ({
+  textPreviewBytes: 11
 }));
 
 import { getCsvPreview } from './csv.js';

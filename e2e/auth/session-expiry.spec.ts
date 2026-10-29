@@ -93,11 +93,22 @@ test.describe('Session expiry', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    // The storage API answers 401 when no storage connection header is sent
-    // (requires the storage browser to be enabled, as in .env.test).
-    const status = await fetchAndAwaitSessionCheck(page, '/api/storage/buckets');
+    await page.route('**/api/trino/catalog?*', (route) =>
+      route.fulfill({ status: 401, json: { message: 'Authentication required' } })
+    );
+    const status = await fetchAndAwaitSessionCheck(page, '/api/trino/catalog?level=catalogs');
     expect(status).toBe(401);
 
     await expect(page.getByRole('dialog', { name: 'Session expired' })).toBeHidden();
+  });
+
+  test('a storage call without a connection is not mistaken for an expired session', async ({
+    page
+  }) => {
+    // Requires the storage browser to be enabled, as in .env.test.
+    const res = await page.request.get('/api/storage/buckets');
+
+    expect(res.status()).toBe(409);
+    expect(await res.json()).toMatchObject({ reason: 'not-connected' });
   });
 });

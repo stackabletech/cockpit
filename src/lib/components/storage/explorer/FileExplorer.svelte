@@ -6,11 +6,7 @@
   import { getStorageState } from '$lib/storage/context.js';
   import { getTabsState } from '$lib/storage/context.js';
   import { collectDroppedFiles } from '$lib/storage/file-collection.js';
-  import {
-    storageCutCopyEnabled,
-    storagePasteEnabled,
-    storageRenameEnabled
-  } from '$lib/client/feature-flags.js';
+  import { storageTransferEnabled } from '$lib/client/feature-flags.js';
   import type { ContextMenuAction } from '$lib/storage/types.js';
   import type { ActionName } from '$lib/storage/types.js';
   import IconVisibility from 'virtual:icons/material-symbols/visibility';
@@ -227,7 +223,7 @@
           icon: IconPaste,
           label: m.storage_action_paste(),
           disabled: !storage.clipboardState.canPaste || storage.archive.isInArchive,
-          hidden: !storagePasteEnabled || storage.archive.isInArchive
+          hidden: !storageTransferEnabled || storage.archive.isInArchive
         }
       ];
     }
@@ -259,28 +255,28 @@
         icon: IconCut,
         label: m.storage_action_cut(),
         disabled: selectionCount === 0 || storage.archive.isInArchive,
-        hidden: !storageCutCopyEnabled || storage.archive.isInArchive
+        hidden: !storageTransferEnabled || storage.archive.isInArchive
       },
       {
         key: 'copy' as ActionName,
         icon: IconCopy,
         label: m.storage_action_copy(),
         disabled: selectionCount === 0 || storage.archive.isInArchive,
-        hidden: !storageCutCopyEnabled || storage.archive.isInArchive
+        hidden: !storageTransferEnabled || storage.archive.isInArchive
       },
       {
         key: 'paste' as ActionName,
         icon: IconPaste,
         label: m.storage_action_paste(),
         disabled: !storage.clipboardState.canPaste || storage.archive.isInArchive,
-        hidden: !storagePasteEnabled || storage.archive.isInArchive
+        hidden: !storageTransferEnabled || storage.archive.isInArchive
       },
       {
         key: 'rename' as ActionName,
         icon: IconDriveFileRenameOutline,
         label: m.storage_action_rename(),
         disabled: selectionCount !== 1 || storage.archive.isInArchive,
-        hidden: !storageRenameEnabled || storage.archive.isInArchive
+        hidden: !storageTransferEnabled || storage.archive.isInArchive
       },
       {
         key: 'copy-filename' as ActionName,

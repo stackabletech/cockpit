@@ -10,9 +10,10 @@ describe('ParquetPreview', () => {
     ['2', 'Bob', 'bob@example.com'],
     ['3', 'Charlie', 'charlie@example.com']
   ];
+  const noopFetchRows = () => Promise.resolve([]);
 
   it('should show empty state when headers array is empty', async () => {
-    render(ParquetPreview, { headers: [], initialRows: [] });
+    render(ParquetPreview, { headers: [], initialRows: [], fetchRows: noopFetchRows });
 
     await expect.element(page.getByText('This bucket is empty')).toBeInTheDocument();
   });
@@ -20,7 +21,8 @@ describe('ParquetPreview', () => {
   it('should render a table with headers', async () => {
     render(ParquetPreview, {
       headers: defaultHeaders,
-      initialRows: defaultRows
+      initialRows: defaultRows,
+      fetchRows: noopFetchRows
     });
 
     const table = page.getByRole('table', { name: 'Parquet preview' });
@@ -35,7 +37,8 @@ describe('ParquetPreview', () => {
     render(ParquetPreview, {
       headers: defaultHeaders,
       initialRows: defaultRows,
-      totalRows: 3
+      totalRows: 3,
+      fetchRows: noopFetchRows
     });
 
     await expect
@@ -53,7 +56,8 @@ describe('ParquetPreview', () => {
     render(ParquetPreview, {
       headers: defaultHeaders,
       initialRows: defaultRows,
-      totalRows: 1000
+      totalRows: 1000,
+      fetchRows: noopFetchRows
     });
 
     // With default CHUNK_SIZE=250, loadedRowsCount = 250 (one chunk)
@@ -65,7 +69,8 @@ describe('ParquetPreview', () => {
     render(ParquetPreview, {
       headers: defaultHeaders,
       initialRows: defaultRows,
-      totalRows: 3
+      totalRows: 3,
+      fetchRows: noopFetchRows
     });
 
     // Only 3 rows loaded, totalRows = 3 — not truncated
@@ -79,7 +84,8 @@ describe('ParquetPreview', () => {
     render(ParquetPreview, {
       headers: defaultHeaders,
       initialRows: defaultRows,
-      totalRows: 0
+      totalRows: 0,
+      fetchRows: noopFetchRows
     });
 
     // 0 total rows, no truncation message
@@ -91,7 +97,8 @@ describe('ParquetPreview', () => {
     render(ParquetPreview, {
       headers: defaultHeaders,
       initialRows: rowsWithNull,
-      totalRows: 1
+      totalRows: 1,
+      fetchRows: noopFetchRows
     });
 
     // Alice should be visible
@@ -156,7 +163,8 @@ describe('ParquetPreview', () => {
     render(ParquetPreview, {
       headers: defaultHeaders,
       initialRows: manyRows,
-      totalRows: 1000
+      totalRows: 1000,
+      fetchRows: noopFetchRows
     });
 
     await expect.element(page.getByText('User-250')).toBeInTheDocument();
@@ -166,7 +174,8 @@ describe('ParquetPreview', () => {
     const specialHeaders = ['first name', 'last.name', 'email-address'];
     render(ParquetPreview, {
       headers: specialHeaders,
-      initialRows: [['John', 'Doe', 'john@example.com']]
+      initialRows: [['John', 'Doe', 'john@example.com']],
+      fetchRows: noopFetchRows
     });
 
     for (const header of specialHeaders) {
@@ -178,7 +187,8 @@ describe('ParquetPreview', () => {
     render(ParquetPreview, {
       headers: defaultHeaders,
       initialRows: [],
-      totalRows: 0
+      totalRows: 0,
+      fetchRows: noopFetchRows
     });
 
     const table = page.getByRole('table', { name: 'Parquet preview' });

@@ -29,6 +29,13 @@
       "when": 1791810607788,
       "tag": "0003_recent_search_key",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793094984249,
+      "tag": "0004_user_bookmarks",
+      "breakpoints": true
     }
   ]
 }

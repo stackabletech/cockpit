@@ -1,4 +1,4 @@
-import { error } from '@sveltejs/kit';
+import { error, isHttpError } from '@sveltejs/kit';
 import type { DirectorySizeEvent } from '$lib/storage/details-types.js';
 import {
   DIRECTORY_SIZE_MAX_KEYS,
@@ -64,7 +64,13 @@ export const GET: RequestHandler = async (event) => {
         }
         storageDirectorySizeCalculationsTotal.inc({ outcome: 'error' });
         log.warn({ err, bucket, prefix }, 'directory size calculation failed');
-        send({ type: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
+        // SvelteKit's HttpError (e.g. a mapped S3 403) is not an Error instance.
+        const message = isHttpError(err)
+          ? err.body.message
+          : err instanceof Error
+            ? err.message
+            : 'Unknown error';
+        send({ type: 'error', message });
         controller.close();
         return;
       }

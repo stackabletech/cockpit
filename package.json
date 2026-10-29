@@ -9,11 +9,11 @@
     "build": "vite build",
     "preview": "vite preview --host",
     "prepare": "svelte-kit sync || echo '' && npm run generate:antlr",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "format": "prettier --write --ignore-path .prettierignore .",
-    "lint": "prettier --check --ignore-path .prettierignore . && eslint . && npm run check && npm run knip && npm run test:arch",
-    "lint:fix": "prettier --write --ignore-path .prettierignore . && eslint . --fix && npm run check && npm run knip && npm run test:arch",
+    "lint": "prettier --check --ignore-path .prettierignore . && eslint . --max-warnings=0 && npm run check && npm run knip && npm run test:arch",
+    "lint:fix": "prettier --write --ignore-path .prettierignore . && eslint . --fix --max-warnings=0 && npm run check && npm run knip && npm run test:arch",
     "knip": "knip",
     "knip:fix": "knip --fix",
     "test:unit": "vitest run",
@@ -29,6 +29,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@cyclonedx/cyclonedx-npm": "^6.0.0",
     "@eslint/compat": "^2.0.2",
     "@eslint/js": "^9.39.2",

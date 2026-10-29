@@ -185,7 +185,7 @@
           {title ?? m.storage_upload_conflicts_title()}
         </h3>
         {#if descriptionText}
-          <p id="{uid}-description" class="text-base-content/60 mt-0.5 text-sm">
+          <p id="{uid}-description" class="text-muted mt-0.5 text-sm">
             {descriptionText}
           </p>
         {/if}
@@ -209,7 +209,7 @@
         {/if}
       </div>
       {#if hasFolderConflicts}
-        <p class="text-base-content/60 mb-2 text-xs">{m.storage_transfer_merge_note()}</p>
+        <p class="text-muted mb-2 text-xs">{m.storage_transfer_merge_note()}</p>
       {/if}
     {/if}
 

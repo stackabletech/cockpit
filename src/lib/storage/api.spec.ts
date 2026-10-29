@@ -403,7 +403,7 @@ describe('createFetchStorageApi', () => {
       const api = createFetchStorageApi(() => 'conn-1');
       vi.spyOn(globalThis, 'fetch')
         .mockResolvedValueOnce(jsonResponse({ status: 'done', items: [] }))
-        .mockResolvedValueOnce(jsonResponse({ status: 'not_found' }, { status: 404 }));
+        .mockResolvedValueOnce(jsonResponse({ message: 'Job not found' }, { status: 404 }));
 
       expect(await api.readTransferJob('job-1')).toEqual({ status: 'done', items: [] });
       expect(await api.readTransferJob('job-2')).toEqual({ status: 'not_found' });
@@ -430,7 +430,7 @@ describe('createFetchStorageApi', () => {
     it('reports a missing job as not_found instead of throwing', async () => {
       const api = createFetchStorageApi(() => 'conn-1');
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        jsonResponse({ status: 'not_found' }, { status: 404 })
+        jsonResponse({ message: 'Job not found' }, { status: 404 })
       );
 
       await expect(api.pollJob('job-abc')).resolves.toEqual({ status: 'not_found' });

@@ -4,7 +4,7 @@
   import { keyToName } from '$lib/storage/utils.js';
   import type { StorageObject } from '$lib/storage/types.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { storageCutCopyEnabled } from '$lib/client/feature-flags.js';
+  import { storageTransferEnabled } from '$lib/client/feature-flags.js';
   import {
     handleRowDragStart,
     parseStorageDrop,
@@ -80,7 +80,7 @@
     : selected
       ? 'bg-primary/10 hover:bg-primary/15'
       : 'hover:bg-base-200/60'}"
-  draggable={storageCutCopyEnabled && !storage.archive.isInArchive}
+  draggable={storageTransferEnabled && !storage.archive.isInArchive}
   ondragstart={handleDragStart}
   ondragover={handleDragOver}
   ondragleave={handleDragLeave}
@@ -115,8 +115,8 @@
       <span class="font-medium">{keyToName(folder.key)}</span>
     </div>
   </td>
-  <td class="text-base-content/30 text-right">—</td>
-  <td class="text-base-content/30">—</td>
+  <td class="text-muted text-right">—</td>
+  <td class="text-muted">—</td>
   <td class="w-10 py-0 pr-2 text-right">
     <div class="tooltip tooltip-left" data-tip={m.storage_context_menu_actions()}>
       <button

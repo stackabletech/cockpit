@@ -4,7 +4,7 @@
   import IconWarning from 'virtual:icons/material-symbols/warning';
   import { formatFileSize, keyToName } from '$lib/storage/utils.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { StorageError } from '$lib/storage/errors.js';
+  import { getDetailsErrorMessage } from '$lib/storage/errors.js';
   import type {
     DirectorySizeEvent,
     DirectoryMetadata,
@@ -54,11 +54,7 @@
       if (bucket === requestedBucket && prefix === requestedPrefix) meta = result;
     } catch (err) {
       if (bucket !== requestedBucket || prefix !== requestedPrefix) return;
-      if (err instanceof StorageError) {
-        metaError = err.message;
-      } else {
-        metaError = err instanceof Error ? err.message : m.storage_details_error_unknown();
-      }
+      metaError = getDetailsErrorMessage(err, m.storage_details_error_fetch_dir_meta());
     }
   }
 
@@ -77,12 +73,6 @@
 
     try {
       const res = await storage.api.directorySize({ bucket, prefix, signal: request.signal });
-
-      if (!res.ok) {
-        error = m.storage_details_error_calc_size({ status: res.status });
-        calculating = false;
-        return;
-      }
 
       const reader = res.body?.getReader();
       if (!reader) {
@@ -111,20 +101,16 @@
             } else if (event.type === 'complete') {
               result = event;
             } else if (event.type === 'error') {
-              error = event.message;
+              error = m.storage_details_error_calc_size();
             }
           } catch {
             // skip malformed events
           }
         }
       }
-    } catch (err) {
+    } catch {
       if (request.signal.aborted) return;
-      if (err instanceof StorageError) {
-        error = err.message;
-      } else {
-        error = err instanceof Error ? err.message : m.storage_details_error_unknown();
-      }
+      error = m.storage_details_error_calc_size();
     } finally {
       if (sizeRequest === request) {
         sizeRequest = null;
@@ -141,22 +127,22 @@
         <tbody>
           {#if meta.markerExists}
             <tr>
-              <td class="text-base-content/60 font-medium whitespace-nowrap"
+              <td class="text-muted font-medium whitespace-nowrap"
                 >{m.storage_details_marker_exists()}</td
               >
               <td class="font-mono text-sm">{keyToName(prefix)}</td>
             </tr>
           {:else}
             <tr>
-              <td class="text-base-content/60 font-medium whitespace-nowrap"
+              <td class="text-muted font-medium whitespace-nowrap"
                 >{m.storage_details_marker_exists()}</td
               >
-              <td class="text-base-content/40 text-sm italic">{m.storage_details_marker_none()}</td>
+              <td class="text-muted text-sm italic">{m.storage_details_marker_none()}</td>
             </tr>
           {/if}
           {#if meta.markerLastModified}
             <tr>
-              <td class="text-base-content/60 font-medium whitespace-nowrap"
+              <td class="text-muted font-medium whitespace-nowrap"
                 >{m.storage_details_last_modified()}</td
               >
               <td><TimestampDisplay date={meta.markerLastModified} /></td>
@@ -164,7 +150,7 @@
           {/if}
           {#if meta.markerStorageClass}
             <tr>
-              <td class="text-base-content/60 font-medium whitespace-nowrap"
+              <td class="text-muted font-medium whitespace-nowrap"
                 >{m.storage_details_storage_class()}</td
               >
               <td class="font-mono text-sm">{meta.markerStorageClass}</td>
@@ -172,7 +158,7 @@
           {/if}
           {#if meta.markerVersionId}
             <tr>
-              <td class="text-base-content/60 font-medium whitespace-nowrap"
+              <td class="text-muted font-medium whitespace-nowrap"
                 >{m.storage_details_version_id()}</td
               >
               <td class="max-w-xs truncate font-mono text-sm" title={meta.markerVersionId}
@@ -182,7 +168,7 @@
           {/if}
           {#if meta.markerServerSideEncryption}
             <tr>
-              <td class="text-base-content/60 font-medium whitespace-nowrap"
+              <td class="text-muted font-medium whitespace-nowrap"
                 >{m.storage_details_encryption()}</td
               >
               <td class="font-mono text-sm">{meta.markerServerSideEncryption}</td>
@@ -190,7 +176,7 @@
           {/if}
           {#if meta.markerObjectLockMode}
             <tr>
-              <td class="text-base-content/60 font-medium whitespace-nowrap"
+              <td class="text-muted font-medium whitespace-nowrap"
                 >{m.storage_details_object_lock_mode()}</td
               >
               <td class="font-mono text-sm">{meta.markerObjectLockMode}</td>
@@ -198,19 +184,17 @@
           {/if}
           {#if meta.markerObjectLockRetainUntilDate}
             <tr>
-              <td class="text-base-content/60 font-medium whitespace-nowrap"
+              <td class="text-muted font-medium whitespace-nowrap"
                 >{m.storage_details_object_lock_until()}</td
               >
               <td><TimestampDisplay date={meta.markerObjectLockRetainUntilDate} /></td>
             </tr>
           {/if}
           <tr>
-            <td class="text-base-content/60 font-medium whitespace-nowrap"
-              >{m.storage_details_owner()}</td
-            >
+            <td class="text-muted font-medium whitespace-nowrap">{m.storage_details_owner()}</td>
             <td class="font-mono text-sm">
               {#if meta.bucketOwner === null}
-                <span class="text-base-content/60 flex items-center gap-2 font-sans">
+                <span class="text-muted flex items-center gap-2 font-sans">
                   <IconWarning class="text-warning size-4 shrink-0" aria-hidden="true" />
                   {m.storage_details_unavailable()}
                 </span>
@@ -221,7 +205,7 @@
           </tr>
           {#if meta.bucketGrants && meta.bucketGrants.length > 0}
             <tr>
-              <td class="text-base-content/60 font-medium whitespace-nowrap"
+              <td class="text-muted font-medium whitespace-nowrap"
                 >{m.storage_details_permissions()}</td
               >
               <td>
@@ -229,7 +213,7 @@
                   {#each meta.bucketGrants as grant (grant.grantee + '-' + grant.permission)}
                     <span class="badge badge-sm gap-1 font-mono text-[10px]">
                       <span class="text-base-content/70">{grant.grantee}</span>
-                      <span class="text-base-content/40">|</span>
+                      <span class="text-muted">|</span>
                       <span>{grant.permission}</span>
                     </span>
                   {/each}
@@ -265,13 +249,13 @@
     <div class="border-base-300 rounded-box flex flex-col items-center gap-3 border p-6">
       <span class="loading loading-spinner loading-md text-primary" aria-hidden="true"></span>
       <p class="font-medium">{m.storage_details_calculating()}</p>
-      <p class="text-base-content/60 text-sm">{m.storage_details_calculating_desc()}</p>
+      <p class="text-muted text-sm">{m.storage_details_calculating_desc()}</p>
       {#if progress}
         <div class="text-center text-sm">
           <p class="text-base-content/80">
             {m.storage_details_keys_found({ count: progress.keysFound })}
           </p>
-          <p class="text-base-content/60 font-mono">
+          <p class="text-muted font-mono">
             {formatFileSize(progress.totalSize)}
           </p>
         </div>
@@ -331,7 +315,7 @@
           class="rounded-ss-box relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {tab ===
           'composition'
             ? 'bg-base-100 text-primary'
-            : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
+            : 'text-muted hover:bg-base-100/50 hover:text-base-content'}"
           role="tab"
           aria-selected={tab === 'composition'}
           onclick={() => (tab = 'composition')}
@@ -345,7 +329,7 @@
           class="rounded-se-box relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {tab ===
           'contents'
             ? 'bg-base-100 text-primary'
-            : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
+            : 'text-muted hover:bg-base-100/50 hover:text-base-content'}"
           role="tab"
           aria-selected={tab === 'contents'}
           onclick={() => (tab = 'contents')}
@@ -362,7 +346,7 @@
       </div>
       <div class={tab === 'contents' ? 'block' : 'hidden'}>
         <div class="border-base-300 flex items-center gap-2 border-b px-3 py-2">
-          <label for="depth-select" class="text-base-content/60 text-xs font-medium"
+          <label for="depth-select" class="text-muted text-xs font-medium"
             >{m.storage_details_depth()}:
           </label>
           <select id="depth-select" class="select select-xs w-20" bind:value={depth}>

@@ -46,6 +46,35 @@ test.describe('Storage S3 — Connection', () => {
     await expect(page.getByText('Access denied — check your credentials.')).toBeVisible();
   });
 
+  test('explains why an active connection cannot be opened', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+
+    await connectToStorage(page, credentials);
+    await expect(page.locator('main').getByRole('heading', { name: 'Buckets' })).toBeVisible();
+
+    await page.route('**/api/storage/buckets', (route) =>
+      route.fulfill({ status: 502, json: { message: 'Storage error: unreachable' } })
+    );
+    await page.reload();
+
+    await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
+    await expect(
+      page.getByText('Could not connect to the selected storage — the endpoint may be unreachable.')
+    ).toBeVisible();
+  });
+
+  test('a cleared port field means the default port, not a validation error', async ({ page }) => {
+    await openConnectForm(page);
+    const port = page.getByLabel('Port');
+    await port.fill('9000');
+    await port.fill('');
+    await page.getByRole('button', { name: 'Connect', exact: true }).click();
+
+    // The empty host still fails, so validation has run.
+    await expect(page.getByText('Host is required')).toBeVisible();
+    await expect(page.getByText(/Port must be|Too small/)).toHaveCount(0);
+  });
+
   test('disconnects from Garage S3', async ({ page }) => {
     const credentials = requireGarageCredentials();
 

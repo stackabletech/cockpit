@@ -53,6 +53,7 @@ async function clearSavedConnections(page: Page) {
         .catch(() => false)
     )
       break;
+    const before = await items.count();
     // Click the last button in the first list item. On desktop this is the
     // "more options" button (opacity-0, so use force). On mobile it's the
     // X delete button which submits the form directly.
@@ -65,9 +66,15 @@ async function clearSavedConnections(page: Page) {
       // Confirm in the modal
       await page.getByRole('button', { name: 'Delete', exact: true }).click();
     }
-    // The form action POSTs and the server redirects back to /storage;
-    // wait for the page to re-hydrate before checking the list again.
-    await waitForHydration(page);
+    // The delete is sent without a page reload: wait until the list has changed. The last
+    // delete empties it (desktop shows a placeholder, mobile hides the list).
+    await expect(async () => {
+      const changed =
+        !(await savedList.isVisible()) ||
+        (await savedList.getByText('No saved connections yet').isVisible()) ||
+        (await items.count()) < before;
+      expect(changed).toBe(true);
+    }).toPass();
   }
 }
 
@@ -103,14 +110,18 @@ export async function openConnectForm(page: Page, { clearSaved = true } = {}) {
   }
 }
 
-export async function connectToStorage(page: Page, credentials: GarageCredentials) {
-  await openConnectForm(page);
+export async function connectToStorage(
+  page: Page,
+  credentials: GarageCredentials,
+  { clearSaved = true } = {}
+) {
+  await openConnectForm(page, { clearSaved });
   const url = new URL(credentials.endpoint);
   const host = url.hostname;
   const port = url.port;
   const useTls = url.protocol === 'https:';
 
-  await page.getByLabel('Host').fill(host);
+  await page.getByLabel('Host', { exact: true }).fill(host);
   if (port) {
     await page.getByLabel('Port').fill(port);
   }
@@ -195,7 +206,10 @@ export async function putTextObject(
 }
 
 export async function putDirectoryMarker(client: S3Client, bucket: string, key: string) {
-  await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: '' }));
+  // The SDK sets no Content-Length for a falsy body, so '' triggers its stream warning.
+  await client.send(
+    new PutObjectCommand({ Bucket: bucket, Key: key, Body: Buffer.alloc(0), ContentLength: 0 })
+  );
 }
 
 export async function deleteKnownKeys(client: S3Client, bucket: string, keys: string[]) {

@@ -5,11 +5,7 @@ import type { StorageProvider } from '../provider.js';
 import type { TransferRequest } from './resolve.js';
 
 vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
-vi.mock('$lib/server/feature-flags.js', () => ({
-  storagePasteEnabled: true,
-  storageMoveEnabled: true,
-  storageRenameEnabled: true
-}));
+vi.mock('$lib/server/feature-flags.js', () => ({ storageTransferEnabled: true }));
 
 const MINUTE = 60_000;
 

@@ -3,8 +3,19 @@
   import Modal from '$lib/components/Modal.svelte';
   import { getProduct, PRODUCTS, type Product } from '$lib/dashboard/products';
   import ProductIcon from './ProductIcon.svelte';
-  import { addBookmark, removeBookmark, updateBookmark } from '$lib/dashboard/bookmarks.svelte.js';
-  import { bookmarkFormSchema, bookmarkHostname, type Bookmark } from '$lib/dashboard/types';
+  import {
+    addBookmark,
+    BookmarkRequestError,
+    removeBookmark,
+    updateBookmark
+  } from '$lib/dashboard/bookmarks-api.js';
+  import {
+    BOOKMARK_LIMIT,
+    BOOKMARK_MAX_LENGTH,
+    bookmarkCreateSchema,
+    bookmarkHostname,
+    type Bookmark
+  } from '$lib/dashboard/types';
   import * as m from '$lib/paraglide/messages.js';
   import IconClose from 'virtual:icons/material-symbols/close';
 
@@ -26,6 +37,8 @@
   let wasOpen = false;
   let nameError = $state(false);
   let urlError = $state(false);
+  let saving = $state(false);
+  let requestError = $state<string | null>(null);
 
   let uid = $props.id();
 
@@ -40,6 +53,7 @@
     pinned = target?.pinned ?? false;
     nameError = false;
     urlError = false;
+    requestError = null;
   }
 
   // Only `open` is tracked; the bookmark is read once per open.
@@ -67,15 +81,36 @@
   }
 
   function isValidUrl(value: string): boolean {
-    return bookmarkFormSchema.shape.url.safeParse(value.trim()).success;
+    return bookmarkCreateSchema.shape.url.safeParse(value.trim()).success;
   }
 
   function handleUrlBlur() {
     if (url.trim()) urlError = !isValidUrl(url);
   }
 
-  function handleSubmit(event: SubmitEvent) {
+  /**
+   * Runs a bookmark request; closes the dialog on success, otherwise shows
+   * `errorMessage`, or the limit when the server rejects another bookmark.
+   */
+  async function save(request: () => Promise<void>, errorMessage: string) {
+    saving = true;
+    requestError = null;
+    try {
+      await request();
+      open = false;
+    } catch (err) {
+      requestError =
+        err instanceof BookmarkRequestError && err.status === 409
+          ? m.bookmark_limit_error({ limit: BOOKMARK_LIMIT })
+          : errorMessage;
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
+    if (saving) return;
     const values = {
       productId: selectedProduct.id,
       name: name.trim(),
@@ -83,7 +118,7 @@
       url: url.trim(),
       pinned
     };
-    const parsed = bookmarkFormSchema.safeParse(values);
+    const parsed = bookmarkCreateSchema.safeParse(values);
     if (!parsed.success) {
       nameError = !values.name;
       urlError = !isValidUrl(values.url);
@@ -91,17 +126,21 @@
       return;
     }
 
-    if (bookmark) {
-      updateBookmark({ ...bookmark, ...parsed.data });
-    } else {
-      addBookmark({ createdAt: new Date().toISOString(), ...parsed.data });
-    }
-    open = false;
+    const target = bookmark;
+    await save(
+      () => (target ? updateBookmark(target.id, parsed.data) : addBookmark(parsed.data)),
+      m.bookmark_save_error()
+    );
+  }
+
+  function close() {
+    if (!saving) open = false;
   }
 
   // The confirmation opens on top of the edit dialog, so cancelling (or Escape)
   // returns to the form with the user's unsaved edits intact.
   function handleDeleteClick() {
+    if (saving) return;
     confirmDeleteOpen = true;
   }
 
@@ -109,21 +148,25 @@
     confirmDeleteOpen = false;
   }
 
-  function handleDeleteConfirm() {
-    if (!bookmark) return;
-    removeBookmark(bookmark.id);
+  async function handleDeleteConfirm() {
+    const target = bookmark;
+    if (!target || saving) return;
+    // Back to the edit dialog, which shows the error if the delete fails.
     confirmDeleteOpen = false;
-    open = false;
+    await save(() => removeBookmark(target.id), m.bookmark_delete_error());
   }
 </script>
 
-<Modal bind:open aria-labelledby="{uid}-title">
+<!-- Not closable while a request runs, so its result cannot land on a reopened form. -->
+<Modal bind:open dismissible={!saving} aria-labelledby="{uid}-title">
   <div class="modal-box max-w-2xl">
     <button
       type="button"
       class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
+      class:btn-disabled={saving}
       aria-label={m.action_close()}
-      onclick={() => (open = false)}
+      aria-disabled={saving}
+      onclick={close}
     >
       <IconClose class="size-5" aria-hidden="true" />
     </button>
@@ -171,6 +214,7 @@
               type="text"
               bind:value={name}
               oninput={handleNameInput}
+              maxlength={BOOKMARK_MAX_LENGTH.name}
               placeholder={selectedProduct.defaultName}
               class="input w-full"
               aria-invalid={nameError}
@@ -188,6 +232,7 @@
               id="{uid}-env"
               type="text"
               bind:value={environment}
+              maxlength={BOOKMARK_MAX_LENGTH.environment}
               placeholder={m.bookmark_env_placeholder()}
               class="input w-full"
             />
@@ -205,6 +250,7 @@
             bind:value={url}
             oninput={handleUrlInput}
             onblur={handleUrlBlur}
+            maxlength={BOOKMARK_MAX_LENGTH.url}
             placeholder={m.bookmark_url_placeholder()}
             class="input w-full"
             aria-invalid={urlError}
@@ -228,7 +274,7 @@
 
         <!-- Preview -->
         <div>
-          <p class="text-base-content/60 mb-2 text-xs font-medium tracking-wider uppercase">
+          <p class="text-muted mb-2 text-xs font-medium tracking-wider uppercase">
             {m.bookmark_preview_label()}
           </p>
           <div class="border-base-300 bg-base-200 flex items-center gap-3 rounded-xl border p-3">
@@ -240,19 +286,17 @@
                 {name || selectedProduct.defaultName || selectedProduct.name}
               </p>
               <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
-                <span class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]">
+                <span class="bg-base-300 text-muted rounded-full px-2 py-0.5 text-[11px]">
                   {selectedProduct.name}
                 </span>
                 {#if environment}
-                  <span
-                    class="bg-base-300 text-base-content/60 rounded-full px-2 py-0.5 text-[11px]"
-                  >
+                  <span class="bg-base-300 text-muted rounded-full px-2 py-0.5 text-[11px]">
                     {environment}
                   </span>
                 {/if}
               </div>
               {#if url}
-                <p class="text-base-content/50 mt-0.5 truncate text-xs">
+                <p class="text-muted mt-0.5 truncate text-xs">
                   {bookmarkHostname(url)}
                 </p>
               {/if}
@@ -261,16 +305,42 @@
         </div>
       </div>
 
+      {#if requestError}
+        <div role="alert" class="alert alert-error mt-6 text-sm">{requestError}</div>
+      {/if}
+      <!-- The spinner is decorative; this announces the save to screen readers. -->
+      <p role="status" class="sr-only">{saving ? m.bookmark_saving() : ''}</p>
+
       <div class="modal-action">
         {#if isEditing}
-          <button type="button" class="btn btn-error mr-auto" onclick={handleDeleteClick}>
+          <button
+            type="button"
+            class="btn btn-error mr-auto"
+            class:btn-disabled={saving}
+            aria-disabled={saving}
+            onclick={handleDeleteClick}
+          >
             {m.bookmark_delete()}
           </button>
         {/if}
-        <button type="button" class="btn btn-ghost" onclick={() => (open = false)}>
+        <button
+          type="button"
+          class="btn btn-ghost"
+          class:btn-disabled={saving}
+          aria-disabled={saving}
+          onclick={close}
+        >
           {m.bookmark_cancel()}
         </button>
-        <button type="submit" class="btn btn-primary">
+        <button
+          type="submit"
+          class="btn btn-primary"
+          class:btn-disabled={saving}
+          aria-disabled={saving}
+        >
+          {#if saving}
+            <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+          {/if}
           {isEditing ? m.bookmark_save_changes() : m.bookmark_add_title()}
         </button>
       </div>

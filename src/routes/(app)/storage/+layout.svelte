@@ -1,7 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import BucketList from '$lib/components/storage/sidebar/BucketList.svelte';
   import { StorageState } from '$lib/storage/state.svelte.js';
@@ -9,8 +8,8 @@
   import StorageModals from '$lib/components/storage/modals/StorageModals.svelte';
   import { connectionHostname, connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { createFetchStorageApi } from '$lib/storage/api.js';
+  import { storageHref } from '$lib/storage/display-helpers.js';
   import { TabsState } from '$lib/storage/tabs.svelte.js';
-  import { storageRestoreTabsEnabled } from '$lib/client/feature-flags.js';
 
   let { children, data } = $props();
 
@@ -27,31 +26,14 @@
   );
   setStorageState(storage);
 
-  function locationPath(connection: string, bucket: string, prefix: string): string {
-    return resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
-      connection: encodeURIComponent(connection),
-      bucket: encodeURIComponent(bucket),
-      prefix: prefix ? prefix.replace(/\/$/, '').split('/').map(encodeURIComponent).join('/') : ''
-    });
-  }
-
   const tabsState = new TabsState(storage, {
-    persistEnabled: storageRestoreTabsEnabled,
     connectionId: storage.connectionId,
     navigateToLocation: (connection, bucket, prefix) => {
-      void goto(
-        (resolve as (pathname: import('$app/types').Pathname) => string)(
-          locationPath(connection, bucket, prefix) as import('$app/types').Pathname
-        )
-      );
+      // Keep focus on the tab that triggered the switch instead of resetting it to <body>
+      void goto(storageHref(connection, bucket, prefix), { keepFocus: true });
     },
     replaceLocationUrl: (connection, bucket, prefix) => {
-      void goto(
-        (resolve as (pathname: import('$app/types').Pathname) => string)(
-          locationPath(connection, bucket, prefix) as import('$app/types').Pathname
-        ),
-        { replaceState: true }
-      );
+      void goto(storageHref(connection, bucket, prefix), { replaceState: true, keepFocus: true });
     }
   });
   setTabsState(tabsState);

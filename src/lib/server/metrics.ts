@@ -39,6 +39,13 @@ export const storageSearchHistoryTotal = new Counter({
   registers: [register]
 });
 
+export const dashboardBookmarksTotal = new Counter({
+  name: 'dashboard_bookmarks_total',
+  help: 'Dashboard bookmark operations executed through the Stackable UI',
+  labelNames: ['operation', 'outcome'],
+  registers: [register]
+});
+
 export const storageTransferItemsTotal = new Counter({
   name: 'storage_transfer_items_total',
   help: 'Selected items of storage copy, move and rename transfers, by final status',

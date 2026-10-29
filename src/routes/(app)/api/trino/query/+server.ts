@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { findTrinoUser, getUserId } from '$lib/server/auth-utils.js';
 import * as m from '$lib/paraglide/messages.js';
@@ -19,19 +19,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const client = resolveTrinoClient(userId);
 
   if (!client) {
-    return json({ error: 'No Trino connection configured' }, { status: 400 });
+    error(400, 'No Trino connection configured');
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return json({ error: 'Invalid JSON body' }, { status: 400 });
+    error(400, 'Invalid JSON body');
   }
 
   const parsed = StatementRequestSchema.safeParse(body);
   if (!parsed.success) {
-    return json({ error: z.prettifyError(parsed.error) }, { status: 400 });
+    error(400, z.prettifyError(parsed.error));
   }
 
   // Return the error as JSON so the query runner shows it instead of "connection lost".
@@ -58,7 +58,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   const userId = getUserId(locals);
   const parsed = TabIdSchema.safeParse(url.searchParams.get('tabId'));
   if (!parsed.success) {
-    return json({ error: 'Missing or invalid tabId parameter' }, { status: 400 });
+    error(400, 'Missing or invalid tabId parameter');
   }
 
   // Lightweight mode omits rows/columns for completed queries to keep polling payloads small.
@@ -74,7 +74,7 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
   const userId = getUserId(locals);
   const parsed = TabIdSchema.safeParse(url.searchParams.get('tabId'));
   if (!parsed.success) {
-    return json({ error: 'Missing or invalid tabId parameter' }, { status: 400 });
+    error(400, 'Missing or invalid tabId parameter');
   }
 
   const tabId = parsed.data;

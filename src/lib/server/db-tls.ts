@@ -44,7 +44,7 @@ export function databaseSsl(env: DatabaseTlsEnv, mode: DatabaseTlsMode): Connect
   if (mode === 'disable') return false;
   return {
     rejectUnauthorized: mode === 'verify-full',
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- CA certificate path from the deployment configuration
     ...(caCertPath ? { ca: readFileSync(caCertPath) } : {})
   };
 }

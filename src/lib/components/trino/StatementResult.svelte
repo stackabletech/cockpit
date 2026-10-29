@@ -126,13 +126,13 @@
       </span>
       <code
         class="
-          text-base-content/60 pointer-events-none max-w-md truncate text-xs
+          text-muted pointer-events-none max-w-md truncate text-xs
         "
       >
         {result.sql.length > 80 ? result.sql.slice(0, 80) + '\u2026' : result.sql}
       </code>
       {#if totalRows > 0}
-        <span class="text-base-content/40 pointer-events-none ml-auto text-xs">
+        <span class="text-muted pointer-events-none ml-auto text-xs">
           {m.trino_rows_range({
             start: rowStart,
             end: rowEnd,
@@ -142,7 +142,7 @@
       {/if}
       <span
         class="
-          text-base-content/40 pointer-events-none transition-transform
+          text-muted pointer-events-none transition-transform
           {collapsed ? '' : 'rotate-180'}"
         aria-hidden="true"
       >
@@ -158,14 +158,12 @@
     {#if result.trinoQueryUrl || result.columns.length > 0}
       <div class="flex items-center gap-2 pb-1">
         {#if result.trinoQueryUrl}
-          <!-- eslint-disable svelte/no-navigation-without-resolve -->
           <a
             href={result.trinoQueryUrl}
             target="_blank"
             rel="noopener noreferrer external"
             class="btn btn-ghost btn-xs"
           >
-            <!-- eslint-enable svelte/no-navigation-without-resolve -->
             {m.trino_view_in_trino()}
             <IconOpenInNew class="size-3.5" aria-hidden="true" />
           </a>
@@ -191,7 +189,7 @@
               checked={includeHeaders}
               onchange={handleIncludeHeadersChange}
             />
-            <span class="text-base-content/60">{m.trino_export_csv_column_names()}</span>
+            <span class="text-muted">{m.trino_export_csv_column_names()}</span>
           </label>
         {/if}
       </div>
@@ -229,7 +227,7 @@
                 {#each row as cell, cellIdx (cellIdx)}
                   <td class="font-mono text-xs whitespace-nowrap">
                     {#if cell === null}
-                      <span class="text-base-content/50 italic">null</span>
+                      <span class="text-muted italic">null</span>
                     {:else}
                       {typeof cell === 'object' ? JSON.stringify(cell) : String(cell)}
                     {/if}
@@ -257,7 +255,7 @@
         />
       </div>
     {:else if result.state === 'FINISHED' && result.columns.length === 0}
-      <p class="text-base-content/40 py-2 text-sm">{m.trino_results_empty()}</p>
+      <p class="text-muted py-2 text-sm">{m.trino_results_empty()}</p>
     {/if}
   </div>
 </div>

@@ -67,7 +67,8 @@ describe('getConnectionFromHeader', () => {
   it('rejects an unknown connection', async () => {
     selectRows([]);
     await expect(getConnectionFromHeader(request(), 'user-id')).rejects.toMatchObject({
-      status: 401
+      status: 409,
+      body: { reason: 'not-connected' }
     });
   });
 

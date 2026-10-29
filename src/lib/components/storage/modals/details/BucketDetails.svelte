@@ -5,7 +5,7 @@
   import IconPerson from 'virtual:icons/material-symbols/person';
   import IconKey from 'virtual:icons/material-symbols/key';
   import { getStorageState } from '$lib/storage/context.js';
-  import { StorageError } from '$lib/storage/errors.js';
+  import { getDetailsErrorMessage } from '$lib/storage/errors.js';
   import type { BucketDetails as BucketDetailsType } from '$lib/storage/details-types.js';
 
   interface Props {
@@ -32,11 +32,7 @@
         if (!cancelled) details = result;
       } catch (err) {
         if (cancelled) return;
-        if (err instanceof StorageError) {
-          error = err.message;
-        } else {
-          error = err instanceof Error ? err.message : m.storage_details_error_unknown();
-        }
+        error = getDetailsErrorMessage(err, m.storage_details_error_fetch_bucket());
       } finally {
         if (!cancelled) loading = false;
       }
@@ -61,7 +57,7 @@
 </script>
 
 {#snippet unavailable()}
-  <div class="text-base-content/60 flex items-center gap-2 text-sm">
+  <div class="text-muted flex items-center gap-2 text-sm">
     <IconWarning class="text-warning size-4 shrink-0" aria-hidden="true" />
     <span>{m.storage_details_unavailable()}</span>
   </div>
@@ -165,7 +161,7 @@
                 </span>
               </div>
 
-              <div class="text-base-content/60 mb-2 text-xs">
+              <div class="text-muted mb-2 text-xs">
                 <span>{m.storage_details_lifecycle_filter()}:</span>
                 {#if rule.filter && typeof rule.filter === 'object' && 'prefix' in (rule.filter as Record<string, unknown>) && (rule.filter as Record<string, unknown>).prefix}
                   <span class="text-base-content font-mono leading-none">
@@ -182,7 +178,7 @@
                     {JSON.stringify(rule.filter)}
                   </span>
                 {:else}
-                  <span class="text-base-content/40 leading-none italic"
+                  <span class="text-muted leading-none italic"
                     >{m.storage_details_lifecycle_all_objects()}</span
                   >
                 {/if}
@@ -266,7 +262,7 @@
     {:else if !loading}
       <div class="border-base-300 flex items-center gap-2 rounded-lg border p-3 text-sm">
         <IconInfo class="text-base-content/40 size-4" aria-hidden="true" />
-        <span class="text-base-content/60">{m.storage_details_lifecycle_no_rules()}</span>
+        <span class="text-muted">{m.storage_details_lifecycle_no_rules()}</span>
       </div>
     {/if}
 
@@ -291,7 +287,7 @@
         </div>
       </div>
     {:else if !loading}
-      <div class="text-base-content/40 text-sm italic">{m.storage_details_no_tags()}</div>
+      <div class="text-muted text-sm italic">{m.storage_details_no_tags()}</div>
     {/if}
   {/if}
 </div>

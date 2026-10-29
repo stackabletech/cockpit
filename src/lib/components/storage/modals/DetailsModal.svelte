@@ -8,7 +8,7 @@
   import IconBucket from '$lib/components/storage/shared/BucketIcon.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { StorageError } from '$lib/storage/errors.js';
+  import { getDetailsErrorMessage } from '$lib/storage/errors.js';
   import type { FileDetails as FileDetailsType } from '$lib/storage/details-types.js';
   import FileDetails from './details/FileDetails.svelte';
   import DirectoryDetails from './details/DirectoryDetails.svelte';
@@ -54,11 +54,7 @@
     try {
       fileDetails = await storage.api.details({ bucket, key });
     } catch (err) {
-      if (err instanceof StorageError) {
-        loadError = err.message;
-      } else {
-        loadError = err instanceof Error ? err.message : m.storage_details_error_unknown();
-      }
+      loadError = getDetailsErrorMessage(err, m.storage_details_error_fetch_file());
     } finally {
       loading = false;
     }
@@ -90,7 +86,7 @@
         </div>
         <div class="min-w-0">
           <h3 class="text-lg font-bold">{title}</h3>
-          <p class="text-base-content/50 truncate text-sm">
+          <p class="text-muted truncate text-sm">
             {type === 'bucket' ? bucket : (key ?? prefix ?? '')}
           </p>
         </div>

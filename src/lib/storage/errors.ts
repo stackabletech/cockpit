@@ -48,3 +48,18 @@ export function getActionErrorMessage(err: StorageError): string {
 export function getActionErrorMessageForCode(code: string): string {
   return getActionErrorMessage(new StorageError(code, ''));
 }
+
+/** Translated message for a failed details request; `fallback` covers all other failures. */
+export function getDetailsErrorMessage(err: unknown, fallback: string): string {
+  if (!(err instanceof StorageError)) return fallback;
+  switch (err.code) {
+    case 'not_connected':
+      return m.storage_details_error_not_connected();
+    case 'access_denied':
+      return m.storage_details_error_access_denied();
+    case 'not_found':
+      return m.storage_details_error_not_found();
+    default:
+      return fallback;
+  }
+}

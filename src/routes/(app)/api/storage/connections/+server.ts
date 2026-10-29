@@ -1,5 +1,5 @@
 import { desc, eq, and } from 'drizzle-orm';
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
@@ -72,12 +72,12 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
   const userId = locals.user!.id;
   const connectionId = request.headers.get(STORAGE_CONNECTION_ID_HEADER);
   if (!connectionId) {
-    return json({ error: 'Missing storage connection ID' }, { status: 400 });
+    error(400, 'Missing storage connection ID');
   }
 
   const body = AddConnectionBucketBodySchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
-    return json({ error: 'Bucket name is required' }, { status: 400 });
+    error(400, 'Bucket name is required');
   }
   const { bucket } = body.data;
 
@@ -93,7 +93,7 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
     .limit(1);
 
   if (rows.length === 0) {
-    return json({ error: 'Connection not found' }, { status: 404 });
+    error(404, 'Connection not found');
   }
 
   const existing = (rows[0].additionalBuckets as string[]) ?? [];

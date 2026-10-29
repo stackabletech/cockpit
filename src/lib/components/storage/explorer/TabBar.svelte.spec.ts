@@ -16,7 +16,7 @@ function makeStorage(bucket = 'test-bucket', prefix = ''): StorageState {
 }
 
 function makeTabsState(storage: StorageState, tabCount = 2): TabsState {
-  const ts = new TabsState(storage, { persistEnabled: false });
+  const ts = new TabsState(storage);
   ts.ensureInitialTab();
   for (let i = 1; i < tabCount; i++) {
     ts.addTab();
@@ -101,7 +101,7 @@ describe('TabBar', () => {
     renderTabBar(storage, tabsState);
 
     // Close tab buttons have aria-label="Close tab"
-    const closeButtons = page.getByRole('button', { name: 'Close tab' });
+    const closeButtons = page.getByRole('button', { name: 'Close tab', includeHidden: true });
     await expect.element(closeButtons.first()).toBeInTheDocument();
   });
 
@@ -111,7 +111,7 @@ describe('TabBar', () => {
     const spy = vi.spyOn(tabsState, 'closeTab');
     renderTabBar(storage, tabsState);
 
-    await page.getByRole('button', { name: 'Close tab' }).first().click();
+    await page.getByRole('button', { name: 'Close tab', includeHidden: true }).first().click();
 
     expect(spy).toHaveBeenCalled();
   });

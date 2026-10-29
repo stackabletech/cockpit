@@ -124,7 +124,6 @@ describe('database environment', () => {
 
     it('trusts the configured CA certificate', async () => {
       const caCertPath = join(tempDir, 'ca.crt');
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
       writeFileSync(caCertPath, 'test-ca');
       env.DATABASE_TLS_CA_CERT = caCertPath;
 

@@ -21,10 +21,10 @@
   import PdfPreview from './preview/PdfPreview.svelte';
   import FallbackPreview from './preview/FallbackPreview.svelte';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
-  import { StorageError } from '$lib/storage/errors.js';
+  import { StorageError, getActionErrorMessage } from '$lib/storage/errors.js';
   import { decodePreviewText } from '$lib/storage/text-decode.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
-  import { maxEditableFileSize, infiniteScrollEnabled } from '$lib/client/feature-flags.js';
+  import { maxEditableFileSize } from '$lib/client/config.js';
   import { getStorageState } from '$lib/storage/context.js';
 
   interface Props {
@@ -136,8 +136,7 @@
   let parquetShowingRowsCount = $state(0),
     csvShowingRowsCount = $state(0);
   let csvTotalRows = $state(0);
-  let parquetTab: 'metadata' | 'data' = $state('metadata'),
-    parquetDataLoading = $state(false);
+  let parquetTab: 'metadata' | 'data' = $state('metadata');
   let editorText = $state('');
   let originalText = $state('');
   let saving = $state(false);
@@ -195,7 +194,6 @@
       imageNaturalWidth = 0;
       imageNaturalHeight = 0;
       parquetTab = 'metadata';
-      parquetDataLoading = false;
       parquetShowingRowsCount = 0;
       csvShowingRowsCount = 0;
       csvTotalRows = 0;
@@ -220,18 +218,6 @@
         });
       } else {
         res = await storage.api.preview({ bucket: activeBucket, key });
-      }
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        const msg =
-          res.status === 403
-            ? m.storage_preview_access_denied()
-            : res.status === 404
-              ? m.storage_preview_not_found()
-              : (errBody?.error ?? m.storage_preview_error_desc());
-        preview = { kind: 'error', message: msg };
-        return;
       }
 
       const contentType = (res.headers.get('Content-Type') ?? 'application/octet-stream')
@@ -346,26 +332,14 @@
         } = await readCsvNdjsonStream(res);
         csvTotalRows = initialTotal;
 
-        if (csvRows.length > 0 || infiniteScrollEnabled || !objectKey) {
-          preview = {
-            kind: 'csv_scroll',
-            headers: csvHeaders,
-            rows: csvRows,
-            totalRows: initialTotal,
-            truncated: initialTotal > csvRows.length,
-            totalSize
-          };
-        } else {
-          const data = await fetchCsvRows(0, 250).catch(() => []);
-          preview = {
-            kind: 'csv_scroll',
-            headers: csvHeaders,
-            rows: data,
-            totalRows: csvTotalRows,
-            truncated: csvTotalRows > data.length,
-            totalSize
-          };
-        }
+        preview = {
+          kind: 'csv_scroll',
+          headers: csvHeaders,
+          rows: csvRows,
+          totalRows: initialTotal,
+          truncated: initialTotal > csvRows.length,
+          totalSize
+        };
         return;
       }
 
@@ -412,8 +386,15 @@
       };
       editorText = text;
       originalText = text;
-    } catch {
-      preview = { kind: 'error', message: m.storage_preview_error_desc() };
+    } catch (err) {
+      const code = err instanceof StorageError ? err.code : null;
+      const message =
+        code === 'access_denied'
+          ? m.storage_preview_access_denied()
+          : code === 'not_found'
+            ? m.storage_preview_not_found()
+            : m.storage_preview_error_desc();
+      preview = { kind: 'error', message };
     }
   }
 
@@ -562,10 +543,6 @@
 
     try {
       const res = await storage.api.download({ bucket, key: objectKey });
-      if (!res.ok) {
-        addToast('error', m.storage_download_error_unknown());
-        return;
-      }
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const filename = objectKey.split('/').filter(Boolean).pop() ?? objectKey;
@@ -578,11 +555,12 @@
       document.body.removeChild(anchor);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
     } catch (err) {
-      if (err instanceof StorageError) {
-        addToast('error', err.message);
-      } else {
-        addToast('error', m.storage_download_error_unknown());
-      }
+      addToast(
+        'error',
+        err instanceof StorageError
+          ? getActionErrorMessage(err)
+          : m.storage_download_error_unknown()
+      );
     }
   }
 
@@ -624,7 +602,7 @@
             m.storage_editor_too_large({ limit: formatFileSize(maxEditableFileSize) })
           );
         } else {
-          addToast('error', err.message || m.storage_editor_error());
+          addToast('error', m.storage_editor_error());
         }
       } else {
         addToast('error', m.storage_editor_error());
@@ -675,57 +653,6 @@
     }
   });
 
-  // When infinite scroll is disabled and user clicks the data tab,
-  // fetch the first page of parquet data on demand.
-  $effect(() => {
-    if (
-      preview.kind === 'parquet' &&
-      parquetTab === 'data' &&
-      preview.rows.length === 0 &&
-      !infiniteScrollEnabled &&
-      !parquetDataLoading &&
-      objectKey
-    ) {
-      parquetDataLoading = true;
-      const hdrs = preview.headers;
-      const rowCount = Math.min(250, preview.totalRows);
-      const rows: unknown[][] = Array.from({ length: rowCount }, () =>
-        new Array(hdrs.length).fill(undefined)
-      );
-      preview = { ...preview, rows: rows.map((r) => [...r]) };
-      const colPos: Record<string, number> = {};
-      fetchParquetRows(0, rowCount, (name, values) => {
-        const colIdx = hdrs.indexOf(name);
-        if (colIdx < 0) return;
-        let pos = colPos[name] ?? 0;
-        for (let i = 0; i < values.length; i++) {
-          while (rows.length <= pos) {
-            rows.push(new Array(hdrs.length).fill(undefined));
-          }
-          rows[pos][colIdx] = values[i];
-          pos++;
-        }
-        colPos[name] = pos;
-        if (preview.kind === 'parquet') {
-          preview = { ...preview, rows: rows.map((r) => [...r]) };
-        }
-      })
-        .then((finalRows) => {
-          parquetDataLoading = false;
-          if (preview.kind === 'parquet') {
-            preview = {
-              ...preview,
-              rows: finalRows,
-              truncated: finalRows.length < preview.totalRows
-            };
-          }
-        })
-        .catch(() => {
-          parquetDataLoading = false;
-        });
-    }
-  });
-
   function toggleMaximized() {
     maximized = !maximized;
   }
@@ -746,10 +673,6 @@
       data: true
     });
 
-    if (!res.ok) {
-      throw new Error('Failed to fetch parquet chunk');
-    }
-
     const { rows } = await readNdjsonStream(res, onColumn);
     return rows;
   }
@@ -765,10 +688,6 @@
       limit,
       data: true
     });
-
-    if (!res.ok) {
-      throw new Error('Failed to fetch CSV chunk');
-    }
 
     const { rows, totalRows } = await readCsvNdjsonStream(res);
     csvTotalRows = totalRows;
@@ -891,7 +810,7 @@
           class="relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {parquetTab ===
           'metadata'
             ? 'bg-base-100 text-primary'
-            : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
+            : 'text-muted hover:bg-base-100/50 hover:text-base-content'}"
           role="tab"
           aria-selected={parquetTab === 'metadata'}
           onclick={() => (parquetTab = 'metadata')}
@@ -905,7 +824,7 @@
           class="relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors {parquetTab ===
           'data'
             ? 'bg-base-100 text-primary'
-            : 'text-base-content/60 hover:bg-base-100/50 hover:text-base-content'}"
+            : 'text-muted hover:bg-base-100/50 hover:text-base-content'}"
           role="tab"
           aria-selected={parquetTab === 'data'}
           onclick={() => (parquetTab = 'data')}
@@ -933,7 +852,7 @@
         <div class="flex flex-col items-center gap-3 p-8 text-center" role="alert">
           <IconErrorOutline class="text-error size-12" aria-hidden="true" />
           <p class="text-base-content font-semibold">{m.storage_preview_error_title()}</p>
-          <p class="text-base-content/60 text-sm">{preview.message}</p>
+          <p class="text-muted text-sm">{preview.message}</p>
         </div>
       {:else if preview.kind === 'parquet'}
         <!-- Metadata tab: always mounted, hidden when Data tab is active -->
@@ -955,7 +874,7 @@
                 <p class="text-base-content font-semibold">
                   {m.storage_preview_parquet_blocked_title()}
                 </p>
-                <p class="text-base-content/60 mt-1 text-sm">
+                <p class="text-muted mt-1 text-sm">
                   {m.storage_preview_parquet_blocked_desc()}
                 </p>
               </div>
@@ -969,7 +888,7 @@
               headers={preview.headers}
               initialRows={preview.rows}
               totalRows={preview.totalRows}
-              fetchRows={infiniteScrollEnabled ? fetchParquetRows : undefined}
+              fetchRows={fetchParquetRows}
               bind:showingRowsCount={parquetShowingRowsCount}
               hidden={parquetTab !== 'data'}
             />
@@ -994,7 +913,7 @@
               data-testid="editor-readonly-notice"
             >
               <IconBlock class="text-base-content/50 size-4" aria-hidden="true" />
-              <span class="text-base-content/60 text-xs">{readOnlyMessage}</span>
+              <span class="text-muted text-xs">{readOnlyMessage}</span>
             </div>
           {/if}
           <div class="min-h-0 flex-1">
@@ -1015,7 +934,7 @@
           headers={preview.headers}
           initialRows={preview.rows}
           totalRows={csvTotalRows}
-          fetchRows={infiniteScrollEnabled ? fetchCsvRows : undefined}
+          fetchRows={fetchCsvRows}
           bind:showingRowsCount={csvShowingRowsCount}
         />
       {:else if preview.kind === 'image'}

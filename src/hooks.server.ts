@@ -10,7 +10,11 @@ import { requestLogger, logger } from '$lib/server/logging';
 import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
+// Imported for its side effect: parses the storage and PUBLIC_ client config at
+// startup, so invalid values stop the server instead of failing the first request.
+import '$lib/server/storage/config.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
+import { notConnected } from '$lib/server/storage/not-connected.js';
 import { runMigrations } from '$lib/server/migrate.js';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
@@ -48,14 +52,17 @@ const handleParaglide: Handle = ({ event, resolve }) =>
 const handleAuth: Handle = ({ event, resolve }) =>
   svelteKitHandler({ event, resolve, auth, building });
 
-const PUBLIC_PATHS = ['/auth/login', '/auth/logout', '/api/auth', '/metrics', '/healthz'];
+// Matched by route id, not path prefix, so `/metricsfoo` or `/auth/login/x`
+// (which reaches the (app) catch-all) still require sign-in. `/api/auth/*` is
+// answered by better-auth in `handleAuth` before this guard runs.
+const PUBLIC_ROUTE_IDS = new Set(['/auth/login', '/auth/logout', '/metrics', '/healthz']);
 
 const handleAuthGuard: Handle = async ({ event, resolve }) => {
   const session = await auth.api.getSession({ headers: event.request.headers });
   event.locals.user = session?.user ?? null;
   event.locals.session = session?.session ?? null;
 
-  const isPublic = PUBLIC_PATHS.some((p) => event.url.pathname.startsWith(p));
+  const isPublic = event.route.id !== null && PUBLIC_ROUTE_IDS.has(event.route.id);
   if (!isPublic && !event.locals.user) {
     event.locals.logger.debug({ path: event.url.pathname }, 'Rejecting unauthenticated request');
     return unauthenticatedResponse(event.url);
@@ -99,7 +106,7 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
     !event.route.id?.startsWith('/(app)/api/storage/download/manifests/[manifestId]/') &&
     event.route.id !== '/(app)/api/storage/download/manifests';
   if (event.locals.storageConfig === null && requiresConnectionHeader) {
-    throw error(401, 'No storage connection configured');
+    notConnected();
   }
   return resolve(event);
 };

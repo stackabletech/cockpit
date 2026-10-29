@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import type { Snippet } from 'svelte';
   import IconArrowForward from 'virtual:icons/material-symbols/arrow-forward';
   import IconDescriptionOutline from 'virtual:icons/material-symbols/description-outline';
@@ -98,7 +97,7 @@
       {@render skeletonRows()}
     </div>
   {:else if isEmpty}
-    <p class="text-base-content/40 px-4 py-8 text-center text-sm">{emptyMessage}</p>
+    <p class="text-muted px-4 py-8 text-center text-sm">{emptyMessage}</p>
   {:else}
     <div class="overflow-x-auto">
       {@render tableContent()}
@@ -127,21 +126,18 @@
             </div>
           </td>
           <td>
-            <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
             <a
-              href={(resolve as (pathname: string) => string)(
-                fileHref(storage.connectionHostname, file)
-              )}
+              href={fileHref(storage.connectionHostname, file)}
               data-sveltekit-preload-data="off"
-              class="text-base-content/60 hover:text-primary truncate text-xs"
+              class="text-muted hover:text-primary truncate text-xs"
             >
               {fileLocation(file)}
             </a>
           </td>
-          <td class="text-base-content/60 text-xs whitespace-nowrap">
+          <td class="text-muted text-xs whitespace-nowrap">
             {formatFileSize(file.size)}
           </td>
-          <td class="text-base-content/50 text-xs whitespace-nowrap">
+          <td class="text-muted text-xs whitespace-nowrap">
             <TimestampDisplay date={file.visitedAt} relative tooltip="tooltip-left" />
           </td>
           <td>
@@ -156,11 +152,8 @@
                 </button>
               </div>
               <div class="tooltip tooltip-left" data-tip={m.storage_recent_open_folder()}>
-                <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
                 <a
-                  href={(resolve as (pathname: string) => string)(
-                    fileHref(storage.connectionHostname, file)
-                  )}
+                  href={fileHref(storage.connectionHostname, file)}
                   data-sveltekit-preload-data="off"
                   class="btn btn-ghost btn-xs"
                   aria-label="{m.storage_recent_open_folder()} — {keyToName(file.key)}"
@@ -196,38 +189,29 @@
               {:else}
                 <IconFolderOutline class="text-warning size-4 shrink-0" aria-hidden="true" />
               {/if}
-              <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
               <a
-                href={(resolve as (pathname: string) => string)(
-                  locationHref(storage.connectionHostname, loc)
-                )}
+                href={locationHref(storage.connectionHostname, loc)}
                 data-sveltekit-preload-data="off"
                 class="hover:text-primary font-medium">{locationLabel(loc)}</a
               >
             </div>
           </td>
           <td>
-            <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
             <a
-              href={(resolve as (pathname: string) => string)(
-                locationHref(storage.connectionHostname, loc)
-              )}
+              href={locationHref(storage.connectionHostname, loc)}
               data-sveltekit-preload-data="off"
-              class="text-base-content/60 hover:text-primary truncate text-xs"
+              class="text-muted hover:text-primary truncate text-xs"
             >
               {locationPath(loc)}
             </a>
           </td>
-          <td class="text-base-content/50 text-xs whitespace-nowrap">
+          <td class="text-muted text-xs whitespace-nowrap">
             <TimestampDisplay date={loc.visitedAt} relative tooltip="tooltip-left" />
           </td>
           <td>
             <div class="tooltip tooltip-left" data-tip={m.storage_recent_go_to_location()}>
-              <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Storage paths are dynamically generated. -->
               <a
-                href={(resolve as (pathname: string) => string)(
-                  locationHref(storage.connectionHostname, loc)
-                )}
+                href={locationHref(storage.connectionHostname, loc)}
                 data-sveltekit-preload-data="off"
                 class="btn btn-ghost btn-xs"
                 aria-label="{m.storage_recent_go_to_location()} — {locationLabel(loc)}"

@@ -7,13 +7,13 @@ import { getCsvPreview } from '$lib/server/storage/preview/csv';
 import { binaryPreview, KNOWN_BINARY_TYPES } from '$lib/server/storage/preview/binary.js';
 import { streamPreview } from '$lib/server/storage/preview/stream.js';
 import { createStorageProvider, requireObjectKey } from '$lib/server/storage/request-context.js';
-import { infiniteScrollEnabled, filePreviewRows } from '$lib/server/feature-flags';
+import { filePreviewRows } from '$lib/server/storage/config.js';
 import { PREVIEW_CHUNK_ROWS } from '$lib/storage/types.js';
 import type { RequestHandler } from './$types';
 
-/** Upper bound for rows returned by a single preview request. Applies whether
- *  or not infinite scroll is enabled, so one request can never ask the server
- *  to decode an unbounded number of rows. Never below the client chunk size. */
+/** Upper bound for rows returned by a single preview request, so one request
+ *  can never ask the server to decode an unbounded number of rows. Never below
+ *  the client chunk size. */
 const maxPreviewRowsPerRequest = Math.max(filePreviewRows, PREVIEW_CHUNK_ROWS);
 
 const previewRangeSchema = z.object({
@@ -58,7 +58,7 @@ export const GET: RequestHandler = async (event) => {
       `offset must be a non-negative integer and limit an integer between 1 and ${maxPreviewRowsPerRequest}`
     );
   }
-  let { offset, limit } = range.data;
+  const { offset, limit } = range.data;
 
   try {
     const metadata = await provider.getMetadata(key);
@@ -73,12 +73,6 @@ export const GET: RequestHandler = async (event) => {
       lowerKey.endsWith('.parquet');
 
     const includeData = url.searchParams.get('data') === 'true';
-
-    // When infinite scroll is disabled, restrict to the first page only (no chunked loading)
-    if (!infiniteScrollEnabled) {
-      offset = 0;
-      limit = Math.min(limit, filePreviewRows);
-    }
 
     if (isParquet) {
       return await getParquetPreview(

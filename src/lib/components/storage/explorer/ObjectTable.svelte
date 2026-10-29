@@ -220,7 +220,7 @@
       <!-- Column headers -->
       <tr
         class="
-          bg-base-200 text-base-content/50 z-10 text-xs tracking-wide uppercase
+          bg-base-200 text-muted z-10 text-xs tracking-wide uppercase
         "
       >
         <th class="w-8 pr-0">
@@ -262,7 +262,7 @@
         >
           <td class="pr-0"></td>
           <td colspan={3}>
-            <div class="text-base-content/50 flex items-center gap-2">
+            <div class="text-muted flex items-center gap-2">
               <IconArrowBack class="size-4 shrink-0" aria-hidden="true" />
               <span class="tracking-widest italic" aria-label={m.storage_parent_dir()}>...</span>
             </div>
@@ -313,7 +313,7 @@
             ondrop={handleEmptyDrop}
             oncontextmenu={(e) => storage.openEmptyContextMenu(e)}
           >
-            <td colspan={5} class="text-base-content/40 py-16 text-center">
+            <td colspan={5} class="text-muted py-16 text-center">
               <IconFolderOpen class="mx-auto mb-3 size-10 opacity-30" aria-hidden="true" />
               {storage.prefix || storage.archive.isInArchive
                 ? m.storage_folder_empty()

@@ -35,6 +35,13 @@ Read more about the platform in the [documentation](https://docs.stackable.tech/
 
 More modules will be added over time.
 
+## Accessibility
+
+Stackable Cockpit targets [WCAG 2.2](https://www.w3.org/TR/WCAG22/) level AA.
+This is a superset of [BITV 2.0](https://www.gesetze-im-internet.de/bitv_2_0/), which is based on [WCAG 2.1](https://www.w3.org/TR/WCAG21/) level AA.
+As the project is still experimental, it may not fully meet these requirements yet.
+We treat every accessibility violation as a bug, so please [open an issue](https://github.com/stackabletech/cockpit/issues) if you find one.
+
 ## Quick Start
 
 The required Node.js version is pinned in [`.node-version`](./.node-version).
@@ -92,17 +99,15 @@ docker run -p 3000:3000 cockpit:0.0.0-dev
 
 The application is configured via environment variables.
 Create a `.env` file at the project root, or set them in your deployment environment.
+Invalid values (e.g. `abc` for an integer) stop the server at startup with an error that names the invalid variables.
 
 ### Feature Flags
 
-| Variable                                            | Type                             | Default | Description                                                                                                                                                                                             | Example                                                  |
-| --------------------------------------------------- | -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `STACKABLE_COCKPIT_COMPLETION_ENABLED`              | `boolean` (`"false"` to disable) | `true`  | Enables the SQL editor code-completion provider and the metadata endpoint. Set to `"false"` to fall back to plain syntax highlighting.                                                                  | `STACKABLE_COCKPIT_COMPLETION_ENABLED=false`             |
-| `STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED`         | `boolean` (`"true"` to enable)   | `false` | Shows the S3/HDFS file browser in the sidebar and activates routes under `/storage`. Must be explicitly opted in to expose storage credentials and the file-browser UI.                                 | `STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true`         |
-| `PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED` | `boolean` (`"true"` to enable)   | `false` | Shows Cut/Copy in the file browser and lets items be dragged. Client-only: it fills the clipboard, the S3 work happens on paste or move.                                                                | `PUBLIC_STACKABLE_COCKPIT_STORAGE_CUT_COPY_ENABLED=true` |
-| `PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED`    | `boolean` (`"true"` to enable)   | `false` | Shows Paste in the file browser. When disabled, the server rejects copies via `/api/storage/transfer` with 404, and moves too unless the Move flag is enabled.                                          | `PUBLIC_STACKABLE_COCKPIT_STORAGE_PASTE_ENABLED=true`    |
-| `PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED`   | `boolean` (`"true"` to enable)   | `false` | Shows Rename in the file browser. The server accepts renames via `/api/storage/transfer` only when this is enabled.                                                                                     | `PUBLIC_STACKABLE_COCKPIT_STORAGE_RENAME_ENABLED=true`   |
-| `PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED`     | `boolean` (`"true"` to enable)   | `false` | Enables drag-and-drop move in the file browser (dragging also needs cut/copy). The server accepts moves via `/api/storage/transfer` only when this or paste is enabled, since cut-and-paste also moves. | `PUBLIC_STACKABLE_COCKPIT_STORAGE_MOVE_ENABLED=true`     |
+| Variable                                            | Type                             | Default | Description                                                                                                                                                                             | Example                                                  |
+| --------------------------------------------------- | -------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `STACKABLE_COCKPIT_COMPLETION_ENABLED`              | `boolean` (`"false"` to disable) | `true`  | Enables the SQL editor code-completion provider and the metadata endpoint. Set to `"false"` to fall back to plain syntax highlighting.                                                  | `STACKABLE_COCKPIT_COMPLETION_ENABLED=false`             |
+| `STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED`         | `boolean` (`"true"` to enable)   | `false` | Shows the S3/HDFS file browser in the sidebar and activates routes under `/storage`. Must be explicitly opted in to expose storage credentials and the file-browser UI.                 | `STACKABLE_COCKPIT_STORAGE_BROWSER_ENABLED=true`         |
+| `PUBLIC_STACKABLE_COCKPIT_STORAGE_TRANSFER_ENABLED` | `boolean` (`"true"` to enable)   | `false` | Shows Cut, Copy, Paste and Rename in the file browser and enables drag-and-drop move. When disabled, the server rejects copies, moves and renames via `/api/storage/transfer` with 404. | `PUBLIC_STACKABLE_COCKPIT_STORAGE_TRANSFER_ENABLED=true` |
 
 ### Storage Preview Limits
 
@@ -115,9 +120,9 @@ Create a `.env` file at the project root, or set them in your deployment environ
 
 ### Storage Transfers
 
-| Variable                                         | Type      | Default | Description                                                                                                                                                                                                           | Example                                            |
-| ------------------------------------------------ | --------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY` | `integer` | `8`     | Objects copied at once within one copy, move or rename request. Copies run server-side in the storage backend (S3 CopyObject); no data streams through the app. A missing or invalid value falls back to the default. | `STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY=4` |
+| Variable                                         | Type      | Default | Description                                                                                                                                                     | Example                                            |
+| ------------------------------------------------ | --------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY` | `integer` | `8`     | Objects copied at once within one copy, move or rename request. Copies run server-side in the storage backend (S3 CopyObject); no data streams through the app. | `STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY=4` |
 
 ### Request Body Size
 

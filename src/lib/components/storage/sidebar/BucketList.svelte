@@ -192,15 +192,14 @@
     {#if storage.bookmarks.pinnedLocations.length > 0}
       <div class="border-base-300 max-h-1/2 overflow-y-auto border-b">
         <div class="flex items-center px-3 py-2">
-          <span class="text-base-content/50 text-xs font-semibold tracking-wide uppercase">
+          <span class="text-muted text-xs font-semibold tracking-wide uppercase">
             {m.storage_pinned_label()}
           </span>
         </div>
         <ul class="py-1" role="list">
           {#each storage.bookmarks.pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
             {@const active = isPinnedActive(pin)}
-            <li role="none" class="group relative">
-              <!-- eslint-disable svelte/no-navigation-without-resolve -->
+            <li class="group relative">
               <TooltipTrigger text={locationLabel(pin)} orientation="right">
                 <a
                   href={locationHref(storage.connectionHostname, pin)}
@@ -215,7 +214,6 @@
                   ondragleave={handleSidebarDragLeave}
                   ondrop={(e) => handleSidebarDrop(e, pin.bucket, pin.prefix)}
                 >
-                  <!-- eslint-enable svelte/no-navigation-without-resolve -->
                   {#if pin.prefix === ''}
                     <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
                   {:else}
@@ -250,7 +248,7 @@
     >
       <span
         class="
-        text-base-content/50 text-xs font-semibold tracking-wide uppercase
+        text-muted text-xs font-semibold tracking-wide uppercase
       "
       >
         {m.storage_buckets_label()}
@@ -272,12 +270,12 @@
     <div class="min-h-0 flex-1 overflow-y-auto">
       <ul class="py-1" role="list">
         {#if storage.buckets.length === 0}
-          <li class="text-base-content/40 px-3 py-4 text-center text-xs">
+          <li class="text-muted px-3 py-4 text-center text-xs">
             {m.storage_buckets_empty()}
           </li>
         {:else}
           {#each storage.buckets as bucket (bucket)}
-            <li role="none">
+            <li>
               <TooltipTrigger text={bucket} orientation="right">
                 <a
                   href={resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
@@ -314,7 +312,7 @@
       <form bind:this={disconnectForm} method="POST" action="/storage?/disconnect">
         <button
           type="button"
-          class="btn text-base-content/60 btn-ghost btn-xs hover:text-error w-full"
+          class="btn text-muted btn-ghost btn-xs hover:text-error w-full"
           onclick={() => (disconnectConfirmOpen = true)}
         >
           {m.storage_disconnect()}
