@@ -142,7 +142,7 @@ test.describe('Trino query editor', () => {
     // Force the submit endpoint to fail with a server-provided reason.
     await page.route('**/api/trino/query', async (route, request) => {
       if (request.method() === 'POST') {
-        await route.fulfill({ status: 400, json: { error: 'Could not reach Trino' } });
+        await route.fulfill({ status: 400, json: { message: 'Could not reach Trino' } });
       } else {
         await route.continue();
       }

@@ -1,4 +1,5 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+import { notConnected } from '$lib/server/storage/not-connected.js';
 import type { RequestHandler } from './$types';
 import type { BucketDetails } from '$lib/storage/details-types.js';
 import { getConnectionProvider } from '$lib/server/storage/utils.js';
@@ -33,7 +34,7 @@ export const GET: RequestHandler = async (event) => {
 
   const config = event.locals.storageConfig;
   if (!config) {
-    throw error(401, 'No storage connection configured');
+    notConnected();
   }
 
   const listedBuckets = await withStorageHttpErrors(getConnectionProvider(config)).listContainers();

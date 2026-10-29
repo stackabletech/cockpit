@@ -5,7 +5,7 @@
   import IconPerson from 'virtual:icons/material-symbols/person';
   import IconKey from 'virtual:icons/material-symbols/key';
   import { getStorageState } from '$lib/storage/context.js';
-  import { StorageError } from '$lib/storage/errors.js';
+  import { getDetailsErrorMessage } from '$lib/storage/errors.js';
   import type { BucketDetails as BucketDetailsType } from '$lib/storage/details-types.js';
 
   interface Props {
@@ -32,11 +32,7 @@
         if (!cancelled) details = result;
       } catch (err) {
         if (cancelled) return;
-        if (err instanceof StorageError) {
-          error = err.message;
-        } else {
-          error = err instanceof Error ? err.message : m.storage_details_error_unknown();
-        }
+        error = getDetailsErrorMessage(err, m.storage_details_error_fetch_bucket());
       } finally {
         if (!cancelled) loading = false;
       }

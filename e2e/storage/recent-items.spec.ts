@@ -5,6 +5,7 @@ import {
   requireGarageCredentials
 } from '../support/garage.js';
 import {
+  bucketRoute,
   connectAndOpenPrefix,
   deleteKnownKeys,
   putTextObject,
@@ -65,6 +66,42 @@ test.describe('Storage S3 — Recent Items', () => {
       await expect(page.locator('tbody').getByText('recent.txt')).toBeVisible();
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('links to folders with parenthesised names keep the full path', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const folder = `${uniquePrefix(testInfo, 'recent-parens')}(2024)/`;
+    const key = `${folder}report.txt`;
+    const folderRoute = bucketRoute(
+      new URL(credentials.endpoint).hostname,
+      credentials.bucket,
+      folder
+    );
+
+    try {
+      await putTextObject(client, credentials.bucket, key, 'parenthesised folder');
+
+      await connectAndOpenPrefix(page, credentials, folder);
+      await previewFile(page, 'report.txt');
+
+      await page.goto('/storage');
+      await waitForStorageConnected(page);
+      await expect(page.getByRole('link', { name: 'Open folder — report.txt' })).toHaveAttribute(
+        'href',
+        folderRoute
+      );
+
+      await page.getByRole('tab', { name: 'Recent Locations' }).click();
+      await expect(page.getByRole('link', { name: 'Go to location — (2024)' })).toHaveAttribute(
+        'href',
+        folderRoute
+      );
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [key]);
     }
   });
 

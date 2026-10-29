@@ -10,7 +10,6 @@
   import { MediaQuery } from 'svelte/reactivity';
   import type { NavItem } from '$lib/types/navigation.js';
   import { getPlatformSection, getToolsSection } from './nav-items.js';
-  import { getBookmarks } from '$lib/dashboard/bookmarks.svelte.js';
   import { getProduct } from '$lib/dashboard/products';
   import ProductIcon from '$lib/components/dashboard/ProductIcon.svelte';
   import type { Bookmark } from '$lib/dashboard/types';
@@ -20,17 +19,18 @@
   let {
     collapsed = $bindable(false),
     mobileOpen = $bindable(false),
-    storageBrowserEnabled = false
+    storageBrowserEnabled = false,
+    bookmarks = []
   }: {
     collapsed?: boolean;
     mobileOpen?: boolean;
     storageBrowserEnabled?: boolean;
+    bookmarks?: Bookmark[];
   } = $props();
 
   const platformSection = $derived(getPlatformSection());
   const toolsSection = $derived(getToolsSection({ storageBrowserEnabled }));
 
-  const bookmarks = $derived(getBookmarks());
   const pinnedBookmarks = $derived(bookmarks.filter((b) => b.pinned));
   const unpinnedBookmarks = $derived(bookmarks.filter((b) => !b.pinned));
 
@@ -119,8 +119,9 @@
 {#snippet navItem(item: NavItem)}
   {@const active = isActive((resolve as (pathname: string) => string)(item.route))}
   <li>
-    <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Nav item paths are dynamically generated. -->
     <TooltipTrigger text={collapsed ? item.label : undefined} orientation="right">
+      <!-- The path is resolved; the rule does not recognise the cast needed for dynamic nav routes. -->
+      <!-- eslint-disable svelte/no-navigation-without-resolve -->
       <a
         href={(resolve as (pathname: string) => string)(item.route)}
         data-sveltekit-preload-data="hover"
@@ -136,6 +137,7 @@
         aria-current={active ? 'page' : undefined}
         aria-disabled={item.disabled ? 'true' : undefined}
       >
+        <!-- eslint-enable svelte/no-navigation-without-resolve -->
         {@render navIcon(item.icon)}
         {#if !collapsed}
           <span class="truncate">{item.label}</span>

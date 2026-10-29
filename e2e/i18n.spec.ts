@@ -7,7 +7,6 @@ const DE_DASHBOARD_HEADING = 'Stackable Unified Data Platform – Übersicht';
 
 /** Load the saved auth storage state, optionally stripping the locale cookie. */
 function loadAuthState(authFile: string, { withoutLocale = false } = {}) {
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const state = JSON.parse(fs.readFileSync(authFile, 'utf-8'));
   if (withoutLocale) {
     state.cookies = state.cookies.filter((c: { name: string }) => c.name !== 'PARAGLIDE_LOCALE');

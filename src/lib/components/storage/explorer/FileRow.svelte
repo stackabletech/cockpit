@@ -5,7 +5,7 @@
   import TimestampDisplay from '$lib/components/storage/shared/TimestampDisplay.svelte';
   import FileIconAndName from './file-icon/FileIconAndName.svelte';
   import { getStorageState } from '$lib/storage/context.js';
-  import { storageCutCopyEnabled } from '$lib/client/feature-flags.js';
+  import { storageTransferEnabled } from '$lib/client/feature-flags.js';
   import { handleRowDragStart } from '$lib/storage/drag-handlers.js';
   import * as m from '$lib/paraglide/messages.js';
 
@@ -36,7 +36,7 @@
     : selected
       ? 'bg-primary/10 hover:bg-primary/15'
       : 'hover:bg-base-200/60'}"
-  draggable={storageCutCopyEnabled && !storage.archive.isInArchive}
+  draggable={storageTransferEnabled && !storage.archive.isInArchive}
   ondragstart={handleDragStart}
   onclick={(e) => storage.toggleSelect(file.key, e.ctrlKey || e.metaKey, e.shiftKey)}
   ondblclick={() => {

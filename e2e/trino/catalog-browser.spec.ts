@@ -24,6 +24,27 @@ test.describe('Catalog browser', () => {
     await expect(browser.getByRole('button', { name: 'system' })).toBeVisible();
   });
 
+  test('shows a readable message when loading catalogues fails', async ({ page }) => {
+    await ensureCatalogBrowserOpen(page);
+    const browser = page.getByRole('navigation', { name: 'Catalog browser' });
+    await expect(browser.getByRole('button', { name: 'tpch' })).toBeVisible();
+
+    await page.route('**/api/trino/catalog?*', (route) =>
+      route.fulfill({ status: 502, json: { message: 'Trino is not reachable' } })
+    );
+    await page.getByRole('button', { name: 'Refresh catalog' }).click();
+
+    await expect(browser.getByText('Failed to load catalog')).toBeVisible();
+    await expect(browser.getByText('Trino is not reachable')).toBeVisible();
+    await expect(browser.getByText('{')).toHaveCount(0);
+
+    await page.unroute('**/api/trino/catalog?*');
+    await page.route('**/api/trino/catalog?*', (route) => route.abort());
+    await page.getByRole('button', { name: 'Refresh catalog' }).click();
+
+    await expect(browser.getByText('The server could not be reached.')).toBeVisible();
+  });
+
   test('catalog browser can be toggled', async ({ page }) => {
     await ensureCatalogBrowserOpen(page);
 

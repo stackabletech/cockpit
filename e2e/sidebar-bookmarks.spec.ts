@@ -1,11 +1,11 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from './support/fixtures.js';
 import { waitForHydration } from './support/helpers';
+import { resetBookmarks } from './support/bookmarks.js';
 
 test.describe('Sidebar bookmarks', () => {
   test.use({ locale: 'en-US' });
 
-  const BOOKMARK_ID = 'b6d6c7b6-8f24-4c4a-9c64-4f3b7c19e6a1';
   const BOOKMARK_URL = 'https://superset.example.com';
 
   // Bookmarks are also shown on the dashboard, so scope link lookups to the sidebar.
@@ -17,36 +17,20 @@ test.describe('Sidebar bookmarks', () => {
   );
 
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(
-      ({ bookmarkId, bookmarkUrl }) => {
-        localStorage.removeItem('dashboard_bookmarks');
-        localStorage.removeItem('sidebar_tools_open');
-        localStorage.setItem(
-          'dashboard_bookmarks',
-          JSON.stringify([
-            {
-              id: bookmarkId,
-              productId: 'superset',
-              name: 'Dashboards',
-              environment: '',
-              url: bookmarkUrl,
-              pinned: false,
-              createdAt: new Date().toISOString()
-            },
-            {
-              id: 'e7d8c7b6-9f35-4d4b-8d75-5f4c8d2fa7b2',
-              productId: 'airflow',
-              name: 'Pipelines',
-              environment: '',
-              url: 'https://airflow.example.com',
-              pinned: true,
-              createdAt: new Date().toISOString()
-            }
-          ])
-        );
-      },
-      { bookmarkId: BOOKMARK_ID, bookmarkUrl: BOOKMARK_URL }
-    );
+    await page.addInitScript(() => localStorage.removeItem('sidebar_tools_open'));
+    await resetBookmarks(page, [
+      { productId: 'superset', name: 'Dashboards', url: BOOKMARK_URL },
+      {
+        productId: 'airflow',
+        name: 'Pipelines',
+        url: 'https://airflow.example.com',
+        pinned: true
+      }
+    ]);
+  });
+
+  test.afterEach(async ({ page }) => {
+    await resetBookmarks(page);
   });
 
   test('shows pinned bookmarks in Favourites and the rest in Tools', async ({ page }) => {
@@ -81,28 +65,26 @@ test.describe('Sidebar bookmarks', () => {
     await expect(trinoLink.locator('..').getByRole('link')).toHaveCount(1);
   });
 
-  test('ignores invalid bookmarks stored in localStorage', async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem(
-        'dashboard_bookmarks',
-        JSON.stringify([
-          {
-            id: 'invalid-bookmark',
-            productId: 'superset',
-            name: 'Unsafe link',
-            environment: '',
-            url: 'javascript:alert(1)',
-            pinned: false,
-            createdAt: new Date().toISOString()
-          }
-        ])
-      );
-    });
-
+  test('follows pin changes made on the dashboard without a page reload', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);
+    // Lost on a full page load, so it proves the sidebar updated in place.
+    await page.evaluate(() => ((window as unknown as { noReload: boolean }).noReload = true));
 
-    await expect(page.getByRole('link', { name: 'Unsafe link' })).not.toBeVisible();
+    // With Tools collapsed, only pinned bookmarks remain visible in the sidebar.
+    await page.getByRole('button', { name: 'Tools', exact: true }).click();
+    const dashboardsLink = sidebarNav(page).getByRole('link', { name: 'Dashboards' });
+    await expect(dashboardsLink).not.toBeVisible();
+
+    await page.getByRole('button', { name: 'Pin bookmark Dashboards' }).click();
+    await expect(dashboardsLink).toBeVisible();
+
+    await page.getByRole('button', { name: 'Unpin bookmark Dashboards' }).click();
+    await expect(dashboardsLink).not.toBeVisible();
+
+    expect(await page.evaluate(() => (window as unknown as { noReload?: boolean }).noReload)).toBe(
+      true
+    );
   });
 
   test('tools section is collapsible', async ({ page }) => {

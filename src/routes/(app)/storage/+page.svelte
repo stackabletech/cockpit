@@ -7,7 +7,6 @@
   import { navigating } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { storageRestoreTabsEnabled } from '$lib/client/feature-flags.js';
   import { type PersistedTabsState } from '$lib/storage/tabs.svelte.js';
   import { LS_TABS } from '$lib/storage/persistence.js';
   import IconTabOutline from 'virtual:icons/material-symbols/tab-outline';
@@ -25,13 +24,18 @@
   let addBucketOpen = $state(false);
 
   const connectError = $derived<string | null>(
-    (page.form as { error?: string } | null)?.error ?? null
+    (page.form as { error?: string } | null)?.error ??
+      (data.bucketsError === 'access_denied'
+        ? m.storage_connect_error_access_denied()
+        : data.bucketsError === 'unreachable'
+          ? m.storage_connect_error_unreachable()
+          : null)
   );
 
   let savedTabs = $state<PersistedTabsState | null>(null);
 
   $effect(() => {
-    if (!browser || !storageRestoreTabsEnabled) return;
+    if (!browser) return;
 
     try {
       const raw = localStorage.getItem(LS_TABS);
@@ -58,7 +62,7 @@
   let restoreClicked = $state(false);
 
   $effect(() => {
-    if (!browser || !storageRestoreTabsEnabled) return;
+    if (!browser) return;
     const to = navigating?.to?.url.pathname;
     if (!to || !to.startsWith('/storage/') || to === '/storage') return;
     // Navigation to a bucket sub-path is starting — if the user did not

@@ -11,7 +11,7 @@ vi.mock('$lib/server/storage/utils.js', () => ({
   getProvider: () => mockProvider
 }));
 
-vi.mock('$lib/server/feature-flags.js', () => ({
+vi.mock('$lib/server/storage/config.js', () => ({
   maxEditableFileSize: 5242880
 }));
 

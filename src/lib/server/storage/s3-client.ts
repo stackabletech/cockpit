@@ -1,10 +1,10 @@
-import { env } from '$env/dynamic/private';
 import { readFileSync } from 'node:fs';
 import { S3Client } from '@aws-sdk/client-s3';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { Agent as HttpAgent } from 'http';
 import { Agent as HttpsAgent } from 'https';
 import { logger } from '$lib/server/logging';
+import { storageTlsCaCertPath } from './config.js';
 import type { S3ConnectionConfig } from './types.js';
 
 const log = logger.child({ module: 's3-client' });
@@ -14,11 +14,11 @@ const log = logger.child({ module: 's3-client' });
  * bundled with Node.js, like the Trino and database CA settings.
  */
 function loadCaCert(): Buffer | undefined {
-  const path = env.STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT?.trim();
+  const path = storageTlsCaCertPath;
   if (!path) return undefined;
   let ca: Buffer;
   try {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- CA certificate path from the deployment configuration
     ca = readFileSync(path);
   } catch (err) {
     throw new Error(

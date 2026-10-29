@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>%sveltekit.status% | Stackable</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        display: flex;
+        min-height: 100dvh;
+        margin: 0;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Rendered without the app: for errors thrown in server hooks (e.g. the storage-disabled
+         404, a failing session lookup) and when the root layout cannot render. -->
+    <main>
+      <h1>%sveltekit.status%</h1>
+      <p>%sveltekit.error.message%</p>
+      <p><a href="/">Stackable</a></p>
+    </main>
+  </body>
+</html>

@@ -1,9 +1,10 @@
 import { error } from '@sveltejs/kit';
+import { notConnected } from '$lib/server/storage/not-connected.js';
 import { ArchiveCacheFullError, listArchiveContents } from '$lib/server/storage/archive.js';
 import { getProvider } from '$lib/server/storage/utils.js';
 import { requireObjectKey } from '$lib/server/storage/request-context.js';
 import { withStorageHttpErrors } from '$lib/server/storage/wrap-provider.js';
-import { archivePreviewMaxBytes } from '$lib/server/feature-flags.js';
+import { archivePreviewMaxBytes } from '$lib/server/storage/config.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -33,7 +34,7 @@ export const GET: RequestHandler = async (event) => {
   const config = locals.storageConfig;
   const connectionId = locals.storageConnectionId;
   if (!config || !connectionId) {
-    throw error(401, 'No storage connection configured');
+    notConnected();
   }
 
   locals.logger.debug(
