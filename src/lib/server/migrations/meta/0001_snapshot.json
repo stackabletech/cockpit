@@ -581,8 +581,8 @@
           "notNull": true,
           "default": "now()"
         },
-        "trino_user": {
-          "name": "trino_user",
+        "username": {
+          "name": "username",
           "type": "text",
           "primaryKey": false,
           "notNull": false

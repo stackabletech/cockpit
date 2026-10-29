@@ -36,6 +36,13 @@
       "when": 1793094984249,
       "tag": "0004_user_bookmarks",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793280111856,
+      "tag": "0005_rename_trino_user",
+      "breakpoints": true
     }
   ]
 }

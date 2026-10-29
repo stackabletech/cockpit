@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import * as m from '$lib/paraglide/messages.js';
 
 export function getUserId(locals: App.Locals): string {
   return locals.user?.id ?? 'anonymous';
@@ -27,5 +28,5 @@ export function findTrinoUser(locals: App.Locals): string | null {
 
 /** Like {@link findTrinoUser}, but fails the request when there is no Trino user. */
 export function getTrinoUser(locals: App.Locals): string {
-  return findTrinoUser(locals) ?? error(500, 'User has no Trino user');
+  return findTrinoUser(locals) ?? error(500, m.trino_user_missing());
 }
