@@ -5,6 +5,7 @@ import { db } from '$lib/server/db.js';
 import { userStorageConnections } from '$lib/server/schema.js';
 import { decrypt } from './encryption.js';
 import { storageEncryptionKey } from './encryption-key.js';
+import { notConnected } from './not-connected.js';
 import type { S3ConnectionConfig } from './types.js';
 import { logger } from '$lib/server/logging';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
@@ -27,7 +28,7 @@ const AdditionalBucketsSchema = z.array(z.string());
  * {@link LAST_USED_TOUCH_INTERVAL_MS}, so not every storage request hits the database.
  *
  * Returns `null` if the header is absent.
- * Throws 401 if the connection is not found or does not belong to the user.
+ * Throws 409 (`notConnected`) if the connection is not found or does not belong to the user.
  * Throws 500 if decryption fails or the payload does not match the stored schema.
  */
 export async function getConnectionFromHeader(
@@ -48,7 +49,7 @@ export async function getConnectionFromHeader(
 
   if (rows.length === 0) {
     log.warn({ connection_id: connectionId }, 'storage connection not found or unauthorised');
-    throw error(401, 'Storage connection not found');
+    notConnected('Storage connection not found');
   }
 
   const row = rows[0];

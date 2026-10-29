@@ -11,6 +11,7 @@ import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
+import { notConnected } from '$lib/server/storage/not-connected.js';
 import { runMigrations } from '$lib/server/migrate.js';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
@@ -102,7 +103,7 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
     !event.route.id?.startsWith('/(app)/api/storage/download/manifests/[manifestId]/') &&
     event.route.id !== '/(app)/api/storage/download/manifests';
   if (event.locals.storageConfig === null && requiresConnectionHeader) {
-    throw error(401, 'No storage connection configured');
+    notConnected();
   }
   return resolve(event);
 };

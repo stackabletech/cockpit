@@ -4,7 +4,7 @@
   import IconWarning from 'virtual:icons/material-symbols/warning';
   import { formatFileSize, keyToName } from '$lib/storage/utils.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { StorageError } from '$lib/storage/errors.js';
+  import { getDetailsErrorMessage } from '$lib/storage/errors.js';
   import type {
     DirectorySizeEvent,
     DirectoryMetadata,
@@ -54,11 +54,7 @@
       if (bucket === requestedBucket && prefix === requestedPrefix) meta = result;
     } catch (err) {
       if (bucket !== requestedBucket || prefix !== requestedPrefix) return;
-      if (err instanceof StorageError) {
-        metaError = err.message;
-      } else {
-        metaError = err instanceof Error ? err.message : m.storage_details_error_unknown();
-      }
+      metaError = getDetailsErrorMessage(err, m.storage_details_error_fetch_dir_meta());
     }
   }
 
@@ -105,7 +101,7 @@
             } else if (event.type === 'complete') {
               result = event;
             } else if (event.type === 'error') {
-              error = event.message;
+              error = m.storage_details_error_calc_size();
             }
           } catch {
             // skip malformed events

@@ -80,7 +80,7 @@ export class ArchiveState {
 
     try {
       await this._fetchArchiveListing();
-    } catch (err) {
+    } catch {
       if (this._archiveNestedPath) {
         this._archiveNestedPath = null;
       } else {
@@ -89,7 +89,7 @@ export class ArchiveState {
       }
       this.archivePrefix = '';
       this.archiveLoading = false;
-      addToast('error', err instanceof Error ? err.message : m.storage_archive_open_error());
+      addToast('error', m.storage_archive_open_error());
     }
   }
 
@@ -102,9 +102,9 @@ export class ArchiveState {
 
     try {
       await this._fetchArchiveListing();
-    } catch (err) {
+    } catch {
       this.archiveLoading = false;
-      addToast('error', err instanceof Error ? err.message : m.storage_archive_open_error());
+      addToast('error', m.storage_archive_open_error());
     }
   }
 
