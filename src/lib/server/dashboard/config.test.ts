@@ -2,11 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
-import { parseGlobalBookmarks } from './global-bookmarks.js';
+import { parseDashboardConfig } from './config.js';
+
+const parseGlobalBookmarks = (value: string | undefined) =>
+  parseDashboardConfig({ STACKABLE_COCKPIT_GLOBAL_BOOKMARKS: value }).globalBookmarks;
 
 const json = (value: unknown) => JSON.stringify(value);
 
-describe('parseGlobalBookmarks', () => {
+describe('parseDashboardConfig', () => {
   it('has no global bookmarks when the variable is unset or blank', () => {
     expect(parseGlobalBookmarks(undefined)).toEqual([]);
     expect(parseGlobalBookmarks('  ')).toEqual([]);
@@ -47,11 +50,15 @@ describe('parseGlobalBookmarks', () => {
   });
 
   it('rejects invalid JSON', () => {
-    expect(() => parseGlobalBookmarks('[{')).toThrow(/not valid JSON/);
+    expect(() => parseGlobalBookmarks('[{')).toThrow(
+      'STACKABLE_COCKPIT_GLOBAL_BOOKMARKS: must be valid JSON'
+    );
   });
 
   it('rejects anything but an array', () => {
-    expect(() => parseGlobalBookmarks(json({ name: 'Wiki' }))).toThrow(/is invalid/);
+    expect(() => parseGlobalBookmarks(json({ name: 'Wiki' }))).toThrow(
+      /STACKABLE_COCKPIT_GLOBAL_BOOKMARKS: .*array/
+    );
   });
 
   it.each([
@@ -64,7 +71,7 @@ describe('parseGlobalBookmarks', () => {
 
     const parse = () => parseGlobalBookmarks(json([entry, { ...entry, ...override }]));
 
-    expect(parse).toThrow('[1]');
+    expect(parse).toThrow('STACKABLE_COCKPIT_GLOBAL_BOOKMARKS.1');
     expect(parse).toThrow(field);
   });
 

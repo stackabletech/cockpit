@@ -56,6 +56,29 @@ export function envList(defaultValue: string[], separator: RegExp | string = ','
   );
 }
 
+/** JSON validated with `schema`, or `defaultValue` when unset. */
+export function envJson<T extends z.ZodType>(
+  schema: T,
+  defaultValue: Exclude<z.output<T>, undefined>
+) {
+  return z.preprocess(
+    blankAsUnset,
+    z
+      .string()
+      .transform((value, ctx): unknown => {
+        try {
+          return JSON.parse(value);
+        } catch {
+          // No parser message: it can quote the value, which may hold credentials.
+          ctx.addIssue({ code: 'custom', message: 'must be valid JSON' });
+          return z.NEVER;
+        }
+      })
+      .pipe(schema)
+      .default(defaultValue)
+  );
+}
+
 /**
  * Parses `env` with `schema`. Throws one error that names every invalid
  * variable, so a misconfigured deployment fails at startup with all problems

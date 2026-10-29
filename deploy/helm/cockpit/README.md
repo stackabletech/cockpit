@@ -122,7 +122,6 @@ All feature parameters are optional. Omit them to use the application defaults.
 | `features.trino.completion.enabled` | Enable SQL code completion. | `true` (application default) |
 | `features.storage.enabled` | Show the S3/HDFS file browser and enable routes under `/storage`. | `false` (application default) |
 | `features.storage.transfer` | Show Cut, Copy, Paste and Rename and allow drag-and-drop move. The transfer API rejects copies, moves and renames while this is disabled. | `false` (application default) |
-| `features.bookmarks.global` | Bookmarks shown to every user, before their own; users cannot change them. A list of entries with `productId` (e.g. `trino`, `superset` or `custom`; unknown ids show as a custom link), `name` (up to 40 characters) and an HTTP(S) `url`, plus optional `environment` and `pinned`. Must be a YAML list, not a JSON string. Invalid entries stop the application at startup. | none |
 
 ### Storage Browser Parameters
 
@@ -145,6 +144,12 @@ Limits and tuning for the file browser. Empty values use the application default
 | `storage.archiveCacheMaxMb` | Maximum total size in MB of the archive preview cache in `/tmp`. Keep it below `tmp.sizeLimit`. | `""` (application default `512`) |
 | `storage.parquetPreviewDisallowedCompressionTypes` | Comma-separated Parquet compression codecs that are not previewed. A `-no_offset` suffix (e.g. `gzip-no_offset`) only blocks files without an offset index. | `""` (application default `gzip-no_offset`) |
 | `storage.downloadHistoryRetentionDays` | Days a user's download history is kept. Integer from 1 to 3650. | `""` (application default `30`) |
+
+### Bookmark Parameters
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `bookmarks.global` | Bookmarks shown to every user, before their own; users cannot change them. A list of entries with `productId` (e.g. `trino`, `superset` or `custom`; unknown ids show as a custom link), `name` (up to 40 characters) and an HTTP(S) `url`, plus optional `environment` and `pinned`. Must be a YAML list, not a JSON string. Invalid entries stop the application at startup. | `[]` |
 
 ### Authentication Parameters
 

@@ -140,14 +140,12 @@ spec:
             - name: STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS
               value: {{ include "cockpit.envValue" .Values.storage.downloadHistoryRetentionDays }}
             {{- end }}
-            {{- with (index $features "bookmarks") }}
-            {{- with .global }}
+            {{- with .Values.bookmarks.global }}
             {{- if not (kindIs "slice" .) }}
-            {{- fail "features.bookmarks.global must be a YAML list of bookmarks; a JSON string is not accepted" }}
+            {{- fail "bookmarks.global must be a YAML list of bookmarks; a JSON string is not accepted" }}
             {{- end }}
             - name: STACKABLE_COCKPIT_GLOBAL_BOOKMARKS
               value: {{ toJson . | quote }}
-            {{- end }}
             {{- end }}
             {{- if .Values.trino.queryTtl }}
             - name: STACKABLE_COCKPIT_QUERY_TTL

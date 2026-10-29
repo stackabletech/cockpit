@@ -4,9 +4,7 @@ const { listBookmarks } = vi.hoisted(() => ({ listBookmarks: vi.fn() }));
 
 vi.mock('$lib/server/dashboard/bookmarks-db.js', () => ({ listBookmarks }));
 vi.mock('$lib/server/feature-flags.js', () => ({ storageBrowserEnabled: false }));
-vi.mock('$lib/server/dashboard/global-bookmarks.js', () => ({
-  globalBookmarks: () => [GLOBAL_BOOKMARK]
-}));
+vi.mock('$lib/server/dashboard/config.js', () => ({ globalBookmarks: [GLOBAL_BOOKMARK] }));
 
 import { load } from './+layout.server.js';
 
