@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { PRODUCT_IDS } from './product-ids';
 
+/** Dependency of the `(app)` layout load that provides the bookmarks. */
+export const BOOKMARKS_DEPENDENCY = 'app:bookmarks';
+
 /** Maximum field lengths, enforced by the API and as `maxlength` in the form. */
 export const BOOKMARK_MAX_LENGTH = { name: 40, environment: 100, url: 2048 } as const;
 
@@ -15,12 +18,8 @@ export const bookmarkFormSchema = z.object({
   pinned: z.boolean()
 });
 
-export const bookmarkSchema = bookmarkFormSchema.extend({
-  id: z.string(),
-  createdAt: z.string()
-});
-
-export type Bookmark = z.infer<typeof bookmarkSchema>;
+/** A stored bookmark as returned by the API; `createdAt` is an ISO timestamp. */
+export type Bookmark = z.infer<typeof bookmarkFormSchema> & { id: string; createdAt: string };
 
 /**
  * Body of a bookmark create request. Stored bookmarks keep any product id, so a
