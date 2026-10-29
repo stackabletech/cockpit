@@ -39,7 +39,7 @@ describe('DownloadHistory', () => {
   it('renders entry metadata with file count and archive format', async () => {
     renderHistory([makeEntry()]);
     await expect.element(page.getByText('test-bucket')).toBeInTheDocument();
-    await expect.element(page.getByText('2 files')).toBeInTheDocument();
+    await expect.element(page.getByText(/GMT.* · 2 files · /)).toBeInTheDocument();
     await expect.element(page.getByText('ZIP')).toBeInTheDocument();
   });
 

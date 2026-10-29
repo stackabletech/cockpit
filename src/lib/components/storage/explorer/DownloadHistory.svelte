@@ -1,10 +1,9 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
-  import { getLocale } from '$lib/paraglide/runtime.js';
   import type { DownloadHistoryEntry } from '$lib/storage/api.js';
   import { SvelteSet } from 'svelte/reactivity';
   import { selectedDownloadHistoryPayloadSize } from '$lib/storage/download-history.js';
-  import { formatFileSize } from '$lib/storage/utils.js';
+  import { formatFileSize, formatTimestamp } from '$lib/storage/utils.js';
   import IconChevronDown from 'virtual:icons/material-symbols/keyboard-arrow-down';
   import IconChevronUp from 'virtual:icons/material-symbols/keyboard-arrow-up';
 
@@ -72,7 +71,7 @@
                 >{entry.bucket}</span
               >
               <span class="text-muted block text-[10px]">
-                {new Date(entry.createdAt).toLocaleString(getLocale())} · {m.storage_download_history_file_count(
+                {formatTimestamp(new Date(entry.createdAt))} · {m.storage_download_history_file_count(
                   { count: entry.entries.length }
                 )} · {formatFileSize(totalSize)} · {entry.archive
                   ? m.storage_download_history_zip()

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getLocale } from '$lib/paraglide/runtime.js';
   import * as m from '$lib/paraglide/messages.js';
+  import { formatTimestamp } from '$lib/storage/utils.js';
 
   type TooltipPosition = 'tooltip-top' | 'tooltip-bottom' | 'tooltip-left' | 'tooltip-right';
 
@@ -27,15 +28,7 @@
 
   const d = $derived(typeof date === 'string' ? new Date(date) : date);
 
-  const fullTimestamp = $derived(
-    d.toLocaleString(getLocale(), {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  );
+  const fullTimestamp = $derived(formatTimestamp(d));
 
   const label = $derived.by(() => {
     if (relative) {

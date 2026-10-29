@@ -55,6 +55,18 @@ export function formatFileSize(
   return prettyBytes(bytes, { locale, ...options });
 }
 
+/** Format a date and time with its UTC offset (e.g. "13 May 2026, 14:30 GMT+2") using the active UI locale. */
+export function formatTimestamp(date: Date, locale: string = getLocale()): string {
+  return date.toLocaleString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'shortOffset'
+  });
+}
+
 /** Check if a filename/path has a navigable archive extension. */
 export function isArchiveExtension(filename: string): boolean {
   const lower = filename.toLowerCase();

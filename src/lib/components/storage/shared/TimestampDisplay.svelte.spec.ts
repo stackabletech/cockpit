@@ -24,12 +24,13 @@ describe('TimestampDisplay', () => {
       await expect.element(page.getByText(/Jan.*15.*2025|15.*Jan.*2025/)).toBeInTheDocument();
     });
 
-    it('should have a tooltip with full timestamp', async () => {
+    it('should have a tooltip with full timestamp and UTC offset', async () => {
       const date = new Date(2026, 4, 13, 14, 30);
       render(TimestampDisplay, { date });
 
       const el = page.getByText(/May.*13.*2026|13.*May.*2026/);
       await expect.element(el).toHaveAttribute('data-tip');
+      expect(el.element().getAttribute('data-tip')).toMatch(/(14:30|02:30 PM) GMT/);
     });
   });
 

@@ -16,7 +16,7 @@ import {
 } from './helpers.js';
 
 test.describe('Storage S3 — Details Modal', () => {
-  test.use({ locale: 'en-US' });
+  test.use({ locale: 'en-US', timezoneId: 'Europe/Berlin' });
 
   test.beforeEach(() => {
     test.skip(
@@ -44,6 +44,9 @@ test.describe('Storage S3 — Details Modal', () => {
       await expect(
         page.getByText('s3://' + credentials.bucket + '/' + prefix + 'test.txt')
       ).toBeVisible();
+      await expect(modalBox(page).getByRole('row', { name: /Last modified/ })).toContainText(
+        /\d{2}:\d{2}.* GMT\+[12]$/
+      );
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

@@ -1,5 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
-import { fileIconKind, keyToName, isArchiveExtension, parentPrefix } from './utils.js';
+import { afterEach, describe, it, expect, vi } from 'vitest';
+import {
+  fileIconKind,
+  formatTimestamp,
+  keyToName,
+  isArchiveExtension,
+  parentPrefix
+} from './utils.js';
 
 vi.mock('$lib/paraglide/runtime.js', () => ({
   getLocale: () => 'en-GB'
@@ -101,5 +107,25 @@ describe('parentPrefix', () => {
   it('keeps empty path segments', () => {
     expect(parentPrefix('a//b.txt')).toBe('a//');
     expect(parentPrefix('a//')).toBe('a/');
+  });
+});
+
+describe('formatTimestamp', () => {
+  const originalTz = process.env.TZ;
+
+  afterEach(() => {
+    if (originalTz === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTz;
+  });
+
+  it('includes the UTC offset of the local time zone', () => {
+    process.env.TZ = 'Europe/Berlin';
+
+    expect(formatTimestamp(new Date('2026-05-13T12:30:00Z'), 'en-GB')).toBe(
+      '13 May 2026, 14:30 GMT+2'
+    );
+    expect(formatTimestamp(new Date('2026-01-13T12:30:00Z'), 'de')).toBe(
+      '13. Jan. 2026, 13:30 GMT+1'
+    );
   });
 });
