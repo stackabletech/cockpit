@@ -40,6 +40,9 @@ export const envOptionalInteger = z.preprocess(
 /** A trimmed string, or `undefined` when unset. */
 export const envString = z.preprocess(blankAsUnset, z.string().optional());
 
+/** An `http` or `https` URL, or `undefined` when unset. */
+export const envUrl = z.preprocess(blankAsUnset, z.url({ protocol: /^https?$/ }).optional());
+
 /** A list of non-empty entries separated by `separator`. */
 export function envList(defaultValue: string[], separator: RegExp | string = ',') {
   return z.preprocess(
