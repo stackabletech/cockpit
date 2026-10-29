@@ -7,7 +7,7 @@
 - **Trino** — SQL editor (Monaco + ANTLR grammar) with catalogue browser and query lifecycle management
 - **Storage** — S3 file browser with preview, upload/download, archives, search and transfers (HDFS is a stub)
 - **Settings** — user-managed storage connections, stored in PostgreSQL
-- **Dashboard** and **bookmarks** (browser `localStorage`) across modules
+- **Dashboard** with per-user bookmarks (stored in PostgreSQL) across modules
 
 The Trino connection is either fixed via `STACKABLE_COCKPIT_TRINO_URL` or entered per user on `/trino` and held in server memory.
 
@@ -22,7 +22,7 @@ Further modules are added the same way: a route under `src/routes/(app)/<module>
 - **Monaco Editor** + **ANTLR** (`antlr-ng` generator, `antlr4ng` runtime, `antlr4-c3` completion) for Trino SQL
 - **zod + sveltekit-superforms** — all forms
 - **better-auth** with the `genericOAuth` plugin — authentication via any OIDC provider
-- **PostgreSQL + Drizzle ORM** — users/sessions, storage connections, recent searches, download manifests. See `docs/DATABASE.md`
+- **PostgreSQL + Drizzle ORM** — users/sessions, storage connections, bookmarks, recent searches, download manifests. See `docs/DATABASE.md`
 - **AWS SDK v3** — S3 storage access
 - **Paraglide-JS v2** — i18n
 - **pino** — logging; **prom-client** — Prometheus metrics at `/metrics`
@@ -131,9 +131,14 @@ PostgreSQL via Drizzle ORM; schema in `src/lib/server/schema.ts` (better-auth ta
 
 For **new features**, do not add data migrations or legacy-data compatibility paths unless persisted data or an external consumer already exists and requires it. Ask if unclear.
 
-### Feature Flags
+### Feature Flags and Configuration
 
-Feature flags and limits are environment variables parsed in `src/lib/server/feature-flags.ts`; client-visible `PUBLIC_*` flags live in `src/lib/client/feature-flags.ts` and are re-exported by the server where it enforces them. Document new flags in `README.md` and `.env.example`; don't read `env` ad hoc.
+Environment variables are parsed with zod at startup using the helpers in `src/lib/env-schema.ts`; invalid values stop the server. Feature toggles and other settings live in separate modules:
+
+- **Feature flags**: `src/lib/server/feature-flags.ts`, client-visible `PUBLIC_*` flags in `src/lib/client/feature-flags.ts` (re-exported by the server where it enforces them)
+- **Limits and defaults**: `src/lib/client/config.ts` (`PUBLIC_*`), server-side ones per module (e.g. `src/lib/server/storage/config.ts`)
+
+Document new variables in `README.md` and `.env.example`; don't read `env` ad hoc.
 
 ### Code Style & Best Practices
 
