@@ -1,15 +1,4 @@
-vi.mock('$lib/client/feature-flags.js', () => ({
-  storageRestoreTabsEnabled: false,
-  allowedPageSizes: [25, 50, 100],
-  defaultPageSize: 25,
-  maxRecentFiles: 15,
-  maxEditableFileSize: 5 * 1024 * 1024,
-  uploadConcurrency: 3,
-  storageCutCopyEnabled: true,
-  storagePasteEnabled: true,
-  storageRenameEnabled: true,
-  storageMoveEnabled: true
-}));
+vi.mock('$lib/client/feature-flags.js', () => ({ storageTransferEnabled: true }));
 
 vi.mock('$lib/storage/connection-store.svelte.js', () => ({
   connectionStore: { activeConnectionId: 'test-connection-id' }

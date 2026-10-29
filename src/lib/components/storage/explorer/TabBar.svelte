@@ -7,7 +7,7 @@
   import type { TabsState } from '$lib/storage/tabs.svelte.js';
   import type { ContextMenuAction } from '$lib/storage/types.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { storageMoveEnabled } from '$lib/client/feature-flags.js';
+  import { storageTransferEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDrop } from '$lib/storage/drag-handlers.js';
   import ContextMenu from './ContextMenu.svelte';
   import GenericTabBar, { type ExternalTabDrag } from '$lib/components/TabBar.svelte';
@@ -40,7 +40,8 @@
   const fileDrag: ExternalTabDrag = {
     /** True when the drag carries storage keys (file drag), not a tab-reorder drag. */
     accepts: (e) =>
-      storageMoveEnabled && (e.dataTransfer?.types.includes('application/x-storage-keys') ?? false),
+      storageTransferEnabled &&
+      (e.dataTransfer?.types.includes('application/x-storage-keys') ?? false),
     over: (_e, id) => {
       if (fileDragHoverId === id) return;
       clearHoverTimer();

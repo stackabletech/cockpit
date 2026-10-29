@@ -13,7 +13,7 @@ vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 const DEFAULT_CACHE_MAX_BYTES = 512 * 1024 * 1024;
 const flags = vi.hoisted(() => ({ archiveCacheMaxBytes: 512 * 1024 * 1024 }));
-vi.mock('$lib/server/feature-flags.js', () => ({
+vi.mock('$lib/server/storage/config.js', () => ({
   get archiveCacheMaxBytes() {
     return flags.archiveCacheMaxBytes;
   }

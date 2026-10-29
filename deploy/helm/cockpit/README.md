@@ -95,8 +95,7 @@ The following table lists the configurable parameters of the Cockpit chart and t
 | --- | --- | --- |
 | `config.nodeEnv` | Node.js environment | `production` |
 | `config.bodySizeLimit` | Sets `BODY_SIZE_LIMIT`, the maximum request body size (e.g. `12M`). Must be at least the editable file size limit (`PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`, 5 MiB by default), otherwise saving larger files in the text editor fails. | `""` (image default `6M`) |
-| `config.archiveCacheMaxMb` | Sets `STACKABLE_COCKPIT_ARCHIVE_CACHE_MAX_MB`, the maximum total size in MB of the archive preview cache in `/tmp`. Keep it below `tmp.sizeLimit`. | `""` (app default `512`) |
-| `tmp.sizeLimit` | Size limit of the `/tmp` emptyDir. The kubelet evicts the pod when it is exceeded. Keep it above `config.archiveCacheMaxMb`. Empty means no limit. | `1Gi` |
+| `tmp.sizeLimit` | Size limit of the `/tmp` emptyDir. The kubelet evicts the pod when it is exceeded. Keep it above `storage.archiveCacheMaxMb`. Empty means no limit. | `1Gi` |
 
 ### Database Parameters
 
@@ -122,26 +121,29 @@ All feature parameters are optional. Omit them to use the application defaults.
 | --- | --- | --- |
 | `features.trino.completion.enabled` | Enable SQL code completion. | `true` (application default) |
 | `features.storage.enabled` | Show the S3/HDFS file browser and enable routes under `/storage`. | `false` (application default) |
-| `features.storage.pageSizes` | Comma-separated page size options. | `25,50,100` (application default) |
-| `features.storage.defaultPageSize` | Default page size; must be included in `pageSizes`. | First configured page size (application default) |
-| `features.storage.maxRecentFiles` | Number of recently visited storage locations retained locally. | `15` (application default) |
-| `features.storage.uploadConcurrency` | Maximum parallel requests for file uploads. | `3` (application default) |
-| `features.storage.textPreviewBytes` | Maximum bytes fetched for text, TSV, and JSON previews. Editable text files (text types except CSV/TSV, up to the editable file size limit) are always fetched completely. | `262144` (application default) |
-| `features.storage.imagePreviewBytes` | Maximum bytes fetched for image previews. | `5242880` (application default) |
-| `features.storage.pdfPreviewBytes` | Maximum bytes fetched for PDF previews. | `26214400` (application default) |
-| `features.storage.filePreviewRows` | Maximum rows in tabular file previews. | `250` (application default) |
-| `features.storage.filePreviewColumns` | Maximum columns in tabular file previews. | `50` (application default) |
-| `features.storage.transferConcurrency` | Objects copied at once within one copy, move or rename request. | `8` (application default) |
-| `features.storage.restoreTabs` | Restore open file browser tabs from the last session. | `false` (application default) |
-| `features.storage.infiniteScroll` | Load CSV and Parquet preview rows lazily while scrolling. | `true` (application default) |
-| `features.storage.cutCopy` | Show Cut/Copy and allow dragging items. Client-only: the server work happens on paste or move. | `false` (application default) |
-| `features.storage.paste` | Show Paste. The transfer API accepts copies only when this is enabled, and moves when this or `move` is enabled. | `false` (application default) |
-| `features.storage.rename` | Show Rename. The transfer API only accepts renames when this is enabled. | `false` (application default) |
-| `features.storage.move` | Allow drag-and-drop move. Dragging also needs `cutCopy`. The transfer API accepts moves when this or `paste` is enabled. | `false` (application default) |
-| `features.storage.maxEditableFileSize` | Maximum size in bytes of files that can be edited and saved in the text editor. `config.bodySizeLimit` must be at least this large. | `5242880` (application default) |
-| `features.storage.archivePreviewMaxMb` | Maximum size in MB of an archive opened for preview, checked against its compressed size, the total size of the listed entries and the size of an extracted entry. The archive cache is raised to at least twice this value, so keep `tmp.sizeLimit` above that. | `100` (application default) |
-| `features.storage.parquetPreviewDisallowedCompressionTypes` | Comma-separated Parquet compression codecs that are not previewed. A `-no_offset` suffix (e.g. `gzip-no_offset`) only blocks files without an offset index. | `gzip-no_offset` (application default) |
-| `features.storage.downloadHistoryRetentionDays` | Days a user's download history is kept. Integer from 1 to 3650. | `30` (application default) |
+| `features.storage.transfer` | Show Cut, Copy, Paste and Rename and allow drag-and-drop move. The transfer API rejects copies, moves and renames while this is disabled. | `false` (application default) |
+
+### Storage Browser Parameters
+
+Limits and tuning for the file browser. Empty values use the application defaults; invalid values stop the application at startup.
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `storage.pageSizes` | Comma-separated page size options. | `""` (application default `25,50,100`) |
+| `storage.defaultPageSize` | Default page size; must be included in `pageSizes`. | `""` (application default Smallest page size) |
+| `storage.maxRecentFiles` | Number of recently visited storage locations retained locally. | `""` (application default `15`) |
+| `storage.uploadConcurrency` | Maximum parallel requests for file uploads. | `""` (application default `3`) |
+| `storage.transferConcurrency` | Objects copied at once within one copy, move or rename request. | `""` (application default `8`) |
+| `storage.textPreviewBytes` | Maximum bytes fetched for text, TSV, and JSON previews. Editable text files (text types except CSV/TSV, up to the editable file size limit) are always fetched completely. | `""` (application default `262144`) |
+| `storage.imagePreviewBytes` | Maximum bytes fetched for image previews. | `""` (application default `5242880`) |
+| `storage.pdfPreviewBytes` | Maximum bytes fetched for PDF previews. | `""` (application default `26214400`) |
+| `storage.filePreviewRows` | Maximum rows in tabular file previews. | `""` (application default `250`) |
+| `storage.filePreviewColumns` | Maximum columns in tabular file previews. | `""` (application default `50`) |
+| `storage.maxEditableFileSize` | Maximum size in bytes of files that can be edited and saved in the text editor. `config.bodySizeLimit` must be at least this large. | `""` (application default `5242880`) |
+| `storage.archivePreviewMaxMb` | Maximum size in MB of an archive opened for preview, checked against its compressed size, the total size of the listed entries and the size of an extracted entry. The archive cache is raised to at least twice this value, so keep `tmp.sizeLimit` above that. | `""` (application default `100`) |
+| `storage.archiveCacheMaxMb` | Maximum total size in MB of the archive preview cache in `/tmp`. Keep it below `tmp.sizeLimit`. | `""` (application default `512`) |
+| `storage.parquetPreviewDisallowedCompressionTypes` | Comma-separated Parquet compression codecs that are not previewed. A `-no_offset` suffix (e.g. `gzip-no_offset`) only blocks files without an offset index. | `""` (application default `gzip-no_offset`) |
+| `storage.downloadHistoryRetentionDays` | Days a user's download history is kept. Integer from 1 to 3650. | `""` (application default `30`) |
 
 ### Authentication Parameters
 
@@ -197,6 +199,13 @@ A configured CA certificate (`caCert` or `secretClass`) replaces the system trus
 | --- | --- | --- |
 | `extraVolumes` | Additional pod volumes, e.g. a Secret holding a CA certificate for `trino.tls.caCert`, `database.tls.caCert` or `storage.tls.caCert`. | `[]` |
 | `extraVolumeMounts` | Additional volume mounts for the Cockpit container. | `[]` |
+
+### Environment Parameters
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `extraEnv` | Additional environment variables for the Cockpit container, e.g. settings the chart does not expose. Do not repeat a variable the chart already sets. | `[]` |
+| `extraEnvFrom` | Additional `envFrom` sources (ConfigMaps or Secrets) for the Cockpit container. | `[]` |
 
 ### Resource Parameters
 

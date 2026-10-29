@@ -1,5 +1,5 @@
 import { SvelteSet } from 'svelte/reactivity';
-import { storageCutCopyEnabled, storageMoveEnabled } from '$lib/client/feature-flags.js';
+import { storageTransferEnabled } from '$lib/client/feature-flags.js';
 import { connectionStore } from './connection-store.svelte.js';
 import type { DragSource } from './clipboard.svelte.js';
 
@@ -19,7 +19,7 @@ export function handleRowDragStart(
   itemKey: string,
   state: { selectedKeys: Set<string>; bucket: string; archive: { isInArchive: boolean } }
 ): void {
-  if (!storageCutCopyEnabled || state.archive.isInArchive) return;
+  if (!storageTransferEnabled || state.archive.isInArchive) return;
   if (!state.selectedKeys.has(itemKey)) {
     state.selectedKeys = new SvelteSet<string>([itemKey]);
   }
@@ -55,5 +55,5 @@ export function parseStorageDrop(e: DragEvent): { keys: string[]; source: DragSo
  * Check whether a storage drag-drop is allowed in the current context.
  */
 export function canStorageDrop(storage: { archive: { isInArchive: boolean } }): boolean {
-  return storageMoveEnabled && !storage.archive.isInArchive;
+  return storageTransferEnabled && !storage.archive.isInArchive;
 }

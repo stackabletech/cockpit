@@ -10,7 +10,6 @@
   import { connectionHostname, connectionStore } from '$lib/storage/connection-store.svelte.js';
   import { createFetchStorageApi } from '$lib/storage/api.js';
   import { TabsState } from '$lib/storage/tabs.svelte.js';
-  import { storageRestoreTabsEnabled } from '$lib/client/feature-flags.js';
 
   let { children, data } = $props();
 
@@ -36,7 +35,6 @@
   }
 
   const tabsState = new TabsState(storage, {
-    persistEnabled: storageRestoreTabsEnabled,
     connectionId: storage.connectionId,
     navigateToLocation: (connection, bucket, prefix) => {
       void goto(
