@@ -25,7 +25,7 @@ const TAB_ID = '6f1c2a4e-8b3d-4c5e-9f7a-1b2c3d4e5f60';
 const fakeClient = { fake: true } as unknown as TrinoClient;
 
 function mockLocals(
-  user: { id: string; username?: string } | null = { id: 'u1', username: 'alice' }
+  user: { id: string; trinoUser?: string } | null = { id: 'u1', trinoUser: 'alice' }
 ) {
   return {
     logger: { trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -112,6 +112,16 @@ describe('POST /api/trino/query', () => {
       catalog: undefined,
       schema: undefined
     });
+  });
+
+  it('returns a JSON error instead of running as anonymous when the Trino user is missing', async () => {
+    const res = await POST(
+      postEvent({ statements: ['SELECT 1'], tabId: TAB_ID }, mockLocals({ id: 'u1' }))
+    );
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: expect.any(String) });
+    expect(startScript).not.toHaveBeenCalled();
   });
 
   it('logs but does not fail the request when the script orchestrator rejects', async () => {

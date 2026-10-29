@@ -1,7 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import { superValidate, message, type Infer, type InferIn } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
-import { getUserId } from '$lib/server/auth-utils.js';
+import { findTrinoUser, getUserId } from '$lib/server/auth-utils.js';
 import { getAllQuerySummaries, resetTabQueries } from '$lib/server/trino/queries.js';
 import {
   trinoConfigured,
@@ -56,7 +56,14 @@ export const actions: Actions = {
     }
 
     const userId = getUserId(locals);
-    const user = locals.user?.username ?? 'anonymous';
+    const user = findTrinoUser(locals);
+    if (!user) {
+      return message(
+        form,
+        { type: 'error', message: m.trino_user_missing() } satisfies ConnectionMessage,
+        { status: 500 }
+      );
+    }
     const { connectionUrl, authType, authUsername, authPassword } = form.data;
     const config = {
       url: connectionUrl,

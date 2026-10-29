@@ -92,6 +92,7 @@
   "trino_connection_test_failed": "Verbindung zu Trino fehlgeschlagen – bitte URL und Zugangsdaten prüfen.",
   "trino_connection_save_failed": "Die Verbindung konnte nicht gespeichert werden. Bitte erneut versuchen.",
   "trino_connection_env_managed": "Die Verbindung wird über Umgebungsvariablen verwaltet.",
+  "trino_user_missing": "Ihrem Konto ist kein Trino-Benutzername zugeordnet. Melden Sie sich ab und erneut an; besteht das Problem weiterhin, wenden Sie sich an Ihre Administration.",
   "trino_cancel_query": "Abbrechen",
   "trino_state_submitting": "Wird eingereicht",
   "trino_state_queued": "Warteschlange",
