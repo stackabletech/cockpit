@@ -118,6 +118,8 @@ const DEFAULT_RESPONSE = {
 //   FROM exact_limit_table      exactly MAX_CLIENT_ROWS rows, then an empty trailing page
 //   FAILS_SILENTLY              first response FAILED without an error object
 //   FAILS_LATER                 one page of rows, then FAILED without an error object
+//   FAILS_INTERNALLY            first response FAILED with an INTERNAL_ERROR
+//   POLL_UNAVAILABLE            QUEUED, then GET answers HTTP 502 with an HTML body
 //   HOLD:<id>                   RUNNING until released via POST /__mock/release/<id>
 //   GATE:<id>                   submit response withheld until released (combinable)
 //
@@ -138,6 +140,8 @@ interface MockQuery {
   /** Release id for HOLD queries, which stay RUNNING until released. */
   hold?: string;
   cancelled?: boolean;
+  /** GET nextUri answers HTTP 502, as a proxy in front of an unavailable Trino. */
+  pollUnavailable?: boolean;
 }
 
 const queries = new Map<string, MockQuery>();
@@ -254,6 +258,21 @@ function startPagedQuery(id: string, sql: string): Page | null {
   if (sql.includes('FAILS_SILENTLY')) {
     return { id, stats: { state: 'FAILED' } };
   }
+  if (sql.includes('FAILS_INTERNALLY')) {
+    return {
+      id,
+      error: {
+        message: 'java.lang.IllegalStateException: metastore thrift://hive.internal:9083',
+        errorName: 'GENERIC_INTERNAL_ERROR',
+        errorType: 'INTERNAL_ERROR'
+      },
+      stats: { state: 'FAILED' }
+    };
+  }
+  if (sql.includes('POLL_UNAVAILABLE')) {
+    queries.set(id, { sql, pages: [], pollUnavailable: true });
+    return { id, nextUri: nextUri(id, 1), stats: { state: 'QUEUED' } };
+  }
   if (sql.includes('FAILS_LATER')) {
     queries.set(id, {
       sql,
@@ -338,6 +357,11 @@ http
       return;
     }
     if (req.method === 'GET' && executing) {
+      if (queries.get(executing[1])?.pollUnavailable) {
+        res.writeHead(502, { 'Content-Type': 'text/html' });
+        res.end('<html>502 Bad Gateway from proxy.internal</html>');
+        return;
+      }
       pollQuery(executing[1], Number(executing[2])).then((page) => sendJson(res, page));
       return;
     }
