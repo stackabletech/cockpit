@@ -1,6 +1,7 @@
 import { logger } from '$lib/server/logging';
 import { trinoQueryTotal } from '$lib/server/metrics.js';
 import { MAX_CLIENT_ROWS, isTerminal } from '$lib/types/query.js';
+import { classifyTrinoError, toQueryError } from './errors.js';
 import { type TrinoQuery, mapTrinoState, toQueryProgress, terminateQuery } from './queries.js';
 
 const log = logger.child({ module: 'trino-result-collector' });
@@ -30,7 +31,7 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
       if (isTerminal(query.state)) return;
 
       log.error({ err, trino_query_id: query.trinoQueryId }, 'poll failed');
-      query.error = err instanceof Error ? err.message : 'Poll failed';
+      query.error = classifyTrinoError(err);
       terminateQuery(query, 'FAILED');
       trinoQueryTotal.inc({ outcome: 'failed' });
       return;
@@ -61,7 +62,7 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
     }
 
     if (result.error || result.stats?.state === 'FAILED') {
-      query.error = result.error?.message ?? 'Query failed';
+      query.error = toQueryError(result.error, query.trinoQueryId);
       terminateQuery(query, 'FAILED');
       trinoQueryTotal.inc({ outcome: 'failed' });
       return;

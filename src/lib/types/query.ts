@@ -26,6 +26,20 @@ export interface QueryProgress {
   elapsedTimeMillis: number;
 }
 
+/**
+ * Why a query failed, safe to show to the user. Only errors in the user's own
+ * query carry Trino's message; server-side errors could expose internals.
+ */
+export type QueryError =
+  /** Error in the query itself (syntax, missing table, access denied, resource limit). */
+  | { kind: 'query'; message: string }
+  /** Trino or a connector failed; only Trino's error name is passed on. */
+  | { kind: 'server'; name: string | null }
+  /** Trino could not be reached or sent an invalid response. */
+  | { kind: 'unavailable' }
+  /** Failed without details. */
+  | { kind: 'unknown' };
+
 /** Whether the query state is terminal (no further transitions expected). */
 export function isTerminal(state: QueryState): boolean {
   return state === 'FINISHED' || state === 'FAILED' || state === 'CANCELLED';
@@ -40,7 +54,7 @@ export interface QuerySnapshot {
   rows: unknown[][];
   /** Rows fetched so far. Populated even in lightweight snapshots, where `rows` is empty. */
   rowCount: number;
-  error: string | null;
+  error: QueryError | null;
   /** Fetching stopped and the query was cancelled because more than MAX_CLIENT_ROWS rows arrived. */
   rowLimitReached: boolean;
   sql: string;

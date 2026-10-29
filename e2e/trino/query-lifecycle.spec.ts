@@ -4,7 +4,7 @@ import { mockMarker, mockTrinoStatements, releaseMockTrino } from '../support/mo
 
 /**
  * Query lifecycle against the multi-page mock Trino protocol: polling, running
- * state, cancellation and failures reported without error details.
+ * state, cancellation and failures, including which error details reach the user.
  */
 test.describe('Trino query lifecycle', () => {
   test.use({ locale: 'en-US' });
@@ -108,6 +108,34 @@ test.describe('Trino query lifecycle', () => {
 
     await expect(statusBadge(page)).toHaveAttribute('data-query-state', 'FAILED');
     await expect(page.getByText('Query failed')).toBeVisible();
+  });
+
+  test('withholds the message of a Trino internal error', async ({ page }) => {
+    await openEditor(page, 'SELECT FAILS_INTERNALLY');
+
+    await runButton(page).click();
+    await waitForQueryComplete(page);
+
+    await expect(statusBadge(page)).toHaveAttribute('data-query-state', 'FAILED');
+    await expect(
+      page.getByText(
+        'Trino could not run the query because of a server-side error (GENERIC_INTERNAL_ERROR).'
+      )
+    ).toBeVisible();
+    await expect(page.getByText('hive.internal')).toHaveCount(0);
+  });
+
+  test('withholds the response body when Trino is unavailable during polling', async ({ page }) => {
+    await openEditor(page, 'SELECT POLL_UNAVAILABLE');
+
+    await runButton(page).click();
+    await waitForQueryComplete(page);
+
+    await expect(statusBadge(page)).toHaveAttribute('data-query-state', 'FAILED');
+    await expect(
+      page.getByText('Trino could not be reached or sent an invalid response.')
+    ).toBeVisible();
+    await expect(page.getByText('proxy.internal')).toHaveCount(0);
   });
 
   test('re-running between statements stops the previous script', async ({ page }) => {

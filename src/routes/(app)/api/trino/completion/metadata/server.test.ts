@@ -16,6 +16,7 @@ vi.mock('$lib/server/trino/client.js', () => ({
 import { GET } from './+server.js';
 import { resolveTrinoClient, trinoMetadataQuery } from '$lib/server/trino/client.js';
 import type { TrinoClient } from '$lib/server/trino/client.js';
+import { TrinoHttpError, TrinoQueryFailure } from '$lib/server/trino/errors.js';
 
 const fakeClient = { fake: true } as unknown as TrinoClient;
 
@@ -24,7 +25,11 @@ function mockEvent(params: Record<string, string>) {
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   return {
     url,
-    locals: { logger: { debug: vi.fn(), info: vi.fn() }, user: { id: 'u1', trinoUser: 'alice' } }
+    locals: {
+      logger: { debug: vi.fn(), info: vi.fn() },
+      requestId: 'req-1',
+      user: { id: 'u1', trinoUser: 'alice' }
+    }
   } as unknown as Parameters<typeof GET>[0];
 }
 
@@ -154,10 +159,25 @@ describe('GET /api/trino/completion/metadata', () => {
   });
 
   it('throws 502 with the Trino error message when the query fails', async () => {
-    vi.mocked(trinoMetadataQuery).mockRejectedValue(new Error('Access Denied'));
+    vi.mocked(trinoMetadataQuery).mockRejectedValue(
+      new TrinoQueryFailure({ message: 'Access Denied', errorType: 'USER_ERROR' })
+    );
 
     await expect(GET(mockEvent({ level: 'catalogs' }))).rejects.toThrow(
       expect.objectContaining({ status: 502, body: { message: 'Access Denied' } })
+    );
+  });
+
+  it('throws 502 without upstream details when Trino fails', async () => {
+    vi.mocked(trinoMetadataQuery).mockRejectedValue(
+      new TrinoHttpError('POST /v1/statement', 503, '<html>proxy.internal</html>')
+    );
+
+    await expect(GET(mockEvent({ level: 'catalogs' }))).rejects.toThrow(
+      expect.objectContaining({
+        status: 502,
+        body: { message: 'Trino request failed', requestId: 'req-1' }
+      })
     );
   });
 });

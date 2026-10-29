@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import { resolveTrinoClient, trinoMetadataQuery } from '$lib/server/trino/client.js';
 import { getTrinoUser, getUserId } from '$lib/server/auth-utils.js';
 import { quoteIdentifier, quoteStringLiteral } from '$lib/editor/identifiers.js';
+import { trinoErrorBody } from '$lib/server/trino/errors.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -59,8 +60,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     );
     return json(rows);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'unknown error';
     log.info({ err, level, catalog, schema, table }, 'catalog metadata query failed');
-    error(502, msg);
+    error(502, trinoErrorBody(err, locals.requestId));
   }
 };

@@ -5,7 +5,7 @@
   import IconExpandMore from 'virtual:icons/material-symbols/expand-more';
   import IconOpenInNew from 'virtual:icons/material-symbols/open-in-new';
   import IconDownload from 'virtual:icons/material-symbols/download';
-  import { MAX_CLIENT_ROWS, type QuerySnapshot } from '$lib/types/query';
+  import { MAX_CLIENT_ROWS, type QueryError, type QuerySnapshot } from '$lib/types/query';
   import { initPageSize, type PageSize } from '$lib/types/pagination.js';
   import Pagination from '$lib/components/Pagination.svelte';
 
@@ -35,13 +35,28 @@
   const lastPage = $derived(totalPages - 1);
   const rowStart = $derived(currentPage * pageSize + 1);
   const rowEnd = $derived(currentPage * pageSize + displayedRows.length);
-  const stmtError = $derived(result.error);
+  const stmtError = $derived(result.error ? formatQueryError(result.error) : null);
   const showHeader = $derived(totalStatements > 1);
   const rowLimitWarning = $derived(
     showHeader && result.rowLimitReached
       ? m.trino_row_limit_reached({ limit: MAX_CLIENT_ROWS.toLocaleString(getLocale()) })
       : null
   );
+
+  function formatQueryError(error: QueryError): string {
+    switch (error.kind) {
+      case 'query':
+        return error.message;
+      case 'server':
+        return error.name
+          ? m.trino_query_error_server_named({ name: error.name })
+          : m.trino_query_error_server();
+      case 'unavailable':
+        return m.trino_query_error_unavailable();
+      case 'unknown':
+        return m.trino_query_error_unknown();
+    }
+  }
 
   const CSV_HEADERS_KEY = 'trino_csv_include_headers';
   let includeHeaders = $state(browser ? localStorage.getItem(CSV_HEADERS_KEY) === 'true' : false);

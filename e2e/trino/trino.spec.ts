@@ -133,6 +133,7 @@ test.describe('Trino query editor', () => {
     // Monaco also renders role="alert" nodes for its own accessibility — filter by content.
     const alert = page.getByRole('alert').filter({ hasText: 'Query error' });
     await expect(alert).toBeVisible();
+    // Errors in the user's query keep Trino's message.
     await expect(alert.getByText('syntax error at position 7')).toBeVisible();
   });
 
