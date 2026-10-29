@@ -12,6 +12,7 @@
  *   const fetch_ = createStorageFetch(() => connectionStore.activeConnectionId);
  */
 
+import { readErrorMessage } from '$lib/client/api-error.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { StorageError } from '$lib/storage/errors.js';
 
@@ -55,16 +56,8 @@ export function createStorageFetch(
 
     if (!response.ok) {
       const code = mapStatusToCode(response.status);
-      const body = await response
-        .clone()
-        .json()
-        .catch(() => null);
       const message =
-        body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
-          ? body.message
-          : body && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
-            ? body.error
-            : `Request failed with status ${response.status}`;
+        (await readErrorMessage(response)) ?? `Request failed with status ${response.status}`;
       throw new StorageError(code, message);
     }
 

@@ -48,14 +48,17 @@ const handleParaglide: Handle = ({ event, resolve }) =>
 const handleAuth: Handle = ({ event, resolve }) =>
   svelteKitHandler({ event, resolve, auth, building });
 
-const PUBLIC_PATHS = ['/auth/login', '/auth/logout', '/api/auth', '/metrics', '/healthz'];
+// Matched by route id, not path prefix, so `/metricsfoo` or `/auth/login/x`
+// (which reaches the (app) catch-all) still require sign-in. `/api/auth/*` is
+// answered by better-auth in `handleAuth` before this guard runs.
+const PUBLIC_ROUTE_IDS = new Set(['/auth/login', '/auth/logout', '/metrics', '/healthz']);
 
 const handleAuthGuard: Handle = async ({ event, resolve }) => {
   const session = await auth.api.getSession({ headers: event.request.headers });
   event.locals.user = session?.user ?? null;
   event.locals.session = session?.session ?? null;
 
-  const isPublic = PUBLIC_PATHS.some((p) => event.url.pathname.startsWith(p));
+  const isPublic = event.route.id !== null && PUBLIC_ROUTE_IDS.has(event.route.id);
   if (!isPublic && !event.locals.user) {
     event.locals.logger.debug({ path: event.url.pathname }, 'Rejecting unauthenticated request');
     return unauthenticatedResponse(event.url);

@@ -89,6 +89,20 @@ describe('/(app)/storage/+error.svelte', () => {
       .not.toBeInTheDocument();
   });
 
+  it('offers storage-specific ways out instead of the dashboard link', async () => {
+    setPage({ pathname: '/storage', status: 502 });
+    render(ErrorPage);
+
+    await expect.element(page.getByRole('heading', { name: /Storage error/ })).toBeInTheDocument();
+    await expect
+      .element(page.getByRole('link', { name: 'Back to storage' }))
+      .toHaveAttribute('href', '/storage');
+    await expect.element(page.getByRole('button', { name: 'Go back' })).toBeInTheDocument();
+    await expect
+      .element(page.getByRole('link', { name: 'Go to dashboard' }))
+      .not.toBeInTheDocument();
+  });
+
   it('does not throw on malformed percent-encoding in the URL', async () => {
     setPage({ pathname: '/storage/browse/conn-1/bad%E0bucket', params: {}, status: 404 });
     render(ErrorPage);

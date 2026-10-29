@@ -21,7 +21,7 @@
   import PdfPreview from './preview/PdfPreview.svelte';
   import FallbackPreview from './preview/FallbackPreview.svelte';
   import { keyToName, formatFileSize } from '$lib/storage/utils.js';
-  import { StorageError } from '$lib/storage/errors.js';
+  import { StorageError, getActionErrorMessage } from '$lib/storage/errors.js';
   import { decodePreviewText } from '$lib/storage/text-decode.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
   import { maxEditableFileSize, infiniteScrollEnabled } from '$lib/client/feature-flags.js';
@@ -222,18 +222,6 @@
         res = await storage.api.preview({ bucket: activeBucket, key });
       }
 
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        const msg =
-          res.status === 403
-            ? m.storage_preview_access_denied()
-            : res.status === 404
-              ? m.storage_preview_not_found()
-              : (errBody?.error ?? m.storage_preview_error_desc());
-        preview = { kind: 'error', message: msg };
-        return;
-      }
-
       const contentType = (res.headers.get('Content-Type') ?? 'application/octet-stream')
         .split(';')[0]
         .trim();
@@ -412,8 +400,15 @@
       };
       editorText = text;
       originalText = text;
-    } catch {
-      preview = { kind: 'error', message: m.storage_preview_error_desc() };
+    } catch (err) {
+      const code = err instanceof StorageError ? err.code : null;
+      const message =
+        code === 'access_denied'
+          ? m.storage_preview_access_denied()
+          : code === 'not_found'
+            ? m.storage_preview_not_found()
+            : m.storage_preview_error_desc();
+      preview = { kind: 'error', message };
     }
   }
 
@@ -562,10 +557,6 @@
 
     try {
       const res = await storage.api.download({ bucket, key: objectKey });
-      if (!res.ok) {
-        addToast('error', m.storage_download_error_unknown());
-        return;
-      }
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const filename = objectKey.split('/').filter(Boolean).pop() ?? objectKey;
@@ -578,11 +569,12 @@
       document.body.removeChild(anchor);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
     } catch (err) {
-      if (err instanceof StorageError) {
-        addToast('error', err.message);
-      } else {
-        addToast('error', m.storage_download_error_unknown());
-      }
+      addToast(
+        'error',
+        err instanceof StorageError
+          ? getActionErrorMessage(err)
+          : m.storage_download_error_unknown()
+      );
     }
   }
 
@@ -746,10 +738,6 @@
       data: true
     });
 
-    if (!res.ok) {
-      throw new Error('Failed to fetch parquet chunk');
-    }
-
     const { rows } = await readNdjsonStream(res, onColumn);
     return rows;
   }
@@ -765,10 +753,6 @@
       limit,
       data: true
     });
-
-    if (!res.ok) {
-      throw new Error('Failed to fetch CSV chunk');
-    }
 
     const { rows, totalRows } = await readCsvNdjsonStream(res);
     csvTotalRows = totalRows;

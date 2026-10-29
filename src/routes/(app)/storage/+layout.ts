@@ -3,10 +3,20 @@ import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.
 import { connectionStore } from '$lib/storage/connection-store.svelte.js';
 import type { LayoutLoad } from './$types';
 
+/** Why the active connection could not be opened; the connect form shows it. */
+type BucketsError = 'access_denied' | 'unreachable' | null;
+
+// 401: the session holds no usable connection, which is not an error.
+function bucketsErrorFor(status: number): BucketsError {
+  if (status === 401) return null;
+  return status === 403 ? 'access_denied' : 'unreachable';
+}
+
 const DISCONNECTED = {
   connected: false,
   buckets: [] as string[],
-  connectionType: null
+  connectionType: null,
+  bucketsError: null as BucketsError
 };
 
 /**
@@ -65,6 +75,7 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
     if (!res.ok) {
       return {
         ...DISCONNECTED,
+        bucketsError: bucketsErrorFor(res.status),
         connections,
         hydrating: false as const,
         hasActiveConnection: false as const
@@ -76,6 +87,7 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
       connected: true,
       buckets,
       connectionType: 's3',
+      bucketsError: null,
       connections,
       hydrating: false as const,
       hasActiveConnection: true as const
@@ -83,6 +95,7 @@ export const load: LayoutLoad = async ({ fetch, data }) => {
   } catch {
     return {
       ...DISCONNECTED,
+      bucketsError: 'unreachable' as const,
       connections,
       hydrating: false as const,
       hasActiveConnection: false as const

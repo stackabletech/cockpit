@@ -31,12 +31,16 @@
     '/trino': m.page_title_trino
   };
 
-  let title = $derived(
-    (
+  function pageTitle(): () => string {
+    // Unknown pages render the 404 of the catch-all route.
+    if (page.route.id === '/(app)/[...path]') return m.error_not_found_title;
+    return (
       pageTitles[page.url.pathname] ??
       (page.url.pathname.startsWith('/storage') ? m.page_title_storage : m.page_title_default)
-    )()
-  );
+    );
+  }
+
+  let title = $derived(pageTitle()());
 
   let mainEl: HTMLElement | undefined = $state();
 

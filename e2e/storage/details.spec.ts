@@ -97,6 +97,33 @@ test.describe('Storage S3 — Details Modal', () => {
     }
   });
 
+  test('explains a failed size calculation', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'details-size-error');
+    const cleanupKeys = [`${prefix}subdir/file.txt`];
+
+    try {
+      await putTextObject(client, credentials.bucket, cleanupKeys[0], 'x');
+      // A proxy in front of the app answers with its own HTML error page.
+      await page.route('**/api/storage/directory-size?*', (route) =>
+        route.fulfill({ status: 502, contentType: 'text/html', body: '<html>Bad Gateway</html>' })
+      );
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await rowByName(page, 'subdir').click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Details' }).click();
+
+      const modal = modalBox(page);
+      await modal.getByRole('button', { name: 'Calculate directory size' }).click();
+      await expect(
+        modal.getByText('Failed to calculate the directory size. Please try again.')
+      ).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   test('shows partial results when the key limit is reached', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);

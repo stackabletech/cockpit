@@ -78,12 +78,6 @@
     try {
       const res = await storage.api.directorySize({ bucket, prefix, signal: request.signal });
 
-      if (!res.ok) {
-        error = m.storage_details_error_calc_size({ status: res.status });
-        calculating = false;
-        return;
-      }
-
       const reader = res.body?.getReader();
       if (!reader) {
         error = m.storage_details_error_no_body();
@@ -118,13 +112,9 @@
           }
         }
       }
-    } catch (err) {
+    } catch {
       if (request.signal.aborted) return;
-      if (err instanceof StorageError) {
-        error = err.message;
-      } else {
-        error = err instanceof Error ? err.message : m.storage_details_error_unknown();
-      }
+      error = m.storage_details_error_calc_size();
     } finally {
       if (sizeRequest === request) {
         sizeRequest = null;
