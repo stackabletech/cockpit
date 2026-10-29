@@ -119,8 +119,9 @@
 {#snippet navItem(item: NavItem)}
   {@const active = isActive((resolve as (pathname: string) => string)(item.route))}
   <li>
-    <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Nav item paths are dynamically generated. -->
     <TooltipTrigger text={collapsed ? item.label : undefined} orientation="right">
+      <!-- The path is resolved; the rule does not recognise the cast needed for dynamic nav routes. -->
+      <!-- eslint-disable svelte/no-navigation-without-resolve -->
       <a
         href={(resolve as (pathname: string) => string)(item.route)}
         data-sveltekit-preload-data="hover"
@@ -136,6 +137,7 @@
         aria-current={active ? 'page' : undefined}
         aria-disabled={item.disabled ? 'true' : undefined}
       >
+        <!-- eslint-enable svelte/no-navigation-without-resolve -->
         {@render navIcon(item.icon)}
         {#if !collapsed}
           <span class="truncate">{item.label}</span>

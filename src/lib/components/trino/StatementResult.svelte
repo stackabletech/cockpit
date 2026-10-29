@@ -158,14 +158,12 @@
     {#if result.trinoQueryUrl || result.columns.length > 0}
       <div class="flex items-center gap-2 pb-1">
         {#if result.trinoQueryUrl}
-          <!-- eslint-disable svelte/no-navigation-without-resolve -->
           <a
             href={result.trinoQueryUrl}
             target="_blank"
             rel="noopener noreferrer external"
             class="btn btn-ghost btn-xs"
           >
-            <!-- eslint-enable svelte/no-navigation-without-resolve -->
             {m.trino_view_in_trino()}
             <IconOpenInNew class="size-3.5" aria-hidden="true" />
           </a>

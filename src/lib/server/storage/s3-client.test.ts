@@ -163,7 +163,6 @@ describe('createS3Client custom CA certificate', () => {
   it('trusts only the configured CA certificate for verified connections', async () => {
     dir = mkdtempSync(join(tmpdir(), 's3-ca-'));
     const caPath = join(dir, 'ca.crt');
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     writeFileSync(caPath, 'test-ca');
     mockEnv.STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT = caPath;
 

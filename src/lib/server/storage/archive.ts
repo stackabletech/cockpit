@@ -145,7 +145,7 @@ function isProcessAlive(pid: number): boolean {
  * gets the same PID, so directories of this PID and thread are stale as well.
  */
 function removeStaleCacheDirs(): void {
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed cache root under tmpdir()
   for (const name of readdirSync(CACHE_ROOT)) {
     const match = /^(\d+)\.(\d+)-/.exec(name);
     if (match) {
@@ -165,7 +165,7 @@ function removeStaleCacheDirs(): void {
 
 function cacheDir(): string {
   if (!processCacheDir) {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed cache root under tmpdir()
     mkdirSync(CACHE_ROOT, { recursive: true });
     removeStaleCacheDirs();
     processCacheDir = mkdtempSync(join(CACHE_ROOT, `${process.pid}.${threadId}-`));
@@ -200,9 +200,9 @@ function removeEntry(key: string, entry: CacheEntry, reason: EvictionReason) {
 function acquire(key: string, ownFill = false): ArchiveLease | null {
   const entry = archiveCache.get(key);
   if (!entry || (entry.retired && !ownFill)) return null;
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- server-generated path inside the archive cache directory
   if (Date.now() > entry.expiresAt || !existsSync(entry.path)) {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- server-generated path inside the archive cache directory
     if (entry.leases === 0) removeEntry(key, entry, existsSync(entry.path) ? 'expired' : 'missing');
     return null;
   }
@@ -280,7 +280,7 @@ function addEntry(id: EntryId, dir: string, path: string, singleUse: boolean): v
     if (
       !existing.retired &&
       Date.now() <= existing.expiresAt &&
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- server-generated path inside the archive cache directory
       existsSync(existing.path)
     ) {
       log.debug({ cache_key: key }, 'archive already cached, discarding duplicate download');
@@ -299,7 +299,7 @@ function addEntry(id: EntryId, dir: string, path: string, singleUse: boolean): v
     }
   }
 
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- server-generated path inside the archive cache directory
   const size = statSync(path).size;
   const now = Date.now();
   archiveCache.set(key, {
@@ -639,7 +639,7 @@ function listTar(
     });
     extract.on('error', reject);
 
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- server-generated path inside the archive cache directory
     createReadStream(tempPath).pipe(extract);
   });
 }
@@ -690,7 +690,7 @@ function extractTarEntry(
     extract.on('finish', () => resolve(found));
     extract.on('error', reject);
 
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- server-generated path inside the archive cache directory
     createReadStream(tempPath).pipe(extract);
   });
 }
@@ -731,7 +731,7 @@ function listTarGz(
     extract.on('error', reject);
     gunzip.on('error', reject);
 
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- server-generated path inside the archive cache directory
     createReadStream(tempPath).pipe(gunzip).pipe(extract);
   });
 }
@@ -784,7 +784,7 @@ function extractTarGzEntry(
     extract.on('error', reject);
     gunzip.on('error', reject);
 
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- server-generated path inside the archive cache directory
     createReadStream(tempPath).pipe(gunzip).pipe(extract);
   });
 }
@@ -916,7 +916,7 @@ function leaseOuterArchive(
           await pipeline(
             Readable.fromWeb(download.stream as import('stream/web').ReadableStream),
             byteLimit(limit),
-            // eslint-disable-next-line security/detect-non-literal-fs-filename
+            // eslint-disable-next-line security/detect-non-literal-fs-filename -- server-generated path inside the archive cache directory
             createWriteStream(path),
             { signal: jobSignal }
           );
@@ -984,7 +984,7 @@ async function leaseArchive(
           extname(nestedArchivePath) || '.bin',
           nestedData.length,
           async (path) => {
-            // eslint-disable-next-line security/detect-non-literal-fs-filename
+            // eslint-disable-next-line security/detect-non-literal-fs-filename -- server-generated path inside the archive cache directory
             await writeFile(path, nestedData, { signal: jobSignal });
             // Extracted from an outer download that is not cached either.
             return { singleUse: outer.singleUse };
