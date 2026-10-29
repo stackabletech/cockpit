@@ -11,10 +11,15 @@ const { addBookmark, updateBookmark, removeBookmark } = vi.hoisted(() => ({
   removeBookmark: vi.fn()
 }));
 
-vi.mock('$lib/dashboard/bookmarks.svelte.js', () => ({
+vi.mock('$lib/dashboard/bookmarks-api.js', () => ({
   addBookmark,
   updateBookmark,
-  removeBookmark
+  removeBookmark,
+  BookmarkRequestError: class extends Error {
+    constructor(readonly status: number) {
+      super(`status ${status}`);
+    }
+  }
 }));
 
 const renderModal = (props: Record<string, unknown> = {}) =>
@@ -39,6 +44,9 @@ const pinCheckbox = () => page.getByRole('checkbox', { name: 'Pin bookmark' });
 describe('AddBookmarkModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    addBookmark.mockResolvedValue(undefined);
+    updateBookmark.mockResolvedValue(undefined);
+    removeBookmark.mockResolvedValue(undefined);
   });
 
   it('stores pinned: true when the pin checkbox is checked', async () => {
@@ -98,6 +106,54 @@ describe('AddBookmarkModal', () => {
     expect(addBookmark).not.toHaveBeenCalled();
   });
 
+  it('rejects non-HTTP URLs', async () => {
+    renderModal();
+
+    await page.getByLabelText('Name').fill('Unsafe link');
+    await page.getByLabelText('URL').fill('javascript:alert(1)');
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
+
+    await expect.element(page.getByText('Enter a valid HTTP or HTTPS URL.')).toBeVisible();
+    await expect.element(page.getByLabelText('URL')).toHaveAttribute('aria-invalid', 'true');
+    expect(addBookmark).not.toHaveBeenCalled();
+  });
+
+  it('shows an error and focuses the name field when the name is cleared', async () => {
+    renderModal();
+
+    await page.getByLabelText('Name').fill('');
+    await page.getByLabelText('URL').fill('https://trino.example.com');
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
+
+    await expect.element(page.getByText('Enter a name.')).toBeVisible();
+    await expect.element(page.getByLabelText('Name')).toHaveFocus();
+    expect(addBookmark).not.toHaveBeenCalled();
+  });
+
+  it('shows the product choices, the form fields and the preview', async () => {
+    renderModal();
+
+    await expect.element(page.getByRole('button', { name: 'Trino' })).toBeVisible();
+    await expect.element(page.getByRole('button', { name: 'Superset' })).toBeVisible();
+    await expect.element(page.getByLabelText('Name')).toBeVisible();
+    await expect.element(page.getByLabelText(/Environment/)).toBeVisible();
+    await expect.element(page.getByLabelText('URL')).toBeVisible();
+    await expect.element(pinCheckbox()).toBeVisible();
+    await expect.element(page.getByText('Preview')).toBeVisible();
+  });
+
+  it('shows the entered name, environment and hostname in the preview', async () => {
+    renderModal();
+
+    await page.getByLabelText('Name').fill('My Dashboard');
+    await page.getByLabelText(/Environment/).fill('staging');
+    await page.getByLabelText('URL').fill('https://superset.example.com/dashboards');
+
+    await expect.element(page.getByText('My Dashboard')).toBeVisible();
+    await expect.element(page.getByText('staging', { exact: true })).toBeVisible();
+    await expect.element(page.getByText('superset.example.com', { exact: true })).toBeVisible();
+  });
+
   it('shows the URL error when leaving the field with a malformed URL', async () => {
     renderModal();
 
@@ -111,6 +167,17 @@ describe('AddBookmarkModal', () => {
     renderModal();
 
     await expect.element(page.getByLabelText('Name')).toHaveValue('SQL Editor');
+  });
+
+  it('replaces the default name when another product is selected', async () => {
+    renderModal();
+
+    await page.getByRole('button', { name: 'Superset' }).click();
+
+    await expect.element(page.getByLabelText('Name')).toHaveValue('Dashboards');
+    await expect
+      .element(page.getByRole('button', { name: 'Superset' }))
+      .toHaveAttribute('aria-pressed', 'true');
   });
 
   it('refills the default name on product switch after the name was cleared', async () => {
@@ -175,6 +242,21 @@ describe('AddBookmarkModal', () => {
     expect(removeBookmark).not.toHaveBeenCalled();
   });
 
+  it('keeps unsaved edits when the delete confirmation is dismissed with Escape', async () => {
+    renderModal({ bookmark: savedBookmark });
+    const editDialog = page.getByRole('dialog', { name: 'Edit bookmark' });
+
+    await editDialog.getByLabelText('Name').fill('Renamed but not saved');
+    await editDialog.getByRole('button', { name: 'Delete' }).click();
+    const confirmDialog = page.getByRole('dialog', { name: 'Delete bookmark?' });
+    await expect.element(confirmDialog).toBeVisible();
+    await userEvent.keyboard('{Escape}');
+
+    await expect.element(confirmDialog).not.toBeInTheDocument();
+    await expect.element(editDialog.getByLabelText('Name')).toHaveValue('Renamed but not saved');
+    expect(removeBookmark).not.toHaveBeenCalled();
+  });
+
   it('removes the bookmark and closes both dialogs when deletion is confirmed', async () => {
     renderModal({ bookmark: savedBookmark });
 
@@ -196,7 +278,68 @@ describe('AddBookmarkModal', () => {
     await page.getByRole('button', { name: 'Save changes' }).click();
 
     expect(updateBookmark).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'b1', name: 'Renamed Dashboard', pinned: true })
+      'b1',
+      expect.objectContaining({ name: 'Renamed Dashboard', pinned: true })
     );
+  });
+
+  it('stays open with the entered values and an error when saving fails', async () => {
+    addBookmark.mockRejectedValue(new Error('500'));
+    renderModal();
+
+    await page.getByLabelText('Name').fill('Unsaved Dashboard');
+    await page.getByLabelText('URL').fill('https://superset.example.com');
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
+
+    await expect
+      .element(page.getByRole('alert'))
+      .toHaveTextContent('The bookmark could not be saved. Please try again.');
+    await expect.element(page.getByLabelText('Name')).toHaveValue('Unsaved Dashboard');
+  });
+
+  it('names the limit when the server rejects another bookmark', async () => {
+    const { BookmarkRequestError } = await import('$lib/dashboard/bookmarks-api.js');
+    addBookmark.mockRejectedValue(new BookmarkRequestError(409));
+    renderModal();
+
+    await page.getByLabelText('URL').fill('https://superset.example.com');
+    await page.getByRole('button', { name: 'Add bookmark' }).click();
+
+    await expect
+      .element(page.getByRole('alert'))
+      .toHaveTextContent('You can have up to 25 bookmarks. Delete one to add another.');
+  });
+
+  it('returns to the edit dialog with an error when deleting fails', async () => {
+    removeBookmark.mockRejectedValue(new Error('500'));
+    renderModal({ bookmark: savedBookmark });
+
+    await page.getByRole('button', { name: 'Delete' }).click();
+    await page
+      .getByRole('dialog', { name: 'Delete bookmark?' })
+      .getByRole('button', { name: 'Delete' })
+      .click();
+
+    await expect.element(page.getByRole('dialog', { name: 'Edit bookmark' })).toBeVisible();
+    await expect
+      .element(page.getByRole('alert'))
+      .toHaveTextContent('The bookmark could not be deleted. Please try again.');
+  });
+
+  it('ignores further submits and stays open while a save is in progress', async () => {
+    addBookmark.mockReturnValue(new Promise(() => {}));
+    renderModal();
+
+    await page.getByLabelText('URL').fill('https://superset.example.com');
+    await userEvent.keyboard('{Enter}');
+    await expect
+      .element(page.getByRole('button', { name: 'Add bookmark' }))
+      .toHaveAttribute('aria-disabled', 'true');
+    await userEvent.keyboard('{Enter}');
+    await userEvent.keyboard('{Escape}');
+
+    expect(addBookmark).toHaveBeenCalledTimes(1);
+    await expect.element(page.getByRole('dialog', { name: 'Add bookmark' })).toBeVisible();
+    await expect.element(page.getByRole('status')).toHaveTextContent('Saving…');
   });
 });

@@ -4,9 +4,7 @@ postgresql::deploy() {
 
   log::info "Deploying PostgreSQL 18..."
   helm upgrade --install postgresql "$SCRIPT_DIR/postgresql" \
-    --namespace default \
-    --wait \
-    --timeout 60s
+    --namespace default
 
   # Helm does not recreate an unchanged workload deleted outside Helm.
   # Applying the rendered chart restores it on subsequent development setup runs.
@@ -18,7 +16,7 @@ postgresql::migrate() {
   [[ "$SKIP_POSTGRESQL" == true ]] && return 0
 
   log::info "Waiting for PostgreSQL to be ready..."
-  k8s::wait_for_pod app=postgresql 60
+  kubectl rollout status deployment/postgresql --namespace default --timeout=300s
 
   local postgresql_host
   if ! postgresql_host=$(probe::tcp_host 31432 60); then

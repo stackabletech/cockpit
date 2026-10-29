@@ -15,7 +15,7 @@ const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
 export default defineConfig(
   includeIgnoreFile(gitignorePath),
-  { ignores: ['src/lib/editor/generated/**', 'src/lib/server/migrate.ts', 'e2e/support/**'] },
+  { ignores: ['src/lib/editor/generated/**'] },
   js.configs.recommended,
   ...ts.configs.recommended,
   ...svelte.configs.recommended,
@@ -23,20 +23,23 @@ export default defineConfig(
   prettier,
   ...svelte.configs.prettier,
   {
+    linterOptions: { reportUnusedDisableDirectives: 'error' },
     languageOptions: {
       globals: { ...globals.browser, ...globals.node }
     },
     rules: {
       'no-undef': 'off',
-      'no-console': 'off',
+      // linterOptions.reportUnusedDisableDirectives does not cover comments in Svelte templates.
+      'svelte/comment-directive': ['error', { reportUnusedDisableDirectives: true }],
+      'no-console': 'error',
       // It will currently also error on external links or links with query parameters.
       // https://github.com/sveltejs/eslint-plugin-svelte/issues/1353
-      'svelte/no-navigation-without-resolve': 'warn',
+      'svelte/no-navigation-without-resolve': 'error',
       'svelte/no-restricted-html-elements': [
         'error',
         { elements: ['dialog'], message: 'Use the shared Modal component instead of <dialog>.' }
       ],
-      // Too common occurrence in this project, disabling for now.
+      // Flags every computed member access; nearly all hits are array indices or typed Record lookups.
       'security/detect-object-injection': 'off'
     }
   },
@@ -73,7 +76,8 @@ export default defineConfig(
             'tab-active',
             'tab-strip',
             'preview-scroll',
-            'modal-top-search'
+            'modal-top-search',
+            'table-pin-rows'
           ]
         }
       ],
@@ -88,8 +92,14 @@ export default defineConfig(
     }
   },
   {
-    files: ['src/lib/server/**/*.ts', 'src/routes/**/*.server.ts'],
-    rules: { 'no-console': 'error' }
+    // CLI scripts and E2E helper processes that run without the app's logger.
+    files: ['e2e/support/**/*.ts', 'src/lib/editor/grammar/patch-generated.mjs'],
+    rules: { 'no-console': 'off' }
+  },
+  {
+    // Tests read and write fixtures and temp files they create themselves.
+    files: ['**/*.{test,spec}.ts', 'e2e/**/*.ts', 'src/architecture-tests/**/*.ts'],
+    rules: { 'security/detect-non-literal-fs-filename': 'off' }
   },
   {
     files: ['src/**/*.ts'],
@@ -133,15 +143,6 @@ export default defineConfig(
   },
   {
     files: [
-      'src/lib/components/layout/sidebar/Sidebar.svelte',
-      'src/lib/components/storage/landing/RecentItems.svelte',
-      'src/routes/**/edit/+page.svelte',
-      'src/routes/(app)/storage/+layout.svelte'
-    ],
-    rules: { 'svelte/no-navigation-without-resolve': 'off' }
-  },
-  {
-    files: [
       'src/lib/client/**/*.ts',
       'src/lib/stores/**/*.ts',
       'src/lib/storage/**/*.ts',
@@ -177,8 +178,8 @@ export default defineConfig(
             {
               target: './src/lib/server',
               from: './src/lib/client',
-              // The server re-exports the PUBLIC_ flags it enforces, so each is parsed once.
-              except: ['./feature-flags.ts'],
+              // The server re-exports the PUBLIC_ flags and config it enforces, so each is parsed once.
+              except: ['./feature-flags.ts', './config.ts'],
               message: 'Server code must not import client-only utilities.'
             },
             {

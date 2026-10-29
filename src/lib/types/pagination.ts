@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import { allowedPageSizes, defaultPageSize } from '$lib/client/feature-flags.js';
+import { allowedPageSizes, defaultPageSize } from '$lib/client/config.js';
 
 export type PageSize = number;
 

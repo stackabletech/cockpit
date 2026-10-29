@@ -4,7 +4,7 @@
   import IconStorage from 'virtual:icons/material-symbols/storage';
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
   import * as m from '$lib/paraglide/messages.js';
-  import StorageErrorPanel from '$lib/components/storage/shared/StorageErrorPanel.svelte';
+  import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 
   function safeDecode(value: string): string {
     try {
@@ -74,5 +74,18 @@
     {/if}
   </div>
 
-  <StorageErrorPanel status={page.status} message={errorMessage ?? page.error?.message ?? ''} />
+  <ErrorPanel
+    status={page.status}
+    title={m.storage_error_title()}
+    description={errorMessage ?? page.error?.message ?? ''}
+  >
+    {#snippet actions()}
+      <a href={resolve('/(app)/storage')} class="btn btn-sm btn-primary">
+        {m.storage_error_back_to_storage()}
+      </a>
+      <button type="button" class="btn btn-ghost btn-sm" onclick={() => history.back()}>
+        {m.storage_error_go_back()}
+      </button>
+    {/snippet}
+  </ErrorPanel>
 </div>

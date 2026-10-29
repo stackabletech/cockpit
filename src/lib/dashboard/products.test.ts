@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getProduct, PRODUCTS } from './products';
+import { PRODUCT_IDS } from './product-ids';
 
 /** WCAG 2.1 relative luminance of a `#RRGGBB` colour. */
 function luminance(hex: string): number {
@@ -22,6 +23,10 @@ describe('PRODUCTS', () => {
       expect(contrastRatio(product.textColor, product.color)).toBeGreaterThanOrEqual(4.5);
     }
   );
+
+  it('defines a product for every product id, in the same order', () => {
+    expect(PRODUCTS.map((p) => p.id)).toEqual(PRODUCT_IDS);
+  });
 
   it('falls back to the custom product for unknown ids', () => {
     expect(getProduct('does-not-exist').id).toBe('custom');

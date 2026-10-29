@@ -2,7 +2,7 @@ import { and, desc, eq, gt, lte, inArray } from 'drizzle-orm';
 import { error, isHttpError } from '@sveltejs/kit';
 import { z } from 'zod';
 import { db } from '$lib/server/db.js';
-import { downloadHistoryRetentionMs } from '$lib/server/feature-flags.js';
+import { downloadHistoryRetentionMs } from '$lib/server/storage/config.js';
 import { logger } from '$lib/server/logging';
 import { storageDownloadManifests } from '$lib/server/schema.js';
 import { getConnectionForUser } from './connections-db.js';

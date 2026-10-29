@@ -81,7 +81,7 @@ test.describe('Trino API', () => {
       });
 
       expect(res.status()).toBe(400);
-      expect(await res.json()).toEqual({ error: expect.any(String) });
+      expect(await res.json()).toEqual({ message: expect.any(String) });
     });
 
     test('cancelling between statements stops the script', async ({ page }) => {

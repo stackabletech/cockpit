@@ -1,9 +1,13 @@
 import { page } from 'vitest/browser';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import type { Bookmark } from '$lib/dashboard/types';
 import Page from './+page.svelte';
 
-const renderPage = () => render(Page);
+const renderPage = (bookmarks: Bookmark[] | null = [], bookmarksFailed = false) =>
+  render(Page, {
+    data: { user: undefined, storageBrowserEnabled: false, bookmarks, bookmarksFailed }
+  } as unknown as Parameters<typeof render<typeof Page>>[1]);
 
 describe('/(app)/+page.svelte', () => {
   it('should render the platform heading', async () => {
@@ -11,25 +15,32 @@ describe('/(app)/+page.svelte', () => {
     await expect.element(page.getByRole('heading', { level: 2 })).toBeInTheDocument();
   });
 
-  it('should render the dashboard subtitle', async () => {
-    renderPage();
-    await expect.element(page.getByText(/bookmarks are added by hand/i)).toBeInTheDocument();
-  });
-
-  it('should render the Add Bookmark button', async () => {
-    renderPage();
-    await expect.element(page.getByRole('button', { name: /add bookmark/i })).toBeInTheDocument();
-  });
-
-  it('should render the bookmarks section heading', async () => {
+  it('should render the bookmarks section', async () => {
     renderPage();
     await expect
       .element(page.getByRole('heading', { level: 3, name: 'Bookmarks' }))
       .toBeInTheDocument();
   });
 
-  it('should show an empty state when there are no bookmarks', async () => {
-    renderPage();
-    await expect.element(page.getByText(/no bookmarks yet/i)).toBeInTheDocument();
+  it('says so when loading the bookmarks failed', async () => {
+    renderPage(null, true);
+
+    await expect
+      .element(page.getByText('Bookmarks could not be loaded. Please reload the page later.'))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole('button', { name: /add bookmark/i }))
+      .not.toBeInTheDocument();
+  });
+
+  it('hides everything bookmark-related without a signed-in user', async () => {
+    renderPage(null);
+
+    await expect.element(page.getByRole('heading', { level: 2 })).toBeInTheDocument();
+    await expect.element(page.getByRole('heading', { name: 'Bookmarks' })).not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole('button', { name: /add bookmark/i }))
+      .not.toBeInTheDocument();
+    await expect.element(page.getByText(/bookmarks are added by hand/i)).not.toBeInTheDocument();
   });
 });

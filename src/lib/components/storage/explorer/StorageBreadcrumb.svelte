@@ -19,7 +19,7 @@
   import type { StorageLocation } from '$lib/storage/types.js';
   import { keyToName } from '$lib/storage/utils.js';
   import { objectNameError } from '$lib/storage/name-validation.js';
-  import { storageMoveEnabled } from '$lib/client/feature-flags.js';
+  import { storageTransferEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDrop, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import OperationsButton from './OperationsButton.svelte';
   import ContextMenu from './ContextMenu.svelte';
@@ -345,7 +345,7 @@
         class="dropdown"
         class:dropdown-open={collapsedDropdownOpen}
         ondragover={(e) => {
-          if (!storageMoveEnabled) return;
+          if (!storageTransferEnabled) return;
           e.preventDefault();
         }}
         ondragenter={() => {

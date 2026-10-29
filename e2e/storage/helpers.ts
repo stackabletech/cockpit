@@ -206,7 +206,10 @@ export async function putTextObject(
 }
 
 export async function putDirectoryMarker(client: S3Client, bucket: string, key: string) {
-  await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: '' }));
+  // The SDK sets no Content-Length for a falsy body, so '' triggers its stream warning.
+  await client.send(
+    new PutObjectCommand({ Bucket: bucket, Key: key, Body: Buffer.alloc(0), ContentLength: 0 })
+  );
 }
 
 export async function deleteKnownKeys(client: S3Client, bucket: string, keys: string[]) {

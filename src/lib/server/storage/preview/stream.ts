@@ -7,7 +7,7 @@ import {
   filePreviewRows,
   filePreviewColumns,
   maxEditableFileSize
-} from '$lib/server/feature-flags.js';
+} from '$lib/server/storage/config.js';
 import { isEditableTextObject } from '$lib/storage/text-content-type.js';
 
 /**

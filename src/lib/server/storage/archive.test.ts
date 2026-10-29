@@ -13,7 +13,7 @@ vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 const DEFAULT_CACHE_MAX_BYTES = 512 * 1024 * 1024;
 const flags = vi.hoisted(() => ({ archiveCacheMaxBytes: 512 * 1024 * 1024 }));
-vi.mock('$lib/server/feature-flags.js', () => ({
+vi.mock('$lib/server/storage/config.js', () => ({
   get archiveCacheMaxBytes() {
     return flags.archiveCacheMaxBytes;
   }
@@ -54,7 +54,6 @@ function makeZip(path: string, entries: Record<string, string | Buffer>): void {
 function makeTar(path: string, entries: Record<string, string>): Promise<void> {
   return new Promise((resolve, reject) => {
     const pack = tar.pack();
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const ws = createWriteStream(path);
     pack.pipe(ws);
     for (const [name, content] of Object.entries(entries)) {
@@ -70,7 +69,6 @@ function makeTarGz(path: string, entries: Record<string, string>): Promise<void>
   return new Promise((resolve, reject) => {
     const pack = tar.pack();
     const gz = createGzip();
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const ws = createWriteStream(path);
     pack.pipe(gz).pipe(ws);
     for (const [name, content] of Object.entries(entries)) {
@@ -111,7 +109,6 @@ function bufferStream(data: Buffer): ReadableStream {
 }
 
 const dummyDownloadFn: ArchiveDownloadFn = (key: string) =>
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   Promise.resolve({ stream: bufferStream(readFileSync(key)) });
 
 describe('getArchiveFormat', () => {
@@ -158,14 +155,12 @@ describe('listArchiveContents', () => {
     clearArchiveCache();
     for (const p of cleanupPaths) {
       try {
-        // eslint-disable-next-line security/detect-non-literal-fs-filename
         if (existsSync(p)) unlinkSync(p);
       } catch {
         /* noop */
       }
     }
     try {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
       if (existsSync(testDir)) unlinkSync(testDir);
     } catch {
       /* noop */
@@ -693,13 +688,10 @@ describe('Cache invalidation', () => {
 /** Number of archive files this test worker currently has on disk. */
 function cachedFileCount(): number {
   const root = join(tmpdir(), 'cockpit-archive-cache');
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (!existsSync(root)) return 0;
   let count = 0;
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   for (const name of readdirSync(root)) {
     if (!name.startsWith(`${process.pid}.${threadId}-`)) continue;
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     count += readdirSync(join(root, name)).length;
   }
   return count;
@@ -848,10 +840,8 @@ describe('Cache limits', () => {
       makeZip(path, { 'random.bin': randomBytes(1000) });
       return path;
     });
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const sizes = paths.map((path) => statSync(path).size);
     flags.archiveCacheMaxBytes = sizes[0] + sizes[1] + 10;
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const metadataFn = vi.fn(async (key: string) => ({ size: statSync(key).size, etag: '"v1"' }));
     const downloadSpy = vi.fn(dummyDownloadFn);
 
@@ -888,14 +878,12 @@ describe('Cache limits', () => {
 
   it('counts nested archives towards the cache size', async () => {
     const outerPath = makeNestedZip();
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const innerSize = statSync(testPath('inner.zip')).size;
 
     await listArchiveContents('test-bucket', outerPath, '', dummyDownloadFn, head(), {
       nestedArchivePath: 'archives/inner.zip'
     });
 
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     expect(archiveCacheBytes()).toBe(statSync(outerPath).size + innerSize);
     expect(cachedFileCount()).toBe(2);
   });

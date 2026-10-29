@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getProvider } from './utils.js';
 import { withStorageHttpErrors } from './wrap-provider.js';
+import { notConnected } from './not-connected.js';
 import type { StorageProvider } from './provider.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
 import { StorageObjectKeySchema } from '$lib/storage/schemas.js';
@@ -23,14 +24,14 @@ export function requireObjectKey(event: RequestEvent): string {
 
 export function requireConfig(event: RequestEvent) {
   const config = event.locals.storageConfig;
-  if (!config) throw error(401, 'No storage connection configured');
+  if (!config) notConnected();
   return config;
 }
 
 /** The connection id is captured for a manifest, never its decrypted config. */
 export function requireStorageConnectionId(event: RequestEvent): string {
   const connectionId = event.request.headers.get(STORAGE_CONNECTION_ID_HEADER);
-  if (!connectionId) throw error(401, 'No storage connection configured');
+  if (!connectionId) notConnected();
   return connectionId;
 }
 

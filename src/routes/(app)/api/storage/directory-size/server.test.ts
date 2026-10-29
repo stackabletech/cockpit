@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { error } from '@sveltejs/kit';
 import type { DirectorySizeEvent } from '$lib/storage/details-types.js';
 import type { ProgressiveListOptions } from '$lib/server/storage/provider.js';
 
@@ -64,6 +65,19 @@ describe('GET /api/storage/directory-size', () => {
 
     const events = await readEvents(await GET(mockEvent('p/')));
     expect(events).toEqual([{ type: 'error', message: 'Access Denied' }]);
+  });
+
+  it('sends the message of a mapped storage error', async () => {
+    let httpError: unknown;
+    try {
+      error(403, 'Access denied to bucket');
+    } catch (err) {
+      httpError = err;
+    }
+    mockProvider.listAllKeysProgressively.mockRejectedValue(httpError);
+
+    const events = await readEvents(await GET(mockEvent('p/')));
+    expect(events).toEqual([{ type: 'error', message: 'Access denied to bucket' }]);
   });
 
   it('aborts the listing when the client goes away', async () => {

@@ -346,7 +346,8 @@ test.describe('Storage S3 — Upload', () => {
       const warning = page.getByRole('dialog', { name: 'Upload in progress' });
       await page.goBack();
       await expect(warning).toBeVisible();
-      expect(page.url()).toBe(browseUrl);
+      // SvelteKit restores the URL of a cancelled Back asynchronously.
+      await expect(page).toHaveURL(browseUrl);
       await warning.getByRole('button', { name: 'Stay' }).click();
       await expect(warning).toBeHidden();
       await expect(page.getByRole('heading', { name: 'Upload', exact: true })).toBeVisible();

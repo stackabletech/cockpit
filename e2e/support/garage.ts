@@ -37,7 +37,6 @@ function readString(value: unknown, keys: string[]): string | null {
   }
 
   for (const key of keys) {
-    // eslint-disable-next-line security/detect-object-injection
     const candidate = record[key];
     if (typeof candidate === 'string' && candidate.length > 0) {
       return candidate;
@@ -54,7 +53,6 @@ function readStringArray(value: unknown, keys: string[]): string[] {
   }
 
   for (const key of keys) {
-    // eslint-disable-next-line security/detect-object-injection
     const candidate = record[key];
     if (Array.isArray(candidate)) {
       return candidate.filter((item): item is string => typeof item === 'string');
@@ -75,7 +73,6 @@ function extractAdminList(value: unknown): JsonRecord[] {
   }
 
   for (const key of ADMIN_LIST_KEYS) {
-    // eslint-disable-next-line security/detect-object-injection
     const candidate = record[key];
     if (Array.isArray(candidate)) {
       return candidate
@@ -152,7 +149,17 @@ async function ensureBucket(bucketName: string): Promise<string> {
     return existingId;
   }
 
-  const created = await adminPost('/v2/CreateBucket', { globalAlias: bucketName });
+  let created: unknown;
+  try {
+    created = await adminPost('/v2/CreateBucket', { globalAlias: bucketName });
+  } catch (err) {
+    // Another worker may have created the bucket since the lookup above.
+    const racedId = await findBucketId(bucketName);
+    if (racedId) {
+      return racedId;
+    }
+    throw err;
+  }
   const createdId = readString(created, ['id', 'bucketId', 'bucket_id']);
 
   if (createdId) {

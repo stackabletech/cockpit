@@ -200,7 +200,6 @@
           {#each storage.bookmarks.pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
             {@const active = isPinnedActive(pin)}
             <li class="group relative">
-              <!-- eslint-disable svelte/no-navigation-without-resolve -->
               <TooltipTrigger text={locationLabel(pin)} orientation="right">
                 <a
                   href={locationHref(storage.connectionHostname, pin)}
@@ -215,7 +214,6 @@
                   ondragleave={handleSidebarDragLeave}
                   ondrop={(e) => handleSidebarDrop(e, pin.bucket, pin.prefix)}
                 >
-                  <!-- eslint-enable svelte/no-navigation-without-resolve -->
                   {#if pin.prefix === ''}
                     <IconBucket class="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
                   {:else}

@@ -56,18 +56,17 @@ describe('POST /api/trino/query', () => {
   it('returns 400 when no Trino connection is configured', async () => {
     vi.mocked(resolveTrinoClient).mockReturnValue(null);
 
-    const res = await POST(postEvent({ statements: ['SELECT 1'], tabId: TAB_ID }));
-
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: 'No Trino connection configured' });
+    await expect(
+      POST(postEvent({ statements: ['SELECT 1'], tabId: TAB_ID }))
+    ).rejects.toMatchObject({ status: 400, body: { message: 'No Trino connection configured' } });
     expect(startScript).not.toHaveBeenCalled();
   });
 
   it('returns 400 for a body that is not valid JSON', async () => {
-    const res = await POST(postEvent('{not json'));
-
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: 'Invalid JSON body' });
+    await expect(POST(postEvent('{not json'))).rejects.toMatchObject({
+      status: 400,
+      body: { message: 'Invalid JSON body' }
+    });
   });
 
   it.each([
@@ -76,10 +75,10 @@ describe('POST /api/trino/query', () => {
     ['a non-UUID tabId', { statements: ['SELECT 1'], tabId: 'tab-1' }],
     ['a missing tabId', { statements: ['SELECT 1'] }]
   ])('returns 400 for %s', async (_label, body) => {
-    const res = await POST(postEvent(body));
-
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toEqual(expect.any(String));
+    await expect(POST(postEvent(body))).rejects.toMatchObject({
+      status: 400,
+      body: { message: expect.any(String) }
+    });
     expect(startScript).not.toHaveBeenCalled();
   });
 
@@ -142,9 +141,7 @@ describe('GET /api/trino/query', () => {
     ['missing', ''],
     ['invalid', 'tabId=not-a-uuid']
   ])('returns 400 when tabId is %s', async (_label, params) => {
-    const res = await GET(urlEvent(params));
-
-    expect(res.status).toBe(400);
+    await expect(GET(urlEvent(params))).rejects.toMatchObject({ status: 400 });
     expect(getQuerySnapshots).not.toHaveBeenCalled();
   });
 
@@ -173,9 +170,7 @@ describe('DELETE /api/trino/query', () => {
   });
 
   it('returns 400 when tabId is invalid', async () => {
-    const res = await DELETE(urlEvent('tabId=nope'));
-
-    expect(res.status).toBe(400);
+    await expect(DELETE(urlEvent('tabId=nope'))).rejects.toMatchObject({ status: 400 });
     expect(cancelQuery).not.toHaveBeenCalled();
   });
 

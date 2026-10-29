@@ -1,8 +1,9 @@
 import type { Picture } from '@sveltejs/enhanced-img';
 import * as m from '$lib/paraglide/messages.js';
+import type { ProductId } from './product-ids';
 
 export interface Product {
-  id: string;
+  id: ProductId;
   /** Proper noun, except for the custom link, which is localised. */
   readonly name: string;
   initials: string;

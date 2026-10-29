@@ -13,9 +13,6 @@ export const defaultOptions = {
   logging: { enabled: false, level: 'warn' as const }
 };
 
-// These tests deliberately inspect a discovered source tree rather than
-// application-controlled input paths.
-/* eslint-disable security/detect-non-literal-fs-filename */
 export function readTextFile(file: string): string {
   return readFileSync(file, 'utf-8');
 }

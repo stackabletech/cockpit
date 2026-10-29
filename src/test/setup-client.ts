@@ -1,21 +1,17 @@
 import { vi, beforeEach } from 'vitest';
 
-// Mock client feature flags so tests don't try to resolve the SvelteKit
-// $env/dynamic/public virtual module, which is undefined in the Vitest
-// browser environment. Values match the defaults used in production when no
-// env vars are set.
+// Mock client feature flags and config so tests don't try to resolve the
+// SvelteKit $env/dynamic/public virtual module, which is undefined in the
+// Vitest browser environment. Values match the production defaults.
 vi.mock('$lib/client/feature-flags.js', () => ({
-  storageRestoreTabsEnabled: false,
-  infiniteScrollEnabled: true,
+  storageTransferEnabled: false
+}));
+vi.mock('$lib/client/config.js', () => ({
   allowedPageSizes: [25, 50, 100],
   defaultPageSize: 25,
   maxRecentFiles: 15,
   maxEditableFileSize: 5 * 1024 * 1024,
-  uploadConcurrency: 3,
-  storageCutCopyEnabled: false,
-  storagePasteEnabled: false,
-  storageRenameEnabled: false,
-  storageMoveEnabled: false
+  uploadConcurrency: 3
 }));
 
 // Prevent components from auto-submitting forms in browser tests.

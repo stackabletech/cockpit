@@ -1,7 +1,7 @@
 import { error, isHttpError, json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { createStorageProvider, requireObjectKey } from '$lib/server/storage/request-context.js';
-import { maxEditableFileSize } from '$lib/server/feature-flags.js';
+import { maxEditableFileSize } from '$lib/server/storage/config.js';
 import type { RequestHandler } from './$types';
 
 const saveTextQuerySchema = z.object({

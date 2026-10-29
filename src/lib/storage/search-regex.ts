@@ -38,6 +38,7 @@ export function createSafeSearchRegex(pattern: string): RegExp {
   assertSafe(ast);
 
   try {
+    // eslint-disable-next-line security/detect-non-literal-regexp -- pattern is checked by assertSafe() above
     return new RegExp(pattern, 'i');
   } catch {
     throw new UnsafeSearchRegexError('Regular expression is invalid');

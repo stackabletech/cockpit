@@ -12,12 +12,8 @@ import type {
   StorageOperation
 } from '$lib/storage/types.js';
 import { initPageSize, type PageSize } from '$lib/types/pagination.js';
-import {
-  defaultPageSize,
-  storageCutCopyEnabled,
-  storagePasteEnabled,
-  storageRenameEnabled
-} from '$lib/client/feature-flags.js';
+import { defaultPageSize } from '$lib/client/config.js';
+import { storageTransferEnabled } from '$lib/client/feature-flags.js';
 import {
   estimateArchiveSize,
   startDownload,
@@ -645,7 +641,7 @@ export class StorageState {
       }
 
       case 'cut': {
-        if (!storageCutCopyEnabled) return;
+        if (!storageTransferEnabled) return;
         const cutKeys = [...this.selectedKeys];
         if (cutKeys.length === 0) return;
         this.clipboardState.cut(cutKeys, this.objects, this.bucket, this.prefix);
@@ -653,7 +649,7 @@ export class StorageState {
       }
 
       case 'copy': {
-        if (!storageCutCopyEnabled) return;
+        if (!storageTransferEnabled) return;
         const copyKeys = [...this.selectedKeys];
         if (copyKeys.length === 0) return;
         this.clipboardState.copy(copyKeys, this.objects, this.bucket, this.prefix);
@@ -661,7 +657,7 @@ export class StorageState {
       }
 
       case 'paste': {
-        if (!storagePasteEnabled) return;
+        if (!storageTransferEnabled) return;
         if (!this.clipboardState.clipboard || this.clipboardState.clipboard.keys.length === 0)
           return;
         if (!this.clipboardState.canPaste) {
@@ -679,7 +675,7 @@ export class StorageState {
       }
 
       case 'rename': {
-        if (!storageRenameEnabled) return;
+        if (!storageTransferEnabled) return;
         const renameKey = ctxKey ?? [...this.selectedKeys][0];
         if (!renameKey) return;
         this.renameError = null;
