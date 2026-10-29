@@ -96,7 +96,7 @@
     "adm-zip": "^0.6.1",
     "antlr4-c3": "^3.4.4",
     "antlr4ng": "^3.0.16",
-    "better-auth": "^1.6.33",
+    "better-auth": "^1.7.7",
     "drizzle-orm": "^0.45.2",
     "hyparquet": "^1.25.8",
     "hyparquet-compressors": "^1.1.1",
