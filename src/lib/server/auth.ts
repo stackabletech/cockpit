@@ -4,8 +4,10 @@ import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { genericOAuth, openAPI } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import type { RequestEvent } from '@sveltejs/kit';
+import { z } from 'zod';
 import { db } from './db.js';
 import * as schema from './auth-schema.js';
+import { envList, envString, envUrl, parseEnv } from '../env-schema.js';
 
 // Dynamic imports with fallbacks for non-SvelteKit contexts.
 const envModule = await import('$env/dynamic/private').catch(() => null);
@@ -28,23 +30,40 @@ function guardTrinoUserWrite(data: Record<string, unknown>, context: { path?: st
   throw new APIError('FORBIDDEN', { message: 'trinoUser is not allowed to be set' });
 }
 
-const trinoUserClaim = env.STACKABLE_COCKPIT_TRINO_USER_CLAIM ?? 'preferred_username';
+const OIDC_REQUIRED = [
+  'STACKABLE_COCKPIT_OIDC_DISCOVERY_URL',
+  'STACKABLE_COCKPIT_OIDC_CLIENT_ID',
+  'STACKABLE_COCKPIT_OIDC_CLIENT_SECRET'
+] as const;
+
+// OIDC is enabled only when all required variables are set. Setting only some
+// of them is a startup error, not a silently disabled login.
+const config = parseEnv(
+  z
+    .object({
+      STACKABLE_COCKPIT_OIDC_DISCOVERY_URL: envUrl,
+      STACKABLE_COCKPIT_OIDC_CLIENT_ID: envString,
+      STACKABLE_COCKPIT_OIDC_CLIENT_SECRET: envString,
+      STACKABLE_COCKPIT_OIDC_EXTRA_SCOPES: envList([], /[\s,]+/),
+      STACKABLE_COCKPIT_TRINO_USER_CLAIM: envString.pipe(z.string().default('preferred_username'))
+    })
+    .refine(
+      (values) => {
+        const set = OIDC_REQUIRED.filter((name) => values[name]).length;
+        return set === 0 || set === OIDC_REQUIRED.length;
+      },
+      { message: `set all or none of ${OIDC_REQUIRED.join(', ')}` }
+    ),
+  env
+);
+
+const trinoUserClaim = config.STACKABLE_COCKPIT_TRINO_USER_CLAIM;
 
 const defaultScopes = ['openid', 'profile', 'email'];
 
-const extraScopes = (env.STACKABLE_COCKPIT_OIDC_EXTRA_SCOPES ?? '')
-  .split(/[\s,]+/)
-  .map((scope) => scope.trim())
-  .filter(Boolean);
+const oidcScopes = [...new Set([...defaultScopes, ...config.STACKABLE_COCKPIT_OIDC_EXTRA_SCOPES])];
 
-const oidcScopes = [...new Set([...defaultScopes, ...extraScopes])];
-
-// OIDC is enabled only when all required OIDC env vars are present.
-export const oidcEnabled = !!(
-  env.STACKABLE_COCKPIT_OIDC_DISCOVERY_URL &&
-  env.STACKABLE_COCKPIT_OIDC_CLIENT_ID &&
-  env.STACKABLE_COCKPIT_OIDC_CLIENT_SECRET
-);
+export const oidcEnabled = OIDC_REQUIRED.every((name) => config[name]);
 
 export const auth = betterAuth({
   secret: env.STACKABLE_COCKPIT_SESSION_SECRET,
@@ -89,9 +108,9 @@ export const auth = betterAuth({
             config: [
               {
                 providerId: 'oidc',
-                discoveryUrl: env.STACKABLE_COCKPIT_OIDC_DISCOVERY_URL,
-                clientId: env.STACKABLE_COCKPIT_OIDC_CLIENT_ID!,
-                clientSecret: env.STACKABLE_COCKPIT_OIDC_CLIENT_SECRET!,
+                discoveryUrl: config.STACKABLE_COCKPIT_OIDC_DISCOVERY_URL!,
+                clientId: config.STACKABLE_COCKPIT_OIDC_CLIENT_ID!,
+                clientSecret: config.STACKABLE_COCKPIT_OIDC_CLIENT_SECRET!,
                 scopes: oidcScopes,
                 pkce: true,
                 // Refresh the user from the IdP on every login, so changes to the

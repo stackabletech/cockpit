@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { parseAdditionalUserInputFromProviderProfile } from 'better-auth/db';
 import { auth } from './auth.js';
 
@@ -35,5 +35,20 @@ describe('user.additionalFields.trinoUser', () => {
 
   it('leaves other user updates alone', async () => {
     await expect(update({ emailVerified: true }, '/update-user')).resolves.toBeUndefined();
+  });
+});
+
+describe('OIDC configuration', () => {
+  it('fails at startup when only some of the OIDC variables are set', async () => {
+    vi.resetModules();
+    vi.doMock('$env/dynamic/private', () => ({
+      env: { STACKABLE_COCKPIT_OIDC_CLIENT_ID: 'cockpit' }
+    }));
+    try {
+      await expect(import('./auth.js')).rejects.toThrow(/set all or none of/);
+    } finally {
+      vi.doUnmock('$env/dynamic/private');
+      vi.resetModules();
+    }
   });
 });
