@@ -1,5 +1,5 @@
 import { betterAuth } from 'better-auth';
-import { APIError } from 'better-auth/api';
+import { APIError, callbackOAuth } from 'better-auth/api';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { genericOAuth, openAPI } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
@@ -19,8 +19,9 @@ const log = loggingModule?.logger.child({ module: 'auth' });
 // trinoUser is the Trino user we impersonate, so only the OIDC callback may
 // write it. Marking the field `input: false` would also block that: better-auth
 // drops such fields from the provider profile on sign-up (see #371). Database
-// hooks see the endpoint's route template, not the request path.
-const trinoUserWritePath = '/oauth2/callback/:providerId';
+// hooks see the endpoint's route template, not the request path. The generic
+// OAuth provider shares the social sign-in callback endpoint.
+const trinoUserWritePath = callbackOAuth.path;
 
 function guardTrinoUserWrite(data: Record<string, unknown>, context: { path?: string } | null) {
   if (!('trinoUser' in data) || context?.path === trinoUserWritePath) return;

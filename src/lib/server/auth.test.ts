@@ -17,7 +17,7 @@ describe('user.additionalFields.trinoUser', () => {
 
   it('may be written by the OIDC callback', async () => {
     await expect(
-      create({ email: 'alice@example.com', trinoUser: 'alice' }, '/oauth2/callback/:providerId')
+      create({ email: 'alice@example.com', trinoUser: 'alice' }, '/callback/:id')
     ).resolves.toBeUndefined();
   });
 
