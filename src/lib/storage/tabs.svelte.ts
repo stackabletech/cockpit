@@ -4,6 +4,7 @@ import type { StoragePage } from '$lib/storage/types.js';
 import type { PageSize } from '$lib/types/pagination.js';
 import type { StorageState } from './state.svelte.js';
 import { LS_TABS } from './persistence.js';
+import { randomUUID } from '$lib/utils/uuid.js';
 import { keyToName, parentPrefix } from './utils.js';
 
 // ── Tab data ─────────────────────────────────────────────────────────────────
@@ -203,7 +204,7 @@ export class TabsState {
     const activeIdx = saved.tabs.findIndex((pt) => pt.id === saved.activeTabId);
 
     this.tabs = saved.tabs.map((pt) => ({
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       label: pt.label,
       stub: true,
       snapshot: {
@@ -284,7 +285,7 @@ export class TabsState {
       }
     }
 
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const label = this.computeAutoLabel();
     this.tabs = [{ id, label, stub: false, snapshot: this.captureSnapshot() }];
     this.activeTabId = id;
@@ -376,7 +377,7 @@ export class TabsState {
   /** Adds a new tab at the current location and switches to it. */
   addTab(): void {
     this.syncActiveTab();
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const label = this.computeAutoLabel();
     const newTab: Tab = { id, label, stub: false, snapshot: this.captureSnapshot() };
     newTab.snapshot.selectedKeys = [];

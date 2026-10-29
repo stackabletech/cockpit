@@ -106,6 +106,15 @@ The project uses **pino** for structured JSON logging (server-side only).
 - Use snake_case field names for queryability: `request_id`, `user_id`, `module`, `duration_ms`, `status_code`, `path`, `method`
 - Never log tokens, credentials, or full request/session objects directly — add redaction paths to `src/lib/server/logging/redaction.ts`
 
+### Secure Context APIs (HTTPS)
+
+Some Web APIs are only exposed in a **secure context** (HTTPS, or `localhost`). Over plain HTTP on any other host they are `undefined`, and calling them throws — while the page itself still returns 200, so the failure only appears in the browser console.
+
+- `crypto.randomUUID()` — **not available over HTTP.** Always use `randomUUID()` from `$lib/utils/uuid.js`, which falls back to `crypto.getRandomValues()`. Do not call `crypto.randomUUID()` directly in client code.
+- `crypto.subtle`, service workers and the push API have the same restriction and no `getRandomValues` fallback — check support before relying on them.
+
+Server-side code may use `node:crypto` freely.
+
 ### Monaco Editor
 
 - Always use **dynamic imports** to avoid SSR issues (`import('monaco-editor')`)
