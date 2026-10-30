@@ -2,26 +2,31 @@
   import { SvelteSet } from 'svelte/reactivity';
   import * as m from '$lib/paraglide/messages.js';
   import IconAdd from 'virtual:icons/material-symbols/add';
-  import IconEdit from 'virtual:icons/material-symbols/edit';
-  import IconStar from 'virtual:icons/material-symbols/star';
-  import IconStarOutline from 'virtual:icons/material-symbols/star-outline';
   import AddBookmarkModal from '$lib/components/dashboard/AddBookmarkModal.svelte';
+  import BookmarkCard from '$lib/components/dashboard/BookmarkCard.svelte';
   import { updateBookmark } from '$lib/dashboard/bookmarks-api.js';
   import { addToast } from '$lib/stores/toast.svelte.js';
-  import { getProduct } from '$lib/dashboard/products';
-  import ProductIcon from '$lib/components/dashboard/ProductIcon.svelte';
-  import { bookmarkHostname, type Bookmark } from '$lib/dashboard/types';
+  import { bookmarksInDisplayOrder, type Bookmark, type BookmarkLink } from '$lib/dashboard/types';
 
   let {
-    bookmarks
+    bookmarks,
+    globalBookmarks = [],
+    loadFailed = false
   }: {
-    /** Null when loading them failed: the section says so instead of listing them. */
+    /** The user's bookmarks; null when unavailable, which leaves only the global ones. */
     bookmarks: Bookmark[] | null;
+    /** Read-only bookmarks for everyone, shown before the user's. */
+    globalBookmarks?: BookmarkLink[];
+    /** Loading the user's bookmarks failed: the section says so. */
+    loadFailed?: boolean;
   } = $props();
 
   let addModalOpen = $state(false);
   let editingBookmark: Bookmark | null = $state(null);
   const pinning = new SvelteSet<string>();
+
+  const allBookmarks = $derived(bookmarksInDisplayOrder(globalBookmarks, bookmarks));
+  const count = $derived(allBookmarks.length);
 
   function openEditBookmark(bookmark: Bookmark) {
     editingBookmark = bookmark;
@@ -60,9 +65,9 @@
         >
           {m.bookmark_section_title()}
         </h3>
-        {#if bookmarks?.length}
+        {#if count > 0}
           <span class="text-base-content/70 text-xs">
-            {m.bookmark_count_links({ count: bookmarks.length })}
+            {m.bookmark_count_links({ count })}
           </span>
         {/if}
       </div>
@@ -78,80 +83,27 @@
     {/if}
   </div>
 
-  {#if !bookmarks}
-    <div class="alert alert-warning text-sm">{m.bookmark_load_error()}</div>
-  {:else if bookmarks.length > 0}
+  {#if loadFailed}
+    <div class="alert alert-warning mb-2.5 text-sm">{m.bookmark_load_error()}</div>
+  {/if}
+  {#if count > 0}
     <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-      {#each bookmarks as bookmark (bookmark.id)}
-        {@const product = getProduct(bookmark.productId)}
-        <div class="border-base-300 bg-base-100 flex items-center gap-3 rounded-lg border p-3">
-          <!-- Mouse shortcut only: duplicates the title link, so it is hidden from
-             assistive technology and the tab order. -->
-          <a
-            href={bookmark.url}
-            target="_blank"
-            rel="external noopener noreferrer"
-            class="shrink-0"
-            tabindex="-1"
-            aria-hidden="true"
-          >
-            <ProductIcon {product} size="md" />
-          </a>
-          <div class="min-w-0 flex-1">
-            <div class="min-w-0">
-              <a
-                href={bookmark.url}
-                target="_blank"
-                rel="external noopener noreferrer"
-                class="text-base-content block truncate text-[13.5px] leading-tight font-bold"
-              >
-                {bookmark.name}
-              </a>
-            </div>
-            <div class="mt-1 flex flex-wrap items-center gap-1.5">
-              <span class="bg-base-300 text-muted rounded-full px-2 py-0.5 text-[11px]">
-                {product.name}
-              </span>
-              {#if bookmark.environment}
-                <span class="bg-base-300 text-muted rounded-full px-2 py-0.5 text-[11px]">
-                  {bookmark.environment}
-                </span>
-              {/if}
-            </div>
-            <div class="min-w-0">
-              <span class="text-base-content/70 block truncate font-mono text-[11.5px]">
-                {bookmarkHostname(bookmark.url)}
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            class="btn btn-ghost btn-circle btn-sm size-7 shrink-0"
-            aria-label={bookmark.pinned
-              ? m.bookmark_card_unpin({ name: bookmark.name })
-              : m.bookmark_card_pin({ name: bookmark.name })}
-            class:btn-disabled={pinning.has(bookmark.id)}
-            aria-disabled={pinning.has(bookmark.id)}
-            onclick={() => togglePin(bookmark)}
-          >
-            {#if bookmark.pinned}
-              <IconStar class="text-warning size-3.5" />
-            {:else}
-              <IconStarOutline class="size-3.5" />
-            {/if}
-          </button>
-          <button
-            type="button"
-            class="btn btn-ghost btn-circle btn-sm size-7 shrink-0"
-            aria-label={m.bookmark_card_edit({ name: bookmark.name })}
-            onclick={() => openEditBookmark(bookmark)}
-          >
-            <IconEdit class="size-3.5" />
-          </button>
-        </div>
+      {#each allBookmarks as bookmark (bookmark.id)}
+        <!-- Only the user's own bookmarks can be pinned and edited; global ones are read-only. -->
+        {@const own = bookmarks?.find((b) => b.id === bookmark.id)}
+        {#if own}
+          <BookmarkCard
+            bookmark={own}
+            pinPending={pinning.has(own.id)}
+            onTogglePin={() => togglePin(own)}
+            onEdit={() => openEditBookmark(own)}
+          />
+        {:else}
+          <BookmarkCard {bookmark} />
+        {/if}
       {/each}
     </div>
-  {:else}
+  {:else if !loadFailed}
     <div class="border-base-300 bg-base-100 rounded-lg border p-6 text-center">
       <p class="text-base-content/70 text-sm">{m.dashboard_bookmarks_empty()}</p>
     </div>

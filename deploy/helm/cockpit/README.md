@@ -145,6 +145,12 @@ Limits and tuning for the file browser. Empty values use the application default
 | `storage.parquetPreviewDisallowedCompressionTypes` | Comma-separated Parquet compression codecs that are not previewed. A `-no_offset` suffix (e.g. `gzip-no_offset`) only blocks files without an offset index. | `""` (application default `gzip-no_offset`) |
 | `storage.downloadHistoryRetentionDays` | Days a user's download history is kept. Integer from 1 to 3650. | `""` (application default `30`) |
 
+### Bookmark Parameters
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `bookmarks.global` | Bookmarks shown to every user, before their own; users cannot change them. A list of entries with `productId` (e.g. `trino`, `superset` or `custom`; unknown ids show as a custom link), `name` (up to 40 characters) and an HTTP(S) `url`, plus optional `environment` and `pinned`. Must be a YAML list, not a JSON string. Invalid entries stop the application at startup. | `[]` |
+
 ### Authentication Parameters
 
 OIDC is the only supported auth mechanism. Disable for local testing.

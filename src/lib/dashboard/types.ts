@@ -18,8 +18,11 @@ export const bookmarkFormSchema = z.object({
   pinned: z.boolean()
 });
 
-/** A stored bookmark as returned by the API; `createdAt` is an ISO timestamp. */
-export type Bookmark = z.infer<typeof bookmarkFormSchema> & { id: string; createdAt: string };
+/** The fields every bookmark is displayed with; the id keys it in lists. */
+export type BookmarkLink = z.infer<typeof bookmarkFormSchema> & { id: string };
+
+/** A user's stored bookmark as returned by the API; `createdAt` is an ISO timestamp. */
+export type Bookmark = BookmarkLink & { createdAt: string };
 
 /**
  * Body of a bookmark create request. Stored bookmarks keep any product id, so a
@@ -35,6 +38,17 @@ export const bookmarkUpdateSchema = bookmarkCreateSchema
   .refine((update) => Object.keys(update).length > 0, { message: 'No fields to update' });
 
 export type BookmarkUpdate = z.infer<typeof bookmarkUpdateSchema>;
+
+/**
+ * All bookmarks in the order the dashboard and the sidebar list them: the
+ * global ones first, then the user's own.
+ */
+export function bookmarksInDisplayOrder(
+  globalBookmarks: BookmarkLink[],
+  bookmarks: Bookmark[] | null
+): BookmarkLink[] {
+  return [...globalBookmarks, ...(bookmarks ?? [])];
+}
 
 /** Hostname of a bookmark URL, or the input unchanged if it does not parse. */
 export function bookmarkHostname(url: string): string {

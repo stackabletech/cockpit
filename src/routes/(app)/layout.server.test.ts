@@ -4,8 +4,20 @@ const { listBookmarks } = vi.hoisted(() => ({ listBookmarks: vi.fn() }));
 
 vi.mock('$lib/server/dashboard/bookmarks-db.js', () => ({ listBookmarks }));
 vi.mock('$lib/server/feature-flags.js', () => ({ storageBrowserEnabled: false }));
+vi.mock('$lib/server/dashboard/config.js', () => ({ globalBookmarks: [GLOBAL_BOOKMARK] }));
 
 import { load } from './+layout.server.js';
+
+const { GLOBAL_BOOKMARK } = vi.hoisted(() => ({
+  GLOBAL_BOOKMARK: {
+    id: 'global-0',
+    productId: 'custom',
+    name: 'Team Wiki',
+    environment: '',
+    url: 'https://wiki.example.com',
+    pinned: true
+  }
+}));
 
 const BOOKMARK = {
   id: '00000000-0000-0000-0000-000000000001',
@@ -33,15 +45,23 @@ describe('(app) layout load', () => {
 
     const data = await load(event);
 
-    expect(data).toMatchObject({ bookmarks: [BOOKMARK], bookmarksFailed: false });
+    expect(data).toMatchObject({
+      bookmarks: [BOOKMARK],
+      bookmarksFailed: false,
+      globalBookmarks: [GLOBAL_BOOKMARK]
+    });
     expect(listBookmarks).toHaveBeenCalledWith('user-1');
     expect(event.depends).toHaveBeenCalledWith('app:bookmarks');
   });
 
-  it('has no bookmarks without a signed-in user', async () => {
+  it('has only the global bookmarks without a signed-in user', async () => {
     const data = await load(mockEvent(undefined));
 
-    expect(data).toMatchObject({ bookmarks: null, bookmarksFailed: false });
+    expect(data).toMatchObject({
+      bookmarks: null,
+      bookmarksFailed: false,
+      globalBookmarks: [GLOBAL_BOOKMARK]
+    });
     expect(listBookmarks).not.toHaveBeenCalled();
   });
 
@@ -51,7 +71,11 @@ describe('(app) layout load', () => {
 
     const data = await load(event);
 
-    expect(data).toMatchObject({ bookmarks: null, bookmarksFailed: true });
+    expect(data).toMatchObject({
+      bookmarks: null,
+      bookmarksFailed: true,
+      globalBookmarks: [GLOBAL_BOOKMARK]
+    });
     expect(event.locals.logger.error).toHaveBeenCalled();
   });
 });

@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { envBoolean, envInteger, envList, envOptionalInteger, parseEnv } from './env-schema.js';
+import {
+  envBoolean,
+  envInteger,
+  envJson,
+  envList,
+  envOptionalInteger,
+  parseEnv
+} from './env-schema.js';
 
 describe('envBoolean', () => {
   const schema = envBoolean(false);
@@ -49,6 +56,27 @@ describe('envList', () => {
 
   it('uses the default when unset', () => {
     expect(envList(['a']).parse(undefined)).toEqual(['a']);
+  });
+});
+
+describe('envJson', () => {
+  const schema = envJson(z.array(z.number()), []);
+
+  it('parses and validates the JSON', () => {
+    expect(schema.parse('[1, 2]')).toEqual([1, 2]);
+    expect(schema.safeParse('["a"]').success).toBe(false);
+  });
+
+  it('uses the default when unset or blank', () => {
+    expect(schema.parse(undefined)).toEqual([]);
+    expect(schema.parse('  ')).toEqual([]);
+  });
+
+  it('rejects invalid JSON without repeating the value', () => {
+    const result = schema.safeParse('[secret');
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({ message: 'must be valid JSON' })
+    ]);
   });
 });
 

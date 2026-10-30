@@ -12,7 +12,7 @@
   import { getPlatformSection, getToolsSection } from './nav-items.js';
   import { getProduct } from '$lib/dashboard/products';
   import ProductIcon from '$lib/components/dashboard/ProductIcon.svelte';
-  import type { Bookmark } from '$lib/dashboard/types';
+  import type { BookmarkLink } from '$lib/dashboard/types';
   import stackableLogo from '$lib/logos/stackable.svg?enhanced';
   import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
 
@@ -25,7 +25,8 @@
     collapsed?: boolean;
     mobileOpen?: boolean;
     storageBrowserEnabled?: boolean;
-    bookmarks?: Bookmark[];
+    /** Global bookmarks first, then the user's; both are plain links here. */
+    bookmarks?: BookmarkLink[];
   } = $props();
 
   const platformSection = $derived(getPlatformSection());
@@ -154,12 +155,12 @@
   </li>
 {/snippet}
 
-{#snippet bookmarkIcon(bookmark: Bookmark)}
+{#snippet bookmarkIcon(bookmark: BookmarkLink)}
   {@const product = getProduct(bookmark.productId)}
   <ProductIcon {product} alt={product.name} />
 {/snippet}
 
-{#snippet bookmarkItem(bookmark: Bookmark)}
+{#snippet bookmarkItem(bookmark: BookmarkLink)}
   <li>
     <TooltipTrigger text={collapsed ? bookmark.name : undefined} orientation="right">
       <a
