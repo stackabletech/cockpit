@@ -1,0 +1,7 @@
+---
+name: cockpit
+title: Stackable Cockpit
+# Only the main branch is published, so there is a single version (like stackablectl).
+version: 'nightly'
+nav:
+  - modules/ROOT/nav.adoc

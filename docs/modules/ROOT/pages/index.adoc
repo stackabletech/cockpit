@@ -1,0 +1,26 @@
+= Stackable Cockpit
+:description: Stackable Cockpit is a web UI for the Stackable Data Platform with a Trino SQL editor, an S3 storage browser and a dashboard with bookmarks.
+:github: https://github.com/stackabletech/cockpit/
+
+[.link-bar]
+* {github}[GitHub {external-link-icon}^]
+
+Stackable Cockpit is a web UI for the Stackable Data Platform (SDP).
+Users log in once through OpenID Connect (OIDC) and work with the platform's services from a single place.
+
+== Getting started
+
+Follow the xref:getting-started.adoc[] guide to install Cockpit with Helm and run your first Trino query.
+
+== Modules
+
+Cockpit consists of modules, and more are added over time:
+
+* xref:modules/trino.adoc[Trino]: a SQL editor with code completion and a schema browser.
+* xref:modules/storage.adoc[Storage]: a file browser for S3-compatible object storage.
+* xref:modules/bookmarks.adoc[Bookmarks]: links to frequently used tools on the dashboard.
+
+== Architecture
+
+Cockpit is a Node.js server that connects to Trino and S3 on behalf of the logged-in user.
+It stores users, sessions, bookmarks and storage connections in PostgreSQL.

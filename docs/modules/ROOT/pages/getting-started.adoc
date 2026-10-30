@@ -1,0 +1,51 @@
+= Getting started
+:description: Install Stackable Cockpit on Kubernetes with Helm, connect it to an OIDC provider, PostgreSQL and Trino, and run your first SQL query.
+
+This guide installs Cockpit with Helm and runs a first Trino query.
+You need an existing PostgreSQL database, an OIDC client for Cockpit and a Trino cluster.
+
+// TODO: Replace the local chart path once the chart is published.
+
+Create a Secret with the database password and the OIDC client secret:
+
+[source,console]
+----
+$ kubectl create secret generic cockpit \
+  --from-literal=database-password='<database password>' \
+  --from-literal=oidc-client-secret='<OIDC client secret>'
+----
+
+Create a values file `cockpit-values.yaml`:
+
+[source,yaml]
+----
+origin: https://cockpit.example.com # <1>
+auth:
+  baseUrl: https://cockpit.example.com
+  oidc:
+    discoveryUrl: https://keycloak.example.com/realms/sdp/.well-known/openid-configuration
+    clientId: cockpit
+    clientSecret:
+      secretKeyRef:
+        name: cockpit
+database:
+  host: postgresql
+  password:
+    secretKeyRef:
+      name: cockpit
+trino:
+  url: https://trino-coordinator:8443
+  tls:
+    secretClass: tls # <2>
+----
+<1> The URL users open in the browser. It must use HTTPS, see xref:installation/helm.adoc#_ingress_and_reverse_proxy[Ingress and reverse proxy].
+<2> The SecretClass that provides the CA certificate of Trino.
+
+Install the chart:
+
+[source,console]
+----
+$ helm install cockpit ./deploy/helm/cockpit --values cockpit-values.yaml
+----
+
+Open the URL in a browser, log in, select *Trino* in the sidebar and run a query such as `SELECT * FROM system.runtime.nodes`.

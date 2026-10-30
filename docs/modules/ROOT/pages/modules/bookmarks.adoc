@@ -1,0 +1,30 @@
+= Bookmarks
+:description: The dashboard of Stackable Cockpit shows bookmarks to the web UIs of the platform's services, set up by each user or globally by the administrator.
+
+The dashboard and the sidebar show bookmarks to frequently used tools, such as the web UIs of the platform's services.
+Each user can add up to 25 bookmarks of their own.
+Pinned bookmarks appear under _Favourites_ at the top of the sidebar.
+
+== Global bookmarks
+
+Global bookmarks are shown to every user, before their own bookmarks.
+Users cannot change them.
+
+[source,yaml]
+----
+features:
+  bookmarks:
+    global:
+      - productId: superset # <1>
+        name: Dashboards # <2>
+        url: https://superset.example.com # <3>
+        environment: prod # <4>
+        pinned: true # <5>
+----
+<1> One of `trino`, `superset`, `airflow`, `nifi`, `druid`, `opensearch`, `hdfs`, `hbase`, `spark` or `custom`. It selects the icon; unknown values are shown as `custom`.
+<2> Up to 40 characters.
+<3> An HTTP or HTTPS URL.
+<4> Optional. A label shown on the bookmark, up to 100 characters.
+<5> Optional. Shows the bookmark under _Favourites_. Defaults to `false`.
+
+Cockpit does not start if an entry is invalid.

@@ -1,0 +1,68 @@
+= Helm chart
+:description: Install Stackable Cockpit with its Helm chart and configure ingress, reverse proxy headers, CA certificates and the scratch volume.
+
+The Helm chart in `deploy/helm/cockpit` deploys Cockpit.
+It does not deploy PostgreSQL, the OIDC provider or Trino.
+The chart README lists all values.
+
+// TODO: Link the chart README and Helm repository once published.
+
+== Ingress and reverse proxy
+
+IMPORTANT: Cockpit must be served over HTTPS, because session cookies and credentials such as S3 keys pass through the browser connection.
+Cockpit itself serves plain HTTP, so terminate TLS at the Ingress or reverse proxy and use `https://` URLs for `origin` and `auth.baseUrl`.
+
+The chart creates a ClusterIP Service on port 3000 and can create an Ingress with the `ingress` values.
+Set `origin` to the URL users open in the browser.
+Behind a reverse proxy, also set the forwarded headers Cockpit trusts:
+
+[source,yaml]
+----
+origin: https://cockpit.example.com
+proxy:
+  protocolHeader: x-forwarded-proto
+  hostHeader: x-forwarded-host
+----
+
+== CA certificates
+
+For backends with a private CA, set either a SecretClass or the path of a mounted CA file:
+
+[source,yaml]
+----
+trino:
+  tls:
+    secretClass: tls # <1>
+database:
+  tls:
+    caCert: /stackable/database-ca/ca.crt # <2>
+extraVolumes:
+  - name: database-ca
+    secret:
+      secretName: database-ca
+extraVolumeMounts:
+  - name: database-ca
+    mountPath: /stackable/database-ca
+    readOnly: true
+----
+<1> The Secret Operator mounts the CA certificate of the SecretClass.
+<2> A CA file mounted from a Secret.
+
+The same options exist under `storage.tls` for S3 endpoints.
+
+== Additional environment variables
+
+To set xref:reference/environment-variables.adoc[environment variables] directly, use `extraEnv` or `extraEnvFrom`:
+
+[source,yaml]
+----
+extraEnv:
+  - name: LOG_LEVEL
+    value: debug
+----
+
+== Replicas
+
+Cockpit keeps running queries in memory, so keep `replicaCount` at `1`.
+
+// TODO: Remove once query state is shared between replicas.

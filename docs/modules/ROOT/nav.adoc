@@ -1,0 +1,13 @@
+* xref:index.adoc[]
+* xref:getting-started.adoc[]
+* Installation
+** xref:installation/helm.adoc[]
+** xref:installation/database.adoc[]
+** xref:installation/authentication.adoc[]
+** xref:installation/monitoring.adoc[]
+* Modules
+** xref:modules/trino.adoc[]
+** xref:modules/storage.adoc[]
+** xref:modules/bookmarks.adoc[]
+* Reference
+** xref:reference/environment-variables.adoc[]
