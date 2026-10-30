@@ -13,8 +13,8 @@
     loading = true;
     error = null;
 
-    const result = await authClient.signIn.oauth2({
-      providerId: 'oidc',
+    const result = await authClient.signIn.social({
+      provider: 'oidc',
       callbackURL: data.redirectTo
     });
 

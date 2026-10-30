@@ -131,7 +131,7 @@
 
   // Start loading in parallel with the rest of the page — not deferred to onMount.
   // Guarded by `browser` because SvelteKit evaluates component scripts on the server too.
-  const workerImport = browser ? import('monaco-editor/esm/vs/editor/editor.worker?worker') : null;
+  const workerImport = browser ? import('monaco-editor/editor/editor.worker?worker') : null;
   // The Trino SQL language pulls in the ANTLR parser (~1 MB); load it lazily alongside Monaco.
   // It has no runtime dependency on monaco-editor, so starting it early does not
   // load Monaco before the locale's NLS bundle below.
@@ -151,8 +151,7 @@
     // Load Monaco's NLS bundle for the active locale. Static import strings are
     // required — Vite cannot bundle bare-specifier template literals at build time.
     if (getLocale() === 'de') {
-      // @ts-expect-error — Monaco ESM nls bundle has no types
-      await import('monaco-editor/esm/nls.messages.de.js');
+      await import('monaco-editor/nls/lang/de.js');
     }
 
     // By the time onMount fires the imports are likely already resolved.

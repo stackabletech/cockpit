@@ -138,7 +138,7 @@
     return extLanguageMap[extension] ?? 'plaintext';
   });
 
-  const workerImport = browser ? import('monaco-editor/esm/vs/editor/editor.worker?worker') : null;
+  const workerImport = browser ? import('monaco-editor/editor/editor.worker?worker') : null;
 
   function toMonacoTheme(t: string): string {
     return t === 'dark' ? 'vs-dark' : 'vs';
@@ -156,8 +156,7 @@
     // Load Monaco's NLS bundle for the active locale. Static import strings are
     // required — Vite cannot bundle bare-specifier template literals at build time.
     if (getLocale() === 'de') {
-      // @ts-expect-error — Monaco ESM nls bundle has no types
-      await import('monaco-editor/esm/nls.messages.de.js');
+      await import('monaco-editor/nls/lang/de.js');
     }
 
     const EditorWorker = (await workerImport!).default;
