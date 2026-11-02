@@ -6,6 +6,7 @@ import {
   envJson,
   envList,
   envOptionalInteger,
+  envUrl,
   parseEnv
 } from './env-schema.js';
 
@@ -46,6 +47,18 @@ describe('envInteger', () => {
 describe('envOptionalInteger', () => {
   it('is undefined when unset', () => {
     expect(envOptionalInteger.parse(undefined)).toBeUndefined();
+  });
+});
+
+describe('envUrl', () => {
+  it('accepts http and https URLs and is undefined when blank', () => {
+    expect(envUrl.parse(' https://trino.example.com:8443 ')).toBe('https://trino.example.com:8443');
+    expect(envUrl.parse('')).toBeUndefined();
+  });
+
+  it('rejects values without an http or https scheme', () => {
+    expect(envUrl.safeParse('trino.example.com:8443').success).toBe(false);
+    expect(envUrl.safeParse('ftp://trino.example.com').success).toBe(false);
   });
 });
 
