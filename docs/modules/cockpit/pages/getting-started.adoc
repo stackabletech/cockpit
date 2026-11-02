@@ -43,9 +43,9 @@ trino:
 
 Install the chart:
 
-[source,console]
+[source,console,subs="attributes"]
 ----
-$ helm install cockpit ./deploy/helm/cockpit --values cockpit-values.yaml
+$ helm install cockpit oci://oci.stackable.tech/sdp-charts/cockpit --version {stackable-operator-version} --values cockpit-values.yaml
 ----
 
 Open the URL in a browser, log in, select *Trino* in the sidebar and run a query such as `SELECT * FROM system.runtime.nodes`.

@@ -1,11 +1,15 @@
 = Helm chart
 :description: Install Stackable Cockpit with its Helm chart and configure ingress, reverse proxy headers, CA certificates and the scratch volume.
 
-The Helm chart in `deploy/helm/cockpit` deploys Cockpit.
+The Helm chart deploys Cockpit.
 It does not deploy PostgreSQL, the OIDC provider or Trino.
-The chart README lists all values.
+The chart is published to `oci.stackable.tech/sdp-charts/cockpit`.
+The https://github.com/stackabletech/cockpit/blob/{stackable-operator-branch}/deploy/helm/cockpit/README.md[chart README{external-link-icon}^] lists all values.
 
-// TODO: Link the chart README and Helm repository once published.
+[source,console,subs="attributes"]
+----
+$ helm install cockpit oci://oci.stackable.tech/sdp-charts/cockpit --version {stackable-operator-version} --values cockpit-values.yaml
+----
 
 == Ingress and reverse proxy
 
