@@ -149,7 +149,7 @@ Limits and tuning for the file browser. Empty values use the application default
 
 | Parameter | Description | Default |
 | --- | --- | --- |
-| `bookmarks.global` | Bookmarks shown to every user, before their own; users cannot change them. A list of entries with `productId` (e.g. `trino`, `superset` or `custom`; unknown ids show as a custom link), `name` (up to 40 characters) and an HTTP(S) `url`, plus optional `environment` and `pinned`. Must be a YAML list, not a JSON string. Invalid entries stop the application at startup. | `[]` |
+| `bookmarks.global` | Bookmarks shown to every user, before their own; users cannot change them. A list of entries with `productId` (e.g. `trino`, `superset` or `custom`; unknown ids show as a custom link), `name` (up to 40 characters) and an HTTP(S) `url`, plus optional `environment` and `pinned`. Must be a YAML list, not a JSON string. URLs must not contain a user name or password, and are visible to every user in the page source, so do not put tokens or other secrets in them. Invalid entries stop the application at startup. | `[]` |
 
 ### Authentication Parameters
 

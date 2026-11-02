@@ -14,7 +14,17 @@ export const bookmarkFormSchema = z.object({
   productId: z.string().min(1).max(64),
   name: z.string().trim().min(1).max(BOOKMARK_MAX_LENGTH.name),
   environment: z.string().trim().max(BOOKMARK_MAX_LENGTH.environment),
-  url: z.url({ protocol: /^https?$/ }).max(BOOKMARK_MAX_LENGTH.url),
+  // No user name or password: bookmark URLs are sent to the browser, and global
+  // ones to every user.
+  url: z
+    .url({ protocol: /^https?$/ })
+    .max(BOOKMARK_MAX_LENGTH.url)
+    // Zod runs this even when the URL check above failed, which reports that case.
+    .refine((url) => {
+      if (!URL.canParse(url)) return true;
+      const { username, password } = new URL(url);
+      return !username && !password;
+    }, 'URL must not contain a user name or password'),
   pinned: z.boolean()
 });
 

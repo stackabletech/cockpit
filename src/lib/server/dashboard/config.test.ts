@@ -63,6 +63,7 @@ describe('parseDashboardConfig', () => {
 
   it.each([
     ['a non-HTTP URL', { url: 'javascript:alert(1)' }, 'url'],
+    ['credentials in the URL', { url: 'https://user:secret@wiki.example.com' }, 'url'],
     ['a missing name', { name: undefined }, 'name'],
     ['a name above the length limit', { name: 'x'.repeat(41) }, 'name'],
     ['a misspelt key', { pined: true }, 'pined']
@@ -76,7 +77,7 @@ describe('parseDashboardConfig', () => {
   });
 
   it('does not repeat the configured values in the error', () => {
-    const url = 'ftp://user:secret@files.example.com';
+    const url = 'https://user:secret@files.example.com';
 
     expect(() => parseGlobalBookmarks(json([{ productId: 'custom', name: 'Files', url }]))).toThrow(
       expect.objectContaining({ message: expect.not.stringContaining('secret') })

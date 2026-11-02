@@ -20,7 +20,10 @@ describe('bookmark URL validation', () => {
     'data:text/html,<script>alert(1)</script>',
     'ftp://files.example.com',
     'superset.corp',
-    'http://'
+    'http://',
+    'https://admin:secret@superset.example.com',
+    'https://token@superset.example.com',
+    'https://:secret@superset.example.com'
   ])('rejects %s', (url) => {
     expect(urlSchema.safeParse(url).success).toBe(false);
   });
