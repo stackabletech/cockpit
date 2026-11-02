@@ -4,8 +4,6 @@
 This guide installs Cockpit with Helm and runs a first Trino query.
 You need an existing PostgreSQL database, an OIDC client for Cockpit and a Trino cluster.
 
-// TODO: Replace the local chart path once the chart is published.
-
 Create a Secret with the database password and the OIDC client secret:
 
 [source,console]
@@ -33,13 +31,16 @@ database:
   password:
     secretKeyRef:
       name: cockpit
+  tls:
+    secretClass: tls # <2>
 trino:
   url: https://trino-coordinator:8443
   tls:
-    secretClass: tls # <2>
+    secretClass: tls # <3>
 ----
 <1> The URL users open in the browser. It must use HTTPS, see xref:installation/helm.adoc#_ingress_and_reverse_proxy[Ingress and reverse proxy].
-<2> The SecretClass that provides the CA certificate of Trino.
+<2> The SecretClass that provides the CA certificate of PostgreSQL. Cockpit verifies the certificate by default, see xref:installation/database.adoc[].
+<3> The SecretClass that provides the CA certificate of Trino.
 
 Install the chart:
 
