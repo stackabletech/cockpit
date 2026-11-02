@@ -12,7 +12,7 @@ export const user = pgTable('user', {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
-  username: text('username')
+  trinoUser: text('trino_user')
 });
 
 export const session = pgTable(

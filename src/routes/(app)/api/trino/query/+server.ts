@@ -1,6 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
-import { getUserId } from '$lib/server/auth-utils.js';
+import { findTrinoUser, getUserId } from '$lib/server/auth-utils.js';
+import * as m from '$lib/paraglide/messages.js';
 import {
   startScript,
   getQuerySnapshots,
@@ -33,7 +34,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     error(400, z.prettifyError(parsed.error));
   }
 
-  const user = locals.user?.username ?? 'anonymous';
+  // Return the error as JSON so the query runner shows it instead of "connection lost".
+  const user = findTrinoUser(locals);
+  if (!user) {
+    return json({ error: m.trino_user_missing() }, { status: 500 });
+  }
   const { statements, tabId, catalog, schema } = parsed.data;
 
   // Fire-and-forget — the script orchestrator runs in the background.

@@ -48,6 +48,62 @@ test.describe('Authentication', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   });
 
+  test('trinoUser cannot be changed through the update-user endpoint', async ({
+    page,
+    baseURL
+  }) => {
+    const res = await page.request.post('/api/auth/update-user', {
+      headers: { origin: baseURL! },
+      data: { trinoUser: 'someone-else' }
+    });
+    expect(res.status()).toBe(403);
+    expect(await res.json()).toMatchObject({ message: 'trinoUser is not allowed to be set' });
+
+    const session = await (await page.request.get('/api/auth/get-session')).json();
+    expect(session.user.trinoUser).toMatch(/^testuser\d+$/);
+  });
+
+  test('a later login refreshes the Trino user from the OIDC claim', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await context.newPage();
+    const sub = `relogin-${crypto.randomUUID()}`;
+
+    const loginAs = async (preferred_username: string) => {
+      await context.clearCookies();
+      await context.addCookies([
+        {
+          name: 'mock_oidc_user',
+          value: encodeURIComponent(
+            JSON.stringify({
+              sub,
+              name: 'Relogin User',
+              email: `${sub}@example.com`,
+              preferred_username
+            })
+          ),
+          domain: 'localhost',
+          path: '/'
+        }
+      ]);
+      await page.goto('/');
+      await waitForHydration(page);
+      await page.getByRole('button', { name: /sign in with sso/i }).click();
+      await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+      return (await (await page.request.get('/api/auth/get-session')).json()).user;
+    };
+
+    try {
+      const first = await loginAs(`${sub}-old`);
+      expect(first.trinoUser).toBe(`${sub}-old`);
+
+      const second = await loginAs(`${sub}-new`);
+      expect(second.id).toBe(first.id);
+      expect(second.trinoUser).toBe(`${sub}-new`);
+    } finally {
+      await context.close();
+    }
+  });
+
   test('user menu shows sign out option', async ({ page }) => {
     await page.goto('/');
 

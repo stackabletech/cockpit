@@ -161,7 +161,7 @@
       type="button"
       class="
         btn join-item border-l-primary-content/20 btn-primary
-        tooltip-bottom z-150 self-stretch border-l px-2 before:z-200
+        tooltip-left z-150 self-stretch border-l px-2 before:z-200
       "
       class:tooltip={!open}
       data-tip={m.trino_run_mode_select()}

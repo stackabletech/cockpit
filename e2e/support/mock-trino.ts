@@ -9,6 +9,8 @@ export interface MockTrinoLogEntry {
   event: 'submitted' | 'cancelled';
   sql: string;
   queryId: string;
+  /** `X-Trino-User` of the submit; absent on cancellations. */
+  user?: string;
 }
 
 /**
@@ -20,7 +22,7 @@ export function mockMarker(): string {
 }
 
 /** Statements containing `marker` that reached the mock, and their cancellations. */
-async function mockTrinoLog(marker: string): Promise<MockTrinoLogEntry[]> {
+export async function mockTrinoLog(marker: string): Promise<MockTrinoLogEntry[]> {
   const res = await fetch(`${MOCK_TRINO_URL}/__mock/log?marker=${encodeURIComponent(marker)}`);
   if (!res.ok) {
     throw new Error(`Mock Trino log request failed: ${res.status} ${res.statusText}`);

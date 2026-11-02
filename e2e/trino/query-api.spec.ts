@@ -1,6 +1,11 @@
 import { test, expect, type APIRequestContext } from '../support/fixtures.js';
 import { randomUUID } from 'node:crypto';
-import { mockMarker, mockTrinoStatements, releaseMockTrino } from '../support/mock-trino';
+import {
+  mockMarker,
+  mockTrinoLog,
+  mockTrinoStatements,
+  releaseMockTrino
+} from '../support/mock-trino';
 
 /**
  * Trino API endpoints end to end: authentication through the server hooks and
@@ -74,6 +79,36 @@ test.describe('Trino API', () => {
       expect(cleanup.status()).toBe(204);
       expect(await snapshots(page.request, tabId)).toEqual([]);
     });
+
+    test('runs statements as the OIDC user', async ({ page }) => {
+      const marker = mockMarker();
+      await page.request.post('/api/trino/query', {
+        data: { statements: [`SELECT 1 /* ${marker} */`], tabId: randomUUID() }
+      });
+
+      const session = await (await page.request.get('/api/auth/get-session')).json();
+      expect(session.user.trinoUser).toMatch(/^testuser\d+$/);
+      await expect
+        .poll(async () => (await mockTrinoLog(marker)).map((e) => e.user))
+        .toEqual([session.user.trinoUser]);
+    });
+
+    // The marker goes into a name the endpoint puts in its SQL, so the mock log
+    // can find the metadata statement.
+    for (const [endpoint, query] of [
+      ['catalog', (marker: string) => `level=schemas&catalog=${marker}`],
+      ['completion/metadata', (marker: string) => `level=tables&catalog=tpch&schema=${marker}`]
+    ] as const) {
+      test(`${endpoint} runs metadata queries as the OIDC user`, async ({ page }) => {
+        const marker = mockMarker();
+        const res = await page.request.get(`/api/trino/${endpoint}?${query(marker)}`);
+        expect(res.status()).toBe(200);
+
+        const session = await (await page.request.get('/api/auth/get-session')).json();
+        expect(session.user.trinoUser).toMatch(/^testuser\d+$/);
+        expect((await mockTrinoLog(marker)).map((e) => e.user)).toEqual([session.user.trinoUser]);
+      });
+    }
 
     test('rejects an invalid request', async ({ page }) => {
       const res = await page.request.post('/api/trino/query', {

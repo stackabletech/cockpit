@@ -1,5 +1,5 @@
 import * as http from 'node:http';
-import { MOCK_TRINO_PORT } from './mock-trino';
+import { MOCK_TRINO_PORT, type MockTrinoLogEntry } from './mock-trino';
 
 /** SQL substring → fixture response. First match wins; fallback is a 3-row success. */
 const routes: [string, object][] = [
@@ -136,7 +136,7 @@ interface MockQuery {
 }
 
 const queries = new Map<string, MockQuery>();
-const log: { event: 'submitted' | 'cancelled'; sql: string; queryId: string }[] = [];
+const log: MockTrinoLogEntry[] = [];
 const released = new Set<string>();
 const waiters = new Map<string, (() => void)[]>();
 let queryCounter = 0;
@@ -348,7 +348,12 @@ http
       // Logged on arrival, so tests can act while a gated submit is still pending.
       const id = `q-mock-${++queryCounter}`;
       queries.set(id, { sql: body, pages: [] });
-      log.push({ event: 'submitted', sql: body, queryId: id });
+      log.push({
+        event: 'submitted',
+        sql: body,
+        queryId: id,
+        user: req.headers['x-trino-user'] as string | undefined
+      });
 
       const gate = /GATE:([\w-]+)/.exec(body)?.[1];
       if (gate) await waitForRelease(gate);

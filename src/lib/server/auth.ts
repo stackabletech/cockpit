@@ -1,4 +1,5 @@
 import { betterAuth } from 'better-auth';
+import { APIError, callbackOAuth } from 'better-auth/api';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { genericOAuth, openAPI } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
@@ -15,6 +16,19 @@ const env = envModule?.env ?? (process.env as Record<string, string | undefined>
 const getRequestEvent = appServer?.getRequestEvent ?? (() => undefined as unknown as RequestEvent);
 const log = loggingModule?.logger.child({ module: 'auth' });
 
+// trinoUser is the Trino user we impersonate, so only the OIDC callback may
+// write it. Marking the field `input: false` would also block that: better-auth
+// drops such fields from the provider profile on sign-up (see #371). Database
+// hooks see the endpoint's route template, not the request path. The generic
+// OAuth provider shares the social sign-in callback endpoint.
+const trinoUserWritePath = callbackOAuth.path;
+
+function guardTrinoUserWrite(data: Record<string, unknown>, context: { path?: string } | null) {
+  if (!('trinoUser' in data) || context?.path === trinoUserWritePath) return;
+  log?.warn({ path: context?.path }, 'Rejected trinoUser write outside the OIDC callback');
+  throw new APIError('FORBIDDEN', { message: 'trinoUser is not allowed to be set' });
+}
+
 const trinoUserClaim = env.STACKABLE_COCKPIT_TRINO_USER_CLAIM ?? 'preferred_username';
 
 const defaultScopes = ['openid', 'profile', 'email'];
@@ -25,6 +39,9 @@ const extraScopes = (env.STACKABLE_COCKPIT_OIDC_EXTRA_SCOPES ?? '')
   .filter(Boolean);
 
 const oidcScopes = [...new Set([...defaultScopes, ...extraScopes])];
+
+// OIDC profile claims are untyped; only non-empty strings are usable.
+const claim = (value: unknown) => (typeof value === 'string' && value ? value : undefined);
 
 // OIDC is enabled only when all required OIDC env vars are present.
 export const oidcEnabled = !!(
@@ -55,11 +72,16 @@ export const auth = betterAuth({
   },
   user: {
     additionalFields: {
-      username: {
+      trinoUser: {
         type: 'string',
-        required: false,
-        input: false
+        required: false
       }
+    }
+  },
+  databaseHooks: {
+    user: {
+      create: { before: async (user, context) => guardTrinoUserWrite(user, context) },
+      update: { before: async (user, context) => guardTrinoUserWrite(user, context) }
     }
   },
   plugins: [
@@ -76,12 +98,17 @@ export const auth = betterAuth({
                 clientSecret: env.STACKABLE_COCKPIT_OIDC_CLIENT_SECRET!,
                 scopes: oidcScopes,
                 pkce: true,
+                // Refresh the user from the IdP on every login, so changes to the
+                // Trino user claim reach existing users instead of only new ones.
+                overrideUserInfo: true,
                 mapProfileToUser: async (profile) => {
-                  const fullName = [profile.given_name, profile.family_name]
+                  const fullName = [claim(profile.given_name), claim(profile.family_name)]
                     .filter(Boolean)
                     .join(' ');
-                  const trinoUser = profile[trinoUserClaim];
-                  if (trinoUser) {
+                  const preferredUsername = claim(profile.preferred_username);
+                  const email = claim(profile.email);
+                  const claimedTrinoUser = claim(profile[trinoUserClaim]);
+                  if (claimedTrinoUser) {
                     log?.debug(
                       { trino_user_claim: trinoUserClaim },
                       'Resolved Trino user from OIDC claim'
@@ -93,11 +120,13 @@ export const auth = betterAuth({
                     );
                   }
                   return {
-                    name: profile.name || fullName || profile.preferred_username || profile.email,
-                    email: profile.email || '',
-                    emailVerified: profile.email_verified ?? false,
-                    image: profile.picture || null,
-                    username: trinoUser || profile.preferred_username || profile.email || ''
+                    name: claim(profile.name) || fullName || preferredUsername || email,
+                    email: email ?? '',
+                    emailVerified: profile.email_verified === true,
+                    image: claim(profile.picture),
+                    // No `|| ''`: without an email better-auth rejects the sign-in before
+                    // creating the user, so this never stores an empty Trino user.
+                    trinoUser: claimedTrinoUser || preferredUsername || email
                   };
                 }
               }
