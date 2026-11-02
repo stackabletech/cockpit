@@ -9,4 +9,4 @@ All notable changes to this project will be documented in this file.
 - Trino SQL query editor.
 - S3 file browser.
 - Bookmarks.
-- OIDC login with user impersonation.
+- OIDC login with user impersonation in Trino.
