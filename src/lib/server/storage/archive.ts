@@ -527,8 +527,8 @@ interface TarListState {
 }
 
 function onTarEntry(
-  header: tar.Headers,
-  stream: NodeJS.ReadableStream,
+  header: tar.Header,
+  stream: tar.ExtractEvents['entry'][1],
   next: (err?: Error | null) => void,
   prefix: string,
   state: TarListState,
@@ -623,12 +623,9 @@ function listTar(
 
     const extract = tar.extract();
 
-    extract.on(
-      'entry',
-      (header: tar.Headers, stream: NodeJS.ReadableStream, next: (err?: Error | null) => void) => {
-        onTarEntry(header, stream, next, prefix, state, maxBytes);
-      }
-    );
+    extract.on('entry', (header, stream, next) => {
+      onTarEntry(header, stream, next, prefix, state, maxBytes);
+    });
 
     extract.on('finish', () => {
       if (state.tooLarge) {
@@ -655,37 +652,35 @@ function extractTarEntry(
 
     const extract = tar.extract();
 
-    extract.on(
-      'entry',
-      (header: tar.Headers, stream: NodeJS.ReadableStream, next: (err?: Error | null) => void) => {
-        const entryPath = normalizePath(header.name);
-        if (header.type === 'file' && entryPath === normalized && !found) {
-          if (maxBytes !== undefined && (header.size ?? 0) > maxBytes) {
-            stream.resume();
-            stream.on('end', next);
-            return;
-          }
-          const chunks: Buffer[] = [];
-          let size = 0;
-          let tooLarge = false;
-          stream.on('data', (chunk: Buffer) => {
-            size += chunk.length;
-            if (maxBytes !== undefined && size > maxBytes) {
-              tooLarge = true;
-              return;
-            }
-            if (!tooLarge) chunks.push(chunk);
-          });
-          stream.on('end', () => {
-            if (!tooLarge) found = Buffer.concat(chunks);
-            next();
-          });
-        } else {
+    extract.on('entry', (header, stream, next) => {
+      const entryPath = normalizePath(header.name);
+      if (header.type === 'file' && entryPath === normalized && !found) {
+        if (maxBytes !== undefined && (header.size ?? 0) > maxBytes) {
           stream.resume();
           stream.on('end', next);
+          return;
         }
+        const chunks: Buffer[] = [];
+        let size = 0;
+        let tooLarge = false;
+        stream.on('data', (data) => {
+          const chunk = data as Buffer;
+          size += chunk.length;
+          if (maxBytes !== undefined && size > maxBytes) {
+            tooLarge = true;
+            return;
+          }
+          if (!tooLarge) chunks.push(chunk);
+        });
+        stream.on('end', () => {
+          if (!tooLarge) found = Buffer.concat(chunks);
+          next();
+        });
+      } else {
+        stream.resume();
+        stream.on('end', next);
       }
-    );
+    });
 
     extract.on('finish', () => resolve(found));
     extract.on('error', reject);
@@ -714,12 +709,9 @@ function listTarGz(
     const extract = tar.extract();
     const gunzip = createGunzip();
 
-    extract.on(
-      'entry',
-      (header: tar.Headers, stream: NodeJS.ReadableStream, next: (err?: Error | null) => void) => {
-        onTarEntry(header, stream, next, prefix, state, maxBytes);
-      }
-    );
+    extract.on('entry', (header, stream, next) => {
+      onTarEntry(header, stream, next, prefix, state, maxBytes);
+    });
 
     extract.on('finish', () => {
       if (state.tooLarge) {
@@ -748,37 +740,35 @@ function extractTarGzEntry(
     const extract = tar.extract();
     const gunzip = createGunzip();
 
-    extract.on(
-      'entry',
-      (header: tar.Headers, stream: NodeJS.ReadableStream, next: (err?: Error | null) => void) => {
-        const entryPath = normalizePath(header.name);
-        if (header.type === 'file' && entryPath === normalized && !found) {
-          if (maxBytes !== undefined && (header.size ?? 0) > maxBytes) {
-            stream.resume();
-            stream.on('end', next);
-            return;
-          }
-          const chunks: Buffer[] = [];
-          let size = 0;
-          let tooLarge = false;
-          stream.on('data', (chunk: Buffer) => {
-            size += chunk.length;
-            if (maxBytes !== undefined && size > maxBytes) {
-              tooLarge = true;
-              return;
-            }
-            if (!tooLarge) chunks.push(chunk);
-          });
-          stream.on('end', () => {
-            if (!tooLarge) found = Buffer.concat(chunks);
-            next();
-          });
-        } else {
+    extract.on('entry', (header, stream, next) => {
+      const entryPath = normalizePath(header.name);
+      if (header.type === 'file' && entryPath === normalized && !found) {
+        if (maxBytes !== undefined && (header.size ?? 0) > maxBytes) {
           stream.resume();
           stream.on('end', next);
+          return;
         }
+        const chunks: Buffer[] = [];
+        let size = 0;
+        let tooLarge = false;
+        stream.on('data', (data) => {
+          const chunk = data as Buffer;
+          size += chunk.length;
+          if (maxBytes !== undefined && size > maxBytes) {
+            tooLarge = true;
+            return;
+          }
+          if (!tooLarge) chunks.push(chunk);
+        });
+        stream.on('end', () => {
+          if (!tooLarge) found = Buffer.concat(chunks);
+          next();
+        });
+      } else {
+        stream.resume();
+        stream.on('end', next);
       }
-    );
+    });
 
     extract.on('finish', () => resolve(found));
     extract.on('error', reject);
