@@ -1,7 +1,7 @@
 = Trino
 :description: The Trino module of Stackable Cockpit is a SQL editor with code completion and a schema browser that runs queries as the logged-in user.
 
-The Trino module is a SQL editor for xref:home:trino:index.adoc[Trino] with syntax highlighting, code completion and a schema browser.
+The Trino module is a SQL editor for xref:trino:index.adoc[Trino] with syntax highlighting, code completion and a schema browser.
 
 == Connection
 
