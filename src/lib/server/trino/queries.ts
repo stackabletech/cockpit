@@ -1,4 +1,3 @@
-import { env } from '$env/dynamic/private';
 import { logger } from '$lib/server/logging';
 import { trinoActiveQueries, trinoQueryTotal } from '$lib/server/metrics.js';
 import {
@@ -12,6 +11,7 @@ import {
 } from '$lib/types/query.js';
 import { type TrinoClient, type TrinoQueryStats, resolveTrinoPublicUrl } from './client.js';
 import { toQueryError } from './errors.js';
+import { trinoConfig } from './config.js';
 import { collectResults } from './result-collector.js';
 
 const log = logger.child({ module: 'trino-queries' });
@@ -19,7 +19,7 @@ const log = logger.child({ module: 'trino-queries' });
 // --- TTL & eviction configuration ---
 
 /** Time (seconds) before completed, unaccessed tab queries are evicted. */
-const QUERY_TTL = Number(env.STACKABLE_COCKPIT_QUERY_TTL) || 1800; // 30 min
+const QUERY_TTL = trinoConfig.queryTtlSeconds;
 const SWEEP_INTERVAL_MS = 60_000;
 
 // --- TrinoQuery model ---
