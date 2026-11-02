@@ -13,6 +13,14 @@ Cockpit does not start if a value is invalid, and the error names every invalid 
 |===
 |Variable |Default |Description
 
+|`NODE_ENV`
+|`production`
+|Set in the image. Other values switch to development defaults, such as no database TLS and `trace` logging.
+
+|`PORT`
+|`3000`
+|HTTP port Cockpit listens on.
+
 |`ORIGIN`
 |
 |The URL users open in the browser. Requests from other origins are rejected.

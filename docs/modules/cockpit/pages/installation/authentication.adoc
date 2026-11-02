@@ -22,7 +22,8 @@ sessionSecret:
 ----
 <1> The URL users open in the browser.
 <2> Scopes requested in addition to `openid`, `profile` and `email`.
-<3> The secret that signs session cookies. The chart generates one if empty.
+<3> The secret that signs session cookies. The chart generates one if empty and keeps it across `helm upgrade`.
+Set it explicitly when deploying with `helm template` or Argo CD, which cannot read the existing Secret, otherwise every deployment logs out all users.
 
 The OIDC claim that becomes the Trino user is configured in the xref:modules/trino.adoc#_user_identity[Trino module].
 

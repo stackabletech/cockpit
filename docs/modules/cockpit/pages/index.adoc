@@ -22,5 +22,5 @@ Cockpit consists of modules, and more are added over time:
 
 == Architecture
 
-Cockpit is a Node.js server that connects to Trino and S3 on behalf of the logged-in user.
+Cockpit is a Node.js server that connects to Trino as the logged-in user and to S3 with the connections each user configures.
 It stores users, sessions, bookmarks and storage connections in PostgreSQL.

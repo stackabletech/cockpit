@@ -65,8 +65,21 @@ extraEnv:
     value: debug
 ----
 
+== Scratch volume
+
+The chart mounts an emptyDir at `/tmp` for the archive preview cache.
+Keep `tmp.sizeLimit` above `storage.archiveCacheMaxMb`, otherwise the kubelet evicts the pod when the cache fills up:
+
+[source,yaml]
+----
+tmp:
+  sizeLimit: 1Gi
+storage:
+  archiveCacheMaxMb: 512
+----
+
 == Replicas
 
 Cockpit keeps running queries in memory, so keep `replicaCount` at `1`.
 
-// TODO: Remove once query state is shared between replicas.
+// TODO: Remove once query state is shared between replicas, see https://github.com/stackabletech/cockpit/issues/310.
