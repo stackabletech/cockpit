@@ -1,7 +1,7 @@
-import { env } from '$env/dynamic/private';
 import { readFileSync } from 'node:fs';
 import { Agent } from 'undici';
 import { logger } from '$lib/server/logging';
+import { trinoConfig } from './config.js';
 import { getUserTrinoClient, getUserTrinoUrl } from './user-clients.js';
 
 const log = logger.child({ module: 'trino-client' });
@@ -168,15 +168,17 @@ export function buildBasicAuthHeader(username: string, password: string): string
 
 // --- Singleton & env config ---
 
-const trinoUrl = env.STACKABLE_COCKPIT_TRINO_URL;
-const trinoPublicUrl = env.STACKABLE_COCKPIT_TRINO_PUBLIC_URL;
-const authType = (env.STACKABLE_COCKPIT_TRINO_AUTH_TYPE ?? 'none') as 'none' | 'basic';
-const authUsername = env.STACKABLE_COCKPIT_TRINO_AUTH_USERNAME;
-const authPassword = env.STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD;
-const tlsInsecure = env.STACKABLE_COCKPIT_TRINO_TLS_INSECURE === 'true';
-const tlsCaCertPath = env.STACKABLE_COCKPIT_TRINO_TLS_CA_CERT;
+const {
+  url: trinoUrl,
+  publicUrl: trinoPublicUrl,
+  authType,
+  authUsername,
+  authPassword,
+  tlsInsecure,
+  tlsCaCertPath
+} = trinoConfig;
 
-export const trinoUserImpersonation = env.STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION !== 'false';
+export const trinoUserImpersonation = trinoConfig.userImpersonation;
 
 /** True when the Trino connection is pre-configured via environment variables. */
 export const trinoConfigured = !!trinoUrl;
@@ -184,12 +186,6 @@ export const trinoConfigured = !!trinoUrl;
 let singleton: TrinoClient | undefined;
 
 if (trinoConfigured) {
-  if (authType === 'basic' && (!authUsername || !authPassword)) {
-    throw new Error(
-      'STACKABLE_COCKPIT_TRINO_AUTH_TYPE is "basic" but STACKABLE_COCKPIT_TRINO_AUTH_USERNAME or STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD is missing'
-    );
-  }
-
   let dispatcher: Agent | undefined;
   if (tlsInsecure || tlsCaCertPath) {
     dispatcher = new Agent({
