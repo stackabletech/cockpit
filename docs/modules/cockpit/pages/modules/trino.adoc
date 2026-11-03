@@ -39,6 +39,12 @@ With basic authentication, Trino must allow the Cockpit user to impersonate othe
 
 Set `trino.userImpersonation.enabled: false` to run all queries as `trino.auth.username` instead.
 
+== Errors
+
+Users see the Trino error message only for errors in their own query, such as a syntax error or a missing table.
+For server-side errors, Cockpit shows a generic message, because the Trino message can contain hostnames or storage paths.
+The full message is logged as a warning with the Trino query ID.
+
 == Settings
 
 * `features.trino.completion.enabled` turns code completion on or off (default `true`).
