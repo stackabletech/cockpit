@@ -36,12 +36,11 @@
     tabindex="0"
     class="dropdown-content menu bg-base-100 border-base-300 z-10 w-56 rounded-lg border p-1 shadow-lg"
   >
-    <li class="px-3 py-2">
+    <li class="menu-title">
       <p class="text-base-content truncate text-sm font-semibold">{user.name}</p>
-      <p class="text-muted truncate text-xs">{user.email}</p>
+      <p class="text-muted truncate text-xs font-normal">{user.email}</p>
     </li>
-    <li><hr class="border-base-300 my-1" /></li>
-    <li class="mt-4">
+    <li class="border-base-300 mt-1 border-t pt-1">
       <a href={resolve('/auth/logout')} class="text-sm">
         <IconLogout class="h-4 w-4" aria-hidden="true" />
         {m.header_sign_out()}
