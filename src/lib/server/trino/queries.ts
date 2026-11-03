@@ -10,7 +10,7 @@ import {
   type QueryState
 } from '$lib/types/query.js';
 import { type TrinoClient, type TrinoQueryStats, resolveTrinoPublicUrl } from './client.js';
-import { toQueryError } from './errors.js';
+import { classifyTrinoError, toQueryError } from './errors.js';
 import { trinoConfig } from './config.js';
 import { collectResults } from './result-collector.js';
 
@@ -25,7 +25,8 @@ const SWEEP_INTERVAL_MS = 60_000;
 // --- TrinoQuery model ---
 
 export interface TrinoQuery {
-  trinoQueryId: string;
+  /** Null if the submit failed before Trino assigned an ID. */
+  trinoQueryId: string | null;
   state: QueryState;
   progress: QueryProgress;
   columns: Column[];
@@ -150,7 +151,10 @@ function buildSnapshot(
   lightweight = false
 ): QuerySnapshot {
   return {
-    trinoQueryUrl: trinoPublicUrl ? `${trinoPublicUrl}/ui/query.html?${query.trinoQueryId}` : null,
+    trinoQueryUrl:
+      trinoPublicUrl && query.trinoQueryId
+        ? `${trinoPublicUrl}/ui/query.html?${query.trinoQueryId}`
+        : null,
     state: query.state,
     progress: query.progress,
     columns: lightweight ? [] : query.columns,
@@ -229,6 +233,33 @@ async function submitStatement(
   return query;
 }
 
+/** A statement Trino did not accept, so the user sees why the script stopped. */
+function failedSubmit(
+  client: TrinoClient,
+  userId: string,
+  sql: string,
+  trinoUser: string,
+  err: unknown
+): TrinoQuery {
+  const now = Date.now();
+  return {
+    trinoQueryId: null,
+    state: 'FAILED',
+    progress: INITIAL_PROGRESS,
+    columns: [],
+    rows: [],
+    error: classifyTrinoError(err),
+    rowLimitReached: false,
+    sql,
+    startedAt: now,
+    nextUri: undefined,
+    client,
+    userId,
+    trinoUser,
+    completedAt: now
+  };
+}
+
 function storeQuery(userId: string, tabId: string, query: TrinoQuery): void {
   const tabMap = getUserTabMap(userId);
   const queries = tabMap.get(tabId) ?? [];
@@ -241,7 +272,7 @@ async function cancelInTrino(query: TrinoQuery): Promise<void> {
   try {
     if (query.nextUri) {
       await query.client.cancelViaUri(query.nextUri, query.trinoUser);
-    } else {
+    } else if (query.trinoQueryId) {
       await query.client.cancel(query.trinoQueryId, query.trinoUser);
     }
   } catch (err) {
@@ -300,6 +331,9 @@ async function runStatements(
       query = await submitStatement(client, userId, tabId, sql, options);
     } catch (err) {
       log.error({ err, user_id: userId, tab_id: tabId }, 'failed to submit statement in script');
+      // A superseded script must not write into the tab its successor owns.
+      if (!signal.aborted)
+        storeQuery(userId, tabId, failedSubmit(client, userId, sql, options.user, err));
       break;
     }
 

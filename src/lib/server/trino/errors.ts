@@ -51,7 +51,7 @@ const USER_FACING_ERROR_TYPES = new Set(['USER_ERROR', 'INSUFFICIENT_RESOURCES']
  */
 export function toQueryError(
   trinoError: TrinoQueryError | undefined,
-  trinoQueryId?: string
+  trinoQueryId?: string | null
 ): QueryError {
   if (!trinoError?.message) return { kind: 'unknown' };
   if (USER_FACING_ERROR_TYPES.has(trinoError.errorType ?? '')) {
@@ -72,7 +72,11 @@ export function toQueryError(
 /** Classify an error thrown while talking to Trino. */
 export function classifyTrinoError(err: unknown): QueryError {
   if (err instanceof TrinoQueryFailure) return toQueryError(err.trinoError);
-  // HTTP errors, network failures and unparsable responses.
+  if (err instanceof TrinoHttpError) {
+    if (err.status === 401) return { kind: 'unauthenticated' };
+    if (err.status === 403) return { kind: 'forbidden' };
+  }
+  // Other HTTP errors, network failures and unparsable responses.
   return { kind: 'unavailable' };
 }
 

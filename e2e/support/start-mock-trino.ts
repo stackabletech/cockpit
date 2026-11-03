@@ -120,6 +120,7 @@ const DEFAULT_RESPONSE = {
 //   FAILS_LATER                 one page of rows, then FAILED without an error object
 //   FAILS_INTERNALLY            first response FAILED with an INTERNAL_ERROR
 //   POLL_UNAVAILABLE            QUEUED, then GET answers HTTP 502 with an HTML body
+//   SUBMIT_UNAUTHORIZED         POST answers HTTP 401, as for an expired password
 //   HOLD:<id>                   RUNNING until released via POST /__mock/release/<id>
 //   GATE:<id>                   submit response withheld until released (combinable)
 //
@@ -383,6 +384,12 @@ http
         queryId: id,
         user: req.headers['x-trino-user'] as string | undefined
       });
+
+      if (body.includes('SUBMIT_UNAUTHORIZED')) {
+        res.writeHead(401, { 'Content-Type': 'text/plain' });
+        res.end('Unauthorized: password expired for alice@ldap.internal');
+        return;
+      }
 
       const gate = /GATE:([\w-]+)/.exec(body)?.[1];
       if (gate) await waitForRelease(gate);

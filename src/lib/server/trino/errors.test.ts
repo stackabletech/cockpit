@@ -40,6 +40,13 @@ describe('classifyTrinoError', () => {
   });
 
   it.each([
+    [401, 'unauthenticated'],
+    [403, 'forbidden']
+  ] as const)('reports HTTP %i as %s', (status, kind) => {
+    expect(classifyTrinoError(new TrinoHttpError('poll', status, 'denied'))).toEqual({ kind });
+  });
+
+  it.each([
     ['an HTTP error', new TrinoHttpError('poll', 502, '<html>proxy.internal</html>')],
     ['a network failure', new TypeError('fetch failed')]
   ])('reports %s as unavailable', (_, err) => {

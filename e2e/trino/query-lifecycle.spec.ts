@@ -138,6 +138,20 @@ test.describe('Trino query lifecycle', () => {
     await expect(page.getByText('proxy.internal')).toHaveCount(0);
   });
 
+  test('reports rejected credentials when Trino refuses the submit', async ({ page }) => {
+    await openEditor(page, 'SELECT SUBMIT_UNAUTHORIZED');
+
+    await runButton(page).click();
+    await waitForQueryComplete(page);
+
+    await expect(statusBadge(page)).toHaveAttribute('data-query-state', 'FAILED');
+    // .env.test configures Trino via environment, so the deployment's credentials were rejected.
+    await expect(
+      page.getByText('Trino rejected the credentials configured for this deployment.')
+    ).toBeVisible();
+    await expect(page.getByText('ldap.internal')).toHaveCount(0);
+  });
+
   test('re-running between statements stops the previous script', async ({ page }) => {
     const marker = mockMarker();
     const gate = releaseId();

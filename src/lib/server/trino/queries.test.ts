@@ -288,7 +288,7 @@ describe('startScript', () => {
     });
   });
 
-  it('stops without storing a result when submit throws', async () => {
+  it('stops and stores the failed statement when submit throws', async () => {
     client.submit.mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
     await expect(
@@ -297,7 +297,27 @@ describe('startScript', () => {
 
     expect(client.submit).toHaveBeenCalledTimes(1);
     expect(mocks.queryTotalInc).toHaveBeenCalledWith({ outcome: 'failed' });
-    expect(q.getQuerySnapshots(USER, TAB)).toEqual([]);
+    expect(q.getQuerySnapshots(USER, TAB)).toEqual([
+      expect.objectContaining({
+        sql: 'SELECT 1',
+        state: 'FAILED',
+        error: { kind: 'unavailable' },
+        trinoQueryUrl: null
+      })
+    ]);
+  });
+
+  it('reports rejected credentials on submit', async () => {
+    const { TrinoHttpError } = await import('./errors.js');
+    client.submit.mockRejectedValueOnce(
+      new TrinoHttpError('POST /v1/statement', 401, 'Unauthorized')
+    );
+
+    await q.startScript(trinoClient(), USER, TAB, ['SELECT 1'], OPTS);
+
+    expect(q.getQuerySnapshots(USER, TAB)).toEqual([
+      expect.objectContaining({ state: 'FAILED', error: { kind: 'unauthenticated' } })
+    ]);
   });
 
   it('stops when Trino returns no query ID', async () => {
@@ -307,7 +327,22 @@ describe('startScript', () => {
 
     expect(client.submit).toHaveBeenCalledTimes(1);
     expect(mocks.queryTotalInc).toHaveBeenCalledWith({ outcome: 'failed' });
-    expect(q.getQuerySnapshots(USER, TAB)).toEqual([]);
+    expect(q.getQuerySnapshots(USER, TAB)).toEqual([
+      expect.objectContaining({ state: 'FAILED', error: { kind: 'unavailable' } })
+    ]);
+  });
+
+  it('does not store a failed submit of a superseded script', async () => {
+    let reject!: (err: Error) => void;
+    client.submit.mockImplementationOnce(() => new Promise((_, rej) => (reject = rej)));
+    const first = q.startScript(trinoClient(), USER, TAB, ['SELECT 1'], OPTS);
+    await vi.waitFor(() => expect(client.submit).toHaveBeenCalledTimes(1));
+
+    await q.startScript(trinoClient(), USER, TAB, ['SELECT 2'], OPTS);
+    reject(new Error('ECONNREFUSED'));
+    await first;
+
+    expect(q.getQuerySnapshots(USER, TAB).map((s) => s.sql)).toEqual(['SELECT 2']);
   });
 
   it('fails the query when the poll loop crashes', async () => {

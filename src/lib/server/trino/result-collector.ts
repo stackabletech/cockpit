@@ -80,7 +80,7 @@ export async function collectResults(query: TrinoQuery): Promise<void> {
       try {
         if (result.nextUri) {
           await query.client.cancelViaUri(result.nextUri, query.trinoUser);
-        } else {
+        } else if (query.trinoQueryId) {
           await query.client.cancel(query.trinoQueryId, query.trinoUser);
         }
       } catch (err) {

@@ -35,6 +35,10 @@ export type QueryError =
   | { kind: 'query'; message: string }
   /** Trino or a connector failed; only Trino's error name is passed on. */
   | { kind: 'server'; name: string | null }
+  /** Trino rejected the configured credentials (HTTP 401), e.g. a wrong or expired password. */
+  | { kind: 'unauthenticated' }
+  /** Trino refused the request (HTTP 403), e.g. a denied impersonation. */
+  | { kind: 'forbidden' }
   /** Trino could not be reached or sent an invalid response. */
   | { kind: 'unavailable' }
   /** Failed without details. */
