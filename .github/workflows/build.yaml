@@ -110,6 +110,9 @@ jobs:
 
           echo "IMAGE_VERSION=$IMAGE_VERSION" | tee -a "$GITHUB_OUTPUT"
 
+          # Used for the image labels, which would otherwise be inherited from the base image
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee -a "$GITHUB_OUTPUT"
+
       - name: Build Container Image
         id: build
         uses: stackabletech/actions/build-container-image@e8aed001d347bcf693e41b61f4098b0cb94b4ab6 # v0.18.0
@@ -119,6 +122,8 @@ jobs:
           build-arguments: |
             VERSION=${{ steps.version.outputs.IMAGE_VERSION }}
             TARGETARCH=${{ matrix.runner.arch }}
+            GIT_SHA=${{ github.sha }}
+            BUILD_DATE=${{ steps.version.outputs.BUILD_DATE }}
           container-file: docker/Dockerfile
 
       # Dependabot PRs have no access to repository secrets, so they build the image without publishing it.

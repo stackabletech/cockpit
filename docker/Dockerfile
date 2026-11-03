@@ -178,7 +178,21 @@ LABEL vendor="Stackable GmbH"
 
 # Overwriting/Pinning UBI labels
 # https://github.com/projectatomic/ContainerApplicationGenericLabels
-LABEL vcs-ref=""
+# Every label the UBI base image sets must be overwritten here. Otherwise
+# others identify this image as ubi10/ubi-minimal, with the build date
+# and commit of the base image.
+ARG GIT_SHA=""
+ARG BUILD_DATE=""
+LABEL name="cockpit"
+LABEL version="${VERSION}"
+LABEL release="${VERSION}"
+LABEL summary="Stackable Cockpit"
+LABEL description="Web UI of the Stackable Data Platform"
+LABEL io.k8s.display-name="Stackable Cockpit"
+LABEL io.k8s.description="Web UI of the Stackable Data Platform"
+LABEL io.openshift.tags="stackable,cockpit"
+LABEL build-date="${BUILD_DATE}"
+LABEL vcs-ref="${GIT_SHA}"
 LABEL distribution-scope="public"
 LABEL url="https://stackable.tech"
 ARG TARGETARCH
@@ -196,5 +210,10 @@ LABEL org.opencontainers.image.url="https://stackable.tech"
 LABEL org.opencontainers.image.source="https://github.com/stackabletech/cockpit/"
 LABEL org.opencontainers.image.vendor="Stackable GmbH"
 LABEL org.opencontainers.image.licenses="OSL-3.0"
+LABEL org.opencontainers.image.title="Stackable Cockpit"
+LABEL org.opencontainers.image.description="Web UI of the Stackable Data Platform"
+LABEL org.opencontainers.image.version="${VERSION}"
+LABEL org.opencontainers.image.revision="${GIT_SHA}"
+LABEL org.opencontainers.image.created="${BUILD_DATE}"
 
 CMD ["node", "build/index.js"]
