@@ -10,6 +10,7 @@ vi.mock('$lib/server/metrics.js', () => ({
 import { collectResults } from './result-collector.js';
 import { MAX_CLIENT_ROWS, INITIAL_PROGRESS } from '$lib/types/query.js';
 import type { TrinoQuery } from './queries.js';
+import { TrinoHttpError } from './errors.js';
 
 /** Just over half the limit, so two pages cross MAX_CLIENT_ROWS. */
 function page(): unknown[][] {
@@ -160,14 +161,26 @@ describe('collectResults failure', () => {
     const poll = vi.fn(async () => ({
       id: 'q1',
       stats: { state: 'FAILED' },
-      error: { message: 'Division by zero' }
+      error: { message: 'Division by zero', errorType: 'USER_ERROR' }
     }));
 
     const query = makeQuery({ poll });
     await collectResults(query);
 
     expect(query.state).toBe('FAILED');
-    expect(query.error).toBe('Division by zero');
+    expect(query.error).toEqual({ kind: 'query', message: 'Division by zero' });
+  });
+
+  it('fails without the response body when polling gets an HTTP error', async () => {
+    const poll = vi.fn(async () => {
+      throw new TrinoHttpError('poll', 502, '<html>internal-proxy.local</html>');
+    });
+
+    const query = makeQuery({ poll });
+    await collectResults(query);
+
+    expect(query.state).toBe('FAILED');
+    expect(query.error).toEqual({ kind: 'unavailable' });
   });
 
   it('fails on a FAILED state without error details', async () => {
@@ -185,6 +198,6 @@ describe('collectResults failure', () => {
 
     expect(poll).toHaveBeenCalledTimes(1);
     expect(query.state).toBe('FAILED');
-    expect(query.error).toBe('Query failed');
+    expect(query.error).toEqual({ kind: 'unknown' });
   });
 });

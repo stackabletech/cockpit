@@ -8,6 +8,7 @@ vi.mock('$lib/server/trino/client.js', () => ({
 import { GET } from './+server.js';
 import { resolveTrinoClient, trinoMetadataQuery } from '$lib/server/trino/client.js';
 import type { TrinoClient } from '$lib/server/trino/client.js';
+import { TrinoQueryFailure } from '$lib/server/trino/errors.js';
 
 const fakeClient = { fake: true } as unknown as TrinoClient;
 
@@ -95,7 +96,9 @@ describe('GET /api/trino/catalog', () => {
   });
 
   it('throws 502 with the Trino error message when the query fails', async () => {
-    vi.mocked(trinoMetadataQuery).mockRejectedValue(new Error('Catalog does not exist'));
+    vi.mocked(trinoMetadataQuery).mockRejectedValue(
+      new TrinoQueryFailure({ message: 'Catalog does not exist', errorType: 'USER_ERROR' })
+    );
 
     await expect(GET(mockEvent({ level: 'schemas', catalog: 'nope' }))).rejects.toThrow(
       expect.objectContaining({ status: 502, body: { message: 'Catalog does not exist' } })

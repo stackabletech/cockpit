@@ -4,6 +4,7 @@ import { resolveTrinoClient, trinoMetadataQuery } from '$lib/server/trino/client
 import { getTrinoUser, getUserId } from '$lib/server/auth-utils.js';
 import { completionEnabled } from '$lib/server/feature-flags.js';
 import { quoteIdentifier, quoteStringLiteral } from '$lib/editor/identifiers.js';
+import { trinoErrorBody } from '$lib/server/trino/errors.js';
 import type { RequestHandler } from './$types';
 
 // Any name Trino returns is valid; values are quoted/escaped before use in SQL.
@@ -115,8 +116,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     );
     return json(names);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'unknown error';
     log.info({ err, level, catalog, schema, table }, 'completion metadata query failed');
-    error(502, msg);
+    error(502, trinoErrorBody(err, locals.requestId));
   }
 };

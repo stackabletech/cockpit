@@ -777,7 +777,12 @@
       <div class="min-h-0 flex-1 overflow-auto">
         {#if runner.results.length > 0}
           {#each runner.results as result, idx (idx)}
-            <StatementResult {result} index={idx} totalStatements={runner.results.length} />
+            <StatementResult
+              {result}
+              index={idx}
+              totalStatements={runner.results.length}
+              managedConnection={data.trinoConfigured}
+            />
           {/each}
         {:else if !isActive}
           <p class="text-muted py-8 text-center text-sm">{m.trino_results_empty()}</p>
