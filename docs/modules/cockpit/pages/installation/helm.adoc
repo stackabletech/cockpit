@@ -17,6 +17,10 @@ IMPORTANT: Cockpit must be served over HTTPS, because session cookies and creden
 Cockpit itself serves plain HTTP, so terminate TLS at the Ingress or reverse proxy and use `https://` URLs for `origin` and `auth.baseUrl`.
 
 The chart creates a ClusterIP Service on port 3000 and can create an Ingress with the `ingress` values.
+
+Cockpit must be served at the root path `/` of its host, for example `https://cockpit.example.com/`.
+Other base paths such as `https://example.com/cockpit/` are not supported, so do not route a path prefix to Cockpit or rewrite paths in the Ingress or reverse proxy.
+
 Set `origin` to the URL users open in the browser.
 Behind a reverse proxy, also set the forwarded headers Cockpit trusts:
 
