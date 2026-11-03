@@ -509,7 +509,7 @@
   "bookmark_env_placeholder": "e.g. dev, prod",
   "bookmark_url_label": "URL",
   "bookmark_url_placeholder": "https://superset.example.com",
-  "bookmark_url_error": "Enter a valid HTTP or HTTPS URL.",
+  "bookmark_url_error": "Enter a valid HTTP or HTTPS URL without a user name or password.",
   "bookmark_pin_label": "Pin bookmark",
   "bookmark_preview_label": "Preview",
   "bookmark_section_title": "Bookmarks",

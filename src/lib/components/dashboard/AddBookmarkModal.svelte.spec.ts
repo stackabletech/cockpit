@@ -90,7 +90,9 @@ describe('AddBookmarkModal', () => {
     await page.getByLabelText('URL').fill('not a URL');
     await userEvent.keyboard('{Enter}');
 
-    await expect.element(page.getByText('Enter a valid HTTP or HTTPS URL.')).toBeVisible();
+    await expect
+      .element(page.getByText('Enter a valid HTTP or HTTPS URL without a user name or password.'))
+      .toBeVisible();
     expect(addBookmark).not.toHaveBeenCalled();
   });
 
@@ -101,7 +103,9 @@ describe('AddBookmarkModal', () => {
     await page.getByLabelText('URL').fill('not a URL');
     await page.getByRole('button', { name: 'Add bookmark' }).click();
 
-    await expect.element(page.getByText('Enter a valid HTTP or HTTPS URL.')).toBeVisible();
+    await expect
+      .element(page.getByText('Enter a valid HTTP or HTTPS URL without a user name or password.'))
+      .toBeVisible();
     await expect.element(page.getByLabelText('URL')).toHaveAttribute('aria-invalid', 'true');
     expect(addBookmark).not.toHaveBeenCalled();
   });
@@ -113,7 +117,9 @@ describe('AddBookmarkModal', () => {
     await page.getByLabelText('URL').fill('javascript:alert(1)');
     await page.getByRole('button', { name: 'Add bookmark' }).click();
 
-    await expect.element(page.getByText('Enter a valid HTTP or HTTPS URL.')).toBeVisible();
+    await expect
+      .element(page.getByText('Enter a valid HTTP or HTTPS URL without a user name or password.'))
+      .toBeVisible();
     await expect.element(page.getByLabelText('URL')).toHaveAttribute('aria-invalid', 'true');
     expect(addBookmark).not.toHaveBeenCalled();
   });
@@ -160,7 +166,9 @@ describe('AddBookmarkModal', () => {
     await page.getByLabelText('URL').fill('superset.corp');
     await page.getByLabelText('Name').click();
 
-    await expect.element(page.getByText('Enter a valid HTTP or HTTPS URL.')).toBeVisible();
+    await expect
+      .element(page.getByText('Enter a valid HTTP or HTTPS URL without a user name or password.'))
+      .toBeVisible();
   });
 
   it('prefills the default name of the preselected product', async () => {
