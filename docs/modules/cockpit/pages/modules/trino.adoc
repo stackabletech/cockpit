@@ -24,7 +24,7 @@ trino:
 ----
 <1> The coordinator as Cockpit reaches it.
 <2> Optional. The URL for links to the Trino web UI, defaults to `url`.
-<3> `none` (default) or `basic`.
+<3> `none` (default) or `basic`. Cockpit does not start with `basic` and no username or password.
 <4> Provides the CA certificate of Trino. Alternatively set `caCert` to a mounted file, or `insecure: true` to skip verification.
 
 Without `trino.url`, each user enters a connection in the UI.

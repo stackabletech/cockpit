@@ -36,6 +36,14 @@ Cockpit does not start if a value is invalid, and the error names every invalid 
 |`LOG_LEVEL`
 |`info`
 |`trace`, `debug`, `info`, `warn` or `error`.
+
+|`LOG_PRETTY`
+|`false` in production, otherwise `true`
+|Human-readable instead of JSON logs on stdout.
+
+|`LOG_JSON_FILE`
+|
+|Path of a file that also receives the JSON logs, for example for a log collector.
 |===
 
 == Database
@@ -89,7 +97,7 @@ Cockpit does not start if a value is invalid, and the error names every invalid 
 
 |`STACKABLE_COCKPIT_OIDC_DISCOVERY_URL`
 |
-|The `.well-known/openid-configuration` URL of the OIDC provider. Login is disabled unless this, the client ID and the client secret are set.
+|The `.well-known/openid-configuration` URL of the OIDC provider. Set this, the client ID and the client secret, or none of them. Without them, login is disabled; with only some, Cockpit does not start.
 
 |`STACKABLE_COCKPIT_OIDC_CLIENT_ID`
 |
@@ -120,7 +128,7 @@ Cockpit does not start if a value is invalid, and the error names every invalid 
 
 |`STACKABLE_COCKPIT_TRINO_AUTH_TYPE`
 |`none`
-|`none` or `basic`.
+|`none` or `basic`. With `basic` and `STACKABLE_COCKPIT_TRINO_URL`, the username and password are required.
 
 |`STACKABLE_COCKPIT_TRINO_AUTH_USERNAME`
 |
