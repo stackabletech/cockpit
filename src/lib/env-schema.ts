@@ -40,6 +40,9 @@ export const envOptionalInteger = z.preprocess(
 /** A trimmed string, or `undefined` when unset. */
 export const envString = z.preprocess(blankAsUnset, z.string().optional());
 
+/** An `http` or `https` URL, or `undefined` when unset. */
+export const envUrl = z.preprocess(blankAsUnset, z.url({ protocol: /^https?$/ }).optional());
+
 /** A list of non-empty entries separated by `separator`. */
 export function envList(defaultValue: string[], separator: RegExp | string = ',') {
   return z.preprocess(
@@ -52,6 +55,29 @@ export function envList(defaultValue: string[], separator: RegExp | string = ','
           .map((entry) => entry.trim())
           .filter(Boolean)
       )
+      .default(defaultValue)
+  );
+}
+
+/** JSON validated with `schema`, or `defaultValue` when unset. */
+export function envJson<T extends z.ZodType>(
+  schema: T,
+  defaultValue: Exclude<z.output<T>, undefined>
+) {
+  return z.preprocess(
+    blankAsUnset,
+    z
+      .string()
+      .transform((value, ctx): unknown => {
+        try {
+          return JSON.parse(value);
+        } catch {
+          // No parser message: it can quote the value, which may hold credentials.
+          ctx.addIssue({ code: 'custom', message: 'must be valid JSON' });
+          return z.NEVER;
+        }
+      })
+      .pipe(schema)
       .default(defaultValue)
   );
 }

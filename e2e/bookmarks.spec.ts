@@ -147,6 +147,5 @@ test.describe('Dashboard bookmarks', () => {
     await expect(confirmDialog).toBeHidden();
     await expect(editDialog).toBeHidden();
     await expect(page.getByLabel('Bookmarks').getByText('Dashboards')).not.toBeVisible();
-    await expect(page.getByText(/no bookmarks yet/i)).toBeVisible();
   });
 });

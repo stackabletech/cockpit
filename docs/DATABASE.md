@@ -74,8 +74,9 @@ npm run db:migrate:run
 
 Migrations are stored in `src/lib/server/migrations/`.
 
-The current migration history is a single baseline migration. Existing databases
-created with the prior migration sequence must be reset before applying it.
+The migration history starts with a baseline migration (`0000_initial_schema.sql`).
+Databases created with the migration sequence from before that baseline must be reset.
+Never edit a migration that has already been released; migrations run automatically at startup.
 
 ## NPM Scripts
 

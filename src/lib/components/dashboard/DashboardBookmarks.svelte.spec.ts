@@ -1,7 +1,7 @@
 import { page } from 'vitest/browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { Bookmark } from '$lib/dashboard/types';
+import type { Bookmark, BookmarkLink } from '$lib/dashboard/types';
 import DashboardBookmarks from './DashboardBookmarks.svelte';
 
 const { updateBookmark, addToast } = vi.hoisted(() => ({
@@ -27,6 +27,15 @@ const bookmark: Bookmark = {
   createdAt: '2026-01-01T00:00:00.000Z'
 };
 
+const globalBookmark: BookmarkLink = {
+  id: 'global-0',
+  productId: 'custom',
+  name: 'Team Wiki',
+  environment: '',
+  url: 'https://wiki.example.com',
+  pinned: true
+};
+
 describe('DashboardBookmarks', () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -41,7 +50,7 @@ describe('DashboardBookmarks', () => {
   });
 
   it('shows a message instead of the list, without adding, when loading failed', async () => {
-    render(DashboardBookmarks, { bookmarks: null });
+    render(DashboardBookmarks, { bookmarks: null, loadFailed: true });
 
     await expect
       .element(page.getByRole('heading', { level: 3, name: 'Bookmarks' }))
@@ -53,6 +62,19 @@ describe('DashboardBookmarks', () => {
       .element(page.getByRole('button', { name: /add bookmark/i }))
       .not.toBeInTheDocument();
     await expect.element(page.getByText(/no bookmarks yet/i)).not.toBeInTheDocument();
+  });
+
+  it('still shows the global bookmarks when loading the user’s failed', async () => {
+    render(DashboardBookmarks, {
+      bookmarks: null,
+      globalBookmarks: [globalBookmark],
+      loadFailed: true
+    });
+
+    await expect
+      .element(page.getByText('Bookmarks could not be loaded. Please reload the page later.'))
+      .toBeVisible();
+    await expect.element(page.getByRole('link', { name: 'Team Wiki' })).toBeVisible();
   });
 
   it('shows an empty state when there are no bookmarks', async () => {
@@ -106,6 +128,37 @@ describe('DashboardBookmarks', () => {
     ]) {
       await expect.element(page.getByRole('button', { name: label, exact: true })).toBeVisible();
     }
+  });
+
+  it('shows global bookmarks first, read-only, and counts them', async () => {
+    render(DashboardBookmarks, { bookmarks: [bookmark], globalBookmarks: [globalBookmark] });
+
+    const titles = page
+      .getByRole('link')
+      .elements()
+      .map((link) => link.textContent?.trim());
+    expect(titles).toEqual(['Team Wiki', 'Shared Dashboard']);
+    await expect.element(page.getByText('2 links')).toBeVisible();
+    await expect
+      .element(page.getByRole('button', { name: 'Edit bookmark Team Wiki' }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole('button', { name: /pin bookmark Team Wiki/i }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole('button', { name: 'Edit bookmark Shared Dashboard' }))
+      .toBeVisible();
+  });
+
+  it('shows only the global bookmarks, without adding, when the user’s are unavailable', async () => {
+    render(DashboardBookmarks, { bookmarks: null, globalBookmarks: [globalBookmark] });
+
+    await expect.element(page.getByRole('link', { name: 'Team Wiki' })).toBeVisible();
+    await expect
+      .element(page.getByRole('button', { name: /add bookmark/i }))
+      .not.toBeInTheDocument();
+    await expect.element(page.getByText(/bookmarks are added by hand/i)).not.toBeInTheDocument();
+    await expect.element(page.getByText(/no bookmarks yet/i)).not.toBeInTheDocument();
   });
 
   it('opens the add dialog', async () => {

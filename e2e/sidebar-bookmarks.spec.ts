@@ -37,11 +37,18 @@ test.describe('Sidebar bookmarks', () => {
     await page.goto('/');
     await waitForHydration(page);
 
+    // The pinned global bookmark from .env.test always shows Favourites, so check
+    // which list each of the user's bookmarks lands in.
+    const listWith = (name: string) =>
+      sidebarNav(page)
+        .getByRole('list')
+        .filter({ has: page.getByRole('link', { name }) });
     await expect(page.getByText('Favourites')).toBeVisible();
-    await expect(sidebarNav(page).getByRole('link', { name: 'Pipelines' })).toBeVisible();
+    await expect(listWith('Pipelines')).toBeVisible();
+    await expect(listWith('Pipelines').getByRole('link', { name: 'Dashboards' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Tools', exact: true })).toBeVisible();
-    await expect(sidebarNav(page).getByRole('link', { name: 'Dashboards' })).toBeVisible();
-    await expect(sidebarNav(page).getByRole('link', { name: 'Trino' })).toBeVisible();
+    await expect(listWith('Trino').getByRole('link', { name: 'Dashboards' })).toBeVisible();
+    await expect(listWith('Trino').getByRole('link', { name: 'Pipelines' })).toHaveCount(0);
   });
 
   test('opens each bookmark in a new tab', async ({ page }) => {

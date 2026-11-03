@@ -8,9 +8,13 @@
 <div class="mx-auto max-w-6xl space-y-5">
   <h2 class="text-base-content text-2xl font-bold tracking-tight">{m.dashboard_welcome()}</h2>
 
-  <!-- Without a signed-in user there are no bookmarks and the section is hidden;
-     when loading them failed, it says so. -->
-  {#if data.bookmarks || data.bookmarksFailed}
-    <DashboardBookmarks bookmarks={data.bookmarks} />
+  <!-- Without a signed-in user only global bookmarks are shown, and without any
+     the section is hidden; when loading the user's bookmarks failed, it says so. -->
+  {#if data.bookmarks || data.bookmarksFailed || data.globalBookmarks.length > 0}
+    <DashboardBookmarks
+      bookmarks={data.bookmarks}
+      globalBookmarks={data.globalBookmarks}
+      loadFailed={data.bookmarksFailed}
+    />
   {/if}
 </div>
