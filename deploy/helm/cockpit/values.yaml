@@ -158,7 +158,8 @@ tmp:
   # so keep it above storage.archiveCacheMaxMb (512 MB by default). Empty means no limit.
   sizeLimit: 1Gi
 
-# Session secret for signing cookies. Chart auto-generates one if secretKeyRef.name is empty.
+# Session secret for signing cookies. If secretKeyRef.name is empty, the chart generates
+# the Secret <fullname>-session.
 sessionSecret:
   secretKeyRef:
     name: ""

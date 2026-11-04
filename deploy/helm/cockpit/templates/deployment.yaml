@@ -162,7 +162,7 @@ spec:
                   name: {{ .Values.sessionSecret.secretKeyRef.name | quote }}
                   key: {{ .Values.sessionSecret.secretKeyRef.key | quote }}
                   {{- else }}
-                  name: {{ include "cockpit.fullname" . }}
+                  name: {{ include "cockpit.sessionSecretName" . }}
                   key: session-secret
                   {{- end }}
             - name: DATABASE_HOST
