@@ -1,0 +1,54 @@
+= Storage
+:description: The storage module of Stackable Cockpit is a file browser for S3-compatible object storage with previews, uploads, downloads and file editing.
+
+The storage module is a file browser for S3-compatible object storage.
+Users browse buckets, upload and download files, preview common formats such as CSV, Parquet, images, PDFs and archives, and edit text files.
+
+The module is disabled by default:
+
+[source,yaml]
+----
+features:
+  storage:
+    enabled: true
+storage:
+  encryptionKey:
+    secretKeyRef:
+      name: cockpit
+      key: storage-encryption-key # <1>
+  tls:
+    secretClass: tls # <2>
+----
+<1> A 64-character hex string, for example from `openssl rand -hex 32`.
+<2> Optional. Provides the CA certificate of the S3 endpoints. Alternatively set `caCert` to a mounted file.
+
+Each user adds their own S3 connections in the UI.
+Cockpit stores them in the database, with the credentials encrypted by the encryption key.
+If the key changes or is lost, the stored credentials can no longer be read.
+
+The CA certificate in `storage.tls` replaces the system trust store, so endpoints with publicly trusted certificates fail while it is set.
+
+== File operations
+
+Cut, copy, paste, rename and drag-and-drop move are disabled by default, because they can cause many S3 requests:
+
+[source,yaml]
+----
+features:
+  storage:
+    transfer: true
+----
+
+== Limits
+
+Preview sizes, upload and transfer concurrency, the archive cache and the download history retention are set under `storage`, see the xref:reference/environment-variables.adoc#_storage[reference]:
+
+[source,yaml]
+----
+storage:
+  filePreviewRows: 500
+  maxEditableFileSize: 10485760 # <1>
+config:
+  bodySizeLimit: 12M
+----
+<1> `config.bodySizeLimit` must be at least this large, otherwise saving large files fails.
