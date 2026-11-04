@@ -188,7 +188,7 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 
 | Parameter | Description | Default |
 | --- | --- | --- |
-| `sessionSecret.secretKeyRef.name` | Name of a Secret holding a stable session secret. Auto-generated if empty. | `""` |
+| `sessionSecret.secretKeyRef.name` | Name of a Secret holding a stable session secret. If empty, the chart generates the Secret `<fullname>-session`. | `""` |
 | `sessionSecret.secretKeyRef.key` | Key inside the Secret. | `session-secret` |
 | `storage.encryptionKey.secretKeyRef.name` | Name of the Secret holding the key that encrypts stored storage connection credentials: 64 hex characters, e.g. from `openssl rand -hex 32`. Required when `features.storage.enabled` is `true`. Keep it stable: changing or losing it makes all stored credentials unreadable. | `""` |
 | `storage.encryptionKey.secretKeyRef.key` | Key inside the Secret. | `storage-encryption-key` |

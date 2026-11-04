@@ -63,8 +63,16 @@ Create the name of the service account to use
 {{- end }}
 {{- end }}
 
+{{/*
+Name of the generated session secret. The suffix keeps it from colliding with a
+user-created Secret named like the release, e.g. one holding the database password.
+*/}}
+{{- define "cockpit.sessionSecretName" -}}
+{{- printf "%s-session" (include "cockpit.fullname" . | trunc 55 | trimSuffix "-") }}
+{{- end }}
+
 {{- define "cockpit.sessionSecret" -}}
-{{- $existing := lookup "v1" "Secret" .Release.Namespace (include "cockpit.fullname" .) }}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace (include "cockpit.sessionSecretName" .) }}
 {{- if and $existing $existing.data (index $existing.data "session-secret") }}
 {{- index $existing.data "session-secret" | b64dec }}
 {{- else }}
