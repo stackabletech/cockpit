@@ -37,7 +37,7 @@ test.describe('Error pages', () => {
     });
 
     test('only the exact public routes skip sign-in', async ({ page }) => {
-      for (const path of ['/metrics', '/healthz']) {
+      for (const path of ['/metrics', '/healthz', '/readyz']) {
         expect((await page.request.get(path)).status(), path).toBe(200);
       }
       const lookalike = await page.request.get('/metricsfoo', { maxRedirects: 0 });

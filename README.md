@@ -78,6 +78,16 @@ The application is configured via environment variables.
 Create a `.env` file at the project root, or set them in your deployment environment.
 Invalid values (e.g. `abc` for an integer) stop the server at startup with an error that names the invalid variables.
 
+### TLS
+
+| Variable                         | Type                       | Default | Description                                                                                                                                                                                                                                                                            | Example                                         |
+| -------------------------------- | -------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `STACKABLE_COCKPIT_TLS_CA_CERTS` | comma-separated file paths | none    | PEM files with CA certificates for private CAs. Trusted for all outgoing TLS connections (OIDC provider, Trino, PostgreSQL, S3) in addition to the CAs bundled with Node.js, so publicly trusted endpoints keep working. A missing, empty or invalid file stops the server at startup. | `STACKABLE_COCKPIT_TLS_CA_CERTS=/etc/ca/ca.crt` |
+
+### Health Checks
+
+`/healthz` reports that the server is running (liveness). `/readyz` additionally fails with 503 until the OIDC provider's discovery document has been fetched once, and logs why it failed, e.g. an untrusted certificate. Later outages of the provider don't affect it, so signed-in users keep access.
+
 ### Feature Flags
 
 | Variable                                            | Type                             | Default | Description                                                                                                                                                                             | Example                                                  |

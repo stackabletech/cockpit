@@ -4,7 +4,8 @@ import { building, dev } from '$app/environment';
 import { error, type Handle, type HandleServerError, type ServerInit } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
-import { auth, oidcEnabled } from '$lib/server/auth';
+import { auth, oidcDiscoveryUrl, oidcEnabled } from '$lib/server/auth';
+import { checkOidcDiscovery } from '$lib/server/oidc-discovery.js';
 import { unauthenticatedResponse } from '$lib/server/auth-guard';
 import { requestLogger, logger } from '$lib/server/logging';
 import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
@@ -58,7 +59,13 @@ const handleAuth: Handle = ({ event, resolve }) =>
 // Matched by route id, not path prefix, so `/metricsfoo` or `/auth/login/x`
 // (which reaches the (app) catch-all) still require sign-in. `/api/auth/*` is
 // answered by better-auth in `handleAuth` before this guard runs.
-const PUBLIC_ROUTE_IDS = new Set(['/auth/login', '/auth/logout', '/metrics', '/healthz']);
+const PUBLIC_ROUTE_IDS = new Set([
+  '/auth/login',
+  '/auth/logout',
+  '/metrics',
+  '/healthz',
+  '/readyz'
+]);
 
 const handleAuthGuard: Handle = async ({ event, resolve }) => {
   const session = await auth.api.getSession({ headers: event.request.headers });
@@ -134,6 +141,9 @@ export const init: ServerInit = async () => {
   if (storageBrowserEnabled) {
     storageEncryptionKey(); // throws immediately if the env var is missing/invalid
   }
+  // Doesn't fail startup (the provider may just be down), but logs the cause early.
+  // /readyz keeps the pod out of service until discovery succeeds.
+  if (oidcEnabled) await checkOidcDiscovery(oidcDiscoveryUrl!);
 };
 
 export const handleError: HandleServerError = ({ error, event, status, message }) => {
