@@ -32,6 +32,26 @@ proxy:
   hostHeader: x-forwarded-host
 ----
 
+=== Response header size
+
+Pages send a `Link` header that preloads their JavaScript and CSS.
+It grows with the number of files a page loads and exceeds 4 KB on some pages.
+Proxies with a smaller header buffer answer these pages with `502 Bad Gateway`, for example ingress-nginx and nginx with their default `4k` buffer.
+Raise the buffer to 16 KB:
+
+[source,yaml]
+----
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+----
+
+For plain nginx, set `proxy_buffer_size 16k;` and `proxy_busy_buffers_size 16k;`.
+
+// TODO: Remove once Cockpit uses SvelteKit 3, which preloads with <link> elements instead of a header, see https://github.com/sveltejs/kit/pull/15939.
+
 == CA certificates
 
 For backends with a private CA, set either a SecretClass or the path of a mounted CA file:
