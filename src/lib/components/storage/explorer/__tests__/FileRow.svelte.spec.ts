@@ -87,13 +87,15 @@ describe('FileRow', () => {
     await expect.element(checkbox).not.toBeDisabled();
   });
 
-  it('should have disabled checkbox when showCheckboxes is false', async () => {
+  it('should hide and disable the checkbox when showCheckboxes is false', async () => {
     const file = makeFile({ key: 'file.txt', contentType: 'text/plain' });
     const state = createState([file]);
     render(FileRowWrapper, { state, file });
 
-    const checkbox = page.getByRole('checkbox', { name: 'Select file.txt' });
+    // Hidden with `invisible` outside selection mode, so it drops out of the accessibility tree.
+    const checkbox = page.getByRole('checkbox', { name: 'Select file.txt', includeHidden: true });
     await expect.element(checkbox).toBeDisabled();
+    await expect.element(checkbox).not.toBeVisible();
   });
 
   it('should highlight row when selected', async () => {

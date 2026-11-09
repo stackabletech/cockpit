@@ -160,12 +160,14 @@ describe('ObjectTable', () => {
     expect(spy).toHaveBeenCalledWith(true);
   });
 
-  it('should disable select-all checkbox when not in selection mode', async () => {
+  it('should hide and disable the select-all checkbox when not in selection mode', async () => {
     const state = createState([makeFile('a.txt')]);
     render(ObjectTableWrapper, { state });
 
-    const checkbox = page.getByRole('checkbox', { name: 'Select all' });
+    // Hidden with `invisible` outside selection mode, so it drops out of the accessibility tree.
+    const checkbox = page.getByRole('checkbox', { name: 'Select all', includeHidden: true });
     await expect.element(checkbox).toBeDisabled();
+    await expect.element(checkbox).not.toBeVisible();
   });
 
   it('should render many items', async () => {

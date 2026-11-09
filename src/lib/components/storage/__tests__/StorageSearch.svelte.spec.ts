@@ -166,7 +166,10 @@ describe('StorageSearch', () => {
     render(StorageSearchWrapper, { state, currentBucket: 'alpha' });
     await page.getByRole('button', { name: 'Open search' }).click();
     await page.getByText('Advanced options').click();
-    await userEvent.type(page.getByLabelText('Max folder depth'), '1e');
+    // Wait for the collapse to finish opening; typing earlier leaves focus on the summary.
+    const depth = page.getByLabelText('Max folder depth');
+    await expect.element(depth).toBeVisible();
+    await userEvent.type(depth, '1e');
     await expect.element(page.getByText('Enter a whole number from 1 to 20.')).toBeVisible();
   });
 
@@ -249,7 +252,7 @@ describe('StorageSearch', () => {
     await page.getByLabelText('Search query').fill('report');
     await page.getByRole('button', { name: 'Search', exact: true }).click();
     await expect.element(page.getByText('2 results ·')).toBeVisible();
-    await page.getByRole('button', { name: /reportsreports\// }).click();
+    await page.getByRole('button', { name: 'reports reports/', exact: true }).click();
     expect(goto).toHaveBeenCalledWith('/storage/browse/s3.example.com/alpha/reports');
 
     render(StorageSearchWrapper, { state, currentBucket: 'alpha' });

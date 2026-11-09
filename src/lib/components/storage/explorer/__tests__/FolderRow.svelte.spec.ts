@@ -93,13 +93,15 @@ describe('FolderRow', () => {
     await expect.element(checkbox).not.toBeDisabled();
   });
 
-  it('should have disabled checkbox when showCheckboxes is false', async () => {
+  it('should hide and disable the checkbox when showCheckboxes is false', async () => {
     const folder = makeFolder('backup/');
     const state = createState([folder]);
     render(FolderRowWrapper, { state, folder });
 
-    const checkbox = page.getByRole('checkbox', { name: 'Select backup' });
+    // Hidden with `invisible` outside selection mode, so it drops out of the accessibility tree.
+    const checkbox = page.getByRole('checkbox', { name: 'Select backup', includeHidden: true });
     await expect.element(checkbox).toBeDisabled();
+    await expect.element(checkbox).not.toBeVisible();
   });
 
   it('should highlight row when selected', async () => {
