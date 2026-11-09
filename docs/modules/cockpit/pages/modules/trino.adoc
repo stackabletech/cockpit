@@ -10,7 +10,7 @@ Set `trino.url` to connect all users to one Trino cluster:
 [source,yaml]
 ----
 trino:
-  url: https://trino-coordinator:8443 # <1>
+  url: https://trino-coordinator-default-headless:8443 # <1>
   publicUrl: https://trino.example.com # <2>
   auth:
     type: basic # <3>
@@ -23,6 +23,8 @@ trino:
     secretClass: tls # <4>
 ----
 <1> The coordinator as Cockpit reaches it.
+With `secretClass`, use the headless Service of the role group (`<cluster>-coordinator-<role group>-headless`), which the certificate covers.
+From another namespace, append `.<namespace>.svc.cluster.local`.
 <2> Optional. The URL for links to the Trino web UI, defaults to `url`.
 <3> `none` (default) or `basic`. Cockpit does not start with `basic` and no username or password.
 <4> Provides the CA certificate of Trino. Alternatively set `caCert` to a mounted file, or `insecure: true` to skip verification.

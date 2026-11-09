@@ -2,7 +2,7 @@
 :description: Configure login to Stackable Cockpit with any OpenID Connect provider, such as Keycloak, including callback URL, scopes and session secret.
 
 Users log in to Cockpit through an OpenID Connect (OIDC) provider, for example Keycloak.
-Register a confidential client for Cockpit with the redirect URI `<base URL>/api/auth/oauth2/callback/oidc`.
+Register a confidential client for Cockpit with the redirect URI `<base URL>/api/auth/callback/oidc`.
 
 [source,yaml]
 ----

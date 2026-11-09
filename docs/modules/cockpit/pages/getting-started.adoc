@@ -3,7 +3,7 @@
 
 This guide installs Cockpit with Helm and runs a first Trino query.
 You need an existing PostgreSQL database, an OIDC client for Cockpit, a Trino cluster, the Stackable Secret Operator and an Ingress or reverse proxy that serves `https://cockpit.example.com`.
-Register the OIDC client with the redirect URI `https://cockpit.example.com/api/auth/oauth2/callback/oidc`, see xref:installation/authentication.adoc[].
+Register the OIDC client with the redirect URI `https://cockpit.example.com/api/auth/callback/oidc`, see xref:installation/authentication.adoc[].
 
 Create a Secret with the database password and the OIDC client secret:
 
@@ -35,7 +35,7 @@ database:
   tls:
     secretClass: tls # <2>
 trino:
-  url: https://trino-coordinator:8443
+  url: https://trino-coordinator-default-headless:8443
   tls:
     secretClass: tls # <3>
 ----
