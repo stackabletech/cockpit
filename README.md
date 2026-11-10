@@ -132,6 +132,7 @@ npm run knip         # Report unused files, exports and dependencies
 npm run test:unit    # Run the Vitest unit tests
 npm run test:arch    # Run the architecture tests
 npm run test:e2e     # Run the Playwright end-to-end tests (requires Docker)
+npm run docs:screenshots  # Regenerate the screenshots in the Antora docs (requires Docker)
 
 npm run generate:antlr   # Regenerate the lexer/parser after editing the SQL grammar
 ```
