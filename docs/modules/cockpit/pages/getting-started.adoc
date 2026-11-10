@@ -2,8 +2,13 @@
 :description: Install Stackable Cockpit on Kubernetes with Helm, connect it to an OIDC provider, PostgreSQL and Trino, and run your first SQL query.
 
 This guide installs Cockpit with Helm and runs a first Trino query.
-You need an existing PostgreSQL database, an OIDC client for Cockpit, a Trino cluster, the Stackable Secret Operator and an Ingress or reverse proxy that serves `https://cockpit.example.com`.
-Register the OIDC client with the redirect URI `https://cockpit.example.com/api/auth/callback/oidc`, see xref:installation/authentication.adoc[].
+You need:
+
+* a PostgreSQL database,
+* an OIDC client for Cockpit with the redirect URI `https://cockpit.example.com/api/auth/callback/oidc`, see the xref:installation/authentication.adoc[authentication] page for more details,
+* a Trino cluster,
+* the xref:secret-operator:index.adoc[Stackable Secret Operator],
+* an Ingress or reverse proxy that serves `https://cockpit.example.com`.
 
 Create a Secret with the database password and the OIDC client secret:
 
@@ -35,13 +40,14 @@ database:
   tls:
     secretClass: tls # <2>
 trino:
-  url: https://trino-coordinator-default-headless:8443
+  url: https://trino-coordinator-default-headless:8443 # <3>
   tls:
-    secretClass: tls # <3>
+    secretClass: tls # <4>
 ----
 <1> The URL users open in the browser. It must use HTTPS, see xref:installation/helm.adoc#_ingress_and_reverse_proxy[Ingress and reverse proxy].
 <2> The SecretClass that provides the CA certificate of PostgreSQL. Cockpit verifies the certificate by default, see xref:installation/database.adoc[].
-<3> The SecretClass that provides the CA certificate of Trino.
+<3> Optional. Without `trino.url`, each user enters a Trino connection in Cockpit, see xref:modules/trino.adoc#_connection[Connection].
+<4> The SecretClass that provides the CA certificate of Trino.
 
 Install the chart:
 

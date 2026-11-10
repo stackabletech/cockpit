@@ -1,7 +1,7 @@
 = Trino
-:description: The Trino module of Stackable Cockpit is a SQL editor with code completion and a schema browser that runs queries as the logged-in user.
+:description: The Trino module of Stackable Cockpit is an SQL editor with code completion and a schema browser that runs queries as the logged-in user.
 
-The Trino module is a SQL editor for xref:trino:index.adoc[Trino] with syntax highlighting, code completion and a schema browser.
+The Trino module is an SQL editor for xref:trino:index.adoc[Trino] with syntax highlighting, code completion and a schema browser.
 
 == Connection
 
@@ -26,7 +26,7 @@ trino:
 With `secretClass`, use the headless Service of the role group (`<cluster>-coordinator-<role group>-headless`), which the certificate covers.
 From another namespace, append `.<namespace>.svc.cluster.local`.
 <2> Optional. The URL for links to the Trino web UI, defaults to `url`.
-<3> `none` (default) or `basic`. Cockpit does not start with `basic` and no username or password.
+<3> `none` (default) or `basic`. `basic` requires `username` and `password`, otherwise Cockpit does not start.
 <4> Provides the CA certificate of Trino. Alternatively set `caCert` to a mounted file, or `insecure: true` to skip verification.
 
 Without `trino.url`, each user enters a connection in the UI.
