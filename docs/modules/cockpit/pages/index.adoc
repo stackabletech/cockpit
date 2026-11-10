@@ -8,6 +8,8 @@
 Stackable Cockpit is a web UI for the Stackable Data Platform (SDP).
 Users log in once through OpenID Connect (OIDC) and work with the platform's services from a single place.
 
+image::dashboard.png[Cockpit dashboard with bookmarks to Trino, Superset, Airflow and other tools]
+
 == Getting started
 
 Follow the xref:getting-started.adoc[] guide to install Cockpit with Helm and run your first Trino query.
