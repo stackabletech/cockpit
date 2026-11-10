@@ -297,7 +297,8 @@ trino:
   publicUrl: ""
   userImpersonation:
     # Forward the logged-in user to Trino as X-Trino-User. When false, all queries
-    # run as trino.auth.username instead (requires basic auth).
+    # run as trino.auth.username instead (requires basic auth). Without trino.url,
+    # this is the default for connections entered in the UI with basic auth.
     enabled: true
     # OIDC claim used as the Trino user. Only consumed when enabled and OIDC is on.
     userClaim: preferred_username
@@ -311,7 +312,8 @@ trino:
         name: ""
         key: trino-auth-password
   tls:
-    # Skip TLS certificate verification. A private CA goes into tls.caCerts or
+    # Skip TLS certificate verification. Without trino.url, users may skip it for
+    # the connection they enter in the UI. A private CA goes into tls.caCerts or
     # tls.secretClasses instead.
     insecure: false
   # Query result TTL in seconds. Default: 1800 (application default).

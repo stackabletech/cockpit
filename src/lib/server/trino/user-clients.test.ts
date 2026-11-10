@@ -1,28 +1,43 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { TrinoClientMock } = vi.hoisted(() => ({
+const { TrinoClientMock, AgentMock, trinoConfigMock, logMock } = vi.hoisted(() => ({
   TrinoClientMock: vi.fn(function (this: Record<string, unknown>, options: unknown) {
     this.options = options;
-  })
+  }),
+  AgentMock: vi.fn(function (this: Record<string, unknown>, options: unknown) {
+    this.options = options;
+  }),
+  trinoConfigMock: { tlsInsecure: false },
+  logMock: { info: vi.fn(), warn: vi.fn(), debug: vi.fn() }
 }));
 
 vi.mock('$lib/server/logging', () => ({
-  logger: { child: () => ({ info: vi.fn(), warn: vi.fn(), debug: vi.fn() }) }
+  logger: { child: () => logMock }
 }));
 vi.mock('./client.js', () => ({
   TrinoClient: TrinoClientMock,
-  buildBasicAuthHeader: (user: string, pass: string) => `Basic ${user}:${pass}`,
-  trinoUserImpersonation: true
+  buildBasicAuthHeader: (user: string, pass: string) => `Basic ${user}:${pass}`
 }));
+vi.mock('./config.js', () => ({ trinoConfig: trinoConfigMock }));
+vi.mock('undici', () => ({ Agent: AgentMock }));
 
 type UserClients = typeof import('./user-clients.js');
 let uc: UserClients;
 
-const BASE = { url: 'http://trino:8080', authType: 'none', username: '', password: '' } as const;
+const BASE = {
+  url: 'http://trino:8080',
+  authType: 'none',
+  username: '',
+  password: '',
+  tlsInsecure: false,
+  impersonate: true
+} as const;
+const BASIC = { ...BASE, authType: 'basic', username: 'alice', password: 'secret' } as const;
 
 beforeEach(async () => {
   vi.clearAllMocks();
   vi.resetModules();
+  trinoConfigMock.tlsInsecure = false;
   uc = await import('./user-clients.js');
 });
 
@@ -33,6 +48,7 @@ describe('buildUserTrinoClient', () => {
     expect(TrinoClientMock).toHaveBeenCalledWith({
       serverUrl: 'http://trino:8080',
       authorization: undefined,
+      dispatcher: undefined,
       impersonate: true
     });
   });
@@ -54,6 +70,34 @@ describe('buildUserTrinoClient', () => {
     expect(TrinoClientMock).toHaveBeenCalledWith(
       expect.objectContaining({ authorization: undefined })
     );
+  });
+
+  // TrinoClient keeps sending X-Trino-User without credentials (see client.test.ts).
+  it('passes the impersonation setting to the client', () => {
+    uc.buildUserTrinoClient({ ...BASIC, impersonate: false });
+
+    expect(TrinoClientMock).toHaveBeenCalledWith(
+      expect.objectContaining({ authorization: 'Basic alice:secret', impersonate: false })
+    );
+  });
+
+  it('rejects skipping TLS verification unless allowed', () => {
+    expect(() => uc.buildUserTrinoClient({ ...BASE, tlsInsecure: true })).toThrow(/not allowed/);
+    expect(TrinoClientMock).not.toHaveBeenCalled();
+  });
+
+  it('skips TLS verification when allowed and requested', () => {
+    trinoConfigMock.tlsInsecure = true;
+    uc.buildUserTrinoClient({ ...BASE, tlsInsecure: true });
+
+    uc.buildUserTrinoClient({ ...BASIC, tlsInsecure: true });
+
+    expect(AgentMock).toHaveBeenCalledTimes(1);
+    expect(AgentMock).toHaveBeenCalledWith({ connect: { rejectUnauthorized: false } });
+    const dispatchers = TrinoClientMock.mock.calls.map(
+      ([options]) => (options as { dispatcher?: unknown }).dispatcher
+    );
+    expect(dispatchers).toEqual([AgentMock.mock.instances[0], AgentMock.mock.instances[0]]);
   });
 
   it('does not store the client', () => {
@@ -83,5 +127,17 @@ describe('per-user connections', () => {
 
     expect(uc.getUserTrinoClient('u1')).toBe(TrinoClientMock.mock.instances[1]);
     expect(uc.getUserTrinoUrl('u1')).toBe('http://other:8443');
+  });
+
+  it('logs a warning when the connection skips TLS verification', () => {
+    trinoConfigMock.tlsInsecure = true;
+    uc.createUserTrinoClient('u1', BASE);
+    expect(logMock.warn).not.toHaveBeenCalled();
+
+    uc.createUserTrinoClient('u1', { ...BASE, tlsInsecure: true });
+    expect(logMock.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: 'u1', tls_insecure: true }),
+      expect.stringContaining('without TLS certificate verification')
+    );
   });
 });

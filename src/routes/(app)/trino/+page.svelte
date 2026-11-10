@@ -142,6 +142,10 @@
       $connectionForm.connectionUrl = getStoredValue('trino_url', '');
       $connectionForm.authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
       $connectionForm.authUsername = getStoredValue('trino_username', '');
+      $connectionForm.impersonate =
+        getStoredValue('trino_impersonate', String($connectionForm.impersonate)) === 'true';
+      $connectionForm.tlsInsecure =
+        data.allowInsecureTls && getStoredValue('trino_tls_insecure', 'false') === 'true';
     }
     defaultCatalog = getStoredValue('trino_default_catalog', '');
     defaultSchema = getStoredValue('trino_default_schema', '');
@@ -183,6 +187,13 @@
     localStorage.setItem('trino_url', $connectionForm.connectionUrl);
     localStorage.setItem('trino_auth_type', $connectionForm.authType);
     localStorage.setItem('trino_username', $connectionForm.authUsername);
+    // Only store a deviation from the deployment default, so a changed default still applies.
+    if ($connectionForm.impersonate === data.connectionForm.data.impersonate) {
+      localStorage.removeItem('trino_impersonate');
+    } else {
+      localStorage.setItem('trino_impersonate', String($connectionForm.impersonate));
+    }
+    localStorage.setItem('trino_tls_insecure', String($connectionForm.tlsInsecure));
   });
 
   // Persist settings.
@@ -228,7 +239,9 @@
     const url = $connectionForm.connectionUrl;
     const host = url ? url.replace(/^https?:\/\//, '').replace(/\/$/, '') : '-';
     const auth = $connectionForm.authType === 'basic' ? m.trino_auth_basic() : m.trino_auth_none();
-    return `${host} \u00b7 ${auth}`;
+    const parts = [host, auth];
+    if ($connectionForm.tlsInsecure) parts.push(m.trino_connection_tls_unverified());
+    return parts.join(' \u00b7 ');
   });
 
   const stateLabel = $derived.by(() => {
@@ -569,6 +582,52 @@
                     <p class="text-error text-xs">{$connectionErrors.authPassword}</p>
                   {/if}
                 </div>
+              </div>
+
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <label for="{uid}-impersonate" class="label text-sm">
+                    {m.trino_connection_impersonate()}
+                  </label>
+                  <p id="{uid}-impersonate-hint" class="text-muted mt-0.5 text-xs">
+                    {m.trino_connection_impersonate_hint()}
+                  </p>
+                </div>
+                <input
+                  id="{uid}-impersonate"
+                  name="impersonate"
+                  type="checkbox"
+                  class="toggle toggle-primary mt-1 shrink-0"
+                  aria-describedby="{uid}-impersonate-hint"
+                  bind:checked={$connectionForm.impersonate}
+                />
+              </div>
+            {:else}
+              <!-- Keep the setting while hidden; an absent checkbox would post false. -->
+              <input type="hidden" name="impersonate" value={String($connectionForm.impersonate)} />
+            {/if}
+
+            {#if data.allowInsecureTls}
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <label for="{uid}-tls-insecure" class="label text-sm">
+                    {m.trino_connection_tls_insecure()}
+                  </label>
+                  <p id="{uid}-tls-insecure-hint" class="text-muted mt-0.5 text-xs">
+                    {m.trino_connection_tls_insecure_hint()}
+                  </p>
+                  {#if $connectionErrors.tlsInsecure}
+                    <p class="text-error text-xs">{$connectionErrors.tlsInsecure}</p>
+                  {/if}
+                </div>
+                <input
+                  id="{uid}-tls-insecure"
+                  name="tlsInsecure"
+                  type="checkbox"
+                  class="toggle toggle-primary mt-1 shrink-0"
+                  aria-describedby="{uid}-tls-insecure-hint"
+                  bind:checked={$connectionForm.tlsInsecure}
+                />
               </div>
             {/if}
 

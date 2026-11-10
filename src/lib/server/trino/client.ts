@@ -130,10 +130,16 @@ export class TrinoClient {
     return res.json() as Promise<TrinoQueryResult>;
   }
 
+  /** Whether requests carry `X-Trino-User`. Without credentials it is the only
+   *  user Trino gets, so impersonation can only be turned off when authenticated. */
+  get impersonates(): boolean {
+    return this.impersonate || !this.authenticated;
+  }
+
   /** commonHeaders plus X-Trino-User for the given user when impersonating. */
   private headersForUser(user: string | undefined): Record<string, string> {
     const headers = { ...this.commonHeaders };
-    if (user && (this.impersonate || !this.authenticated)) {
+    if (user && this.impersonates) {
       headers['X-Trino-User'] = user;
     }
     return headers;
@@ -231,7 +237,7 @@ const {
   tlsInsecure
 } = trinoConfig;
 
-export const trinoUserImpersonation = trinoConfig.userImpersonation;
+const trinoUserImpersonation = trinoConfig.userImpersonation;
 
 /** True when the Trino connection is pre-configured via environment variables. */
 export const trinoConfigured = !!trinoUrl;
