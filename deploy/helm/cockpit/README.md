@@ -55,8 +55,8 @@ The following table lists the configurable parameters of the Cockpit chart and t
 | Parameter | Description | Default |
 | --- | --- | --- |
 | `replicaCount` | Number of replicas | `1` |
-| `image.registry` | Container image registry | `oci.stackable.tech` |
-| `image.repository` | Container image repository | `sdp/cockpit` |
+| `image.registry` | Container image registry. Published chart packages default to the registry they come from (`oci.stackable.tech` or `quay.io`) | `oci.stackable.tech` |
+| `image.repository` | Container image repository (`stackable/sdp/cockpit` in the quay.io package) | `sdp/cockpit` |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `image.tag` | Image tag (overrides appVersion) | `""` |
 | `nameOverride` | String to partially override fullname | `""` |
