@@ -31,6 +31,7 @@ function makeQuery(client: Partial<TrinoQuery['client']>): TrinoQuery {
     startedAt: 0,
     nextUri: 'http://trino/next-1',
     client: client as TrinoQuery['client'],
+    trinoVersion: null,
     userId: 'u',
     trinoUser: 'alice',
     completedAt: null

@@ -73,7 +73,7 @@ test.describe('Trino API', () => {
           [3, 'Carol']
         ]
       });
-      expect(full.trinoQueryUrl).toMatch(/\/ui\/query\.html\?q-mock-\d+$/);
+      expect(full.trinoQueryUrl).toMatch(/\/ui\/#\/queries\/q-mock-\d+$/);
 
       const cleanup = await page.request.delete(`/api/trino/query?tabId=${tabId}&cleanup=true`);
       expect(cleanup.status()).toBe(204);
