@@ -56,6 +56,8 @@ ingress:
   annotations: {}
     # cert-manager.io/cluster-issuer: letsencrypt-prod
     # kubernetes.io/tls-acme: "true"
+    # ingress-nginx: the default 4k buffer is too small for Cockpit's response headers (502)
+    # nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
   hosts:
     - host: cockpit.local
       paths:
