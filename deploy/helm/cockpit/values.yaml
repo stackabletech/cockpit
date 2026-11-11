@@ -278,7 +278,8 @@ auth:
   # Publicly accessible base URL (used for OIDC callback URLs)
   baseUrl: "http://localhost:3000"
   oidc:
-    # Disable to deploy without authentication (e.g. local testing).
+    # Disable to deploy without authentication (e.g. local testing). Everyone
+    # then shares one local user, including its saved storage connections.
     enabled: true
     # OIDC discovery URL (the full .well-known/openid-configuration URL)
     # Required when enabled. Example: https://your-idp.example.com/realms/your-realm/.well-known/openid-configuration

@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { StartedTestContainer } from 'testcontainers';
 import { startPostgres } from './containers/postgres.setup.js';
 import { startGarage } from './containers/garage.setup.js';
+import { productionBodySizeLimit } from './body-size-limit.js';
 
 process.loadEnvFile(path.join(import.meta.dirname, '../..', '.env.test'));
 
@@ -24,17 +25,6 @@ async function stop(exitCode: number) {
   await Promise.allSettled(containers.map((container) => container.stop()));
   await fs.rm(stateFile, { force: true });
   process.exit(exitCode);
-}
-
-/** Run the E2E app with the same adapter-node body size limit as the image. */
-async function productionBodySizeLimit(): Promise<string> {
-  const dockerfile = await fs.readFile(
-    path.join(import.meta.dirname, '../../docker/Dockerfile'),
-    'utf-8'
-  );
-  const limit = /^ENV BODY_SIZE_LIMIT=(\S+)$/m.exec(dockerfile)?.[1];
-  if (!limit) throw new Error('BODY_SIZE_LIMIT not found in docker/Dockerfile');
-  return limit;
 }
 
 async function main() {

@@ -1,9 +1,24 @@
 import { defineConfig } from '@playwright/test';
 import path from 'path';
+import { APP_VARIANTS } from './e2e/support/app-variants.js';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4173';
 const appPort = new URL(baseURL).port || '80';
 const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+const browsers = {
+  firefox: { browserName: 'firefox' },
+  chromium: {
+    browserName: 'chromium',
+    ...(chromiumExecutablePath && { launchOptions: { executablePath: chromiumExecutablePath } })
+  }
+} as const;
+// Specs of the further app instances (see e2e/support/app-variants.ts).
+const variants = Object.entries(APP_VARIANTS).map(([name, { port, specs }]) => ({
+  name,
+  baseURL: `http://localhost:${port}`,
+  specs
+}));
+const variantSpecs = variants.map((variant) => variant.specs);
 
 export default defineConfig({
   // Each worker logs in as its own user (see e2e/support/fixtures.ts), so
@@ -45,23 +60,29 @@ export default defineConfig({
       stdout: process.env.E2E_SERVER_LOGS ? 'pipe' : 'ignore',
       gracefulShutdown: { signal: 'SIGTERM', timeout: 30_000 },
       reuseExistingServer: false
-    }
+    },
+    ...variants.map((variant) => ({
+      command: 'npx tsx e2e/support/start-app-variant.ts',
+      env: { APP_VARIANT: variant.name, MAIN_APP_URL: baseURL },
+      url: variant.baseURL,
+      timeout: 300_000,
+      stdout: process.env.E2E_SERVER_LOGS ? ('pipe' as const) : ('ignore' as const),
+      gracefulShutdown: { signal: 'SIGTERM' as const, timeout: 30_000 },
+      reuseExistingServer: false
+    }))
   ],
   projects: [
-    {
-      name: 'firefox',
-      use: {
-        browserName: 'firefox',
-        viewport: { width: 1280, height: 720 }
-      }
-    },
-    {
-      name: 'chromium',
-      use: {
-        browserName: 'chromium',
-        viewport: { width: 1280, height: 720 },
-        ...(chromiumExecutablePath && { launchOptions: { executablePath: chromiumExecutablePath } })
-      }
-    }
+    ...Object.entries(browsers).map(([name, browser]) => ({
+      name,
+      testIgnore: variantSpecs,
+      use: { ...browser, viewport: { width: 1280, height: 720 } }
+    })),
+    ...variants.flatMap((variant) =>
+      Object.entries(browsers).map(([name, browser]) => ({
+        name: `${name}-${variant.name}`,
+        testMatch: variant.specs,
+        use: { ...browser, baseURL: variant.baseURL, viewport: { width: 1280, height: 720 } }
+      }))
+    )
   ]
 });
