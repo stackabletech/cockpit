@@ -3,15 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
 import { logger } from '$lib/server/logging';
+import { checkOidcDiscovery } from './oidc-discovery.js';
 
 const DISCOVERY_URL = 'https://idp.example.com/.well-known/openid-configuration';
 const log = logger.child({});
-
-/** Fresh module per test: a successful discovery is remembered. */
-async function check() {
-  const { checkOidcDiscovery } = await import('./oidc-discovery.js');
-  return checkOidcDiscovery(DISCOVERY_URL);
-}
 
 function fetchError(code: string, message: string) {
   return new TypeError('fetch failed', { cause: Object.assign(new Error(message), { code }) });
@@ -21,25 +16,22 @@ describe('checkOidcDiscovery', () => {
   const fetchMock = vi.fn();
 
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
     vi.stubGlobal('fetch', fetchMock);
   });
 
   afterEach(() => vi.unstubAllGlobals());
 
-  it('succeeds for a discovery document and remembers it', async () => {
+  it('logs a reachable provider', async () => {
     fetchMock.mockResolvedValue(Response.json({ authorization_endpoint: 'https://idp/auth' }));
 
-    const { checkOidcDiscovery } = await import('./oidc-discovery.js');
-    expect(await checkOidcDiscovery(DISCOVERY_URL)).toBe(true);
-    expect(await checkOidcDiscovery(DISCOVERY_URL)).toBe(true);
+    await checkOidcDiscovery(DISCOVERY_URL);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(log.info).toHaveBeenCalledWith(
       { discovery_url: DISCOVERY_URL },
       'OIDC provider reachable'
     );
+    expect(log.warn).not.toHaveBeenCalled();
   });
 
   it('names an untrusted provider certificate and the setting that fixes it', async () => {
@@ -47,8 +39,9 @@ describe('checkOidcDiscovery', () => {
       fetchError('UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'unable to verify the first certificate')
     );
 
-    expect(await check()).toBe(false);
-    expect(log.warn).toHaveBeenCalledWith(
+    await checkOidcDiscovery(DISCOVERY_URL);
+
+    expect(log.error).toHaveBeenCalledWith(
       {
         discovery_url: DISCOVERY_URL,
         error_code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
@@ -58,32 +51,38 @@ describe('checkOidcDiscovery', () => {
     );
   });
 
-  it('logs the cause of other connection errors and retries on the next check', async () => {
-    fetchMock.mockRejectedValueOnce(fetchError('ENOTFOUND', 'getaddrinfo ENOTFOUND idp'));
-    fetchMock.mockResolvedValueOnce(Response.json({ authorization_endpoint: 'https://idp/auth' }));
+  it('logs the cause of other connection errors as a warning', async () => {
+    fetchMock.mockRejectedValue(fetchError('ENOTFOUND', 'getaddrinfo ENOTFOUND idp'));
 
-    const { checkOidcDiscovery } = await import('./oidc-discovery.js');
-    expect(await checkOidcDiscovery(DISCOVERY_URL)).toBe(false);
+    await checkOidcDiscovery(DISCOVERY_URL);
+
     expect(log.warn).toHaveBeenCalledWith(
       { discovery_url: DISCOVERY_URL, error_code: 'ENOTFOUND', error: 'getaddrinfo ENOTFOUND idp' },
       'OIDC discovery failed'
     );
-    expect(await checkOidcDiscovery(DISCOVERY_URL)).toBe(true);
+    expect(log.error).not.toHaveBeenCalled();
   });
 
-  it('fails on an error response', async () => {
+  it('logs an error response', async () => {
     fetchMock.mockResolvedValue(new Response('not found', { status: 404 }));
 
-    expect(await check()).toBe(false);
+    await checkOidcDiscovery(DISCOVERY_URL);
+
     expect(log.warn).toHaveBeenCalledWith(
       { discovery_url: DISCOVERY_URL, status_code: 404 },
       expect.stringContaining('OIDC discovery failed')
     );
   });
 
-  it('fails when the response is no discovery document', async () => {
+  it('logs a response that is no discovery document', async () => {
     fetchMock.mockResolvedValue(Response.json({ hello: 'world' }));
 
-    expect(await check()).toBe(false);
+    await checkOidcDiscovery(DISCOVERY_URL);
+
+    expect(log.warn).toHaveBeenCalledWith(
+      { discovery_url: DISCOVERY_URL },
+      expect.stringContaining('no OIDC discovery document')
+    );
+    expect(log.info).not.toHaveBeenCalled();
   });
 });

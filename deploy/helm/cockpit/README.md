@@ -163,7 +163,7 @@ OIDC is the only supported auth mechanism. Disable for local testing.
 | `auth.oidc.clientSecret.secretKeyRef.key` | Key inside the Secret. | `oidc-client-secret` |
 | `auth.oidc.extraScopes` | List of extra OIDC scopes to request in addition to `openid profile email`. Set when the claim to use as identifier in Trino is only released under a custom scope. | `[]` |
 
-The readiness probe (`/readyz`) fails until the OIDC provider has been reached once. The logs name the cause, e.g. a provider certificate from a private CA that is missing in `tls.caCerts` or `tls.secretClasses`.
+At startup, the cockpit fetches the OIDC discovery document once and logs the cause if that fails, e.g. a provider certificate from a private CA that is missing in `tls.caCerts` or `tls.secretClasses`.
 
 ### Trino Connection Parameters
 

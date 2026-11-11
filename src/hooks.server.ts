@@ -59,13 +59,7 @@ const handleAuth: Handle = ({ event, resolve }) =>
 // Matched by route id, not path prefix, so `/metricsfoo` or `/auth/login/x`
 // (which reaches the (app) catch-all) still require sign-in. `/api/auth/*` is
 // answered by better-auth in `handleAuth` before this guard runs.
-const PUBLIC_ROUTE_IDS = new Set([
-  '/auth/login',
-  '/auth/logout',
-  '/metrics',
-  '/healthz',
-  '/readyz'
-]);
+const PUBLIC_ROUTE_IDS = new Set(['/auth/login', '/auth/logout', '/metrics', '/healthz']);
 
 const handleAuthGuard: Handle = async ({ event, resolve }) => {
   const session = await auth.api.getSession({ headers: event.request.headers });
@@ -141,9 +135,9 @@ export const init: ServerInit = async () => {
   if (storageBrowserEnabled) {
     storageEncryptionKey(); // throws immediately if the env var is missing/invalid
   }
-  // Doesn't fail startup (the provider may just be down), but logs the cause early.
-  // /readyz keeps the pod out of service until discovery succeeds.
-  if (oidcEnabled) await checkOidcDiscovery(oidcDiscoveryUrl!);
+  // Only logs the cause of a failure: the provider may just be down, and existing
+  // sessions keep working without it. Not awaited, so it doesn't delay startup.
+  if (oidcEnabled) void checkOidcDiscovery(oidcDiscoveryUrl!);
 };
 
 export const handleError: HandleServerError = ({ error, event, status, message }) => {
