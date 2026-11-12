@@ -62,6 +62,10 @@ proxy:
 
 Only set the `proxy` headers if the proxy overwrites them, otherwise clients can spoof them.
 
+Some pages send response headers larger than 4 KB (a `Link` header preloading their JavaScript and CSS).
+Proxies with a smaller header buffer answer them with `502 Bad Gateway`, for example ingress-nginx and nginx with their default `4k`.
+Raise the buffer to 16 KB: `nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"` for ingress-nginx, `proxy_buffer_size 16k;` and `proxy_busy_buffers_size 16k;` for nginx.
+
 ### Docker
 
 ```bash

@@ -151,12 +151,12 @@ Limits and tuning for the file browser. Empty values use the application default
 
 ### Authentication Parameters
 
-OIDC is the only supported auth mechanism. Disable for local testing.
+OIDC is the only supported auth mechanism. Disable it for local testing only: without OIDC there is no sign-in, and everyone acts as one shared local user with the same storage connections (including their credentials), bookmarks and recent searches. Switching OIDC on or off signs everyone out. The local user's data stays in the database, but OIDC users cannot reach it.
 
 | Parameter | Description | Default |
 | --- | --- | --- |
 | `auth.baseUrl` | Publicly accessible base URL of the app (used for OIDC callbacks). | `http://localhost:3000` |
-| `auth.oidc.enabled` | Enable OIDC authentication. Disable to deploy without auth. | `true` |
+| `auth.oidc.enabled` | Enable OIDC authentication. Disable to deploy without sign-in (shared local user, see above). | `true` |
 | `auth.oidc.discoveryUrl` | OIDC `.well-known/openid-configuration` URL. Required when enabled. | `""` |
 | `auth.oidc.clientId` | OIDC client ID. Required when enabled. | `""` |
 | `auth.oidc.clientSecret.secretKeyRef.name` | Name of the Secret holding the OIDC client secret. Required when enabled. | `""` |

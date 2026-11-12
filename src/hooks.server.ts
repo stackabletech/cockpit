@@ -1,12 +1,19 @@
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { httpRequestDuration } from '$lib/server/metrics';
 import { building, dev } from '$app/environment';
-import { error, type Handle, type HandleServerError, type ServerInit } from '@sveltejs/kit';
+import {
+  error,
+  type Handle,
+  type HandleServerError,
+  type RequestEvent,
+  type ServerInit
+} from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { auth, oidcDiscoveryUrl, oidcEnabled } from '$lib/server/auth';
 import { checkOidcDiscovery } from '$lib/server/oidc-discovery.js';
 import { unauthenticatedResponse } from '$lib/server/auth-guard';
+import { belongsToAuthMode } from '$lib/server/local-user.js';
 import { requestLogger, logger } from '$lib/server/logging';
 import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
 import { STORAGE_CONNECTION_ID_HEADER } from '$lib/storage/connection-id-header.js';
@@ -62,11 +69,14 @@ const handleAuth: Handle = ({ event, resolve }) =>
 const PUBLIC_ROUTE_IDS = new Set(['/auth/login', '/auth/logout', '/metrics', '/healthz']);
 
 const handleAuthGuard: Handle = async ({ event, resolve }) => {
-  const session = await auth.api.getSession({ headers: event.request.headers });
+  const isPublic = event.route.id !== null && PUBLIC_ROUTE_IDS.has(event.route.id);
+  // The login page leads back to the requested page once signed in.
+  const signsInLocalUser = !oidcEnabled && (!isPublic || event.route.id === '/auth/login');
+  const session =
+    (await getSessionOfAuthMode(event)) ?? (signsInLocalUser ? await signInLocalUser(event) : null);
   event.locals.user = session?.user ?? null;
   event.locals.session = session?.session ?? null;
 
-  const isPublic = event.route.id !== null && PUBLIC_ROUTE_IDS.has(event.route.id);
   if (!isPublic && !event.locals.user) {
     event.locals.logger.debug({ path: event.url.pathname }, 'Rejecting unauthenticated request');
     return unauthenticatedResponse(event.url);
@@ -74,6 +84,37 @@ const handleAuthGuard: Handle = async ({ event, resolve }) => {
 
   return resolve(event);
 };
+
+/**
+ * The request's session, unless it was started in the other auth mode (see
+ * `belongsToAuthMode`): such a session is revoked, so switching OIDC on or off
+ * signs everyone out.
+ */
+async function getSessionOfAuthMode(event: RequestEvent) {
+  const headers = event.request.headers;
+  const session = await auth.api.getSession({ headers });
+  if (!session || belongsToAuthMode(session.user, oidcEnabled)) return session;
+  await auth.api.signOut({ headers });
+  event.locals.logger.info(
+    { user_id: session.user.id, oidc_enabled: oidcEnabled },
+    'Revoked a session started in the other auth mode'
+  );
+  return null;
+}
+
+/**
+ * Without OIDC every request without a session acts as the shared local user
+ * (see local-user.ts). The new session cookie is set on the response, so the
+ * browser keeps one session instead of starting one per request. Clients that
+ * send no cookies (curl, scripts, scanners) get a new session each time; the
+ * rows expire with the session lifetime, which is acceptable for a mode meant
+ * for local testing.
+ */
+async function signInLocalUser(event: RequestEvent) {
+  const session = await auth.api.signInLocalUser({ headers: event.request.headers });
+  event.locals.logger.debug({ user_id: session.user.id }, 'Signed in as the local user');
+  return session;
+}
 
 /**
  * Parse the `x-storage-connection-id` header for every request and look up the
@@ -119,7 +160,8 @@ export const handle = sequence(
   requestLogger,
   handleMetrics,
   handleParaglide,
-  ...(oidcEnabled ? [handleAuth, handleAuthGuard] : []),
+  handleAuth,
+  handleAuthGuard,
   handleStorageConnection
 );
 

@@ -1,0 +1,23 @@
+= Stackable Cockpit
+:description: Stackable Cockpit is a web UI for the Stackable Data Platform (SDP) to work with services such as Trino and S3 storage from a single place, behind one OIDC login.
+:github: https://github.com/stackabletech/cockpit/
+
+[.link-bar]
+* {github}[GitHub {external-link-icon}^]
+
+Stackable Cockpit is a web UI for the Stackable Data Platform (SDP).
+Users log in once through OpenID Connect (OIDC) and work with the platform's services from a single place.
+
+image::dashboard.png[Cockpit dashboard with bookmarks to Trino, Superset, Airflow and other tools]
+
+== Getting started
+
+Follow the xref:getting-started.adoc[] guide to install Cockpit with Helm and run your first Trino query.
+
+== Modules
+
+Cockpit consists of modules:
+
+* xref:modules/trino.adoc[Trino]: an SQL editor with code completion and a schema browser.
+* xref:modules/storage.adoc[Storage]: a file browser for S3-compatible object storage.
+* xref:modules/bookmarks.adoc[Bookmarks]: links to frequently used tools on the dashboard.

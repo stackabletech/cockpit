@@ -74,8 +74,10 @@
       : 'max-w-2xl'}"
   >
     <div class="mb-4 flex items-start justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <div class="{iconColor} bg-base-200 flex size-10 items-center justify-center rounded-lg">
+      <div class="flex min-w-0 items-center gap-3">
+        <div
+          class="{iconColor} bg-base-200 flex size-10 shrink-0 items-center justify-center rounded-lg"
+        >
           {#if type === 'file'}
             <IconDescription class="size-5" />
           {:else if type === 'directory'}
@@ -86,7 +88,10 @@
         </div>
         <div class="min-w-0">
           <h3 class="text-lg font-bold">{title}</h3>
-          <p class="text-muted truncate text-sm">
+          <p
+            class="text-muted truncate text-sm"
+            title={type === 'bucket' ? bucket : (key ?? prefix ?? '')}
+          >
             {type === 'bucket' ? bucket : (key ?? prefix ?? '')}
           </p>
         </div>

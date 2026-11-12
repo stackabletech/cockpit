@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { db } from './db.js';
 import * as schema from './auth-schema.js';
 import { envList, envString, envUrl, parseEnv } from '../env-schema.js';
+import { localUser } from './local-user.js';
 
 // Dynamic imports with fallbacks for non-SvelteKit contexts.
 const envModule = await import('$env/dynamic/private').catch(() => null);
@@ -69,6 +70,12 @@ const claim = (value: unknown) => (typeof value === 'string' && value ? value : 
 
 export const oidcEnabled = OIDC_REQUIRED.every((name) => config[name]);
 export const oidcDiscoveryUrl = config.STACKABLE_COCKPIT_OIDC_DISCOVERY_URL;
+
+if (!oidcEnabled) {
+  log?.warn(
+    'OIDC is disabled: everyone shares one local user, including its saved storage credentials'
+  );
+}
 
 export const auth = betterAuth({
   secret: env.STACKABLE_COCKPIT_SESSION_SECRET,
@@ -153,6 +160,6 @@ export const auth = betterAuth({
             ]
           })
         ]
-      : [])
+      : [localUser()])
   ]
 });

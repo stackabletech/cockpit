@@ -20,6 +20,23 @@ export interface TrinoQueryStats {
   elapsedTimeMillis?: number;
 }
 
+/** Only the fields we read from `GET /v1/info`. */
+interface TrinoServerInfo {
+  nodeVersion?: { version?: string };
+}
+
+/** How long a detected server version is reused before it is requested again. */
+const VERSION_CACHE_MS = 10 * 60_000;
+/** Shorter for a failed detection, so a brief outage doesn't pin the wrong link format. */
+const VERSION_RETRY_MS = 60_000;
+const VERSION_TIMEOUT_MS = 5_000;
+
+/** Major version from a Trino version string such as `483` or `476-stackable25.7.0`. */
+export function parseTrinoVersion(raw: string | undefined): number | null {
+  const match = /^(\d+)/.exec(raw ?? '');
+  return match ? Number(match[1]) : null;
+}
+
 export interface TrinoQueryResult {
   id: string;
   nextUri?: string;
@@ -46,6 +63,8 @@ export class TrinoClient {
   private readonly dispatcher?: Agent;
   private readonly impersonate: boolean;
   private readonly authenticated: boolean;
+  private versionCache?: { version: number | null; expiresAt: number };
+  private versionRequest?: Promise<number | null>;
 
   constructor(options: TrinoClientOptions) {
     this.serverUrl = options.serverUrl.replace(/\/+$/, '');
@@ -118,6 +137,48 @@ export class TrinoClient {
       headers['X-Trino-User'] = user;
     }
     return headers;
+  }
+
+  /**
+   * Major version of the server from `GET /v1/info` (public, no credentials needed).
+   * Cached per client; resolves to null if it cannot be determined. Never throws.
+   */
+  async serverVersion(): Promise<number | null> {
+    if (this.versionCache && this.versionCache.expiresAt > Date.now()) {
+      return this.versionCache.version;
+    }
+    this.versionRequest ??= this.fetchServerVersion().then((version) => {
+      const ttl = version === null ? VERSION_RETRY_MS : VERSION_CACHE_MS;
+      this.versionCache = { version, expiresAt: Date.now() + ttl };
+      this.versionRequest = undefined;
+      return version;
+    });
+    return this.versionRequest;
+  }
+
+  private async fetchServerVersion(): Promise<number | null> {
+    try {
+      const res = await fetch(`${this.serverUrl}/v1/info`, {
+        method: 'GET',
+        headers: this.commonHeaders,
+        signal: AbortSignal.timeout(VERSION_TIMEOUT_MS),
+        // @ts-expect-error — Node fetch supports dispatcher via undici
+        dispatcher: this.dispatcher
+      });
+      if (!res.ok) {
+        log.warn(
+          { trino_url: this.serverUrl, status_code: res.status },
+          'Trino version unavailable'
+        );
+        return null;
+      }
+      const raw = ((await res.json()) as TrinoServerInfo).nodeVersion?.version;
+      log.debug({ trino_url: this.serverUrl, trino_version: raw }, 'Trino version detected');
+      return parseTrinoVersion(raw);
+    } catch (err) {
+      log.warn({ err, trino_url: this.serverUrl }, 'Trino version unavailable');
+      return null;
+    }
   }
 
   /** DELETE /v1/query/{queryId} — cancel a running query. */
