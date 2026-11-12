@@ -27,10 +27,11 @@ From another namespace, append `.<namespace>.svc.cluster.local`.
 <3> `none` (default) or `basic`. `basic` requires `username` and `password`, otherwise Cockpit does not start.
 
 For a Trino cluster with a private CA, see xref:installation/helm.adoc#_ca_certificates[CA certificates].
-`trino.tls.insecure: true` skips certificate verification instead.
+`trino.tls.allowInsecure: true` skips certificate verification instead.
 
 Without `trino.url`, each user enters a connection in the UI.
 These connections are kept in memory and are lost when Cockpit restarts.
+With `trino.tls.allowInsecure: true`, users can skip certificate verification for their connection.
 
 == User identity
 
