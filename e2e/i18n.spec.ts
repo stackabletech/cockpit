@@ -2,8 +2,8 @@ import { test, expect } from './support/fixtures.js';
 import fs from 'fs';
 import { waitForHydration } from './support/helpers';
 
-/** German dashboard heading (messages/de.json `dashboard_welcome`). */
-const DE_DASHBOARD_HEADING = 'Stackable Unified Data Platform – Übersicht';
+/** German bookmarks heading on the dashboard (messages/de.json `bookmark_section_title`). */
+const DE_BOOKMARKS_HEADING = 'Lesezeichen';
 
 /** Load the saved auth storage state, optionally stripping the locale cookie. */
 function loadAuthState(authFile: string, { withoutLocale = false } = {}) {
@@ -33,7 +33,7 @@ test.describe('Internationalisation', () => {
     await expect(html).toHaveAttribute('lang', 'en');
 
     // Dashboard content is in English
-    await expect(page.getByText('Stackable Unified Data Platform overview')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Bookmarks', exact: true })).toBeVisible();
     await expect(page.getByText('Add bookmark')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   });
@@ -68,7 +68,9 @@ test.describe('Internationalisation', () => {
 
     // Page reloads with German content
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-    await expect(page.getByText(DE_DASHBOARD_HEADING)).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: DE_BOOKMARKS_HEADING, exact: true })
+    ).toBeVisible();
     await expect(page.getByText('Lesezeichen hinzufügen')).toBeVisible();
   });
 
@@ -88,14 +90,18 @@ test.describe('Internationalisation', () => {
 
     // Should render in German
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-    await expect(page.getByText(DE_DASHBOARD_HEADING)).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: DE_BOOKMARKS_HEADING, exact: true })
+    ).toBeVisible();
 
     // Navigate to same page (simulate navigation)
     await page.goto('/');
 
     // Should still be German
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-    await expect(page.getByText(DE_DASHBOARD_HEADING)).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: DE_BOOKMARKS_HEADING, exact: true })
+    ).toBeVisible();
   });
 
   test('Accept-Language header respected for first visit', async ({
@@ -114,7 +120,9 @@ test.describe('Internationalisation', () => {
 
     // Should render in German based on Accept-Language
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-    await expect(page.getByText(DE_DASHBOARD_HEADING)).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: DE_BOOKMARKS_HEADING, exact: true })
+    ).toBeVisible();
 
     await context.close();
   });
