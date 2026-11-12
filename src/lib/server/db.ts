@@ -26,7 +26,7 @@ if (isProduction && !env.DATABASE_PASSWORD) {
 
 // Parse connection credentials from environment variables
 const dbHost = env.DATABASE_HOST || 'localhost';
-const dbPort = parseInt(env.DATABASE_PORT || '31432', 10);
+const dbPort = parseInt(env.DATABASE_PORT || '5432', 10);
 const dbName = env.DATABASE_NAME || 'cockpit';
 const dbUser = env.DATABASE_USER || 'cockpit';
 if (!env.DATABASE_PASSWORD) {

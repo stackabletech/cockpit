@@ -61,7 +61,7 @@ Cockpit does not start if a value is invalid, and the error names every invalid 
 |PostgreSQL host.
 
 |`DATABASE_PORT`
-|`31432`
+|`5432`
 |PostgreSQL port.
 
 |`DATABASE_NAME`
