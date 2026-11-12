@@ -1,0 +1,109 @@
+= Helm chart
+:description: Install Stackable Cockpit with its Helm chart and configure ingress, reverse proxy headers, CA certificates and the scratch volume.
+
+The Helm chart deploys Cockpit.
+It does not deploy PostgreSQL, the OIDC provider or Trino.
+The chart is published to `oci.stackable.tech/sdp-charts/cockpit`.
+The https://github.com/stackabletech/cockpit/blob/{stackable-operator-branch}/deploy/helm/cockpit/README.md[chart README{external-link-icon}^] lists all values.
+
+[source,console,subs="attributes"]
+----
+$ helm install cockpit oci://oci.stackable.tech/sdp-charts/cockpit --version {stackable-operator-version} --values cockpit-values.yaml
+----
+
+== Ingress and reverse proxy
+
+IMPORTANT: Cockpit must be served over HTTPS, because session cookies and credentials such as S3 keys pass through the browser connection.
+Cockpit itself serves plain HTTP, so terminate TLS at the Ingress or reverse proxy and use `https://` URLs for `origin` and `auth.baseUrl`.
+
+The chart creates a ClusterIP Service on port 3000 and can create an Ingress with the `ingress` values.
+
+Cockpit must be served at the root path `/` of its host, for example `https://cockpit.example.com/`.
+Other base paths such as `https://example.com/cockpit/` are not supported, so do not route a path prefix to Cockpit or rewrite paths in the Ingress or reverse proxy.
+
+Set `origin` to the URL users open in the browser.
+Behind a reverse proxy, also set the forwarded headers Cockpit trusts:
+
+[source,yaml]
+----
+origin: https://cockpit.example.com
+proxy:
+  protocolHeader: x-forwarded-proto
+  hostHeader: x-forwarded-host
+----
+
+=== Response header size
+
+Pages send a `Link` header that preloads their JavaScript and CSS.
+It grows with the number of files a page loads and exceeds 4 KB on some pages.
+Proxies with a smaller header buffer answer these pages with `502 Bad Gateway`, for example ingress-nginx and nginx with their default `4k` buffer.
+Raise the buffer to 16 KB:
+
+[source,yaml]
+----
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+----
+
+For plain nginx, set `proxy_buffer_size 16k;` and `proxy_busy_buffers_size 16k;`.
+
+// TODO: Remove once Cockpit uses SvelteKit 3, which preloads with <link> elements instead of a header, see https://github.com/sveltejs/kit/pull/15939.
+
+== CA certificates
+
+For backends with a private CA, set either a SecretClass or the path of a mounted CA file:
+
+[source,yaml]
+----
+trino:
+  tls:
+    secretClass: tls # <1>
+database:
+  tls:
+    caCert: /stackable/database-ca/ca.crt # <2>
+extraVolumes:
+  - name: database-ca
+    secret:
+      secretName: database-ca
+extraVolumeMounts:
+  - name: database-ca
+    mountPath: /stackable/database-ca
+    readOnly: true
+----
+<1> The Secret Operator mounts the CA certificate of the SecretClass.
+<2> A CA file mounted from a Secret.
+
+The same options exist under `storage.tls` for S3 endpoints.
+
+== Additional environment variables
+
+To set xref:reference/environment-variables.adoc[environment variables] directly, use `extraEnv` or `extraEnvFrom`:
+
+[source,yaml]
+----
+extraEnv:
+  - name: LOG_LEVEL
+    value: debug
+----
+
+== Scratch volume
+
+The chart mounts an emptyDir at `/tmp` for the archive preview cache.
+Keep `tmp.sizeLimit` above `storage.archiveCacheMaxMb`, otherwise the kubelet evicts the pod when the cache fills up:
+
+[source,yaml]
+----
+tmp:
+  sizeLimit: 1Gi
+storage:
+  archiveCacheMaxMb: 512
+----
+
+== Replicas
+
+Cockpit keeps running queries in memory, so keep `replicaCount` at `1`.
+
+// TODO: Remove once query state is shared between replicas, see https://github.com/stackabletech/cockpit/issues/310.

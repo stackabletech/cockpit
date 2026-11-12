@@ -1,0 +1,59 @@
+= Getting started
+:description: Install Stackable Cockpit on Kubernetes with Helm, connect it to an OIDC provider, PostgreSQL and Trino, and run your first SQL query.
+
+This guide installs Cockpit with Helm and runs a first Trino query.
+You need:
+
+* a PostgreSQL database,
+* an OIDC client for Cockpit with the redirect URI `https://cockpit.example.com/api/auth/callback/oidc`, see the xref:installation/authentication.adoc[authentication] page for more details,
+* a Trino cluster,
+* the xref:secret-operator:index.adoc[Stackable Secret Operator],
+* an Ingress or reverse proxy that serves `https://cockpit.example.com`.
+
+Create a Secret with the database password and the OIDC client secret:
+
+[source,console]
+----
+$ kubectl create secret generic cockpit \
+  --from-literal=database-password='<database password>' \
+  --from-literal=oidc-client-secret='<OIDC client secret>'
+----
+
+Create a values file `cockpit-values.yaml`:
+
+[source,yaml]
+----
+origin: https://cockpit.example.com # <1>
+auth:
+  baseUrl: https://cockpit.example.com
+  oidc:
+    discoveryUrl: https://keycloak.example.com/realms/sdp/.well-known/openid-configuration
+    clientId: cockpit
+    clientSecret:
+      secretKeyRef:
+        name: cockpit
+database:
+  host: postgresql
+  password:
+    secretKeyRef:
+      name: cockpit
+  tls:
+    secretClass: tls # <2>
+trino:
+  url: https://trino-coordinator-default-headless:8443 # <3>
+  tls:
+    secretClass: tls # <4>
+----
+<1> The URL users open in the browser. It must use HTTPS, see xref:installation/helm.adoc#_ingress_and_reverse_proxy[Ingress and reverse proxy].
+<2> The SecretClass that provides the CA certificate of PostgreSQL. Cockpit verifies the certificate by default, see xref:installation/database.adoc[].
+<3> Optional. Without `trino.url`, each user enters a Trino connection in Cockpit, see xref:modules/trino.adoc#_connection[Connection].
+<4> The SecretClass that provides the CA certificate of Trino.
+
+Install the chart:
+
+[source,console,subs="attributes"]
+----
+$ helm install cockpit oci://oci.stackable.tech/sdp-charts/cockpit --version {stackable-operator-version} --values cockpit-values.yaml
+----
+
+Open the URL in a browser, log in, select *Trino* in the sidebar and run a query such as `SELECT * FROM system.runtime.nodes`.
