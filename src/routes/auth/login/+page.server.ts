@@ -19,14 +19,14 @@ function resolveRedirectTo(value: string | null, baseUrl: string): string {
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {
+  const redirectTo = resolveRedirectTo(
+    url.searchParams.get('redirectTo'),
+    env.STACKABLE_COCKPIT_BASE_URL ?? url.origin
+  );
+  // Also the way back without OIDC, where the auth guard signs in as the local user.
   if (locals.user) {
-    throw redirect(302, '/');
+    throw redirect(302, redirectTo);
   }
 
-  return {
-    redirectTo: resolveRedirectTo(
-      url.searchParams.get('redirectTo'),
-      env.STACKABLE_COCKPIT_BASE_URL ?? url.origin
-    )
-  };
+  return { redirectTo };
 };

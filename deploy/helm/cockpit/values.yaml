@@ -56,6 +56,8 @@ ingress:
   annotations: {}
     # cert-manager.io/cluster-issuer: letsencrypt-prod
     # kubernetes.io/tls-acme: "true"
+    # ingress-nginx: the default 4k buffer is too small for Cockpit's response headers (502)
+    # nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
   hosts:
     - host: cockpit.local
       paths:
@@ -276,7 +278,8 @@ auth:
   # Publicly accessible base URL (used for OIDC callback URLs)
   baseUrl: "http://localhost:3000"
   oidc:
-    # Disable to deploy without authentication (e.g. local testing).
+    # Disable to deploy without authentication (e.g. local testing). Everyone
+    # then shares one local user, including its saved storage connections.
     enabled: true
     # OIDC discovery URL (the full .well-known/openid-configuration URL)
     # Required when enabled. Example: https://your-idp.example.com/realms/your-realm/.well-known/openid-configuration

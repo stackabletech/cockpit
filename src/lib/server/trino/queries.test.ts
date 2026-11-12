@@ -37,6 +37,7 @@ let client: {
   submit: ReturnType<typeof vi.fn>;
   cancel: ReturnType<typeof vi.fn>;
   cancelViaUri: ReturnType<typeof vi.fn>;
+  serverVersion: ReturnType<typeof vi.fn>;
 };
 
 function trinoClient(): TrinoClient {
@@ -107,7 +108,8 @@ beforeEach(async () => {
   client = {
     submit: vi.fn(async (sql: string) => pending(`q-${sql}`)),
     cancel: vi.fn(async () => {}),
-    cancelViaUri: vi.fn(async () => {})
+    cancelViaUri: vi.fn(async () => {}),
+    serverVersion: vi.fn(async () => 483)
   };
   await loadQueries();
 });
@@ -526,9 +528,18 @@ describe('getQuerySnapshots', () => {
     await q.startScript(trinoClient(), USER, TAB, ['SELECT 1'], OPTS);
 
     expect(q.getQuerySnapshots(USER, TAB)[0].trinoQueryUrl).toBe(
-      'https://trino.example.com/ui/query.html?q-SELECT 1'
+      'https://trino.example.com/ui/#/queries/q-SELECT 1'
     );
     expect(mocks.resolveTrinoPublicUrl).toHaveBeenCalledWith(USER);
+  });
+
+  it('links to the legacy Trino UI for servers before 483', async () => {
+    client.serverVersion.mockResolvedValue(482);
+    await q.startScript(trinoClient(), USER, TAB, ['SELECT 1'], OPTS);
+
+    expect(q.getQuerySnapshots(USER, TAB)[0].trinoQueryUrl).toBe(
+      'https://trino.example.com/ui/query.html?q-SELECT 1'
+    );
   });
 
   it('omits the Trino UI link without a public URL', async () => {
@@ -536,6 +547,16 @@ describe('getQuerySnapshots', () => {
     await q.startScript(trinoClient(), USER, TAB, ['SELECT 1'], OPTS);
 
     expect(q.getQuerySnapshots(USER, TAB)[0].trinoQueryUrl).toBeNull();
+  });
+});
+
+describe('trinoQueryUiUrl', () => {
+  it.each([
+    [482, 'https://t/ui/query.html?q1'],
+    [483, 'https://t/ui/#/queries/q1'],
+    [null, 'https://t/ui/#/queries/q1']
+  ])('links version %s to %s', (version, expected) => {
+    expect(q.trinoQueryUiUrl('https://t', 'q1', version)).toBe(expected);
   });
 });
 

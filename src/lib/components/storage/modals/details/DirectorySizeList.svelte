@@ -127,7 +127,7 @@
               <IconDescription class="text-muted size-4" />
             {/if}
           </td>
-          <td class="font-mono text-sm">
+          <td class="font-mono text-sm break-all">
             {item.name}
           </td>
           <td class="text-right font-mono text-sm tabular-nums">

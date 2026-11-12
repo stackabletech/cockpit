@@ -1,5 +1,6 @@
 import type { LayoutServerLoad } from './$types';
 import { storageBrowserEnabled } from '$lib/server/feature-flags.js';
+import { oidcEnabled } from '$lib/server/auth';
 import { listBookmarks } from '$lib/server/dashboard/bookmarks-db.js';
 import { globalBookmarks } from '$lib/server/dashboard/config.js';
 import { dashboardBookmarksTotal } from '$lib/server/metrics.js';
@@ -8,7 +9,9 @@ import { BOOKMARKS_DEPENDENCY, type Bookmark } from '$lib/dashboard/types';
 export const load: LayoutServerLoad = async ({ locals, depends }) => {
   depends(BOOKMARKS_DEPENDENCY);
   return {
-    user: locals.user,
+    // Without OIDC everyone shares the local user: there is nothing to sign
+    // out of and no session to lose, so the UI shows no user.
+    user: oidcEnabled ? locals.user : null,
     storageBrowserEnabled,
     globalBookmarks,
     ...(await loadBookmarks(locals))
@@ -16,9 +19,8 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 };
 
 /**
- * The signed-in user's bookmarks, or null when they are unavailable: without
- * OIDC there is no user to store them for, and a database failure must not
- * take down every page of the app; `bookmarksFailed` tells the two apart.
+ * The user's bookmarks, or null when they are unavailable: a database failure
+ * must not take down every page of the app.
  */
 async function loadBookmarks(
   locals: App.Locals
