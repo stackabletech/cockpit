@@ -18,7 +18,7 @@
     <tbody>
       <tr>
         <td class="text-muted font-medium whitespace-nowrap">{m.storage_details_name()}</td>
-        <td class="font-mono text-sm">{keyToName(details.key)}</td>
+        <td class="font-mono text-sm break-all">{keyToName(details.key)}</td>
       </tr>
       <tr>
         <td class="text-muted font-medium whitespace-nowrap">{m.storage_details_file_path()}</td>
@@ -77,7 +77,7 @@
       <tbody>
         {#each Object.entries(details.customMetadata) as [key, value] (key)}
           <tr>
-            <td class="text-muted font-mono text-xs font-medium">{key}</td>
+            <td class="text-muted font-mono text-xs font-medium break-all">{key}</td>
             <td class="font-mono text-xs break-all">{value}</td>
           </tr>
         {/each}
