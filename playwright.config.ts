@@ -1,5 +1,6 @@
 import { defineConfig } from '@playwright/test';
 import path from 'path';
+import { PLAYWRIGHT_BROWSER_SERVER_PORT } from './e2e/support/containers/playwright-browser.setup.js';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4173';
 const appPort = new URL(baseURL).port || '80';
@@ -16,7 +17,14 @@ const docsProject = {
     viewport: { width: 1280, height: 800 },
     colorScheme: 'light' as const,
     locale: 'en-US',
-    ...(chromiumExecutablePath && { launchOptions: { executablePath: chromiumExecutablePath } })
+    // The browser runs in the official Playwright image (started by
+    // e2e/support/start-app.ts), so the screenshots don't depend on the
+    // browser build and fonts of the machine. It reaches the app on the
+    // host's loopback interface through the Playwright connection.
+    connectOptions: {
+      wsEndpoint: `ws://127.0.0.1:${PLAYWRIGHT_BROWSER_SERVER_PORT}/`,
+      exposeNetwork: '<loopback>'
+    }
   }
 };
 
