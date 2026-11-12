@@ -121,14 +121,14 @@ logging:
   level: ""
 
 # Additional volumes and container mounts, e.g. for a CA certificate referenced by
-# trino.tls.caCert, database.tls.caCert or storage.tls.caCert.
+# tls.caCerts.
 extraVolumes: []
-  # - name: database-ca
+  # - name: private-ca
   #   secret:
-  #     secretName: database-ca
+  #     secretName: private-ca
 extraVolumeMounts: []
-  # - name: database-ca
-  #   mountPath: /stackable/database-ca
+  # - name: private-ca
+  #   mountPath: /stackable/private-ca
   #   readOnly: true
 
 # Additional environment variables for the Cockpit container, e.g. settings the chart does not expose.
@@ -183,14 +183,8 @@ database:
     # "verify-full" (verify certificate and host name), "require" (encrypt without
     # verification) or "disable". Empty uses the application default: verify-full when
     # config.nodeEnv is "production", otherwise disable.
+    # A private CA goes into tls.caCerts or tls.secretClasses.
     mode: ""
-    # Path to a CA certificate file inside the container, e.g. mounted via extraVolumes.
-    # Requires mode verify-full. Mutually exclusive with secretClass.
-    caCert: ""
-    # Stackable SecretClass name for provisioning the database CA certificate.
-    # Requires mode verify-full. Mutually exclusive with caCert.
-    # The Secret Operator mounts ca.crt into /stackable/database-tls.
-    secretClass: ""
 
 # Dashboard bookmarks.
 bookmarks:
@@ -253,17 +247,16 @@ storage:
     secretKeyRef:
       name: ""
       key: storage-encryption-key
-  tls:
-    # CA certificate for S3 connections with TLS verification. It replaces the system trust
-    # store, so S3 endpoints with publicly trusted certificates fail while it is set.
-    # Connections that disable verification ignore it.
-    # Path to a CA certificate file inside the container, e.g. mounted via extraVolumes.
-    # Mutually exclusive with secretClass.
-    caCert: ""
-    # Stackable SecretClass name for provisioning the S3 CA certificate.
-    # Mutually exclusive with caCert.
-    # The Secret Operator mounts ca.crt into /stackable/storage-tls.
-    secretClass: ""
+
+# CA certificates trusted for all outgoing TLS connections: OIDC provider, Trino,
+# PostgreSQL and S3. They are added to the CA certificates bundled with Node.js, so
+# publicly trusted endpoints keep working.
+tls:
+  # Paths to PEM files inside the container, e.g. mounted via extraVolumes.
+  caCerts: []
+  # Stackable SecretClasses that provide a CA certificate. The Secret Operator mounts
+  # each one's ca.crt into /stackable/tls-ca/<secretClass>.
+  secretClasses: []
 
 # SvelteKit CSRF origin
 origin: "http://localhost:3000"
@@ -318,14 +311,8 @@ trino:
         name: ""
         key: trino-auth-password
   tls:
-    # Skip TLS certificate verification. Cannot be combined with caCert or secretClass.
+    # Skip TLS certificate verification. A private CA goes into tls.caCerts or
+    # tls.secretClasses instead.
     insecure: false
-    # Path to a CA certificate file inside the container, e.g. mounted via extraVolumes.
-    # Mutually exclusive with secretClass.
-    caCert: ""
-    # Stackable SecretClass name for provisioning the Trino CA certificate.
-    # Mutually exclusive with caCert.
-    # The Secret Operator mounts ca.crt into /stackable/trino-tls.
-    secretClass: ""
   # Query result TTL in seconds. Default: 1800 (application default).
   # queryTtl: 1800

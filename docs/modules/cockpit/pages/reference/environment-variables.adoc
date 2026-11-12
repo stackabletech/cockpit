@@ -44,6 +44,10 @@ Cockpit does not start if a value is invalid, and the error names every invalid 
 |`LOG_JSON_FILE`
 |
 |Path of a file that also receives the JSON logs, for example for a log collector.
+
+|`STACKABLE_COCKPIT_TLS_CA_CERTS`
+|
+|Comma-separated paths of PEM files with CA certificates. Trusted for all outgoing TLS connections, in addition to the CAs bundled with Node.js.
 |===
 
 == Database
@@ -75,10 +79,6 @@ Cockpit does not start if a value is invalid, and the error names every invalid 
 |`DATABASE_TLS_MODE`
 |`verify-full` in production, otherwise `disable`
 |`verify-full`, `require` or `disable`.
-
-|`DATABASE_TLS_CA_CERT`
-|
-|Path to the CA certificate of PostgreSQL. Requires `verify-full`.
 |===
 
 == Authentication
@@ -138,10 +138,6 @@ Cockpit does not start if a value is invalid, and the error names every invalid 
 |
 |Password for basic authentication.
 
-|`STACKABLE_COCKPIT_TRINO_TLS_CA_CERT`
-|
-|Path to the CA certificate of Trino.
-
 |`STACKABLE_COCKPIT_TRINO_TLS_INSECURE`
 |`false`
 |Skip TLS certificate verification.
@@ -176,10 +172,6 @@ Cockpit does not start if a value is invalid, and the error names every invalid 
 |`STORAGE_ENCRYPTION_KEY`
 |
 |64-character hex key that encrypts stored S3 credentials. Required when the storage module is enabled.
-
-|`STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT`
-|
-|Path to the CA certificate of the S3 endpoints. Replaces the system trust store.
 
 |`PUBLIC_STACKABLE_COCKPIT_STORAGE_TRANSFER_ENABLED`
 |`false`

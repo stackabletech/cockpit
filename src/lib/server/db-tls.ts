@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import type { ConnectionOptions } from 'node:tls';
 
 // Kept free of SvelteKit imports: drizzle.config.ts uses it outside Vite.
@@ -26,25 +25,12 @@ export function databaseTlsMode(env: DatabaseTlsEnv, isProduction: boolean): Dat
 /**
  * Builds the `ssl` option for node-postgres.
  *
- * - `verify-full`: TLS with certificate and host name verification. The certificate must chain
- *   to `DATABASE_TLS_CA_CERT` if set (which replaces the default CAs), otherwise to the CAs
- *   bundled with Node.js.
+ * - `verify-full`: TLS with certificate and host name verification against the process-wide
+ *   trust store, which includes `STACKABLE_COCKPIT_TLS_CA_CERTS` (see `ca-certs.ts`).
  * - `require`: TLS without certificate verification (encrypts, but doesn't authenticate the server).
  * - `disable`: no TLS.
- *
- * A CA certificate with any mode but `verify-full` is rejected: it would be ignored silently.
  */
-export function databaseSsl(env: DatabaseTlsEnv, mode: DatabaseTlsMode): ConnectionOptions | false {
-  const caCertPath = env.DATABASE_TLS_CA_CERT?.trim();
-  if (caCertPath && mode !== 'verify-full') {
-    throw new Error(
-      `DATABASE_TLS_CA_CERT requires DATABASE_TLS_MODE=verify-full (got "${mode}"), otherwise it is ignored`
-    );
-  }
+export function databaseSsl(mode: DatabaseTlsMode): ConnectionOptions | false {
   if (mode === 'disable') return false;
-  return {
-    rejectUnauthorized: mode === 'verify-full',
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- CA certificate path from the deployment configuration
-    ...(caCertPath ? { ca: readFileSync(caCertPath) } : {})
-  };
+  return { rejectUnauthorized: mode === 'verify-full' };
 }

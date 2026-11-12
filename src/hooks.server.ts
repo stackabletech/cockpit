@@ -10,7 +10,8 @@ import {
 } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
-import { auth, oidcEnabled } from '$lib/server/auth';
+import { auth, oidcDiscoveryUrl, oidcEnabled } from '$lib/server/auth';
+import { checkOidcDiscovery } from '$lib/server/oidc-discovery.js';
 import { unauthenticatedResponse } from '$lib/server/auth-guard';
 import { belongsToAuthMode } from '$lib/server/local-user.js';
 import { requestLogger, logger } from '$lib/server/logging';
@@ -176,6 +177,9 @@ export const init: ServerInit = async () => {
   if (storageBrowserEnabled) {
     storageEncryptionKey(); // throws immediately if the env var is missing/invalid
   }
+  // Only logs the cause of a failure: the provider may just be down, and existing
+  // sessions keep working without it. Not awaited, so it doesn't delay startup.
+  if (oidcEnabled) void checkOidcDiscovery(oidcDiscoveryUrl!);
 };
 
 export const handleError: HandleServerError = ({ error, event, status, message }) => {

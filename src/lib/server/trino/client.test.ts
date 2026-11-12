@@ -277,3 +277,39 @@ describe('resolveTrinoPublicUrl', () => {
     expect(mod.resolveTrinoPublicUrl('user1')).toBe('http://internal:8080');
   });
 });
+
+describe('insecure Trino TLS warning', () => {
+  afterEach(() => {
+    for (const key of Object.keys(mockEnv)) delete mockEnv[key];
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  async function warnings(nodeEnv: string, insecure: string) {
+    vi.stubEnv('NODE_ENV', nodeEnv);
+    mockEnv.STACKABLE_COCKPIT_TRINO_URL = 'https://trino:8443';
+    mockEnv.STACKABLE_COCKPIT_TRINO_TLS_INSECURE = insecure;
+    vi.resetModules();
+    const { logger } = await import('$lib/server/logging');
+    const log = logger.child({});
+    vi.mocked(log.warn).mockClear();
+    await import('./client.js');
+    return vi.mocked(log.warn).mock.calls;
+  }
+
+  it('warns in production when certificate verification is disabled', async () => {
+    expect(await warnings('production', 'true')).toEqual([
+      [
+        { trino_url: 'https://trino:8443' },
+        expect.stringContaining('STACKABLE_COCKPIT_TLS_CA_CERTS')
+      ]
+    ]);
+  });
+
+  it.each([
+    ['production', 'false'],
+    ['development', 'true']
+  ])('stays quiet in %s with insecure=%s', async (nodeEnv, insecure) => {
+    expect(await warnings(nodeEnv, insecure)).toEqual([]);
+  });
+});

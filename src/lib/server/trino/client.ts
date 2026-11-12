@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { Agent } from 'undici';
 import { logger } from '$lib/server/logging';
 import { TrinoHttpError, TrinoQueryFailure, type TrinoQueryError } from './errors.js';
@@ -229,8 +228,7 @@ const {
   authType,
   authUsername,
   authPassword,
-  tlsInsecure,
-  tlsCaCertPath
+  tlsInsecure
 } = trinoConfig;
 
 export const trinoUserImpersonation = trinoConfig.userImpersonation;
@@ -241,16 +239,10 @@ export const trinoConfigured = !!trinoUrl;
 let singleton: TrinoClient | undefined;
 
 if (trinoConfigured) {
-  let dispatcher: Agent | undefined;
-  if (tlsInsecure || tlsCaCertPath) {
-    dispatcher = new Agent({
-      connect: {
-        rejectUnauthorized: !tlsInsecure,
-        // eslint-disable-next-line security/detect-non-literal-fs-filename -- CA certificate path from the deployment configuration
-        ...(tlsCaCertPath ? { ca: readFileSync(tlsCaCertPath) } : {})
-      }
-    });
-  }
+  // Private CAs come from STACKABLE_COCKPIT_TLS_CA_CERTS via the process-wide trust store.
+  const dispatcher = tlsInsecure
+    ? new Agent({ connect: { rejectUnauthorized: false } })
+    : undefined;
 
   const authorization =
     authType === 'basic' && authUsername && authPassword
@@ -274,6 +266,12 @@ if (trinoConfigured) {
     },
     'Trino connection configured via environment'
   );
+  if (tlsInsecure && process.env.NODE_ENV === 'production') {
+    log.warn(
+      { trino_url: trinoUrl },
+      'Trino TLS certificate verification is disabled; trust a private CA via STACKABLE_COCKPIT_TLS_CA_CERTS instead'
+    );
+  }
 }
 
 /**
