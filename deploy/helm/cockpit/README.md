@@ -196,7 +196,7 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 | `tls.caCerts` | List of PEM files inside the container with CA certificates, e.g. mounted via `extraVolumes`. | `[]` |
 | `tls.secretClasses` | List of Stackable SecretClasses that provide a CA certificate. The Secret Operator mounts each one's `ca.crt` into `/stackable/tls-ca/<secretClass>`. | `[]` |
 
-The CA certificates from `tls.caCerts` and `tls.secretClasses` are trusted for all outgoing TLS connections (OIDC provider, Trino, PostgreSQL, S3), in addition to the CAs bundled with Node.js, so publicly trusted endpoints keep working. A missing or invalid certificate stops the application at startup.
+The CA certificates from `tls.caCerts` and `tls.secretClasses` are trusted for all outgoing TLS connections (OIDC provider, Trino, PostgreSQL, S3, etc.), in addition to the CAs bundled with Node.js, so publicly trusted endpoints keep working. A missing or invalid certificate stops the application at startup.
 
 ### Volume Parameters
 

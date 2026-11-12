@@ -37,17 +37,15 @@ database:
   password:
     secretKeyRef:
       name: cockpit
-  tls:
-    secretClass: tls # <2>
 trino:
-  url: https://trino-coordinator-default-headless:8443 # <3>
-  tls:
-    secretClass: tls # <4>
+  url: https://trino-coordinator-default-headless:8443 # <2>
+tls:
+  secretClasses:
+    - tls # <3>
 ----
 <1> The URL users open in the browser. It must use HTTPS, see xref:installation/helm.adoc#_ingress_and_reverse_proxy[Ingress and reverse proxy].
-<2> The SecretClass that provides the CA certificate of PostgreSQL. Cockpit verifies the certificate by default, see xref:installation/database.adoc[].
-<3> Optional. Without `trino.url`, each user enters a Trino connection in Cockpit, see xref:modules/trino.adoc#_connection[Connection].
-<4> The SecretClass that provides the CA certificate of Trino.
+<2> Optional. Without `trino.url`, each user enters a Trino connection in Cockpit, see xref:modules/trino.adoc#_connection[Connection].
+<3> The SecretClass that provides the CA certificate of PostgreSQL and Trino, see xref:installation/helm.adoc#_ca_certificates[CA certificates].
 
 Install the chart:
 
