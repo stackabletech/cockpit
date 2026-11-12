@@ -250,6 +250,13 @@
         return;
       }
 
+      // The server sends no body for content types it knows to be binary.
+      if (res.headers.get('X-Preview-Renderable') === 'false') {
+        await res.body?.cancel();
+        preview = { kind: 'fallback', contentType, isBinary: true };
+        return;
+      }
+
       if (contentType.startsWith('image/')) {
         if (truncated) {
           await res.body?.cancel();

@@ -90,6 +90,38 @@ test.describe('Storage S3 — Preview', () => {
     }
   });
 
+  test('shows binary fallback preview for content types the server knows to be binary', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'preview-known-bin');
+    const cleanupKeys = [`${prefix}events.avro`];
+
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: credentials.bucket,
+          Key: `${prefix}events.avro`,
+          // Avro object container magic bytes
+          Body: Buffer.from([0x4f, 0x62, 0x6a, 0x01, 0x00, 0x00]),
+          ContentType: 'application/avro'
+        })
+      );
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await rowByName(page, 'events.avro').dblclick();
+
+      await expect(page.getByRole('heading', { name: 'events.avro' })).toBeVisible();
+      await expect(page.getByText('Binary content')).toBeVisible();
+      await expect(page.getByTestId('editor-readonly-notice')).toHaveCount(0);
+      await expect(page.getByRole('dialog').getByRole('application')).toHaveCount(0);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   test('shows a PDF preview for PDF files', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
