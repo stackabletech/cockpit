@@ -14,7 +14,7 @@ describe('parseTrinoConfig', () => {
       authType: 'none',
       authUsername: undefined,
       authPassword: undefined,
-      tlsInsecure: false,
+      allowInsecureTls: false,
       userImpersonation: true,
       queryTtlSeconds: 1800
     });
@@ -23,7 +23,7 @@ describe('parseTrinoConfig', () => {
   it.each([
     ['STACKABLE_COCKPIT_TRINO_URL', 'trino.example.com:8443'],
     ['STACKABLE_COCKPIT_TRINO_AUTH_TYPE', 'oauth2'],
-    ['STACKABLE_COCKPIT_TRINO_TLS_INSECURE', 'yes'],
+    ['STACKABLE_COCKPIT_TRINO_ALLOW_INSECURE_TLS', 'yes'],
     ['STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION', 'off'],
     ['STACKABLE_COCKPIT_QUERY_TTL', '30m']
   ])('rejects an invalid %s', (name, value) => {

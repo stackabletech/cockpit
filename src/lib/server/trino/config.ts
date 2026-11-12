@@ -12,7 +12,7 @@ const schema = z
     STACKABLE_COCKPIT_TRINO_AUTH_TYPE: envString.pipe(z.enum(['none', 'basic']).default('none')),
     STACKABLE_COCKPIT_TRINO_AUTH_USERNAME: envString,
     STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD: envString,
-    STACKABLE_COCKPIT_TRINO_TLS_INSECURE: envBoolean(false),
+    STACKABLE_COCKPIT_TRINO_ALLOW_INSECURE_TLS: envBoolean(false),
     STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION: envBoolean(true),
     STACKABLE_COCKPIT_QUERY_TTL: envInteger(1800)
   })
@@ -37,7 +37,7 @@ export function parseTrinoConfig(env: Record<string, string | undefined>) {
     authType: config.STACKABLE_COCKPIT_TRINO_AUTH_TYPE,
     authUsername: config.STACKABLE_COCKPIT_TRINO_AUTH_USERNAME,
     authPassword: config.STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD,
-    tlsInsecure: config.STACKABLE_COCKPIT_TRINO_TLS_INSECURE,
+    allowInsecureTls: config.STACKABLE_COCKPIT_TRINO_ALLOW_INSECURE_TLS,
     userImpersonation: config.STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION,
     queryTtlSeconds: config.STACKABLE_COCKPIT_QUERY_TTL
   };
@@ -45,6 +45,7 @@ export function parseTrinoConfig(env: Record<string, string | undefined>) {
 
 /** Trino settings from the environment. The connection fields are only used
  *  when `STACKABLE_COCKPIT_TRINO_URL` is set; otherwise users configure their
- *  own connection. Impersonation also applies to those per-user connections,
- *  and `tlsInsecure` decides whether users may skip certificate verification. */
+ *  own connection. Impersonation also applies to those per-user connections.
+ *  `allowInsecureTls` skips certificate verification for the pre-configured
+ *  connection, or lets users skip it for their own. */
 export const trinoConfig = parseTrinoConfig(env);

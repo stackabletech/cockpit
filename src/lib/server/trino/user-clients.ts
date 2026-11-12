@@ -10,7 +10,7 @@ export interface UserConnectionConfig {
   authType: 'none' | 'basic';
   username: string;
   password: string;
-  /** Skip TLS certificate verification. Only allowed with `STACKABLE_COCKPIT_TRINO_TLS_INSECURE`. */
+  /** Skip TLS certificate verification. Only allowed with `STACKABLE_COCKPIT_TRINO_ALLOW_INSECURE_TLS`. */
   tlsInsecure: boolean;
 }
 
@@ -34,7 +34,7 @@ function dispatcherFor(tlsInsecure: boolean): Agent | undefined {
 
 /** Build a per-user Trino client from a connection config without storing it. */
 export function buildUserTrinoClient(config: UserConnectionConfig): TrinoClient {
-  if (config.tlsInsecure && !trinoConfig.tlsInsecure) {
+  if (config.tlsInsecure && !trinoConfig.allowInsecureTls) {
     throw new Error('Skipping TLS certificate verification is not allowed');
   }
 

@@ -314,6 +314,6 @@ trino:
     # Skip TLS certificate verification. Without trino.url, users may skip it for
     # the connection they enter in the UI. A private CA goes into tls.caCerts or
     # tls.secretClasses instead.
-    insecure: false
+    allowInsecure: false
   # Query result TTL in seconds. Default: 1800 (application default).
   # queryTtl: 1800

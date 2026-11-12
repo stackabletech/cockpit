@@ -275,8 +275,8 @@ spec:
             {{- end }}
             - name: STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION
               value: {{ .Values.trino.userImpersonation.enabled | quote }}
-            {{- if .Values.trino.tls.insecure }}
-            - name: STACKABLE_COCKPIT_TRINO_TLS_INSECURE
+            {{- if .Values.trino.tls.allowInsecure }}
+            - name: STACKABLE_COCKPIT_TRINO_ALLOW_INSECURE_TLS
               value: "true"
             {{- end }}
             {{- with .Values.extraEnv }}

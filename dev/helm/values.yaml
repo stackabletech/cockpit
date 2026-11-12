@@ -19,4 +19,4 @@ trino:
         name: stackable-cockpit-credentials
         key: trino-auth-password
   tls:
-    insecure: true
+    allowInsecure: true

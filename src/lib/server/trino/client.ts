@@ -228,7 +228,7 @@ const {
   authType,
   authUsername,
   authPassword,
-  tlsInsecure
+  allowInsecureTls: tlsInsecure
 } = trinoConfig;
 
 export const trinoUserImpersonation = trinoConfig.userImpersonation;
