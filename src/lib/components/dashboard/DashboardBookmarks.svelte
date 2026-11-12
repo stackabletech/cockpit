@@ -59,21 +59,18 @@
   <div class="mb-2.5 flex flex-wrap items-end justify-between gap-4">
     <div class="min-w-0">
       <div class="flex items-baseline gap-2.5">
-        <h3
+        <h2
           id="bookmarks-heading"
           class="text-base-content/70 text-xs font-bold tracking-wider uppercase"
         >
           {m.bookmark_section_title()}
-        </h3>
+        </h2>
         {#if count > 0}
           <span class="text-base-content/70 text-xs">
             {m.bookmark_count_links({ count })}
           </span>
         {/if}
       </div>
-      {#if bookmarks}
-        <p class="text-base-content/70 mt-1.5 max-w-xl text-sm">{m.dashboard_subtitle()}</p>
-      {/if}
     </div>
     {#if bookmarks}
       <button type="button" class="btn btn-primary btn-sm rounded-full" onclick={openAddBookmark}>

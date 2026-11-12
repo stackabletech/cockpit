@@ -2,8 +2,6 @@
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "action_close": "Schließen",
   "action_dismiss": "Schließen",
-  "dashboard_welcome": "Stackable Unified Data Platform – Übersicht",
-  "dashboard_subtitle": "Die Werkzeuge, die Sie sich als Lesezeichen gespeichert haben. Lesezeichen werden von Hand hinzugefügt – Cockpit erkennt noch nichts automatisch.",
   "dashboard_bookmarks_empty": "Noch keine Lesezeichen. Fügen Sie Ihr erstes Lesezeichen hinzu, um zu starten.",
   "nav_platform": "Plattform",
   "nav_dashboard": "Dashboard",
@@ -38,8 +36,8 @@
   "theme_toggle": "Design umschalten",
   "page_title_dashboard": "Dashboard",
   "page_title_default": "Stackable",
-  "page_title_suffix": "Stackable",
-  "meta_description": "Stackable Cockpit: Die Web-UI für die Stackable Data Platform (SDP). Arbeiten Sie an einem zentralen Ort mit den Datendiensten der Plattform.",
+  "app_name": "Stackable Cockpit",
+  "meta_description": "Stackable Cockpit: Die UI für die Stackable Data Platform (SDP). Arbeiten Sie an einem zentralen Ort mit den Diensten der Plattform.",
   "page_title_trino": "Trino",
   "bookmark_count_links": [
     {

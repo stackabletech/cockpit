@@ -1,11 +1,11 @@
 = Stackable Cockpit
-:description: Stackable Cockpit is a web UI for the Stackable Data Platform (SDP) to work with services such as Trino and S3 storage from a single place, behind one OIDC login.
+:description: Stackable Cockpit is a UI for the Stackable Data Platform (SDP) to work with services such as Trino and S3 storage from a single place, behind one OIDC login.
 :github: https://github.com/stackabletech/cockpit/
 
 [.link-bar]
 * {github}[GitHub {external-link-icon}^]
 
-Stackable Cockpit is a web UI for the Stackable Data Platform (SDP).
+Stackable Cockpit is a UI for the Stackable Data Platform (SDP).
 Users log in once through OpenID Connect (OIDC) and work with the platform's services from a single place.
 
 image::dashboard.png[Cockpit dashboard with bookmarks to Trino, Superset, Airflow and other tools]
