@@ -3,12 +3,20 @@
 
 The Helm chart deploys Cockpit.
 It does not deploy PostgreSQL, the OIDC provider or Trino.
-The chart is published to `oci.stackable.tech/sdp-charts/cockpit`.
+The chart is published to `oci.stackable.tech/sdp-charts/cockpit` and `quay.io/stackable/sdp-charts/cockpit`.
+Each chart pulls the image from the registry it comes from.
 The https://github.com/stackabletech/cockpit/blob/{stackable-operator-branch}/deploy/helm/cockpit/README.md[chart README{external-link-icon}^] lists all values.
 
 [source,console,subs="attributes"]
 ----
 $ helm install cockpit oci://oci.stackable.tech/sdp-charts/cockpit --version {stackable-operator-version} --values cockpit-values.yaml
+----
+
+To install from quay.io instead:
+
+[source,console,subs="attributes"]
+----
+$ helm install cockpit oci://quay.io/stackable/sdp-charts/cockpit --version {stackable-operator-version} --values cockpit-values.yaml
 ----
 
 == Ingress and reverse proxy
