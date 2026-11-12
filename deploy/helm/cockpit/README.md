@@ -168,7 +168,7 @@ At startup, the cockpit fetches the OIDC discovery document once and logs the ca
 ### Trino Connection Parameters
 
 Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app connection form is hidden.
-Otherwise users enter their own connection: the impersonation setting is its default for basic auth, and `trino.tls.insecure` lets them skip TLS certificate verification.
+Otherwise users enter their own connection, and `trino.tls.insecure` lets them skip TLS certificate verification.
 
 | Parameter | Description | Default |
 | --- | --- | --- |

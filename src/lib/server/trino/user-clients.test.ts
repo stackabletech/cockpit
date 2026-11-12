@@ -16,7 +16,8 @@ vi.mock('$lib/server/logging', () => ({
 }));
 vi.mock('./client.js', () => ({
   TrinoClient: TrinoClientMock,
-  buildBasicAuthHeader: (user: string, pass: string) => `Basic ${user}:${pass}`
+  buildBasicAuthHeader: (user: string, pass: string) => `Basic ${user}:${pass}`,
+  trinoUserImpersonation: true
 }));
 vi.mock('./config.js', () => ({ trinoConfig: trinoConfigMock }));
 vi.mock('undici', () => ({ Agent: AgentMock }));
@@ -29,8 +30,7 @@ const BASE = {
   authType: 'none',
   username: '',
   password: '',
-  tlsInsecure: false,
-  impersonate: true
+  tlsInsecure: false
 } as const;
 const BASIC = { ...BASE, authType: 'basic', username: 'alice', password: 'secret' } as const;
 
@@ -69,15 +69,6 @@ describe('buildUserTrinoClient', () => {
 
     expect(TrinoClientMock).toHaveBeenCalledWith(
       expect.objectContaining({ authorization: undefined })
-    );
-  });
-
-  // TrinoClient keeps sending X-Trino-User without credentials (see client.test.ts).
-  it('passes the impersonation setting to the client', () => {
-    uc.buildUserTrinoClient({ ...BASIC, impersonate: false });
-
-    expect(TrinoClientMock).toHaveBeenCalledWith(
-      expect.objectContaining({ authorization: 'Basic alice:secret', impersonate: false })
     );
   });
 

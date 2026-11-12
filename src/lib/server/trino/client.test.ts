@@ -36,14 +36,12 @@ describe('TrinoClient X-Trino-User header', () => {
     });
     await client.submit('SELECT 1', { user: 'alice' });
     expect(submittedHeaders()).not.toHaveProperty('X-Trino-User');
-    expect(client.impersonates).toBe(false);
   });
 
   it('still sends X-Trino-User when impersonation is disabled but no credentials are set', async () => {
     const client = new TrinoClient({ serverUrl: 'http://trino:8080', impersonate: false });
     await client.submit('SELECT 1', { user: 'anonymous' });
     expect(submittedHeaders()['X-Trino-User']).toBe('anonymous');
-    expect(client.impersonates).toBe(true);
   });
 });
 

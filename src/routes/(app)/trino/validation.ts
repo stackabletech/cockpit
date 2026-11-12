@@ -9,8 +9,7 @@ export const ConnectionSchema = z
     authType: z.enum(['none', 'basic']).default('none'),
     authUsername: z.string().default(''),
     authPassword: z.string().default(''),
-    tlsInsecure: z.boolean().default(false),
-    impersonate: z.boolean().default(true)
+    tlsInsecure: z.boolean().default(false)
   })
   .superRefine((data, ctx) => {
     if (data.authType === 'basic') {

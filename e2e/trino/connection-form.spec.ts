@@ -38,8 +38,7 @@ function interceptSaveSuccess(page: import('@playwright/test').Page) {
           authType: 'none',
           authUsername: '',
           authPassword: '',
-          tlsInsecure: false,
-          impersonate: true
+          tlsInsecure: false
         },
         message: { type: 'success' }
       };
@@ -220,56 +219,6 @@ test.describe('Connection form (manual mode)', () => {
     await page.getByRole('radio', { name: 'No auth' }).click();
     await expect(page.getByLabel('Username')).not.toBeVisible();
     await expect(page.getByLabel('Password')).not.toBeVisible();
-  });
-
-  test('impersonation toggle is only shown for basic auth', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
-
-    const toggle = page.getByLabel('Impersonate the logged-in user');
-    await expect(toggle).not.toBeVisible();
-
-    await page.getByRole('radio', { name: 'Basic' }).click();
-    await expect(toggle).toBeVisible();
-    // Defaults to the deployment's impersonation setting (enabled in the test env).
-    await expect(toggle).toBeChecked();
-  });
-
-  test('disabling impersonation is posted with the connection', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
-
-    await page.getByLabel('URL').fill(MOCK_TRINO_URL);
-    await page.getByRole('radio', { name: 'Basic' }).click();
-    await page.getByLabel('Username').fill('alice');
-    await page.getByLabel('Password').fill('secret');
-    await page.getByLabel('Impersonate the logged-in user').uncheck();
-
-    const posted = captureSave(page);
-    await page.getByRole('button', { name: 'Save' }).click();
-
-    // An unchecked checkbox is not posted; superforms reads the missing field as false.
-    const body = await posted;
-    expect(body.get('authUsername')).toBe('alice');
-    expect(body.has('impersonate')).toBe(false);
-    expect(await page.evaluate(() => localStorage.getItem('trino_impersonate'))).toBe('false');
-  });
-
-  test('impersonation setting is kept while the toggle is hidden', async ({ page }) => {
-    await page.goto('/trino');
-    await waitForHydration(page);
-
-    await page.getByRole('radio', { name: 'Basic' }).click();
-    await page.getByLabel('Impersonate the logged-in user').uncheck();
-    await page.getByRole('radio', { name: 'No auth' }).click();
-    await page.getByLabel('URL').fill(MOCK_TRINO_URL);
-
-    const posted = captureSave(page);
-    await page.getByRole('button', { name: 'Save' }).click();
-    expect((await posted).get('impersonate')).toBe('false');
-
-    await page.getByRole('radio', { name: 'Basic' }).click();
-    await expect(page.getByLabel('Impersonate the logged-in user')).not.toBeChecked();
   });
 
   test('TLS verification option is hidden unless allowed', async ({ page }) => {

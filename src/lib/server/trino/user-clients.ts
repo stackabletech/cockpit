@@ -1,6 +1,6 @@
 import { Agent } from 'undici';
 import { logger } from '$lib/server/logging';
-import { TrinoClient, buildBasicAuthHeader } from './client.js';
+import { TrinoClient, buildBasicAuthHeader, trinoUserImpersonation } from './client.js';
 import { trinoConfig } from './config.js';
 
 const log = logger.child({ module: 'trino-user-clients' });
@@ -12,9 +12,6 @@ export interface UserConnectionConfig {
   password: string;
   /** Skip TLS certificate verification. Only allowed with `STACKABLE_COCKPIT_TRINO_TLS_INSECURE`. */
   tlsInsecure: boolean;
-  /** Forward the logged-in user as `X-Trino-User`. Only takes effect with basic
-   *  auth: without credentials the client always sends the user header. */
-  impersonate: boolean;
 }
 
 interface UserEntry {
@@ -50,7 +47,7 @@ export function buildUserTrinoClient(config: UserConnectionConfig): TrinoClient 
     serverUrl: config.url,
     authorization,
     dispatcher: dispatcherFor(config.tlsInsecure),
-    impersonate: config.impersonate
+    impersonate: trinoUserImpersonation
   });
 }
 
@@ -61,8 +58,7 @@ export function createUserTrinoClient(userId: string, config: UserConnectionConf
   const context = {
     user_id: userId,
     trino_url: config.url,
-    tls_insecure: config.tlsInsecure,
-    user_impersonation: client.impersonates
+    tls_insecure: config.tlsInsecure
   };
   if (config.tlsInsecure) {
     log.warn(context, 'user connection created without TLS certificate verification');

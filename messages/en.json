@@ -99,8 +99,6 @@
   "trino_connection_test_failed": "Could not connect to Trino — check the URL and credentials.",
   "trino_connection_save_failed": "Could not save the connection. Please try again.",
   "trino_connection_env_managed": "The connection is managed via environment variables.",
-  "trino_connection_impersonate": "Impersonate the logged-in user",
-  "trino_connection_impersonate_hint": "Queries run as your Cockpit user; the credentials above must be allowed to impersonate it. When off, queries run as the user above.",
   "trino_connection_tls_insecure": "Skip TLS certificate verification",
   "trino_connection_tls_insecure_hint": "Insecure: the Trino server certificate is not checked. Only use this for test setups.",
   "trino_connection_tls_insecure_not_allowed": "Skipping TLS certificate verification is not allowed on this server.",

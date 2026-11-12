@@ -45,7 +45,6 @@ export function parseTrinoConfig(env: Record<string, string | undefined>) {
 
 /** Trino settings from the environment. The connection fields are only used
  *  when `STACKABLE_COCKPIT_TRINO_URL` is set; otherwise users configure their
- *  own connection. For those per-user connections, impersonation is the default
- *  users can change with basic auth, and `tlsInsecure` decides whether users
- *  may skip certificate verification. */
+ *  own connection. Impersonation also applies to those per-user connections,
+ *  and `tlsInsecure` decides whether users may skip certificate verification. */
 export const trinoConfig = parseTrinoConfig(env);

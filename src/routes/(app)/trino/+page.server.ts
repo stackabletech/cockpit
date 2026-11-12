@@ -27,8 +27,6 @@ export const load: PageServerLoad = async ({ locals }) => {
   const connectionForm = await superValidate<ConnectionData, ConnectionMessage, ConnectionInput>(
     zod(ConnectionSchema)
   );
-  // The deployment's impersonation setting is the default for per-user connections.
-  connectionForm.data.impersonate = trinoConfig.userImpersonation;
   const userId = getUserId(locals);
   const activeQueries = getAllQuerySummaries(userId);
   const userClientExists = getUserTrinoClient(userId) !== null;
@@ -80,15 +78,13 @@ export const actions: Actions = {
         { status: 500 }
       );
     }
-    const { connectionUrl, authType, authUsername, authPassword, tlsInsecure, impersonate } =
-      form.data;
+    const { connectionUrl, authType, authUsername, authPassword, tlsInsecure } = form.data;
     const config = {
       url: connectionUrl,
       authType,
       username: authUsername,
       password: authPassword,
-      tlsInsecure,
-      impersonate
+      tlsInsecure
     };
 
     // Verify connectivity before storing the client or cancelling running queries.

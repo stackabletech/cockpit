@@ -142,8 +142,6 @@
       $connectionForm.connectionUrl = getStoredValue('trino_url', '');
       $connectionForm.authType = getStoredValue('trino_auth_type', 'none') as 'none' | 'basic';
       $connectionForm.authUsername = getStoredValue('trino_username', '');
-      $connectionForm.impersonate =
-        getStoredValue('trino_impersonate', String($connectionForm.impersonate)) === 'true';
       $connectionForm.tlsInsecure =
         data.allowInsecureTls && getStoredValue('trino_tls_insecure', 'false') === 'true';
     }
@@ -187,12 +185,6 @@
     localStorage.setItem('trino_url', $connectionForm.connectionUrl);
     localStorage.setItem('trino_auth_type', $connectionForm.authType);
     localStorage.setItem('trino_username', $connectionForm.authUsername);
-    // Only store a deviation from the deployment default, so a changed default still applies.
-    if ($connectionForm.impersonate === data.connectionForm.data.impersonate) {
-      localStorage.removeItem('trino_impersonate');
-    } else {
-      localStorage.setItem('trino_impersonate', String($connectionForm.impersonate));
-    }
     localStorage.setItem('trino_tls_insecure', String($connectionForm.tlsInsecure));
   });
 
@@ -583,28 +575,6 @@
                   {/if}
                 </div>
               </div>
-
-              <div class="flex items-start justify-between gap-4">
-                <div>
-                  <label for="{uid}-impersonate" class="label text-sm">
-                    {m.trino_connection_impersonate()}
-                  </label>
-                  <p id="{uid}-impersonate-hint" class="text-muted mt-0.5 text-xs">
-                    {m.trino_connection_impersonate_hint()}
-                  </p>
-                </div>
-                <input
-                  id="{uid}-impersonate"
-                  name="impersonate"
-                  type="checkbox"
-                  class="toggle toggle-primary mt-1 shrink-0"
-                  aria-describedby="{uid}-impersonate-hint"
-                  bind:checked={$connectionForm.impersonate}
-                />
-              </div>
-            {:else}
-              <!-- Keep the setting while hidden; an absent checkbox would post false. -->
-              <input type="hidden" name="impersonate" value={String($connectionForm.impersonate)} />
             {/if}
 
             {#if data.allowInsecureTls}
