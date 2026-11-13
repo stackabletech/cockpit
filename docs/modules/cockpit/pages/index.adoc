@@ -8,6 +8,13 @@
 Stackable Cockpit is a UI for the Stackable Data Platform (SDP).
 Users log in once through OpenID Connect (OIDC) and work with the platform's services from a single place.
 
+[WARNING]
+====
+Cockpit is experimental.
+Features, configuration and the Helm chart may change in incompatible ways between releases.
+Please report bugs and feature requests as {github}issues[GitHub issues {external-link-icon}^].
+====
+
 image::dashboard.png[Cockpit dashboard with bookmarks to Trino, Superset, Airflow and other tools]
 
 == Getting started
