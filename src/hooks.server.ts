@@ -27,6 +27,7 @@ import '$lib/server/trino/config.js';
 import { storageEncryptionKey } from '$lib/server/storage/encryption-key.js';
 import { notConnected } from '$lib/server/storage/not-connected.js';
 import { runMigrations } from '$lib/server/migrate.js';
+import { closeDb } from '$lib/server/db.js';
 
 // Allow self-signed TLS certificates in development (e.g. local Trino with self-signed certs).
 if (dev) {
@@ -177,6 +178,10 @@ export const init: ServerInit = async () => {
   if (storageBrowserEnabled) {
     storageEncryptionKey(); // throws immediately if the env var is missing/invalid
   }
+  // adapter-node stops the HTTP server on SIGTERM/SIGINT but leaves the process
+  // to exit on its own; idle pool connections would keep it alive for
+  // idleTimeoutMillis.
+  process.once('sveltekit:shutdown', () => void closeDb());
   // Only logs the cause of a failure: the provider may just be down, and existing
   // sessions keep working without it. Not awaited, so it doesn't delay startup.
   if (oidcEnabled) void checkOidcDiscovery(oidcDiscoveryUrl!);
