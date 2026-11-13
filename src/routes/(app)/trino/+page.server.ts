@@ -1,5 +1,5 @@
 import { fail } from '@sveltejs/kit';
-import { superValidate, message, type Infer, type InferIn } from 'sveltekit-superforms';
+import { superValidate, message, setError, type Infer, type InferIn } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { findTrinoUser, getUserId } from '$lib/server/auth-utils.js';
 import { getAllQuerySummaries, resetTabQueries } from '$lib/server/trino/queries.js';
@@ -9,6 +9,7 @@ import {
   CONN_TEST_TIMEOUT_MS
 } from '$lib/server/trino/client.js';
 import { completionEnabled } from '$lib/server/feature-flags.js';
+import { trinoConfig } from '$lib/server/trino/config.js';
 import {
   buildUserTrinoClient,
   createUserTrinoClient,
@@ -29,7 +30,15 @@ export const load: PageServerLoad = async ({ locals }) => {
   const userId = getUserId(locals);
   const activeQueries = getAllQuerySummaries(userId);
   const userClientExists = getUserTrinoClient(userId) !== null;
-  return { connectionForm, activeQueries, trinoConfigured, userClientExists, completionEnabled };
+  return {
+    connectionForm,
+    activeQueries,
+    trinoConfigured,
+    userClientExists,
+    completionEnabled,
+    // STACKABLE_COCKPIT_TRINO_USER_CONNECTION_TLS_ALLOW_INSECURE lets users skip verification.
+    allowInsecureTls: !trinoConfigured && trinoConfig.userConnectionAllowInsecureTls
+  };
 };
 
 export const actions: Actions = {
@@ -55,6 +64,11 @@ export const actions: Actions = {
       return fail(400, { form });
     }
 
+    if (form.data.tlsInsecure && !trinoConfig.userConnectionAllowInsecureTls) {
+      log.info('connection save rejected, skipping TLS verification is not allowed');
+      return setError(form, 'tlsInsecure', m.trino_connection_tls_insecure_not_allowed());
+    }
+
     const userId = getUserId(locals);
     const user = findTrinoUser(locals);
     if (!user) {
@@ -64,12 +78,13 @@ export const actions: Actions = {
         { status: 500 }
       );
     }
-    const { connectionUrl, authType, authUsername, authPassword } = form.data;
+    const { connectionUrl, authType, authUsername, authPassword, tlsInsecure } = form.data;
     const config = {
       url: connectionUrl,
       authType,
       username: authUsername,
-      password: authPassword
+      password: authPassword,
+      tlsInsecure
     };
 
     // Verify connectivity before storing the client or cancelling running queries.

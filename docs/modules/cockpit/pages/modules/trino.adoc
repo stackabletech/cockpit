@@ -31,6 +31,7 @@ For a Trino cluster with a private CA, see xref:installation/helm.adoc#_ca_certi
 
 Without `trino.url`, each user enters a connection in the UI.
 These connections are kept in memory and are lost when Cockpit restarts.
+With `trino.userConnection.tls.allowInsecure: true`, users can skip certificate verification for their connection.
 
 == User identity
 

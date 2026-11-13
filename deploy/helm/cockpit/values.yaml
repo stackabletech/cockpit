@@ -311,8 +311,14 @@ trino:
         name: ""
         key: trino-auth-password
   tls:
-    # Skip TLS certificate verification. A private CA goes into tls.caCerts or
-    # tls.secretClasses instead.
+    # Skip TLS certificate verification for the connection to trino.url. Requires trino.url.
+    # A private CA goes into tls.caCerts or tls.secretClasses instead.
     insecure: false
+  # Connections users enter in the UI. Only used when trino.url is empty.
+  userConnection:
+    tls:
+      # Let users skip TLS certificate verification for their connection. Requires an
+      # empty trino.url.
+      allowInsecure: false
   # Query result TTL in seconds. Default: 1800 (application default).
   # queryTtl: 1800

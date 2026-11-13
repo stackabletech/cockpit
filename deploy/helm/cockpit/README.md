@@ -168,6 +168,7 @@ At startup, the cockpit fetches the OIDC discovery document once and logs the ca
 ### Trino Connection Parameters
 
 Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app connection form is hidden.
+Otherwise users enter their own connection, and `trino.userConnection.tls.allowInsecure` lets them skip TLS certificate verification.
 
 | Parameter | Description | Default |
 | --- | --- | --- |
@@ -179,7 +180,8 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 | `trino.auth.username` | Username for basic auth. | `""` |
 | `trino.auth.password.secretKeyRef.name` | Name of the Secret holding the Trino password. Required when `type=basic`. | `""` |
 | `trino.auth.password.secretKeyRef.key` | Key inside the Secret. | `trino-auth-password` |
-| `trino.tls.insecure` | Skip TLS certificate verification. Logs a warning in production; for a private CA, use `tls.caCerts` or `tls.secretClasses` instead. | `false` |
+| `trino.tls.insecure` | Skip TLS certificate verification for `trino.url`. Requires `trino.url`. Logs a warning in production; for a private CA, use `tls.caCerts` or `tls.secretClasses` instead. | `false` |
+| `trino.userConnection.tls.allowInsecure` | Let users skip TLS certificate verification for the connection they enter in the UI. Requires an empty `trino.url`. | `false` |
 | `trino.queryTtl` | Query result TTL in seconds. | `1800` (application default) |
 
 ### Security Parameters

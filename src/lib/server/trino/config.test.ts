@@ -15,6 +15,7 @@ describe('parseTrinoConfig', () => {
       authUsername: undefined,
       authPassword: undefined,
       tlsInsecure: false,
+      userConnectionAllowInsecureTls: false,
       userImpersonation: true,
       queryTtlSeconds: 1800
     });
@@ -41,5 +42,35 @@ describe('parseTrinoConfig', () => {
       /STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD is missing/
     );
     expect(parseTrinoConfig(basic).authType).toBe('basic');
+  });
+
+  it('rejects an invalid STACKABLE_COCKPIT_TRINO_USER_CONNECTION_TLS_ALLOW_INSECURE', () => {
+    expect(() =>
+      parseTrinoConfig({ STACKABLE_COCKPIT_TRINO_USER_CONNECTION_TLS_ALLOW_INSECURE: 'yes' })
+    ).toThrow('STACKABLE_COCKPIT_TRINO_USER_CONNECTION_TLS_ALLOW_INSECURE:');
+  });
+
+  it('applies each TLS setting to its own kind of connection', () => {
+    expect(
+      parseTrinoConfig({
+        STACKABLE_COCKPIT_TRINO_URL: TRINO_URL,
+        STACKABLE_COCKPIT_TRINO_TLS_INSECURE: 'true'
+      })
+    ).toMatchObject({ tlsInsecure: true, userConnectionAllowInsecureTls: false });
+    expect(
+      parseTrinoConfig({ STACKABLE_COCKPIT_TRINO_USER_CONNECTION_TLS_ALLOW_INSECURE: 'true' })
+    ).toMatchObject({ tlsInsecure: false, userConnectionAllowInsecureTls: true });
+  });
+
+  it('rejects a TLS setting that has no effect', () => {
+    expect(() => parseTrinoConfig({ STACKABLE_COCKPIT_TRINO_TLS_INSECURE: 'true' })).toThrow(
+      /STACKABLE_COCKPIT_TRINO_TLS_INSECURE: only applies to the pre-configured connection/
+    );
+    expect(() =>
+      parseTrinoConfig({
+        STACKABLE_COCKPIT_TRINO_URL: TRINO_URL,
+        STACKABLE_COCKPIT_TRINO_USER_CONNECTION_TLS_ALLOW_INSECURE: 'true'
+      })
+    ).toThrow(/STACKABLE_COCKPIT_TRINO_USER_CONNECTION_TLS_ALLOW_INSECURE: only applies to/);
   });
 });
