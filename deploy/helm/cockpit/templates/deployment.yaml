@@ -275,8 +275,18 @@ spec:
             {{- end }}
             - name: STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION
               value: {{ .Values.trino.userImpersonation.enabled | quote }}
-            {{- if .Values.trino.tls.allowInsecure }}
-            - name: STACKABLE_COCKPIT_TRINO_ALLOW_INSECURE_TLS
+            {{- if .Values.trino.tls.insecure }}
+            {{- if not .Values.trino.url }}
+            {{- fail "trino.tls.insecure only applies to the pre-configured connection and requires trino.url" }}
+            {{- end }}
+            - name: STACKABLE_COCKPIT_TRINO_TLS_INSECURE
+              value: "true"
+            {{- end }}
+            {{- if .Values.trino.userConnection.tls.allowInsecure }}
+            {{- if .Values.trino.url }}
+            {{- fail "trino.userConnection.tls.allowInsecure only applies to connections users enter and requires an empty trino.url" }}
+            {{- end }}
+            - name: STACKABLE_COCKPIT_TRINO_USER_CONNECTION_TLS_ALLOW_INSECURE
               value: "true"
             {{- end }}
             {{- with .Values.extraEnv }}

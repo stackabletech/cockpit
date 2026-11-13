@@ -288,7 +288,7 @@ describe('insecure Trino TLS warning', () => {
   async function warnings(nodeEnv: string, insecure: string) {
     vi.stubEnv('NODE_ENV', nodeEnv);
     mockEnv.STACKABLE_COCKPIT_TRINO_URL = 'https://trino:8443';
-    mockEnv.STACKABLE_COCKPIT_TRINO_ALLOW_INSECURE_TLS = insecure;
+    mockEnv.STACKABLE_COCKPIT_TRINO_TLS_INSECURE = insecure;
     vi.resetModules();
     const { logger } = await import('$lib/server/logging');
     const log = logger.child({});

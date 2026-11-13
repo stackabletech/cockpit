@@ -36,8 +36,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     trinoConfigured,
     userClientExists,
     completionEnabled,
-    // Without a pre-configured URL, STACKABLE_COCKPIT_TRINO_ALLOW_INSECURE_TLS lets users skip verification.
-    allowInsecureTls: !trinoConfigured && trinoConfig.allowInsecureTls
+    // STACKABLE_COCKPIT_TRINO_USER_CONNECTION_TLS_ALLOW_INSECURE lets users skip verification.
+    allowInsecureTls: !trinoConfigured && trinoConfig.userConnectionAllowInsecureTls
   };
 };
 
@@ -64,7 +64,7 @@ export const actions: Actions = {
       return fail(400, { form });
     }
 
-    if (form.data.tlsInsecure && !trinoConfig.allowInsecureTls) {
+    if (form.data.tlsInsecure && !trinoConfig.userConnectionAllowInsecureTls) {
       log.info('connection save rejected, skipping TLS verification is not allowed');
       return setError(form, 'tlsInsecure', m.trino_connection_tls_insecure_not_allowed());
     }

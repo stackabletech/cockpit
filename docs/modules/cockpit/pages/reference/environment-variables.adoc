@@ -138,9 +138,13 @@ Cockpit does not start if a value is invalid, and the error names every invalid 
 |
 |Password for basic authentication.
 
-|`STACKABLE_COCKPIT_TRINO_ALLOW_INSECURE_TLS`
+|`STACKABLE_COCKPIT_TRINO_TLS_INSECURE`
 |`false`
-|Skip TLS certificate verification. Without `STACKABLE_COCKPIT_TRINO_URL`, lets users skip it for the connection they enter in the UI.
+|Skip TLS certificate verification for `STACKABLE_COCKPIT_TRINO_URL`. Requires `STACKABLE_COCKPIT_TRINO_URL`.
+
+|`STACKABLE_COCKPIT_TRINO_USER_CONNECTION_TLS_ALLOW_INSECURE`
+|`false`
+|Let users skip TLS certificate verification for the connection they enter in the UI. Requires `STACKABLE_COCKPIT_TRINO_URL` to be unset.
 
 |`STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION`
 |`true`

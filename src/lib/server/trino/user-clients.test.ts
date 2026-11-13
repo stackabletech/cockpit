@@ -7,7 +7,7 @@ const { TrinoClientMock, AgentMock, trinoConfigMock, logMock } = vi.hoisted(() =
   AgentMock: vi.fn(function (this: Record<string, unknown>, options: unknown) {
     this.options = options;
   }),
-  trinoConfigMock: { allowInsecureTls: false },
+  trinoConfigMock: { userConnectionAllowInsecureTls: false },
   logMock: { info: vi.fn(), warn: vi.fn(), debug: vi.fn() }
 }));
 
@@ -37,7 +37,7 @@ const BASIC = { ...BASE, authType: 'basic', username: 'alice', password: 'secret
 beforeEach(async () => {
   vi.clearAllMocks();
   vi.resetModules();
-  trinoConfigMock.allowInsecureTls = false;
+  trinoConfigMock.userConnectionAllowInsecureTls = false;
   uc = await import('./user-clients.js');
 });
 
@@ -78,7 +78,7 @@ describe('buildUserTrinoClient', () => {
   });
 
   it('skips TLS verification when allowed and requested', () => {
-    trinoConfigMock.allowInsecureTls = true;
+    trinoConfigMock.userConnectionAllowInsecureTls = true;
     uc.buildUserTrinoClient({ ...BASE, tlsInsecure: true });
 
     uc.buildUserTrinoClient({ ...BASIC, tlsInsecure: true });
@@ -121,7 +121,7 @@ describe('per-user connections', () => {
   });
 
   it('logs a warning when the connection skips TLS verification', () => {
-    trinoConfigMock.allowInsecureTls = true;
+    trinoConfigMock.userConnectionAllowInsecureTls = true;
     uc.createUserTrinoClient('u1', BASE);
     expect(logMock.warn).not.toHaveBeenCalled();
 
