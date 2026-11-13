@@ -15,7 +15,6 @@ describe('parseStorageConfig', () => {
     expect(config.parquetDisallowedCompression).toEqual([
       { codec: 'GZIP', requireOffsetIndex: true }
     ]);
-    expect(config.tlsCaCertPath).toBeUndefined();
   });
 
   it('parses Parquet codecs with and without the -no_offset suffix', () => {

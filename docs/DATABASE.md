@@ -13,7 +13,6 @@ DATABASE_NAME=cockpit            # Database name
 DATABASE_USER=cockpit            # Database user
 DATABASE_PASSWORD=cockpit-dev-password  # Database password
 DATABASE_TLS_MODE=disable        # Optional: verify-full, require or disable (see below)
-DATABASE_TLS_CA_CERT=/path/ca.crt  # Optional: CA certificate for verify-full
 ```
 
 These are automatically set in `.env.development` by `./dev/setup.sh`.
@@ -193,7 +192,7 @@ SELECT * FROM <table>; # View data
 | `require`     | TLS without certificate verification. Encrypts, but doesn't authenticate the server. |
 | `disable`     | No TLS. Default when `NODE_ENV` isn't `production`.                                  |
 
-With `verify-full`, the certificate must chain to `DATABASE_TLS_CA_CERT` if it is set, otherwise to the CA certificates bundled with Node.js (the public Mozilla CAs, not the operating system's trust store). Set `DATABASE_TLS_CA_CERT` for any private CA, such as the one that signs AWS RDS certificates. It replaces the bundled CAs and is only accepted with `verify-full`; any other mode fails at startup.
+With `verify-full`, the certificate must chain to the CA certificates bundled with Node.js (the public Mozilla CAs, not the operating system's trust store) or to one in `STACKABLE_COCKPIT_TLS_CA_CERTS`. Add any private CA there, such as the one that signs AWS RDS certificates; the setting applies to all outgoing TLS connections, not only the database.
 
 The same settings apply to the application runtime (`src/lib/server/db.ts`) and to `drizzle.config.ts` (migrations and Drizzle Studio).
 

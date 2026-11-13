@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Stackable Cockpit** is a SvelteKit application that serves as the web UI of the Stackable Data Platform. It is built as a set of modules behind a shared OIDC login:
+**Stackable Cockpit** is a SvelteKit application that serves as the UI of the Stackable Data Platform. It is built as a set of modules behind a shared OIDC login:
 
 - **Trino** — SQL editor (Monaco + ANTLR grammar) with catalogue browser and query lifecycle management
 - **Storage** — S3 file browser with preview, upload/download, archives, search and transfers (HDFS is a stub)
@@ -177,7 +177,7 @@ English is the default/fallback locale; German is also supported.
 
 - All user-visible strings go into `messages/en.json` **and** `messages/de.json` (same keys in both). This includes `aria-label`, `title`, `placeholder` and `alt`.
 - Use them via `import * as m from '$lib/paraglide/messages.js'` and `m.key_name()`.
-- Flat keys with a feature prefix: `dashboard_welcome`, `nav_dashboard`, `header_user_menu`.
+- Flat keys with a feature prefix: `dashboard_bookmarks_empty`, `nav_dashboard`, `header_user_menu`.
 - Data structures containing translated strings must be `$derived` so they follow locale changes.
 - The Vite plugin compiles messages during `dev`/`build`. For `npm run check`/`lint` outside Vite, compile manually: `npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide`.
 

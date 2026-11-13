@@ -366,6 +366,10 @@ http
       pollQuery(executing[1], Number(executing[2])).then((page) => sendJson(res, page));
       return;
     }
+    if (req.method === 'GET' && url.pathname === '/v1/info') {
+      sendJson(res, { nodeVersion: { version: '484' } });
+      return;
+    }
     if (req.method !== 'POST' || url.pathname !== '/v1/statement') {
       // Readiness probe from Playwright's webServer.
       sendJson(res, { status: 'ok' });

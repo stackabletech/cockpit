@@ -19,15 +19,15 @@ trino:
       secretKeyRef:
         name: cockpit
         key: trino-auth-password
-  tls:
-    secretClass: tls # <4>
 ----
 <1> The coordinator as Cockpit reaches it.
-With `secretClass`, use the headless Service of the role group (`<cluster>-coordinator-<role group>-headless`), which the certificate covers.
+With a certificate from the Secret Operator, use the headless Service of the role group (`<cluster>-coordinator-<role group>-headless`), which the certificate covers.
 From another namespace, append `.<namespace>.svc.cluster.local`.
 <2> Optional. The URL for links to the Trino web UI, defaults to `url`.
 <3> `none` (default) or `basic`. `basic` requires `username` and `password`, otherwise Cockpit does not start.
-<4> Provides the CA certificate of Trino. Alternatively set `caCert` to a mounted file, or `insecure: true` to skip verification.
+
+For a Trino cluster with a private CA, see xref:installation/helm.adoc#_ca_certificates[CA certificates].
+`trino.tls.insecure: true` skips certificate verification instead.
 
 Without `trino.url`, each user enters a connection in the UI.
 These connections are kept in memory and are lost when Cockpit restarts.

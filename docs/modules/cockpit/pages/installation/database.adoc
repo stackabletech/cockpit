@@ -17,7 +17,7 @@ database:
       key: database-password
   tls:
     mode: verify-full # <1>
-    secretClass: tls # <2>
 ----
 <1> `verify-full` (default), `require` (encrypt without verification) or `disable`.
-<2> Provides the CA certificate of PostgreSQL. Alternatively set `caCert` to a mounted file. `secretClass` and `caCert` both require `verify-full`.
+
+For a PostgreSQL server with a private CA, see xref:installation/helm.adoc#_ca_certificates[CA certificates].

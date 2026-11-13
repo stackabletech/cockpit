@@ -83,10 +83,10 @@ test.describe('App navigation', () => {
 
     const sidebar = page.getByRole('complementary', { name: 'Sidebar' });
     // Expanded: the visible "Stackable" text names the brand, so the logo is decorative.
-    await expect(sidebar.getByRole('img', { name: 'Stackable' })).toHaveCount(0);
+    await expect(sidebar.getByRole('img', { name: 'Stackable Cockpit' })).toHaveCount(0);
 
     await sidebar.getByRole('button', { name: 'Collapse sidebar' }).click();
-    await expect(sidebar.getByRole('img', { name: 'Stackable' })).toBeVisible();
+    await expect(sidebar.getByRole('img', { name: 'Stackable Cockpit' })).toBeVisible();
   });
 
   test('skip link is the first tab stop and moves keyboard focus into the main content', async ({

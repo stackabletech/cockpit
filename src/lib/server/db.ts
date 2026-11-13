@@ -1,6 +1,7 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { logger } from './logging';
+import { trustCaCerts } from './ca-certs';
 import { databaseSsl, databaseTlsMode } from './db-tls';
 
 const log = logger.child({ module: 'database' });
@@ -11,6 +12,13 @@ const envModule = await import('$env/dynamic/private').catch(() => null);
 const env = envModule?.env ?? process.env;
 
 const isProduction = process.env.NODE_ENV === 'production';
+
+// The first server module to load, both in the app (via auth, before OIDC discovery) and in
+// the migration CLI, so the CA certificates are trusted before any TLS connection opens.
+const trustedCaFiles = trustCaCerts(env);
+if (trustedCaFiles.length > 0) {
+  log.info({ ca_files: trustedCaFiles }, 'Trusting additional CA certificates');
+}
 
 if (isProduction && !env.DATABASE_PASSWORD) {
   throw new Error('DATABASE_PASSWORD must be set in production');
@@ -27,7 +35,7 @@ if (!env.DATABASE_PASSWORD) {
 const dbPassword = env.DATABASE_PASSWORD || 'cockpit-dev-password';
 
 // DATABASE_TLS_MODE: verify-full (production default), require or disable (development default).
-// For a private CA, set DATABASE_TLS_CA_CERT to the mounted CA certificate path.
+// For a private CA, add it to STACKABLE_COCKPIT_TLS_CA_CERTS.
 const tlsMode = databaseTlsMode(env, isProduction);
 if (isProduction && tlsMode !== 'verify-full') {
   log.warn(
@@ -37,8 +45,8 @@ if (isProduction && tlsMode !== 'verify-full') {
       : 'Database TLS certificate verification is disabled'
   );
 }
-log.debug({ tls_mode: tlsMode, tls_ca_cert: env.DATABASE_TLS_CA_CERT || null }, 'Database TLS');
-const sslMode = databaseSsl(env, tlsMode);
+log.debug({ tls_mode: tlsMode }, 'Database TLS');
+const sslMode = databaseSsl(tlsMode);
 
 // Create a connection pool
 const pool = new Pool({

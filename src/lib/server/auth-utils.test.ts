@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { findTrinoUser, getTrinoUser, getUserId } from './auth-utils.js';
 
+const auth = vi.hoisted(() => ({ oidcEnabled: true }));
+vi.mock('$lib/server/auth', () => auth);
+
 describe('getUserId', () => {
   it('returns the user ID when user is present', () => {
     const locals = { user: { id: 'user-abc-123' } } as App.Locals;
@@ -26,9 +29,19 @@ describe('getTrinoUser', () => {
     expect(getTrinoUser(locals)).toBe('alice');
   });
 
-  it('returns "anonymous" without a signed-in user (OIDC disabled)', () => {
+  it('returns "anonymous" without a signed-in user', () => {
     const locals = { user: null, logger } as unknown as App.Locals;
     expect(getTrinoUser(locals)).toBe('anonymous');
+  });
+
+  it('returns "anonymous" for the local user (OIDC disabled)', () => {
+    auth.oidcEnabled = false;
+    try {
+      const locals = { user: { id: 'local', trinoUser: null }, logger } as unknown as App.Locals;
+      expect(getTrinoUser(locals)).toBe('anonymous');
+    } finally {
+      auth.oidcEnabled = true;
+    }
   });
 
   it('fails instead of falling back to "anonymous" when the Trino user is missing', () => {

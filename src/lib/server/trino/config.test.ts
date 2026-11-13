@@ -15,7 +15,6 @@ describe('parseTrinoConfig', () => {
       authUsername: undefined,
       authPassword: undefined,
       tlsInsecure: false,
-      tlsCaCertPath: undefined,
       userImpersonation: true,
       queryTtlSeconds: 1800
     });

@@ -182,12 +182,9 @@ spec:
             - name: DATABASE_TLS_MODE
               value: {{ . | quote }}
             {{- end }}
-            {{- if .Values.database.tls.caCert }}
-            - name: DATABASE_TLS_CA_CERT
-              value: {{ .Values.database.tls.caCert | quote }}
-            {{- else if .Values.database.tls.secretClass }}
-            - name: DATABASE_TLS_CA_CERT
-              value: /stackable/database-tls/ca.crt
+            {{- with include "cockpit.caCertPaths" . }}
+            - name: STACKABLE_COCKPIT_TLS_CA_CERTS
+              value: {{ . | quote }}
             {{- end }}
             {{- if eq (toString (index $features "storage" | default dict).enabled) "true" }}
             - name: STORAGE_ENCRYPTION_KEY
@@ -195,13 +192,6 @@ spec:
                 secretKeyRef:
                   name: {{ required "storage.encryptionKey.secretKeyRef.name is required when features.storage.enabled is true" .Values.storage.encryptionKey.secretKeyRef.name | quote }}
                   key: {{ .Values.storage.encryptionKey.secretKeyRef.key | quote }}
-            {{- end }}
-            {{- if .Values.storage.tls.caCert }}
-            - name: STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT
-              value: {{ .Values.storage.tls.caCert | quote }}
-            {{- else if .Values.storage.tls.secretClass }}
-            - name: STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT
-              value: /stackable/storage-tls/ca.crt
             {{- end }}
             {{- if .Values.auth.oidc.enabled }}
             - name: STACKABLE_COCKPIT_OIDC_CLIENT_SECRET
@@ -289,13 +279,6 @@ spec:
             - name: STACKABLE_COCKPIT_TRINO_TLS_INSECURE
               value: "true"
             {{- end }}
-            {{- if .Values.trino.tls.caCert }}
-            - name: STACKABLE_COCKPIT_TRINO_TLS_CA_CERT
-              value: {{ .Values.trino.tls.caCert | quote }}
-            {{- else if .Values.trino.tls.secretClass }}
-            - name: STACKABLE_COCKPIT_TRINO_TLS_CA_CERT
-              value: /stackable/trino-tls/ca.crt
-            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -306,19 +289,9 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-            {{- if .Values.trino.tls.secretClass }}
-            - name: trino-tls
-              mountPath: /stackable/trino-tls
-              readOnly: true
-            {{- end }}
-            {{- if .Values.database.tls.secretClass }}
-            - name: database-tls
-              mountPath: /stackable/database-tls
-              readOnly: true
-            {{- end }}
-            {{- if .Values.storage.tls.secretClass }}
-            - name: storage-tls
-              mountPath: /stackable/storage-tls
+            {{- range $i, $secretClass := .Values.tls.secretClasses }}
+            - name: tls-ca-{{ $i }}
+              mountPath: /stackable/tls-ca/{{ $secretClass }}
               readOnly: true
             {{- end }}
             {{- with .Values.extraVolumeMounts }}
@@ -332,45 +305,13 @@ spec:
             sizeLimit: {{ if kindIs "float64" . }}{{ int64 . }}{{ else }}{{ . | quote }}{{ end }}
             {{- else }} {}
             {{- end }}
-        {{- if .Values.trino.tls.secretClass }}
-        - name: trino-tls
+        {{- range $i, $secretClass := .Values.tls.secretClasses }}
+        - name: tls-ca-{{ $i }}
           ephemeral:
             volumeClaimTemplate:
               metadata:
                 annotations:
-                  secrets.stackable.tech/class: {{ .Values.trino.tls.secretClass | quote }}
-                  secrets.stackable.tech/scope: pod
-              spec:
-                storageClassName: secrets.stackable.tech
-                accessModes:
-                  - ReadWriteOnce
-                resources:
-                  requests:
-                    storage: 1
-        {{- end }}
-        {{- if .Values.database.tls.secretClass }}
-        - name: database-tls
-          ephemeral:
-            volumeClaimTemplate:
-              metadata:
-                annotations:
-                  secrets.stackable.tech/class: {{ .Values.database.tls.secretClass | quote }}
-                  secrets.stackable.tech/scope: pod
-              spec:
-                storageClassName: secrets.stackable.tech
-                accessModes:
-                  - ReadWriteOnce
-                resources:
-                  requests:
-                    storage: 1
-        {{- end }}
-        {{- if .Values.storage.tls.secretClass }}
-        - name: storage-tls
-          ephemeral:
-            volumeClaimTemplate:
-              metadata:
-                annotations:
-                  secrets.stackable.tech/class: {{ .Values.storage.tls.secretClass | quote }}
+                  secrets.stackable.tech/class: {{ $secretClass | quote }}
                   secrets.stackable.tech/scope: pod
               spec:
                 storageClassName: secrets.stackable.tech

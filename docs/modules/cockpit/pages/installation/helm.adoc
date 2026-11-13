@@ -3,12 +3,20 @@
 
 The Helm chart deploys Cockpit.
 It does not deploy PostgreSQL, the OIDC provider or Trino.
-The chart is published to `oci.stackable.tech/sdp-charts/cockpit`.
+The chart is published to `oci.stackable.tech/sdp-charts/cockpit` and `quay.io/stackable/sdp-charts/cockpit`.
+Each chart pulls the image from the registry it comes from.
 The https://github.com/stackabletech/cockpit/blob/{stackable-operator-branch}/deploy/helm/cockpit/README.md[chart README{external-link-icon}^] lists all values.
 
 [source,console,subs="attributes"]
 ----
 $ helm install cockpit oci://oci.stackable.tech/sdp-charts/cockpit --version {stackable-operator-version} --values cockpit-values.yaml
+----
+
+To install from quay.io instead:
+
+[source,console,subs="attributes"]
+----
+$ helm install cockpit oci://quay.io/stackable/sdp-charts/cockpit --version {stackable-operator-version} --values cockpit-values.yaml
 ----
 
 == Ingress and reverse proxy
@@ -54,16 +62,15 @@ For plain nginx, set `proxy_buffer_size 16k;` and `proxy_busy_buffers_size 16k;`
 
 == CA certificates
 
-For backends with a private CA, set either a SecretClass or the path of a mounted CA file:
+For an OIDC provider or backends with a private CA, add its CA certificate from a SecretClass or a mounted file:
 
 [source,yaml]
 ----
-trino:
-  tls:
-    secretClass: tls # <1>
-database:
-  tls:
-    caCert: /stackable/database-ca/ca.crt # <2>
+tls:
+  secretClasses:
+    - tls # <1>
+  caCerts:
+    - /stackable/database-ca/ca.crt # <2>
 extraVolumes:
   - name: database-ca
     secret:
@@ -76,7 +83,11 @@ extraVolumeMounts:
 <1> The Secret Operator mounts the CA certificate of the SecretClass.
 <2> A CA file mounted from a Secret.
 
-The same options exist under `storage.tls` for S3 endpoints.
+Cockpit trusts these CAs for all outgoing TLS connections, in addition to the public CAs bundled with Node.js.
+They are not tied to a service: a CA added for Trino is also trusted for the OIDC provider, PostgreSQL and S3.
+Only add CAs you trust for all of them.
+
+Cockpit does not start if a CA file is missing or invalid.
 
 == Additional environment variables
 

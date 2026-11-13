@@ -47,6 +47,20 @@ function mockFetchResponse(
     etag?: string;
   }
 ): Response {
+  if (opts?.renderable === false) {
+    // Mirrors binaryPreview() in $lib/server/storage/preview/binary.ts.
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Content-Type': opts.contentType ?? 'application/octet-stream',
+        'X-Preview-Renderable': 'false',
+        'X-Preview-Total-Size': String(opts.totalSize ?? 11),
+        'X-Preview-Bytes': '0',
+        'X-Preview-Truncated': 'false',
+        'Cache-Control': 'no-store'
+      }
+    });
+  }
   return new Response(body, {
     status: 200,
     headers: {
@@ -665,22 +679,35 @@ describe('PreviewModal basics', () => {
         .not.toBeInTheDocument();
     });
 
-    it('should render fallback when X-Preview-Renderable is false', async () => {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue(
-          mockFetchResponse('', {
-            contentType: 'application/zip',
-            renderable: false
-          })
-        )
-      );
-      render(PreviewModal, { ...defaultProps, objectKey: 'archive.zip' });
+    it.each([
+      ['data/events.avro', 'application/avro'],
+      ['logs/app.log.gz', 'application/gzip'],
+      ['reports/q3.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+      ['archive.zip', 'application/zip']
+    ])(
+      'should render the binary fallback when X-Preview-Renderable is false (%s)',
+      async (objectKey, contentType) => {
+        vi.stubGlobal(
+          'fetch',
+          vi
+            .fn()
+            .mockResolvedValue(
+              mockFetchResponse(null, { contentType, renderable: false, totalSize: 4096 })
+            )
+        );
+        render(PreviewModal, { ...defaultProps, objectKey });
 
-      // Fallback should not show a footer with download/close buttons
-      // Wait for the preview to load
-      await expect.element(page.getByText('archive.zip')).toBeInTheDocument();
-    });
+        await expect
+          .element(
+            page.getByText(
+              'This file appears to contain binary data and cannot be displayed as text.'
+            )
+          )
+          .toBeInTheDocument();
+        await expect.element(page.getByTestId('editor-readonly-notice')).not.toBeInTheDocument();
+        await expect.element(page.getByRole('application')).not.toBeInTheDocument();
+      }
+    );
 
     it('should render fallback for binary content that fails UTF-8 decode', async () => {
       // Create bytes that are invalid UTF-8 (not a CSV/TSV extension)
@@ -703,8 +730,14 @@ describe('PreviewModal basics', () => {
       );
       render(PreviewModal, { ...defaultProps, objectKey: 'data/file.bin' });
 
-      // Should eventually show fallback (no footer since fallback kind)
-      await expect.element(page.getByText('file.bin')).toBeInTheDocument();
+      await expect
+        .element(
+          page.getByText(
+            'This file appears to contain binary data and cannot be displayed as text.'
+          )
+        )
+        .toBeInTheDocument();
+      await expect.element(page.getByRole('application')).not.toBeInTheDocument();
     });
   });
 

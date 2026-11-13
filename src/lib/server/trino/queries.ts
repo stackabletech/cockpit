@@ -37,6 +37,8 @@ export interface TrinoQuery {
   startedAt: number;
   nextUri: string | undefined;
   client: TrinoClient;
+  /** Major Trino version at submit time, null if unknown. Selects the Web UI link format. */
+  trinoVersion: number | null;
   userId: string;
   trinoUser: string;
   completedAt: number | null;
@@ -145,6 +147,20 @@ function getActiveQuery(userId: string, tabId: string): TrinoQuery | undefined {
   return last && !isTerminal(last.state) ? last : undefined;
 }
 
+/** First Trino release serving the redesigned Web UI at `/ui` (legacy UI off by default). */
+const NEW_WEB_UI_VERSION = 483;
+
+/** Deep link to a query in the Trino Web UI. Unknown versions get the current UI. */
+export function trinoQueryUiUrl(
+  trinoPublicUrl: string,
+  trinoQueryId: string,
+  trinoVersion: number | null
+): string {
+  return trinoVersion !== null && trinoVersion < NEW_WEB_UI_VERSION
+    ? `${trinoPublicUrl}/ui/query.html?${trinoQueryId}`
+    : `${trinoPublicUrl}/ui/#/queries/${trinoQueryId}`;
+}
+
 function buildSnapshot(
   query: TrinoQuery,
   trinoPublicUrl: string | null,
@@ -153,7 +169,7 @@ function buildSnapshot(
   return {
     trinoQueryUrl:
       trinoPublicUrl && query.trinoQueryId
-        ? `${trinoPublicUrl}/ui/query.html?${query.trinoQueryId}`
+        ? trinoQueryUiUrl(trinoPublicUrl, query.trinoQueryId, query.trinoVersion)
         : null,
     state: query.state,
     progress: query.progress,
@@ -189,8 +205,13 @@ async function submitStatement(
   log.info({ user_id: userId, tab_id: tabId }, 'submitting query');
   trinoQueryTotal.inc({ outcome: 'submitted' });
   let submitResult;
+  let trinoVersion;
   try {
-    submitResult = await client.submit(sql, options);
+    // The version request is cached per client and never throws.
+    [submitResult, trinoVersion] = await Promise.all([
+      client.submit(sql, options),
+      client.serverVersion()
+    ]);
   } catch (err) {
     trinoQueryTotal.inc({ outcome: 'failed' });
     throw err;
@@ -218,6 +239,7 @@ async function submitStatement(
     startedAt: Date.now(),
     nextUri: submitResult.nextUri,
     client,
+    trinoVersion,
     userId,
     trinoUser: options.user,
     completedAt: null
@@ -254,6 +276,7 @@ function failedSubmit(
     startedAt: now,
     nextUri: undefined,
     client,
+    trinoVersion: null,
     userId,
     trinoUser,
     completedAt: now
