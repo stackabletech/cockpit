@@ -69,6 +69,7 @@ const oidcScopes = [...new Set([...defaultScopes, ...config.STACKABLE_COCKPIT_OI
 const claim = (value: unknown) => (typeof value === 'string' && value ? value : undefined);
 
 export const oidcEnabled = OIDC_REQUIRED.every((name) => config[name]);
+export const oidcDiscoveryUrl = config.STACKABLE_COCKPIT_OIDC_DISCOVERY_URL;
 
 if (!oidcEnabled) {
   log?.warn(

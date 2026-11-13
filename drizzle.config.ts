@@ -1,4 +1,5 @@
 import { defineConfig } from 'drizzle-kit';
+import { trustCaCerts } from './src/lib/server/ca-certs';
 import { databaseSsl, databaseTlsMode } from './src/lib/server/db-tls';
 
 const envFile = process.env.DRIZZLE_ENV_FILE ?? '.env.development';
@@ -16,6 +17,8 @@ function required(name: string): string {
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+trustCaCerts(process.env);
+
 export default defineConfig({
   schema: ['./src/lib/server/schema.ts', './src/lib/server/auth-schema.ts'],
   out: './src/lib/server/migrations',
@@ -26,6 +29,6 @@ export default defineConfig({
     database: required('DATABASE_NAME'),
     user: required('DATABASE_USER'),
     password: required('DATABASE_PASSWORD'),
-    ssl: databaseSsl(process.env, databaseTlsMode(process.env, isProduction))
+    ssl: databaseSsl(databaseTlsMode(process.env, isProduction))
   }
 });

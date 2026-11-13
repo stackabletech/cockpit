@@ -55,8 +55,8 @@ The following table lists the configurable parameters of the Cockpit chart and t
 | Parameter | Description | Default |
 | --- | --- | --- |
 | `replicaCount` | Number of replicas | `1` |
-| `image.registry` | Container image registry | `oci.stackable.tech` |
-| `image.repository` | Container image repository | `sdp/cockpit` |
+| `image.registry` | Container image registry. Published chart packages default to the registry they come from (`oci.stackable.tech` or `quay.io`) | `oci.stackable.tech` |
+| `image.repository` | Container image repository (`stackable/sdp/cockpit` for the quay.io chart) | `sdp/cockpit` |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `image.tag` | Image tag (overrides appVersion) | `""` |
 | `nameOverride` | String to partially override fullname | `""` |
@@ -110,8 +110,6 @@ Cockpit stores sessions, users and storage connections in PostgreSQL. Migrations
 | `database.password.secretKeyRef.name` | Name of the Secret holding the database password. Required. | `""` |
 | `database.password.secretKeyRef.key` | Key inside the Secret. | `database-password` |
 | `database.tls.mode` | `verify-full` (verify certificate and host name), `require` (encrypt without verification) or `disable`. | `""` (application default: `verify-full` when `config.nodeEnv` is `production`, otherwise `disable`) |
-| `database.tls.caCert` | Path to a CA certificate file inside the container, e.g. mounted via `extraVolumes`. Requires mode `verify-full`. Mutually exclusive with `secretClass`. | `""` |
-| `database.tls.secretClass` | Stackable SecretClass that provides the database CA certificate. Requires mode `verify-full`. Mutually exclusive with `caCert`. | `""` |
 
 ### Feature Parameters
 
@@ -165,6 +163,8 @@ OIDC is the only supported auth mechanism. Disable it for local testing only: wi
 | `auth.oidc.clientSecret.secretKeyRef.key` | Key inside the Secret. | `oidc-client-secret` |
 | `auth.oidc.extraScopes` | List of extra OIDC scopes to request in addition to `openid profile email`. Set when the claim to use as identifier in Trino is only released under a custom scope. | `[]` |
 
+At startup, the cockpit fetches the OIDC discovery document once and logs the cause if that fails, e.g. a provider certificate from a private CA that is missing in `tls.caCerts` or `tls.secretClasses`.
+
 ### Trino Connection Parameters
 
 Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app connection form is hidden.
@@ -179,9 +179,7 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 | `trino.auth.username` | Username for basic auth. | `""` |
 | `trino.auth.password.secretKeyRef.name` | Name of the Secret holding the Trino password. Required when `type=basic`. | `""` |
 | `trino.auth.password.secretKeyRef.key` | Key inside the Secret. | `trino-auth-password` |
-| `trino.tls.insecure` | Skip TLS certificate verification. Cannot be combined with `caCert` or `secretClass`. | `false` |
-| `trino.tls.caCert` | Path to a CA certificate file inside the container, e.g. mounted via `extraVolumes`. Mutually exclusive with `secretClass`. | `""` |
-| `trino.tls.secretClass` | Stackable SecretClass that provides the Trino CA certificate. Mutually exclusive with `caCert`. | `""` |
+| `trino.tls.insecure` | Skip TLS certificate verification. Logs a warning in production; for a private CA, use `tls.caCerts` or `tls.secretClasses` instead. | `false` |
 | `trino.queryTtl` | Query result TTL in seconds. | `1800` (application default) |
 
 ### Security Parameters
@@ -192,18 +190,19 @@ Optional pre-configured Trino endpoint. When `trino.url` is set, the in-app conn
 | `sessionSecret.secretKeyRef.key` | Key inside the Secret. | `session-secret` |
 | `storage.encryptionKey.secretKeyRef.name` | Name of the Secret holding the key that encrypts stored storage connection credentials: 64 hex characters, e.g. from `openssl rand -hex 32`. Required when `features.storage.enabled` is `true`. Keep it stable: changing or losing it makes all stored credentials unreadable. | `""` |
 | `storage.encryptionKey.secretKeyRef.key` | Key inside the Secret. | `storage-encryption-key` |
-| `storage.tls.caCert` | Path to a CA certificate file inside the container for S3 connections with TLS verification, e.g. mounted via `extraVolumes`. Mutually exclusive with `secretClass`. | `""` |
-| `storage.tls.secretClass` | Stackable SecretClass that provides the CA certificate for S3 connections with TLS verification. Mutually exclusive with `caCert`. | `""` |
 | `podSecurityContext` | Pod security context | See values.yaml |
 | `securityContext` | Container security context | See values.yaml |
 
-A configured CA certificate (`caCert` or `secretClass`) replaces the system trust store for that connection. For `storage.tls`, this applies to every S3 connection that verifies certificates, so connections to S3 endpoints with publicly trusted certificates (for example AWS) fail while it is set. The chart refuses to render contradictory TLS settings, for example a CA together with `trino.tls.insecure` or a database mode that doesn't verify certificates.
+| `tls.caCerts` | List of PEM files inside the container with CA certificates, e.g. mounted via `extraVolumes`. | `[]` |
+| `tls.secretClasses` | List of Stackable SecretClasses that provide a CA certificate. The Secret Operator mounts each one's `ca.crt` into `/stackable/tls-ca/<secretClass>`. | `[]` |
+
+The CA certificates from `tls.caCerts` and `tls.secretClasses` are trusted for all outgoing TLS connections (OIDC provider, Trino, PostgreSQL, S3, etc.), in addition to the CAs bundled with Node.js, so publicly trusted endpoints keep working. A missing or invalid certificate stops the application at startup.
 
 ### Volume Parameters
 
 | Parameter | Description | Default |
 | --- | --- | --- |
-| `extraVolumes` | Additional pod volumes, e.g. a Secret holding a CA certificate for `trino.tls.caCert`, `database.tls.caCert` or `storage.tls.caCert`. | `[]` |
+| `extraVolumes` | Additional pod volumes, e.g. a Secret holding a CA certificate for `tls.caCerts`. | `[]` |
 | `extraVolumeMounts` | Additional volume mounts for the Cockpit container. | `[]` |
 
 ### Environment Parameters

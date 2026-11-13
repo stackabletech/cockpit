@@ -10,8 +10,8 @@
 
 [Stackable Data Platform](https://stackable.tech/) | [Platform Docs](https://docs.stackable.tech/) | [Discussions](https://github.com/orgs/stackabletech/discussions) | [Discord](https://discord.gg/7kZ3BNnCAF)
 
-Stackable Cockpit is the unified web UI for the Stackable Data Platform (SDP).
-It provides a single place to work with the data services running on your platform.
+Stackable Cockpit is the UI for the Stackable Data Platform (SDP).
+It provides a single place to work with the services running on your platform.
 
 It is part of the Stackable Data Platform, a curated selection of the best open source data apps like Apache Kafka®, OpenSearch, Trino or Apache Spark™, [all](#other-operators) working together seamlessly. Based on Kubernetes, it runs everywhere – on prem or in the cloud.
 
@@ -81,6 +81,12 @@ docker run -p 3000:3000 cockpit:0.0.0-dev
 The application is configured via environment variables.
 Create a `.env` file at the project root, or set them in your deployment environment.
 Invalid values (e.g. `abc` for an integer) stop the server at startup with an error that names the invalid variables.
+
+### TLS
+
+| Variable                         | Type                       | Default | Description                                                                                                                                                                                                                                                                            | Example                                         |
+| -------------------------------- | -------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `STACKABLE_COCKPIT_TLS_CA_CERTS` | comma-separated file paths | none    | PEM files with CA certificates for private CAs. Trusted for all outgoing TLS connections (OIDC provider, Trino, PostgreSQL, S3) in addition to the CAs bundled with Node.js, so publicly trusted endpoints keep working. A missing, empty or invalid file stops the server at startup. | `STACKABLE_COCKPIT_TLS_CA_CERTS=/etc/ca/ca.crt` |
 
 ### Feature Flags
 

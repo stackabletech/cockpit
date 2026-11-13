@@ -39,13 +39,12 @@ const globalBookmark: BookmarkLink = {
 describe('DashboardBookmarks', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('renders the section heading, subtitle and Add bookmark button', async () => {
+  it('renders the section heading and Add bookmark button', async () => {
     render(DashboardBookmarks, { bookmarks: [] });
 
     await expect
-      .element(page.getByRole('heading', { level: 3, name: 'Bookmarks' }))
+      .element(page.getByRole('heading', { level: 2, name: 'Bookmarks' }))
       .toBeInTheDocument();
-    await expect.element(page.getByText(/bookmarks are added by hand/i)).toBeInTheDocument();
     await expect.element(page.getByRole('button', { name: /add bookmark/i })).toBeInTheDocument();
   });
 
@@ -53,7 +52,7 @@ describe('DashboardBookmarks', () => {
     render(DashboardBookmarks, { bookmarks: null, loadFailed: true });
 
     await expect
-      .element(page.getByRole('heading', { level: 3, name: 'Bookmarks' }))
+      .element(page.getByRole('heading', { level: 2, name: 'Bookmarks' }))
       .toBeInTheDocument();
     await expect
       .element(page.getByText('Bookmarks could not be loaded. Please reload the page later.'))
@@ -157,7 +156,6 @@ describe('DashboardBookmarks', () => {
     await expect
       .element(page.getByRole('button', { name: /add bookmark/i }))
       .not.toBeInTheDocument();
-    await expect.element(page.getByText(/bookmarks are added by hand/i)).not.toBeInTheDocument();
     await expect.element(page.getByText(/no bookmarks yet/i)).not.toBeInTheDocument();
   });
 

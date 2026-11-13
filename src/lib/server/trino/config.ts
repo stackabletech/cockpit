@@ -13,7 +13,6 @@ const schema = z
     STACKABLE_COCKPIT_TRINO_AUTH_USERNAME: envString,
     STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD: envString,
     STACKABLE_COCKPIT_TRINO_TLS_INSECURE: envBoolean(false),
-    STACKABLE_COCKPIT_TRINO_TLS_CA_CERT: envString,
     STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION: envBoolean(true),
     STACKABLE_COCKPIT_QUERY_TTL: envInteger(1800)
   })
@@ -39,7 +38,6 @@ export function parseTrinoConfig(env: Record<string, string | undefined>) {
     authUsername: config.STACKABLE_COCKPIT_TRINO_AUTH_USERNAME,
     authPassword: config.STACKABLE_COCKPIT_TRINO_AUTH_PASSWORD,
     tlsInsecure: config.STACKABLE_COCKPIT_TRINO_TLS_INSECURE,
-    tlsCaCertPath: config.STACKABLE_COCKPIT_TRINO_TLS_CA_CERT,
     userImpersonation: config.STACKABLE_COCKPIT_TRINO_USER_IMPERSONATION,
     queryTtlSeconds: config.STACKABLE_COCKPIT_QUERY_TTL
   };
