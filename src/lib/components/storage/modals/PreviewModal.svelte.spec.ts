@@ -492,7 +492,7 @@ describe('PreviewModal basics', () => {
       await expect.element(page.getByText('file.parquet')).toBeInTheDocument();
 
       // Click the Data tab
-      await page.getByRole('tab', { name: 'Data' }).first().click();
+      await page.getByRole('tab', { name: 'Data', exact: true }).click();
 
       // Parquet preview table should be visible with column headers
       await expect

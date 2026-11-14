@@ -179,10 +179,11 @@ describe('ContextMenu', () => {
       selectedKeys: ['test.txt']
     });
     const spy = vi.spyOn(state, 'closeContextMenu');
-    render(ContextMenuWrapper, { state });
+    render(ContextMenuWrapper, { state, title: 'test.txt' });
 
-    const menu = page.getByRole('menu');
-    await menu.click();
+    // Click the non-interactive title: the menu's centre is a menu item, which would run an
+    // action and close the menu.
+    await page.getByRole('menu').getByText('test.txt').click();
     expect(spy).not.toHaveBeenCalled();
   });
 

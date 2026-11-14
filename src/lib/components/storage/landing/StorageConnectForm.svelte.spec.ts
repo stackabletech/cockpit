@@ -141,14 +141,28 @@ describe('StorageConnectForm', () => {
     await expect.element(page.getByText('My MinIO').first()).toBeInTheDocument();
   });
 
-  it('should show delete buttons for saved connections', async () => {
+  it('should offer forgetting a saved connection via its options menu', async () => {
     renderForm({}, [
       makeConnection({ id: 'conn-1', name: 'Test S3', endpoint: 'https://s3.test.io' })
     ]);
 
-    await expect
-      .element(page.getByRole('button', { name: 'Forget connection to Test S3' }))
-      .toBeInTheDocument();
+    await page.getByRole('button', { name: 'More options' }).click();
+    await expect.element(page.getByRole('menuitem', { name: 'Forget' })).toBeVisible();
+  });
+
+  it('should show delete buttons for saved connections on mobile', async () => {
+    await page.viewport(414, 896);
+    try {
+      renderForm({}, [
+        makeConnection({ id: 'conn-1', name: 'Test S3', endpoint: 'https://s3.test.io' })
+      ]);
+
+      await expect
+        .element(page.getByRole('button', { name: 'Forget connection to Test S3' }))
+        .toBeVisible();
+    } finally {
+      await page.viewport(1280, 800); // default from vite.config.ts
+    }
   });
 
   it('should render multiple saved connections', async () => {

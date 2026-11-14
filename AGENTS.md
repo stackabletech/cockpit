@@ -238,7 +238,7 @@ npm run test:unit:coverage   # With coverage (run in CI)
 
 Vitest has two projects (`vite.config.ts`):
 
-- `client` — `*.svelte.test.ts` / `*.svelte.spec.ts`, run in headless Chromium (component and rune tests)
+- `client` — `*.svelte.test.ts` / `*.svelte.spec.ts`, run in headless Chromium (component and rune tests). `src/test/setup-client.ts` loads `src/app.css`, so Tailwind/DaisyUI apply and hidden elements are really hidden. The viewport is 1280×800; test mobile layouts with `page.viewport()` and restore it afterwards
 - `server` — all other `*.test.ts` / `*.spec.ts`, run in Node
 
 Place unit tests next to the code they test. Add them for new server logic, stores and non-trivial components. Every test must assert (`requireAssertions`); use `src/lib/test-utils/mock-logger.ts` when testing server code that logs. The client project needs the Playwright Chromium browser.
