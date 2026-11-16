@@ -37,7 +37,8 @@ function interceptSaveSuccess(page: import('@playwright/test').Page) {
           connectionUrl: MOCK_TRINO_URL,
           authType: 'none',
           authUsername: '',
-          authPassword: ''
+          authPassword: '',
+          tlsInsecure: false
         },
         message: { type: 'success' }
       };
@@ -50,24 +51,27 @@ function interceptSaveSuccess(page: import('@playwright/test').Page) {
 }
 
 /**
- * Intercept SvelteKit responses to override the trinoConfigured boolean.
+ * Intercept SvelteKit responses to override boolean page data fields such as
+ * trinoConfigured.
  *
  * SvelteKit embeds page data in two formats:
  * - SSR HTML uses devalue.uneval with unquoted keys: `trinoConfigured:true`
  * - __data.json uses devalue.stringify with indexed arrays where booleans
  *   are stored at positions referenced by the shape object at index 0
  */
-function interceptTrinoConfigured(page: import('@playwright/test').Page, value: boolean) {
+function interceptPageData(
+  page: import('@playwright/test').Page,
+  overrides: Record<string, boolean>
+) {
   page.route('**/trino', async (route, request) => {
     if (request.resourceType() !== 'document') return route.continue();
     const response = await route.fetch();
     let html = await response.text();
-    // devalue.uneval uses literal booleans; minified builds may use !0 / !1
-    html = html.replaceAll(`trinoConfigured:${!value}`, `trinoConfigured:${value}`);
-    html = html.replaceAll(
-      `trinoConfigured:${!value ? '!0' : '!1'}`,
-      `trinoConfigured:${value ? '!0' : '!1'}`
-    );
+    for (const [key, value] of Object.entries(overrides)) {
+      // devalue.uneval uses literal booleans; minified builds may use !0 / !1
+      html = html.replaceAll(`${key}:${!value}`, `${key}:${value}`);
+      html = html.replaceAll(`${key}:${!value ? '!0' : '!1'}`, `${key}:${value ? '!0' : '!1'}`);
+    }
     await route.fulfill({ response, body: html });
   });
 
@@ -77,14 +81,60 @@ function interceptTrinoConfigured(page: import('@playwright/test').Page, value: 
     for (const node of json.nodes ?? []) {
       if (node?.type === 'data' && Array.isArray(node.data)) {
         const shape = node.data[0];
-        if (typeof shape === 'object' && shape !== null && 'trinoConfigured' in shape) {
-          node.data[shape.trinoConfigured as number] = value;
+        if (typeof shape !== 'object' || shape === null) continue;
+        for (const [key, value] of Object.entries(overrides)) {
+          if (key in shape) node.data[shape[key] as number] = value;
         }
       }
     }
     await route.fulfill({ response, body: JSON.stringify(json) });
   });
 }
+
+/** Capture the fields posted by the next `?/save` request and abort it. */
+function captureSave(page: import('@playwright/test').Page): Promise<URLSearchParams> {
+  return new Promise((resolve) => {
+    page.route(
+      (url) => url.pathname === '/trino' && url.search === '?/save',
+      async (route, request) => {
+        resolve(new URLSearchParams(request.postData() ?? ''));
+        await route.abort();
+      }
+    );
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 0. Per-user connections that may skip TLS verification
+// ---------------------------------------------------------------------------
+test.describe('Connection form (insecure TLS allowed)', () => {
+  test.use({ locale: 'en-US' });
+
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.removeItem('trino_url');
+      localStorage.removeItem('trino_tls_insecure');
+    });
+    interceptPageData(page, { trinoConfigured: false, allowInsecureTls: true });
+  });
+
+  test('skipping TLS verification is posted, persisted and shown in the summary', async ({
+    page
+  }) => {
+    await page.goto('/trino');
+    await waitForHydration(page);
+
+    await page.getByLabel('URL').fill(MOCK_TRINO_URL);
+    await page.getByLabel('Skip TLS certificate verification').check();
+    await expect(page.getByText('TLS unverified')).toBeVisible();
+
+    const posted = captureSave(page);
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    expect((await posted).get('tlsInsecure')).toBe('on');
+    expect(await page.evaluate(() => localStorage.getItem('trino_tls_insecure'))).toBe('true');
+  });
+});
 
 // ---------------------------------------------------------------------------
 // 1. When Trino IS env-configured, the form must be hidden
@@ -116,7 +166,7 @@ test.describe('Connection form (manual mode)', () => {
       localStorage.removeItem('trino_password');
     });
 
-    interceptTrinoConfigured(page, false);
+    interceptPageData(page, { trinoConfigured: false });
   });
 
   test('connection form is visible', async ({ page }) => {
@@ -169,6 +219,14 @@ test.describe('Connection form (manual mode)', () => {
     await page.getByRole('radio', { name: 'No auth' }).click();
     await expect(page.getByLabel('Username')).not.toBeVisible();
     await expect(page.getByLabel('Password')).not.toBeVisible();
+  });
+
+  test('TLS verification option is hidden unless allowed', async ({ page }) => {
+    await page.goto('/trino');
+    await waitForHydration(page);
+
+    await expect(page.getByLabel('URL')).toBeVisible();
+    await expect(page.getByLabel('Skip TLS certificate verification')).not.toBeVisible();
   });
 
   test('submitting without a URL shows a validation error', async ({ page }) => {

@@ -105,8 +105,8 @@
           <col class="w-8" />
           <col class="w-2/12" />
           <col class="w-1/12" />
-          <col class="w-[10%]" />
-          <col class="w-[28%]" />
+          <col class="w-[14%]" />
+          <col class="w-[24%]" />
           <col class="w-[30%]" />
         </colgroup>
         <thead>

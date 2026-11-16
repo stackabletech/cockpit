@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { env } from '$env/dynamic/private';
-import { envInteger, envList, envString, parseEnv } from '$lib/env-schema.js';
+import { envInteger, envList, parseEnv } from '$lib/env-schema.js';
 import { logger } from '$lib/server/logging';
 
 const log = logger.child({ module: 'storage-config' });
@@ -34,8 +34,7 @@ const schema = z.object({
   STACKABLE_COCKPIT_ARCHIVE_CACHE_MAX_MB: envInteger(512),
   STACKABLE_COCKPIT_PARQUET_PREVIEW_DISALLOWED_COMPRESSION_TYPES: envList(['gzip-no_offset']),
   STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY: envInteger(8),
-  STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS: envInteger(30, { max: 3650 }),
-  STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT: envString
+  STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS: envInteger(30, { max: 3650 })
 });
 
 function resolveArchiveCacheMaxBytes(configured: number, previewMaxBytes: number): number {
@@ -68,8 +67,7 @@ export function parseStorageConfig(env: Record<string, string | undefined>) {
       ),
     storageTransferConcurrency: config.STACKABLE_COCKPIT_STORAGE_TRANSFER_CONCURRENCY,
     downloadHistoryRetentionMs:
-      config.STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS * 24 * 60 * 60 * 1000,
-    tlsCaCertPath: config.STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT
+      config.STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS * 24 * 60 * 60 * 1000
   };
 }
 
@@ -136,13 +134,6 @@ export const storageTransferConcurrency = config.storageTransferConcurrency;
 /** How long a user's download history remains available. Controlled by
  *  `STACKABLE_COCKPIT_DOWNLOAD_HISTORY_RETENTION_DAYS` (1 to 3650). Default: 30 days. */
 export const downloadHistoryRetentionMs = config.downloadHistoryRetentionMs;
-
-// ── Connections ──────────────────────────────────────────────────────────────
-
-/** Path to a CA certificate for S3 connections with TLS verification. It
- *  replaces the CAs bundled with Node.js.
- *  Controlled by `STACKABLE_COCKPIT_STORAGE_TLS_CA_CERT`. */
-export const storageTlsCaCertPath = config.tlsCaCertPath;
 
 // Shared with the client, which hides the save button above it; the save
 // endpoint rejects larger saves with HTTP 413.

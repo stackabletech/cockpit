@@ -26,7 +26,7 @@
 </script>
 
 <svelte:head>
-  <title>{m.auth_login_title()} | {m.page_title_suffix()}</title>
+  <title>{m.auth_login_title()} | {m.app_name()}</title>
 </svelte:head>
 
 <div class="bg-base-200 flex min-h-dvh items-center justify-center p-4">

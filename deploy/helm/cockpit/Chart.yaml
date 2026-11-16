@@ -1,7 +1,7 @@
 ---
 apiVersion: v2
 name: cockpit
-description: Unified data platform UI for Stackable's data infrastructure
+description: Stackable Cockpit, the UI for the Stackable Data Platform (SDP)
 type: application
 version: 0.0.0-dev
 appVersion: "0.0.0-dev"

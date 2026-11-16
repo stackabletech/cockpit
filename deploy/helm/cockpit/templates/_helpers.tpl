@@ -92,32 +92,43 @@ Image name
 {{- end }}
 
 {{/*
-Fail on TLS settings that contradict each other, so that no setting is silently ignored.
+Fail on invalid TLS settings, so that no setting is silently ignored.
 */}}
 {{- define "cockpit.validateTls" -}}
-{{- $trinoTls := .Values.trino.tls }}
-{{- if and $trinoTls.caCert $trinoTls.secretClass }}
-{{- fail "trino.tls.caCert and trino.tls.secretClass are mutually exclusive" }}
-{{- end }}
-{{- if and $trinoTls.insecure (or $trinoTls.caCert $trinoTls.secretClass) }}
-{{- fail "trino.tls.insecure disables certificate verification, so trino.tls.caCert and trino.tls.secretClass would be ignored" }}
-{{- end }}
 {{- $dbTls := .Values.database.tls }}
 {{- $validModes := list "verify-full" "require" "disable" }}
 {{- if and $dbTls.mode (not (has $dbTls.mode $validModes)) }}
 {{- fail (printf "database.tls.mode must be one of %s (got %q)" (join ", " $validModes) $dbTls.mode) }}
 {{- end }}
-{{- if and $dbTls.caCert $dbTls.secretClass }}
-{{- fail "database.tls.caCert and database.tls.secretClass are mutually exclusive" }}
+{{- $secretClasses := .Values.tls.secretClasses }}
+{{- if ne (len $secretClasses) (len (uniq $secretClasses)) }}
+{{- fail "tls.secretClasses must not contain duplicates" }}
 {{- end }}
-{{- $dbMode := $dbTls.mode | default (ternary "verify-full" "disable" (eq .Values.config.nodeEnv "production")) }}
-{{- if and (ne $dbMode "verify-full") (or $dbTls.caCert $dbTls.secretClass) }}
-{{- fail (printf "database.tls.mode %q does not verify certificates, so database.tls.caCert and database.tls.secretClass would be ignored" $dbMode) }}
+{{- range $secretClasses }}
+{{- if not . }}
+{{- fail "tls.secretClasses must not contain empty entries" }}
 {{- end }}
-{{- $storageTls := .Values.storage.tls }}
-{{- if and $storageTls.caCert $storageTls.secretClass }}
-{{- fail "storage.tls.caCert and storage.tls.secretClass are mutually exclusive" }}
 {{- end }}
+{{- range .Values.tls.caCerts }}
+{{- if or (not .) (contains "," .) }}
+{{- fail (printf "tls.caCerts entries must be non-empty paths without commas (got %q)" .) }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+Comma-separated CA certificate files for STACKABLE_COCKPIT_TLS_CA_CERTS: the tls.caCerts paths
+and the ca.crt mounted for each of tls.secretClasses. Empty when none are configured.
+*/}}
+{{- define "cockpit.caCertPaths" -}}
+{{- $paths := list }}
+{{- range .Values.tls.caCerts }}
+{{- $paths = append $paths . }}
+{{- end }}
+{{- range .Values.tls.secretClasses }}
+{{- $paths = append $paths (printf "/stackable/tls-ca/%s/ca.crt" .) }}
+{{- end }}
+{{- join "," $paths }}
 {{- end }}
 
 {{/*

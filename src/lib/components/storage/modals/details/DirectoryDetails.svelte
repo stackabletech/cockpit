@@ -130,7 +130,7 @@
               <td class="text-muted font-medium whitespace-nowrap"
                 >{m.storage_details_marker_exists()}</td
               >
-              <td class="font-mono text-sm">{keyToName(prefix)}</td>
+              <td class="font-mono text-sm break-all">{keyToName(prefix)}</td>
             </tr>
           {:else}
             <tr>

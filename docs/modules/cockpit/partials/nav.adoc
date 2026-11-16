@@ -1,0 +1,12 @@
+* xref:cockpit:getting-started.adoc[]
+* Installation
+** xref:cockpit:installation/helm.adoc[]
+** xref:cockpit:installation/database.adoc[]
+** xref:cockpit:installation/authentication.adoc[]
+** xref:cockpit:installation/monitoring.adoc[]
+* Modules
+** xref:cockpit:modules/trino.adoc[]
+** xref:cockpit:modules/storage.adoc[]
+** xref:cockpit:modules/bookmarks.adoc[]
+* Reference
+** xref:cockpit:reference/environment-variables.adoc[]

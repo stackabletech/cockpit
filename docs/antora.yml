@@ -1,0 +1,6 @@
+---
+# Cockpit is a module of the 'home' component, like the operators.
+# The release scripts set the version to YY.M and prerelease to false on release branches.
+name: home
+version: 'nightly'
+prerelease: true

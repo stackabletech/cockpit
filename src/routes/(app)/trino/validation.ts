@@ -8,7 +8,8 @@ export const ConnectionSchema = z
     connectionUrl: z.url({ error: () => m.trino_connection_url_invalid() }),
     authType: z.enum(['none', 'basic']).default('none'),
     authUsername: z.string().default(''),
-    authPassword: z.string().default('')
+    authPassword: z.string().default(''),
+    tlsInsecure: z.boolean().default(false)
   })
   .superRefine((data, ctx) => {
     if (data.authType === 'basic') {

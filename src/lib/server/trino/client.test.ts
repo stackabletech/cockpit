@@ -7,7 +7,7 @@ const { mockEnv } = vi.hoisted(() => ({ mockEnv: {} as Record<string, string | u
 vi.mock('$env/dynamic/private', () => ({ env: mockEnv }));
 vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 
-import { TrinoClient, trinoMetadataQuery } from './client.js';
+import { TrinoClient, parseTrinoVersion, trinoMetadataQuery } from './client.js';
 import { TrinoHttpError, TrinoQueryFailure } from './errors.js';
 
 describe('TrinoClient X-Trino-User header', () => {
@@ -42,6 +42,90 @@ describe('TrinoClient X-Trino-User header', () => {
     const client = new TrinoClient({ serverUrl: 'http://trino:8080', impersonate: false });
     await client.submit('SELECT 1', { user: 'anonymous' });
     expect(submittedHeaders()['X-Trino-User']).toBe('anonymous');
+  });
+});
+
+describe('parseTrinoVersion', () => {
+  it.each([
+    ['483', 483],
+    ['476-stackable25.7.0', 476],
+    ['476-stackable0.0.0-dev', 476],
+    ['484-SNAPSHOT', 484],
+    ['dev', null],
+    [undefined, null]
+  ])('parses %s as %s', (raw, expected) => {
+    expect(parseTrinoVersion(raw)).toBe(expected);
+  });
+});
+
+describe('TrinoClient.serverVersion', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  function stubInfo(version: string) {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ nodeVersion: { version } })
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('reads the version from /v1/info', async () => {
+    const fetchMock = stubInfo('483');
+    const client = new TrinoClient({ serverUrl: 'http://trino:8080/' });
+    expect(await client.serverVersion()).toBe(483);
+    expect(fetchMock).toHaveBeenCalledWith('http://trino:8080/v1/info', expect.anything());
+  });
+
+  it('requests the version once for concurrent and repeated calls', async () => {
+    const fetchMock = stubInfo('480');
+    const client = new TrinoClient({ serverUrl: 'http://trino:8080' });
+    await Promise.all([client.serverVersion(), client.serverVersion()]);
+    await client.serverVersion();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('requests the version again once the cache has expired', async () => {
+    vi.useFakeTimers();
+    const fetchMock = stubInfo('482');
+    const client = new TrinoClient({ serverUrl: 'http://trino:8080' });
+    await client.serverVersion();
+    fetchMock.mockImplementation(async () => ({
+      ok: true,
+      json: async () => ({ nodeVersion: { version: '483' } })
+    }));
+    vi.advanceTimersByTime(10 * 60_000 + 1);
+    expect(await client.serverVersion()).toBe(483);
+  });
+
+  it('retries a failed detection after a minute', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 503 }))
+    );
+    const client = new TrinoClient({ serverUrl: 'http://trino:8080' });
+    expect(await client.serverVersion()).toBeNull();
+    stubInfo('482');
+    vi.advanceTimersByTime(60_000 + 1);
+    expect(await client.serverVersion()).toBe(482);
+  });
+
+  it.each([
+    ['an HTTP error', async () => ({ ok: false, status: 500 })],
+    [
+      'a network error',
+      async () => {
+        throw new Error('ECONNREFUSED');
+      }
+    ]
+  ])('resolves to null on %s', async (_, impl) => {
+    vi.stubGlobal('fetch', vi.fn(impl));
+    const client = new TrinoClient({ serverUrl: 'http://trino:8080' });
+    expect(await client.serverVersion()).toBeNull();
   });
 });
 
@@ -191,5 +275,41 @@ describe('resolveTrinoPublicUrl', () => {
     vi.resetModules();
     const mod = await import('./client.js');
     expect(mod.resolveTrinoPublicUrl('user1')).toBe('http://internal:8080');
+  });
+});
+
+describe('insecure Trino TLS warning', () => {
+  afterEach(() => {
+    for (const key of Object.keys(mockEnv)) delete mockEnv[key];
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  async function warnings(nodeEnv: string, insecure: string) {
+    vi.stubEnv('NODE_ENV', nodeEnv);
+    mockEnv.STACKABLE_COCKPIT_TRINO_URL = 'https://trino:8443';
+    mockEnv.STACKABLE_COCKPIT_TRINO_TLS_INSECURE = insecure;
+    vi.resetModules();
+    const { logger } = await import('$lib/server/logging');
+    const log = logger.child({});
+    vi.mocked(log.warn).mockClear();
+    await import('./client.js');
+    return vi.mocked(log.warn).mock.calls;
+  }
+
+  it('warns in production when certificate verification is disabled', async () => {
+    expect(await warnings('production', 'true')).toEqual([
+      [
+        { trino_url: 'https://trino:8443' },
+        expect.stringContaining('STACKABLE_COCKPIT_TLS_CA_CERTS')
+      ]
+    ]);
+  });
+
+  it.each([
+    ['production', 'false'],
+    ['development', 'true']
+  ])('stays quiet in %s with insecure=%s', async (nodeEnv, insecure) => {
+    expect(await warnings(nodeEnv, insecure)).toEqual([]);
   });
 });

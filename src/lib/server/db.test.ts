@@ -1,17 +1,16 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { env, poolOptions, warn } = vi.hoisted(() => ({
+const { env, poolOptions, warn, info, trustCaCerts } = vi.hoisted(() => ({
   env: {} as Record<string, string>,
   poolOptions: vi.fn(),
-  warn: vi.fn()
+  warn: vi.fn(),
+  info: vi.fn(),
+  trustCaCerts: vi.fn(() => [] as { path: string; certificates: number }[])
 }));
 
 vi.mock('$env/dynamic/private', () => ({ env }));
 vi.mock('./logging', () => ({
-  logger: { child: () => ({ warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() }) }
+  logger: { child: () => ({ warn, debug: vi.fn(), info, error: vi.fn() }) }
 }));
 vi.mock('pg', () => ({
   Pool: class {
@@ -22,6 +21,7 @@ vi.mock('pg', () => ({
   }
 }));
 vi.mock('drizzle-orm/node-postgres', () => ({ drizzle: vi.fn() }));
+vi.mock('./ca-certs', () => ({ trustCaCerts }));
 
 describe('database environment', () => {
   beforeEach(() => {
@@ -67,14 +67,6 @@ describe('database environment', () => {
   });
 
   describe('TLS', () => {
-    let tempDir: string;
-
-    beforeAll(() => {
-      tempDir = mkdtempSync(join(tmpdir(), 'db-tls-'));
-    });
-
-    afterAll(() => rmSync(tempDir, { recursive: true, force: true }));
-
     beforeEach(() => {
       vi.stubEnv('NODE_ENV', 'production');
       env.DATABASE_PASSWORD = 'prod-password';
@@ -122,39 +114,21 @@ describe('database environment', () => {
       expect(warn).toHaveBeenCalledWith({ tls_mode: 'disable' }, 'Database TLS is disabled');
     });
 
-    it('trusts the configured CA certificate', async () => {
-      const caCertPath = join(tempDir, 'ca.crt');
-      writeFileSync(caCertPath, 'test-ca');
-      env.DATABASE_TLS_CA_CERT = caCertPath;
+    it('trusts the configured CA certificates before connecting', async () => {
+      env.STACKABLE_COCKPIT_TLS_CA_CERTS = '/etc/ca/a.crt';
+      trustCaCerts.mockReturnValue([{ path: '/etc/ca/a.crt', certificates: 1 }]);
 
       await import('./db');
 
-      expect(poolOptions).toHaveBeenCalledWith(
-        expect.objectContaining({
-          ssl: { rejectUnauthorized: true, ca: Buffer.from('test-ca') }
-        })
+      expect(trustCaCerts).toHaveBeenCalledWith(env);
+      expect(trustCaCerts.mock.invocationCallOrder[0]).toBeLessThan(
+        poolOptions.mock.invocationCallOrder[0]!
+      );
+      expect(info).toHaveBeenCalledWith(
+        { ca_files: [{ path: '/etc/ca/a.crt', certificates: 1 }] },
+        'Trusting additional CA certificates'
       );
     });
-
-    it('fails when the CA certificate file is missing', async () => {
-      env.DATABASE_TLS_CA_CERT = join(tempDir, 'missing.crt');
-
-      await expect(import('./db')).rejects.toThrow('ENOENT');
-      expect(poolOptions).not.toHaveBeenCalled();
-    });
-
-    it.each(['require', 'disable'])(
-      'rejects a CA certificate with mode %s, which would ignore it',
-      async (mode) => {
-        env.DATABASE_TLS_MODE = mode;
-        env.DATABASE_TLS_CA_CERT = join(tempDir, 'ca.crt');
-
-        await expect(import('./db')).rejects.toThrow(
-          'DATABASE_TLS_CA_CERT requires DATABASE_TLS_MODE=verify-full'
-        );
-        expect(poolOptions).not.toHaveBeenCalled();
-      }
-    );
 
     it('rejects an unknown mode', async () => {
       env.DATABASE_TLS_MODE = 'prefer';

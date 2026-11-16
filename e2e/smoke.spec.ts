@@ -15,7 +15,7 @@ test.describe('Smoke tests', () => {
     await waitForHydration(page);
 
     // Sidebar brand is visible
-    await expect(page.getByText('Stackable', { exact: true })).toBeVisible();
+    await expect(page.getByText('Stackable Cockpit', { exact: true })).toBeVisible();
 
     // Dashboard nav item is present and active
     const dashboardLink = page.getByRole('link', { name: 'Dashboard' });
@@ -26,7 +26,7 @@ test.describe('Smoke tests', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
     // Dashboard content is rendered
-    await expect(page.getByText('Stackable Unified Data Platform overview')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Bookmarks', exact: true })).toBeVisible();
 
     // Trino nav item is present and navigable
     const trinoLink = page.getByRole('link', { name: 'Trino' });

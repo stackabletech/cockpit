@@ -28,15 +28,10 @@ const renderPage = (
   } as unknown as Parameters<typeof render<typeof Page>>[1]);
 
 describe('/(app)/+page.svelte', () => {
-  it('should render the platform heading', async () => {
-    renderPage();
-    await expect.element(page.getByRole('heading', { level: 2 })).toBeInTheDocument();
-  });
-
   it('should render the bookmarks section', async () => {
     renderPage();
     await expect
-      .element(page.getByRole('heading', { level: 3, name: 'Bookmarks' }))
+      .element(page.getByRole('heading', { level: 2, name: 'Bookmarks' }))
       .toBeInTheDocument();
   });
 
@@ -63,11 +58,9 @@ describe('/(app)/+page.svelte', () => {
   it('hides everything bookmark-related without a user or global bookmarks', async () => {
     renderPage(null);
 
-    await expect.element(page.getByRole('heading', { level: 2 })).toBeInTheDocument();
     await expect.element(page.getByRole('heading', { name: 'Bookmarks' })).not.toBeInTheDocument();
     await expect
       .element(page.getByRole('button', { name: /add bookmark/i }))
       .not.toBeInTheDocument();
-    await expect.element(page.getByText(/bookmarks are added by hand/i)).not.toBeInTheDocument();
   });
 });

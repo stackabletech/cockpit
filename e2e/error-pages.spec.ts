@@ -9,7 +9,7 @@ test.describe('Error pages', () => {
     expect(response?.status()).toBe(404);
     await waitForHydration(page);
 
-    await expect(page).toHaveTitle('Page not found | Stackable');
+    await expect(page).toHaveTitle('Page not found | Stackable Cockpit');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page not found');
     const main = page.locator('main');
     await expect(main.getByRole('heading', { name: /Page not found/ })).toBeVisible();
