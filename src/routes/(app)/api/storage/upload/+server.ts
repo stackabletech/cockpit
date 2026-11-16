@@ -7,7 +7,9 @@ import type { RequestHandler } from './$types';
  *
  * Streams an uploaded file directly to S3 using multipart upload (via
  * @aws-sdk/lib-storage). The request body is piped to the S3 SDK without
- * buffering in server memory, regardless of file size.
+ * buffering the whole file in server memory. adapter-node rejects bodies above
+ * BODY_SIZE_LIMIT, which therefore caps the file size; that rejection surfaces
+ * from `putObject` and is answered with 413 (see wrap-provider.ts).
  *
  * The connection config is parsed and validated by the `handleStorageConnection`
  * middleware in hooks.server.ts before this handler runs.

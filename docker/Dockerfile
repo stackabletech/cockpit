@@ -128,12 +128,16 @@ ENV STACKABLE_USER_UID=782252253 \
     STACKABLE_USER_NAME=stackable \
     NODE_ENV=production
 
-# adapter-node rejects request bodies above BODY_SIZE_LIMIT (default 512K).
-# The text editor saves whole files of up to
-# PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE (default 5 MiB), so the limit
-# must be at least that; 6M leaves headroom. Raise both together. The E2E app
-# reads this value from here (e2e/support/start-app.ts).
-ENV BODY_SIZE_LIMIT=6M
+# adapter-node rejects request bodies above BODY_SIZE_LIMIT (default 512K), on
+# every endpoint. The storage browser uploads each file in a single request, so
+# this is also the maximum upload file size. 5G is a deliberate cap, not an S3
+# limit: multipart uploads with 5 MiB parts would allow up to ~48 GiB. The
+# upload endpoint streams the body to S3, so a large limit does not grow server
+# memory there. All other routes, most of which
+# buffer the body, are limited to max(6 MiB, editable file size + 1 MiB) by
+# src/lib/server/request-body-limit.ts. The E2E app reads this value from here
+# (e2e/support/body-size-limit.ts).
+ENV BODY_SIZE_LIMIT=5G
 
 # The runtime only needs the node binary itself: the adapter-node output is
 # started with `node build/index.js` and never shells out to npm. Copying just

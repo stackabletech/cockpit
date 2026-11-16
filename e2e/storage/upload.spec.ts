@@ -1,3 +1,5 @@
+import { createHash, randomBytes } from 'node:crypto';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { test, expect, type Route } from '../support/fixtures.js';
 import {
   createS3Client,
@@ -379,5 +381,70 @@ test.describe('Storage S3 — Upload', () => {
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       await deleteKnownKeys(client, credentials.bucket, keys);
     }
+  });
+
+  test('uploads a file larger than the old 6 MiB body size limit', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'upload-large');
+    const key = `${prefix}large.bin`;
+    // Random bytes, so a reordered or dropped multipart part changes the hash.
+    const buffer = randomBytes(10 * 1024 * 1024);
+    const sha256 = (data: Uint8Array) => createHash('sha256').update(data).digest('hex');
+
+    try {
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      await page.getByRole('button', { name: 'Upload' }).click();
+      const uploadModal = modalBox(page);
+      await uploadModal.locator('input[aria-label="Select files"]').setInputFiles({
+        name: 'large.bin',
+        mimeType: 'application/octet-stream',
+        buffer
+      });
+      await uploadModal.getByRole('button', { name: 'Upload' }).click();
+      await expect(uploadModal.getByText('1 uploaded · 0 skipped · 0 failed')).toBeVisible();
+      await uploadModal.getByRole('button', { name: 'Done' }).click();
+      await expect(rowByName(page, 'large.bin')).toBeVisible();
+
+      const output = await client.send(
+        new GetObjectCommand({ Bucket: credentials.bucket, Key: key })
+      );
+      expect(output.ContentLength).toBe(buffer.length);
+      const stored = await output.Body!.transformToByteArray();
+      expect(sha256(stored)).toBe(sha256(buffer));
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, [key]);
+    }
+  });
+
+  test('says the file is too large when the server rejects its size', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const prefix = uniquePrefix(testInfo, 'upload-too-large');
+
+    await connectAndOpenPrefix(page, credentials, prefix);
+    // The server answers a body above BODY_SIZE_LIMIT with 413 (unit-tested in
+    // wrap-provider.test.ts); the E2E app's limit is too large to hit here.
+    await page.route('**/api/storage/upload*', (route) =>
+      route.fulfill({
+        status: 413,
+        json: { message: 'Content-length of 10485760 exceeds limit of 6291456 bytes.' }
+      })
+    );
+
+    await page.getByRole('button', { name: 'Upload' }).click();
+    const uploadModal = modalBox(page);
+    await uploadModal.locator('input[aria-label="Select files"]').setInputFiles({
+      name: 'too-large.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('too large')
+    });
+    await uploadModal.getByRole('button', { name: 'Upload' }).click();
+    await expect(uploadModal.getByText('0 uploaded · 0 skipped · 1 failed')).toBeVisible();
+    await expect(
+      uploadModal.getByText('File exceeds the maximum upload size of the server.')
+    ).toBeVisible();
   });
 });

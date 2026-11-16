@@ -66,6 +66,9 @@ Some pages send response headers larger than 4 KB (a `Link` header preloading th
 Proxies with a smaller header buffer answer them with `502 Bad Gateway`, for example ingress-nginx and nginx with their default `4k`.
 Raise the buffer to 16 KB: `nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"` for ingress-nginx, `proxy_buffer_size 16k;` and `proxy_busy_buffers_size 16k;` for nginx.
 
+Uploads are single requests of up to `BODY_SIZE_LIMIT` (default `5G`), but ingress-nginx and nginx reject bodies above `1m` by default.
+Raise the proxy limit to match and turn off request buffering: `nginx.ingress.kubernetes.io/proxy-body-size: "5g"` and `nginx.ingress.kubernetes.io/proxy-request-buffering: "off"` for ingress-nginx, `client_max_body_size 5g;` and `proxy_request_buffering off;` for nginx.
+
 ### Docker
 
 ```bash
@@ -119,9 +122,9 @@ Invalid values (e.g. `abc` for an integer) stop the server at startup with an er
 
 ### Request Body Size
 
-| Variable          | Type             | Default                                       | Description                                                                                                                                                                                                                                                                            | Example               |
-| ----------------- | ---------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| `BODY_SIZE_LIMIT` | `string` (bytes) | `6M` in the container image (adapter: `512K`) | Maximum request body size accepted by the Node.js server ([adapter-node](https://svelte.dev/docs/kit/adapter-node#Environment-variables-BODY_SIZE_LIMIT)). Must be at least `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`, otherwise saving larger files in the text editor fails. | `BODY_SIZE_LIMIT=12M` |
+| Variable          | Type             | Default                                       | Description                                                                                                                                                                                                                                                                                                                                                                                                          | Example              |
+| ----------------- | ---------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| `BODY_SIZE_LIMIT` | `string` (bytes) | `5G` in the container image (adapter: `512K`) | Maximum request body size accepted by the Node.js server on all endpoints ([adapter-node](https://svelte.dev/docs/kit/adapter-node#Environment-variables-BODY_SIZE_LIMIT)). The storage browser uploads each file in a single request, so this is the maximum upload file size. Requests other than uploads are limited to 6 MiB, or `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE` plus 1 MiB if that is larger. | `BODY_SIZE_LIMIT=1G` |
 
 ## Development
 

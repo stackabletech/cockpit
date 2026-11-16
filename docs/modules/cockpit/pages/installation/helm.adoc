@@ -60,6 +60,22 @@ For plain nginx, set `proxy_buffer_size 16k;` and `proxy_busy_buffers_size 16k;`
 
 // TODO: Remove once Cockpit uses SvelteKit 3, which preloads with <link> elements instead of a header, see https://github.com/sveltejs/kit/pull/15939.
 
+=== Request body size
+
+The storage browser uploads each file in a single request of up to `config.bodySizeLimit` (default `5G`).
+Proxies with a smaller body limit answer larger uploads with `413 Payload Too Large`, for example ingress-nginx and nginx with their default `1m`.
+Raise the limit to match, and stream uploads instead of buffering them on the proxy's disk first:
+
+[source,yaml]
+----
+ingress:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "5g"
+    nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
+----
+
+For plain nginx, set `client_max_body_size 5g;` and `proxy_request_buffering off;`.
+
 == CA certificates
 
 For an OIDC provider or backends with a private CA, add its CA certificate from a SecretClass or a mounted file:

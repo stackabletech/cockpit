@@ -494,6 +494,7 @@
   "storage_upload_error_access_denied": "Zugriff verweigert. Sie haben keine Berechtigung, hier hochzuladen.",
   "storage_upload_error_no_such_bucket": "Bucket nicht gefunden.",
   "storage_upload_error_invalid_part": "Upload fehlgeschlagen (Datenintegritätsfehler). Bitte erneut versuchen.",
+  "storage_upload_error_file_too_large": "Die Datei überschreitet die maximale Upload-Größe des Servers.",
   "storage_upload_error_server_error": "Serverfehler aufgetreten. Bitte erneut versuchen.",
   "storage_upload_error_unknown": "Unerwarteter Fehler. Bitte erneut versuchen.",
   "storage_upload_overwrite_title": "Datei bereits vorhanden",

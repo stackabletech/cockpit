@@ -94,7 +94,7 @@ The following table lists the configurable parameters of the Cockpit chart and t
 | Parameter | Description | Default |
 | --- | --- | --- |
 | `config.nodeEnv` | Node.js environment | `production` |
-| `config.bodySizeLimit` | Sets `BODY_SIZE_LIMIT`, the maximum request body size (e.g. `12M`). Must be at least the editable file size limit (`PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`, 5 MiB by default), otherwise saving larger files in the text editor fails. | `""` (image default `6M`) |
+| `config.bodySizeLimit` | Sets `BODY_SIZE_LIMIT`, the maximum request body size of all endpoints (e.g. `1G`). This is the maximum upload file size of the storage browser. Requests other than uploads are limited to 6 MiB, or `storage.maxEditableFileSize` plus 1 MiB if that is larger. | `""` (image default `5G`) |
 | `tmp.sizeLimit` | Size limit of the `/tmp` emptyDir. The kubelet evicts the pod when it is exceeded. Keep it above `storage.archiveCacheMaxMb`. Empty means no limit. | `1Gi` |
 
 ### Database Parameters
@@ -137,7 +137,7 @@ Limits and tuning for the file browser. Empty values use the application default
 | `storage.pdfPreviewBytes` | Maximum bytes fetched for PDF previews. | `""` (application default `26214400`) |
 | `storage.filePreviewRows` | Maximum rows in tabular file previews. | `""` (application default `250`) |
 | `storage.filePreviewColumns` | Maximum columns in tabular file previews. | `""` (application default `50`) |
-| `storage.maxEditableFileSize` | Maximum size in bytes of files that can be edited and saved in the text editor. `config.bodySizeLimit` must be at least this large. | `""` (application default `5242880`) |
+| `storage.maxEditableFileSize` | Maximum size in bytes of files that can be edited and saved in the text editor. Requests other than uploads may be this size plus 1 MiB (at least 6 MiB). | `""` (application default `5242880`) |
 | `storage.archivePreviewMaxMb` | Maximum size in MB of an archive opened for preview, checked against its compressed size, the total size of the listed entries and the size of an extracted entry. The archive cache is raised to at least twice this value, so keep `tmp.sizeLimit` above that. | `""` (application default `100`) |
 | `storage.archiveCacheMaxMb` | Maximum total size in MB of the archive preview cache in `/tmp`. Keep it below `tmp.sizeLimit`. | `""` (application default `512`) |
 | `storage.parquetPreviewDisallowedCompressionTypes` | Comma-separated Parquet compression codecs that are not previewed. A `-no_offset` suffix (e.g. `gzip-no_offset`) only blocks files without an offset index. | `""` (application default `gzip-no_offset`) |
