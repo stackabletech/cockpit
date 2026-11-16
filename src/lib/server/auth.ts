@@ -1,7 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { APIError, callbackOAuth } from 'better-auth/api';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
-import { genericOAuth, openAPI } from 'better-auth/plugins';
+import { genericOAuth } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { z } from 'zod';
@@ -113,7 +113,6 @@ export const auth = betterAuth({
   },
   plugins: [
     sveltekitCookies(getRequestEvent),
-    openAPI(),
     ...(oidcEnabled
       ? [
           genericOAuth({
