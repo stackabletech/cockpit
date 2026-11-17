@@ -95,6 +95,7 @@ The following table lists the configurable parameters of the Cockpit chart and t
 | --- | --- | --- |
 | `config.nodeEnv` | Node.js environment | `production` |
 | `config.bodySizeLimit` | Sets `BODY_SIZE_LIMIT`, the maximum request body size of all endpoints (e.g. `1G`). This is the maximum upload file size of the storage browser. Requests other than uploads are limited to 6 MiB, or `storage.maxEditableFileSize` plus 1 MiB if that is larger. | `""` (image default `5G`) |
+| `config.requestTimeout` | Sets `REQUEST_TIMEOUT`, the time in seconds to receive a whole request, body included. It caps the duration of a storage browser upload, for example 5 GB need about 12 Mbit/s within the default. `0` disables it. | `""` (image default `3600`) |
 | `tmp.sizeLimit` | Size limit of the `/tmp` emptyDir. The kubelet evicts the pod when it is exceeded. Keep it above `storage.archiveCacheMaxMb`. Empty means no limit. | `1Gi` |
 
 ### Database Parameters

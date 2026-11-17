@@ -76,6 +76,9 @@ ingress:
 
 For plain nginx, set `client_max_body_size 5g;` and `proxy_request_buffering off;`.
 
+An upload must also finish within `config.requestTimeout` seconds (default `3600`, so 5 GB need about 12 Mbit/s).
+The nginx timeouts `client_body_timeout` and `proxy_send_timeout` only limit the time between two reads or writes, so their defaults don't cut off long uploads.
+
 == CA certificates
 
 For an OIDC provider or backends with a private CA, add its CA certificate from a SecretClass or a mounted file:

@@ -6,7 +6,7 @@
 // `request.formData()`. This hook rejects such bodies by their declared length
 // before any handler reads them.
 
-import { error, json, type Handle } from '@sveltejs/kit';
+import { json, text, type Handle } from '@sveltejs/kit';
 import { maxEditableFileSize } from '$lib/server/storage/config.js';
 
 const MiB = 1024 * 1024;
@@ -24,13 +24,18 @@ export function deriveRequestBodyLimit(editableFileSize: number): number {
   return Math.max(6 * MiB, editableFileSize + MiB);
 }
 
+/**
+ * API routes get JSON for `fetch` callers, pages plain text. Both are returned
+ * rather than thrown with `error()`, whose error page cannot set headers:
+ * `Connection: close` lets Node drop the socket instead of draining the unread
+ * body.
+ */
 function reject(pathname: string, status: 411 | 413, message: string): Response {
-  // `Connection: close` lets Node drop the socket instead of draining the
-  // unread body.
+  const headers = { connection: 'close' };
   if (pathname.startsWith('/api/')) {
-    return json({ message }, { status, headers: { connection: 'close' } });
+    return json({ message }, { status, headers });
   }
-  error(status, message);
+  return text(message, { status, headers });
 }
 
 /** Builds the hook; `limit` is a parameter for the tests. */

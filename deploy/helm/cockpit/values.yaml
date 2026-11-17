@@ -158,6 +158,9 @@ config:
   # default (5G). This is the maximum upload file size of the storage browser. Requests other than
   # uploads are limited to 6 MiB, or storage.maxEditableFileSize plus 1 MiB if that is larger.
   bodySizeLimit: ""
+  # Time in seconds to receive a whole request, body included (REQUEST_TIMEOUT). Empty uses the
+  # image default (3600). It caps the duration of a storage browser upload; 0 disables it.
+  requestTimeout: ""
 
 # Scratch volume mounted at /tmp, used for the archive preview cache.
 tmp:

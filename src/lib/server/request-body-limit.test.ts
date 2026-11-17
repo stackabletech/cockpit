@@ -78,14 +78,19 @@ describe('handleRequestBodyLimit', () => {
     expect(resolve).not.toHaveBeenCalled();
   });
 
-  it('throws an HTTP error for a page route above the limit', async () => {
+  it('rejects a page route body above the limit with a text 413 that closes the connection', async () => {
     const { result, resolve } = run({
       path: '/storage',
       routeId: '/(app)/storage',
       headers: { 'content-length': String(LIMIT + 1) }
     });
 
-    await expect(result).rejects.toMatchObject({ status: 413 });
+    const response = await result;
+    expect(response.status).toBe(413);
+    expect(await response.text()).toBe(
+      `Content-length of ${LIMIT + 1} exceeds limit of ${LIMIT} bytes.`
+    );
+    expect(response.headers.get('connection')).toBe('close');
     expect(resolve).not.toHaveBeenCalled();
   });
 

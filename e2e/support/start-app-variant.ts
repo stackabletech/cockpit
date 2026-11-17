@@ -37,7 +37,7 @@ async function main() {
 
   const testEnv = JSON.parse(await fs.readFile(stateFile, 'utf-8')) as Record<string, string>;
 
-  app = spawn(process.execPath, ['build/index.js'], {
+  app = spawn(process.execPath, ['server.js'], {
     stdio: 'inherit',
     env: {
       ...process.env,
