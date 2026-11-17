@@ -487,6 +487,8 @@
   "storage_upload_status_skipped": "skipped",
   "storage_upload_status_failed": "failed",
   "storage_upload_complete_title": "Upload complete",
+  "storage_upload_partial_title": "Upload finished with errors",
+  "storage_upload_failed_title": "Upload failed",
   "storage_upload_complete_summary": "{uploaded} uploaded · {skipped} skipped · {failed} failed",
   "storage_upload_done": "Done",
   "storage_upload_success": "File uploaded successfully.",

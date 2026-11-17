@@ -79,6 +79,9 @@
   const uploadedCount = $derived(entries.filter((e) => e.status === 'done').length);
   const skippedCount = $derived(entries.filter((e) => e.status === 'skipped').length);
   const errorCount = $derived(entries.filter((e) => e.status === 'error').length);
+  const outcome = $derived<'complete' | 'partial' | 'failed'>(
+    errorCount === 0 ? 'complete' : uploadedCount === 0 ? 'failed' : 'partial'
+  );
 
   // ── Key helpers ────────────────────────────────────────────────────────────
 
@@ -570,9 +573,23 @@
       <!-- ── complete ───────────────────────────────────────────────────────── -->
     {:else if phase === 'complete'}
       <div class="mb-4 flex items-center gap-3 py-2" role="status">
-        <IconCheckCircle class="text-success size-10 shrink-0" aria-hidden="true" />
+        {#if outcome === 'complete'}
+          <IconCheckCircle class="text-success size-10 shrink-0" aria-hidden="true" />
+        {:else if outcome === 'partial'}
+          <IconWarning class="text-warning size-10 shrink-0" aria-hidden="true" />
+        {:else}
+          <IconError class="text-error size-10 shrink-0" aria-hidden="true" />
+        {/if}
         <div>
-          <p class="text-base-content font-semibold">{m.storage_upload_complete_title()}</p>
+          <p class="text-base-content font-semibold">
+            {#if outcome === 'complete'}
+              {m.storage_upload_complete_title()}
+            {:else if outcome === 'partial'}
+              {m.storage_upload_partial_title()}
+            {:else}
+              {m.storage_upload_failed_title()}
+            {/if}
+          </p>
           <p class="text-muted mt-0.5 text-sm">
             {m.storage_upload_complete_summary({
               uploaded: uploadedCount,
