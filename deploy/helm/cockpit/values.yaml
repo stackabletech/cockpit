@@ -58,6 +58,10 @@ ingress:
     # kubernetes.io/tls-acme: "true"
     # ingress-nginx: the default 4k buffer is too small for Cockpit's response headers (502)
     # nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+    # ingress-nginx: the default 1m body limit rejects larger uploads; match config.bodySizeLimit
+    # and stream uploads instead of spooling them to disk first
+    # nginx.ingress.kubernetes.io/proxy-body-size: "5g"
+    # nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
   hosts:
     - host: cockpit.local
       paths:
@@ -150,9 +154,13 @@ affinity: {}
 config:
   # Node.js environment
   nodeEnv: production
-  # Maximum request body size (BODY_SIZE_LIMIT), e.g. "12M". Empty uses the image default (6M).
-  # Must be at least the editable file size limit of the storage text editor (5 MiB by default).
+  # Maximum request body size of all endpoints (BODY_SIZE_LIMIT), e.g. "1G". Empty uses the image
+  # default (5G). This is the maximum upload file size of the storage browser. Requests other than
+  # uploads are limited to 6 MiB, or storage.maxEditableFileSize plus 1 MiB if that is larger.
   bodySizeLimit: ""
+  # Time in seconds to receive a whole request, body included (REQUEST_TIMEOUT). Empty uses the
+  # image default (3600). It caps the duration of a storage browser upload; 0 disables it.
+  requestTimeout: ""
 
 # Scratch volume mounted at /tmp, used for the archive preview cache.
 tmp:
@@ -226,7 +234,7 @@ storage:
   # Maximum columns in tabular file previews. Default: 50.
   filePreviewColumns: ""
   # Maximum size in bytes of files that can be edited and saved in the text editor.
-  # config.bodySizeLimit must be at least this large. Default: 5242880.
+  # Requests other than uploads may be this size plus 1 MiB (at least 6 MiB). Default: 5242880.
   maxEditableFileSize: ""
   # Maximum size in MB of an archive opened for preview, checked against its compressed size,
   # the total size of the listed entries and the size of an extracted entry. The archive cache

@@ -128,15 +128,25 @@ ENV STACKABLE_USER_UID=782252253 \
     STACKABLE_USER_NAME=stackable \
     NODE_ENV=production
 
-# adapter-node rejects request bodies above BODY_SIZE_LIMIT (default 512K).
-# The text editor saves whole files of up to
-# PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE (default 5 MiB), so the limit
-# must be at least that; 6M leaves headroom. Raise both together. The E2E app
-# reads this value from here (e2e/support/start-app.ts).
-ENV BODY_SIZE_LIMIT=6M
+# adapter-node rejects request bodies above BODY_SIZE_LIMIT (default 512K), on
+# every endpoint. The storage browser uploads each file in a single request, so
+# this is also the maximum upload file size. 5G is a deliberate cap, not an S3
+# limit: multipart uploads with 5 MiB parts would allow up to ~48 GiB. The
+# upload endpoint streams the body to S3, so a large limit does not grow server
+# memory there. All other routes, most of which
+# buffer the body, are limited to max(6 MiB, editable file size + 1 MiB) by
+# src/lib/server/request-body-limit.ts. The E2E app reads this value from here
+# (e2e/support/body-size-limit.ts).
+ENV BODY_SIZE_LIMIT=5G
+
+# Time in seconds to receive a whole request, body included (server.js; Node
+# default 300). It caps the duration of a single-request upload: 300 s only
+# fits ~375 MB at 10 Mbit/s, 3600 s fits 5G at ~12 Mbit/s. It applies to all
+# routes; HEADERS_TIMEOUT (60 s) still limits slow request headers.
+ENV REQUEST_TIMEOUT=3600
 
 # The runtime only needs the node binary itself: the adapter-node output is
-# started with `node build/index.js` and never shells out to npm. Copying just
+# started with `node server.js` and never shells out to npm. Copying just
 # the binary keeps npm/npx/corepack and their bundled dependencies out of the
 # image, so scanners no longer report CVEs for those packages.
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
@@ -160,6 +170,7 @@ WORKDIR /stackable/app
 
 # Copy built application from builder stage
 COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/build ./build
+COPY                  --chown=${STACKABLE_USER_UID}:0 server.js ./server.js
 COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/src/lib/server/migrations ./migrations
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node_modules
 COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
@@ -216,4 +227,4 @@ LABEL org.opencontainers.image.version="${VERSION}"
 LABEL org.opencontainers.image.revision="${GIT_SHA}"
 LABEL org.opencontainers.image.created="${BUILD_DATE}"
 
-CMD ["node", "build/index.js"]
+CMD ["node", "server.js"]

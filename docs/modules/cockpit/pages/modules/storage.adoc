@@ -53,8 +53,8 @@ Preview sizes, upload and transfer concurrency, the archive cache and the downlo
 ----
 storage:
   filePreviewRows: 500
-  maxEditableFileSize: 10485760 # <1>
-config:
-  bodySizeLimit: 12M
+  maxEditableFileSize: 10485760
 ----
-<1> `config.bodySizeLimit` must be at least this large, otherwise saving large files fails.
+
+Each file is uploaded in a single request, so `config.bodySizeLimit` (default `5G`) is the maximum upload file size.
+Requests other than uploads are limited to 6 MiB, or `maxEditableFileSize` plus 1 MiB if that is larger.

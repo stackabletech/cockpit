@@ -30,8 +30,12 @@ Cockpit does not start if a value is invalid, and the error names every invalid 
 |Forwarded headers trusted behind a reverse proxy, for example `x-forwarded-proto` and `x-forwarded-host`.
 
 |`BODY_SIZE_LIMIT`
-|`6M`
-|Maximum request body size.
+|`5G`
+|Maximum request body size of all endpoints, and so the maximum upload file size in the storage browser. Requests other than uploads are limited to 6 MiB, or `PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE` plus 1 MiB if that is larger.
+
+|`REQUEST_TIMEOUT`
+|`3600`
+|Time in seconds to receive a whole request, body included, and so the maximum duration of an upload in the storage browser. `0` disables it.
 
 |`LOG_LEVEL`
 |`info`
@@ -199,7 +203,7 @@ Cockpit does not start if a value is invalid, and the error names every invalid 
 
 |`PUBLIC_STACKABLE_COCKPIT_MAX_EDITABLE_FILE_SIZE`
 |`5242880`
-|Largest file in bytes that can be edited. `BODY_SIZE_LIMIT` must be at least this large.
+|Largest file in bytes that can be edited. Requests other than uploads may be this size plus 1 MiB (at least 6 MiB).
 
 |`STACKABLE_COCKPIT_TEXT_PREVIEW_BYTES`
 |`262144`

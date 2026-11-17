@@ -68,6 +68,17 @@ describe('POST /api/storage/upload', () => {
     expect(mockProvider.putObject).toHaveBeenCalledWith('file.txt', body, 'image/png', 100);
   });
 
+  it('throws 413 when the body exceeds BODY_SIZE_LIMIT', async () => {
+    // adapter-node errors the body stream with a SvelteKitError (status 413).
+    const tooLarge = Object.assign(
+      new Error('Content-length of 10485760 exceeds limit of 6291456 bytes.'),
+      { status: 413, text: 'Payload Too Large' }
+    );
+    mockProvider.putObject.mockRejectedValue(tooLarge);
+
+    await expect(POST(mockEvent({}))).rejects.toThrow(expect.objectContaining({ status: 413 }));
+  });
+
   it('defaults content type to application/octet-stream', async () => {
     mockProvider.putObject.mockResolvedValue(undefined);
 

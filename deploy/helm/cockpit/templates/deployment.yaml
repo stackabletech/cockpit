@@ -66,6 +66,10 @@ spec:
             - name: BODY_SIZE_LIMIT
               value: {{ . | quote }}
             {{- end }}
+            {{- with .Values.config.requestTimeout }}
+            - name: REQUEST_TIMEOUT
+              value: {{ . | quote }}
+            {{- end }}
             {{- if hasKey $completion "enabled" }}
             - name: STACKABLE_COCKPIT_COMPLETION_ENABLED
               value: {{ index $completion "enabled" | quote }}

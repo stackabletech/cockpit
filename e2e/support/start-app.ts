@@ -47,7 +47,7 @@ async function main() {
   await fs.writeFile(stateFile, JSON.stringify(testEnv), { mode: 0o600 });
 
   // The server's init hook runs migrations before it starts accepting requests.
-  app = spawn(process.execPath, ['build/index.js'], {
+  app = spawn(process.execPath, ['server.js'], {
     stdio: 'inherit',
     env: { ...process.env, BODY_SIZE_LIMIT: await productionBodySizeLimit() }
   });

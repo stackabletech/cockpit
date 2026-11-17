@@ -404,6 +404,8 @@
         return m.storage_upload_error_no_such_bucket();
       case 'invalid_part':
         return m.storage_upload_error_invalid_part();
+      case 'file_too_large':
+        return m.storage_upload_error_file_too_large();
       case 'server_error':
         return m.storage_upload_error_server_error();
       default:

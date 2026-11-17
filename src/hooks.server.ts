@@ -13,6 +13,7 @@ import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { auth, oidcDiscoveryUrl, oidcEnabled } from '$lib/server/auth';
 import { checkOidcDiscovery } from '$lib/server/oidc-discovery.js';
 import { unauthenticatedResponse } from '$lib/server/auth-guard';
+import { handleRequestBodyLimit } from '$lib/server/request-body-limit.js';
 import { belongsToAuthMode } from '$lib/server/local-user.js';
 import { requestLogger, logger } from '$lib/server/logging';
 import { getConnectionFromHeader } from '$lib/server/storage/connection.js';
@@ -160,6 +161,8 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
 export const handle = sequence(
   requestLogger,
   handleMetrics,
+  // Before anything that may read the body, better-auth in particular.
+  handleRequestBodyLimit,
   handleParaglide,
   handleAuth,
   handleAuthGuard,
