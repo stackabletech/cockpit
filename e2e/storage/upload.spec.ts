@@ -383,6 +383,70 @@ test.describe('Storage S3 — Upload', () => {
     }
   });
 
+  test('asks before closing during an upload, and stopping lists the finished files', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'upload-close');
+    const names = ['a.txt', 'b.txt', 'c.txt', 'held.txt'];
+    let held = false;
+
+    try {
+      await connectAndOpenPrefix(page, credentials, prefix);
+      // The first batch (concurrency 3 in .env.test) uploads; the fourth file hangs.
+      await page.route('**/api/storage/upload*', async (route) => {
+        if (new URL(route.request().url()).searchParams.get('key')?.endsWith('held.txt')) {
+          held = true;
+          return;
+        }
+        await route.continue();
+      });
+
+      await page.getByRole('button', { name: 'Upload', exact: true }).click();
+      const uploadModal = modalBox(page);
+      await uploadModal
+        .locator('input[aria-label="Select files"]')
+        .setInputFiles(
+          names.map((name) => ({ name, mimeType: 'text/plain', buffer: Buffer.from(name) }))
+        );
+      await uploadModal.getByRole('button', { name: 'Upload' }).click();
+      await expect.poll(() => held).toBe(true);
+
+      const warning = page.getByRole('dialog', { name: 'Upload in progress' });
+      const heading = page.getByRole('heading', { name: 'Upload', exact: true });
+
+      // A backdrop click asks first; continuing keeps the upload.
+      await page.mouse.click(5, 5);
+      await expect(warning).toBeVisible();
+      await warning.getByRole('button', { name: 'Continue upload' }).click();
+      await expect(warning).toBeHidden();
+      await expect(heading).toBeVisible();
+
+      // The close button asks too; stopping aborts the held upload and
+      // refreshes the listing with the files that did finish.
+      await uploadModal.getByRole('button', { name: 'Close' }).click();
+      await expect(warning).toBeVisible();
+      const aborted = page.waitForEvent('requestfailed', (request) =>
+        request.url().includes('/api/storage/upload')
+      );
+      await warning.getByRole('button', { name: 'Stop upload' }).click();
+      await aborted;
+      await expect(heading).toBeHidden();
+      for (const name of names.slice(0, 3)) {
+        await expect(rowByName(page, name)).toBeVisible();
+      }
+      await expect(rowByName(page, 'held.txt')).toBeHidden();
+    } finally {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await deleteKnownKeys(
+        client,
+        credentials.bucket,
+        names.map((name) => `${prefix}${name}`)
+      );
+    }
+  });
+
   test('uploads a file larger than the old 6 MiB body size limit', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
