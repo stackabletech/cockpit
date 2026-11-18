@@ -71,7 +71,7 @@ describe('applyRequestTimeout', () => {
     const started = Date.now();
     const closed = new Promise<{ status: string; elapsedMs: number }>((resolve) => {
       let data = '';
-      socket!.on('data', (chunk) => (data += chunk));
+      socket!.on('data', (chunk) => (data += chunk.toString()));
       socket!.on('close', () =>
         resolve({ status: data.split('\r\n')[0], elapsedMs: Date.now() - started })
       );

@@ -163,7 +163,7 @@ describe('createFetchStorageApi', () => {
       const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
       expect(url).toBe('/api/storage/search/history');
       expect(init).toMatchObject({ method: 'POST' });
-      expect(JSON.parse(String(init?.body))).toEqual({
+      expect(JSON.parse(init?.body as string)).toEqual({
         buckets: ['documents', 'archive'],
         query: 'report',
         useRegex: true,

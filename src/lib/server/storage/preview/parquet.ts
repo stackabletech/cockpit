@@ -97,7 +97,9 @@ function statToString(value: unknown): string | null {
   if (typeof value === 'string') return value.length > 100 ? value.slice(0, 100) + '…' : value;
   if (typeof value === 'number') return String(value);
   if (typeof value === 'boolean') return String(value);
-  return String(value);
+  if (typeof value === 'object') return stringifyStructuredParquetValue(value);
+  // Parquet never yields functions or symbols.
+  return null;
 }
 
 /**
@@ -389,10 +391,11 @@ function toSerializableParquetCell(value: unknown): string | number | boolean | 
   if (value instanceof Date) return value.toISOString();
   if (value instanceof Uint8Array) return Array.from(value).join(',');
   if (Array.isArray(value) || typeof value === 'object')
-    return stringifyStructuredParquetValue(value as object);
+    return stringifyStructuredParquetValue(value);
   if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string')
     return value;
-  return String(value);
+  // Parquet never yields functions or symbols.
+  return null;
 }
 
 async function streamToArrayBuffer(stream: ReadableStream): Promise<ArrayBuffer> {
