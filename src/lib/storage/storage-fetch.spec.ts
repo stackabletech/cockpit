@@ -73,7 +73,7 @@ describe('createStorageFetch', () => {
     await storageFetch('/api/storage/list?bucket=test');
 
     expect(fetchSpy).toHaveBeenCalledOnce();
-    const [, init] = fetchSpy.mock.calls[0]!;
+    const [, init] = fetchSpy.mock.calls[0];
     const headers = new Headers(init?.headers);
     expect(headers.get(STORAGE_CONNECTION_ID_HEADER)).toBe('test-conn-id');
   });
@@ -87,7 +87,7 @@ describe('createStorageFetch', () => {
       method: 'POST'
     });
 
-    const [, init] = fetchSpy.mock.calls[0]!;
+    const [, init] = fetchSpy.mock.calls[0];
     expect(init?.method).toBe('POST');
     const headers = new Headers(init?.headers);
     expect(headers.get('X-Custom')).toBe('value');
@@ -200,7 +200,7 @@ describe('createStorageFetch', () => {
       body
     });
 
-    const [, init] = fetchSpy.mock.calls[0]!;
+    const [, init] = fetchSpy.mock.calls[0];
     expect(init?.method).toBe('POST');
     expect(init?.body).toBe(body);
   });
@@ -212,7 +212,7 @@ describe('createStorageFetch', () => {
 
     await storageFetch('/api/test', { signal: controller.signal });
 
-    const [, init] = fetchSpy.mock.calls[0]!;
+    const [, init] = fetchSpy.mock.calls[0];
     expect(init?.signal).toBe(controller.signal);
   });
 });

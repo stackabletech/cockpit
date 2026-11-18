@@ -178,7 +178,7 @@
       ...e,
       conflict: conflictMap.get(e.id) ?? false,
       // Non-conflicting files get a placeholder resolution so they proceed to upload.
-      resolution: (conflictMap.get(e.id) ? null : 'replace') as Resolution | null
+      resolution: conflictMap.get(e.id) ? null : 'replace'
     }));
 
     if (entries.some((e) => e.conflict)) {
@@ -261,17 +261,13 @@
 
   function skipAll() {
     entries = entries.map((e) =>
-      e.conflict
-        ? { ...e, resolution: 'skip' as Resolution, renameState: 'idle' as RenameState }
-        : e
+      e.conflict ? { ...e, resolution: 'skip', renameState: 'idle' } : e
     );
   }
 
   function replaceAll() {
     entries = entries.map((e) =>
-      e.conflict
-        ? { ...e, resolution: 'replace' as Resolution, renameState: 'idle' as RenameState }
-        : e
+      e.conflict ? { ...e, resolution: 'replace', renameState: 'idle' } : e
     );
   }
 
@@ -283,7 +279,7 @@
         ? {
             ...e,
             resolution: res,
-            renameState: (res === 'rename' ? 'editing' : 'idle') as RenameState
+            renameState: res === 'rename' ? 'editing' : 'idle'
           }
         : e
     );

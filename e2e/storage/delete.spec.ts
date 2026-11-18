@@ -151,7 +151,7 @@ test.describe('Storage S3 — Delete & Selection', () => {
           page.getByRole('menuitem', { name: 'Download' }).click()
         ]);
         expect(await download.failure()).toBeNull();
-        expect(await readFile((await download.path())!, 'utf8')).toBe(body);
+        expect(await readFile(await download.path(), 'utf8')).toBe(body);
       }
 
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();

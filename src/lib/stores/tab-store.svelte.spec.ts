@@ -43,7 +43,7 @@ beforeEach(async () => {
   if (!store) {
     vi.resetModules();
     const mod = await import('./tab-store.svelte.js');
-    store = mod.tabStore as unknown as TabStoreApi;
+    store = mod.tabStore;
   } else {
     resetStore();
   }

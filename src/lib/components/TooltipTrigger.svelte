@@ -74,7 +74,7 @@
     while (el && el.tagName !== 'DIALOG') {
       el = el.parentElement;
     }
-    return (el ?? document.body) as HTMLElement;
+    return el ?? document.body;
   }
 
   $effect(() => {

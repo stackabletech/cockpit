@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Mutable mock env — empty by default so importing client.ts does not build the
 // env-configured singleton. Tests that need env vars populate it then re-import.
 // vi.hoisted ensures the object exists before the hoisted vi.mock factory runs.
-const { mockEnv } = vi.hoisted(() => ({ mockEnv: {} as Record<string, string | undefined> }));
+const { mockEnv } = vi.hoisted(() => {
+  const mockEnv: Record<string, string | undefined> = {};
+  return { mockEnv };
+});
 vi.mock('$env/dynamic/private', () => ({ env: mockEnv }));
 vi.mock('$lib/server/logging', () => import('$lib/test-utils/mock-logger.js'));
 

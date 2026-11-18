@@ -101,7 +101,7 @@ function uint64(value: number): Uint8Array {
 function crc32Update(crc: number, chunk: Uint8Array): number {
   let result = crc ^ UINT32_MAX;
   for (const byte of chunk) {
-    result = CRC32_TABLE[(result ^ byte) & 0xff]! ^ (result >>> 8);
+    result = CRC32_TABLE[(result ^ byte) & 0xff] ^ (result >>> 8);
   }
   return (result ^ UINT32_MAX) >>> 0;
 }
