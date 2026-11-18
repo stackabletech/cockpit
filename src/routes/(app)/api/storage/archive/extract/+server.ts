@@ -32,18 +32,18 @@ import type { RequestHandler } from './$types';
 export const GET: RequestHandler = async (event) => {
   const { locals, url } = event;
   const bucket = url.searchParams.get('bucket')?.trim();
-  if (!bucket) throw error(400, 'Missing required query parameter: bucket');
+  if (!bucket) error(400, 'Missing required query parameter: bucket');
 
   const key = requireObjectKey(event);
 
   const internalPath = url.searchParams.get('path')?.trim();
-  if (!internalPath) throw error(400, 'Missing required query parameter: path');
+  if (!internalPath) error(400, 'Missing required query parameter: path');
 
   const nestedArchivePath = url.searchParams.get('nestedArchivePath')?.trim() || undefined;
 
   const format = getArchiveFormat(key);
   if (!format) {
-    throw error(400, `Unsupported archive format: ${key}`);
+    error(400, `Unsupported archive format: ${key}`);
   }
 
   const config = locals.storageConfig;
@@ -71,7 +71,7 @@ export const GET: RequestHandler = async (event) => {
     });
   } catch (err) {
     if (err instanceof ArchiveCacheFullError) {
-      throw error(503, 'Archive preview is busy, please try again later');
+      error(503, 'Archive preview is busy, please try again later');
     }
     // The client went away; there is nobody to answer.
     if (event.request.signal.aborted) return new Response(null, { status: 499 });
@@ -79,7 +79,7 @@ export const GET: RequestHandler = async (event) => {
   }
 
   if (!data) {
-    throw error(404, `File "${internalPath}" not found in archive`);
+    error(404, `File "${internalPath}" not found in archive`);
   }
 
   const contentType = guessContentType(internalPath);

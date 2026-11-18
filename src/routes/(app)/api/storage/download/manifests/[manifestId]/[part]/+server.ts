@@ -13,14 +13,13 @@ import {
 
 export const GET: RequestHandler = async ({ locals, params, url }) => {
   const part = Number.parseInt(params.part, 10);
-  if (!Number.isSafeInteger(part) || part < 1) throw error(400, 'Invalid download part');
+  if (!Number.isSafeInteger(part) || part < 1) error(400, 'Invalid download part');
   const download = await openDownloadManifestPart(
     locals.user?.id ?? 'anonymous',
     params.manifestId,
     part
   );
-  if (!download)
-    throw error(404, 'Download manifest, storage connection, or object is unavailable');
+  if (!download) error(404, 'Download manifest, storage connection, or object is unavailable');
   const jobId = url.searchParams.get('jobId');
   if (jobId) {
     try {

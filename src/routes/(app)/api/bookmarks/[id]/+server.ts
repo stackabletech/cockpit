@@ -9,7 +9,7 @@ import type { RequestHandler } from './$types';
 /** Bookmark ids are UUIDs; anything else would fail the query. */
 function bookmarkIdFromParams(params: { id: string }): string {
   const parsed = z.uuid().safeParse(params.id);
-  if (!parsed.success) throw error(400, 'Invalid bookmark ID');
+  if (!parsed.success) error(400, 'Invalid bookmark ID');
   return parsed.data;
 }
 
@@ -18,7 +18,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
   const userId = requireUserId(locals);
   const id = bookmarkIdFromParams(params);
   const parsed = bookmarkUpdateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) throw error(400, 'Invalid bookmark update');
+  if (!parsed.success) error(400, 'Invalid bookmark update');
 
   let bookmark;
   try {
@@ -29,7 +29,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
   }
   if (!bookmark) {
     dashboardBookmarksTotal.inc({ operation: 'update', outcome: 'not_found' });
-    throw error(404, 'Bookmark not found');
+    error(404, 'Bookmark not found');
   }
   dashboardBookmarksTotal.inc({ operation: 'update', outcome: 'success' });
   locals.logger.info(
@@ -53,7 +53,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
   }
   if (!deleted) {
     dashboardBookmarksTotal.inc({ operation: 'delete', outcome: 'not_found' });
-    throw error(404, 'Bookmark not found');
+    error(404, 'Bookmark not found');
   }
   dashboardBookmarksTotal.inc({ operation: 'delete', outcome: 'success' });
   locals.logger.info({ user_id: userId, bookmark_id: id }, 'bookmark deleted');

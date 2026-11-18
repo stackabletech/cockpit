@@ -25,7 +25,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   );
   // Also the way back without OIDC, where the auth guard signs in as the local user.
   if (locals.user) {
-    throw redirect(302, redirectTo);
+    redirect(302, redirectTo);
   }
 
   return { redirectTo };

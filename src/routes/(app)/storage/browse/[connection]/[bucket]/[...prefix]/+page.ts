@@ -17,10 +17,10 @@ const EMPTY_PAGE: StoragePage = {
 /** A session or connection problem sends the user back to the connect form. */
 async function throwListError(res: Response, bucket: string): Promise<never> {
   const body: unknown = await res.json().catch(() => null);
-  if (res.status === 401 || isNotConnectedBody(body)) throw redirect(303, '/storage');
-  if (res.status === 403) throw error(403, m.storage_error_access_denied({ bucket }));
+  if (res.status === 401 || isNotConnectedBody(body)) redirect(303, '/storage');
+  if (res.status === 403) error(403, m.storage_error_access_denied({ bucket }));
   const message = (body as { message?: string } | null)?.message;
-  throw error(res.status, message ?? 'Failed to load objects');
+  error(res.status, message ?? 'Failed to load objects');
 }
 
 /**
@@ -40,13 +40,13 @@ export const load: PageLoad = async ({ fetch, url, data, parent }) => {
   const { connections } = await parent();
 
   const connectionId = connectionStore.activeConnectionId ?? data.activeConnectionId;
-  if (!connectionId) throw redirect(303, '/storage');
+  if (!connectionId) redirect(303, '/storage');
   // A link to a storage the user is not connected to (e.g. from another
   // connection's recent locations) must not list the active connection's bucket.
   const active = connections.find((c) => c.id === connectionId);
-  if (!active) throw redirect(303, '/storage');
+  if (!active) redirect(303, '/storage');
   if (connectionHostname(active) !== connection) {
-    throw error(404, { message: 'Not connected', reason: 'not-connected', connection });
+    error(404, { message: 'Not connected', reason: 'not-connected', connection });
   }
 
   const query = new URLSearchParams({ bucket, prefix: prefix ?? '' });
@@ -59,7 +59,7 @@ export const load: PageLoad = async ({ fetch, url, data, parent }) => {
       });
     } catch (err) {
       if (isHttpError(err) && err.status === 403) {
-        throw error(403, m.storage_error_access_denied({ bucket }));
+        error(403, m.storage_error_access_denied({ bucket }));
       }
       throw err;
     }

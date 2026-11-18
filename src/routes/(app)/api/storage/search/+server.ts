@@ -20,10 +20,10 @@ export const GET: RequestHandler = async (event) => {
   const prefix = event.url.searchParams.get('prefix') ?? '';
   const maxDepthParam = event.url.searchParams.get('maxDepth');
   const maxDepth = maxDepthParam === null ? undefined : Number(maxDepthParam);
-  if (!query) throw error(400, 'Missing required query parameter: q');
-  if (query.length > 1024 || prefix.length > 1024) throw error(400, 'Search input is too long');
+  if (!query) error(400, 'Missing required query parameter: q');
+  if (query.length > 1024 || prefix.length > 1024) error(400, 'Search input is too long');
   if (maxDepth !== undefined && (!Number.isInteger(maxDepth) || maxDepth < 1 || maxDepth > 20)) {
-    throw error(400, 'maxDepth must be an integer between 1 and 20');
+    error(400, 'maxDepth must be an integer between 1 and 20');
   }
 
   const useRegex = event.url.searchParams.get('regex') === 'true';
@@ -33,7 +33,7 @@ export const GET: RequestHandler = async (event) => {
     excludePatterns.some((pattern) => pattern.length > 1024) ||
     event.url.searchParams.getAll('filter').length > 20
   )
-    throw error(400, 'Search filter limits exceeded');
+    error(400, 'Search filter limits exceeded');
   const filters = event.url.searchParams
     .getAll('filter')
     .map(parseFilterParam)
@@ -43,12 +43,12 @@ export const GET: RequestHandler = async (event) => {
     try {
       regex = createSafeSearchRegex(query);
     } catch (err) {
-      if (err instanceof UnsafeSearchRegexError) throw error(400, err.message);
+      if (err instanceof UnsafeSearchRegexError) error(400, err.message);
       throw err;
     }
   }
   const timeZone = event.url.searchParams.get('tz') ?? undefined;
-  if (timeZone !== undefined && !isValidTimeZone(timeZone)) throw error(400, 'Invalid time zone');
+  if (timeZone !== undefined && !isValidTimeZone(timeZone)) error(400, 'Invalid time zone');
   const matchesFilters = compileFilterPredicates(filters, timeZone);
 
   log.debug(
@@ -69,7 +69,7 @@ export const GET: RequestHandler = async (event) => {
     const additionalBuckets = event.locals.storageConfig?.additionalBuckets ?? [];
     const buckets = await provider.listContainers();
     if (!new Set([...buckets, ...additionalBuckets]).has(bucket)) {
-      throw error(404, 'Storage bucket not found');
+      error(404, 'Storage bucket not found');
     }
 
     const encoder = new TextEncoder();
@@ -115,7 +115,7 @@ export const GET: RequestHandler = async (event) => {
               if (++count > MAX_RESULTS) {
                 // Thrown as an HttpError so the provider wrapper passes it through.
                 limitReached = true;
-                throw error(400, `Search exceeds ${MAX_RESULTS} results; narrow the query`);
+                error(400, `Search exceeds ${MAX_RESULTS} results; narrow the query`);
               }
               batch.push(item);
               if (batch.length >= BATCH_SIZE) {

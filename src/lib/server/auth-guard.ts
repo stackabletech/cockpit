@@ -14,5 +14,5 @@ export function unauthenticatedResponse(url: URL): Response {
     return json({ message: 'Authentication required' }, { status: 401 });
   }
   const redirectTo = encodeURIComponent(url.pathname + url.search);
-  throw redirect(302, `/auth/login?redirectTo=${redirectTo}`);
+  redirect(302, `/auth/login?redirectTo=${redirectTo}`);
 }
