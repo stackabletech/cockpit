@@ -276,6 +276,7 @@ test.describe('Storage S3 — Details Modal', () => {
     await expect(modal.getByText('Prefix: tmp/')).toBeVisible();
     await expect(modal.getByText('Tag: team = data')).toBeVisible();
     await expect(modal.getByText('Size > 1 MB')).toBeVisible();
+    await expect(modal).toContainText('Prefix: tmp/ and Tag: team = data and Size > 1 MB');
     await expect(modal.getByText('All objects')).toHaveCount(1);
     await expect(modal.getByText(/[{}]/)).toHaveCount(0);
   });

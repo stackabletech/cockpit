@@ -127,11 +127,7 @@ describe('S3StorageProvider.getBucketLifecycleRules', () => {
     const { provider, send } = makeProvider();
     send.mockResolvedValue({ Rules: [{ ID: 'r', Status: 'Enabled', ...rule }] });
     const rules = await provider.getBucketLifecycleRules();
-    expect(rules?.[0].filter).toEqual({
-      objectSizeGreaterThan: undefined,
-      objectSizeLessThan: undefined,
-      ...filter
-    });
+    expect(rules?.[0].filter).toEqual(filter);
   });
 
   it('returns an empty list when no lifecycle configuration exists', async () => {

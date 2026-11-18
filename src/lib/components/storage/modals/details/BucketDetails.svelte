@@ -191,7 +191,8 @@
               <div class="text-muted mb-2 text-xs">
                 <span>{m.storage_details_lifecycle_filter()}:</span>
                 {#each lifecycleFilterConditions(rule.filter) as condition, i (i)}
-                  {#if i > 0}<span>{m.storage_details_lifecycle_filter_and()}</span>{/if}
+                  <!-- Svelte trims whitespace at iteration edges, so the separator carries its own leading space. -->
+                  {#if i > 0}<span>&nbsp;{m.storage_details_lifecycle_filter_and()}</span>{/if}
                   <span class="text-base-content font-mono leading-none">{condition}</span>
                 {:else}
                   <span class="text-muted leading-none italic"
