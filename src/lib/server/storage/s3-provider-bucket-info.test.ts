@@ -82,6 +82,58 @@ describe('S3StorageProvider.getBucketLifecycleRules', () => {
     ]);
   });
 
+  it.each([
+    ['no filter', {}, { prefix: undefined, tags: [] }],
+    ['an empty filter', { Filter: {} }, { prefix: undefined, tags: [] }],
+    ['an empty prefix', { Filter: { Prefix: '' } }, { prefix: undefined, tags: [] }],
+    ['a prefix', { Filter: { Prefix: 'logs/' } }, { prefix: 'logs/', tags: [] }],
+    ['a legacy rule prefix', { Prefix: 'old/' }, { prefix: 'old/', tags: [] }],
+    [
+      'a single tag',
+      { Filter: { Tag: { Key: 'team', Value: 'data' } } },
+      { prefix: undefined, tags: [{ key: 'team', value: 'data' }] }
+    ],
+    [
+      'a size bound',
+      { Filter: { ObjectSizeGreaterThan: 1024 } },
+      { prefix: undefined, tags: [], objectSizeGreaterThan: 1024 }
+    ],
+    [
+      'an And filter',
+      {
+        Filter: {
+          And: {
+            Prefix: 'tmp/',
+            Tags: [
+              { Key: 'a', Value: '1' },
+              { Key: 'b', Value: '2' }
+            ],
+            ObjectSizeGreaterThan: 10,
+            ObjectSizeLessThan: 100
+          }
+        }
+      },
+      {
+        prefix: 'tmp/',
+        tags: [
+          { key: 'a', value: '1' },
+          { key: 'b', value: '2' }
+        ],
+        objectSizeGreaterThan: 10,
+        objectSizeLessThan: 100
+      }
+    ]
+  ])('maps a rule with %s', async (_name, rule, filter) => {
+    const { provider, send } = makeProvider();
+    send.mockResolvedValue({ Rules: [{ ID: 'r', Status: 'Enabled', ...rule }] });
+    const rules = await provider.getBucketLifecycleRules();
+    expect(rules?.[0].filter).toEqual({
+      objectSizeGreaterThan: undefined,
+      objectSizeLessThan: undefined,
+      ...filter
+    });
+  });
+
   it('returns an empty list when no lifecycle configuration exists', async () => {
     const { provider, send } = makeProvider();
     send.mockRejectedValue(makeS3Error('NoSuchLifecycleConfiguration', 404));
