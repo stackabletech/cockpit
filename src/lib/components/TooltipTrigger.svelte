@@ -89,7 +89,7 @@
     tooltipState = state;
 
     return () => {
-      unmount(state);
+      void unmount(state);
       portalHost?.remove();
       portalHost = undefined;
       tooltipState = undefined;

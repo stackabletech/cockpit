@@ -22,11 +22,16 @@
   }
 
   function copyField(value: string, field: string) {
-    navigator.clipboard.writeText(value);
-    copiedField = field;
-    setTimeout(() => {
-      copiedField = null;
-    }, 1500);
+    navigator.clipboard.writeText(value).then(
+      () => {
+        copiedField = field;
+        setTimeout(() => {
+          copiedField = null;
+        }, 1500);
+      },
+      // Without clipboard access, just don't show the checkmark.
+      () => {}
+    );
   }
 
   function copyAll(conn: SavedConnection) {
@@ -36,11 +41,7 @@
       ...(conn.credentials?.accessKey ? [`Access key:  ${conn.credentials.accessKey}`] : []),
       `Region:      ${conn.region.name}`
     ];
-    navigator.clipboard.writeText(lines.join('\n'));
-    copiedField = 'all';
-    setTimeout(() => {
-      copiedField = null;
-    }, 1500);
+    copyField(lines.join('\n'), 'all');
   }
 </script>
 

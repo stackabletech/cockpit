@@ -84,7 +84,7 @@
       : '';
 
     savedTabs = null;
-    goto(
+    void goto(
       resolve('/(app)/storage/browse/[connection]/[bucket]/[...prefix]', {
         connection: encodeURIComponent(storage.connectionHostname),
         bucket: encodeURIComponent(active.bucket),

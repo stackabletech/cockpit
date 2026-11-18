@@ -118,16 +118,18 @@
       }
     }
 
+    const onDrop = (e: DragEvent) => void handleDrop(e);
+
     el.addEventListener('dragenter', handleDragEnter, true);
     el.addEventListener('dragover', handleDragOver, true);
     el.addEventListener('dragleave', handleDragLeave, true);
-    el.addEventListener('drop', handleDrop, true);
+    el.addEventListener('drop', onDrop, true);
     window.addEventListener('dragend', resetDrag);
     return () => {
       el.removeEventListener('dragenter', handleDragEnter, true);
       el.removeEventListener('dragover', handleDragOver, true);
       el.removeEventListener('dragleave', handleDragLeave, true);
-      el.removeEventListener('drop', handleDrop, true);
+      el.removeEventListener('drop', onDrop, true);
       window.removeEventListener('dragend', resetDrag);
     };
   });
@@ -325,7 +327,7 @@
   });
 
   function handleContextMenuAction(key: string) {
-    storage.executeAction(key as ActionName);
+    void storage.executeAction(key as ActionName);
     storage.contextMenu = null;
   }
 

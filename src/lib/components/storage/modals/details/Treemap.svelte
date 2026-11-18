@@ -302,7 +302,7 @@
       class="btn btn-ghost btn-sm w-full justify-start gap-2"
       onclick={() => {
         const t = ctxMenu!.target;
-        copy(t.name);
+        void copy(t.name);
       }}
     >
       <IconContentCopy class="size-4 shrink-0" aria-hidden="true" />
@@ -318,7 +318,7 @@
         class="btn btn-ghost btn-sm w-full justify-start gap-2"
         onclick={() => {
           const t = ctxMenu!.target;
-          if (t.fullKey) copy(t.fullKey);
+          if (t.fullKey) void copy(t.fullKey);
         }}
       >
         <IconFolderOpen class="size-4 shrink-0" aria-hidden="true" />

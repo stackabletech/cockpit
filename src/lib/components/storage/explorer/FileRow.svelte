@@ -43,7 +43,7 @@
     if (isArchive) {
       void storage.archive.enterArchive(file.key);
     } else {
-      storage.executeAction('preview');
+      void storage.executeAction('preview');
     }
   }}
   oncontextmenu={(e) => storage.openContextMenu(e, file.key)}
