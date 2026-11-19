@@ -1,4 +1,4 @@
-import { page, userEvent } from 'vitest/browser';
+import { page, userEvent, type Locator } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
@@ -24,6 +24,21 @@ function makeFiles(count: number): StorageObject[] {
     isDirectory: false,
     contentType: 'text/plain'
   }));
+}
+
+/**
+ * Waits until the element's centre is not covered or clipped, i.e. a pointer would hit it.
+ * Playwright's visibility check ignores clipping by an `overflow-hidden` ancestor.
+ */
+async function expectPointerReachable(locator: Locator) {
+  await expect
+    .poll(() => {
+      const el = locator.element();
+      const rect = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+      return hit !== null && el.contains(hit);
+    })
+    .toBe(true);
 }
 
 function createState(
@@ -284,9 +299,9 @@ describe('StorageBreadcrumb', () => {
       const spy = vi.spyOn(state, 'navigate');
       render(StorageBreadcrumbWrapper, { state });
 
-      // Click 'alpha' in the collapsed dropdown
-      const alphaBtn = page.getByText('alpha');
-      await alphaBtn.click();
+      // Open the collapsed dropdown, then click 'alpha' in it
+      await page.getByRole('button', { name: 'More folders' }).click();
+      await page.getByRole('button', { name: 'alpha', exact: true }).click();
       expect(spy).toHaveBeenCalledWith('alpha/');
     });
 
@@ -320,7 +335,10 @@ describe('StorageBreadcrumb', () => {
       const spy = vi.spyOn(state.bookmarks, 'pin');
       render(StorageBreadcrumbWrapper, { state });
 
-      const pinBtn = page.getByRole('button', { name: /pin/i }).first();
+      // The pin button's wrapper only expands (after a delay) while its segment is hovered.
+      await page.getByText('test-bucket').hover();
+      const pinBtn = page.getByRole('button', { name: 'Pin this location' });
+      await expectPointerReachable(pinBtn);
       await pinBtn.click();
       expect(spy).toHaveBeenCalledWith('test-bucket', '');
     });
@@ -333,7 +351,9 @@ describe('StorageBreadcrumb', () => {
       const spy = vi.spyOn(state.bookmarks, 'unpin');
       render(StorageBreadcrumbWrapper, { state });
 
-      const pinBtn = page.getByRole('button', { name: /unpin/i }).first();
+      await page.getByText('test-bucket').hover();
+      const pinBtn = page.getByRole('button', { name: 'Unpin' });
+      await expectPointerReachable(pinBtn);
       await pinBtn.click();
       expect(spy).toHaveBeenCalledWith('test-bucket', '');
     });
@@ -445,8 +465,8 @@ describe('StorageBreadcrumb', () => {
       const state = createState({ prefix: 'alpha/bravo/charlie/delta/' });
       render(StorageBreadcrumbWrapper, { state });
 
-      const partEl = page.getByText('alpha');
-      await partEl.click({ button: 'right' });
+      await page.getByRole('button', { name: 'More folders' }).click();
+      await page.getByRole('button', { name: 'alpha', exact: true }).click({ button: 'right' });
 
       const menuItem = page.getByRole('menuitem');
       await expect.element(menuItem.first()).toBeInTheDocument();
