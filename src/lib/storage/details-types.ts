@@ -92,11 +92,20 @@ interface DirectorySizeError {
 
 export type DirectorySizeEvent = DirectorySizeProgress | DirectorySizeResult | DirectorySizeError;
 
+/** Objects a lifecycle rule applies to. All set conditions must match; an
+ *  empty filter applies to all objects in the bucket. */
+export interface LifecycleFilter {
+  prefix?: string;
+  tags: Array<{ key: string; value: string }>;
+  objectSizeGreaterThan?: number;
+  objectSizeLessThan?: number;
+}
+
 /** Lifecycle rule from S3 bucket lifecycle configuration. */
 export interface LifecycleRule {
   id: string;
   status: 'Enabled' | 'Disabled';
-  filter: Record<string, unknown>;
+  filter: LifecycleFilter;
   transitions: Array<{ days: number; storageClass: string }>;
   expirations: Array<{ days?: number; date?: string; expiredObjectDeleteMarker?: boolean }>;
   noncurrentVersionTransitions: Array<{ noncurrentDays: number; storageClass: string }>;

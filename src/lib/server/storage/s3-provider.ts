@@ -17,7 +17,8 @@ import {
   UploadPartCopyCommand,
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
-  type ListObjectsV2CommandOutput
+  type ListObjectsV2CommandOutput,
+  type LifecycleRule as S3LifecycleRule
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { error } from '@sveltejs/kit';
@@ -37,7 +38,12 @@ import type {
   StorageMetadata,
   SearchResultItem
 } from '$lib/storage/types.js';
-import type { LifecycleRule, BucketAcl, BucketVersioning } from '$lib/storage/details-types.js';
+import type {
+  LifecycleFilter,
+  LifecycleRule,
+  BucketAcl,
+  BucketVersioning
+} from '$lib/storage/details-types.js';
 import { logger } from '$lib/server/logging';
 import { createS3Client } from './s3-client.js';
 import { mapS3ErrorToHttp } from './s3-errors.js';
@@ -112,6 +118,26 @@ async function withS3Errors<T>(
   } catch (err) {
     return mapS3ErrorToHttp(err, context);
   }
+}
+
+/**
+ * Flatten an S3 lifecycle filter into its conditions. S3 allows a single condition or an `And`
+ * of several; both mean all conditions must match, so they are merged. Rules from the deprecated
+ * schema carry their prefix on the rule itself instead of in `Filter`.
+ */
+function mapLifecycleFilter(rule: S3LifecycleRule): LifecycleFilter {
+  const filter = rule.Filter ?? {};
+  const and = filter.And ?? {};
+  const tags = [...(filter.Tag ? [filter.Tag] : []), ...(and.Tags ?? [])].map((t) => ({
+    key: t.Key ?? '',
+    value: t.Value ?? ''
+  }));
+  return {
+    prefix: filter.Prefix || and.Prefix || rule.Prefix || undefined,
+    tags,
+    objectSizeGreaterThan: filter.ObjectSizeGreaterThan ?? and.ObjectSizeGreaterThan,
+    objectSizeLessThan: filter.ObjectSizeLessThan ?? and.ObjectSizeLessThan
+  };
 }
 
 export class S3StorageProvider implements StorageProvider {
@@ -515,7 +541,7 @@ export class S3StorageProvider implements StorageProvider {
           return {
             id: rule.ID ?? '',
             status: rule.Status === 'Enabled' ? 'Enabled' : 'Disabled',
-            filter: (rule.Filter as Record<string, unknown>) ?? {},
+            filter: mapLifecycleFilter(rule),
             transitions: (rule.Transitions ?? []).map((t) => ({
               days: t.Days ?? 0,
               storageClass: t.StorageClass ?? ''

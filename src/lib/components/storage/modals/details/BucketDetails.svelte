@@ -6,7 +6,11 @@
   import IconKey from 'virtual:icons/material-symbols/key';
   import { getStorageState } from '$lib/storage/context.js';
   import { getDetailsErrorMessage } from '$lib/storage/errors.js';
-  import type { BucketDetails as BucketDetailsType } from '$lib/storage/details-types.js';
+  import type {
+    BucketDetails as BucketDetailsType,
+    LifecycleFilter
+  } from '$lib/storage/details-types.js';
+  import { formatFileSize } from '$lib/storage/utils.js';
 
   interface Props {
     bucket: string;
@@ -15,6 +19,29 @@
   let { bucket }: Props = $props();
 
   const storage = getStorageState();
+
+  /** One label per filter condition; S3 requires all of them to match. */
+  function lifecycleFilterConditions(filter: LifecycleFilter): string[] {
+    const size = (bytes: number) => formatFileSize(bytes, undefined, {});
+    return [
+      ...(filter.prefix
+        ? [m.storage_details_lifecycle_prefix_filter({ prefix: filter.prefix })]
+        : []),
+      ...filter.tags.map((t) =>
+        m.storage_details_lifecycle_tag_filter({ key: t.key, value: t.value })
+      ),
+      ...(filter.objectSizeGreaterThan !== undefined
+        ? [
+            m.storage_details_lifecycle_size_greater_filter({
+              size: size(filter.objectSizeGreaterThan)
+            })
+          ]
+        : []),
+      ...(filter.objectSizeLessThan !== undefined
+        ? [m.storage_details_lifecycle_size_less_filter({ size: size(filter.objectSizeLessThan) })]
+        : [])
+    ];
+  }
 
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -163,25 +190,15 @@
 
               <div class="text-muted mb-2 text-xs">
                 <span>{m.storage_details_lifecycle_filter()}:</span>
-                {#if rule.filter && typeof rule.filter === 'object' && 'prefix' in (rule.filter as Record<string, unknown>) && (rule.filter as Record<string, unknown>).prefix}
-                  <span class="text-base-content font-mono leading-none">
-                    {m.storage_details_lifecycle_prefix_filter({
-                      prefix: String((rule.filter as Record<string, unknown>).prefix)
-                    })}
-                  </span>
-                {:else if rule.filter && typeof rule.filter === 'object' && 'and' in (rule.filter as Record<string, unknown>)}
-                  <span class="text-base-content font-mono leading-none">
-                    AND ({(rule.filter as Record<string, unknown>).and as string})
-                  </span>
-                {:else if rule.filter && typeof rule.filter === 'object' && Object.keys(rule.filter).length > 0}
-                  <span class="text-base-content font-mono leading-none">
-                    {JSON.stringify(rule.filter)}
-                  </span>
+                {#each lifecycleFilterConditions(rule.filter) as condition, i (i)}
+                  <!-- Svelte trims whitespace at iteration edges, so the separator carries its own leading space. -->
+                  {#if i > 0}<span>&nbsp;{m.storage_details_lifecycle_filter_and()}</span>{/if}
+                  <span class="text-base-content font-mono leading-none">{condition}</span>
                 {:else}
                   <span class="text-muted leading-none italic"
                     >{m.storage_details_lifecycle_all_objects()}</span
                   >
-                {/if}
+                {/each}
               </div>
 
               {#if rule.transitions.length > 0}
