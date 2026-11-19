@@ -5,7 +5,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import { resolve } from '$app/paths';
   import { getStorageState } from '$lib/storage/context.js';
-  import FloatingMenu from '../shared/FloatingMenu.svelte';
+  import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 
   interface Props {
     buckets?: string[];
@@ -33,21 +33,14 @@
   }
 </script>
 
-<FloatingMenu
+<ContextMenu
   x={ctxMenu?.x ?? 0}
   y={ctxMenu?.y ?? 0}
   open={ctxMenu !== null}
   onclose={closeContextMenu}
->
-  <button
-    role="menuitem"
-    class="btn btn-ghost btn-sm w-full justify-start gap-2"
-    onclick={() => ctxMenu && openDetails(ctxMenu.bucket)}
-  >
-    <IconInfo class="size-4" aria-hidden="true" />
-    {m.storage_action_details()}
-  </button>
-</FloatingMenu>
+  onaction={() => ctxMenu && openDetails(ctxMenu.bucket)}
+  actions={[{ key: 'details', icon: IconInfo, label: m.storage_action_details() }]}
+/>
 
 {#if loading || !storage.connectionHostname}
   <div

@@ -4,6 +4,7 @@
   import IconEdit from 'virtual:icons/material-symbols/edit';
   import IconClose from 'virtual:icons/material-symbols/close';
   import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
+  import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
   import { enhance } from '$app/forms';
@@ -45,28 +46,11 @@
     maxWidth: 400
   });
   let menuConn: ConnectionMetadata | null = $state(null);
-  let menuEl: HTMLUListElement | null = $state(null);
-  let menuRawPos = $state({ left: 0, top: 0 });
-  const menuPos = $derived.by(() => {
-    if (!menuConn) return { left: 0, top: 0 };
-    if (!menuEl) return menuRawPos;
-    const rect = menuEl.getBoundingClientRect();
-    return {
-      left:
-        menuRawPos.left + rect.width > window.innerWidth
-          ? menuRawPos.left - rect.width
-          : menuRawPos.left,
-      top:
-        menuRawPos.top + rect.height > window.innerHeight
-          ? menuRawPos.top - rect.height
-          : menuRawPos.top
-    };
-  });
+  let menuPos = $state({ x: 0, y: 0 });
 
   function openContextMenu(e: MouseEvent, conn: ConnectionMetadata) {
     e.preventDefault();
-    e.stopPropagation();
-    menuRawPos = { left: e.clientX, top: e.clientY };
+    menuPos = { x: e.clientX, y: e.clientY };
     menuConn = conn;
   }
 
@@ -75,7 +59,7 @@
 
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     e.preventDefault();
-    menuRawPos = { left: rect.left, top: rect.bottom };
+    menuPos = { x: rect.left, y: rect.bottom };
     menuConn = conn;
   }
 
@@ -83,16 +67,27 @@
     menuConn = null;
   }
 
-  function handleOutsideClick(e: MouseEvent) {
-    if (deleteConfirmOpen) return;
-    if (menuConn && menuEl && !menuEl.contains(e.target as Node)) closeContextMenu();
+  const menuActions = $derived.by<ContextMenuAction[]>(() => {
+    if (!menuConn) return [];
+    return [
+      {
+        key: 'edit',
+        icon: IconEdit,
+        label: m.storage_connect_edit(),
+        href: resolve(`/settings/connections/${menuConn.id}/edit`)
+      },
+      { key: 'forget', icon: IconClose, label: m.storage_connect_forget(), class: 'text-error' }
+    ];
+  });
+
+  function handleMenuAction(key: string) {
+    if (key !== 'forget' || !menuConn) return;
+    deleteTarget = menuConn;
+    deleteConfirmOpen = true;
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (menuConn && e.key === 'Escape') closeContextMenu();
-  }
-
-  // Delete confirmation
+  // Delete confirmation. Opening the modal closes the menu, so the target is kept separately.
+  let deleteTarget: ConnectionMetadata | null = $state(null);
   let deleteConfirmOpen = $state(false);
   let deleteFormEl = $state<HTMLFormElement | null>(null);
 
@@ -102,7 +97,7 @@
 
   function cancelDelete() {
     deleteConfirmOpen = false;
-    closeContextMenu();
+    deleteTarget = null;
   }
 
   const enhanceDelete: SubmitFunction = async ({ cancel }) => {
@@ -122,20 +117,32 @@
   };
 
   const deleteConn = $derived.by<SavedConnection | null>(() => {
-    if (!menuConn) return null;
-    const ep = menuConn.endpoint ?? '';
+    if (!deleteTarget) return null;
+    const ep = deleteTarget.endpoint ?? '';
     const colonIdx = ep.lastIndexOf(':');
     const host = colonIdx > 0 ? ep.slice(0, colonIdx) : ep;
     const port = colonIdx > 0 ? parseInt(ep.slice(colonIdx + 1), 10) || null : null;
-    return { id: menuConn.id, name: menuConn.name, host, port, type: 's3', region: { name: '' } };
+    return {
+      id: deleteTarget.id,
+      name: deleteTarget.name,
+      host,
+      port,
+      type: 's3',
+      region: { name: '' }
+    };
   });
 </script>
 
-<svelte:document onclick={handleOutsideClick} />
-<svelte:window onkeydown={handleKeydown} />
+<ContextMenu
+  x={menuPos.x}
+  y={menuPos.y}
+  open={menuConn !== null}
+  onclose={closeContextMenu}
+  onaction={handleMenuAction}
+  actions={menuActions}
+/>
 
-<!-- Context menu (fixed, rendered outside the layout flow) -->
-{#if menuConn}
+{#if deleteTarget}
   <form
     method="POST"
     action="?/deleteConnection"
@@ -143,49 +150,16 @@
     use:enhance={enhanceDelete}
     class="contents"
   >
-    <input type="hidden" name="connectionId" value={menuConn.id} />
+    <input type="hidden" name="connectionId" value={deleteTarget.id} />
   </form>
-  <ul
-    bind:this={menuEl}
-    class="
-      menu menu-sm border-base-300 bg-base-100 fixed z-150 w-48 rounded-lg
-      border p-1 shadow-lg
-    "
-    role="menu"
-    tabindex="-1"
-    style="left: {menuPos.left}px; top: {menuPos.top}px;"
-  >
-    <li role="none">
-      <a
-        href={resolve(`/settings/connections/${menuConn.id}/edit`)}
-        role="menuitem"
-        onclick={closeContextMenu}
-        class="justify-start"
-      >
-        <IconEdit class="size-4 shrink-0" aria-hidden="true" />
-        {m.storage_connect_edit()}
-      </a>
-    </li>
-    <li role="none">
-      <button
-        type="button"
-        role="menuitem"
-        class="text-error w-full justify-start"
-        onclick={() => (deleteConfirmOpen = true)}
-      >
-        <IconClose class="size-4 shrink-0" aria-hidden="true" />
-        {m.storage_connect_forget()}
-      </button>
-    </li>
-  </ul>
-
-  <DeleteConnectionModal
-    open={deleteConfirmOpen}
-    connection={deleteConn}
-    onconfirm={confirmDelete}
-    oncancel={cancelDelete}
-  />
 {/if}
+
+<DeleteConnectionModal
+  bind:open={deleteConfirmOpen}
+  connection={deleteConn}
+  onconfirm={confirmDelete}
+  oncancel={cancelDelete}
+/>
 
 <!-- Mobile: horizontal scrollable connections row -->
 <div class="md:hidden">
