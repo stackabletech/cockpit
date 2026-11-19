@@ -2,7 +2,7 @@
   import IconWarning from 'virtual:icons/material-symbols/warning';
   import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import ConflictEntry from './ConflictEntry.svelte';
   import { ConflictRenameNameSchema } from '$lib/storage/schemas.js';
   import { objectNameError } from '$lib/storage/name-validation.js';

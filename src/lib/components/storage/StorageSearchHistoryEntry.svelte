@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
-  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
+  import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
   import type { RecentSearchEntry } from '$lib/storage/types.js';
   import IconExpandLess from 'virtual:icons/material-symbols/expand-less';
   import IconExpandMore from 'virtual:icons/material-symbols/expand-more';

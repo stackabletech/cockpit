@@ -22,7 +22,7 @@
 <script lang="ts">
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconAdd from 'virtual:icons/material-symbols/add';
-  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
+  import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
 
   let {
     items,

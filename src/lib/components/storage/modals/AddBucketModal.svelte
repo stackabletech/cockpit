@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import * as m from '$lib/paraglide/messages.js';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import { getStorageState } from '$lib/storage/context.js';
   import { connectionStore } from '$lib/storage/connection-store.svelte.js';
 

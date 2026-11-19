@@ -9,7 +9,7 @@
   import IconError from 'virtual:icons/material-symbols/error';
   import IconCheckCircle from 'virtual:icons/material-symbols/check-circle';
   import * as m from '$lib/paraglide/messages.js';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import { checkObjectExists, uploadFile } from '$lib/storage/upload.js';
   import { StorageError } from '$lib/storage/errors.js';
   import { formatFileSize, keyToName } from '$lib/storage/utils.js';

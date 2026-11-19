@@ -68,6 +68,68 @@ test.describe('Storage S3 — Context Menu', () => {
     }
   });
 
+  test('a right-click elsewhere replaces the open context menu', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'ctx-replace');
+    const cleanupKeys = [`${prefix}first.txt`, `${prefix}second.txt`];
+
+    try {
+      for (const key of cleanupKeys) await putTextObject(client, credentials.bucket, key, 'x');
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      const menu = page.getByRole('menu');
+      await rowByName(page, 'first.txt').click({ button: 'right' });
+      await expect(menu).toBeVisible();
+
+      // Another row of the same list moves the menu and keeps that row selected.
+      await rowByName(page, 'second.txt').click({ button: 'right', position: { x: 10, y: 10 } });
+      await expect(menu).toHaveCount(1);
+      await expect(menu.getByRole('menuitem', { name: 'Preview' })).toBeVisible();
+      await expect(page.getByText('1 selected')).toBeVisible();
+
+      // Another component's target opens its own menu instead.
+      const sidebar = page.getByRole('navigation', { name: 'Buckets' });
+      await sidebar.getByText(credentials.bucket).click({ button: 'right' });
+      await expect(menu).toHaveCount(1);
+      await expect(menu.getByRole('menuitem', { name: 'Details' })).toBeVisible();
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
+  test('unpins a pinned location from its sidebar menu', async ({ page }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'ctx-unpin');
+    const cleanupKeys = [`${prefix}file.txt`];
+
+    try {
+      await putTextObject(client, credentials.bucket, cleanupKeys[0], 'x');
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb' });
+      await breadcrumb.getByText(credentials.bucket).hover();
+      await page
+        .getByRole('button', { name: 'Pin this location' })
+        .filter({ visible: true })
+        .first()
+        .click();
+      const sidebar = page.getByRole('navigation', { name: 'Buckets' });
+      await expect(sidebar.getByText('Pinned Access')).toBeVisible();
+
+      await sidebar.getByRole('button', { name: 'More options' }).click({ force: true });
+      const menu = page.getByRole('menu', { name: 'Actions' });
+      await menu.getByRole('menuitem', { name: 'Unpin' }).click();
+
+      await expect(menu).toHaveCount(0);
+      await expect(sidebar.getByText('Pinned Access')).toHaveCount(0);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   test('deletes a single file via context menu', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);

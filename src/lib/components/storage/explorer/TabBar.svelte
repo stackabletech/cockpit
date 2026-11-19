@@ -5,12 +5,11 @@
   import IconDriveFileRenameOutline from 'virtual:icons/material-symbols/drive-file-rename-outline';
   import * as m from '$lib/paraglide/messages.js';
   import type { TabsState } from '$lib/storage/tabs.svelte.js';
-  import type { ContextMenuAction } from '$lib/storage/types.js';
   import { getStorageState } from '$lib/storage/context.js';
   import { storageTransferEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDrop } from '$lib/storage/drag-handlers.js';
-  import ContextMenu from './ContextMenu.svelte';
-  import GenericTabBar, { type ExternalTabDrag } from '$lib/components/TabBar.svelte';
+  import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
+  import GenericTabBar, { type ExternalTabDrag } from '$lib/components/ui/TabBar.svelte';
 
   interface Props {
     tabsState: TabsState;

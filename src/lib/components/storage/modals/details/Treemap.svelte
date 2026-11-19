@@ -4,7 +4,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import IconContentCopy from 'virtual:icons/material-symbols/content-copy';
   import IconFolderOpen from 'virtual:icons/material-symbols/folder-open';
-  import FloatingMenu from '$lib/components/storage/shared/FloatingMenu.svelte';
+  import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
 
   interface Props {
     data: TreemapNode;
@@ -177,6 +177,33 @@
     ctxMenu = null;
   }
 
+  const ctxActions = $derived.by<ContextMenuAction[]>(() => {
+    const target = ctxMenu?.target;
+    if (!target) return [];
+    return [
+      {
+        key: 'name',
+        icon: IconContentCopy,
+        label: target.isContainer
+          ? m.storage_details_copy_dir_name()
+          : m.storage_details_copy_file_name()
+      },
+      {
+        key: 'path',
+        icon: IconFolderOpen,
+        label: m.storage_details_copy_full_path(),
+        hidden: !target.fullKey
+      }
+    ];
+  });
+
+  function handleCtxAction(key: string) {
+    const target = ctxMenu?.target;
+    if (!target) return;
+    if (key === 'name') void copy(target.name);
+    else if (target.fullKey) void copy(target.fullKey);
+  }
+
   async function copy(text: string) {
     try {
       await navigator.clipboard.writeText(text);
@@ -290,40 +317,11 @@
   </svg>
 </div>
 
-<FloatingMenu
+<ContextMenu
   x={ctxMenu?.x ?? 0}
   y={ctxMenu?.y ?? 0}
   open={ctxMenu !== null}
   onclose={closeContextMenu}
->
-  {#if ctxMenu}
-    <button
-      role="menuitem"
-      class="btn btn-ghost btn-sm w-full justify-start gap-2"
-      onclick={() => {
-        const t = ctxMenu!.target;
-        copy(t.name);
-      }}
-    >
-      <IconContentCopy class="size-4 shrink-0" aria-hidden="true" />
-      {#if ctxMenu.target.isContainer}
-        {m.storage_details_copy_dir_name()}
-      {:else}
-        {m.storage_details_copy_file_name()}
-      {/if}
-    </button>
-    {#if ctxMenu.target.fullKey}
-      <button
-        role="menuitem"
-        class="btn btn-ghost btn-sm w-full justify-start gap-2"
-        onclick={() => {
-          const t = ctxMenu!.target;
-          if (t.fullKey) copy(t.fullKey);
-        }}
-      >
-        <IconFolderOpen class="size-4 shrink-0" aria-hidden="true" />
-        {m.storage_details_copy_full_path()}
-      </button>
-    {/if}
-  {/if}
-</FloatingMenu>
+  onaction={handleCtxAction}
+  actions={ctxActions}
+/>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import IconClose from 'virtual:icons/material-symbols/close';
   import IconOpenInFull from 'virtual:icons/material-symbols/open-in-full';
   import IconCloseFullscreen from 'virtual:icons/material-symbols/close-fullscreen';

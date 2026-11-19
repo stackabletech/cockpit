@@ -138,8 +138,37 @@ export default defineConfig(
     }
   },
   {
-    files: ['src/lib/components/Modal.svelte'],
+    files: ['src/lib/components/ui/Modal.svelte'],
     rules: { 'svelte/no-restricted-html-elements': 'off' }
+  },
+  {
+    // Generic building blocks: everything comes in through props, so they must not depend on app
+    // state, routing or feature modules (see "Component Layers" in AGENTS.md).
+    files: ['src/lib/components/ui/**/*.{svelte,ts}'],
+    // Specs may load the global stylesheet to test against the real styles.
+    ignores: ['src/lib/components/ui/**/*.spec.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['$lib/*', '!$lib/paraglide', '!$lib/types', '!$lib/components'],
+              message: 'ui/ components may only import Paraglide messages, shared types and ui/.'
+            },
+            {
+              group: ['$lib/components/*', '!$lib/components/ui'],
+              message: 'ui/ components must not import app or feature components.'
+            },
+            {
+              group: ['$app/*'],
+              message: 'ui/ components must not depend on SvelteKit app state.'
+            },
+            { group: ['../*'], message: 'ui/ components must not import from outside ui/.' }
+          ]
+        }
+      ]
+    }
   },
   {
     files: [

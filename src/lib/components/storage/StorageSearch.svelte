@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
   import { onDestroy } from 'svelte';
   import { resolve } from '$app/paths';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import StorageSearchForm from '$lib/components/storage/StorageSearchForm.svelte';
   import StorageSearchHistory from '$lib/components/storage/StorageSearchHistory.svelte';
   import StorageSearchResults from '$lib/components/storage/StorageSearchResults.svelte';

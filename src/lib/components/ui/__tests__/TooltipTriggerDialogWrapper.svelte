@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Modal from '../Modal.svelte';
-  import TooltipTrigger from '../TooltipTrigger.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
+  import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
 
   interface Props {
     text?: string;
