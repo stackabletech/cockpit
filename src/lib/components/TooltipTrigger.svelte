@@ -74,7 +74,7 @@
     while (el && el.tagName !== 'DIALOG') {
       el = el.parentElement;
     }
-    return (el ?? document.body) as HTMLElement;
+    return el ?? document.body;
   }
 
   $effect(() => {
@@ -89,7 +89,7 @@
     tooltipState = state;
 
     return () => {
-      unmount(state);
+      void unmount(state);
       portalHost?.remove();
       portalHost = undefined;
       tooltipState = undefined;

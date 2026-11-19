@@ -3,6 +3,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import { getLocale } from '$lib/paraglide/runtime.js';
   import { PREVIEW_CHUNK_ROWS } from '$lib/storage/types.js';
+  import { formatCell } from '$lib/client/format-cell';
 
   interface Props {
     headers: string[];
@@ -59,7 +60,7 @@
         if (!row) continue;
         for (let i = 0; i < headers.length; i++) {
           const val = row[i];
-          const str = val !== null && val !== undefined ? String(val) : '';
+          const str = formatCell(val);
           const w = textWidth(str);
           if (w > widths[i]) widths[i] = w;
         }
@@ -216,7 +217,7 @@
                 {#each headers as _h, j (j)}
                   {#if row.data[j] !== undefined}
                     <td class="text-base-content/80 truncate text-xs">
-                      {row.data[j] !== null ? String(row.data[j]) : ''}
+                      {formatCell(row.data[j])}
                     </td>
                   {:else}
                     <td class="p-1">

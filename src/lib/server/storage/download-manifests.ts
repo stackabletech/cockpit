@@ -89,7 +89,7 @@ async function expandKeys(provider: StorageProvider, keys: string[]): Promise<Do
     if (key.endsWith('/'))
       await provider.listAllKeysProgressively(key, (batch) => {
         for (const item of batch) expanded.add(item.key);
-        if (expanded.size > 10_000) throw error(400, 'Download selection exceeds 10000 entries');
+        if (expanded.size > 10_000) error(400, 'Download selection exceeds 10000 entries');
       });
   }
   return mapMetadata([...expanded], async (key) => {
@@ -250,7 +250,7 @@ export async function recreateDownloadManifest(
       const metadata = await provider.getMetadata(entry.key);
       return { ...entry, size: metadata.size };
     } catch (err) {
-      if (isHttpError(err) && err.status === 404) throw error(404, entry.key);
+      if (isHttpError(err) && err.status === 404) error(404, entry.key);
       throw err;
     }
   });

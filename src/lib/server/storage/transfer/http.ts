@@ -22,7 +22,7 @@ const HEARTBEAT_INTERVAL_MS = 60_000;
 export function requireTransferAllowed(op: TransferOp, logger: pino.Logger, userId?: string): void {
   if (storageTransferEnabled) return;
   logger.warn({ operation: op, user_id: userId }, 'storage operation rejected: feature disabled');
-  throw error(404, `Storage ${op} is disabled`);
+  error(404, `Storage ${op} is disabled`);
 }
 
 /** Validates a request as a whole, mapping its problems to HTTP 400. */
@@ -30,7 +30,7 @@ export function requireValidTransfer(request: TransferRequest): void {
   try {
     validateTransferRequest(request);
   } catch (err) {
-    if (err instanceof TransferRequestError) throw error(400, err.message);
+    if (err instanceof TransferRequestError) error(400, err.message);
     throw err;
   }
 }

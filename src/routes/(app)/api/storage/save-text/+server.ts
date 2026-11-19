@@ -40,11 +40,11 @@ export const POST: RequestHandler = async (event) => {
     contentType: event.url.searchParams.get('contentType') ?? undefined
   });
   if (!query.success) {
-    throw error(400, query.error.issues[0]?.message ?? 'Invalid query parameters');
+    error(400, query.error.issues[0]?.message ?? 'Invalid query parameters');
   }
   const { etag, contentType } = query.data;
 
-  if (!event.request.body) throw error(400, 'Missing request body');
+  if (!event.request.body) error(400, 'Missing request body');
 
   log.debug({ bucket, key, content_type: contentType, etag }, 'save-text request received');
 
@@ -62,7 +62,7 @@ export const POST: RequestHandler = async (event) => {
         { bucket, key, max_editable_size: maxEditableFileSize },
         'save-text rejected: body exceeds max editable size'
       );
-      throw error(413, 'File exceeds the maximum editable size and is read-only');
+      error(413, 'File exceeds the maximum editable size and is read-only');
     }
   }
   const body = Buffer.concat(chunks, totalBytes);
@@ -76,7 +76,7 @@ export const POST: RequestHandler = async (event) => {
   } catch (err) {
     if (isHttpError(err) && err.status === 404) {
       log.info({ bucket, key }, 'save-text rejected: object was deleted since it was loaded');
-      throw error(409, conflictMessage);
+      error(409, conflictMessage);
     }
     throw err;
   }
@@ -85,14 +85,14 @@ export const POST: RequestHandler = async (event) => {
       { bucket, key, expected_etag: etag, current_etag: current.etag },
       'save-text rejected: object was modified since it was loaded'
     );
-    throw error(409, conflictMessage);
+    error(409, conflictMessage);
   }
   if (current.size > maxEditableFileSize) {
     log.warn(
       { bucket, key, original_size: current.size, max_editable_size: maxEditableFileSize },
       'save-text rejected: file exceeds max editable size (read-only)'
     );
-    throw error(413, 'File exceeds the maximum editable size and is read-only');
+    error(413, 'File exceeds the maximum editable size and is read-only');
   }
 
   const newEtag = await provider.putObjectIfMatch(key, body, contentType, etag);

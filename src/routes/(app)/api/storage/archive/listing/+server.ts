@@ -24,7 +24,7 @@ import type { RequestHandler } from './$types';
 export const GET: RequestHandler = async (event) => {
   const { locals, url } = event;
   const bucket = url.searchParams.get('bucket')?.trim();
-  if (!bucket) throw error(400, 'Missing required query parameter: bucket');
+  if (!bucket) error(400, 'Missing required query parameter: bucket');
 
   const key = requireObjectKey(event);
 
@@ -56,7 +56,7 @@ export const GET: RequestHandler = async (event) => {
     });
   } catch (err) {
     if (err instanceof ArchiveCacheFullError) {
-      throw error(503, 'Archive preview is busy, please try again later');
+      error(503, 'Archive preview is busy, please try again later');
     }
     // The client went away; there is nobody to answer.
     if (event.request.signal.aborted) return new Response(null, { status: 499 });

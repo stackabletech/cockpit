@@ -49,6 +49,6 @@ export const actions: Actions = {
   deleteConnection: async (event) => {
     const failure = await deleteConnectionAction(event);
     if (failure) return failure;
-    throw redirect(303, '/settings/connections');
+    redirect(303, '/settings/connections');
   }
 };

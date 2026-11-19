@@ -11,7 +11,7 @@ import { StoredStorageConnectionSchema } from '$lib/storage/schemas.js';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   if (!storageBrowserEnabled) {
-    throw error(404, 'Not found');
+    error(404, 'Not found');
   }
 
   locals.logger.debug('loading storage layout');

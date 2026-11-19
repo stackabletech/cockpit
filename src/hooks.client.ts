@@ -8,7 +8,7 @@ import { checkSession } from '$lib/client/session.svelte';
  * unchanged and `checkSession` decides whether the session is really gone.
  */
 export const init: ClientInit = () => {
-  const originalFetch = window.fetch;
+  const originalFetch = window.fetch.bind(window);
   window.fetch = async (input, requestInit) => {
     const response = await originalFetch(input, requestInit);
     if (response.status === 401 && isSameOrigin(response.url)) {

@@ -323,6 +323,8 @@ function waitFor<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return promise;
   signal.throwIfAborted();
   return new Promise<T>((resolve, reject) => {
+    // Passes the abort reason on unchanged, like signal.throwIfAborted() above.
+    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
     const onAbort = () => reject(signal.reason);
     signal.addEventListener('abort', onAbort, { once: true });
     promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));

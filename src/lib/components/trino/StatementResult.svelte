@@ -8,6 +8,7 @@
   import { MAX_CLIENT_ROWS, type QueryError, type QuerySnapshot } from '$lib/types/query';
   import { initPageSize, type PageSize } from '$lib/types/pagination.js';
   import Pagination from '$lib/components/Pagination.svelte';
+  import { formatCell } from '$lib/client/format-cell';
 
   const STORAGE_KEY = 'trino_page_size';
 
@@ -253,7 +254,7 @@
                     {#if cell === null}
                       <span class="text-muted italic">null</span>
                     {:else}
-                      {typeof cell === 'object' ? JSON.stringify(cell) : String(cell)}
+                      {formatCell(cell)}
                     {/if}
                   </td>
                 {/each}

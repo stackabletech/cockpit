@@ -98,7 +98,7 @@
     if (!container) return;
     const edgeY = contentEdgeY(e.clientY);
     if (edgeY === null) return;
-    const el = container as HTMLElement;
+    const el = container;
     if (edgeY < EDGE_THICKNESS && el.scrollTop > 0) {
       const factor = 1 - edgeY / EDGE_THICKNESS;
       const speed = BASE_SCROLL_SPEED + (MAX_SCROLL_SPEED - BASE_SCROLL_SPEED) * factor;

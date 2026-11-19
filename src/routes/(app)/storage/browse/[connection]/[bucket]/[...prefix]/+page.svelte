@@ -72,7 +72,7 @@
     // Each history entry carries its own previous-page token stack so that
     // Back/Forward restore the matching pagination context.
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- base path is built with resolve(); URL object is needed to append query params
-    goto(url, {
+    void goto(url, {
       replaceState: false,
       invalidateAll,
       state: { storagePrevTokens: [...storage.prevTokens] }

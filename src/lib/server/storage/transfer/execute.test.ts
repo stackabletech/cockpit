@@ -161,7 +161,7 @@ describe('executeTransfer', () => {
     const store = memoryStore({ b: ['docs/a.txt', 'docs/b.txt'] });
     const { source, logger, run } = setup(store);
     source.copyObject.mockImplementationOnce(async () => {
-      throw error(403, 'Access denied to "docs/a.txt"');
+      error(403, 'Access denied to "docs/a.txt"');
     });
 
     const { items } = await run('move', ['docs/']);
@@ -326,7 +326,7 @@ describe('executeTransfer', () => {
       const { source, controller, run } = setup(store);
       source.copyObject.mockImplementationOnce(async () => {
         controller.abort();
-        throw error(502, 'aborted');
+        error(502, 'aborted');
       });
 
       const { items } = await run('copy', ['a.txt']);
@@ -339,7 +339,7 @@ describe('executeTransfer', () => {
     const store = memoryStore({ b: ['a.txt'] });
     const { source, events, run } = setup(store);
     source.exists.mockImplementationOnce(async () => {
-      throw error(403, 'Access denied');
+      error(403, 'Access denied');
     });
 
     const { items } = await run('copy', ['a.txt']);

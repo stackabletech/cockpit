@@ -1,0 +1,7 @@
+{
+  // Lets the typescript-eslint project service type-check the E2E tests, which the root
+  // tsconfig (based on the one SvelteKit generates) doesn't cover.
+  "extends": "../tsconfig.json",
+  "include": ["./**/*.ts"],
+  "exclude": []
+}

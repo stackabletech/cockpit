@@ -12,7 +12,7 @@ import type { RequestHandler } from './$types';
 export const GET: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
   const prefix = event.url.searchParams.get('prefix');
-  if (!prefix) throw error(400, 'Missing required query parameter: prefix');
+  if (!prefix) error(400, 'Missing required query parameter: prefix');
 
   event.locals.logger.debug({ bucket, prefix }, 'fetching directory metadata');
 

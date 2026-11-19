@@ -42,8 +42,8 @@ import TextEditor from './TextEditor.svelte';
 describe('TextEditor', () => {
   const initialLocale = getLocale();
 
-  afterEach(() => {
-    setLocale(initialLocale, { reload: false });
+  afterEach(async () => {
+    await setLocale(initialLocale, { reload: false });
     addAction.mockClear();
   });
 
@@ -57,7 +57,7 @@ describe('TextEditor', () => {
   });
 
   it('uses the active locale for the save action label', async () => {
-    setLocale('de', { reload: false });
+    await setLocale('de', { reload: false });
     render(TextEditor, { value: 'hallo', filename: 'a.txt', onSave: () => {} });
 
     await vi.waitFor(() => expect(addAction).toHaveBeenCalled());

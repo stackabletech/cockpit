@@ -23,23 +23,23 @@ describe('TooltipTrigger', () => {
     render(TooltipTriggerWrapper, { text: 'Delete' });
     await page.getByRole('button', { name: 'Trigger' }).hover();
     await expect.element(page.getByRole('tooltip')).toBeInTheDocument();
-    await userEvent.unhover(await page.getByRole('button', { name: 'Trigger' }).element());
+    await userEvent.unhover(page.getByRole('button', { name: 'Trigger' }).element());
     await expect.element(page.getByRole('tooltip')).not.toBeInTheDocument();
   });
 
   it('shows the tooltip when the trigger receives focus', async () => {
     render(TooltipTriggerWrapper, { text: 'Delete' });
     const button = page.getByRole('button', { name: 'Trigger' });
-    (await button.element()).focus();
+    button.element().focus();
     await expect.element(page.getByRole('tooltip')).toBeInTheDocument();
   });
 
   it('hides the tooltip when the trigger loses focus', async () => {
     render(TooltipTriggerWrapper, { text: 'Delete' });
     const button = page.getByRole('button', { name: 'Trigger' });
-    (await button.element()).focus();
+    button.element().focus();
     await expect.element(page.getByRole('tooltip')).toBeInTheDocument();
-    (await button.element()).blur();
+    button.element().blur();
     await expect.element(page.getByRole('tooltip')).not.toBeInTheDocument();
   });
 
@@ -52,10 +52,8 @@ describe('TooltipTrigger', () => {
   it('renders the tooltip in a portal attached to <body>, not inline in the trigger', async () => {
     render(TooltipTriggerWrapper, { text: 'Delete' });
     await page.getByRole('button', { name: 'Trigger' }).hover();
-    const tooltipEl = (await page.getByRole('tooltip').element()) as HTMLElement;
-    const triggerEl = (await page
-      .getByRole('button', { name: 'Trigger' })
-      .element()) as HTMLElement;
+    const tooltipEl = page.getByRole('tooltip').element() as HTMLElement;
+    const triggerEl = page.getByRole('button', { name: 'Trigger' }).element() as HTMLElement;
     // The popup is portaled: it must not be a descendant of the trigger wrapper.
     expect(triggerEl.contains(tooltipEl)).toBe(false);
     // It is mounted into a host div that is a direct child of <body>.
@@ -67,7 +65,7 @@ describe('TooltipTrigger', () => {
     const dialogEl = document.querySelector('dialog');
     expect(dialogEl).not.toBeNull();
     await page.getByRole('button', { name: 'Trigger' }).hover();
-    const tooltipEl = (await page.getByRole('tooltip').element()) as HTMLElement;
+    const tooltipEl = page.getByRole('tooltip').element() as HTMLElement;
     // The popup must be inside the dialog (top layer), not attached to <body>.
     expect(dialogEl!.contains(tooltipEl)).toBe(true);
   });

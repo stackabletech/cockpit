@@ -114,7 +114,7 @@
     return async ({ formData, result, update }) => {
       cancelDelete();
       ondeletesettled?.(
-        String(formData.get('connectionId')),
+        formData.get('connectionId') as string,
         result.type === 'redirect' || result.type === 'success'
       );
       await update();

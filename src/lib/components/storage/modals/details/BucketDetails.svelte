@@ -163,15 +163,15 @@
 
               <div class="text-muted mb-2 text-xs">
                 <span>{m.storage_details_lifecycle_filter()}:</span>
-                {#if rule.filter && typeof rule.filter === 'object' && 'prefix' in (rule.filter as Record<string, unknown>) && (rule.filter as Record<string, unknown>).prefix}
+                {#if typeof rule.filter.prefix === 'string' && rule.filter.prefix}
                   <span class="text-base-content font-mono leading-none">
                     {m.storage_details_lifecycle_prefix_filter({
-                      prefix: String((rule.filter as Record<string, unknown>).prefix)
+                      prefix: rule.filter.prefix
                     })}
                   </span>
-                {:else if rule.filter && typeof rule.filter === 'object' && 'and' in (rule.filter as Record<string, unknown>)}
+                {:else if rule.filter && typeof rule.filter === 'object' && 'and' in rule.filter}
                   <span class="text-base-content font-mono leading-none">
-                    AND ({(rule.filter as Record<string, unknown>).and as string})
+                    AND ({rule.filter.and as string})
                   </span>
                 {:else if rule.filter && typeof rule.filter === 'object' && Object.keys(rule.filter).length > 0}
                   <span class="text-base-content font-mono leading-none">

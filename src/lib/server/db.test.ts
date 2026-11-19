@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { env, poolOptions, warn, info, trustCaCerts } = vi.hoisted(() => ({
-  env: {} as Record<string, string>,
-  poolOptions: vi.fn(),
-  warn: vi.fn(),
-  info: vi.fn(),
-  trustCaCerts: vi.fn(() => [] as { path: string; certificates: number }[])
-}));
+const { env, poolOptions, warn, info, trustCaCerts } = vi.hoisted(() => {
+  const env: Record<string, string> = {};
+  return {
+    env,
+    poolOptions: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    trustCaCerts: vi.fn((): { path: string; certificates: number }[] => [])
+  };
+});
 
 vi.mock('$env/dynamic/private', () => ({ env }));
 vi.mock('./logging', () => ({
@@ -122,7 +125,7 @@ describe('database environment', () => {
 
       expect(trustCaCerts).toHaveBeenCalledWith(env);
       expect(trustCaCerts.mock.invocationCallOrder[0]).toBeLessThan(
-        poolOptions.mock.invocationCallOrder[0]!
+        poolOptions.mock.invocationCallOrder[0]
       );
       expect(info).toHaveBeenCalledWith(
         { ca_files: [{ path: '/etc/ca/a.crt', certificates: 1 }] },

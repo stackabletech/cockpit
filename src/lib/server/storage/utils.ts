@@ -12,7 +12,7 @@ export function getProvider(
   bucket: string
 ): StorageProvider {
   if (config.type !== 's3') {
-    throw error(400, 'Storage backend not supported');
+    error(400, 'Storage backend not supported');
   }
 
   return StorageProviderFactory.create({ ...config, bucket });
@@ -25,7 +25,7 @@ export function getProvider(
  */
 export function getConnectionProvider(config: StorageConfig | S3ConnectionConfig): StorageProvider {
   if (config.type !== 's3') {
-    throw error(400, 'Storage backend not supported');
+    error(400, 'Storage backend not supported');
   }
 
   return StorageProviderFactory.create({ ...config, bucket: '' });

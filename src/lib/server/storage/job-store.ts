@@ -76,10 +76,10 @@ startCleanup();
  */
 export function createJob(id: string, userId: string, options: CreateJobOptions = {}): void {
   const { allowRestart = true, cancelSettles = true } = options;
-  if (!z.uuid().safeParse(id).success) throw error(400, 'Invalid job ID');
+  if (!z.uuid().safeParse(id).success) error(400, 'Invalid job ID');
   const existing = store.get(id);
   if (existing && (!allowRestart || existing.userId !== userId || existing.status === 'running')) {
-    throw error(409, 'Job already exists');
+    error(409, 'Job already exists');
   }
   if (existing) log.debug({ job_id: id, previous_status: existing.status }, 'restarting job');
   store.set(id, {

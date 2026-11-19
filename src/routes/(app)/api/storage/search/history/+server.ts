@@ -13,7 +13,7 @@ import type { RequestHandler } from './$types';
 function connectionIdFromRequest(request: Request): string {
   const connectionId = request.headers.get(STORAGE_CONNECTION_ID_HEADER);
   if (!connectionId) {
-    throw error(400, 'Missing storage connection ID');
+    error(400, 'Missing storage connection ID');
   }
   return connectionId;
 }
@@ -41,7 +41,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const userId = locals.user!.id;
   const connectionId = connectionIdFromRequest(request);
   const parsed = RecordRecentSearchBodySchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) throw error(400, 'Invalid search history request');
+  if (!parsed.success) error(400, 'Invalid search history request');
   const body = parsed.data;
   const buckets = [...new Set(body.buckets)];
   const query = body.query;

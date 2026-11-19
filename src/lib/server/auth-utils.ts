@@ -11,7 +11,7 @@ export function getUserId(locals: App.Locals): string {
  * shared local user; a request without a user answers 401.
  */
 export function requireUserId(locals: App.Locals): string {
-  if (!locals.user) throw error(401, 'Authentication required');
+  if (!locals.user) error(401, 'Authentication required');
   return locals.user.id;
 }
 

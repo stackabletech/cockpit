@@ -18,6 +18,6 @@ export const GET: RequestHandler = async (event) => {
   } catch (err) {
     if (isHttpError(err)) throw err;
     event.locals.logger.warn({ err, bucket }, 'unexpected error during bucket access check');
-    throw error(502, 'Could not reach bucket');
+    error(502, 'Could not reach bucket');
   }
 };

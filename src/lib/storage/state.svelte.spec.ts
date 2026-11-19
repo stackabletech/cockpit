@@ -746,7 +746,7 @@ describe('executeAction("download")', () => {
     const promise = state.executeAction('download');
     await vi.waitFor(() => expect(state.operations).toHaveLength(1));
 
-    const op = state.operations[0]!;
+    const op = state.operations[0];
     const downloadItems = [
       { key: 'dir/', size: 0, isDirectory: true },
       { key: 'file.txt', size: 100, isDirectory: false },

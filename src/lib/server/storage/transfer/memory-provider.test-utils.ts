@@ -37,7 +37,7 @@ export function memoryProvider(store: MemoryStore, bucket: string) {
     ),
     getMetadata: vi.fn(async (key: string) => {
       const size = objects().get(key);
-      if (size === undefined) throw error(404, `Object "${key}" not found`);
+      if (size === undefined) error(404, `Object "${key}" not found`);
       return { size, lastModified: new Date(0) };
     }),
     listAllKeysProgressively: vi.fn(
@@ -57,7 +57,7 @@ export function memoryProvider(store: MemoryStore, bucket: string) {
     copyObject: vi.fn(async (sourceKey: string, destKey: string, options?: CopyObjectOptions) => {
       if (options?.signal?.aborted) throw abortError();
       const size = store.get(options?.sourceBucket ?? bucket)?.get(sourceKey);
-      if (size === undefined) throw error(404, `Object "${sourceKey}" not found`);
+      if (size === undefined) error(404, `Object "${sourceKey}" not found`);
       objects().set(destKey, size);
     }),
     deleteObjects: vi.fn(async (keys: string[], expandDirectories: boolean) => {
