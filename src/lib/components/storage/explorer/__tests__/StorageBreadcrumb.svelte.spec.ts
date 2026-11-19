@@ -384,29 +384,6 @@ describe('StorageBreadcrumb', () => {
       expect(spy).toHaveBeenCalledWith('test-bucket', '');
     });
 
-    it('should close context menu when clicking outside', async () => {
-      const state = createState({ bucket: 'test-bucket' });
-      render(StorageBreadcrumbWrapper, { state });
-
-      const nav = page.getByRole('navigation', { name: 'breadcrumb' });
-      const bucketEl = nav.getByText('test-bucket');
-      await bucketEl.click({ button: 'right' });
-
-      // Context menu should be open - it's the fixed-position menu
-      const ctxMenuItems = page.getByRole('menuitem');
-      await expect.element(ctxMenuItems.first()).toBeInTheDocument();
-
-      // The backdrop is a fixed inset-0 div that's a sibling before the context menu
-      // Dispatch mousedown on it to trigger closeBreadcrumbCtx
-      const menuEl = (await ctxMenuItems.first().element()) as HTMLElement;
-      const menuUl = menuEl.closest('ul[role="menu"]')!;
-      const backdrop = menuUl.previousElementSibling as HTMLElement;
-      backdrop.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-
-      // Context menu should be closed.
-      await expect.element(page.getByRole('menuitem').first()).not.toBeInTheDocument();
-    });
-
     it('should open context menu on right-click of bucket with prefix', async () => {
       const state = createState({ bucket: 'data', prefix: 'reports/' });
       render(StorageBreadcrumbWrapper, { state });

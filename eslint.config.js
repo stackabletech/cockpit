@@ -145,6 +145,8 @@ export default defineConfig(
     // Generic building blocks: everything comes in through props, so they must not depend on app
     // state, routing or feature modules (see "Component Layers" in AGENTS.md).
     files: ['src/lib/components/ui/**/*.{svelte,ts}'],
+    // Specs may load the global stylesheet to test against the real styles.
+    ignores: ['src/lib/components/ui/**/*.spec.ts'],
     rules: {
       'no-restricted-imports': [
         'error',

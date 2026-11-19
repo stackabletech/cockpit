@@ -22,9 +22,8 @@
   import { storageTransferEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDrop, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import OperationsButton from './OperationsButton.svelte';
-  import ContextMenu from './ContextMenu.svelte';
+  import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
   import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
-  import type { ContextMenuAction } from '$lib/storage/types.js';
 
   const storage = getStorageState();
   const uid = $props.id();

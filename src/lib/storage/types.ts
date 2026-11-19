@@ -1,4 +1,3 @@
-import type { Component } from 'svelte';
 import type { FilePair } from './file-collection.js';
 import type {
   ConflictEntry,
@@ -58,15 +57,6 @@ export type ActiveModal = {
 }[ModalType];
 
 // ── Context menu ─────────────────────────────────────────────────────────────
-
-export interface ContextMenuAction {
-  key: string;
-  icon: Component;
-  label: string;
-  disabled?: boolean;
-  hidden?: boolean;
-  class?: string;
-}
 
 export interface ContextMenuState {
   x: number;

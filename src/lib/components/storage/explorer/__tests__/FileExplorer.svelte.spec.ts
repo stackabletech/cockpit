@@ -154,8 +154,8 @@ describe('FileExplorer', () => {
     const state = createState([makeFile('test.txt')]);
     render(FileExplorerWrapper, { state });
 
-    // Context menu title "Actions" should not be present
-    expect(page.getByText('Actions').elements().length).toBe(0);
+    await expect.element(page.getByText('Page 1')).toBeInTheDocument();
+    expect(document.querySelector('[popover]:popover-open')).toBeNull();
   });
 
   it('should render pagination', async () => {
