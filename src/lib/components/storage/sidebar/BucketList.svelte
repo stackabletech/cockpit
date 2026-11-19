@@ -9,8 +9,8 @@
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import IconGridView from 'virtual:icons/material-symbols/grid-view';
   import IconPowerOff from 'virtual:icons/material-symbols/power-settings-new';
-  import Modal from '$lib/components/Modal.svelte';
-  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
+  import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import FloatingMenu from '../shared/FloatingMenu.svelte';

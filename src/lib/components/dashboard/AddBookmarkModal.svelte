@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import { getProduct, PRODUCTS, type Product } from '$lib/dashboard/products';
   import ProductIcon from './ProductIcon.svelte';
   import {

@@ -10,7 +10,7 @@
   import { storageTransferEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDrop } from '$lib/storage/drag-handlers.js';
   import ContextMenu from './ContextMenu.svelte';
-  import GenericTabBar, { type ExternalTabDrag } from '$lib/components/TabBar.svelte';
+  import GenericTabBar, { type ExternalTabDrag } from '$lib/components/ui/TabBar.svelte';
 
   interface Props {
     tabsState: TabsState;

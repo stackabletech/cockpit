@@ -10,8 +10,8 @@
   import IconBlock from 'virtual:icons/material-symbols/block';
   import * as m from '$lib/paraglide/messages.js';
   import { getLocale } from '$lib/paraglide/runtime.js';
-  import Modal from '$lib/components/Modal.svelte';
-  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
+  import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
   import TextEditor from '$lib/components/editor/TextEditor.svelte';
   import UnsavedConfirmDialog from './UnsavedConfirmDialog.svelte';
   import CsvPreview from './preview/CsvPreview.svelte';

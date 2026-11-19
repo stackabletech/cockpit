@@ -12,11 +12,11 @@
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
   import ResizeHandle from '$lib/components/storage/sidebar/ResizeHandle.svelte';
   import { createResizablePanel } from '$lib/components/storage/sidebar/resizable-panel.svelte.js';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import { superForm } from 'sveltekit-superforms';
   import { zod4Client } from 'sveltekit-superforms/adapters';
   import { ConnectionSchema, type ConnectionMessage } from './validation.js';
-  import TabBar, { tabElementId } from '$lib/components/TabBar.svelte';
+  import TabBar, { tabElementId } from '$lib/components/ui/TabBar.svelte';
   import { tabStore, MAX_SQL_LENGTH } from '$lib/stores/tab-store.svelte.js';
   import {
     getOrCreateQueryRunner,

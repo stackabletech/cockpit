@@ -3,7 +3,7 @@
   import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
   import IconEdit from 'virtual:icons/material-symbols/edit';
   import IconClose from 'virtual:icons/material-symbols/close';
-  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
+  import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
   import { enhance } from '$app/forms';

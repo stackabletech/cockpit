@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import IconLogin from 'virtual:icons/material-symbols/login';
   import * as m from '$lib/paraglide/messages.js';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import { checkSession, sessionState } from '$lib/client/session.svelte';
 
   const SESSION_CHECK_INTERVAL_MS = 60_000;

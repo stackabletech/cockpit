@@ -1,6 +1,6 @@
 <script lang="ts">
   import IconBucket from '../shared/BucketIcon.svelte';
-  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
+  import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
   import IconInfo from 'virtual:icons/material-symbols/info';
   import * as m from '$lib/paraglide/messages.js';
   import { resolve } from '$app/paths';

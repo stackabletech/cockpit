@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import StorageSearchHistoryEntry from '$lib/components/storage/StorageSearchHistoryEntry.svelte';
   import type { RecentSearchEntry } from '$lib/storage/types.js';
   import IconDelete from 'virtual:icons/material-symbols/delete';

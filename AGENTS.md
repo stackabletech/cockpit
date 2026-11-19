@@ -35,7 +35,7 @@ Single SvelteKit application (not a monorepo).
 ├── src/
 │   ├── lib/
 │   │   ├── server/         # Server-only code: auth, db, logging, metrics, feature flags, trino/, storage/
-│   │   ├── components/     # Svelte components (shared ones at top level, per-module subfolders)
+│   │   ├── components/     # Svelte components: ui/ (generic), app-wide at top level and layout/, per-module subfolders
 │   │   ├── client/         # Client-only utilities
 │   │   ├── stores/         # Svelte stores (*.svelte.ts)
 │   │   ├── storage/        # Client-side storage module logic
@@ -140,6 +140,16 @@ Environment variables are parsed with zod at startup using the helpers in `src/l
 
 Document new variables in `README.md` and `.env.example`; don't read `env` ad hoc.
 
+### Component Layers
+
+`src/lib/components/` is split by what a component depends on. Each layer may only use the layers above it:
+
+1. **`ui/`** — generic building blocks (`Modal`, `TooltipTrigger`, `TabBar`, ...). Data comes in through props, results go out through callbacks or `bind:`. They may import Svelte, icons, Paraglide messages, `$lib/types` and other `ui/` components, nothing else (enforced by ESLint).
+2. **Top level and `layout/`** — app-wide components that know the app (stores, routes, session), e.g. `ErrorPanel`, `ToastHost`, the header and sidebar.
+3. **`<module>/`** — feature components. Pieces shared only within one module go into `<module>/shared/`; move them to `ui/` once a second module needs them and they have no module dependencies.
+
+Before writing a new component, check DaisyUI and the existing `ui/` components.
+
 ### Code Style & Best Practices
 
 - Run `npm run format`.
@@ -213,7 +223,7 @@ pre-commit run --all-files   # All of the above plus markdownlint, yamllint, she
 
 Most conventions in this file are checked automatically; fix violations instead of disabling rules.
 
-- **ESLint** (`eslint.config.js`): no server imports from client code (`src/lib/client`, `stores`, `storage`, `editor`, `types`) and vice versa, file naming (PascalCase components, stores as `*.svelte.ts`), file size limits (`max-lines`), no `<dialog>` outside `Modal.svelte`, a subset of hard-coded colour classes (`bg-white`, `text-gray-*`, ...), no `console` in server code.
+- **ESLint** (`eslint.config.js`): no server imports from client code (`src/lib/client`, `stores`, `storage`, `editor`, `types`) and vice versa, file naming (PascalCase components, stores as `*.svelte.ts`), file size limits (`max-lines`), no `<dialog>` outside `ui/Modal.svelte`, `ui/` components importing app code, a subset of hard-coded colour classes (`bg-white`, `text-gray-*`, ...), no `console` in server code.
 - **Architecture tests** (`npm run test:arch`, `src/architecture-tests/`): no circular dependencies in `src/lib` and `src/routes`, i18n key parity and no unused message keys, no static English `aria-label`, no native date inputs, `<img>` with `alt`, no clickable `<div>`/`<span>`, no low-opacity `text-base-content` for text (use `text-muted`). `npm run test:arch:report` additionally writes dependency/metrics reports to `reports/`.
 
 When you add a new architectural rule, prefer an ESLint rule; otherwise add a `.spec.ts` in `src/architecture-tests/` following the existing patterns.

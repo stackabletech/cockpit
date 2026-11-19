@@ -3,7 +3,7 @@
   import IconFolder from 'virtual:icons/material-symbols/folder-outline';
   import IconDescription from 'virtual:icons/material-symbols/description-outline';
   import * as m from '$lib/paraglide/messages.js';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import { formatFileSize } from '$lib/storage/utils.js';
 
   interface MoveItem {

@@ -7,7 +7,7 @@
   import { zod4Client as zod } from 'sveltekit-superforms/adapters';
   import IconInfo from 'virtual:icons/material-symbols/info';
   import * as m from '$lib/paraglide/messages.js';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import {
     EditStorageConnectionSchema,
     type StorageConnectionMessage
