@@ -487,6 +487,8 @@
   "storage_upload_status_skipped": "übersprungen",
   "storage_upload_status_failed": "fehlgeschlagen",
   "storage_upload_complete_title": "Upload abgeschlossen",
+  "storage_upload_partial_title": "Upload mit Fehlern abgeschlossen",
+  "storage_upload_failed_title": "Upload fehlgeschlagen",
   "storage_upload_complete_summary": "{uploaded} hochgeladen · {skipped} übersprungen · {failed} fehlgeschlagen",
   "storage_upload_done": "Fertig",
   "storage_upload_success": "Datei erfolgreich hochgeladen.",
