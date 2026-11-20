@@ -3,8 +3,8 @@ apiVersion: v2
 name: cockpit
 description: Stackable Cockpit, the UI for the Stackable Data Platform (SDP)
 type: application
-version: 26.11.0-rc1
-appVersion: "26.11.0-rc1"
+version: 26.11.0
+appVersion: "26.11.0"
 home: https://stackable.tech
 sources:
   - https://github.com/stackabletech/cockpit
