@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
@@ -27,7 +27,7 @@ const defaultProps = {
   open: true,
   bucket: faker.word.noun(),
   prefix: '',
-  onSuccess: vi.fn()
+  onUploaded: vi.fn()
 };
 
 /** Helper: select files via the hidden file input inside the dropzone */
@@ -275,14 +275,14 @@ describe('UploadModal', () => {
       await expect.element(page.getByRole('button', { name: /done/i })).toBeInTheDocument();
     });
 
-    it('should call onSuccess when done is clicked after uploads', async () => {
+    it('should call onUploaded when done is clicked after uploads', async () => {
       render(UploadModal, defaultProps);
       await selectAndUpload([createFile('a.txt')]);
 
       await page.getByRole('button', { name: /done/i }).click();
       await tick();
 
-      expect(defaultProps.onSuccess).toHaveBeenCalled();
+      expect(defaultProps.onUploaded).toHaveBeenCalled();
     });
   });
 
@@ -532,17 +532,106 @@ describe('UploadModal', () => {
 
       await expect.element(page.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     });
+
+    /** The first `succeeding` uploads finish, later ones hang until aborted. */
+    function mockUploadsHangingAfter(succeeding: number) {
+      const signals: AbortSignal[] = [];
+      mockUploadFile.mockImplementation(
+        (_b: string, _k: string, _f: File, _p: unknown, _c: string, signal: AbortSignal) => {
+          signals.push(signal);
+          if (signals.length <= succeeding) return Promise.resolve();
+          return new Promise<void>((_, reject) => {
+            signal.addEventListener('abort', () => reject(new StorageError('unknown', 'Aborted')));
+          });
+        }
+      );
+      return signals;
+    }
+
+    /**
+     * Uploads `files` files of which the first `succeeding` finish and the rest
+     * hang; resolves to the abort signals of all upload calls.
+     */
+    async function startHangingUpload({ files = 4, succeeding = 3 } = {}) {
+      const signals = mockUploadsHangingAfter(succeeding);
+      render(UploadModal, defaultProps);
+      selectFiles(Array.from({ length: files }, (_, i) => createFile(`file-${i}.txt`)));
+      await tick();
+      await page.getByRole('button', { name: /upload/i }).click();
+      await vi.waitFor(() => expect(mockUploadFile).toHaveBeenCalledTimes(files));
+      return signals;
+    }
+
+    it('should abort the upload and refresh when cancelled after some files were uploaded', async () => {
+      const signals = await startHangingUpload();
+
+      await page.getByRole('button', { name: /cancel/i }).click();
+
+      await vi.waitFor(() => expect(defaultProps.onUploaded).toHaveBeenCalledOnce());
+      expect(signals.at(-1)?.aborted).toBe(true);
+    });
+
+    it('should ask before Escape stops the upload, then abort and refresh', async () => {
+      const signals = await startHangingUpload();
+
+      await userEvent.keyboard('{Escape}');
+      await page.getByRole('button', { name: 'Stop upload' }).click();
+
+      await vi.waitFor(() => expect(defaultProps.onUploaded).toHaveBeenCalledOnce());
+      expect(signals.at(-1)?.aborted).toBe(true);
+    });
+
+    it('should ask before the close button stops the upload', async () => {
+      const signals = await startHangingUpload();
+
+      await page.getByRole('button', { name: 'Close' }).click();
+      await page.getByRole('button', { name: 'Stop upload' }).click();
+
+      await vi.waitFor(() => expect(defaultProps.onUploaded).toHaveBeenCalledOnce());
+      expect(signals.at(-1)?.aborted).toBe(true);
+      await expect
+        .element(page.getByRole('heading', { name: 'Upload', exact: true }))
+        .not.toBeInTheDocument();
+    });
+
+    it('should keep uploading when closing is not confirmed', async () => {
+      const signals = await startHangingUpload();
+
+      await page.getByRole('button', { name: 'Close' }).click();
+      await page.getByRole('button', { name: 'Continue upload' }).click();
+
+      await expect
+        .element(page.getByRole('button', { name: 'Continue upload' }))
+        .not.toBeInTheDocument();
+      expect(signals.at(-1)?.aborted).toBe(false);
+      expect(defaultProps.onUploaded).not.toHaveBeenCalled();
+      // The upload list is still shown.
+      await expect.element(page.getByRole('list', { name: /upload/i })).toBeVisible();
+
+      // Stop it so the test ends cleanly.
+      await page.getByRole('button', { name: /cancel/i }).click();
+    });
+
+    it('should not refresh when cancelled before any file was uploaded', async () => {
+      const signals = await startHangingUpload({ files: 1, succeeding: 0 });
+
+      await page.getByRole('button', { name: /cancel/i }).click();
+      await vi.waitFor(() => expect(signals[0]?.aborted).toBe(true));
+      await tick();
+
+      expect(defaultProps.onUploaded).not.toHaveBeenCalled();
+    });
   });
 
   describe('done handler', () => {
-    it('should call onSuccess when there are uploaded files', async () => {
+    it('should call onUploaded when there are uploaded files', async () => {
       render(UploadModal, defaultProps);
       await selectAndUpload([createFile('a.txt')]);
 
       await page.getByRole('button', { name: /done/i }).click();
       await tick();
 
-      expect(defaultProps.onSuccess).toHaveBeenCalledOnce();
+      expect(defaultProps.onUploaded).toHaveBeenCalledOnce();
     });
   });
 

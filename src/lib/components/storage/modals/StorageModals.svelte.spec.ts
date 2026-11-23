@@ -29,7 +29,7 @@ function createMockStorageState(activeModal: unknown = null): StorageState {
     closeModal: vi.fn(),
     confirmDelete: vi.fn(),
     cancelDelete: vi.fn(),
-    handleUploadSuccess: vi.fn()
+    refresh: vi.fn()
   } as unknown as StorageState;
 }
 

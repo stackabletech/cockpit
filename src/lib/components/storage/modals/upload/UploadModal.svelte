@@ -28,10 +28,11 @@
     bucket: string;
     prefix: string;
     initialFiles?: FilePair[];
-    onSuccess: () => void;
+    /** Also called when an upload is cancelled after some files were uploaded. */
+    onUploaded: () => void;
   }
 
-  let { open = $bindable(false), bucket, prefix, initialFiles = [], onSuccess }: Props = $props();
+  let { open = $bindable(false), bucket, prefix, initialFiles = [], onUploaded }: Props = $props();
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -45,7 +46,11 @@
   let uploadButton = $state<HTMLButtonElement>();
   /** Aborts the requests of the running upload. */
   let uploadAbort: AbortController | null = null;
-  let leaveConfirmOpen = $state(false);
+  /** Leaving the page: refreshing the listing would navigate back to it. */
+  let leaving = false;
+  /** Asks before an upload is stopped by leaving the page or closing the modal. */
+  let stopConfirmOpen = $state(false);
+  let stopReason = $state<'leave' | 'close'>('close');
   let pendingLeave: BeforeNavigate | null = null;
 
   // Initialise on opening as well: the parent can mount this modal closed
@@ -59,6 +64,14 @@
         checkFailed = false;
       });
     } else {
+      // Closing stops the flow whichever way the modal was closed (Cancel,
+      // Escape, backdrop) and aborts the requests in flight.
+      untrack(() => {
+        if (phase === 'checking' || phase === 'uploading') {
+          cancelRequested = true;
+          uploadAbort?.abort();
+        }
+      });
       phase = 'idle';
       entries = [];
       checkFailed = false;
@@ -206,6 +219,9 @@
   }
 
   async function doUploadAll() {
+    // Captured now: a cancel closes and unmounts the modal while requests are in flight.
+    const notifyUploaded = onUploaded;
+    let anyUploaded = false;
     phase = 'uploading';
     uploadAbort = new AbortController();
 
@@ -223,15 +239,22 @@
         );
         break;
       }
-      await Promise.all(toUpload.slice(i, i + uploadConcurrency).map(doUploadEntry));
+      const results = await Promise.all(
+        toUpload.slice(i, i + uploadConcurrency).map(doUploadEntry)
+      );
+      if (results.includes(true)) anyUploaded = true;
     }
 
     if (!cancelRequested) {
       phase = 'complete';
+    } else if (anyUploaded && !leaving) {
+      // Cancelled part-way: there is no Done button to refresh the listing.
+      notifyUploaded();
     }
   }
 
-  async function doUploadEntry(entry: FileEntry) {
+  /** Uploads one entry; resolves to whether it was uploaded. */
+  async function doUploadEntry(entry: FileEntry): Promise<boolean> {
     const key = resolvedKey(entry);
     entries = entries.map((e) =>
       e.id === entry.id ? { ...e, status: 'uploading' as const, progress: 0 } : e
@@ -251,12 +274,14 @@
       entries = entries.map((e) =>
         e.id === entry.id ? { ...e, status: 'done' as const, progress: 100 } : e
       );
+      return true;
     } catch (err) {
       const msg =
         err instanceof StorageError ? mapUploadError(err) : m.storage_upload_error_unknown();
       entries = entries.map((e) =>
         e.id === entry.id ? { ...e, status: 'error' as const, errorMessage: msg } : e
       );
+      return false;
     }
   }
 
@@ -343,19 +368,34 @@
   function handleDone() {
     const hasUploads = uploadedCount > 0;
     open = false;
-    if (hasUploads) onSuccess();
+    if (hasUploads) onUploaded();
   }
 
   function handleCancel() {
-    if (phase === 'uploading') {
-      cancelRequested = true;
-      open = false;
-      return;
-    }
-    cancelRequested = true;
-    phase = 'idle';
-    entries = [];
+    // The close effect stops a running check or upload and resets the state.
     open = false;
+  }
+
+  // ── Closing during an upload ───────────────────────────────────────────────
+
+  // The X, Escape and the backdrop close the modal by the way; ask before that
+  // stops a running upload. The explicit Cancel button stops it right away.
+  function confirmClose(): boolean {
+    if (phase !== 'uploading') return true;
+    stopReason = 'close';
+    stopConfirmOpen = true;
+    return false;
+  }
+
+  function handleCloseButton() {
+    if (confirmClose()) handleCancel();
+  }
+
+  function stopUploadAndClose() {
+    stopConfirmOpen = false;
+    // The upload may have finished while the confirmation was open.
+    if (phase === 'complete') handleDone();
+    else open = false;
   }
 
   // ── Leaving during an upload ───────────────────────────────────────────────
@@ -367,20 +407,20 @@
     navigation.cancel();
     if (navigation.type === 'leave' || !navigation.to) return;
     pendingLeave = navigation;
-    leaveConfirmOpen = true;
+    stopReason = 'leave';
+    stopConfirmOpen = true;
   });
 
-  function stayOnPage() {
+  function continueUpload() {
     pendingLeave = null;
-    leaveConfirmOpen = false;
+    stopConfirmOpen = false;
   }
 
   async function stopUploadAndLeave() {
     const navigation = pendingLeave;
     pendingLeave = null;
-    leaveConfirmOpen = false;
-    cancelRequested = true;
-    uploadAbort?.abort();
+    stopConfirmOpen = false;
+    leaving = true;
     open = false;
     // Closing resets the phase, so the navigation below is no longer held up.
     await tick();
@@ -417,7 +457,7 @@
   }
 </script>
 
-<Modal bind:open>
+<Modal bind:open closeguard={confirmClose}>
   <div class="modal-box w-full max-w-lg">
     <!-- Header -->
     <div class="mb-4 flex items-center justify-between">
@@ -427,7 +467,7 @@
       <div class="tooltip tooltip-bottom" data-tip={m.storage_upload_close()}>
         <button
           class="btn btn-ghost btn-sm btn-square"
-          onclick={handleCancel}
+          onclick={handleCloseButton}
           aria-label={m.storage_upload_close()}
         >
           <IconClose class="size-5" aria-hidden="true" />
@@ -628,20 +668,31 @@
   </div>
 </Modal>
 
-<Modal bind:open={leaveConfirmOpen} aria-labelledby="{uid}-leave-title">
+<Modal bind:open={stopConfirmOpen} aria-labelledby="{uid}-stop-title">
   <div class="modal-box max-w-sm">
-    <h3 id="{uid}-leave-title" class="mb-3 flex items-center gap-2 text-lg font-bold">
+    <h3 id="{uid}-stop-title" class="mb-3 flex items-center gap-2 text-lg font-bold">
       <IconWarning class="text-warning size-5 shrink-0" aria-hidden="true" />
       {m.storage_upload_leave_title()}
     </h3>
-    <p class="text-base-content/80 text-sm">{m.storage_upload_leave_desc()}</p>
+    <p class="text-base-content/80 text-sm">
+      {stopReason === 'leave' ? m.storage_upload_leave_desc() : m.storage_upload_close_desc()}
+    </p>
     <div class="modal-action mt-6">
-      <button class="btn btn-ghost btn-sm" onclick={stayOnPage}>
-        {m.storage_upload_leave_stay()}
-      </button>
-      <button class="btn btn-error btn-sm" onclick={stopUploadAndLeave}>
-        {m.storage_upload_leave_confirm()}
-      </button>
+      {#if stopReason === 'leave'}
+        <button class="btn btn-ghost btn-sm" onclick={continueUpload}>
+          {m.storage_upload_leave_stay()}
+        </button>
+        <button class="btn btn-error btn-sm" onclick={stopUploadAndLeave}>
+          {m.storage_upload_leave_confirm()}
+        </button>
+      {:else}
+        <button class="btn btn-ghost btn-sm" onclick={continueUpload}>
+          {m.storage_upload_close_continue()}
+        </button>
+        <button class="btn btn-error btn-sm" onclick={stopUploadAndClose}>
+          {m.storage_upload_close_confirm()}
+        </button>
+      {/if}
     </div>
   </div>
 </Modal>
