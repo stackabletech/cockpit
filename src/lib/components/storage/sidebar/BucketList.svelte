@@ -1,7 +1,6 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { resolve } from '$app/paths';
-  import { beforeNavigate } from '$app/navigation';
-  import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
   import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
   import IconInfo from 'virtual:icons/material-symbols/info';
   import IconBucket from '../shared/BucketIcon.svelte';
@@ -13,7 +12,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
-  import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
+  import type { PinnedLocation } from '$lib/storage/types.js';
   import { parseStorageDrop, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import { locationLabel, locationHref } from '$lib/storage/display-helpers.js';
   import { createResizablePanel } from './resizable-panel.svelte.js';
@@ -46,17 +45,17 @@
     return activeBucket === pin.bucket && activePrefix === pin.prefix;
   }
 
-  // ── Unpin context menu ────────────────────────────────────────────────────
-  let unpinCtx = $state<({ x: number; y: number } & StorageLocation) | null>(null);
-  function openUnpinMenuFromButton(e: MouseEvent, pin: PinnedLocation) {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    unpinCtx = { x: rect.right, y: rect.bottom, bucket: pin.bucket, prefix: pin.prefix };
-  }
+  // ── Unpin ───────────────────────────────────────────────────────────────
+  let pinnedListEl = $state<HTMLUListElement>();
+  let allBucketsLink = $state<HTMLAnchorElement>();
 
-  function closeUnpinMenu() {
-    unpinCtx = null;
+  /** Unpins and moves focus to the next unpin button, as the clicked one disappears with its row. */
+  async function unpin(pin: PinnedLocation, index: number) {
+    storage.bookmarks.unpin(pin.bucket, pin.prefix);
+    await tick();
+    const buttons = pinnedListEl?.querySelectorAll<HTMLElement>('[data-unpin]') ?? [];
+    (buttons[Math.min(index, buttons.length - 1)] ?? allBucketsLink)?.focus();
   }
-  beforeNavigate(closeUnpinMenu);
 
   // ── Bucket details context menu ───────────────────────────────────────────
   let bucketCtx = $state<{ x: number; y: number; bucket: string } | null>(null);
@@ -72,10 +71,6 @@
 
   function openBucketDetails() {
     if (bucketCtx) storage.openModal('details', { type: 'bucket', bucket: bucketCtx.bucket });
-  }
-
-  function handleUnpin() {
-    if (unpinCtx) storage.bookmarks.unpin(unpinCtx.bucket, unpinCtx.prefix);
   }
 
   // ── Drag-drop targets for sidebar items ────────────────────────────────
@@ -103,16 +98,6 @@
   }
 </script>
 
-<ContextMenu
-  x={unpinCtx?.x ?? 0}
-  y={unpinCtx?.y ?? 0}
-  open={unpinCtx !== null}
-  onclose={closeUnpinMenu}
-  onaction={handleUnpin}
-  actions={[{ key: 'unpin', icon: IconPushPinOutline, label: m.storage_action_unpin() }]}
-  title={m.storage_context_menu_actions()}
-/>
-
 <nav
   class="
     border-base-300 bg-base-100 relative flex shrink-0 flex-col
@@ -134,8 +119,8 @@
             {m.storage_pinned_label()}
           </span>
         </div>
-        <ul class="py-1" role="list">
-          {#each storage.bookmarks.pinnedLocations as pin (pin.bucket + '::' + pin.prefix)}
+        <ul bind:this={pinnedListEl} class="py-1" role="list">
+          {#each storage.bookmarks.pinnedLocations as pin, index (pin.bucket + '::' + pin.prefix)}
             {@const active = isPinnedActive(pin)}
             <li class="group relative">
               <TooltipTrigger text={locationLabel(pin)} orientation="right">
@@ -160,17 +145,19 @@
                   <span class="truncate">{locationLabel(pin)}</span>
                 </a>
               </TooltipTrigger>
-              <TooltipTrigger text={m.storage_more_options()} orientation="right">
+              <TooltipTrigger text={m.storage_action_unpin()} orientation="right">
                 <button
+                  type="button"
                   class="
                     btn btn-ghost btn-xs absolute top-1/2 right-1 z-150 -translate-y-1/2
                     p-0 opacity-0 transition-opacity
                     group-hover:opacity-100 focus:opacity-100
                   "
-                  onclick={(e) => openUnpinMenuFromButton(e, pin)}
-                  aria-label={m.storage_more_options()}
+                  data-unpin
+                  onclick={() => unpin(pin, index)}
+                  aria-label={m.storage_unpin_location({ label: locationLabel(pin) })}
                 >
-                  <IconMoreHoriz class="size-3.5" aria-hidden="true" />
+                  <IconPushPinOutline class="size-3.5" aria-hidden="true" />
                 </button>
               </TooltipTrigger>
             </li>
@@ -192,6 +179,7 @@
         {m.storage_buckets_label()}
       </span>
       <a
+        bind:this={allBucketsLink}
         href={resolve('/storage')}
         data-sveltekit-preload-data="off"
         class="btn btn-ghost btn-xs group tooltip tooltip-right z-150 before:z-200"
