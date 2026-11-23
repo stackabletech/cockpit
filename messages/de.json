@@ -666,6 +666,7 @@
   "storage_details_lifecycle_tag_filter": "Tag: {key} = {value}",
   "storage_details_lifecycle_size_greater_filter": "Größe > {size}",
   "storage_details_lifecycle_size_less_filter": "Größe < {size}",
+  "storage_details_lifecycle_size_exact": "{size} ({bytes} Byte)",
   "storage_details_lifecycle_all_objects": "Alle Objekte",
   "storage_details_lifecycle_no_rules": "Keine Lebenszyklus-Regeln konfiguriert",
   "storage_details_tags": "Tags",

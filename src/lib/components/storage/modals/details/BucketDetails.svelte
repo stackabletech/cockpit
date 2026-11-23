@@ -11,6 +11,7 @@
     LifecycleFilter
   } from '$lib/storage/details-types.js';
   import { formatFileSize } from '$lib/storage/utils.js';
+  import { getLocale } from '$lib/paraglide/runtime.js';
 
   interface Props {
     bucket: string;
@@ -22,7 +23,16 @@
 
   /** One label per filter condition; S3 requires all of them to match. */
   function lifecycleFilterConditions(filter: LifecycleFilter): string[] {
-    const size = (bytes: number) => formatFileSize(bytes, undefined, {});
+    // S3 size limits are exact byte counts; the rounded size alone can hide the real limit.
+    const size = (bytes: number) => {
+      const rounded = formatFileSize(bytes, undefined, {});
+      return bytes < 1000
+        ? rounded
+        : m.storage_details_lifecycle_size_exact({
+            size: rounded,
+            bytes: bytes.toLocaleString(getLocale())
+          });
+    };
     return [
       ...(filter.prefix
         ? [m.storage_details_lifecycle_prefix_filter({ prefix: filter.prefix })]

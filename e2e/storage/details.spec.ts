@@ -254,8 +254,9 @@ test.describe('Storage S3 — Details Modal', () => {
               rule('combined', {
                 prefix: 'tmp/',
                 tags: [{ key: 'team', value: 'data' }],
-                objectSizeGreaterThan: 1_000_000
+                objectSizeGreaterThan: 1_048_576
               }),
+              rule('small', { objectSizeLessThan: 512 }),
               rule('everything', {})
             ],
             tags: {},
@@ -275,8 +276,11 @@ test.describe('Storage S3 — Details Modal', () => {
     await expect(modal.getByText('Prefix: logs/')).toBeVisible();
     await expect(modal.getByText('Prefix: tmp/')).toBeVisible();
     await expect(modal.getByText('Tag: team = data')).toBeVisible();
-    await expect(modal.getByText('Size > 1 MB')).toBeVisible();
-    await expect(modal).toContainText('Prefix: tmp/ and Tag: team = data and Size > 1 MB');
+    await expect(modal.getByText('Size > 1.05 MB (1,048,576 bytes)')).toBeVisible();
+    await expect(modal).toContainText(
+      'Prefix: tmp/ and Tag: team = data and Size > 1.05 MB (1,048,576 bytes)'
+    );
+    await expect(modal.getByText('Size < 512 B', { exact: true })).toBeVisible();
     await expect(modal.getByText('All objects')).toHaveCount(1);
     await expect(modal.getByText(/[{}]/)).toHaveCount(0);
   });
