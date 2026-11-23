@@ -808,11 +808,6 @@ export class StorageState {
     this.closeModal();
   };
 
-  handleUploadSuccess = (): void => {
-    this.closeModal();
-    this.refresh();
-  };
-
   // ── Delegate methods ───────────────────────────────────────────────────────
 
   /** Delegated to clipboardState. */

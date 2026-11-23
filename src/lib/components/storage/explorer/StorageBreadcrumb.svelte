@@ -174,9 +174,9 @@
     const ctx = breadcrumbCtx;
     if (!ctx) return;
     if (key === 'copy-filename') {
-      storage.copyFilename(ctx.prefix);
+      void storage.copyFilename(ctx.prefix);
     } else if (key === 'copy-path') {
-      storage.copyPath(ctx.bucket, ctx.prefix);
+      void storage.copyPath(ctx.bucket, ctx.prefix);
     } else if (key === 'pin-toggle') {
       if (storage.bookmarks.isPinned(ctx.bucket, ctx.prefix)) {
         storage.bookmarks.unpin(ctx.bucket, ctx.prefix);
@@ -467,7 +467,7 @@
             if (storage.archive.nestedArchivePath) {
               storage.archive.navigateToOuterArchiveRoot();
             } else {
-              storage.archive.navigateInArchive('');
+              void storage.archive.navigateInArchive('');
             }
           }}
         >
@@ -631,7 +631,7 @@
               ? uid + '-create-name-error'
               : undefined}
             onkeydown={(e) => {
-              if (e.key === 'Enter') handleCreate();
+              if (e.key === 'Enter') void handleCreate();
               if (e.key === 'Escape') closeCreate();
             }}
           />

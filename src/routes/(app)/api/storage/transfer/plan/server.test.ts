@@ -141,7 +141,7 @@ describe('POST /api/storage/transfer/plan', () => {
     state.wrap = (provider) => ({
       ...provider,
       exists: async () => {
-        throw error(403, 'Access denied');
+        error(403, 'Access denied');
       }
     });
     await expect(POST(event(plan(['a.txt'])))).rejects.toMatchObject({ status: 403 });

@@ -148,9 +148,7 @@ test.describe('Storage S3 — Context Menu', () => {
       await page.getByRole('button', { name: 'Delete permanently' }).click();
 
       await expect(page.getByText('This folder is empty')).toBeVisible();
-      await expect(await objectExists(client, credentials.bucket, `${prefix}ctx-del.txt`)).toBe(
-        false
-      );
+      expect(await objectExists(client, credentials.bucket, `${prefix}ctx-del.txt`)).toBe(false);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

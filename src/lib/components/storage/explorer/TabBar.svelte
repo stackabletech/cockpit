@@ -121,10 +121,10 @@
       tabsState.closeTab(tabId);
     } else if (key === 'copy-filename') {
       const tab = tabsState.tabs.find((t) => t.id === tabId);
-      if (tab) storage.copyFilename(tab.snapshot.prefix);
+      if (tab) void storage.copyFilename(tab.snapshot.prefix);
     } else if (key === 'copy-path') {
       const tab = tabsState.tabs.find((t) => t.id === tabId);
-      if (tab) storage.copyPath(tab.snapshot.bucket, tab.snapshot.prefix);
+      if (tab) void storage.copyPath(tab.snapshot.bucket, tab.snapshot.prefix);
     }
   }
 

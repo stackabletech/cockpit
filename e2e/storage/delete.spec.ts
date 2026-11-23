@@ -47,12 +47,10 @@ test.describe('Storage S3 — Delete & Selection', () => {
       await page.getByRole('dialog').getByRole('button', { name: 'Delete permanently' }).click();
 
       await expect(page.getByText('This folder is empty')).toBeVisible();
-      await expect(await objectExists(client, credentials.bucket, `${prefix}remove-me.txt`)).toBe(
+      expect(await objectExists(client, credentials.bucket, `${prefix}remove-me.txt`)).toBe(false);
+      expect(await objectExists(client, credentials.bucket, `${prefix}archive/nested.txt`)).toBe(
         false
       );
-      await expect(
-        await objectExists(client, credentials.bucket, `${prefix}archive/nested.txt`)
-      ).toBe(false);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }
@@ -151,7 +149,7 @@ test.describe('Storage S3 — Delete & Selection', () => {
           page.getByRole('menuitem', { name: 'Download' }).click()
         ]);
         expect(await download.failure()).toBeNull();
-        expect(await readFile((await download.path())!, 'utf8')).toBe(body);
+        expect(await readFile(await download.path(), 'utf8')).toBe(body);
       }
 
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
@@ -193,9 +191,7 @@ test.describe('Storage S3 — Delete & Selection', () => {
 
       await expect(page.getByText('This action cannot be undone.')).not.toBeVisible();
       await expect(rowByName(page, 'keep-me.txt')).toBeVisible();
-      await expect(await objectExists(client, credentials.bucket, `${prefix}keep-me.txt`)).toBe(
-        true
-      );
+      expect(await objectExists(client, credentials.bucket, `${prefix}keep-me.txt`)).toBe(true);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
     }

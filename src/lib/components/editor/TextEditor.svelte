@@ -240,39 +240,39 @@
     cleanups.push(() => document.removeEventListener('keydown', handleZoomKeys));
 
     // Bind keyboard shortcuts to the built-in font zoom commands
-    const zoomDisposable = monaco!.editor.addKeybindingRules([
+    const zoomDisposable = monaco.editor.addKeybindingRules([
       {
-        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyCode.Equal,
+        keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyCode.Equal,
         command: 'editor.action.fontZoomIn',
         when: 'editorFocus'
       },
       {
-        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyMod.Shift | monaco!.KeyCode.Equal,
+        keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Equal,
         command: 'editor.action.fontZoomIn',
         when: 'editorFocus'
       },
       {
-        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyCode.NumpadAdd,
+        keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyCode.NumpadAdd,
         command: 'editor.action.fontZoomIn',
         when: 'editorFocus'
       },
       {
-        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyCode.Minus,
+        keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyCode.Minus,
         command: 'editor.action.fontZoomOut',
         when: 'editorFocus'
       },
       {
-        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyCode.NumpadSubtract,
+        keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyCode.NumpadSubtract,
         command: 'editor.action.fontZoomOut',
         when: 'editorFocus'
       },
       {
-        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyCode.Digit0,
+        keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyCode.Digit0,
         command: 'editor.action.fontZoomReset',
         when: 'editorFocus'
       },
       {
-        keybinding: monaco!.KeyMod.CtrlCmd | monaco!.KeyCode.Numpad0,
+        keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyCode.Numpad0,
         command: 'editor.action.fontZoomReset',
         when: 'editorFocus'
       }

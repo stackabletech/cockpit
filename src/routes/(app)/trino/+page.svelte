@@ -169,7 +169,7 @@
     for (const [tabId, snapshot] of Object.entries(data.activeQueries)) {
       getOrCreateQueryRunner(tabId).initialise(snapshot);
     }
-    getOrCreateQueryRunner(tabStore.activeTabId).fetchResults();
+    void getOrCreateQueryRunner(tabStore.activeTabId).fetchResults();
   });
 
   const isActive = $derived(runner.state !== 'IDLE' && !isTerminal(runner.state));
@@ -214,7 +214,7 @@
       }
 
       lastTabId = currentTabId;
-      getOrCreateQueryRunner(currentTabId).fetchResults();
+      void getOrCreateQueryRunner(currentTabId).fetchResults();
     });
   });
 
@@ -301,7 +301,7 @@
   function runStatements(statements: SqlStatement[]) {
     if (statements.length === 0) return;
     submittedStatements = statements;
-    runner.executeScript(statements, execOptions);
+    void runner.executeScript(statements, execOptions);
   }
 
   /** Ctrl+Enter: run the single statement at the cursor. */
@@ -379,8 +379,10 @@
     destroyQueryRunner(id);
     viewStates.delete(id);
     tabStore.closeTab(id);
-    // Clean up server-side query state for this tab.
-    fetch(`/api/trino/query?tabId=${encodeURIComponent(id)}&cleanup=true`, { method: 'DELETE' });
+    // Clean up server-side query state for this tab. Best effort: the server drops it eventually anyway.
+    fetch(`/api/trino/query?tabId=${encodeURIComponent(id)}&cleanup=true`, {
+      method: 'DELETE'
+    }).catch(() => {});
   }
 
   function handleTabAdd() {

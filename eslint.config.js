@@ -17,7 +17,7 @@ export default defineConfig(
   includeIgnoreFile(gitignorePath),
   { ignores: ['src/lib/editor/generated/**'] },
   js.configs.recommended,
-  ...ts.configs.recommended,
+  ...ts.configs.recommendedTypeChecked,
   ...svelte.configs.recommended,
   { ...security.configs.recommended, files: ['**/*.ts'] },
   prettier,
@@ -44,14 +44,36 @@ export default defineConfig(
     }
   },
   {
-    files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        projectService: {
+          // Root config files that no tsconfig includes.
+          allowDefaultProject: [
+            'drizzle.config.ts',
+            'playwright.config.ts',
+            'vitest.arch.config.ts'
+          ]
+        },
         extraFileExtensions: ['.svelte'],
         parser: ts.parser
       }
+    },
+    rules: {
+      // Untyped JSON, third-party data and test mocks make up nearly all of the ~1,000 hits;
+      // svelte-check with `strict` already covers the typed code. See #411.
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      // Mostly async functions that implement an async interface without awaiting; style, not bugs.
+      '@typescript-eslint/require-await': 'off'
     }
+  },
+  {
+    // Plain JS files (root configs, server.js, CLI scripts) are outside every tsconfig.
+    files: ['**/*.js', '**/*.mjs'],
+    ...ts.configs.disableTypeChecked
   },
   {
     files: ['src/**/*.svelte'],
@@ -100,6 +122,18 @@ export default defineConfig(
     // Tests read and write fixtures and temp files they create themselves.
     files: ['**/*.{test,spec}.ts', 'e2e/**/*.ts', 'src/architecture-tests/**/*.ts'],
     rules: { 'security/detect-non-literal-fs-filename': 'off' }
+  },
+  {
+    files: ['**/*.{test,spec}.ts', '**/*.test-utils.ts'],
+    rules: {
+      // `expect(mock.method).toHaveBeenCalled()` passes methods around unbound by design.
+      '@typescript-eslint/unbound-method': 'off',
+      // Async `mockImplementation()`s for mocks typed with a void return.
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        { checksVoidReturn: { arguments: false } }
+      ]
+    }
   },
   {
     files: ['src/**/*.ts'],

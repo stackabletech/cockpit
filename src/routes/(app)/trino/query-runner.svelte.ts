@@ -209,7 +209,7 @@ function createQueryRunner(tabId: string): QueryRunner {
       }
 
       state = 'QUEUED';
-      pollStatus();
+      void pollStatus();
     } catch {
       error = m.trino_query_connection_lost();
       state = 'FAILED';
@@ -227,7 +227,7 @@ function createQueryRunner(tabId: string): QueryRunner {
     } else {
       // Last query is still running — restore completed results and poll the active one.
       results = snapshots.slice(0, -1);
-      pollStatus();
+      void pollStatus();
     }
   }
 
@@ -316,7 +316,7 @@ export function getOrCreateQueryRunner(tabId: string): QueryRunner {
 export function destroyQueryRunner(tabId: string): void {
   const runner = runners.get(tabId);
   if (runner) {
-    runner.cancel();
+    void runner.cancel();
     runners.delete(tabId);
   }
 }

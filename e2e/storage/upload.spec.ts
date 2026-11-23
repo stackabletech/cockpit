@@ -95,7 +95,7 @@ test.describe('Storage S3 — Upload', () => {
           await expect(uploadModal.getByText('2 uploaded · 0 skipped · 0 failed')).toBeVisible();
           await uploadModal.getByRole('button', { name: 'Done' }).click();
           await expect(rowByName(page, fixture.name)).toBeVisible();
-          await expect(await getObjectText(client, credentials.bucket, key)).toBe(fixture.fullText);
+          expect(await getObjectText(client, credentials.bucket, key)).toBe(fixture.fullText);
         } finally {
           await transfer.dispose();
         }
@@ -137,20 +137,20 @@ test.describe('Storage S3 — Upload', () => {
       await expect(rowByName(page, csvFixture.name)).toBeVisible();
       await expect(rowByName(page, imageFixture.name)).toBeVisible();
 
-      await expect(
+      expect(
         await getObjectText(client, credentials.bucket, `${prefix}${textFixture.name}`)
       ).toContain(textFixture.expectedSnippet);
-      await expect(
+      expect(
         await getObjectText(client, credentials.bucket, `${prefix}${csvFixture.name}`)
       ).toContain(csvFixture.expectedCell);
 
-      await expect(
+      expect(
         (await headObject(client, credentials.bucket, `${prefix}${textFixture.name}`)).ContentType
       ).toBe('text/plain');
-      await expect(
+      expect(
         (await headObject(client, credentials.bucket, `${prefix}${csvFixture.name}`)).ContentType
       ).toBe('text/csv');
-      await expect(
+      expect(
         (await headObject(client, credentials.bucket, `${prefix}${imageFixture.name}`)).ContentType
       ).toBe('image/svg+xml');
 
@@ -254,19 +254,17 @@ test.describe('Storage S3 — Upload', () => {
       await expect(rowByName(page, 'fresh.txt')).toBeVisible();
       await expect(rowByName(page, 'renamed.txt')).toBeVisible();
 
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}replace.txt`)).toBe(
+      expect(await getObjectText(client, credentials.bucket, `${prefix}replace.txt`)).toBe(
         'new replace'
       );
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}skip.txt`)).toBe(
-        'old skip'
-      );
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}taken.txt`)).toBe(
+      expect(await getObjectText(client, credentials.bucket, `${prefix}skip.txt`)).toBe('old skip');
+      expect(await getObjectText(client, credentials.bucket, `${prefix}taken.txt`)).toBe(
         'old taken'
       );
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}renamed.txt`)).toBe(
+      expect(await getObjectText(client, credentials.bucket, `${prefix}renamed.txt`)).toBe(
         'new taken'
       );
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}fresh.txt`)).toBe(
+      expect(await getObjectText(client, credentials.bucket, `${prefix}fresh.txt`)).toBe(
         'brand new'
       );
     } finally {
@@ -297,7 +295,7 @@ test.describe('Storage S3 — Upload', () => {
       await uploadModal.getByRole('button', { name: 'Upload', exact: true }).click();
 
       await expect(uploadModal.getByRole('alert')).toContainText('Nothing was uploaded');
-      await expect(await getObjectText(client, credentials.bucket, key)).toBe('old content');
+      expect(await getObjectText(client, credentials.bucket, key)).toBe('old content');
 
       // Once the check works again, the retry finds the conflict instead of overwriting.
       await page.unroute('**/api/storage/download?*', failHead);
@@ -380,6 +378,70 @@ test.describe('Storage S3 — Upload', () => {
     } finally {
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       await deleteKnownKeys(client, credentials.bucket, keys);
+    }
+  });
+
+  test('asks before closing during an upload, and stopping lists the finished files', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'upload-close');
+    const names = ['a.txt', 'b.txt', 'c.txt', 'held.txt'];
+    let held = false;
+
+    try {
+      await connectAndOpenPrefix(page, credentials, prefix);
+      // The first batch (concurrency 3 in .env.test) uploads; the fourth file hangs.
+      await page.route('**/api/storage/upload*', async (route) => {
+        if (new URL(route.request().url()).searchParams.get('key')?.endsWith('held.txt')) {
+          held = true;
+          return;
+        }
+        await route.continue();
+      });
+
+      await page.getByRole('button', { name: 'Upload', exact: true }).click();
+      const uploadModal = modalBox(page);
+      await uploadModal
+        .locator('input[aria-label="Select files"]')
+        .setInputFiles(
+          names.map((name) => ({ name, mimeType: 'text/plain', buffer: Buffer.from(name) }))
+        );
+      await uploadModal.getByRole('button', { name: 'Upload' }).click();
+      await expect.poll(() => held).toBe(true);
+
+      const warning = page.getByRole('dialog', { name: 'Upload in progress' });
+      const heading = page.getByRole('heading', { name: 'Upload', exact: true });
+
+      // A backdrop click asks first; continuing keeps the upload.
+      await page.mouse.click(5, 5);
+      await expect(warning).toBeVisible();
+      await warning.getByRole('button', { name: 'Continue upload' }).click();
+      await expect(warning).toBeHidden();
+      await expect(heading).toBeVisible();
+
+      // The close button asks too; stopping aborts the held upload and
+      // refreshes the listing with the files that did finish.
+      await uploadModal.getByRole('button', { name: 'Close' }).click();
+      await expect(warning).toBeVisible();
+      const aborted = page.waitForEvent('requestfailed', (request) =>
+        request.url().includes('/api/storage/upload')
+      );
+      await warning.getByRole('button', { name: 'Stop upload' }).click();
+      await aborted;
+      await expect(heading).toBeHidden();
+      for (const name of names.slice(0, 3)) {
+        await expect(rowByName(page, name)).toBeVisible();
+      }
+      await expect(rowByName(page, 'held.txt')).toBeHidden();
+    } finally {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await deleteKnownKeys(
+        client,
+        credentials.bucket,
+        names.map((name) => `${prefix}${name}`)
+      );
     }
   });
 

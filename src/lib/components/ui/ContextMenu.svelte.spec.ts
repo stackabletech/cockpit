@@ -17,7 +17,7 @@ const actions: ContextMenuAction[] = [
 function renderMenu(props: Partial<{ open: boolean; x: number; y: number; title: string }> = {}) {
   const onaction = vi.fn();
   const onclose = vi.fn();
-  const result = render(ContextMenu, {
+  const { rerender } = render(ContextMenu, {
     open: true,
     x: 100,
     y: 80,
@@ -27,7 +27,7 @@ function renderMenu(props: Partial<{ open: boolean; x: number; y: number; title:
     ...props
   });
   const menu = () => document.querySelector<HTMLElement>('[popover]')!;
-  return { ...result, onaction, onclose, menu };
+  return { rerender, onaction, onclose, menu };
 }
 
 describe('ContextMenu', () => {

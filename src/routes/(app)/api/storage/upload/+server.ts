@@ -21,7 +21,7 @@ export const POST: RequestHandler = async (event) => {
   const log = locals.logger;
 
   if (!request.body) {
-    throw error(400, 'Missing request body');
+    error(400, 'Missing request body');
   }
 
   const contentType = (request.headers.get('Content-Type') ?? 'application/octet-stream')

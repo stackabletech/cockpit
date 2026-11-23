@@ -1,3 +1,5 @@
+import '../app.css';
+
 import { vi, beforeEach } from 'vitest';
 
 // Mock client feature flags and config so tests don't try to resolve the

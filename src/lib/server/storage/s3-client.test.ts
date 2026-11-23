@@ -17,7 +17,7 @@ const mockS3Client = vi.mocked(S3Client);
 const mockHandler = vi.mocked(NodeHttpHandler);
 
 function handlerAgents(call: number) {
-  return mockHandler.mock.calls[call]![0] as { httpAgent: Agent; httpsAgent: Agent };
+  return mockHandler.mock.calls[call][0] as { httpAgent: Agent; httpsAgent: Agent };
 }
 
 function baseConfig(overrides: Partial<S3ConnectionConfig> = {}): S3ConnectionConfig {

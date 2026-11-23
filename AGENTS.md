@@ -155,7 +155,7 @@ Before writing a new component, check DaisyUI and the existing `ui/` components.
 - Run `npm run format`.
 - British English.
 - Use `resolve()` from `$app/paths` for internal links and `goto` (`svelte/no-navigation-without-resolve`).
-- **Redirects**: never wrap `throw redirect()` in try-catch; put it after the try-catch.
+- **Redirects and errors**: `redirect()` and `error()` throw by themselves, so call them without `throw` (`only-throw-error`). Never call `redirect()` inside a try-catch; put it after the try-catch.
 
   ```typescript
   try {
@@ -163,7 +163,7 @@ Before writing a new component, check DaisyUI and the existing `ui/` components.
   } catch (err) {
     return fail(500, { error: 'Failed' });
   }
-  throw redirect(303, '/path');
+  redirect(303, '/path');
   ```
 
 - **Public routes**: add unauthenticated paths to `PUBLIC_PATHS` in `hooks.server.ts`. `/metrics` and `/healthz` are permanently public — never put auth in front of them.
@@ -248,7 +248,7 @@ npm run test:unit:coverage   # With coverage (run in CI)
 
 Vitest has two projects (`vite.config.ts`):
 
-- `client` — `*.svelte.test.ts` / `*.svelte.spec.ts`, run in headless Chromium (component and rune tests)
+- `client` — `*.svelte.test.ts` / `*.svelte.spec.ts`, run in headless Chromium (component and rune tests). `src/test/setup-client.ts` loads `src/app.css`, so Tailwind/DaisyUI apply and hidden elements are really hidden. The viewport is 1280×800; test mobile layouts with `page.viewport()` and restore it afterwards
 - `server` — all other `*.test.ts` / `*.spec.ts`, run in Node
 
 Place unit tests next to the code they test. Add them for new server logic, stores and non-trivial components. Every test must assert (`requireAssertions`); use `src/lib/test-utils/mock-logger.ts` when testing server code that logs. The client project needs the Playwright Chromium browser.

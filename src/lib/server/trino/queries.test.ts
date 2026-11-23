@@ -5,14 +5,17 @@ import type { QueryError } from '$lib/types/query.js';
 
 // Stable mock functions shared across module re-imports (each test imports a
 // fresh queries.ts so its in-memory store starts empty).
-const mocks = vi.hoisted(() => ({
-  env: {} as Record<string, string | undefined>,
-  collectResults: vi.fn(),
-  resolveTrinoPublicUrl: vi.fn(),
-  queryTotalInc: vi.fn(),
-  activeInc: vi.fn(),
-  activeDec: vi.fn()
-}));
+const mocks = vi.hoisted(() => {
+  const env: Record<string, string | undefined> = {};
+  return {
+    env,
+    collectResults: vi.fn(),
+    resolveTrinoPublicUrl: vi.fn(),
+    queryTotalInc: vi.fn(),
+    activeInc: vi.fn(),
+    activeDec: vi.fn()
+  };
+});
 
 vi.mock('$env/dynamic/private', () => ({ env: mocks.env }));
 vi.mock('$lib/server/logging', () => ({

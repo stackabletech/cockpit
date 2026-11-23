@@ -5,7 +5,7 @@ import { render } from 'vitest-browser-svelte';
 const mockPage = vi.hoisted(() => ({
   url: new URL('http://localhost/'),
   status: 500,
-  error: { message: 'An unexpected error occurred' } as App.Error | null
+  error: { message: 'An unexpected error occurred' }
 }));
 
 vi.mock('$app/state', () => ({ page: mockPage }));

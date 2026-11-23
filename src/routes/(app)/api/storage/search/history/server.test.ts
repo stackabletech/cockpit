@@ -57,7 +57,7 @@ describe('/api/storage/search/history', () => {
       mockEvent('POST', {
         buckets: [' documents ', 'documents', 'alpha'],
         query: ' report '
-      }) as Parameters<typeof POST>[0]
+      })
     );
 
     expect(response.status).toBe(204);
@@ -86,7 +86,7 @@ describe('/api/storage/search/history', () => {
         excludePatterns: ['_temp', 'logs'],
         searchPath: ' events/2024/ ',
         maxDepth: 3
-      }) as Parameters<typeof POST>[0]
+      })
     );
 
     expect(response.status).toBe(204);
@@ -118,7 +118,7 @@ describe('/api/storage/search/history', () => {
           buckets: ['documents'],
           query: 'report',
           ...options
-        }) as Parameters<typeof POST>[0]
+        })
       )
     ).rejects.toMatchObject({ status: 400 });
     expect(recentSearches.recordRecentSearch).not.toHaveBeenCalled();
@@ -128,30 +128,26 @@ describe('/api/storage/search/history', () => {
     ['malformed JSON', '{not json'],
     ['a null body', 'null']
   ])('rejects %s with 400', async (_name, body) => {
-    await expect(POST(mockEvent('POST', body) as Parameters<typeof POST>[0])).rejects.toMatchObject(
-      { status: 400 }
-    );
+    await expect(POST(mockEvent('POST', body))).rejects.toMatchObject({ status: 400 });
     expect(recentSearches.recordRecentSearch).not.toHaveBeenCalled();
   });
 
   it('rejects invalid history records', async () => {
     await expect(
-      POST(mockEvent('POST', { buckets: ['documents'], query: ' ' }) as Parameters<typeof POST>[0])
+      POST(mockEvent('POST', { buckets: ['documents'], query: ' ' }))
     ).rejects.toMatchObject({ status: 400 });
+    await expect(POST(mockEvent('POST', { buckets: [], query: 'report' }))).rejects.toMatchObject({
+      status: 400
+    });
     await expect(
-      POST(mockEvent('POST', { buckets: [], query: 'report' }) as Parameters<typeof POST>[0])
-    ).rejects.toMatchObject({ status: 400 });
-    await expect(
-      POST(
-        mockEvent('POST', { buckets: 'documents', query: 'report' }) as Parameters<typeof POST>[0]
-      )
+      POST(mockEvent('POST', { buckets: 'documents', query: 'report' }))
     ).rejects.toMatchObject({ status: 400 });
   });
 
   it('clears searches for the requesting user and connection', async () => {
     recentSearches.clearRecentSearches.mockResolvedValue(undefined);
 
-    const response = await DELETE(mockEvent('DELETE') as Parameters<typeof DELETE>[0]);
+    const response = await DELETE(mockEvent('DELETE'));
 
     expect(response.status).toBe(204);
     expect(recentSearches.clearRecentSearches).toHaveBeenCalledWith('user-1', CONNECTION_ID);
