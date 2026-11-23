@@ -77,7 +77,7 @@ describe('ParquetPreview', () => {
     const rowsMessages = page.getByText(/rows/i);
     // The only text with "rows" should be the row count message.
     // When not truncated, no such message appears.
-    expect(await rowsMessages.all()).toHaveLength(0);
+    expect(rowsMessages.all()).toHaveLength(0);
   });
 
   it('should not show row count when totalRows is 0', async () => {

@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { parseAdditionalUserInputFromProviderProfile } from 'better-auth/db';
 import { auth } from './auth.js';
 
-const hooks = auth.options.databaseHooks!.user!;
+const hooks = auth.options.databaseHooks.user;
 const create = (data: Record<string, unknown>, path: string) =>
-  hooks.create!.before!(data as never, { path } as never);
+  hooks.create.before(data as never, { path } as never);
 const update = (data: Record<string, unknown>, path: string) =>
-  hooks.update!.before!(data as never, { path } as never);
+  hooks.update.before(data, { path } as never);
 
 describe('user.additionalFields.trinoUser', () => {
   it('is taken from the OIDC provider profile', () => {

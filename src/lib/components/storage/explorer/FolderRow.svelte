@@ -32,7 +32,7 @@
 
   function open() {
     if (storage.archive.isInArchive) {
-      storage.archive.navigateInArchive(folder.key);
+      void storage.archive.navigateInArchive(folder.key);
     } else {
       storage.navigate(folder.key);
     }

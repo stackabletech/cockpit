@@ -97,7 +97,9 @@ function statToString(value: unknown): string | null {
   if (typeof value === 'string') return value.length > 100 ? value.slice(0, 100) + '…' : value;
   if (typeof value === 'number') return String(value);
   if (typeof value === 'boolean') return String(value);
-  return String(value);
+  if (typeof value === 'object') return stringifyStructuredParquetValue(value);
+  // Parquet never yields functions or symbols.
+  return null;
 }
 
 /**
@@ -389,10 +391,11 @@ function toSerializableParquetCell(value: unknown): string | number | boolean | 
   if (value instanceof Date) return value.toISOString();
   if (value instanceof Uint8Array) return Array.from(value).join(',');
   if (Array.isArray(value) || typeof value === 'object')
-    return stringifyStructuredParquetValue(value as object);
+    return stringifyStructuredParquetValue(value);
   if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string')
     return value;
-  return String(value);
+  // Parquet never yields functions or symbols.
+  return null;
 }
 
 async function streamToArrayBuffer(stream: ReadableStream): Promise<ArrayBuffer> {
@@ -472,7 +475,7 @@ export async function getParquetPreview(
         const rangeEnd = end !== undefined ? end - 1 : byteLength - 1;
         const request = footerQueue.then(async () => {
           const stream = await provider.getObjectRange(key, start, rangeEnd);
-          return streamToArrayBuffer(stream as ReadableStream);
+          return streamToArrayBuffer(stream);
         });
         footerQueue = request.then(
           () => {},
@@ -569,7 +572,7 @@ export async function getParquetPreview(
 
   if (previewLimit > 0) {
     const stream = await provider.getObjectRange(key, 0, previewLimit - 1);
-    bufferCache.push({ start: 0, buffer: await streamToArrayBuffer(stream as ReadableStream) });
+    bufferCache.push({ start: 0, buffer: await streamToArrayBuffer(stream) });
   }
 
   // Also fetch exact byte spans for any row groups whose data starts beyond
@@ -616,7 +619,7 @@ export async function getParquetPreview(
       extraFetches.map((r) =>
         provider
           .getObjectRange(key, r.start, r.end - 1)
-          .then((s) => streamToArrayBuffer(s as ReadableStream))
+          .then((s) => streamToArrayBuffer(s))
           .then((buf) => ({ start: r.start, buffer: buf }))
       )
     );
@@ -634,7 +637,7 @@ export async function getParquetPreview(
         }
       }
       const stream = await provider.getObjectRange(key, _start, end - 1);
-      return streamToArrayBuffer(stream as ReadableStream);
+      return streamToArrayBuffer(stream);
     }
   };
 

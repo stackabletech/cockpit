@@ -145,7 +145,7 @@ Document new variables in `README.md` and `.env.example`; don't read `env` ad ho
 - Run `npm run format`.
 - British English.
 - Use `resolve()` from `$app/paths` for internal links and `goto` (`svelte/no-navigation-without-resolve`).
-- **Redirects**: never wrap `throw redirect()` in try-catch; put it after the try-catch.
+- **Redirects and errors**: `redirect()` and `error()` throw by themselves, so call them without `throw` (`only-throw-error`). Never call `redirect()` inside a try-catch; put it after the try-catch.
 
   ```typescript
   try {
@@ -153,7 +153,7 @@ Document new variables in `README.md` and `.env.example`; don't read `env` ad ho
   } catch (err) {
     return fail(500, { error: 'Failed' });
   }
-  throw redirect(303, '/path');
+  redirect(303, '/path');
   ```
 
 - **Public routes**: add unauthenticated paths to `PUBLIC_PATHS` in `hooks.server.ts`. `/metrics` and `/healthz` are permanently public — never put auth in front of them.

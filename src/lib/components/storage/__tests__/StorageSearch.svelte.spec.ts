@@ -332,7 +332,7 @@ describe('StorageSearch', () => {
     render(StorageSearchWrapper, { state });
     await page.getByRole('button', { name: 'Open search' }).click();
     await page.getByRole('tab', { name: 'Recent' }).click();
-    const entries = await page.getByRole('button', { name: /md/ }).elements();
+    const entries = page.getByRole('button', { name: /md/ }).elements();
     expect(entries).toHaveLength(2);
   });
 

@@ -13,7 +13,7 @@ export const DELETE: RequestHandler = async (event) => {
   const { provider, bucket } = createStorageProvider(event);
   const body = DeleteObjectsBodySchema.safeParse(await event.request.json().catch(() => null));
   const log = event.locals.logger;
-  if (!body.success) throw error(400, 'Invalid request body');
+  if (!body.success) error(400, 'Invalid request body');
   const { keys } = body.data;
 
   log.debug({ bucket, key_count: keys.length }, 'delete request received');

@@ -263,7 +263,7 @@ describe('StorageBreadcrumb', () => {
       render(StorageBreadcrumbWrapper, { state });
 
       const pinButton = page.getByRole('button', { name: 'Pin' }).last();
-      ((await pinButton.element()) as HTMLElement).click();
+      (pinButton.element() as HTMLElement).click();
       expect(spy).toHaveBeenCalledWith('test-bucket', 'data/');
     });
 
@@ -277,7 +277,7 @@ describe('StorageBreadcrumb', () => {
       render(StorageBreadcrumbWrapper, { state });
 
       const unpinButton = page.getByRole('button', { name: 'Unpin' });
-      ((await unpinButton.element()) as HTMLElement).click();
+      (unpinButton.element() as HTMLElement).click();
       expect(spy).toHaveBeenCalledWith('test-bucket', 'data/');
     });
   });
@@ -418,7 +418,7 @@ describe('StorageBreadcrumb', () => {
 
       // The backdrop is a fixed inset-0 div that's a sibling before the context menu
       // Dispatch mousedown on it to trigger closeBreadcrumbCtx
-      const menuEl = (await ctxMenuItems.first().element()) as HTMLElement;
+      const menuEl = ctxMenuItems.first().element() as HTMLElement;
       const menuUl = menuEl.closest('ul[role="menu"]')!;
       const backdrop = menuUl.previousElementSibling as HTMLElement;
       backdrop.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));

@@ -137,7 +137,7 @@ export const actions: Actions = {
       );
     }
 
-    throw redirect(303, '/storage');
+    redirect(303, '/storage');
   },
 
   disconnect: async ({ request, locals }) => {
@@ -146,7 +146,7 @@ export const actions: Actions = {
       headers: request.headers,
       body: { activeStorageConnectionId: null }
     });
-    throw redirect(303, '/storage');
+    redirect(303, '/storage');
   },
 
   use: async ({ request, locals }) => {
@@ -185,12 +185,12 @@ export const actions: Actions = {
       return fail(500, { error: m.storage_connection_switch_failed() });
     }
 
-    throw redirect(303, '/storage');
+    redirect(303, '/storage');
   },
 
   deleteConnection: async (event) => {
     const failure = await deleteConnectionAction(event);
     if (failure) return failure;
-    throw redirect(303, '/storage');
+    redirect(303, '/storage');
   }
 };

@@ -18,8 +18,8 @@ import { MOCK_TRINO_URL } from '../support/mock-trino';
  * The test server is env-configured, so the real action rejects every save.
  * This only exercises the client-side success path.
  */
-function interceptSaveSuccess(page: import('@playwright/test').Page) {
-  page.route(
+async function interceptSaveSuccess(page: import('@playwright/test').Page) {
+  await page.route(
     (url) => url.pathname === '/trino' && url.search === '?/save',
     async (route, request) => {
       // Echo the client's form id back, otherwise superforms ignores the response.
@@ -59,11 +59,11 @@ function interceptSaveSuccess(page: import('@playwright/test').Page) {
  * - __data.json uses devalue.stringify with indexed arrays where booleans
  *   are stored at positions referenced by the shape object at index 0
  */
-function interceptPageData(
+async function interceptPageData(
   page: import('@playwright/test').Page,
   overrides: Record<string, boolean>
 ) {
-  page.route('**/trino', async (route, request) => {
+  await page.route('**/trino', async (route, request) => {
     if (request.resourceType() !== 'document') return route.continue();
     const response = await route.fetch();
     let html = await response.text();
@@ -75,7 +75,7 @@ function interceptPageData(
     await route.fulfill({ response, body: html });
   });
 
-  page.route('**/trino/__data.json*', async (route) => {
+  await page.route('**/trino/__data.json*', async (route) => {
     const response = await route.fetch();
     const json = await response.json();
     for (const node of json.nodes ?? []) {
@@ -91,17 +91,22 @@ function interceptPageData(
   });
 }
 
-/** Capture the fields posted by the next `?/save` request and abort it. */
-function captureSave(page: import('@playwright/test').Page): Promise<URLSearchParams> {
-  return new Promise((resolve) => {
-    page.route(
-      (url) => url.pathname === '/trino' && url.search === '?/save',
-      async (route, request) => {
-        resolve(new URLSearchParams(request.postData() ?? ''));
-        await route.abort();
-      }
-    );
-  });
+/**
+ * Capture the fields posted by the next `?/save` request and abort it.
+ * Resolves once the route is registered; `posted` resolves with the captured fields.
+ */
+async function captureSave(
+  page: import('@playwright/test').Page
+): Promise<{ posted: Promise<URLSearchParams> }> {
+  const { promise, resolve } = Promise.withResolvers<URLSearchParams>();
+  await page.route(
+    (url) => url.pathname === '/trino' && url.search === '?/save',
+    async (route, request) => {
+      resolve(new URLSearchParams(request.postData() ?? ''));
+      await route.abort();
+    }
+  );
+  return { posted: promise };
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +120,7 @@ test.describe('Connection form (insecure TLS allowed)', () => {
       localStorage.removeItem('trino_url');
       localStorage.removeItem('trino_tls_insecure');
     });
-    interceptPageData(page, { trinoConfigured: false, allowInsecureTls: true });
+    await interceptPageData(page, { trinoConfigured: false, allowInsecureTls: true });
   });
 
   test('skipping TLS verification is posted, persisted and shown in the summary', async ({
@@ -128,7 +133,7 @@ test.describe('Connection form (insecure TLS allowed)', () => {
     await page.getByLabel('Skip TLS certificate verification').check();
     await expect(page.getByText('TLS unverified')).toBeVisible();
 
-    const posted = captureSave(page);
+    const { posted } = await captureSave(page);
     await page.getByRole('button', { name: 'Save' }).click();
 
     expect((await posted).get('tlsInsecure')).toBe('on');
@@ -166,7 +171,7 @@ test.describe('Connection form (manual mode)', () => {
       localStorage.removeItem('trino_password');
     });
 
-    interceptPageData(page, { trinoConfigured: false });
+    await interceptPageData(page, { trinoConfigured: false });
   });
 
   test('connection form is visible', async ({ page }) => {
@@ -353,7 +358,7 @@ test.describe('Connection form (manual mode)', () => {
 
   test('saving a connection clears previous query results', async ({ page }) => {
     await setTabSql(page, 'SELECT id, name FROM users');
-    interceptSaveSuccess(page);
+    await interceptSaveSuccess(page);
 
     await page.goto('/trino');
     await waitForHydration(page);

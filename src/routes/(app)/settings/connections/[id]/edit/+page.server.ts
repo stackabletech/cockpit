@@ -35,7 +35,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   if (rows.length === 0) {
     locals.logger.debug({ connection_id: params.id }, 'connection not found, redirecting');
-    throw redirect(303, '/settings/connections');
+    redirect(303, '/settings/connections');
   }
 
   const row = rows[0];
@@ -47,7 +47,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     );
   } catch {
     locals.logger.error({ connection_id: params.id }, 'failed to decrypt connection payload');
-    throw error(500, 'Failed to load connection');
+    error(500, 'Failed to load connection');
   }
 
   const editForm = await superValidate<EditData, StorageConnectionMessage, EditInput>(
@@ -238,6 +238,6 @@ export const actions: Actions = {
   deleteConnection: async (event) => {
     const failure = await deleteConnectionAction(event);
     if (failure) return failure;
-    throw redirect(303, '/settings/connections');
+    redirect(303, '/settings/connections');
   }
 };

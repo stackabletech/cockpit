@@ -89,9 +89,8 @@ function createMockForm(overrides: Record<string, unknown> = {}): ConnectionForm
     constraints: {},
     shape: {},
     message: undefined,
-    tainted: undefined,
     ...restOverrides
-  } as unknown as ConnectionFormProp;
+  };
 }
 
 function makeConnection(overrides: Partial<ConnectionMetadata> = {}): ConnectionMetadata {

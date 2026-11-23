@@ -15,17 +15,20 @@ const globalBookmark: BookmarkLink = {
 
 const renderPage = (
   bookmarks: Bookmark[] | null = [],
-  { globalBookmarks = [] as BookmarkLink[], bookmarksFailed = false } = {}
+  {
+    globalBookmarks = [],
+    bookmarksFailed = false
+  }: { globalBookmarks?: BookmarkLink[]; bookmarksFailed?: boolean } = {}
 ) =>
   render(Page, {
     data: {
-      user: undefined,
+      user: null,
       storageBrowserEnabled: false,
       bookmarks,
       bookmarksFailed,
       globalBookmarks
     }
-  } as unknown as Parameters<typeof render<typeof Page>>[1]);
+  });
 
 describe('/(app)/+page.svelte', () => {
   it('should render the bookmarks section', async () => {

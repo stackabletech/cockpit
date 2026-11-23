@@ -45,7 +45,7 @@ describe('trustCaCerts', () => {
       { path, certificates: 1 }
     ]);
 
-    const trusted = setDefaultCACertificates.mock.calls[0]![0] as string[];
+    const trusted = setDefaultCACertificates.mock.calls[0][0] as string[];
     const defaults = getCACertificates('default');
     expect(trusted).toHaveLength(defaults.length + 1);
     expect(trusted).toEqual(expect.arrayContaining(defaults));
@@ -61,7 +61,7 @@ describe('trustCaCerts', () => {
       { path: single, certificates: 1 }
     ]);
     // Duplicates are only trusted once.
-    const trusted = setDefaultCACertificates.mock.calls[0]![0] as string[];
+    const trusted = setDefaultCACertificates.mock.calls[0][0] as string[];
     expect(trusted).toHaveLength(getCACertificates('default').length + 1);
   });
 

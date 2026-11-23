@@ -95,7 +95,7 @@ test.describe('Storage S3 — Upload', () => {
           await expect(uploadModal.getByText('2 uploaded · 0 skipped · 0 failed')).toBeVisible();
           await uploadModal.getByRole('button', { name: 'Done' }).click();
           await expect(rowByName(page, fixture.name)).toBeVisible();
-          await expect(await getObjectText(client, credentials.bucket, key)).toBe(fixture.fullText);
+          expect(await getObjectText(client, credentials.bucket, key)).toBe(fixture.fullText);
         } finally {
           await transfer.dispose();
         }
@@ -137,20 +137,20 @@ test.describe('Storage S3 — Upload', () => {
       await expect(rowByName(page, csvFixture.name)).toBeVisible();
       await expect(rowByName(page, imageFixture.name)).toBeVisible();
 
-      await expect(
+      expect(
         await getObjectText(client, credentials.bucket, `${prefix}${textFixture.name}`)
       ).toContain(textFixture.expectedSnippet);
-      await expect(
+      expect(
         await getObjectText(client, credentials.bucket, `${prefix}${csvFixture.name}`)
       ).toContain(csvFixture.expectedCell);
 
-      await expect(
+      expect(
         (await headObject(client, credentials.bucket, `${prefix}${textFixture.name}`)).ContentType
       ).toBe('text/plain');
-      await expect(
+      expect(
         (await headObject(client, credentials.bucket, `${prefix}${csvFixture.name}`)).ContentType
       ).toBe('text/csv');
-      await expect(
+      expect(
         (await headObject(client, credentials.bucket, `${prefix}${imageFixture.name}`)).ContentType
       ).toBe('image/svg+xml');
 
@@ -254,19 +254,17 @@ test.describe('Storage S3 — Upload', () => {
       await expect(rowByName(page, 'fresh.txt')).toBeVisible();
       await expect(rowByName(page, 'renamed.txt')).toBeVisible();
 
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}replace.txt`)).toBe(
+      expect(await getObjectText(client, credentials.bucket, `${prefix}replace.txt`)).toBe(
         'new replace'
       );
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}skip.txt`)).toBe(
-        'old skip'
-      );
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}taken.txt`)).toBe(
+      expect(await getObjectText(client, credentials.bucket, `${prefix}skip.txt`)).toBe('old skip');
+      expect(await getObjectText(client, credentials.bucket, `${prefix}taken.txt`)).toBe(
         'old taken'
       );
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}renamed.txt`)).toBe(
+      expect(await getObjectText(client, credentials.bucket, `${prefix}renamed.txt`)).toBe(
         'new taken'
       );
-      await expect(await getObjectText(client, credentials.bucket, `${prefix}fresh.txt`)).toBe(
+      expect(await getObjectText(client, credentials.bucket, `${prefix}fresh.txt`)).toBe(
         'brand new'
       );
     } finally {
@@ -297,7 +295,7 @@ test.describe('Storage S3 — Upload', () => {
       await uploadModal.getByRole('button', { name: 'Upload', exact: true }).click();
 
       await expect(uploadModal.getByRole('alert')).toContainText('Nothing was uploaded');
-      await expect(await getObjectText(client, credentials.bucket, key)).toBe('old content');
+      expect(await getObjectText(client, credentials.bucket, key)).toBe('old content');
 
       // Once the check works again, the retry finds the conflict instead of overwriting.
       await page.unroute('**/api/storage/download?*', failHead);

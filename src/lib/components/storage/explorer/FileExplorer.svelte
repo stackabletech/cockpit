@@ -118,16 +118,18 @@
       }
     }
 
+    const onDrop = (e: DragEvent) => void handleDrop(e);
+
     el.addEventListener('dragenter', handleDragEnter, true);
     el.addEventListener('dragover', handleDragOver, true);
     el.addEventListener('dragleave', handleDragLeave, true);
-    el.addEventListener('drop', handleDrop, true);
+    el.addEventListener('drop', onDrop, true);
     window.addEventListener('dragend', resetDrag);
     return () => {
       el.removeEventListener('dragenter', handleDragEnter, true);
       el.removeEventListener('dragover', handleDragOver, true);
       el.removeEventListener('dragleave', handleDragLeave, true);
-      el.removeEventListener('drop', handleDrop, true);
+      el.removeEventListener('drop', onDrop, true);
       window.removeEventListener('dragend', resetDrag);
     };
   });
@@ -205,21 +207,21 @@
     if (!hasCtxKey) {
       return [
         {
-          key: 'create-file' as ActionName,
+          key: 'create-file',
           icon: IconDescriptionOutline,
           label: m.storage_create_file(),
           disabled: false,
           hidden: storage.archive.isInArchive
         },
         {
-          key: 'create-folder' as ActionName,
+          key: 'create-folder',
           icon: IconFolderOutline,
           label: m.storage_create_folder(),
           disabled: false,
           hidden: storage.archive.isInArchive
         },
         {
-          key: 'paste' as ActionName,
+          key: 'paste',
           icon: IconPaste,
           label: m.storage_action_paste(),
           disabled: !storage.clipboardState.canPaste || storage.archive.isInArchive,
@@ -230,56 +232,56 @@
 
     const items: ContextMenuAction[] = [
       {
-        key: 'preview' as ActionName,
+        key: 'preview',
         icon: IconVisibility,
         label: m.storage_action_preview(),
         disabled: !canPreview,
         hidden: false
       },
       {
-        key: 'download' as ActionName,
+        key: 'download',
         icon: IconDownload,
         label: m.storage_action_download(),
         disabled: !canDownload,
         hidden: false
       },
       {
-        key: 'details' as ActionName,
+        key: 'details',
         icon: IconInfo,
         label: m.storage_action_details(),
         disabled: !canShowDetails,
         hidden: false
       },
       {
-        key: 'cut' as ActionName,
+        key: 'cut',
         icon: IconCut,
         label: m.storage_action_cut(),
         disabled: selectionCount === 0 || storage.archive.isInArchive,
         hidden: !storageTransferEnabled || storage.archive.isInArchive
       },
       {
-        key: 'copy' as ActionName,
+        key: 'copy',
         icon: IconCopy,
         label: m.storage_action_copy(),
         disabled: selectionCount === 0 || storage.archive.isInArchive,
         hidden: !storageTransferEnabled || storage.archive.isInArchive
       },
       {
-        key: 'paste' as ActionName,
+        key: 'paste',
         icon: IconPaste,
         label: m.storage_action_paste(),
         disabled: !storage.clipboardState.canPaste || storage.archive.isInArchive,
         hidden: !storageTransferEnabled || storage.archive.isInArchive
       },
       {
-        key: 'rename' as ActionName,
+        key: 'rename',
         icon: IconDriveFileRenameOutline,
         label: m.storage_action_rename(),
         disabled: selectionCount !== 1 || storage.archive.isInArchive,
         hidden: !storageTransferEnabled || storage.archive.isInArchive
       },
       {
-        key: 'copy-filename' as ActionName,
+        key: 'copy-filename',
         icon: IconFileCopy,
         label:
           hasCtxKey && !storage.ctxIsFile
@@ -289,21 +291,21 @@
         hidden: false
       },
       {
-        key: 'copy-path' as ActionName,
+        key: 'copy-path',
         icon: IconContentCopy,
         label: m.storage_action_copy_path(),
         disabled: !hasCtxKey,
         hidden: false
       },
       {
-        key: 'pin' as ActionName,
+        key: 'pin',
         icon: IconPushPinOutline,
         label: m.storage_action_pin(),
         disabled: !storage.canPin || storage.archive.isInArchive,
         hidden: !storage.canPin || storage.ctxIsPinned || storage.archive.isInArchive
       },
       {
-        key: 'unpin' as ActionName,
+        key: 'unpin',
         icon: IconPushPin,
         label: m.storage_action_unpin(),
         disabled: !storage.ctxIsPinned || storage.archive.isInArchive,
@@ -313,7 +315,7 @@
 
     if (!storage.archive.isInArchive && hasCtxKey) {
       items.push({
-        key: 'delete' as ActionName,
+        key: 'delete',
         icon: IconDelete,
         label: m.storage_action_delete(),
         disabled: selectionCount === 0,
@@ -325,7 +327,7 @@
   });
 
   function handleContextMenuAction(key: string) {
-    storage.executeAction(key as ActionName);
+    void storage.executeAction(key as ActionName);
     storage.contextMenu = null;
   }
 

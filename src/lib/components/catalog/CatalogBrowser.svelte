@@ -175,7 +175,7 @@
   $effect(() => {
     // Read connectionVersion to subscribe to changes.
     if (connectionVersion > 0) {
-      loadCatalogs();
+      void loadCatalogs();
     }
   });
 
@@ -209,7 +209,7 @@
 
   function handleRefresh() {
     expanded.clear();
-    loadCatalogs();
+    void loadCatalogs();
   }
 
   function handleCatalogChange(event: Event) {

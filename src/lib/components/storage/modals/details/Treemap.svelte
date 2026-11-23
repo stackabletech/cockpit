@@ -89,8 +89,8 @@
     const isContainer = !!(children && children.length > 0);
 
     // Collapse single-child containers to avoid padding exhaustion from deep nesting
-    if (isContainer && children!.length === 1) {
-      layoutNode(children![0], x, y, w, h, depth + 1, rects);
+    if (isContainer && children.length === 1) {
+      layoutNode(children[0], x, y, w, h, depth + 1, rects);
       return;
     }
 
@@ -126,7 +126,7 @@
     let remH = innerH;
     let horizontal = remW >= remH;
 
-    for (const child of children!) {
+    for (const child of children) {
       const area = (child.size / total) * innerW * innerH;
       let cw: number;
       let ch: number;
@@ -302,7 +302,7 @@
       class="btn btn-ghost btn-sm w-full justify-start gap-2"
       onclick={() => {
         const t = ctxMenu!.target;
-        copy(t.name);
+        void copy(t.name);
       }}
     >
       <IconContentCopy class="size-4 shrink-0" aria-hidden="true" />
@@ -318,7 +318,7 @@
         class="btn btn-ghost btn-sm w-full justify-start gap-2"
         onclick={() => {
           const t = ctxMenu!.target;
-          if (t.fullKey) copy(t.fullKey);
+          if (t.fullKey) void copy(t.fullKey);
         }}
       >
         <IconFolderOpen class="size-4 shrink-0" aria-hidden="true" />

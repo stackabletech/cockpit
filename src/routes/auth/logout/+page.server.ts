@@ -10,5 +10,5 @@ export const load: PageServerLoad = async ({ request, locals }) => {
   // Local-only logout: we intentionally do not call the IdP's end_session_endpoint
   // because RP-initiated logout would terminate the user's entire SSO session,
   // logging them out of all applications — not just this one.
-  throw redirect(302, oidcEnabled ? '/auth/login' : '/');
+  redirect(302, oidcEnabled ? '/auth/login' : '/');
 };
