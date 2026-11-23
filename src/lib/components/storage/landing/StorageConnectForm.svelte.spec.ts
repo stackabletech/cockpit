@@ -56,7 +56,7 @@ vi.mock('$lib/paraglide/messages.js', () => ({
   storage_connect_secret_key_required: () => 'Secret key is required',
   storage_connect_manage: () => 'Manage connections',
   storage_connect_edit: () => 'Edit',
-  storage_more_options: () => 'More options',
+  storage_connections_options: ({ label }: { label: string }) => `Options for ${label}`,
   storage_sidebar_resize_handle: () => 'Resize sidebar',
   storage_connections_delete_confirm: ({ label }: { label: string }) =>
     `Delete connection to ${label}?`,
@@ -145,7 +145,7 @@ describe('StorageConnectForm', () => {
       makeConnection({ id: 'conn-1', name: 'Test S3', endpoint: 'https://s3.test.io' })
     ]);
 
-    await page.getByRole('button', { name: 'More options' }).click();
+    await page.getByRole('button', { name: 'Options for Test S3' }).click();
     await expect.element(page.getByRole('menuitem', { name: 'Forget' })).toBeVisible();
   });
 

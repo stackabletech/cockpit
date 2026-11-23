@@ -10,6 +10,7 @@
   import type { ConnectionListItem } from '$lib/storage/connection-store.svelte.js';
   import { connectionLabel } from '$lib/storage/display-helpers.js';
   import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
+  import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
   import DeleteConnectionModal from '$lib/components/storage/modals/DeleteConnectionModal.svelte';
   import type { SavedConnection } from '$lib/storage/connection-id-header.js';
 
@@ -30,14 +31,13 @@
     menuConn = null;
   }
 
-  const menuActions = $derived.by<ContextMenuAction[]>(() => {
-    if (!menuConn) return [];
+  function actionsFor(conn: ConnectionListItem): ContextMenuAction[] {
     return [
       {
         key: 'edit',
         icon: IconEdit,
         label: m.storage_connections_edit(),
-        href: resolve(`/settings/connections/${menuConn.id}/edit`)
+        href: resolve(`/settings/connections/${conn.id}/edit`)
       },
       {
         key: 'delete',
@@ -46,11 +46,13 @@
         class: 'text-error'
       }
     ];
-  });
+  }
 
-  function handleMenuAction(key: string) {
-    if (key !== 'delete' || !menuConn) return;
-    deleteTarget = menuConn;
+  const menuActions = $derived(menuConn ? actionsFor(menuConn) : []);
+
+  function handleMenuAction(key: string, conn: ConnectionListItem | null) {
+    if (key !== 'delete' || !conn) return;
+    deleteTarget = conn;
     deleteConfirmOpen = true;
   }
 
@@ -114,7 +116,10 @@
         <tbody>
           {#each connections as conn (conn.id)}
             <tr
-              class="group hover:bg-base-300 cursor-default select-none"
+              class="
+                group hover:bg-base-300 has-[[aria-expanded=true]]:bg-base-200 cursor-default
+                select-none
+              "
               class:bg-base-200={menuConn?.id === conn.id}
               oncontextmenu={(e) => openContextMenu(e, conn)}
             >
@@ -129,19 +134,17 @@
               </td>
               <td class="text-muted text-xs uppercase">s3</td>
               <td>
-                <div
-                  class="tooltip tooltip-left"
-                  data-tip={m.storage_connections_options({ label: connectionLabel(conn) })}
-                >
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100"
-                    aria-label={m.storage_connections_options({ label: connectionLabel(conn) })}
-                    onclick={(e) => openContextMenu(e, conn)}
-                  >
-                    <IconMoreHoriz class="size-4" aria-hidden="true" />
-                  </button>
-                </div>
+                <DropdownMenu
+                  label={m.storage_connections_options({ label: connectionLabel(conn) })}
+                  icon={IconMoreHoriz}
+                  tooltip="left"
+                  actions={actionsFor(conn)}
+                  onaction={(key) => handleMenuAction(key, conn)}
+                  triggerClass="
+                    btn btn-ghost btn-xs btn-square opacity-0
+                    group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100
+                  "
+                />
               </td>
             </tr>
           {/each}
@@ -156,7 +159,7 @@
   y={menuPos.y}
   open={menuConn !== null}
   onclose={closeContextMenu}
-  onaction={handleMenuAction}
+  onaction={(key) => handleMenuAction(key, menuConn)}
   actions={menuActions}
 />
 

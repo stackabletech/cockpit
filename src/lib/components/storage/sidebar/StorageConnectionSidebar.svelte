@@ -5,6 +5,7 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
   import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
+  import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
   import { enhance } from '$app/forms';
@@ -67,22 +68,23 @@
     menuConn = null;
   }
 
-  const menuActions = $derived.by<ContextMenuAction[]>(() => {
-    if (!menuConn) return [];
+  function actionsFor(conn: ConnectionMetadata): ContextMenuAction[] {
     return [
       {
         key: 'edit',
         icon: IconEdit,
         label: m.storage_connect_edit(),
-        href: resolve(`/settings/connections/${menuConn.id}/edit`)
+        href: resolve(`/settings/connections/${conn.id}/edit`)
       },
       { key: 'forget', icon: IconClose, label: m.storage_connect_forget(), class: 'text-error' }
     ];
-  });
+  }
 
-  function handleMenuAction(key: string) {
-    if (key !== 'forget' || !menuConn) return;
-    deleteTarget = menuConn;
+  const menuActions = $derived(menuConn ? actionsFor(menuConn) : []);
+
+  function handleMenuAction(key: string, conn: ConnectionMetadata | null) {
+    if (key !== 'forget' || !conn) return;
+    deleteTarget = conn;
     deleteConfirmOpen = true;
   }
 
@@ -138,7 +140,7 @@
   y={menuPos.y}
   open={menuConn !== null}
   onclose={closeContextMenu}
-  onaction={handleMenuAction}
+  onaction={(key) => handleMenuAction(key, menuConn)}
   actions={menuActions}
 />
 
@@ -316,20 +318,18 @@
             {/if}
           </div>
 
-          <TooltipTrigger text={m.storage_more_options()} orientation="right">
-            <button
-              type="button"
-              onclick={(e) => openContextMenu(e, conn)}
-              class="
-                btn btn-ghost btn-xs absolute top-1/2 right-1 z-150 -translate-y-1/2
-                p-0 opacity-0 transition-opacity
-                group-hover:opacity-100 focus:opacity-100
-              "
-              aria-label={m.storage_more_options()}
-            >
-              <IconMoreHoriz class="size-3.5" aria-hidden="true" />
-            </button>
-          </TooltipTrigger>
+          <DropdownMenu
+            label={m.storage_connections_options({ label: connectionLabel(conn) })}
+            icon={IconMoreHoriz}
+            iconClass="size-3.5"
+            actions={actionsFor(conn)}
+            onaction={(key) => handleMenuAction(key, conn)}
+            triggerClass="
+              btn btn-ghost btn-xs absolute inset-y-0 right-1 z-150 my-auto
+              p-0 opacity-0 transition-opacity
+              group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100
+            "
+          />
         </li>
       {/each}
     {/if}

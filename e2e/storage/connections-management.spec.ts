@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '../support/fixtures.js';
+import { test, expect, type Locator, type Page } from '../support/fixtures.js';
 import {
   createGarageBucketCredentials,
   hasGarageAdmin,
@@ -19,6 +19,29 @@ async function openFirstConnectionEditPage(page: Page) {
     .click({ force: true });
   await page.getByRole('menuitem', { name: 'Edit' }).click();
   await waitForHydration(page);
+}
+
+/**
+ * Asserts that an open dropdown menu sits right below its trigger, aligned to its end. Up to 8 px
+ * gap for the scripted fallback in browsers without CSS anchor positioning; a few px for the
+ * popover's padding and border around the menu.
+ */
+async function expectMenuBelow(trigger: Locator, menu: Locator) {
+  await expect(menu).toBeVisible();
+  // Let DaisyUI's scale-in animation finish before measuring.
+  await menu.evaluate((el) =>
+    Promise.all(
+      el
+        .closest('[popover]')!
+        .getAnimations()
+        .map((a) => a.finished)
+    )
+  );
+  const t = (await trigger.boundingBox())!;
+  const m = (await menu.boundingBox())!;
+  expect(m.y).toBeGreaterThanOrEqual(t.y + t.height - 1);
+  expect(m.y).toBeLessThan(t.y + t.height + 14);
+  expect(Math.abs(m.x + m.width - (t.x + t.width))).toBeLessThan(14);
 }
 
 test.describe('Storage — Connections management', () => {
@@ -184,10 +207,11 @@ test.describe('Storage — Connections management', () => {
     const dataRows = page.locator('table tbody tr');
     const initialItems = await dataRows.count();
 
-    await page
-      .getByRole('button', { name: /Options for/i })
-      .first()
-      .click({ force: true });
+    // Opened from the keyboard, which used to put the menu at the viewport's top-left corner.
+    const trigger = page.getByRole('button', { name: /Options for/i }).first();
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    await expectMenuBelow(trigger, page.getByRole('menu', { name: /Options for/i }));
     await page.getByRole('menuitem', { name: 'Delete' }).click();
 
     // Confirm deletion in the modal
@@ -204,12 +228,18 @@ test.describe('Storage — Connections management', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
     const savedList = page.getByRole('list', { name: 'Saved connections' });
-    await savedList.getByRole('button', { name: 'More options' }).first().click({ force: true });
+    await savedList
+      .getByRole('button', { name: /Options for/ })
+      .first()
+      .click({ force: true });
     await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
     await waitForHydration(page);
     await expect(page.getByRole('heading', { name: 'Edit connection' })).toBeVisible();
 
-    await savedList.getByRole('button', { name: 'More options' }).first().click({ force: true });
+    const trigger = savedList.getByRole('button', { name: /Options for/ }).first();
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    await expectMenuBelow(trigger, page.getByRole('menu', { name: /Options for/ }));
     await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
 
@@ -377,7 +407,10 @@ test.describe('Storage — Connection edit sidebar', () => {
     await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
     const savedList = page.getByRole('list', { name: 'Saved connections' });
     await expect(savedList.getByRole('listitem')).toHaveCount(2);
-    await savedList.getByRole('button', { name: 'More options' }).first().click({ force: true });
+    await savedList
+      .getByRole('button', { name: /Options for/ })
+      .first()
+      .click({ force: true });
     await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
     await waitForHydration(page);
     await expect(page.getByRole('heading', { name: 'Edit connection' })).toBeVisible();
@@ -398,7 +431,7 @@ test.describe('Storage — Connection edit sidebar', () => {
   async function deleteFromSidebar(page: Page, index: number) {
     await page
       .getByRole('list', { name: 'Saved connections' })
-      .getByRole('button', { name: 'More options' })
+      .getByRole('button', { name: /Options for/ })
       .nth(index)
       .click({ force: true });
     await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
