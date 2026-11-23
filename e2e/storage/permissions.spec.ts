@@ -61,7 +61,7 @@ test.describe('Storage S3 — Permissions', () => {
       const uploadModal = modalBox(page);
       await uploadModal.locator('input[aria-label="Select files"]').setInputFiles(uploadFixture);
       await uploadModal.getByRole('button', { name: 'Upload' }).click();
-      await expect(uploadModal.getByText('Upload complete')).toBeVisible();
+      await expect(uploadModal.getByText('Upload failed')).toBeVisible();
       await expect(
         uploadModal.getByText('Access denied. You do not have permission to upload here.')
       ).toBeVisible();

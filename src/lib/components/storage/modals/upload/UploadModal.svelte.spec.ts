@@ -413,7 +413,8 @@ describe('UploadModal', () => {
       render(UploadModal, defaultProps);
       await selectAndUpload([createFile('a.txt')]);
 
-      await expect.element(page.getByRole('status')).toBeInTheDocument();
+      await expect.element(page.getByRole('status')).toHaveTextContent('Upload failed');
+      await expect.element(page.getByText('Upload complete')).not.toBeInTheDocument();
       // Error list should be visible
       const errorList = page.getByRole('list', { name: /failed/i });
       await expect.element(errorList).toBeInTheDocument();
@@ -767,7 +768,9 @@ describe('UploadModal', () => {
       render(UploadModal, defaultProps);
       await selectAndUpload([createFile('ok.txt'), createFile('fail.txt')]);
 
-      await expect.element(page.getByRole('status')).toBeInTheDocument();
+      await expect
+        .element(page.getByRole('status'))
+        .toHaveTextContent('Upload finished with errors');
       // Error list should show
       const errorList = page.getByRole('list', { name: /failed/i });
       await expect.element(errorList).toBeInTheDocument();
