@@ -16,7 +16,7 @@
   setConnectionEditGuard(editGuard);
 
   function handleSelect(conn: ConnectionMetadata) {
-    goto(resolve(`/settings/connections/${conn.id}/edit`));
+    void goto(resolve(`/settings/connections/${conn.id}/edit`));
   }
 
   // Only /storage fills the store, so drop deleted connections here.

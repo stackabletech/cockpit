@@ -22,7 +22,7 @@ const BOOKMARK = {
 function mockEvent(
   method: string,
   body?: unknown,
-  { id = BOOKMARK_ID, user = { id: 'user-1' } as { id: string } | null } = {}
+  { id = BOOKMARK_ID, user = { id: 'user-1' } }: { id?: string; user?: { id: string } | null } = {}
 ) {
   const request = new Request(`http://localhost/api/bookmarks/${id}`, {
     method,

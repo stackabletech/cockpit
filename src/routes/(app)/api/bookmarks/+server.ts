@@ -22,7 +22,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 export const POST: RequestHandler = async ({ request, locals }) => {
   const userId = requireUserId(locals);
   const parsed = bookmarkCreateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) throw error(400, 'Invalid bookmark');
+  if (!parsed.success) error(400, 'Invalid bookmark');
 
   let bookmark;
   try {
@@ -33,7 +33,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   }
   if (!bookmark) {
     dashboardBookmarksTotal.inc({ operation: 'create', outcome: 'limit_reached' });
-    throw error(409, `Bookmark limit of ${BOOKMARK_LIMIT} reached`);
+    error(409, `Bookmark limit of ${BOOKMARK_LIMIT} reached`);
   }
   dashboardBookmarksTotal.inc({ operation: 'create', outcome: 'success' });
   locals.logger.info(

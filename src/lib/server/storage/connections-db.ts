@@ -155,9 +155,7 @@ export async function deleteConnection(userId: string, connectionId: string): Pr
 export function isConnectionNameConflict(err: unknown): boolean {
   const msg = [
     err instanceof Error ? err.message : String(err),
-    err && typeof err === 'object' && 'cause' in err
-      ? String((err as { cause: unknown }).cause)
-      : ''
+    err && typeof err === 'object' && 'cause' in err ? String(err.cause) : ''
   ].join(' ');
   return (
     msg.includes('user_storage_connections_user_id_name_unique') ||

@@ -295,7 +295,7 @@ export class OperationsState {
         o.id === op.id
           ? {
               ...o,
-              status: (anyCancelled
+              status: anyCancelled
                 ? 'cancelled'
                 : anyError
                   ? 'error'
@@ -304,7 +304,7 @@ export class OperationsState {
                     : completedCount !==
                         (op.type === 'download' ? op.fileJobIds!.length : op.itemCount)
                       ? 'error'
-                      : 'done') as 'done' | 'error' | 'cancelled' | 'unknown',
+                      : 'done',
               completedCount,
               completedBytes,
               completedAt: Date.now()

@@ -166,19 +166,27 @@ RUN microdnf update -y && \
     microdnf remove -y shadow-utils && \
     microdnf clean all
 
+# The directory targets of the COPYs below are created here because
+# COPY --chmod only applies to the copied contents, not to a destination
+# directory it creates.
+RUN mkdir -p /stackable/app/build /stackable/app/migrations /stackable/app/node_modules && \
+    chown -R ${STACKABLE_USER_UID}:0 /stackable && \
+    chmod -R g=u /stackable
+
 WORKDIR /stackable/app
 
-# Copy built application from builder stage
-COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/build ./build
-COPY                  --chown=${STACKABLE_USER_UID}:0 server.js ./server.js
-COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 /build/src/lib/server/migrations ./migrations
-COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/node_modules ./node_modules
-COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 /build/package.json ./
-COPY --from=sbom      --chown=${STACKABLE_USER_UID}:0 /build/cockpit.cdx.json ./cockpit.cdx.json
+# Copy built application from builder stage.
+#
+# Ownership and group permissions (uid:0, g=u, for OpenShift's arbitrary UIDs
+# in group 0) are set by the COPY itself.
+COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 --chmod=g=u /build/build ./build
+COPY                  --chown=${STACKABLE_USER_UID}:0 --chmod=g=u server.js ./server.js
+COPY --from=builder   --chown=${STACKABLE_USER_UID}:0 --chmod=g=u /build/src/lib/server/migrations ./migrations
+COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 --chmod=g=u /build/node_modules ./node_modules
+COPY --from=prod-deps --chown=${STACKABLE_USER_UID}:0 --chmod=g=u /build/package.json ./
+COPY --from=sbom      --chown=${STACKABLE_USER_UID}:0 --chmod=g=u /build/cockpit.cdx.json ./cockpit.cdx.json
 COPY --chown=${STACKABLE_USER_UID}:0 LICENSE /licenses/LICENSE
 COPY --chown=${STACKABLE_USER_UID}:0 LICENSE-Apache-2.0 /licenses/LICENSE-Apache-2.0
-RUN chown -R ${STACKABLE_USER_UID}:0 /stackable && \
-    chmod -R g=u /stackable
 
 USER ${STACKABLE_USER_UID}
 

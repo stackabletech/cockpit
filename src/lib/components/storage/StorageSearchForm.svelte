@@ -51,7 +51,7 @@
     const nextIndex = queryCycleIndex + direction;
     if (nextIndex < 0 || nextIndex >= queryCycleTerms.length) return;
     queryCycleIndex = nextIndex;
-    update({ query: queryCycleTerms[queryCycleIndex]! });
+    update({ query: queryCycleTerms[queryCycleIndex] });
   }
 
   const hasInvalidFilter = $derived(

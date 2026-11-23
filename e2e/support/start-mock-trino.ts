@@ -363,7 +363,7 @@ http
         res.end('<html>502 Bad Gateway from proxy.internal</html>');
         return;
       }
-      pollQuery(executing[1], Number(executing[2])).then((page) => sendJson(res, page));
+      void pollQuery(executing[1], Number(executing[2])).then((page) => sendJson(res, page));
       return;
     }
     if (req.method === 'GET' && url.pathname === '/v1/info') {
@@ -377,8 +377,8 @@ http
     }
 
     let body = '';
-    req.on('data', (c: Buffer) => (body += c));
-    req.on('end', async () => {
+    req.on('data', (c: Buffer) => (body += c.toString()));
+    const respond = async () => {
       // Logged on arrival, so tests can act while a gated submit is still pending.
       const id = `q-mock-${++queryCounter}`;
       queries.set(id, { sql: body, pages: [] });
@@ -406,6 +406,7 @@ http
       // Unique id per submit so cancellations can be traced back to the statement.
       const match = routes.find(([key]) => body.includes(key));
       sendJson(res, { ...(match ? match[1] : DEFAULT_RESPONSE), id });
-    });
+    };
+    req.on('end', () => void respond());
   })
   .listen(MOCK_TRINO_PORT, 'localhost', () => console.log(`Mock Trino on :${MOCK_TRINO_PORT}`));

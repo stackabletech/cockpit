@@ -22,7 +22,7 @@
   );
 
   function handleLocaleChange(locale: (typeof locales)[number]) {
-    setLocale(locale);
+    void setLocale(locale);
   }
 </script>
 

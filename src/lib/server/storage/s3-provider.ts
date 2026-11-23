@@ -374,7 +374,7 @@ export class S3StorageProvider implements StorageProvider {
           { bucket: this.bucket, key, error_code: err.name, status_code: status },
           'conditional PutObject rejected: object changed since it was loaded'
         );
-        throw error(409, 'The object was modified since it was loaded');
+        error(409, 'The object was modified since it was loaded');
       }
       // Providers without conditional-write support reject the header. The
       // caller's HEAD comparison is then the only (racy) guard.

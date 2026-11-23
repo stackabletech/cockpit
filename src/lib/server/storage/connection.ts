@@ -37,7 +37,7 @@ export async function getConnectionFromHeader(
 ): Promise<S3ConnectionConfig | null> {
   const connectionId = request.headers.get(STORAGE_CONNECTION_ID_HEADER);
   if (!connectionId) return null;
-  if (!z.uuid().safeParse(connectionId).success) throw error(400, 'Invalid storage connection ID');
+  if (!z.uuid().safeParse(connectionId).success) error(400, 'Invalid storage connection ID');
 
   const rows = await db
     .select()
@@ -64,7 +64,7 @@ export async function getConnectionFromHeader(
       { err, connection_id: connectionId },
       'failed to decrypt or parse storage connection payload'
     );
-    throw error(500, 'Failed to decrypt storage connection');
+    error(500, 'Failed to decrypt storage connection');
   }
 
   const additionalBuckets = AdditionalBucketsSchema.safeParse(row.additionalBuckets);

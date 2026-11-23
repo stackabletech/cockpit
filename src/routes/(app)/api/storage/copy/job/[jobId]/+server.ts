@@ -5,15 +5,14 @@ import { cancelJob, getJob } from '$lib/server/storage/job-store.js';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
   const { jobId } = params;
-  if (!z.uuid().safeParse(jobId).success) throw error(400, 'Invalid job ID');
+  if (!z.uuid().safeParse(jobId).success) error(400, 'Invalid job ID');
   const job = getJob(jobId, locals.user?.id ?? 'anonymous');
-  if (!job) throw error(404, 'Job not found');
+  if (!job) error(404, 'Job not found');
   return json(job);
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
-  if (!z.uuid().safeParse(params.jobId).success) throw error(400, 'Invalid job ID');
-  if (!(await cancelJob(params.jobId, locals.user?.id ?? 'anonymous')))
-    throw error(404, 'Job not found');
+  if (!z.uuid().safeParse(params.jobId).success) error(400, 'Invalid job ID');
+  if (!(await cancelJob(params.jobId, locals.user?.id ?? 'anonymous'))) error(404, 'Job not found');
   return json({ status: 'cancelled' });
 };

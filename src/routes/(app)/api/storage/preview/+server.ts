@@ -53,7 +53,7 @@ export const GET: RequestHandler = async (event) => {
       },
       'rejected preview request with invalid row range'
     );
-    throw error(
+    error(
       400,
       `offset must be a non-negative integer and limit an integer between 1 and ${maxPreviewRowsPerRequest}`
     );

@@ -118,7 +118,7 @@
     bucket={storage.activeModal.payload.bucket}
     prefix={storage.activeModal.payload.prefix}
     initialFiles={storage.activeModal.payload.files}
-    onSuccess={storage.handleUploadSuccess}
+    onUploaded={storage.refresh}
   />
 {/if}
 

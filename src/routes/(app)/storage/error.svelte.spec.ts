@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
 const mockPage = vi.hoisted(() => ({
-  params: {} as Record<string, string | undefined>,
+  params: {},
   url: new URL('http://localhost/storage'),
   status: 500,
   error: null as App.Error | null

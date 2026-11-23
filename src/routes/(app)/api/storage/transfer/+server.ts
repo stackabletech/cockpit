@@ -20,7 +20,7 @@ import { TransferBodySchema } from '$lib/storage/schemas.js';
 export const POST: RequestHandler = async (event) => {
   const { locals } = event;
   const body = TransferBodySchema.safeParse(await event.request.json().catch(() => null));
-  if (!body.success) throw error(400, 'Invalid request body');
+  if (!body.success) error(400, 'Invalid request body');
   const { op, jobId, source, dest, items } = body.data;
   requireTransferAllowed(op, locals.logger, locals.user?.id);
 

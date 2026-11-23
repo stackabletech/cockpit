@@ -61,12 +61,12 @@ test.describe('Storage S3 — Permissions', () => {
       const uploadModal = modalBox(page);
       await uploadModal.locator('input[aria-label="Select files"]').setInputFiles(uploadFixture);
       await uploadModal.getByRole('button', { name: 'Upload' }).click();
-      await expect(uploadModal.getByText('Upload complete')).toBeVisible();
+      await expect(uploadModal.getByText('Upload failed')).toBeVisible();
       await expect(
         uploadModal.getByText('Access denied. You do not have permission to upload here.')
       ).toBeVisible();
       await uploadModal.getByRole('button', { name: 'Done' }).click();
-      await expect(await objectExists(adminClient, restrictedBucket, blockedKey)).toBe(false);
+      expect(await objectExists(adminClient, restrictedBucket, blockedKey)).toBe(false);
 
       await page.getByRole('button', { name: 'Toggle selection mode' }).click();
       await page.getByLabel(`Select ${existingKey}`).check();
@@ -78,7 +78,7 @@ test.describe('Storage S3 — Permissions', () => {
         .filter({ hasText: 'Access denied. You do not have permission to delete this item.' });
       await expect(errorToast).toBeVisible();
       await expect(rowByName(page, existingKey)).toBeVisible();
-      await expect(await getObjectText(adminClient, restrictedBucket, existingKey)).toBe('keep me');
+      expect(await getObjectText(adminClient, restrictedBucket, existingKey)).toBe('keep me');
     } finally {
       await deleteKnownKeys(adminClient, restrictedBucket, [existingKey, blockedKey]);
     }

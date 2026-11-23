@@ -13,7 +13,7 @@ export const GET: RequestHandler = async (event) => {
   const prefix = event.url.searchParams.get('prefix');
   const log = event.locals.logger;
 
-  if (!prefix) throw error(400, 'Missing required query parameter: prefix');
+  if (!prefix) error(400, 'Missing required query parameter: prefix');
 
   log.debug({ bucket, prefix }, 'calculating directory size');
 

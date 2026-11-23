@@ -131,7 +131,7 @@ const handleStorageConnection: Handle = async ({ event, resolve }) => {
       event.route.id?.startsWith('/(app)/api/storage/')) &&
     !storageBrowserEnabled
   ) {
-    throw error(404, 'Storage browser is not enabled');
+    error(404, 'Storage browser is not enabled');
   }
   const userId = event.locals.user?.id ?? null;
   if (userId && event.route.id?.startsWith('/(app)/api/storage/')) {

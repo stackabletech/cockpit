@@ -50,12 +50,12 @@ export function mapS3ErrorToHttp(err: unknown, context: Context): never {
   log.warn({ ...context, error_code: code }, 'S3 error');
 
   if (isAccessDenied(code, httpStatus)) {
-    throw error(403, accessDeniedMessage(context));
+    error(403, accessDeniedMessage(context));
   }
 
   if (isNotFound(code, httpStatus)) {
-    throw error(404, notFoundMessage(context));
+    error(404, notFoundMessage(context));
   }
 
-  throw error(502, `Storage error: ${(err as Error).message}`);
+  error(502, `Storage error: ${(err as Error).message}`);
 }

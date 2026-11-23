@@ -66,7 +66,7 @@ describe('createFetchStorageApi', () => {
 
       await api.list({ bucket: 'b', prefix: 'docs/', pageSize: 100 });
 
-      const url = vi.mocked(globalThis.fetch).mock.calls[0]![0] as string;
+      const url = vi.mocked(globalThis.fetch).mock.calls[0][0] as string;
       expect(url).toContain('bucket=b');
       expect(url).toContain('prefix=docs%2F');
       expect(url).toContain('pageSize=100');
@@ -80,7 +80,7 @@ describe('createFetchStorageApi', () => {
 
       await api.list({ bucket: 'b' });
 
-      const [, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      const [, init] = vi.mocked(globalThis.fetch).mock.calls[0];
       const headers = new Headers(init?.headers);
       expect(headers.get(STORAGE_CONNECTION_ID_HEADER)).toBe('conn-42');
     });
@@ -126,7 +126,7 @@ describe('createFetchStorageApi', () => {
         signal: controller.signal
       });
 
-      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
       expect(url).toContain('/api/storage/search?bucket=documents&q=report');
       expect(init?.signal).toBe(controller.signal);
       expect(result.results[0].lastModified).toBeInstanceOf(Date);
@@ -143,7 +143,7 @@ describe('createFetchStorageApi', () => {
       await expect(api.listRecentSearches()).resolves.toEqual([
         { buckets: ['documents'], query: 'report' }
       ]);
-      expect(vi.mocked(globalThis.fetch).mock.calls[0]![0]).toBe('/api/storage/search/history');
+      expect(vi.mocked(globalThis.fetch).mock.calls[0][0]).toBe('/api/storage/search/history');
     });
 
     it('records and clears recent searches', async () => {
@@ -160,10 +160,10 @@ describe('createFetchStorageApi', () => {
       });
       await api.clearRecentSearches();
 
-      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
       expect(url).toBe('/api/storage/search/history');
       expect(init).toMatchObject({ method: 'POST' });
-      expect(JSON.parse(String(init?.body))).toEqual({
+      expect(JSON.parse(init?.body as string)).toEqual({
         buckets: ['documents', 'archive'],
         query: 'report',
         useRegex: true,
@@ -171,7 +171,7 @@ describe('createFetchStorageApi', () => {
         searchPath: 'events/',
         maxDepth: 3
       });
-      expect(vi.mocked(globalThis.fetch).mock.calls[1]![1]).toMatchObject({ method: 'DELETE' });
+      expect(vi.mocked(globalThis.fetch).mock.calls[1][1]).toMatchObject({ method: 'DELETE' });
     });
   });
 
@@ -182,7 +182,7 @@ describe('createFetchStorageApi', () => {
 
       const result = await api.delete({ bucket: 'b', keys: ['a.txt', 'b.txt'] });
 
-      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
       expect(url).toContain('/api/storage/delete');
       expect(url).toContain('bucket=b');
       expect(init?.method).toBe('DELETE');
@@ -212,7 +212,7 @@ describe('createFetchStorageApi', () => {
 
       await api.create({ bucket: 'b', key: 'new-folder/' });
 
-      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
       expect(url).toContain('/api/storage/create');
       expect(url).toContain('bucket=b');
       expect(url).toContain('key=new-folder%2F');
@@ -229,7 +229,7 @@ describe('createFetchStorageApi', () => {
       const res = await api.archiveExtract({ bucket: 'b', key: 'archive.zip', path: 'file.txt' });
 
       expect(res).toBeInstanceOf(Response);
-      const [url] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      const [url] = vi.mocked(globalThis.fetch).mock.calls[0];
       expect(url).toContain('/api/storage/archive/extract');
       expect(url).toContain('bucket=b');
       expect(url).toContain('key=archive.zip');
@@ -247,7 +247,7 @@ describe('createFetchStorageApi', () => {
         nestedArchivePath: 'inner.zip'
       });
 
-      const [url] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      const [url] = vi.mocked(globalThis.fetch).mock.calls[0];
       expect(url).toContain('nestedArchivePath=inner.zip');
     });
   });
@@ -283,7 +283,7 @@ describe('createFetchStorageApi', () => {
         nestedArchivePath: 'inner.zip'
       });
 
-      const [url] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      const [url] = vi.mocked(globalThis.fetch).mock.calls[0];
       expect(url).toContain('internalPrefix=subdir%2F');
       expect(url).toContain('nestedArchivePath=inner.zip');
     });
@@ -302,7 +302,7 @@ describe('createFetchStorageApi', () => {
 
       expect(await api.planTransfer(body)).toEqual(items);
 
-      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
       expect(url).toBe('/api/storage/transfer/plan');
       expect(JSON.parse(init?.body as string)).toEqual(body);
     });
@@ -340,7 +340,7 @@ describe('createFetchStorageApi', () => {
 
       expect(result).toEqual({ complete: true });
       expect(onEvent.mock.calls.map(([event]) => event)).toEqual(events);
-      expect(vi.mocked(globalThis.fetch).mock.calls[0]![0]).toBe('/api/storage/transfer');
+      expect(vi.mocked(globalThis.fetch).mock.calls[0][0]).toBe('/api/storage/transfer');
     });
 
     it('raises errors from the event handler and malformed lines instead of polling', async () => {
@@ -423,7 +423,7 @@ describe('createFetchStorageApi', () => {
 
       expect(result.status).toBe('running');
       expect(result.progress?.completedBytes).toBe(1024);
-      const [url] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      const [url] = vi.mocked(globalThis.fetch).mock.calls[0];
       expect(url).toContain('/api/storage/copy/job/job-abc');
     });
 
@@ -445,7 +445,7 @@ describe('createFetchStorageApi', () => {
       const exists = await api.checkObjectExists({ bucket: 'b', key: 'file.txt' });
       expect(exists).toBe(true);
 
-      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
       expect(url).toContain('/api/storage/download');
       expect(url).toContain('bucket=b');
       expect(url).toContain('key=file.txt');
@@ -486,7 +486,7 @@ describe('createFetchStorageApi', () => {
 
       expect(result).toEqual({ etag: '"new"' });
 
-      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+      const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
       expect(url).toContain('/api/storage/save-text');
       expect(url).toContain('bucket=b');
       expect(url).toContain('key=new+file.txt');
