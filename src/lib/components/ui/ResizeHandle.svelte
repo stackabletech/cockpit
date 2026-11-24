@@ -1,11 +1,10 @@
 <script lang="ts">
-  import * as m from '$lib/paraglide/messages.js';
   import type { ResizablePanel } from './resizable-panel.svelte.js';
 
   interface Props {
     panel: ResizablePanel;
-    /** Accessible label for the handle. Defaults to the storage-sidebar label. */
-    label?: string;
+    /** Accessible label for the handle. */
+    label: string;
   }
 
   let { panel, label }: Props = $props();
@@ -16,7 +15,7 @@
 <div
   role="separator"
   aria-orientation="vertical"
-  aria-label={label ?? m.storage_sidebar_resize_handle()}
+  aria-label={label}
   aria-valuenow={panel.width}
   aria-valuemin={panel.minWidth}
   aria-valuemax={panel.maxWidth}

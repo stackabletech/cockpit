@@ -5,8 +5,8 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
   import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
-  import { createResizablePanel } from './resizable-panel.svelte.js';
-  import ResizeHandle from './ResizeHandle.svelte';
+  import { createResizablePanel } from '$lib/components/ui/resizable-panel.svelte.js';
+  import ResizeHandle from '$lib/components/ui/ResizeHandle.svelte';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import type { SubmitFunction } from '@sveltejs/kit';
@@ -344,5 +344,5 @@
     </a>
   </div>
 
-  <ResizeHandle panel={resize} />
+  <ResizeHandle panel={resize} label={m.storage_sidebar_resize_handle()} />
 </aside>

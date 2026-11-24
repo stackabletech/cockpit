@@ -10,8 +10,8 @@
   import IconOpenInNew from 'virtual:icons/material-symbols/open-in-new';
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
-  import ResizeHandle from '$lib/components/storage/sidebar/ResizeHandle.svelte';
-  import { createResizablePanel } from '$lib/components/storage/sidebar/resizable-panel.svelte.js';
+  import ResizeHandle from '$lib/components/ui/ResizeHandle.svelte';
+  import { createResizablePanel } from '$lib/components/ui/resizable-panel.svelte.js';
   import Modal from '$lib/components/ui/Modal.svelte';
   import { superForm } from 'sveltekit-superforms';
   import { zod4Client } from 'sveltekit-superforms/adapters';

@@ -16,8 +16,8 @@
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
   import { parseStorageDrop, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import { locationLabel, locationHref } from '$lib/storage/display-helpers.js';
-  import { createResizablePanel } from './resizable-panel.svelte.js';
-  import ResizeHandle from './ResizeHandle.svelte';
+  import { createResizablePanel } from '$lib/components/ui/resizable-panel.svelte.js';
+  import ResizeHandle from '$lib/components/ui/ResizeHandle.svelte';
 
   const storage = getStorageState();
 
@@ -290,5 +290,5 @@
     </Modal>
   {/if}
 
-  <ResizeHandle panel={resize} />
+  <ResizeHandle panel={resize} label={m.storage_sidebar_resize_handle()} />
 </nav>

@@ -1,5 +1,3 @@
-import { browser } from '$app/environment';
-
 interface Options {
   storageKey: string;
   defaultWidth?: number;
@@ -20,7 +18,7 @@ export function createResizablePanel({
   maxWidth = 480
 }: Options) {
   function getInitialWidth(): number {
-    if (!browser) return defaultWidth;
+    if (typeof window === 'undefined') return defaultWidth;
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
@@ -82,7 +80,6 @@ export function createResizablePanel({
   // Keep the col-resize cursor active across the whole page while dragging so
   // it doesn't flicker when the pointer moves faster than the DOM updates.
   $effect(() => {
-    if (!browser) return;
     if (isDragging) {
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
