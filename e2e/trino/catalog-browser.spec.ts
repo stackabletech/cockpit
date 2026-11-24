@@ -249,6 +249,15 @@ test.describe('Catalog browser', () => {
     await expect.poll(async () => (await aside.boundingBox())?.width).toBe(before + 20);
   });
 
+  test('catalog browser is rendered open before hydration', async ({ page }) => {
+    // Without the app's JavaScript the page shows what the server rendered.
+    await page.route('**/_app/immutable/**/*.js', (route) => route.abort());
+    await page.reload();
+    const handle = page.getByRole('separator', { name: 'Resize catalog browser' });
+    const aside = handle.locator('..').locator('aside');
+    expect((await aside.boundingBox())?.width).toBe(288);
+  });
+
   test('browser is hidden by default on mobile', async ({ page }) => {
     // Set mobile viewport.
     await page.setViewportSize({ width: 375, height: 667 });

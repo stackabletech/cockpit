@@ -4,7 +4,6 @@
   import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
   import IconClose from 'virtual:icons/material-symbols/close';
-  import IconMenu from 'virtual:icons/material-symbols/menu';
   import IconPanelClose from 'virtual:icons/material-symbols/left-panel-close-outline';
   import IconPanelOpen from 'virtual:icons/material-symbols/left-panel-open-outline';
   import IconOpenInNew from 'virtual:icons/material-symbols/open-in-new';
@@ -67,8 +66,9 @@
   let catalogVersion = $state(0);
 
   // Catalog browser state. On mobile, always start closed; on desktop, restore from localStorage.
+  // The server renders it open, the desktop default, so it doesn't jump in after hydration.
   function getInitialCatalogOpen(): boolean {
-    if (!browser) return false;
+    if (!browser) return true;
     try {
       const isMobile = !window.matchMedia('(min-width: 1024px)').matches;
       if (isMobile) return false;
@@ -411,7 +411,7 @@
       class="
         border-base-300 bg-base-100 flex h-full flex-col overflow-hidden rounded-xl
         border ease-out
-        {catalogResize.isDragging ? '' : 'transition-[width] duration-200'}
+        {hydrated && !catalogResize.isDragging ? 'transition-[width] duration-200' : ''}
         {catalogBrowserOpen ? '' : 'invisible border-0'}"
       style="width: {catalogBrowserOpen ? catalogResize.cssWidth : '0px'}"
     >
@@ -675,24 +675,13 @@
               onclick={toggleCatalogBrowser}
               aria-label={m.trino_catalog_browser_toggle()}
             >
+              <!-- On mobile the button opens the overlay, whatever the desktop state is. -->
               {#if catalogBrowserOpen}
-                <IconPanelClose
-                  class="
-                    hidden size-4
-                    lg:block
-                  "
-                  aria-hidden="true"
-                />
-                <IconMenu
-                  class="
-                    size-4
-                    lg:hidden
-                  "
-                  aria-hidden="true"
-                />
+                <IconPanelClose class="hidden size-4 lg:block" aria-hidden="true" />
               {:else}
-                <IconPanelOpen class="size-4" aria-hidden="true" />
+                <IconPanelOpen class="hidden size-4 lg:block" aria-hidden="true" />
               {/if}
+              <IconPanelOpen class="size-4 lg:hidden" aria-hidden="true" />
             </button>
           </div>
           <span class="text-muted text-sm font-medium">{m.trino_editor_label()}</span>
