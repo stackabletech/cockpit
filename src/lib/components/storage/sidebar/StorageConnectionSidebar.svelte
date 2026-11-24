@@ -325,9 +325,7 @@
             actions={actionsFor(conn)}
             onaction={(key) => handleMenuAction(key, conn)}
             triggerClass="
-              btn btn-ghost btn-xs absolute inset-y-0 right-1 z-150 my-auto
-              p-0 opacity-0 transition-opacity
-              group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100
+              btn btn-ghost btn-xs text-muted absolute inset-y-0 right-1 z-150 my-auto p-0
             "
           />
         </li>

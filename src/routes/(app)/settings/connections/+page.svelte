@@ -140,10 +140,7 @@
                   tooltip="left"
                   actions={actionsFor(conn)}
                   onaction={(key) => handleMenuAction(key, conn)}
-                  triggerClass="
-                    btn btn-ghost btn-xs btn-square opacity-0
-                    group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100
-                  "
+                  triggerClass="btn btn-ghost btn-xs btn-square text-muted"
                 />
               </td>
             </tr>

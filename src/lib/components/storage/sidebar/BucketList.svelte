@@ -149,9 +149,8 @@
                 <button
                   type="button"
                   class="
-                    btn btn-ghost btn-xs absolute top-1/2 right-1 z-150 -translate-y-1/2
-                    p-0 opacity-0 transition-opacity
-                    group-hover:opacity-100 focus:opacity-100
+                    btn btn-ghost btn-xs text-muted absolute top-1/2 right-1 z-150
+                    -translate-y-1/2 p-0
                   "
                   data-unpin
                   onclick={() => unpin(pin, index)}

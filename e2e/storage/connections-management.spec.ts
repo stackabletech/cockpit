@@ -16,7 +16,7 @@ async function openFirstConnectionEditPage(page: Page) {
   await page
     .getByRole('button', { name: /Options for/i })
     .first()
-    .click({ force: true });
+    .click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();
   await waitForHydration(page);
 }
@@ -231,7 +231,7 @@ test.describe('Storage — Connections management', () => {
     await savedList
       .getByRole('button', { name: /Options for/ })
       .first()
-      .click({ force: true });
+      .click();
     await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
     await waitForHydration(page);
     await expect(page.getByRole('heading', { name: 'Edit connection' })).toBeVisible();
@@ -410,7 +410,7 @@ test.describe('Storage — Connection edit sidebar', () => {
     await savedList
       .getByRole('button', { name: /Options for/ })
       .first()
-      .click({ force: true });
+      .click();
     await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
     await waitForHydration(page);
     await expect(page.getByRole('heading', { name: 'Edit connection' })).toBeVisible();
@@ -433,7 +433,7 @@ test.describe('Storage — Connection edit sidebar', () => {
       .getByRole('list', { name: 'Saved connections' })
       .getByRole('button', { name: /Options for/ })
       .nth(index)
-      .click({ force: true });
+      .click();
     await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
   }

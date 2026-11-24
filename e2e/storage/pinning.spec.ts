@@ -36,9 +36,7 @@ test.describe('Storage S3 — Pinned locations', () => {
       const sidebar = page.getByRole('navigation', { name: 'Buckets' });
       await expect(sidebar.getByText('Pinned Access')).toBeVisible();
 
-      await sidebar.getByRole('button', { name: `Unpin ${credentials.bucket}` }).click({
-        force: true
-      });
+      await sidebar.getByRole('button', { name: `Unpin ${credentials.bucket}` }).click();
 
       await expect(sidebar.getByText('Pinned Access')).toHaveCount(0);
     } finally {
