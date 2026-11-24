@@ -22,7 +22,7 @@
   const storage = getStorageState();
 
   const resize = createResizablePanel({
-    storageKey: 'storage_sidebar_width',
+    id: 'storage-buckets',
     defaultWidth: 192,
     minWidth: 120,
     maxWidth: 480
@@ -118,7 +118,7 @@
     border-base-300 bg-base-100 relative flex shrink-0 flex-col
     rounded-lg border
   "
-  style="width: var(--storage-sidebar-width, {resize.width}px)"
+  style="width: {resize.cssWidth}"
   aria-label={m.storage_buckets_label()}
 >
   {#if !storage.connected || !storage.connectionHostname}

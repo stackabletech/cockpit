@@ -1,49 +1,73 @@
+/**
+ * localStorage key prefix for saved panel widths. The inline script in `src/app.html` reads every
+ * key with this prefix before first paint and sets the matching CSS variable, so keep both in sync.
+ */
+const STORAGE_KEY_PREFIX = 'panel_width:';
+const CSS_VAR_PREFIX = '--panel-width-';
+
 interface Options {
-  storageKey: string;
+  /** Unique panel id (letters, digits, `-`), used for the localStorage key and CSS variable. */
+  id: string;
   defaultWidth?: number;
   minWidth?: number;
   maxWidth?: number;
 }
 
 /**
- * Creates reactive state and event handlers for a drag-to-resize sidebar panel.
+ * Creates reactive state and event handlers for a drag-to-resize panel.
  * Call from a component's `<script>` block or another `.svelte.ts` file.
- * The returned object's `width` is reactive and can be used directly in
- * `style="width: {resize.width}px"`.
+ *
+ * Size the panel with `style="width: {panel.cssWidth}"`. It reads the panel's CSS variable, which
+ * `src/app.html` restores before first paint, so the saved width applies without a jump on hydration.
+ * `width` is the reactive numeric width, e.g. for `aria-valuenow`.
  */
 export function createResizablePanel({
-  storageKey,
+  id,
   defaultWidth = 192,
   minWidth = 120,
   maxWidth = 480
 }: Options) {
+  // Must match the id pattern of the inline script in app.html, or the width is never restored.
+  if (!/^[A-Za-z0-9-]+$/.test(id)) throw new Error(`Invalid resizable panel id: ${id}`);
+  const storageKey = STORAGE_KEY_PREFIX + id;
+  const cssVar = CSS_VAR_PREFIX + id;
+
+  function clamp(w: number): number {
+    return Math.min(maxWidth, Math.max(minWidth, w));
+  }
+
   function getInitialWidth(): number {
     if (typeof window === 'undefined') return defaultWidth;
     try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = parseInt(stored, 10);
-        if (!isNaN(parsed) && parsed >= minWidth && parsed <= maxWidth) return parsed;
-      }
+      const parsed = parseInt(localStorage.getItem(storageKey) ?? '', 10);
+      if (!isNaN(parsed)) return clamp(parsed);
     } catch {
       /* ignore storage errors */
     }
     return defaultWidth;
   }
 
-  function saveWidth(w: number) {
-    try {
-      localStorage.setItem(storageKey, String(w));
-      document.documentElement.style.setProperty('--storage-sidebar-width', w + 'px');
-    } catch {
-      /* ignore storage errors */
-    }
-  }
-
   let width = $state(getInitialWidth());
   let isDragging = $state(false);
   let dragStartX = 0;
   let dragStartWidth = 0;
+
+  function setWidth(w: number) {
+    width = clamp(w);
+    document.documentElement.style.setProperty(cssVar, `${width}px`);
+  }
+
+  // The inline script only accepts positive widths; sync the variable so the rendered width
+  // always matches `width` (and `aria-valuenow`), whatever the script did.
+  if (typeof window !== 'undefined') setWidth(width);
+
+  function saveWidth() {
+    try {
+      localStorage.setItem(storageKey, String(width));
+    } catch {
+      /* ignore storage errors */
+    }
+  }
 
   function onResizeStart(e: PointerEvent) {
     isDragging = true;
@@ -55,38 +79,39 @@ export function createResizablePanel({
 
   function onResizeMove(e: PointerEvent) {
     if (!isDragging) return;
-    width = Math.min(maxWidth, Math.max(minWidth, dragStartWidth + (e.clientX - dragStartX)));
+    setWidth(dragStartWidth + (e.clientX - dragStartX));
   }
 
   function onResizeEnd() {
     if (!isDragging) return;
     isDragging = false;
-    saveWidth(width);
+    saveWidth();
   }
 
   function onResizeKeydown(e: KeyboardEvent) {
     const step = e.shiftKey ? 20 : 4;
     if (e.key === 'ArrowRight') {
-      width = Math.min(maxWidth, width + step);
-      saveWidth(width);
+      setWidth(width + step);
+      saveWidth();
       e.preventDefault();
     } else if (e.key === 'ArrowLeft') {
-      width = Math.max(minWidth, width - step);
-      saveWidth(width);
+      setWidth(width - step);
+      saveWidth();
       e.preventDefault();
     }
   }
 
   // Keep the col-resize cursor active across the whole page while dragging so
-  // it doesn't flicker when the pointer moves faster than the DOM updates.
+  // it doesn't flicker when the pointer moves faster than the DOM updates. The cleanup also runs
+  // when the panel unmounts mid-drag.
   $effect(() => {
-    if (isDragging) {
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    } else {
+    if (!isDragging) return;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
-    }
+    };
   });
 
   return {
@@ -96,6 +121,8 @@ export function createResizablePanel({
     get isDragging() {
       return isDragging;
     },
+    /** CSS width that follows the panel's variable, clamped to the panel's limits. */
+    cssWidth: `clamp(${minWidth}px, var(${cssVar}, ${defaultWidth}px), ${maxWidth}px)`,
     minWidth,
     maxWidth,
     onResizeStart,

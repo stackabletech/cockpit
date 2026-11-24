@@ -40,7 +40,7 @@
   let { connections, activeId, onselect, onbeforedelete, ondeletesettled }: Props = $props();
 
   const resize = createResizablePanel({
-    storageKey: 'storage_connect_sidebar_width',
+    id: 'storage-connections',
     defaultWidth: 224,
     minWidth: 140,
     maxWidth: 400
@@ -245,7 +245,7 @@
     border-base-300 bg-base-100 sticky top-0
     hidden h-[calc(100dvh-7rem)] shrink-0 flex-col rounded-lg border md:flex
   "
-  style="width: {resize.width}px; min-width: {resize.minWidth}px"
+  style="width: {resize.cssWidth}"
   aria-label={m.storage_connect_saved()}
 >
   <div class="border-base-300 border-b px-3 py-2">

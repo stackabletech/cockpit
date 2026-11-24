@@ -52,7 +52,7 @@
 
   // Drag-to-resize state for the desktop catalog browser panel (width persisted).
   const catalogResize = createResizablePanel({
-    storageKey: 'trino_catalog_browser_width',
+    id: 'trino-catalog-browser',
     defaultWidth: 288, // matches the previous fixed w-72
     minWidth: 240,
     maxWidth: 560
@@ -413,16 +413,16 @@
         border ease-out
         {catalogResize.isDragging ? '' : 'transition-[width] duration-200'}
         {catalogBrowserOpen ? '' : 'invisible border-0'}"
-      style="width: {catalogBrowserOpen ? catalogResize.width : 0}px"
+      style="width: {catalogBrowserOpen ? catalogResize.cssWidth : '0px'}"
     >
       <!-- Fixed open width so content doesn't reflow while the aside animates to 0. -->
       <div
         class="border-base-300 flex items-center justify-between border-b px-3 py-2"
-        style="width: {catalogResize.width}px"
+        style="width: {catalogResize.cssWidth}"
       >
         <span class="text-muted text-sm font-medium">{m.trino_catalog_browser()}</span>
       </div>
-      <div class="min-h-0 flex-1" style="width: {catalogResize.width}px">
+      <div class="min-h-0 flex-1" style="width: {catalogResize.cssWidth}">
         <CatalogBrowser
           connectionVersion={catalogVersion}
           bind:defaultCatalog
