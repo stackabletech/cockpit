@@ -122,6 +122,16 @@ describe('FolderRow', () => {
     await expect.element(btn).toBeInTheDocument();
   });
 
+  it('should show the actions button without hover or focus', async () => {
+    const folder = makeFolder('my-folder/');
+    const state = createState([folder]);
+    render(FolderRowWrapper, { state, folder });
+
+    const btn = page.getByRole('button', { name: 'Actions for my-folder' });
+    await expect.element(btn).toBeInTheDocument();
+    expect(getComputedStyle(btn.element()).opacity).toBe('1');
+  });
+
   it('should toggle selection on ctrl+click when not in selection mode', async () => {
     const folder = makeFolder('photos/');
     const state = createState([folder]);

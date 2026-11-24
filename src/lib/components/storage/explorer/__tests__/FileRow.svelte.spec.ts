@@ -116,6 +116,16 @@ describe('FileRow', () => {
     await expect.element(btn).toBeInTheDocument();
   });
 
+  it('should show the actions button without hover or focus', async () => {
+    const file = makeFile({ key: 'path/my-file.txt', contentType: 'text/plain' });
+    const state = createState([file]);
+    render(FileRowWrapper, { state, file });
+
+    const btn = page.getByRole('button', { name: 'Actions for my-file.txt' });
+    await expect.element(btn).toBeInTheDocument();
+    expect(getComputedStyle(btn.element()).opacity).toBe('1');
+  });
+
   it('should call toggleSelect on click', async () => {
     const file = makeFile({ key: 'click.txt', contentType: 'text/plain' });
     const state = createState([file]);
