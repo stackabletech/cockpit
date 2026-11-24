@@ -1,5 +1,5 @@
 import { test, expect } from './support/fixtures.js';
-import { waitForHydration } from './support/helpers';
+import { openConnectForm } from './storage/helpers.js';
 
 declare const process: {
   env: Record<string, string | undefined>;
@@ -17,41 +17,6 @@ declare const process: {
  */
 test.describe('Storage S3 (Garage)', () => {
   test.use({ locale: 'en-US' });
-
-  async function openConnectForm(page: import('@playwright/test').Page) {
-    await page.goto('/storage');
-    await waitForHydration(page);
-
-    const disconnectButton = page.getByRole('button', { name: 'Disconnect' });
-    if (await disconnectButton.isVisible().catch(() => false)) {
-      await disconnectButton.click();
-      await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
-    }
-
-    await expect(page.getByRole('heading', { name: 'Connect to storage' })).toBeVisible();
-
-    // Clear all saved connections so tests start from a clean state.
-    const savedList = page.getByRole('list', { name: 'Saved connections' });
-    while (await savedList.isVisible().catch(() => false)) {
-      const items = savedList.getByRole('listitem');
-      if ((await items.count()) === 0) break;
-      if (
-        await items
-          .first()
-          .filter({ hasText: 'No saved connections yet' })
-          .isVisible()
-          .catch(() => false)
-      )
-        break;
-      await items.first().getByRole('button').last().click({ force: true });
-      const deleteMenuItem = page.getByRole('menuitem', { name: 'Delete', exact: true });
-      if (await deleteMenuItem.isVisible().catch(() => false)) {
-        await deleteMenuItem.click();
-        await page.getByRole('button', { name: 'Delete', exact: true }).click();
-      }
-      await waitForHydration(page);
-    }
-  }
 
   test('connects to Garage S3 bucket and lists buckets', async ({ page }) => {
     test.skip(
