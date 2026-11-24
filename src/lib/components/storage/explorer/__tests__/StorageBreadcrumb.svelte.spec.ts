@@ -280,6 +280,18 @@ describe('StorageBreadcrumb', () => {
       (unpinButton.element() as HTMLElement).click();
       expect(spy).toHaveBeenCalledWith('test-bucket', 'data/');
     });
+
+    it('should expand the pin control when it receives keyboard focus', async () => {
+      const state = createState({ bucket: 'test-bucket', prefix: 'data/' });
+      render(StorageBreadcrumbWrapper, { state });
+
+      const pinButton = page.getByRole('button', { name: 'Pin' }).last();
+      await expect.element(pinButton).toBeInTheDocument();
+      (pinButton.element() as HTMLElement).focus();
+
+      await expect.element(pinButton).toHaveFocus();
+      await expectPointerReachable(pinButton);
+    });
   });
 
   describe('navigation clicks', () => {
