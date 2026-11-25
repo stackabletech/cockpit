@@ -7,7 +7,6 @@
   import { getTabsState } from '$lib/storage/context.js';
   import { collectDroppedFiles } from '$lib/storage/file-collection.js';
   import { storageTransferEnabled } from '$lib/client/feature-flags.js';
-  import type { ContextMenuAction } from '$lib/storage/types.js';
   import type { ActionName } from '$lib/storage/types.js';
   import IconVisibility from 'virtual:icons/material-symbols/visibility';
   import IconDownload from 'virtual:icons/material-symbols/download';
@@ -27,7 +26,7 @@
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import TabBar from './TabBar.svelte';
   import ObjectTable from './ObjectTable.svelte';
-  import ContextMenu from './ContextMenu.svelte';
+  import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
 
   const storage = getStorageState();

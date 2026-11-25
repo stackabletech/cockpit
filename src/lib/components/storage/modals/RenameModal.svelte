@@ -1,7 +1,7 @@
 <script lang="ts">
   import IconDriveFileRenameOutline from 'virtual:icons/material-symbols/drive-file-rename-outline';
   import * as m from '$lib/paraglide/messages.js';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import { objectNameError } from '$lib/storage/name-validation.js';
 
   interface Props {

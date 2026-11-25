@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import IconWarningRounded from 'virtual:icons/material-symbols/warning-rounded';
   import * as m from '$lib/paraglide/messages.js';
 

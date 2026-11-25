@@ -2,7 +2,7 @@
   import IconDescriptionOutline from 'virtual:icons/material-symbols/description-outline';
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
   import * as m from '$lib/paraglide/messages.js';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import { objectNameError } from '$lib/storage/name-validation.js';
 
   interface Props {

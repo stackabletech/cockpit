@@ -1,5 +1,5 @@
 <script lang="ts">
-  import TooltipTrigger from '../TooltipTrigger.svelte';
+  import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
 
   interface Props {
     text?: string;

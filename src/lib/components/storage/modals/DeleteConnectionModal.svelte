@@ -1,8 +1,8 @@
 <script lang="ts">
   import IconContentCopy from 'virtual:icons/material-symbols/content-copy';
   import IconCheck from 'virtual:icons/material-symbols/check';
-  import Modal from '$lib/components/Modal.svelte';
-  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
+  import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
   import * as m from '$lib/paraglide/messages.js';
   import type { SavedConnection } from '$lib/storage/connection-id-header.js';
 

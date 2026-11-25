@@ -97,6 +97,52 @@ test.describe('Storage S3 — Details Modal', () => {
     }
   });
 
+  test('treemap context menu works on top of the details modal', async ({
+    page,
+    context,
+    browserName
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'details-treemap');
+    const cleanupKeys = [`${prefix}subdir/big.txt`];
+
+    try {
+      await putTextObject(client, credentials.bucket, cleanupKeys[0], 'x'.repeat(2048));
+      // Firefox cannot grant clipboard permissions; the copy itself still runs there.
+      if (browserName === 'chromium') {
+        await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      }
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+      await rowByName(page, 'subdir').click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Details' }).click();
+
+      const modal = modalBox(page);
+      await modal.getByRole('button', { name: 'Calculate directory size' }).click();
+      await modal.getByRole('tab', { name: 'Size composition' }).click();
+      const leaf = modal.getByRole('treeitem', { name: /big\.txt/ });
+
+      // Escape closes only the menu, not the modal underneath.
+      const menu = page.getByRole('menu');
+      await leaf.click({ button: 'right' });
+      await expect(menu).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(menu).toHaveCount(0);
+      await expect(modal).toBeVisible();
+
+      await leaf.click({ button: 'right' });
+      await menu.getByRole('menuitem', { name: 'Copy file name' }).click();
+      await expect(menu).toHaveCount(0);
+      await expect(modal).toBeVisible();
+      if (browserName === 'chromium') {
+        expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('big.txt');
+      }
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   test('explains a failed size calculation', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);

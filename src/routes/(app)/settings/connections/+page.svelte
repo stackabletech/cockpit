@@ -9,6 +9,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import type { ConnectionListItem } from '$lib/storage/connection-store.svelte.js';
   import { connectionLabel } from '$lib/storage/display-helpers.js';
+  import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
   import DeleteConnectionModal from '$lib/components/storage/modals/DeleteConnectionModal.svelte';
   import type { SavedConnection } from '$lib/storage/connection-id-header.js';
 
@@ -17,29 +18,11 @@
 
   // Context menu state
   let menuConn: ConnectionListItem | null = $state(null);
-  let menuEl: HTMLUListElement | null = $state(null);
-  let menuRawPos = $state({ left: 0, top: 0 });
-
-  const menuPos = $derived.by(() => {
-    if (!menuConn) return { left: 0, top: 0 };
-    if (!menuEl) return menuRawPos;
-    const rect = menuEl.getBoundingClientRect();
-    return {
-      left:
-        menuRawPos.left + rect.width > window.innerWidth
-          ? menuRawPos.left - rect.width
-          : menuRawPos.left,
-      top:
-        menuRawPos.top + rect.height > window.innerHeight
-          ? menuRawPos.top - rect.height
-          : menuRawPos.top
-    };
-  });
+  let menuPos = $state({ x: 0, y: 0 });
 
   function openContextMenu(e: MouseEvent, conn: ConnectionListItem) {
     e.preventDefault();
-    e.stopPropagation();
-    menuRawPos = { left: e.clientX, top: e.clientY };
+    menuPos = { x: e.clientX, y: e.clientY };
     menuConn = conn;
   }
 
@@ -47,26 +30,49 @@
     menuConn = null;
   }
 
-  function handleOutsideClick(e: MouseEvent) {
-    if (deleteConfirmOpen) return;
-    if (menuConn && menuEl && !menuEl.contains(e.target as Node)) closeContextMenu();
+  const menuActions = $derived.by<ContextMenuAction[]>(() => {
+    if (!menuConn) return [];
+    return [
+      {
+        key: 'edit',
+        icon: IconEdit,
+        label: m.storage_connections_edit(),
+        href: resolve(`/settings/connections/${menuConn.id}/edit`)
+      },
+      {
+        key: 'delete',
+        icon: IconDelete,
+        label: m.storage_connections_delete(),
+        class: 'text-error'
+      }
+    ];
+  });
+
+  function handleMenuAction(key: string) {
+    if (key !== 'delete' || !menuConn) return;
+    deleteTarget = menuConn;
+    deleteConfirmOpen = true;
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (menuConn && e.key === 'Escape') closeContextMenu();
-  }
-
-  // Delete confirmation
+  // Delete confirmation. Opening the modal closes the menu, so the target is kept separately.
+  let deleteTarget: ConnectionListItem | null = $state(null);
   let deleteConfirmOpen = $state(false);
   let deleteFormEl = $state<HTMLFormElement | null>(null);
 
   const deleteConn = $derived.by<SavedConnection | null>(() => {
-    if (!menuConn) return null;
-    const ep = menuConn.endpoint ?? '';
+    if (!deleteTarget) return null;
+    const ep = deleteTarget.endpoint ?? '';
     const colonIdx = ep.lastIndexOf(':');
     const host = colonIdx > 0 ? ep.slice(0, colonIdx) : ep;
     const port = colonIdx > 0 ? parseInt(ep.slice(colonIdx + 1), 10) || null : null;
-    return { id: menuConn.id, name: menuConn.name, host, port, type: 's3', region: { name: '' } };
+    return {
+      id: deleteTarget.id,
+      name: deleteTarget.name,
+      host,
+      port,
+      type: 's3',
+      region: { name: '' }
+    };
   });
 
   function confirmDelete() {
@@ -75,12 +81,9 @@
 
   function cancelDelete() {
     deleteConfirmOpen = false;
-    closeContextMenu();
+    deleteTarget = null;
   }
 </script>
-
-<svelte:document onclick={handleOutsideClick} />
-<svelte:window onkeydown={handleKeydown} />
 
 <div class="mx-auto max-w-4xl p-6">
   <a href={resolve('/storage')} class="btn btn-ghost btn-sm mb-4 -ml-2">
@@ -148,45 +151,24 @@
   {/if}
 </div>
 
-<!-- Context menu (right-click or button) -->
-{#if menuConn}
-  <form method="POST" action="?/deleteConnection" bind:this={deleteFormEl} class="contents">
-    <input type="hidden" name="connectionId" value={menuConn.id} />
-  </form>
-  <ul
-    bind:this={menuEl}
-    class="menu menu-sm border-base-300 bg-base-100 fixed z-50 w-36 rounded-lg border p-1 shadow-lg"
-    role="menu"
-    tabindex="-1"
-    style="left: {menuPos.left}px; top: {menuPos.top}px;"
-  >
-    <li role="none">
-      <a
-        href={resolve(`/settings/connections/${menuConn.id}/edit`)}
-        role="menuitem"
-        onclick={closeContextMenu}
-      >
-        <IconEdit class="size-4 shrink-0" aria-hidden="true" />
-        {m.storage_connections_edit()}
-      </a>
-    </li>
-    <li role="none">
-      <button
-        type="button"
-        role="menuitem"
-        class="text-error w-full justify-start"
-        onclick={() => (deleteConfirmOpen = true)}
-      >
-        <IconDelete class="size-4 shrink-0" aria-hidden="true" />
-        {m.storage_connections_delete()}
-      </button>
-    </li>
-  </ul>
+<ContextMenu
+  x={menuPos.x}
+  y={menuPos.y}
+  open={menuConn !== null}
+  onclose={closeContextMenu}
+  onaction={handleMenuAction}
+  actions={menuActions}
+/>
 
-  <DeleteConnectionModal
-    open={deleteConfirmOpen}
-    connection={deleteConn}
-    onconfirm={confirmDelete}
-    oncancel={cancelDelete}
-  />
+{#if deleteTarget}
+  <form method="POST" action="?/deleteConnection" bind:this={deleteFormEl} class="contents">
+    <input type="hidden" name="connectionId" value={deleteTarget.id} />
+  </form>
 {/if}
+
+<DeleteConnectionModal
+  bind:open={deleteConfirmOpen}
+  connection={deleteConn}
+  onconfirm={confirmDelete}
+  oncancel={cancelDelete}
+/>

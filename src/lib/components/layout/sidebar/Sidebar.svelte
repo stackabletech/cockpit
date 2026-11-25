@@ -14,7 +14,7 @@
   import ProductIcon from '$lib/components/dashboard/ProductIcon.svelte';
   import type { BookmarkLink } from '$lib/dashboard/types';
   import stackableLogo from '$lib/logos/stackable.svg?enhanced';
-  import TooltipTrigger from '$lib/components/TooltipTrigger.svelte';
+  import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
 
   let {
     collapsed = $bindable(false),
