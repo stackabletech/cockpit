@@ -54,12 +54,11 @@ async function clearSavedConnections(page: Page) {
     )
       break;
     const before = await items.count();
-    // Click the last button in the first list item. On desktop this is the
-    // "more options" button (opacity-0, so use force). On mobile it's the
-    // X delete button which submits the form directly.
-    await items.first().getByRole('button').last().click({ force: true });
-    // Desktop: a context menu appears — click Delete to open the modal.
-    // Mobile: the form submitted directly (no context menu), skip to hydration.
+    // Click the last button in the first list item. On desktop this is the options button,
+    // on mobile the X delete button, which submits the form directly.
+    await items.first().getByRole('button').last().click();
+    // Desktop: the options menu opens — click Delete to open the modal.
+    // Mobile: the form submitted directly (no menu), skip to hydration.
     const deleteMenuItem = page.getByRole('menuitem', { name: 'Delete', exact: true });
     if (await deleteMenuItem.isVisible().catch(() => false)) {
       await deleteMenuItem.click();
