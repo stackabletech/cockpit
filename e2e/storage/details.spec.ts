@@ -272,4 +272,62 @@ test.describe('Storage S3 — Details Modal', () => {
     await expect(modal.getByText('Disabled')).toHaveCount(0);
     await expect(modal.getByText('No lifecycle rules')).toBeVisible();
   });
+
+  test('shows lifecycle rule filter conditions', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    const bucket = credentials.bucket;
+    const rule = (id: string, filter: object) => ({
+      id,
+      status: 'Enabled',
+      filter: { tags: [], ...filter },
+      transitions: [],
+      expirations: [{ days: 30 }],
+      noncurrentVersionTransitions: [],
+      noncurrentVersionExpirations: [],
+      abortIncompleteMultipartUploads: []
+    });
+
+    await page.route(
+      (url) =>
+        url.pathname === '/api/storage/buckets' && url.searchParams.get('details') === 'true',
+      (route) =>
+        route.fulfill({
+          json: {
+            name: bucket,
+            versioning: 'Enabled',
+            lifecycleRules: [
+              rule('prefix-only', { prefix: 'logs/' }),
+              rule('combined', {
+                prefix: 'tmp/',
+                tags: [{ key: 'team', value: 'data' }],
+                objectSizeGreaterThan: 1_048_576
+              }),
+              rule('small', { objectSizeLessThan: 512 }),
+              rule('everything', {})
+            ],
+            tags: {},
+            acl: null
+          }
+        })
+    );
+
+    await connectToStorage(page, credentials);
+    await expect(page).toHaveURL('/storage');
+
+    const sidebar = page.getByRole('navigation', { name: 'Buckets' });
+    await sidebar.getByText(bucket).click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Details' }).click();
+
+    const modal = page.getByRole('dialog');
+    await expect(modal.getByText('Prefix: logs/')).toBeVisible();
+    await expect(modal.getByText('Prefix: tmp/')).toBeVisible();
+    await expect(modal.getByText('Tag: team = data')).toBeVisible();
+    await expect(modal.getByText('Size > 1.05 MB (1,048,576 bytes)')).toBeVisible();
+    await expect(modal).toContainText(
+      'Prefix: tmp/ and Tag: team = data and Size > 1.05 MB (1,048,576 bytes)'
+    );
+    await expect(modal.getByText('Size < 512 B', { exact: true })).toBeVisible();
+    await expect(modal.getByText('All objects')).toHaveCount(1);
+    await expect(modal.getByText(/[{}]/)).toHaveCount(0);
+  });
 });

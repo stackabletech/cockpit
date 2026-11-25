@@ -168,7 +168,7 @@ describe('GET /api/storage/buckets', () => {
         {
           id: 'rule-1',
           status: 'Enabled',
-          filter: { prefix: 'logs/' },
+          filter: { prefix: 'logs/', tags: [] },
           transitions: [],
           expirations: [{ days: 30 }],
           noncurrentVersionTransitions: [],
