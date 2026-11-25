@@ -120,7 +120,7 @@
   <td class="w-10 py-0 pr-2 text-right">
     <div class="tooltip tooltip-left" data-tip={m.storage_context_menu_actions()}>
       <button
-        class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100"
+        class="btn btn-ghost btn-xs text-muted"
         aria-label={m.storage_action_actions_for({ name: keyToName(folder.key) })}
         onclick={(e) => storage.openContextMenu(e, folder.key)}
       >

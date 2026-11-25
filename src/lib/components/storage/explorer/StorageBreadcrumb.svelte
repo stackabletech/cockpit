@@ -241,6 +241,7 @@
     class="
       pointer-events-none w-0 shrink-0 overflow-hidden
       group-hover:pointer-events-auto group-hover:w-5
+      focus-within:pointer-events-auto focus-within:w-5
       motion-safe:transition-[width] motion-safe:duration-150 motion-safe:group-hover:delay-700
     "
   >
@@ -264,12 +265,12 @@
       >
         <span class="relative inline-flex size-3.5">
           <span
-            class="absolute inset-0 flex items-center justify-center transition-opacity duration-150 group-hover/pin:opacity-0"
+            class="absolute inset-0 flex items-center justify-center transition-opacity duration-150 group-hover/pin:opacity-0 group-focus-visible/pin:opacity-0"
           >
             <PinIcon class="size-3.5" aria-hidden="true" />
           </span>
           <span
-            class="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover/pin:opacity-100"
+            class="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover/pin:opacity-100 group-focus-visible/pin:opacity-100"
           >
             <UnpinIcon class="size-3.5" aria-hidden="true" />
           </span>
