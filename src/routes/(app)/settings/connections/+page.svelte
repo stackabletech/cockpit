@@ -132,7 +132,7 @@
                 >
                   <button
                     type="button"
-                    class="btn btn-ghost btn-xs btn-square text-muted"
+                    class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100"
                     aria-label={m.storage_connections_options({ label: connectionLabel(conn) })}
                     onclick={(e) => openContextMenu(e, conn)}
                   >
