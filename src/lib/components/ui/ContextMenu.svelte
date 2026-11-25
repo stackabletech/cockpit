@@ -54,6 +54,7 @@
   import { untrack } from 'svelte';
   import IconClose from 'virtual:icons/material-symbols/close';
   import * as m from '$lib/paraglide/messages.js';
+  import MenuItems from './MenuItems.svelte';
 
   interface Props {
     open: boolean;
@@ -149,56 +150,34 @@
   onbeforetoggle={handleBeforeToggle}
   oncontextmenu={(e) => e.preventDefault()}
 >
-  <ul
-    bind:this={menuEl}
-    class="menu menu-sm w-full p-0"
-    role="menu"
-    tabindex="-1"
-    aria-label={title}
+  <MenuItems
+    bind:element={menuEl}
+    focusable
+    {actions}
+    onaction={run}
+    ondismiss={() => popoverEl?.hidePopover()}
+    label={title}
   >
-    {#if title}
-      <li class="menu-title p-0" role="none">
-        <div class="menu-title flex items-center justify-between py-1 pr-0 pl-2">
-          <span class="text-base-content/70 text-xs font-medium">{title}</span>
-          <div class="tooltip tooltip-left" data-tip={m.action_close()}>
-            <button
-              type="button"
-              role="menuitem"
-              class="btn btn-ghost btn-xs"
-              aria-label={m.action_close()}
-              onclick={close}
-            >
-              <IconClose class="size-4" aria-hidden="true" />
-            </button>
+    {#snippet header()}
+      {#if title}
+        <li class="menu-title p-0" role="none">
+          <div class="menu-title flex items-center justify-between py-1 pr-0 pl-2">
+            <span class="text-base-content/70 text-xs font-medium">{title}</span>
+            <div class="tooltip tooltip-left" data-tip={m.action_close()}>
+              <button
+                type="button"
+                role="menuitem"
+                tabindex="-1"
+                class="btn btn-ghost btn-xs"
+                aria-label={m.action_close()}
+                onclick={close}
+              >
+                <IconClose class="size-4" aria-hidden="true" />
+              </button>
+            </div>
           </div>
-        </div>
-      </li>
-    {/if}
-
-    {#each actions as act (act.key)}
-      {#if !act.hidden}
-        {@const ActIcon = act.icon}
-        <li role="none" class:menu-disabled={act.disabled}>
-          {#if act.href}
-            <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- callers pass resolved hrefs -->
-            <a role="menuitem" href={act.href} class={act.class} onclick={() => run(act.key)}>
-              <ActIcon class="mr-2 size-4 shrink-0" aria-hidden="true" />
-              {act.label}
-            </a>
-          {:else}
-            <button
-              type="button"
-              role="menuitem"
-              class={'justify-start ' + (act.class ?? '')}
-              onclick={() => run(act.key)}
-              disabled={act.disabled}
-            >
-              <ActIcon class={'mr-2 size-4 shrink-0 ' + (act.class ?? '')} aria-hidden="true" />
-              {act.label}
-            </button>
-          {/if}
         </li>
       {/if}
-    {/each}
-  </ul>
+    {/snippet}
+  </MenuItems>
 </div>

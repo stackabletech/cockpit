@@ -128,6 +128,25 @@ describe('ContextMenu', () => {
     expect(menu().matches(':popover-open')).toBe(false);
   });
 
+  it('moves between enabled items with the arrow keys and closes on Tab', async () => {
+    const { onclose, menu } = renderMenu({ title: 'Actions' });
+    await expect.element(page.getByRole('menu')).toHaveFocus();
+
+    await userEvent.keyboard('{ArrowDown}');
+    await expect.element(page.getByRole('menuitem', { name: 'Close' })).toHaveFocus();
+    await userEvent.keyboard('{ArrowDown}');
+    await expect.element(page.getByRole('menuitem', { name: 'Edit' })).toHaveFocus();
+    // Skips the disabled item and wraps around.
+    await userEvent.keyboard('{End}');
+    await expect.element(page.getByRole('menuitem', { name: 'Delete' })).toHaveFocus();
+    await userEvent.keyboard('{ArrowDown}');
+    await expect.element(page.getByRole('menuitem', { name: 'Close' })).toHaveFocus();
+
+    await userEvent.keyboard('{Tab}');
+    expect(onclose).toHaveBeenCalled();
+    expect(menu().matches(':popover-open')).toBe(false);
+  });
+
   it('closes on a click outside', async () => {
     const outside = document.createElement('button');
     outside.textContent = 'Outside';
