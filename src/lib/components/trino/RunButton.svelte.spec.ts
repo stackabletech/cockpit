@@ -33,10 +33,18 @@ describe('RunButton', () => {
 
     await expect.element(menu()).toBeVisible();
     const group = page.getByRole('button', { name: 'Run', exact: true }).element().parentElement!;
-    const groupBox = group.getBoundingClientRect();
-    const panelBox = menu().element().closest('[popover]')!.getBoundingClientRect();
-    expect(panelBox.left).toBeCloseTo(groupBox.left, 0);
-    expect(panelBox.right).toBeCloseTo(groupBox.right, 0);
+    const panel = menu().element().closest('[popover]')!;
+    // The menu follows the group's width through a resize observer, so it can lag a frame behind
+    // a change of the group's size, e.g. when a font loads.
+    const misalignment = () => {
+      const groupBox = group.getBoundingClientRect();
+      const panelBox = panel.getBoundingClientRect();
+      return Math.max(
+        Math.abs(panelBox.left - groupBox.left),
+        Math.abs(panelBox.right - groupBox.right)
+      );
+    };
+    await expect.poll(misalignment).toBeLessThan(0.5);
   });
 
   it('keeps the toggle the same size while the menu is open', async () => {
