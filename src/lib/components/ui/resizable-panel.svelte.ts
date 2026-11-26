@@ -1,3 +1,5 @@
+import { readStorage, writeStorage } from '$lib/client/local-storage';
+
 /**
  * localStorage key prefix for saved panel widths. The inline script in `src/app.html` reads every
  * key with this prefix before first paint and sets the matching CSS variable, so keep both in sync.
@@ -37,14 +39,8 @@ export function createResizablePanel({
   }
 
   function getInitialWidth(): number {
-    if (typeof window === 'undefined') return defaultWidth;
-    try {
-      const parsed = parseInt(localStorage.getItem(storageKey) ?? '', 10);
-      if (!isNaN(parsed)) return clamp(parsed);
-    } catch {
-      /* ignore storage errors */
-    }
-    return defaultWidth;
+    const parsed = parseInt(readStorage(storageKey) ?? '', 10);
+    return isNaN(parsed) ? defaultWidth : clamp(parsed);
   }
 
   let width = $state(getInitialWidth());
@@ -62,11 +58,7 @@ export function createResizablePanel({
   if (typeof window !== 'undefined') setWidth(width);
 
   function saveWidth() {
-    try {
-      localStorage.setItem(storageKey, String(width));
-    } catch {
-      /* ignore storage errors */
-    }
+    writeStorage(storageKey, String(width));
   }
 
   function onResizeStart(e: PointerEvent) {

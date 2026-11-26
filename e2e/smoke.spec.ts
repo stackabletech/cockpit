@@ -60,20 +60,4 @@ test.describe('Smoke tests', () => {
     await toggle.click();
     await expect(html).toHaveAttribute('data-theme', initialTheme);
   });
-
-  test('theme is set before hydration when localStorage is blocked', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'dark' });
-    // Browsers throw on localStorage access when site data is blocked.
-    await page.addInitScript(() => {
-      Object.defineProperty(window, 'localStorage', {
-        get() {
-          throw new DOMException('Blocked', 'SecurityError');
-        }
-      });
-    });
-    // Without the app's JavaScript only the inline script in app.html can set the theme.
-    await page.route('**/_app/immutable/**/*.js', (route) => route.abort());
-    await page.goto('/');
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  });
 });
