@@ -26,7 +26,8 @@
   import StorageBreadcrumb from './StorageBreadcrumb.svelte';
   import TabBar from './TabBar.svelte';
   import ObjectTable from './ObjectTable.svelte';
-  import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
+  import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
+  import type { MenuAction } from '$lib/components/ui/MenuItems.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
 
   const storage = getStorageState();
@@ -202,7 +203,7 @@
   );
   const selectionCount = $derived(storage.selectedKeys.size);
 
-  const contextMenuActions = $derived.by<ContextMenuAction[]>(() => {
+  const contextMenuActions = $derived.by<MenuAction[]>(() => {
     if (!hasCtxKey) {
       return [
         {
@@ -229,7 +230,7 @@
       ];
     }
 
-    const items: ContextMenuAction[] = [
+    const items: MenuAction[] = [
       {
         key: 'preview',
         icon: IconVisibility,

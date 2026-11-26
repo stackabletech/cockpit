@@ -26,6 +26,38 @@ describe('RunButton', () => {
     expect(onRun).toHaveBeenCalled();
   });
 
+  it('opens the menu as wide as the whole button group', async () => {
+    renderRunButton();
+
+    await toggle().click();
+
+    await expect.element(menu()).toBeVisible();
+    const group = page.getByRole('button', { name: 'Run', exact: true }).element().parentElement!;
+    const panel = menu().element().closest('[popover]')!;
+    // The menu follows the group's width through a resize observer, so it can lag a frame behind
+    // a change of the group's size, e.g. when a font loads.
+    const misalignment = () => {
+      const groupBox = group.getBoundingClientRect();
+      const panelBox = panel.getBoundingClientRect();
+      return Math.max(
+        Math.abs(panelBox.left - groupBox.left),
+        Math.abs(panelBox.right - groupBox.right)
+      );
+    };
+    await expect.poll(misalignment).toBeLessThan(0.5);
+  });
+
+  it('keeps the toggle the same size while the menu is open', async () => {
+    renderRunButton();
+    const width = () => toggle().element().getBoundingClientRect().width;
+    const closedWidth = width();
+
+    await toggle().click();
+    await expect.element(menu()).toBeVisible();
+
+    expect(width()).toBe(closedWidth);
+  });
+
   it('disables running while the editor is not ready', async () => {
     renderRunButton({ disabled: true });
 
@@ -102,22 +134,13 @@ describe('RunButton', () => {
       .toBeInTheDocument();
   });
 
-  it('closes the menu when focus leaves with Tab', async () => {
+  it('opens the menu with ArrowUp on the last mode', async () => {
     renderRunButton();
 
-    await toggle().click();
-    await userEvent.keyboard('{Tab}');
+    (toggle().element() as HTMLElement).focus();
+    await userEvent.keyboard('{ArrowUp}');
 
-    await expect.element(menu()).not.toBeInTheDocument();
-  });
-
-  it('closes the menu on a click outside', async () => {
-    renderRunButton();
-
-    await toggle().click();
-    await userEvent.click(document.body);
-
-    await expect.element(menu()).not.toBeInTheDocument();
+    await expect.element(item('Run all Ctrl+Shift+↵')).toHaveFocus();
   });
 
   it('cannot change the mode while a query runs', async () => {

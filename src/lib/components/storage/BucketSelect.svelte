@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as m from '$lib/paraglide/messages.js';
-  import { supportsAnchorPositioning, trackPopover } from '$lib/components/popover-position.js';
+  import { supportsAnchorPositioning, trackPopover } from '$lib/components/ui/popover-position.js';
   import type { SearchSession, StorageSearchState } from '$lib/storage/search.svelte.js';
   import IconArrowDropDown from 'virtual:icons/material-symbols/arrow-drop-down';
   import IconArrowDropUp from 'virtual:icons/material-symbols/arrow-drop-up';

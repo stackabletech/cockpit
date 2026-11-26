@@ -4,7 +4,8 @@
   import * as m from '$lib/paraglide/messages.js';
   import IconContentCopy from 'virtual:icons/material-symbols/content-copy';
   import IconFolderOpen from 'virtual:icons/material-symbols/folder-open';
-  import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
+  import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
+  import type { MenuAction } from '$lib/components/ui/MenuItems.svelte';
 
   interface Props {
     data: TreemapNode;
@@ -177,7 +178,7 @@
     ctxMenu = null;
   }
 
-  const ctxActions = $derived.by<ContextMenuAction[]>(() => {
+  const ctxActions = $derived.by<MenuAction[]>(() => {
     const target = ctxMenu?.target;
     if (!target) return [];
     return [

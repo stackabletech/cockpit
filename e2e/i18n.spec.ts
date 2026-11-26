@@ -58,10 +58,10 @@ test.describe('Internationalisation', () => {
     await waitForHydration(page);
 
     await page.getByRole('button', { name: 'Language' }).click();
-    const englishOption = page.locator('#lang-switcher button[lang="en"]');
-    const deutschOption = page.locator('#lang-switcher button[lang="de"]');
-    await expect(englishOption).toHaveAttribute('aria-current', 'true');
-    await expect(deutschOption).not.toHaveAttribute('aria-current', 'true');
+    const englishOption = page.getByRole('menuitemradio', { name: 'English' });
+    const deutschOption = page.getByRole('menuitemradio', { name: 'Deutsch' });
+    await expect(englishOption).toHaveAttribute('aria-checked', 'true');
+    await expect(deutschOption).not.toHaveAttribute('aria-checked', 'true');
 
     // setLocale triggers a page reload when changing locale.
     await deutschOption.click();
@@ -137,14 +137,14 @@ test.describe('Internationalisation', () => {
     await languageButton.click();
 
     // Both language options visible with correct lang attributes
-    const englishOption = page.locator('#lang-switcher button[lang="en"]');
-    const deutschOption = page.locator('#lang-switcher button[lang="de"]');
+    const englishOption = page.getByRole('menuitemradio', { name: 'English' });
+    const deutschOption = page.getByRole('menuitemradio', { name: 'Deutsch' });
 
     await expect(englishOption).toBeVisible();
     await expect(deutschOption).toBeVisible();
     await expect(englishOption).toHaveAttribute('lang', 'en');
     await expect(deutschOption).toHaveAttribute('lang', 'de');
-    await expect(englishOption).toHaveAttribute('aria-current', 'true');
-    await expect(deutschOption).not.toHaveAttribute('aria-current', 'true');
+    await expect(englishOption).toHaveAttribute('aria-checked', 'true');
+    await expect(deutschOption).not.toHaveAttribute('aria-checked', 'true');
   });
 });

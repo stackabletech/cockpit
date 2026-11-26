@@ -5,9 +5,10 @@ import IconEdit from 'virtual:icons/material-symbols/edit';
 import IconDelete from 'virtual:icons/material-symbols/delete';
 // The real stylesheet, so a display class that would show the closed popover is caught.
 import '../../../app.css';
-import ContextMenu, { type ContextMenuAction } from './ContextMenu.svelte';
+import ContextMenu from './ContextMenu.svelte';
+import type { MenuAction } from './MenuItems.svelte';
 
-const actions: ContextMenuAction[] = [
+const actions: MenuAction[] = [
   { key: 'edit', icon: IconEdit, label: 'Edit', href: '/edit' },
   { key: 'delete', icon: IconDelete, label: 'Delete', class: 'text-error' },
   { key: 'secret', icon: IconDelete, label: 'Secret', hidden: true },
@@ -44,7 +45,7 @@ describe('ContextMenu', () => {
     expect(menu().matches(':popover-open')).toBe(true);
     expect(menu().style.left).toBe('100px');
     expect(menu().style.top).toBe('80px');
-    expect(document.activeElement?.getAttribute('role')).toBe('menu');
+    await expect.element(page.getByRole('menuitem', { name: 'Edit' })).toHaveFocus();
   });
 
   it('stays open when a right-click opens it', async () => {
@@ -141,8 +142,18 @@ describe('ContextMenu', () => {
 
   it('closes from the title close button', async () => {
     const { onclose, onaction } = renderMenu({ title: 'Actions' });
-    await page.getByRole('menuitem', { name: 'Close' }).click();
+    await page.getByRole('button', { name: 'Close' }).click();
     expect(onclose).toHaveBeenCalled();
     expect(onaction).not.toHaveBeenCalled();
+  });
+
+  it('starts at the first action, not at the close button', async () => {
+    renderMenu({ title: 'Actions' });
+    await expect.element(page.getByRole('menuitem', { name: 'Edit' })).toHaveFocus();
+    await userEvent.keyboard('{ArrowDown}');
+    await expect.element(page.getByRole('menuitem', { name: 'Delete' })).toHaveFocus();
+    await expect
+      .element(page.getByRole('button', { name: 'Close' }))
+      .toHaveAttribute('tabindex', '-1');
   });
 });

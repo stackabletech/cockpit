@@ -1,18 +1,4 @@
 <script lang="ts" module>
-  import type { Component } from 'svelte';
-
-  export interface ContextMenuAction {
-    key: string;
-    icon: Component;
-    label: string;
-    disabled?: boolean;
-    hidden?: boolean;
-    /** Extra classes for the item and its icon, e.g. `text-error` for destructive actions. */
-    class?: string;
-    /** Renders the item as a link (resolved by the caller) instead of a button. */
-    href?: string;
-  }
-
   // A right-click fires `contextmenu` on mousedown on Linux and macOS (and a touch long-press while
   // the finger is still down). The browser's light dismiss on the following pointerup would close a
   // menu opened in between straight away, so such a menu waits for the release.
@@ -54,13 +40,15 @@
   import { untrack } from 'svelte';
   import IconClose from 'virtual:icons/material-symbols/close';
   import * as m from '$lib/paraglide/messages.js';
+  import MenuItems, { type MenuAction } from './MenuItems.svelte';
+  import { menuItems } from './menu-keyboard.js';
 
   interface Props {
     open: boolean;
     /** Viewport coordinates of the menu's corner, e.g. from a `contextmenu` event. */
     x: number;
     y: number;
-    actions: ContextMenuAction[];
+    actions: MenuAction[];
     onaction: (key: string) => void;
     /** Called whenever the menu closes: after an action, or when the browser dismisses it. */
     onclose: () => void;
@@ -70,7 +58,6 @@
   let { open, x, y, actions, onaction, onclose, title }: Props = $props();
 
   let popoverEl = $state<HTMLDivElement>();
-  let menuEl = $state<HTMLUListElement>();
   // Set while the menu hides itself to move, so that hiding does not count as closing.
   let moving = false;
 
@@ -110,7 +97,8 @@
       untrack(() => x),
       untrack(() => y)
     );
-    menuEl?.focus();
+    // The first action, so that the focus is visible from the keyboard; the list if all are off.
+    (menuItems(el)[0] ?? el.querySelector<HTMLElement>('[role="menu"]'))?.focus();
   }
 
   /** Puts the menu at (x, y), flipped to the other side where it would leave the viewport. */
@@ -149,56 +137,25 @@
   onbeforetoggle={handleBeforeToggle}
   oncontextmenu={(e) => e.preventDefault()}
 >
-  <ul
-    bind:this={menuEl}
-    class="menu menu-sm w-full p-0"
-    role="menu"
-    tabindex="-1"
-    aria-label={title}
-  >
-    {#if title}
-      <li class="menu-title p-0" role="none">
-        <div class="menu-title flex items-center justify-between py-1 pr-0 pl-2">
-          <span class="text-base-content/70 text-xs font-medium">{title}</span>
-          <div class="tooltip tooltip-left" data-tip={m.action_close()}>
-            <button
-              type="button"
-              role="menuitem"
-              class="btn btn-ghost btn-xs"
-              aria-label={m.action_close()}
-              onclick={close}
-            >
-              <IconClose class="size-4" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-      </li>
-    {/if}
-
-    {#each actions as act (act.key)}
-      {#if !act.hidden}
-        {@const ActIcon = act.icon}
-        <li role="none" class:menu-disabled={act.disabled}>
-          {#if act.href}
-            <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- callers pass resolved hrefs -->
-            <a role="menuitem" href={act.href} class={act.class} onclick={() => run(act.key)}>
-              <ActIcon class="mr-2 size-4 shrink-0" aria-hidden="true" />
-              {act.label}
-            </a>
-          {:else}
-            <button
-              type="button"
-              role="menuitem"
-              class={'justify-start ' + (act.class ?? '')}
-              onclick={() => run(act.key)}
-              disabled={act.disabled}
-            >
-              <ActIcon class={'mr-2 size-4 shrink-0 ' + (act.class ?? '')} aria-hidden="true" />
-              {act.label}
-            </button>
-          {/if}
-        </li>
-      {/if}
-    {/each}
-  </ul>
+  {#if title}
+    <!--
+      Outside the menu, so the arrow keys skip the close button. It is no Tab stop either: from the
+      keyboard the menu closes with Escape.
+    -->
+    <div class="flex items-center justify-between py-1 pr-0 pl-2">
+      <span class="text-base-content/70 text-xs font-medium">{title}</span>
+      <div class="tooltip tooltip-left" data-tip={m.action_close()}>
+        <button
+          type="button"
+          tabindex="-1"
+          class="btn btn-ghost btn-xs"
+          aria-label={m.action_close()}
+          onclick={close}
+        >
+          <IconClose class="size-4" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  {/if}
+  <MenuItems {actions} onselect={run} label={title} />
 </div>

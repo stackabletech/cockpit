@@ -200,6 +200,22 @@ describe('StorageBreadcrumb', () => {
   });
 
   describe('create menu', () => {
+    it('starts over at the type choice when opened again', async () => {
+      render(StorageBreadcrumbWrapper, { state: createState() });
+      const create = page.getByRole('button', { name: 'Create', exact: true });
+
+      await create.click();
+      await expect.element(page.getByRole('menuitem', { name: /text file/i })).toHaveFocus();
+      await page.getByRole('menuitem', { name: /text file/i }).click();
+      await expect.element(page.getByLabelText('Name')).toHaveFocus();
+      await userEvent.keyboard('{Escape}');
+      await expect.element(create).toHaveFocus();
+
+      await create.click();
+      await expect.element(page.getByRole('menuitem', { name: /text file/i })).toHaveFocus();
+      expect(page.getByLabelText('Name').query()).toBeNull();
+    });
+
     it('should ignore Enter while a create is in flight', async () => {
       const state = createState();
       let resolveCreate: (created: boolean) => void = () => {};
