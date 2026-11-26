@@ -1,5 +1,5 @@
 /** The enabled items of a menu, in document order. */
-function menuItems(menu: HTMLElement): HTMLElement[] {
+export function menuItems(menu: HTMLElement): HTMLElement[] {
   return [
     ...menu.querySelectorAll<HTMLElement>(
       '[role^="menuitem"]:not(:disabled):not([aria-disabled="true"])'
