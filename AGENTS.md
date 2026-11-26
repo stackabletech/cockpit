@@ -154,7 +154,7 @@ Document new variables in `README.md` and `.env.example`; don't read `env` ad ho
 
 `src/lib/components/` is split by what a component depends on. Each layer may only use the layers above it:
 
-1. **`ui/`** — generic building blocks (`Modal`, `TooltipTrigger`, `TabBar`, ...). Data comes in through props, results go out through callbacks or `bind:`. They may import Svelte, icons, Paraglide messages, `$lib/types` and other `ui/` components, nothing else (enforced by ESLint).
+1. **`ui/`** — generic building blocks (`Modal`, `TooltipTrigger`, `TabBar`, ...). Data comes in through props, results go out through callbacks or `bind:`. They may import Svelte, icons, Paraglide messages, `$lib/types`, the storage helpers in `$lib/client/local-storage` and other `ui/` components, nothing else (enforced by ESLint).
 2. **Top level and `layout/`** — app-wide components that know the app (stores, routes, session), e.g. `ErrorPanel`, `ToastHost`, the header and sidebar.
 3. **`<module>/`** — feature components. Pieces shared only within one module go into `<module>/shared/`; move them to `ui/` once a second module needs them and they have no module dependencies.
 

@@ -210,8 +210,25 @@ export default defineConfig(
         {
           patterns: [
             {
-              group: ['$lib/*', '!$lib/paraglide', '!$lib/types', '!$lib/components'],
-              message: 'ui/ components may only import Paraglide messages, shared types and ui/.'
+              group: [
+                '$lib/*',
+                '!$lib/paraglide',
+                '!$lib/types',
+                '!$lib/components',
+                '!$lib/client'
+              ],
+              message:
+                'ui/ components may only import Paraglide messages, shared types, the storage helpers and ui/.'
+            },
+            {
+              // The storage helpers are framework-free and fail silently, so generic components
+              // can persist their own state.
+              group: [
+                '$lib/client/*',
+                '!$lib/client/local-storage',
+                '!$lib/client/local-storage.js'
+              ],
+              message: 'ui/ components may only import the storage helpers from $lib/client.'
             },
             {
               group: ['$lib/components/*', '!$lib/components/ui'],

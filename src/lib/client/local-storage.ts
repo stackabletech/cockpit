@@ -1,14 +1,21 @@
-import { browser } from '$app/environment';
 import { z } from 'zod';
 
 // The only module that touches `localStorage` directly (enforced by ESLint). Even reading the
 // global throws a SecurityError when the browser blocks site data, and an uncaught throw during
 // hydration takes down the whole app. Persistence is a convenience, so every helper here fails
 // silently: reads return null, writes report false.
+//
+// Framework-free on purpose (no `$app/environment`), so generic `ui/` components can use it too.
+
+/** Checks `window`, not `localStorage`: Node is adding Web Storage, and a server-side store would
+ *  be shared by every user. */
+function inBrowser(): boolean {
+  return typeof window !== 'undefined';
+}
 
 /** Read a value; null if it is missing, on the server, or storage is unavailable. */
 export function readStorage(key: string): string | null {
-  if (!browser) return null;
+  if (!inBrowser()) return null;
   try {
     return localStorage.getItem(key);
   } catch {
@@ -18,7 +25,7 @@ export function readStorage(key: string): string | null {
 
 /** Write a value; false if storage is unavailable or full. */
 export function writeStorage(key: string, value: string): boolean {
-  if (!browser) return false;
+  if (!inBrowser()) return false;
   try {
     localStorage.setItem(key, value);
     return true;
@@ -28,7 +35,7 @@ export function writeStorage(key: string, value: string): boolean {
 }
 
 export function removeStorage(key: string): void {
-  if (!browser) return;
+  if (!inBrowser()) return;
   try {
     localStorage.removeItem(key);
   } catch {

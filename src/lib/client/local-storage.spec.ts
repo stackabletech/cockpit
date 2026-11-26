@@ -9,8 +9,6 @@ import {
   writeStorage
 } from './local-storage';
 
-vi.mock('$app/environment', () => ({ browser: true }));
-
 const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
 
 function installStorage(getter: () => Storage) {
@@ -31,7 +29,13 @@ function memoryStorage(): Storage {
   };
 }
 
+// The helpers only touch storage in a browser, which they detect by `window`.
+beforeEach(() => {
+  vi.stubGlobal('window', globalThis);
+});
+
 afterEach(() => {
+  vi.unstubAllGlobals();
   if (original) Object.defineProperty(globalThis, 'localStorage', original);
   else Reflect.deleteProperty(globalThis, 'localStorage');
 });
