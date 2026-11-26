@@ -5,8 +5,8 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
   import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
-  import { createResizablePanel } from './resizable-panel.svelte.js';
-  import ResizeHandle from './ResizeHandle.svelte';
+  import { createResizablePanel } from '$lib/components/ui/resizable-panel.svelte.js';
+  import ResizeHandle from '$lib/components/ui/ResizeHandle.svelte';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import type { SubmitFunction } from '@sveltejs/kit';
@@ -40,7 +40,7 @@
   let { connections, activeId, onselect, onbeforedelete, ondeletesettled }: Props = $props();
 
   const resize = createResizablePanel({
-    storageKey: 'storage_connect_sidebar_width',
+    id: 'storage-connections',
     defaultWidth: 224,
     minWidth: 140,
     maxWidth: 400
@@ -245,7 +245,7 @@
     border-base-300 bg-base-100 sticky top-0
     hidden h-[calc(100dvh-7rem)] shrink-0 flex-col rounded-lg border md:flex
   "
-  style="width: {resize.width}px; min-width: {resize.minWidth}px"
+  style="width: {resize.cssWidth}"
   aria-label={m.storage_connect_saved()}
 >
   <div class="border-base-300 border-b px-3 py-2">
@@ -344,5 +344,5 @@
     </a>
   </div>
 
-  <ResizeHandle panel={resize} />
+  <ResizeHandle panel={resize} label={m.storage_sidebar_resize_handle()} />
 </aside>

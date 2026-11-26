@@ -41,11 +41,23 @@ test.describe('Blocked site data', () => {
     await expect(html).not.toHaveAttribute('data-theme', initialTheme ?? '');
   });
 
+  test('theme is set before hydration', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    // Without the app's JavaScript only the inline script in app.html can set the theme. The
+    // aborted scripts fail SvelteKit's start-up import, so page errors are expected here.
+    page.removeAllListeners('pageerror');
+    await page.route('**/_app/immutable/**/*.js', (route) => route.abort());
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  });
+
   test('Trino page hydrates and warns that tabs are not saved', async ({ page }) => {
     test.slow();
     await page.goto('/trino');
     await waitForHydration(page);
 
+    // The catalog browser falls back to its default (open on desktop).
+    await expect(page.getByRole('navigation', { name: 'Catalog browser' })).toBeVisible();
     await expect(page.getByRole('tab')).toHaveCount(1);
     await page.getByRole('button', { name: 'New Tab' }).click();
     await expect(page.getByRole('tab')).toHaveCount(2);

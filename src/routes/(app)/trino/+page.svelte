@@ -4,14 +4,13 @@
   import { browser } from '$app/environment';
   import * as m from '$lib/paraglide/messages.js';
   import IconClose from 'virtual:icons/material-symbols/close';
-  import IconMenu from 'virtual:icons/material-symbols/menu';
   import IconPanelClose from 'virtual:icons/material-symbols/left-panel-close-outline';
   import IconPanelOpen from 'virtual:icons/material-symbols/left-panel-open-outline';
   import IconOpenInNew from 'virtual:icons/material-symbols/open-in-new';
   import MonacoEditor from '$lib/components/editor/MonacoEditor.svelte';
   import CatalogBrowser from '$lib/components/catalog/CatalogBrowser.svelte';
-  import ResizeHandle from '$lib/components/storage/sidebar/ResizeHandle.svelte';
-  import { createResizablePanel } from '$lib/components/storage/sidebar/resizable-panel.svelte.js';
+  import ResizeHandle from '$lib/components/ui/ResizeHandle.svelte';
+  import { createResizablePanel } from '$lib/components/ui/resizable-panel.svelte.js';
   import Modal from '$lib/components/ui/Modal.svelte';
   import { readStorage, writeStorage } from '$lib/client/local-storage';
   import { superForm } from 'sveltekit-superforms';
@@ -49,7 +48,7 @@
 
   // Drag-to-resize state for the desktop catalog browser panel (width persisted).
   const catalogResize = createResizablePanel({
-    storageKey: 'trino_catalog_browser_width',
+    id: 'trino-catalog-browser',
     defaultWidth: 288, // matches the previous fixed w-72
     minWidth: 240,
     maxWidth: 560
@@ -64,8 +63,9 @@
   let catalogVersion = $state(0);
 
   // Catalog browser state. On mobile, always start closed; on desktop, restore from localStorage.
+  // The server renders it open, the desktop default, so it doesn't jump in after hydration.
   function getInitialCatalogOpen(): boolean {
-    if (!browser) return false;
+    if (!browser) return true;
     const isMobile = !window.matchMedia('(min-width: 1024px)').matches;
     if (isMobile) return false;
     return (readStorage('trino_catalog_browser_open') ?? 'true') === 'true';
@@ -404,18 +404,18 @@
       class="
         border-base-300 bg-base-100 flex h-full flex-col overflow-hidden rounded-xl
         border ease-out
-        {catalogResize.isDragging ? '' : 'transition-[width] duration-200'}
+        {hydrated && !catalogResize.isDragging ? 'transition-[width] duration-200' : ''}
         {catalogBrowserOpen ? '' : 'invisible border-0'}"
-      style="width: {catalogBrowserOpen ? catalogResize.width : 0}px"
+      style="width: {catalogBrowserOpen ? catalogResize.cssWidth : '0px'}"
     >
       <!-- Fixed open width so content doesn't reflow while the aside animates to 0. -->
       <div
         class="border-base-300 flex items-center justify-between border-b px-3 py-2"
-        style="width: {catalogResize.width}px"
+        style="width: {catalogResize.cssWidth}"
       >
         <span class="text-muted text-sm font-medium">{m.trino_catalog_browser()}</span>
       </div>
-      <div class="min-h-0 flex-1" style="width: {catalogResize.width}px">
+      <div class="min-h-0 flex-1" style="width: {catalogResize.cssWidth}">
         <CatalogBrowser
           connectionVersion={catalogVersion}
           bind:defaultCatalog
@@ -668,24 +668,13 @@
               onclick={toggleCatalogBrowser}
               aria-label={m.trino_catalog_browser_toggle()}
             >
+              <!-- On mobile the button opens the overlay, whatever the desktop state is. -->
               {#if catalogBrowserOpen}
-                <IconPanelClose
-                  class="
-                    hidden size-4
-                    lg:block
-                  "
-                  aria-hidden="true"
-                />
-                <IconMenu
-                  class="
-                    size-4
-                    lg:hidden
-                  "
-                  aria-hidden="true"
-                />
+                <IconPanelClose class="hidden size-4 lg:block" aria-hidden="true" />
               {:else}
-                <IconPanelOpen class="size-4" aria-hidden="true" />
+                <IconPanelOpen class="hidden size-4 lg:block" aria-hidden="true" />
               {/if}
+              <IconPanelOpen class="size-4 lg:hidden" aria-hidden="true" />
             </button>
           </div>
           <span class="text-muted text-sm font-medium">{m.trino_editor_label()}</span>

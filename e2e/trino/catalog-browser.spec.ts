@@ -233,17 +233,29 @@ test.describe('Catalog browser', () => {
 
     await expect(handle).toHaveAttribute('aria-valuenow', String(before + 20));
 
-    const stored = await page.evaluate(() => localStorage.getItem('trino_catalog_browser_width'));
+    const stored = await page.evaluate(() =>
+      localStorage.getItem('panel_width:trino-catalog-browser')
+    );
     expect(Number(stored)).toBe(before + 20);
 
     // Width persists across reload.
     await page.reload();
     await waitForHydration(page);
     await ensureCatalogBrowserOpen(page);
-    await expect(page.getByRole('separator', { name: 'Resize catalog browser' })).toHaveAttribute(
-      'aria-valuenow',
-      String(before + 20)
-    );
+    const restored = page.getByRole('separator', { name: 'Resize catalog browser' });
+    await expect(restored).toHaveAttribute('aria-valuenow', String(before + 20));
+    // The handle sits next to the aside; wait for the open transition to finish.
+    const aside = restored.locator('..').locator('aside');
+    await expect.poll(async () => (await aside.boundingBox())?.width).toBe(before + 20);
+  });
+
+  test('catalog browser is rendered open before hydration', async ({ page }) => {
+    // Without the app's JavaScript the page shows what the server rendered.
+    await page.route('**/_app/immutable/**/*.js', (route) => route.abort());
+    await page.reload();
+    const handle = page.getByRole('separator', { name: 'Resize catalog browser' });
+    const aside = handle.locator('..').locator('aside');
+    expect((await aside.boundingBox())?.width).toBe(288);
   });
 
   test('browser is hidden by default on mobile', async ({ page }) => {

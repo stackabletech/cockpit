@@ -16,13 +16,13 @@
   import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
   import { parseStorageDrop, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import { locationLabel, locationHref } from '$lib/storage/display-helpers.js';
-  import { createResizablePanel } from './resizable-panel.svelte.js';
-  import ResizeHandle from './ResizeHandle.svelte';
+  import { createResizablePanel } from '$lib/components/ui/resizable-panel.svelte.js';
+  import ResizeHandle from '$lib/components/ui/ResizeHandle.svelte';
 
   const storage = getStorageState();
 
   const resize = createResizablePanel({
-    storageKey: 'storage_sidebar_width',
+    id: 'storage-buckets',
     defaultWidth: 192,
     minWidth: 120,
     maxWidth: 480
@@ -118,7 +118,7 @@
     border-base-300 bg-base-100 relative flex shrink-0 flex-col
     rounded-lg border
   "
-  style="width: var(--storage-sidebar-width, {resize.width}px)"
+  style="width: {resize.cssWidth}"
   aria-label={m.storage_buckets_label()}
 >
   {#if !storage.connected || !storage.connectionHostname}
@@ -290,5 +290,5 @@
     </Modal>
   {/if}
 
-  <ResizeHandle panel={resize} />
+  <ResizeHandle panel={resize} label={m.storage_sidebar_resize_handle()} />
 </nav>
