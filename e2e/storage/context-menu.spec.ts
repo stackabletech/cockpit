@@ -99,7 +99,7 @@ test.describe('Storage S3 — Context Menu', () => {
     }
   });
 
-  test('unpins a pinned location from its sidebar menu', async ({ page }, testInfo) => {
+  test('unpins a pinned location with its sidebar button', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);
     const prefix = uniquePrefix(testInfo, 'ctx-unpin');
@@ -119,11 +119,12 @@ test.describe('Storage S3 — Context Menu', () => {
       const sidebar = page.getByRole('navigation', { name: 'Buckets' });
       await expect(sidebar.getByText('Pinned Access')).toBeVisible();
 
-      await sidebar.getByRole('button', { name: 'More options' }).click({ force: true });
-      const menu = page.getByRole('menu', { name: 'Actions' });
-      await menu.getByRole('menuitem', { name: 'Unpin' }).click();
+      // The unpin button shows on hover and on keyboard focus.
+      const unpin = sidebar.getByRole('button', { name: `Unpin ${credentials.bucket}` });
+      await unpin.focus();
+      await expect(unpin).toBeVisible();
+      await unpin.press('Enter');
 
-      await expect(menu).toHaveCount(0);
       await expect(sidebar.getByText('Pinned Access')).toHaveCount(0);
     } finally {
       await deleteKnownKeys(client, credentials.bucket, cleanupKeys);

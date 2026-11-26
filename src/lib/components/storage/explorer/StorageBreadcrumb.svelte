@@ -23,7 +23,9 @@
   import { parseStorageDrop, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import OperationsButton from './OperationsButton.svelte';
   import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
-  import type { MenuAction } from '$lib/components/ui/MenuItems.svelte';
+  import MenuItems, { type MenuAction } from '$lib/components/ui/MenuItems.svelte';
+  import Dropdown from '$lib/components/ui/Dropdown.svelte';
+  import { menuItems } from '$lib/components/ui/menu-keyboard.js';
   import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
 
   const storage = getStorageState();
@@ -84,8 +86,8 @@
     objectNameError(createName, { prefix: storage.prefix, folder: createType === 'folder' })
   );
 
-  function openCreate() {
-    createOpen = true;
+  /** Starts over at the type choice; runs on the trigger's click, before the popover opens. */
+  function resetCreate() {
     createStep = 'choose';
     createType = 'file';
     createName = '';
@@ -95,6 +97,11 @@
   function closeCreate() {
     createOpen = false;
   }
+
+  const createTypeActions = $derived<MenuAction[]>([
+    { key: 'file', icon: IconDescriptionOutline, label: m.storage_create_file() },
+    { key: 'folder', icon: IconFolderOutline, label: m.storage_create_folder() }
+  ]);
 
   function selectCreateType(type: 'file' | 'folder') {
     createType = type;
@@ -563,103 +570,69 @@
   </button>
 
   <!-- Create button -->
-  <div class="dropdown dropdown-end inline-flex" class:dropdown-open={createOpen}>
-    <button
-      class="btn btn-primary btn-xs gap-1"
-      onclick={openCreate}
-      aria-haspopup="menu"
-      aria-expanded={createOpen}
-    >
-      <IconAdd class="size-3.5" aria-hidden="true" />
-      {m.storage_action_create()}
-    </button>
-    {#if createOpen}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="fixed inset-0 z-40"
-        onmousedown={closeCreate}
-        onkeydown={(e) => e.key === 'Escape' && closeCreate()}
-      ></div>
-      {#if createStep === 'choose'}
-        <ul
-          role="menu"
-          class="
-            dropdown-content menu rounded-box border-base-300 bg-base-100 z-60 w-48
-            border p-1 shadow-lg
-          "
+  <Dropdown
+    bind:open={createOpen}
+    align="end"
+    class={createStep === 'choose' ? 'w-48 p-1' : 'w-64 p-3'}
+    onopen={(panel) => menuItems(panel)[0]?.focus()}
+  >
+    {#snippet trigger(dropdown)}
+      <button
+        {...dropdown}
+        type="button"
+        class="btn btn-primary btn-xs gap-1"
+        onclick={resetCreate}
+      >
+        <IconAdd class="size-3.5" aria-hidden="true" />
+        {m.storage_action_create()}
+      </button>
+    {/snippet}
+    {#if createStep === 'choose'}
+      <MenuItems
+        actions={createTypeActions}
+        label={m.storage_action_create()}
+        onselect={(key) => selectCreateType(key as 'file' | 'folder')}
+      />
+    {:else}
+      <label for={uid + '-create-name-input'} class="label label-text mb-1 p-0">
+        {m.storage_create_name()}
+      </label>
+      <input
+        id={uid + '-create-name-input'}
+        class="input input-sm w-full"
+        class:input-error={!!createNameError}
+        bind:value={createName}
+        {@attach focusCreateName}
+        oninput={() => (createError = '')}
+        placeholder={m.storage_create_placeholder()}
+        aria-invalid={createNameError ? 'true' : undefined}
+        aria-describedby={createNameError || createError ? uid + '-create-name-error' : undefined}
+        onkeydown={(e) => {
+          if (e.key === 'Enter') void handleCreate();
+        }}
+      />
+      <p
+        id={uid + '-create-name-error'}
+        class="text-error text-xs"
+        class:mt-1={!!(createNameError || createError)}
+        aria-live="polite"
+      >
+        {createNameError ?? createError}
+      </p>
+      <div class="mt-2 flex justify-end gap-2">
+        <button class="btn btn-ghost btn-xs" disabled={creating} onclick={closeCreate}>
+          {m.storage_create_cancel()}
+        </button>
+        <button
+          class="btn btn-primary btn-xs"
+          disabled={creating || !!createNameError}
+          onclick={handleCreate}
         >
-          <li role="none">
-            <button
-              role="menuitem"
-              class="justify-start text-sm"
-              onclick={() => selectCreateType('file')}
-            >
-              <IconDescriptionOutline class="size-4 shrink-0" aria-hidden="true" />
-              {m.storage_create_file()}
-            </button>
-          </li>
-          <li role="none">
-            <button
-              role="menuitem"
-              class="justify-start text-sm"
-              onclick={() => selectCreateType('folder')}
-            >
-              <IconFolderOutline class="size-4 shrink-0" aria-hidden="true" />
-              {m.storage_create_folder()}
-            </button>
-          </li>
-        </ul>
-      {:else}
-        <div
-          class="
-            dropdown-content rounded-box border-base-300 bg-base-100 z-60 w-64
-            border p-3 shadow-lg
-          "
-        >
-          <label for={uid + '-create-name-input'} class="label label-text mb-1 p-0">
-            {m.storage_create_name()}
-          </label>
-          <input
-            id={uid + '-create-name-input'}
-            class="input input-sm w-full"
-            class:input-error={!!createNameError}
-            bind:value={createName}
-            {@attach focusCreateName}
-            oninput={() => (createError = '')}
-            placeholder={m.storage_create_placeholder()}
-            aria-invalid={createNameError ? 'true' : undefined}
-            aria-describedby={createNameError || createError
-              ? uid + '-create-name-error'
-              : undefined}
-            onkeydown={(e) => {
-              if (e.key === 'Enter') void handleCreate();
-              if (e.key === 'Escape') closeCreate();
-            }}
-          />
-          <p
-            id={uid + '-create-name-error'}
-            class="text-error text-xs"
-            class:mt-1={!!(createNameError || createError)}
-            aria-live="polite"
-          >
-            {createNameError ?? createError}
-          </p>
-          <div class="mt-2 flex justify-end gap-2">
-            <button class="btn btn-ghost btn-xs" disabled={creating} onclick={closeCreate}>
-              {m.storage_create_cancel()}
-            </button>
-            <button
-              class="btn btn-primary btn-xs"
-              disabled={creating || !!createNameError}
-              onclick={handleCreate}
-            >
-              {m.storage_create_confirm()}
-            </button>
-          </div>
-        </div>
-      {/if}
+          {m.storage_create_confirm()}
+        </button>
+      </div>
     {/if}
-  </div>
+  </Dropdown>
 
   <!-- Upload button (hidden inside archives) -->
   {#if !storage.archive.isInArchive}

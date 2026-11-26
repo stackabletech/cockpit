@@ -2,7 +2,6 @@ import { page } from 'vitest/browser';
 import { describe, expect, it, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
-import { userEvent } from 'vitest/browser';
 import BucketListWrapper from './__tests__/BucketListWrapper.svelte';
 import { setPageState, resetPageState } from './__tests__/page-helper.svelte.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
@@ -220,84 +219,24 @@ describe('BucketList', () => {
     });
   });
 
-  describe('unpin context menu', () => {
-    it('should open context menu when more options button is clicked', async () => {
+  describe('unpin button', () => {
+    it('unpins only the location whose button is clicked', async () => {
       const state = createState({
-        buckets: ['ctx-bucket'],
-        pinned: [{ bucket: 'ctx-bucket', prefix: 'only-pin/' }]
+        buckets: ['pin-bucket'],
+        pinned: [
+          { bucket: 'pin-bucket', prefix: 'keep/' },
+          { bucket: 'pin-bucket', prefix: 'drop/' }
+        ]
       });
       render(BucketListWrapper, { state });
 
-      const moreButton = page.getByRole('button', { name: /more options/i }).first();
-      await moreButton.click();
+      await page.getByRole('button', { name: 'Unpin drop' }).click();
 
-      await expect.element(page.getByRole('menuitem', { name: /unpin/i })).toBeInTheDocument();
-    });
-
-    it('should close context menu when close button is clicked', async () => {
-      const state = createState({
-        buckets: ['ctx-bucket2'],
-        pinned: [{ bucket: 'ctx-bucket2', prefix: 'pin2/' }]
-      });
-      render(BucketListWrapper, { state });
-
-      const moreButton = page.getByRole('button', { name: /more options/i }).first();
-      await moreButton.click();
-      await expect.element(page.getByRole('menuitem', { name: /unpin/i })).toBeInTheDocument();
-
-      const closeButton = page.getByRole('button', { name: /close/i });
-      await closeButton.click();
-
-      await expect.element(page.getByRole('menuitem', { name: /unpin/i })).not.toBeInTheDocument();
-    });
-
-    it('should close context menu when Escape key is pressed', async () => {
-      const state = createState({
-        buckets: ['ctx-bucket3'],
-        pinned: [{ bucket: 'ctx-bucket3', prefix: 'pin3/' }]
-      });
-      render(BucketListWrapper, { state });
-
-      const moreButton = page.getByRole('button', { name: /more options/i }).first();
-      await moreButton.click();
-      await expect.element(page.getByRole('menuitem', { name: /unpin/i })).toBeInTheDocument();
-
-      await userEvent.keyboard('{Escape}');
-
-      await expect.element(page.getByRole('menuitem', { name: /unpin/i })).not.toBeInTheDocument();
-    });
-
-    it('should close context menu when clicking outside', async () => {
-      const state = createState({
-        buckets: ['ctx-bucket4'],
-        pinned: [{ bucket: 'ctx-bucket4', prefix: 'pin4/' }]
-      });
-      render(BucketListWrapper, { state });
-
-      const moreButton = page.getByRole('button', { name: /more options/i }).first();
-      await moreButton.click();
-      await expect.element(page.getByRole('menuitem', { name: /unpin/i })).toBeInTheDocument();
-
-      // Click on a non-link part of the nav (the heading) to trigger the outside-click handler
-      await page.getByText('Buckets').click();
-
-      await expect.element(page.getByRole('menuitem', { name: /unpin/i })).not.toBeInTheDocument();
-    });
-
-    it('should unpin location when unpin button is clicked', async () => {
-      const state = createState({
-        buckets: ['ctx-bucket5'],
-        pinned: [{ bucket: 'ctx-bucket5', prefix: 'pin5/' }]
-      });
-      render(BucketListWrapper, { state });
-
-      const moreButton = page.getByRole('button', { name: /more options/i }).first();
-      await moreButton.click();
-
-      const unpinButton = page.getByRole('menuitem', { name: /unpin/i });
-      await unpinButton.click();
-
-      await expect.element(page.getByRole('menuitem', { name: /unpin/i })).not.toBeInTheDocument();
+      await expect
+        .element(page.getByRole('button', { name: 'Unpin drop' }))
+        .not.toBeInTheDocument();
+      await expect.element(page.getByRole('button', { name: 'Unpin keep' })).toBeInTheDocument();
+      expect(state.bookmarks.pinnedLocations.map((pin) => pin.prefix)).toEqual(['keep/']);
     });
   });
 

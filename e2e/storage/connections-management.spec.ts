@@ -196,6 +196,26 @@ test.describe('Storage — Connections management', () => {
     await expect(dataRows).toHaveCount(initialItems - 1);
   });
 
+  test('connection menu opens next to its button from the keyboard', async ({ page }) => {
+    const credentials = requireGarageCredentials();
+    await connectToStorage(page, credentials);
+    await page.goto('/settings/connections');
+    await waitForHydration(page);
+
+    const button = page.getByRole('button', { name: /Options for/i }).first();
+    await button.focus();
+    await button.press('Enter');
+
+    const menu = page.getByRole('menu', { name: /Options for/i });
+    await expect(menu.getByRole('menuitem').first()).toBeFocused();
+    // Right below the button and aligned to its right edge, not in the top-left corner.
+    const buttonBox = (await button.boundingBox())!;
+    const menuBox = (await menu.boundingBox())!;
+    expect(menuBox.y).toBeGreaterThanOrEqual(buttonBox.y + buttonBox.height);
+    expect(menuBox.y - (buttonBox.y + buttonBox.height)).toBeLessThan(24);
+    expect(Math.abs(menuBox.x + menuBox.width - (buttonBox.x + buttonBox.width))).toBeLessThan(24);
+  });
+
   test('sidebar on the edit page deletes a connection', async ({ page }) => {
     const credentials = requireGarageCredentials();
     await connectToStorage(page, credentials);

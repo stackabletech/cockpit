@@ -1,8 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { beforeNavigate } from '$app/navigation';
-  import IconMoreHoriz from 'virtual:icons/material-symbols/more-horiz';
-  import IconPushPinOutline from 'virtual:icons/material-symbols/push-pin-outline';
+  import IconKeepOff from 'virtual:icons/material-symbols/keep-off-outline';
   import IconInfo from 'virtual:icons/material-symbols/info';
   import IconBucket from '../shared/BucketIcon.svelte';
   import IconFolderOutline from 'virtual:icons/material-symbols/folder-outline';
@@ -13,7 +11,7 @@
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
   import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
-  import type { PinnedLocation, StorageLocation } from '$lib/storage/types.js';
+  import type { PinnedLocation } from '$lib/storage/types.js';
   import { parseStorageDrop, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import { locationLabel, locationHref } from '$lib/storage/display-helpers.js';
   import { createResizablePanel } from './resizable-panel.svelte.js';
@@ -46,18 +44,6 @@
     return activeBucket === pin.bucket && activePrefix === pin.prefix;
   }
 
-  // ── Unpin context menu ────────────────────────────────────────────────────
-  let unpinCtx = $state<({ x: number; y: number } & StorageLocation) | null>(null);
-  function openUnpinMenuFromButton(e: MouseEvent, pin: PinnedLocation) {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    unpinCtx = { x: rect.right, y: rect.bottom, bucket: pin.bucket, prefix: pin.prefix };
-  }
-
-  function closeUnpinMenu() {
-    unpinCtx = null;
-  }
-  beforeNavigate(closeUnpinMenu);
-
   // ── Bucket details context menu ───────────────────────────────────────────
   let bucketCtx = $state<{ x: number; y: number; bucket: string } | null>(null);
 
@@ -72,10 +58,6 @@
 
   function openBucketDetails() {
     if (bucketCtx) storage.openModal('details', { type: 'bucket', bucket: bucketCtx.bucket });
-  }
-
-  function handleUnpin() {
-    if (unpinCtx) storage.bookmarks.unpin(unpinCtx.bucket, unpinCtx.prefix);
   }
 
   // ── Drag-drop targets for sidebar items ────────────────────────────────
@@ -102,16 +84,6 @@
     void storage.performMove(prefix, drop.keys, bucket, drop.source);
   }
 </script>
-
-<ContextMenu
-  x={unpinCtx?.x ?? 0}
-  y={unpinCtx?.y ?? 0}
-  open={unpinCtx !== null}
-  onclose={closeUnpinMenu}
-  onaction={handleUnpin}
-  actions={[{ key: 'unpin', icon: IconPushPinOutline, label: m.storage_action_unpin() }]}
-  title={m.storage_context_menu_actions()}
-/>
 
 <nav
   class="
@@ -160,17 +132,18 @@
                   <span class="truncate">{locationLabel(pin)}</span>
                 </a>
               </TooltipTrigger>
-              <TooltipTrigger text={m.storage_more_options()} orientation="right">
+              <TooltipTrigger text={m.storage_action_unpin()} orientation="right">
                 <button
+                  type="button"
                   class="
                     btn btn-ghost btn-xs absolute top-1/2 right-1 z-150 -translate-y-1/2
                     p-0 opacity-0 transition-opacity
                     group-hover:opacity-100 focus:opacity-100
                   "
-                  onclick={(e) => openUnpinMenuFromButton(e, pin)}
-                  aria-label={m.storage_more_options()}
+                  onclick={() => storage.bookmarks.unpin(pin.bucket, pin.prefix)}
+                  aria-label={m.storage_unpin_location({ name: locationLabel(pin) })}
                 >
-                  <IconMoreHoriz class="size-3.5" aria-hidden="true" />
+                  <IconKeepOff class="size-3.5" aria-hidden="true" />
                 </button>
               </TooltipTrigger>
             </li>
