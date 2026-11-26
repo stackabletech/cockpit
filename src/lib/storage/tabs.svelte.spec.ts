@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { TabsState, type PersistedTabsState } from '$lib/storage/tabs.svelte.js';
+import { TabsState } from '$lib/storage/tabs.svelte.js';
+import type { PersistedTabsState } from '$lib/storage/persistence.js';
 import { StorageState } from '$lib/storage/state.svelte.js';
 import { LS_TABS } from '$lib/storage/persistence.js';
 import { SvelteSet } from 'svelte/reactivity';

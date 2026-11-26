@@ -2,6 +2,9 @@
 // localStorage. Items in their kind's list are biased above unused items via
 // their `sortText` so the user's working vocabulary surfaces to the top.
 
+import { z } from 'zod';
+import { readStorageJson, removeStorage, writeStorage } from '$lib/client/local-storage.js';
+
 export type HistoryCategory =
   'catalogs' | 'schemas' | 'tables' | 'columns' | 'functions' | 'keywords';
 
@@ -28,18 +31,11 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 function loadHistory(): HistoryStore {
   if (store) return store;
-  if (typeof localStorage === 'undefined') {
-    store = emptyStore();
-    return store;
-  }
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      store = emptyStore();
-      return store;
-    }
-    const parsed = JSON.parse(raw) as Partial<HistoryStore>;
-    const fresh = emptyStore();
+  // Only the outer shape is checked here; each category is sanitised below so that one bad list
+  // does not discard the others.
+  const parsed = readStorageJson(STORAGE_KEY, z.record(z.string(), z.unknown()));
+  const fresh = emptyStore();
+  if (parsed) {
     for (const category of Object.keys(fresh) as HistoryCategory[]) {
       const list = parsed[category];
       if (Array.isArray(list)) {
@@ -55,23 +51,16 @@ function loadHistory(): HistoryStore {
         }
       }
     }
-    store = fresh;
-  } catch {
-    store = emptyStore();
   }
+  store = fresh;
   return store;
 }
 
 function scheduleSave(): void {
-  if (typeof localStorage === 'undefined') return;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveTimer = null;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-    } catch {
-      // localStorage may be unavailable (private mode, quota); silent fail is fine.
-    }
+    writeStorage(STORAGE_KEY, JSON.stringify(store));
   }, SAVE_DEBOUNCE_MS);
 }
 
@@ -114,11 +103,5 @@ export function _resetCompletionHistory(): void {
     clearTimeout(saveTimer);
     saveTimer = null;
   }
-  if (typeof localStorage !== 'undefined') {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* noop */
-    }
-  }
+  removeStorage(STORAGE_KEY);
 }

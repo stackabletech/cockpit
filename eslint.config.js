@@ -176,6 +176,29 @@ export default defineConfig(
     rules: { 'svelte/no-restricted-html-elements': 'off' }
   },
   {
+    // Touching Web Storage throws when the browser blocks site data, and a throw during hydration
+    // takes down the whole app. The helpers in local-storage.ts catch that.
+    files: ['src/**/*.{ts,svelte}'],
+    ignores: ['src/lib/client/local-storage.ts', 'src/**/*.{test,spec}.ts', 'src/test/**'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        ...['localStorage', 'sessionStorage'].map((name) => ({
+          name,
+          message: 'Use the helpers in $lib/client/local-storage instead.'
+        }))
+      ],
+      'no-restricted-properties': [
+        'error',
+        ...['localStorage', 'sessionStorage'].map((property) => ({
+          object: 'window',
+          property,
+          message: 'Use the helpers in $lib/client/local-storage instead.'
+        }))
+      ]
+    }
+  },
+  {
     // Generic building blocks: everything comes in through props, so they must not depend on app
     // state, routing or feature modules (see "Component Layers" in AGENTS.md).
     files: ['src/lib/components/ui/**/*.{svelte,ts}'],

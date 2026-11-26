@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- The app no longer fails to load when the browser blocks site data (local storage). UI settings such as the theme, panel widths and editor tabs are then kept only until the page is reloaded.
+
 ## [26.11.0] - 2026-11-20
 
 ## [26.11.0-rc1] - 2026-11-19
