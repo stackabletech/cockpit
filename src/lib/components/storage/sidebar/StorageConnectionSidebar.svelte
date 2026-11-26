@@ -4,7 +4,8 @@
   import IconEdit from 'virtual:icons/material-symbols/edit';
   import IconClose from 'virtual:icons/material-symbols/close';
   import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
-  import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
+  import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
+  import type { MenuAction } from '$lib/components/ui/MenuItems.svelte';
   import { createResizablePanel } from './resizable-panel.svelte.js';
   import ResizeHandle from './ResizeHandle.svelte';
   import { enhance } from '$app/forms';
@@ -67,7 +68,7 @@
     menuConn = null;
   }
 
-  const menuActions = $derived.by<ContextMenuAction[]>(() => {
+  const menuActions = $derived.by<MenuAction[]>(() => {
     if (!menuConn) return [];
     return [
       {

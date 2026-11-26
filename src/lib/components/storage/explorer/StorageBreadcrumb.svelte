@@ -22,7 +22,8 @@
   import { storageTransferEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDrop, canStorageDrop } from '$lib/storage/drag-handlers.js';
   import OperationsButton from './OperationsButton.svelte';
-  import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
+  import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
+  import type { MenuAction } from '$lib/components/ui/MenuItems.svelte';
   import TooltipTrigger from '$lib/components/ui/TooltipTrigger.svelte';
 
   const storage = getStorageState();
@@ -140,7 +141,7 @@
     breadcrumbCtx = null;
   }
 
-  const breadcrumbMenuActions = $derived.by<ContextMenuAction[]>(() => {
+  const breadcrumbMenuActions = $derived.by<MenuAction[]>(() => {
     const ctx = breadcrumbCtx;
     if (!ctx) return [];
     const isPinned = storage.bookmarks.isPinned(ctx.bucket, ctx.prefix);

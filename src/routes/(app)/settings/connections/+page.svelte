@@ -9,7 +9,8 @@
   import * as m from '$lib/paraglide/messages.js';
   import type { ConnectionListItem } from '$lib/storage/connection-store.svelte.js';
   import { connectionLabel } from '$lib/storage/display-helpers.js';
-  import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
+  import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
+  import type { MenuAction } from '$lib/components/ui/MenuItems.svelte';
   import DeleteConnectionModal from '$lib/components/storage/modals/DeleteConnectionModal.svelte';
   import type { SavedConnection } from '$lib/storage/connection-id-header.js';
 
@@ -30,7 +31,7 @@
     menuConn = null;
   }
 
-  const menuActions = $derived.by<ContextMenuAction[]>(() => {
+  const menuActions = $derived.by<MenuAction[]>(() => {
     if (!menuConn) return [];
     return [
       {

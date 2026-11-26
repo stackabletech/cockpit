@@ -8,7 +8,8 @@
   import { getStorageState } from '$lib/storage/context.js';
   import { storageTransferEnabled } from '$lib/client/feature-flags.js';
   import { parseStorageDrop } from '$lib/storage/drag-handlers.js';
-  import ContextMenu, { type ContextMenuAction } from '$lib/components/ui/ContextMenu.svelte';
+  import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
+  import type { MenuAction } from '$lib/components/ui/MenuItems.svelte';
   import GenericTabBar, { type ExternalTabDrag } from '$lib/components/ui/TabBar.svelte';
 
   interface Props {
@@ -76,7 +77,7 @@
     ctxMenu = null;
   }
 
-  const tabMenuActions = $derived.by<ContextMenuAction[]>(() => {
+  const tabMenuActions = $derived.by<MenuAction[]>(() => {
     if (!ctxMenu) return [];
     return [
       {

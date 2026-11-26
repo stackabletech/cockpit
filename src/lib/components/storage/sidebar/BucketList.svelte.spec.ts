@@ -245,7 +245,7 @@ describe('BucketList', () => {
       await moreButton.click();
       await expect.element(page.getByRole('menuitem', { name: /unpin/i })).toBeInTheDocument();
 
-      const closeButton = page.getByRole('menuitem', { name: /close/i });
+      const closeButton = page.getByRole('button', { name: /close/i });
       await closeButton.click();
 
       await expect.element(page.getByRole('menuitem', { name: /unpin/i })).not.toBeInTheDocument();

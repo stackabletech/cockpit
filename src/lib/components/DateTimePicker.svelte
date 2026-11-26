@@ -9,7 +9,7 @@
     positionPopoverRelativeToTrigger,
     supportsAnchorPositioning,
     trackPopover
-  } from '$lib/components/popover-position.js';
+  } from '$lib/components/ui/popover-position.js';
   import IconCalendar from 'virtual:icons/material-symbols/calendar-today';
   import IconChevronLeft from 'virtual:icons/material-symbols/chevron-left';
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
