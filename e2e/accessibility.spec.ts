@@ -56,7 +56,14 @@ for (const theme of THEMES) {
       await page.goto('/trino');
       await waitForHydration(page);
       await page.getByRole('button', { name: 'Select run mode' }).click();
-      await expect(page.getByRole('menu', { name: 'Select run mode' })).toBeVisible();
+      const menu = page.getByRole('menu', { name: 'Select run mode' });
+      await expect(menu).toBeVisible();
+      // The dropdown fades in; mid-fade its text is blended with the background.
+      await menu.evaluate((el) =>
+        Promise.all(
+          (el.closest('[popover]')?.getAnimations() ?? []).map((animation) => animation.finished)
+        )
+      );
       await expectNoViolations(page);
     });
 
