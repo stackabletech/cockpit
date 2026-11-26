@@ -2,12 +2,13 @@
   import { browser } from '$app/environment';
   import { onMount } from 'svelte';
   import * as m from '$lib/paraglide/messages.js';
+  import { readStorage, writeStorage } from '$lib/client/local-storage';
   import IconLightMode from 'virtual:icons/material-symbols/light-mode';
   import IconDarkMode from 'virtual:icons/material-symbols/dark-mode';
 
   function prefersDark(): boolean {
     if (!browser) return false;
-    const stored = localStorage.getItem('theme');
+    const stored = readStorage('theme');
     if (stored) return stored === 'dark';
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
@@ -24,7 +25,7 @@
     if (!browser) return;
     const theme = dark ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
+    writeStorage('theme', theme);
   });
 </script>
 

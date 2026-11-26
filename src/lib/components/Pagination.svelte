@@ -4,7 +4,7 @@
   import IconChevronRight from 'virtual:icons/material-symbols/chevron-right';
   import IconLastPage from 'virtual:icons/material-symbols/last-page';
   import * as m from '$lib/paraglide/messages.js';
-  import { browser } from '$app/environment';
+  import { writeStorage } from '$lib/client/local-storage';
   import { isPageSize, type PageSize } from '$lib/types/pagination.js';
   import { allowedPageSizes } from '$lib/client/config.js';
 
@@ -76,7 +76,7 @@
     const n = parseInt((event.target as HTMLSelectElement).value, 10);
     if (isPageSize(n)) {
       pageSize = n;
-      if (browser) localStorage.setItem(storageKey, String(n));
+      writeStorage(storageKey, String(n));
       onpagesizechange?.();
     }
   }

@@ -12,6 +12,7 @@
   import ResizeHandle from '$lib/components/ui/ResizeHandle.svelte';
   import { createResizablePanel } from '$lib/components/ui/resizable-panel.svelte.js';
   import Modal from '$lib/components/ui/Modal.svelte';
+  import { readStorage, writeStorage } from '$lib/client/local-storage';
   import { superForm } from 'sveltekit-superforms';
   import { zod4Client } from 'sveltekit-superforms/adapters';
   import { ConnectionSchema, type ConnectionMessage } from './validation.js';
@@ -39,11 +40,7 @@
   const uid = $props.id();
 
   function getStoredValue(key: string, fallback: string): string {
-    try {
-      return localStorage.getItem(key) ?? fallback;
-    } catch {
-      return fallback;
-    }
+    return readStorage(key) ?? fallback;
   }
 
   // Start expanded until the user has a server-side connection, so the form is the first thing they see.
@@ -69,13 +66,9 @@
   // The server renders it open, the desktop default, so it doesn't jump in after hydration.
   function getInitialCatalogOpen(): boolean {
     if (!browser) return true;
-    try {
-      const isMobile = !window.matchMedia('(min-width: 1024px)').matches;
-      if (isMobile) return false;
-      return (localStorage.getItem('trino_catalog_browser_open') ?? 'true') === 'true';
-    } catch {
-      return false;
-    }
+    const isMobile = !window.matchMedia('(min-width: 1024px)').matches;
+    if (isMobile) return false;
+    return (readStorage('trino_catalog_browser_open') ?? 'true') === 'true';
   }
   let catalogBrowserOpen = $state(getInitialCatalogOpen());
   let monacoEditor = $state<MonacoEditor | undefined>(undefined);
@@ -182,18 +175,18 @@
   // Password is intentionally excluded -- credentials should not be stored client-side.
   $effect(() => {
     if (!hydrated || data.trinoConfigured) return;
-    localStorage.setItem('trino_url', $connectionForm.connectionUrl);
-    localStorage.setItem('trino_auth_type', $connectionForm.authType);
-    localStorage.setItem('trino_username', $connectionForm.authUsername);
-    localStorage.setItem('trino_tls_insecure', String($connectionForm.tlsInsecure));
+    writeStorage('trino_url', $connectionForm.connectionUrl);
+    writeStorage('trino_auth_type', $connectionForm.authType);
+    writeStorage('trino_username', $connectionForm.authUsername);
+    writeStorage('trino_tls_insecure', String($connectionForm.tlsInsecure));
   });
 
   // Persist settings.
   $effect(() => {
     if (!hydrated) return;
-    localStorage.setItem('trino_default_catalog', defaultCatalog);
-    localStorage.setItem('trino_default_schema', defaultSchema);
-    localStorage.setItem('trino_catalog_browser_open', String(catalogBrowserOpen));
+    writeStorage('trino_default_catalog', defaultCatalog);
+    writeStorage('trino_default_schema', defaultSchema);
+    writeStorage('trino_catalog_browser_open', String(catalogBrowserOpen));
   });
 
   // Handle tab switches: save/restore Monaco view state.

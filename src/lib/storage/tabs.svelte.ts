@@ -3,7 +3,8 @@ import { SvelteSet } from 'svelte/reactivity';
 import type { StoragePage } from '$lib/storage/types.js';
 import type { PageSize } from '$lib/types/pagination.js';
 import type { StorageState } from './state.svelte.js';
-import { LS_TABS } from './persistence.js';
+import { LS_TABS, PersistedTabsStateSchema, type PersistedTabsState } from './persistence.js';
+import { readStorageJson, removeStorage, writeStorage } from '$lib/client/local-storage.js';
 import { keyToName, parentPrefix } from './utils.js';
 
 // ── Tab data ─────────────────────────────────────────────────────────────────
@@ -36,23 +37,6 @@ export interface Tab {
    *  snapshot restore. */
   stub: boolean;
   snapshot: TabSnapshot;
-}
-
-// ── Persistence schema ────────────────────────────────────────────────────────
-
-interface PersistedTab {
-  id: string;
-  label: string;
-  bucket: string;
-  prefix: string;
-  connection?: string;
-}
-
-export interface PersistedTabsState {
-  tabs: PersistedTab[];
-  activeTabId: string;
-  /** Fingerprint of the connection that saved these tabs. */
-  connectionId?: string | null;
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -167,27 +151,20 @@ export class TabsState {
       activeTabId: this.activeTabId ?? '',
       connectionId: this.connectionId
     };
-    localStorage.setItem(LS_TABS, JSON.stringify(data));
+    writeStorage(LS_TABS, JSON.stringify(data));
   }
 
   /** Reads persisted tab state from localStorage without modifying any state.
    *  Returns null if nothing is saved or the saved
    *  state belongs to a different connection. */
   peekPersistedTabs(): PersistedTabsState | null {
-    if (!browser) return null;
-    try {
-      const raw = localStorage.getItem(LS_TABS);
-      if (!raw) return null;
-      const data = JSON.parse(raw) as PersistedTabsState;
-      if (!Array.isArray(data.tabs) || data.tabs.length === 0) return null;
-      if (data.connectionId === undefined) return null;
-      if (data.connectionId !== this.connectionId) {
-        return null;
-      }
-      return data;
-    } catch {
+    const data = readStorageJson(LS_TABS, PersistedTabsStateSchema);
+    if (!data || data.tabs.length === 0) return null;
+    if (data.connectionId === undefined) return null;
+    if (data.connectionId !== this.connectionId) {
       return null;
     }
+    return data;
   }
 
   /** Restores tabs from a previously peeked snapshot. Creates stub tabs for
@@ -248,7 +225,7 @@ export class TabsState {
 
   /** Removes the persisted tabs entry from localStorage. */
   clearPersistedTabs(): void {
-    if (browser) localStorage.removeItem(LS_TABS);
+    removeStorage(LS_TABS);
   }
 
   // ── Tab operations ───────────────────────────────────────────────────────

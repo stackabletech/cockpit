@@ -176,6 +176,29 @@ export default defineConfig(
     rules: { 'svelte/no-restricted-html-elements': 'off' }
   },
   {
+    // Touching Web Storage throws when the browser blocks site data, and a throw during hydration
+    // takes down the whole app. The helpers in local-storage.ts catch that.
+    files: ['src/**/*.{ts,svelte}'],
+    ignores: ['src/lib/client/local-storage.ts', 'src/**/*.{test,spec}.ts', 'src/test/**'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        ...['localStorage', 'sessionStorage'].map((name) => ({
+          name,
+          message: 'Use the helpers in $lib/client/local-storage instead.'
+        }))
+      ],
+      'no-restricted-properties': [
+        'error',
+        ...['localStorage', 'sessionStorage'].map((property) => ({
+          object: 'window',
+          property,
+          message: 'Use the helpers in $lib/client/local-storage instead.'
+        }))
+      ]
+    }
+  },
+  {
     // Generic building blocks: everything comes in through props, so they must not depend on app
     // state, routing or feature modules (see "Component Layers" in AGENTS.md).
     files: ['src/lib/components/ui/**/*.{svelte,ts}'],
@@ -187,8 +210,25 @@ export default defineConfig(
         {
           patterns: [
             {
-              group: ['$lib/*', '!$lib/paraglide', '!$lib/types', '!$lib/components'],
-              message: 'ui/ components may only import Paraglide messages, shared types and ui/.'
+              group: [
+                '$lib/*',
+                '!$lib/paraglide',
+                '!$lib/types',
+                '!$lib/components',
+                '!$lib/client'
+              ],
+              message:
+                'ui/ components may only import Paraglide messages, shared types, the storage helpers and ui/.'
+            },
+            {
+              // The storage helpers are framework-free and fail silently, so generic components
+              // can persist their own state.
+              group: [
+                '$lib/client/*',
+                '!$lib/client/local-storage',
+                '!$lib/client/local-storage.js'
+              ],
+              message: 'ui/ components may only import the storage helpers from $lib/client.'
             },
             {
               group: ['$lib/components/*', '!$lib/components/ui'],

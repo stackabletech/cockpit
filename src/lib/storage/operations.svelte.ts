@@ -2,6 +2,8 @@ import { SvelteMap } from 'svelte/reactivity';
 import { browser } from '$app/environment';
 import type { StorageOperation } from '$lib/storage/types.js';
 import type { JobStatus, StorageApi } from './api.js';
+import { loadFromStorage, persistToStorage } from '$lib/client/local-storage.js';
+import { StorageOperationSchema } from './persistence.js';
 
 // ── Page-unloading flag ─────────────────────────────────────────────────────
 
@@ -19,32 +21,18 @@ const MAX_HISTORY_ENTRIES = 30;
 const JOB_START_GRACE_MS = 60_000;
 
 function loadPersistedOperations(): StorageOperation[] {
-  if (!browser) return [];
-  try {
-    const raw = localStorage.getItem(OPERATIONS_HISTORY_KEY);
-    if (!raw) return [];
-    const ops = JSON.parse(raw) as StorageOperation[];
-    if (!Array.isArray(ops)) return [];
-    return ops.map((op) =>
-      op.status === 'running'
-        ? { ...op, status: 'interrupted' as const, completedAt: op.completedAt ?? Date.now() }
-        : op
-    );
-  } catch {
-    return [];
-  }
+  return loadFromStorage(OPERATIONS_HISTORY_KEY, StorageOperationSchema).map((op) =>
+    op.status === 'running'
+      ? { ...op, status: 'interrupted' as const, completedAt: op.completedAt ?? Date.now() }
+      : op
+  );
 }
 
 function saveOperationsToStorage(ops: StorageOperation[]): void {
-  if (!browser) return;
-  try {
-    const history = ops.filter((op) => op.status !== 'running').slice(-MAX_HISTORY_ENTRIES);
-    const running = ops.filter((op) => op.status === 'running');
-    const toSave = [...running, ...history].slice(-MAX_HISTORY_ENTRIES);
-    localStorage.setItem(OPERATIONS_HISTORY_KEY, JSON.stringify(toSave));
-  } catch {
-    // Best effort.
-  }
+  const history = ops.filter((op) => op.status !== 'running').slice(-MAX_HISTORY_ENTRIES);
+  const running = ops.filter((op) => op.status === 'running');
+  const toSave = [...running, ...history].slice(-MAX_HISTORY_ENTRIES);
+  persistToStorage(OPERATIONS_HISTORY_KEY, toSave);
 }
 
 // ── OperationsState ─────────────────────────────────────────────────────────

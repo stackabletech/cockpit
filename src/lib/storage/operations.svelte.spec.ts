@@ -105,6 +105,36 @@ describe('localStorage persistence', () => {
     expect(state.operations).toEqual([]);
   });
 
+  it('keeps every field of an operation across a save and reload', () => {
+    // `Required` makes this fail to compile when StorageOperation gains a field, and the
+    // round trip then fails if StorageOperationSchema does not know it (zod strips unknown keys).
+    const full: Required<StorageOperation> = {
+      id: 'op-full',
+      label: 'Copy: a.txt, b.txt',
+      // Not 'running', so loading keeps the status as it is.
+      status: 'error',
+      type: 'paste',
+      itemCount: 2,
+      completedCount: 1,
+      errorMessage: 'Access denied',
+      startedAt: 1_000,
+      completedAt: 2_000,
+      destPath: 'test-bucket/dest/',
+      sourceNames: ['a.txt', 'b.txt'],
+      totalBytes: 300,
+      completedBytes: 100,
+      currentFileName: 'b.txt',
+      fileJobIds: ['job-1', 'job-2']
+    };
+    localStorage.setItem(OPERATIONS_HISTORY_KEY, JSON.stringify([full]));
+
+    // Load, then save through the real code path by starting another operation.
+    new OperationsState(makeMockApi(), makeOpts()).startOp('op-new', 'Copy: c.txt', 'paste', 1);
+    const reloaded = new OperationsState(makeMockApi(), makeOpts());
+
+    expect(reloaded.operations.find((op) => op.id === 'op-full')).toEqual(full);
+  });
+
   it('startOp persists a running operation to localStorage', () => {
     const state = new OperationsState(makeMockApi(), makeOpts());
 

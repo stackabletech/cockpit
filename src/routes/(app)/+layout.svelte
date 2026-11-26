@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { browser } from '$app/environment';
   import { page } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
   import Sidebar from '$lib/components/layout/sidebar/Sidebar.svelte';
@@ -7,24 +6,15 @@
   import ToastHost from '$lib/components/ToastHost.svelte';
   import SessionExpiredModal from '$lib/components/layout/SessionExpiredModal.svelte';
   import { bookmarksInDisplayOrder } from '$lib/dashboard/types';
+  import { readStorage, writeStorage } from '$lib/client/local-storage';
 
   let { children, data } = $props();
 
-  function getInitialCollapsed(): boolean {
-    if (!browser) return false;
-    try {
-      return localStorage.getItem('sidebar_collapsed') === 'true';
-    } catch {
-      return false;
-    }
-  }
-
-  let sidebarCollapsed = $state(getInitialCollapsed());
+  let sidebarCollapsed = $state(readStorage('sidebar_collapsed') === 'true');
   let mobileOpen = $state(false);
 
   $effect(() => {
-    if (!browser) return;
-    localStorage.setItem('sidebar_collapsed', String(sidebarCollapsed));
+    writeStorage('sidebar_collapsed', String(sidebarCollapsed));
   });
 
   const pageTitles: Record<string, () => string> = {

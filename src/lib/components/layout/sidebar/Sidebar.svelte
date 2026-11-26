@@ -1,6 +1,5 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { browser } from '$app/environment';
   import { page } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
   import type { Component } from 'svelte';
@@ -10,6 +9,7 @@
   import { MediaQuery } from 'svelte/reactivity';
   import type { NavItem } from '$lib/types/navigation.js';
   import { getPlatformSection, getToolsSection } from './nav-items.js';
+  import { readStorage, writeStorage } from '$lib/client/local-storage';
   import { getProduct } from '$lib/dashboard/products';
   import ProductIcon from '$lib/components/dashboard/ProductIcon.svelte';
   import type { BookmarkLink } from '$lib/dashboard/types';
@@ -35,24 +35,10 @@
   const pinnedBookmarks = $derived(bookmarks.filter((b) => b.pinned));
   const unpinnedBookmarks = $derived(bookmarks.filter((b) => !b.pinned));
 
-  function getInitialToolsOpen(): boolean {
-    if (!browser) return true;
-    try {
-      return localStorage.getItem('sidebar_tools_open') !== 'false';
-    } catch {
-      return true;
-    }
-  }
-
-  let toolsOpen = $state(getInitialToolsOpen());
+  let toolsOpen = $state(readStorage('sidebar_tools_open') !== 'false');
 
   $effect(() => {
-    if (!browser) return;
-    try {
-      localStorage.setItem('sidebar_tools_open', String(toolsOpen));
-    } catch {
-      // Storage blocked or full: the state only lasts for this session.
-    }
+    writeStorage('sidebar_tools_open', String(toolsOpen));
   });
 
   // make mobile navbar not focusable if its hidden
