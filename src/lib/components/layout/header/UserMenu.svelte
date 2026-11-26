@@ -46,11 +46,12 @@
       {/if}
     </button>
   {/snippet}
+  <!-- Outside the menu list: DaisyUI's pressed style for menu items would hide the name. -->
+  <div class="px-3 py-2">
+    <p class="text-base-content truncate text-sm font-semibold">{user.name}</p>
+    <p class="text-muted truncate text-xs">{user.email}</p>
+  </div>
   <ul class="menu w-full p-0">
-    <li class="menu-title">
-      <p class="text-base-content truncate text-sm font-semibold">{user.name}</p>
-      <p class="text-muted truncate text-xs font-normal">{user.email}</p>
-    </li>
     <li class="border-base-300 mt-1 border-t pt-1">
       <a href={resolve('/auth/logout')} class="text-sm">
         <IconLogout class="h-4 w-4" aria-hidden="true" />
