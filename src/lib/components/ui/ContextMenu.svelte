@@ -41,6 +41,7 @@
   import IconClose from 'virtual:icons/material-symbols/close';
   import * as m from '$lib/paraglide/messages.js';
   import MenuItems, { type MenuAction } from './MenuItems.svelte';
+  import { menuItems } from './menu-keyboard.js';
 
   interface Props {
     open: boolean;
@@ -96,7 +97,8 @@
       untrack(() => x),
       untrack(() => y)
     );
-    el.querySelector<HTMLElement>('[role="menu"]')?.focus();
+    // The first action, so that the focus is visible from the keyboard; the list if all are off.
+    (menuItems(el)[0] ?? el.querySelector<HTMLElement>('[role="menu"]'))?.focus();
   }
 
   /** Puts the menu at (x, y), flipped to the other side where it would leave the viewport. */

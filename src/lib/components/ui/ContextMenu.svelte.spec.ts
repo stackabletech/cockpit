@@ -45,7 +45,7 @@ describe('ContextMenu', () => {
     expect(menu().matches(':popover-open')).toBe(true);
     expect(menu().style.left).toBe('100px');
     expect(menu().style.top).toBe('80px');
-    expect(document.activeElement?.getAttribute('role')).toBe('menu');
+    await expect.element(page.getByRole('menuitem', { name: 'Edit' })).toHaveFocus();
   });
 
   it('stays open when a right-click opens it', async () => {
@@ -147,11 +147,11 @@ describe('ContextMenu', () => {
     expect(onaction).not.toHaveBeenCalled();
   });
 
-  it('starts the arrow keys at the first action, not at the close button', async () => {
+  it('starts at the first action, not at the close button', async () => {
     renderMenu({ title: 'Actions' });
-    await expect.element(page.getByRole('menu')).toHaveFocus();
+    await expect.element(page.getByRole('menuitem', { name: 'Edit' })).toHaveFocus();
     await userEvent.keyboard('{ArrowDown}');
-    await expect.element(page.getByRole('menuitem').first()).toHaveFocus();
+    await expect.element(page.getByRole('menuitem', { name: 'Delete' })).toHaveFocus();
     await expect
       .element(page.getByRole('button', { name: 'Close' }))
       .toHaveAttribute('tabindex', '-1');
