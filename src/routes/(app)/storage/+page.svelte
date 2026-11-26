@@ -7,8 +7,12 @@
   import { navigating } from '$app/state';
   import * as m from '$lib/paraglide/messages.js';
   import { getStorageState } from '$lib/storage/context.js';
-  import { type PersistedTabsState } from '$lib/storage/tabs.svelte.js';
-  import { LS_TABS } from '$lib/storage/persistence.js';
+  import {
+    LS_TABS,
+    PersistedTabsStateSchema,
+    type PersistedTabsState
+  } from '$lib/storage/persistence.js';
+  import { readStorageJson, removeStorage } from '$lib/client/local-storage';
   import IconTabOutline from 'virtual:icons/material-symbols/tab-outline';
   import IconClose from 'virtual:icons/material-symbols/close';
   import BucketGrid from '$lib/components/storage/landing/BucketGrid.svelte';
@@ -35,23 +39,11 @@
   let savedTabs = $state<PersistedTabsState | null>(null);
 
   $effect(() => {
-    if (!browser) return;
-
-    try {
-      const raw = localStorage.getItem(LS_TABS);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as PersistedTabsState;
-      if (!Array.isArray(parsed?.tabs) || parsed.tabs.length <= 1) return;
-      if (
-        parsed.connectionId &&
-        storage.connectionId &&
-        parsed.connectionId !== storage.connectionId
-      )
-        return;
-      savedTabs = parsed;
-    } catch {
-      // ignore malformed data
-    }
+    const parsed = readStorageJson(LS_TABS, PersistedTabsStateSchema);
+    if (!parsed || parsed.tabs.length <= 1) return;
+    if (parsed.connectionId && storage.connectionId && parsed.connectionId !== storage.connectionId)
+      return;
+    savedTabs = parsed;
   });
 
   // ── Track whether the user explicitly clicked "Restore tabs" ──
@@ -69,7 +61,7 @@
     // explicitly click "Restore tabs", clear persisted tabs so that
     // ensureInitialTab creates a fresh single tab.
     if (!restoreClicked) {
-      localStorage.removeItem(LS_TABS);
+      removeStorage(LS_TABS);
     }
   });
 

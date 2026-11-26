@@ -1,6 +1,12 @@
 import { browser } from '$app/environment';
 import { z } from 'zod';
 import * as m from '$lib/paraglide/messages.js';
+import {
+  readStorage,
+  readStorageJson,
+  removeStorage,
+  writeStorage
+} from '$lib/client/local-storage.js';
 
 const MAX_TABS = 8;
 const INDEX_KEY = 'trino_tabs_index';
@@ -51,23 +57,11 @@ function makeTab(sql: string = DEFAULT_SQL): TabState {
 // ---------------------------------------------------------------------------
 
 function readIndex(): IndexData | null {
-  try {
-    const raw = localStorage.getItem(INDEX_KEY);
-    if (!raw) return null;
-    const parsed = IndexDataSchema.safeParse(JSON.parse(raw));
-    if (parsed.success) return parsed.data;
-  } catch {
-    // Ignore corrupt data.
-  }
-  return null;
+  return readStorageJson(INDEX_KEY, IndexDataSchema);
 }
 
 function readTabSql(id: string): string {
-  try {
-    return localStorage.getItem(TAB_KEY_PREFIX + id) ?? DEFAULT_SQL;
-  } catch {
-    return DEFAULT_SQL;
-  }
+  return readStorage(TAB_KEY_PREFIX + id) ?? DEFAULT_SQL;
 }
 
 /** Load tabs from the persisted index and per-tab SQL entries. */
@@ -99,35 +93,20 @@ function createDefaultState(): { tabs: TabState[]; activeTabId: string } {
 
 function persistIndex(tabs: TabState[], activeTabId: string): boolean {
   if (!browser) return true;
-  try {
-    const data: IndexData = {
-      tabs: tabs.map((t) => ({ id: t.id, label: t.label, createdAt: t.createdAt })),
-      activeTabId
-    };
-    localStorage.setItem(INDEX_KEY, JSON.stringify(data));
-    return true;
-  } catch {
-    return false;
-  }
+  const data: IndexData = {
+    tabs: tabs.map((t) => ({ id: t.id, label: t.label, createdAt: t.createdAt })),
+    activeTabId
+  };
+  return writeStorage(INDEX_KEY, JSON.stringify(data));
 }
 
 function persistTabSql(id: string, sql: string): boolean {
   if (!browser) return true;
-  try {
-    localStorage.setItem(TAB_KEY_PREFIX + id, sql);
-    return true;
-  } catch {
-    return false;
-  }
+  return writeStorage(TAB_KEY_PREFIX + id, sql);
 }
 
 function removeTabSql(id: string) {
-  if (!browser) return;
-  try {
-    localStorage.removeItem(TAB_KEY_PREFIX + id);
-  } catch {
-    // Best effort.
-  }
+  removeStorage(TAB_KEY_PREFIX + id);
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { browser } from '$app/environment';
+  import { readStorage, writeStorage } from '$lib/client/local-storage';
   import * as m from '$lib/paraglide/messages.js';
   import { getLocale } from '$lib/paraglide/runtime.js';
   import IconExpandMore from 'virtual:icons/material-symbols/expand-more';
@@ -69,7 +69,7 @@
   }
 
   const CSV_HEADERS_KEY = 'trino_csv_include_headers';
-  let includeHeaders = $state(browser ? localStorage.getItem(CSV_HEADERS_KEY) === 'true' : false);
+  let includeHeaders = $state(readStorage(CSV_HEADERS_KEY) === 'true');
 
   function escapeCsvField(value: string): string {
     if (/[",\n\r]/.test(value)) {
@@ -109,9 +109,7 @@
 
   function handleIncludeHeadersChange(event: Event) {
     includeHeaders = (event.target as HTMLInputElement).checked;
-    if (browser) {
-      localStorage.setItem(CSV_HEADERS_KEY, String(includeHeaders));
-    }
+    writeStorage(CSV_HEADERS_KEY, String(includeHeaders));
   }
 </script>
 

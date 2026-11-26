@@ -131,6 +131,16 @@ PostgreSQL via Drizzle ORM; schema in `src/lib/server/schema.ts` (better-auth ta
 
 For **new features**, do not add data migrations or legacy-data compatibility paths unless persisted data or an external consumer already exists and requires it. Ask if unclear.
 
+### Browser Storage
+
+`localStorage` holds per-browser UI state and is treated as a disposable cache. Data that must survive a device switch or cleared site data belongs in PostgreSQL.
+
+- Access it only through `$lib/client/local-storage` (enforced by ESLint). Browsers that block site data throw on any access, and a throw during hydration takes down the whole app; the helpers fail silently instead.
+- Read JSON only through a zod schema (`readStorageJson`, `loadFromStorage`), never with `as`. Data that doesn't match is dropped and the caller falls back to its defaults.
+- Types that exist only for storage are derived from their schema (`z.infer`). Domain types that are also stored (e.g. `StorageOperation`) get a round-trip test with a `Required<T>` fixture, so a field the schema would strip fails the test.
+- Changing a stored shape: adding optional fields or removing fields needs nothing. For a new required field use `.default()`. Otherwise losing old entries is fine for UI state. Only data users would miss gets a lazy conversion: write to a new key with a version suffix (`…_v2`), read the old key if the new one is missing, convert, write the new one and remove the old one. Test it against an old-format fixture and remove it after two releases.
+- No global storage version and no migration step at startup.
+
 ### Feature Flags and Configuration
 
 Environment variables are parsed with zod at startup using the helpers in `src/lib/env-schema.ts`; invalid values stop the server. Feature toggles and other settings live in separate modules:
@@ -144,7 +154,7 @@ Document new variables in `README.md` and `.env.example`; don't read `env` ad ho
 
 `src/lib/components/` is split by what a component depends on. Each layer may only use the layers above it:
 
-1. **`ui/`** — generic building blocks (`Modal`, `TooltipTrigger`, `TabBar`, ...). Data comes in through props, results go out through callbacks or `bind:`. They may import Svelte, icons, Paraglide messages, `$lib/types` and other `ui/` components, nothing else (enforced by ESLint).
+1. **`ui/`** — generic building blocks (`Modal`, `TooltipTrigger`, `TabBar`, ...). Data comes in through props, results go out through callbacks or `bind:`. They may import Svelte, icons, Paraglide messages, `$lib/types`, the storage helpers in `$lib/client/local-storage` and other `ui/` components, nothing else (enforced by ESLint).
 2. **Top level and `layout/`** — app-wide components that know the app (stores, routes, session), e.g. `ErrorPanel`, `ToastHost`, the header and sidebar.
 3. **`<module>/`** — feature components. Pieces shared only within one module go into `<module>/shared/`; move them to `ui/` once a second module needs them and they have no module dependencies.
 

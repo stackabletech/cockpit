@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { readStorage, writeStorage } from '$lib/client/local-storage';
 
 interface Options {
   storageKey: string;
@@ -20,26 +20,14 @@ export function createResizablePanel({
   maxWidth = 480
 }: Options) {
   function getInitialWidth(): number {
-    if (!browser) return defaultWidth;
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = parseInt(stored, 10);
-        if (!isNaN(parsed) && parsed >= minWidth && parsed <= maxWidth) return parsed;
-      }
-    } catch {
-      /* ignore storage errors */
-    }
+    const parsed = parseInt(readStorage(storageKey) ?? '', 10);
+    if (!isNaN(parsed) && parsed >= minWidth && parsed <= maxWidth) return parsed;
     return defaultWidth;
   }
 
   function saveWidth(w: number) {
-    try {
-      localStorage.setItem(storageKey, String(w));
-      document.documentElement.style.setProperty('--storage-sidebar-width', w + 'px');
-    } catch {
-      /* ignore storage errors */
-    }
+    writeStorage(storageKey, String(w));
+    document.documentElement.style.setProperty('--storage-sidebar-width', w + 'px');
   }
 
   let width = $state(getInitialWidth());
@@ -82,7 +70,6 @@ export function createResizablePanel({
   // Keep the col-resize cursor active across the whole page while dragging so
   // it doesn't flicker when the pointer moves faster than the DOM updates.
   $effect(() => {
-    if (!browser) return;
     if (isDragging) {
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
