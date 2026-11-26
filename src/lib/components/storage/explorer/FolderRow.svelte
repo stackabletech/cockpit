@@ -122,7 +122,7 @@
       <button
         class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100"
         aria-label={m.storage_action_actions_for({ name: keyToName(folder.key) })}
-        onclick={(e) => storage.openContextMenu(e, folder.key)}
+        onclick={(e) => storage.openActionsMenu(e, folder.key)}
       >
         <IconMoreHoriz class="size-4" aria-hidden="true" />
       </button>

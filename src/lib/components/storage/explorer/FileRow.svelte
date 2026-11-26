@@ -69,7 +69,7 @@
       <button
         class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100"
         aria-label={m.storage_action_actions_for({ name: keyToName(file.key) })}
-        onclick={(e) => storage.openContextMenu(e, file.key)}
+        onclick={(e) => storage.openActionsMenu(e, file.key)}
       >
         <IconMoreHoriz class="size-4" aria-hidden="true" />
       </button>

@@ -468,7 +468,21 @@ export class StorageState {
   // Context menu
   // ────────────────────────────────────────────────────────────────────────────
 
+  /** Opens the menu of an item at the pointer, e.g. on a right-click on its row. */
   openContextMenu = (e: MouseEvent, key: string): void => {
+    this.openItemMenu(e, key, e.clientX, e.clientY);
+  };
+
+  /**
+   * Opens the menu of an item below its actions button, also when the button is pressed from the
+   * keyboard, which has no pointer position.
+   */
+  openActionsMenu = (e: MouseEvent & { currentTarget: Element }, key: string): void => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    this.openItemMenu(e, key, rect.right, rect.bottom);
+  };
+
+  private openItemMenu(e: MouseEvent, key: string, x: number, y: number): void {
     e.preventDefault();
     e.stopPropagation();
 
@@ -476,8 +490,8 @@ export class StorageState {
       this.selectedKeys = new SvelteSet<string>([key]);
     }
 
-    this.contextMenu = { x: e.clientX, y: e.clientY, key };
-  };
+    this.contextMenu = { x, y, key };
+  }
 
   /** Open the context menu for the empty space (no specific item). */
   openEmptyContextMenu = (e: MouseEvent): void => {

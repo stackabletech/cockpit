@@ -170,7 +170,7 @@ describe('FolderRow', () => {
   it('should open context menu when actions button is clicked', async () => {
     const folder = makeFolder('my-folder/');
     const state = createState([folder]);
-    const spy = vi.spyOn(state, 'openContextMenu');
+    const spy = vi.spyOn(state, 'openActionsMenu');
     render(FolderRowWrapper, { state, folder });
 
     await page.getByRole('button', { name: 'Actions for my-folder' }).click();
