@@ -99,6 +99,39 @@ test.describe('Storage S3 — Context Menu', () => {
     }
   });
 
+  test('a row actions button opens the menu next to it from the keyboard', async ({
+    page
+  }, testInfo) => {
+    const credentials = requireGarageCredentials();
+    const client = createS3Client(credentials);
+    const prefix = uniquePrefix(testInfo, 'ctx-keyboard');
+    const cleanupKeys = [`${prefix}keyboard.txt`];
+
+    try {
+      await putTextObject(client, credentials.bucket, cleanupKeys[0], 'x');
+
+      await connectAndOpenPrefix(page, credentials, prefix);
+
+      const button = page.getByRole('button', { name: 'Actions for keyboard.txt', exact: true });
+      await button.focus();
+      await button.press('Enter');
+
+      await expect(page.getByRole('menu')).toBeFocused();
+      // Right below the button, not in the top-left corner. It opens at the button's bottom-right
+      // corner, on whichever side of it fits into the viewport.
+      const buttonBox = (await button.boundingBox())!;
+      const panel = page.locator(':popover-open').filter({ has: page.getByRole('menu') });
+      const menuBox = (await panel.boundingBox())!;
+      const buttonRight = buttonBox.x + buttonBox.width;
+      expect(menuBox.y).toBeGreaterThanOrEqual(buttonBox.y + buttonBox.height - 1);
+      expect(menuBox.y - (buttonBox.y + buttonBox.height)).toBeLessThan(24);
+      expect(menuBox.x).toBeLessThanOrEqual(buttonRight + 1);
+      expect(menuBox.x + menuBox.width).toBeGreaterThanOrEqual(buttonRight - 1);
+    } finally {
+      await deleteKnownKeys(client, credentials.bucket, cleanupKeys);
+    }
+  });
+
   test('unpins a pinned location from its sidebar menu', async ({ page }, testInfo) => {
     const credentials = requireGarageCredentials();
     const client = createS3Client(credentials);

@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { faker } from '@faker-js/faker';
@@ -257,17 +257,6 @@ describe('FileRow', () => {
     expect(spy).toHaveBeenCalledWith('check.txt', true);
   });
 
-  it('should call openContextMenu on actions button click', async () => {
-    const file = makeFile({ key: 'actions.txt', contentType: 'text/plain' });
-    const state = createState([file]);
-    const spy = vi.spyOn(state, 'openContextMenu');
-    render(FileRowWrapper, { state, file });
-
-    const btn = page.getByRole('button', { name: 'Actions for actions.txt' });
-    await btn.click();
-    expect(spy).toHaveBeenCalled();
-  });
-
   it('should not highlight as selected when context menu is active', async () => {
     const file = makeFile({ key: 'both.txt', contentType: 'text/plain' });
     const state = createState([file], { selectedKeys: ['both.txt'] });
@@ -330,6 +319,33 @@ describe('FileRow', () => {
       const state = createState([file]);
       render(FileRowWrapper, { state, file });
       await expect.element(page.getByText('résumé.txt')).toBeInTheDocument();
+    });
+  });
+
+  describe('actions button', () => {
+    const actionsButton = () => page.getByRole('button', { name: 'Actions for menu.txt' });
+
+    it('opens the menu below the button when pressed from the keyboard', async () => {
+      const file = makeFile({ key: 'menu.txt', contentType: 'text/plain' });
+      const state = createState([file]);
+      render(FileRowWrapper, { state, file });
+
+      (actionsButton().element() as HTMLElement).focus();
+      await userEvent.keyboard('{Enter}');
+
+      const rect = actionsButton().element().getBoundingClientRect();
+      expect(state.contextMenu).toEqual({ x: rect.right, y: rect.bottom, key: 'menu.txt' });
+    });
+
+    it('opens the menu below the button when clicked, wherever the pointer is', async () => {
+      const file = makeFile({ key: 'menu.txt', contentType: 'text/plain' });
+      const state = createState([file]);
+      render(FileRowWrapper, { state, file });
+
+      await actionsButton().click({ position: { x: 2, y: 2 } });
+
+      const rect = actionsButton().element().getBoundingClientRect();
+      expect(state.contextMenu).toEqual({ x: rect.right, y: rect.bottom, key: 'menu.txt' });
     });
   });
 });
